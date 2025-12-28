@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-ensemble-js"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objective-ai.io>"]
 description = "JavaScript WebAssembly bindings for objectiveai-ensemble"
@@ -17,6 +17,6 @@ name = "@objectiveai/ensemble"
 crate-type = ["cdylib"]
 
 [dependencies]
-objectiveai-ensemble = { path = "../objectiveai-ensemble", version = "0.1.0" }
+objectiveai-ensemble = { path = "../objectiveai-ensemble", version = "0.1.1" }
 wasm-bindgen = { version = "0.2.105" }
 serde-wasm-bindgen = { version = "0.6.5" }
