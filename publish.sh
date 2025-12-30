@@ -97,7 +97,7 @@ log_error() {
 check_command() {
     if ! command -v "$1" &> /dev/null; then
         log_error "$1 is not installed. Please install it first."
-        if [ "$2" != "" ]; then
+        if [ -n "$2" ]; then
             echo "  Install with: $2"
         fi
         exit 1
@@ -194,14 +194,22 @@ if [ "$NPM_ONLY" = false ]; then
     if [ "$DRY_RUN" = true ]; then
         log_warn "[DRY-RUN] Would run: cargo publish -p objectiveai-ensemble"
     else
-        cargo publish -p objectiveai-ensemble
+        if ! cargo publish -p objectiveai-ensemble 2>&1 | tee /dev/tty | grep -q "already uploaded"; then
+            if [ ${PIPESTATUS[0]} -ne 0 ]; then
+                log_error "Failed to publish objectiveai-ensemble"
+                exit 1
+            fi
+        else
+            log_warn "objectiveai-ensemble v$VERSION already published, skipping"
+        fi
         log_info "objectiveai-ensemble published successfully"
     fi
 
-    # Wait for crates.io to index
-    log_info "Waiting 10 seconds for crates.io to index..."
+    # Wait for crates.io to index (configurable via CRATES_IO_WAIT_SECONDS)
+    WAIT_TIME=${CRATES_IO_WAIT_SECONDS:-30}
+    log_info "Waiting $WAIT_TIME seconds for crates.io to index..."
     if [ "$DRY_RUN" = false ]; then
-        sleep 10
+        sleep "$WAIT_TIME"
     fi
 
     # Publish objectiveai-ensemble-js
@@ -209,7 +217,14 @@ if [ "$NPM_ONLY" = false ]; then
     if [ "$DRY_RUN" = true ]; then
         log_warn "[DRY-RUN] Would run: cargo publish -p objectiveai-ensemble-js"
     else
-        cargo publish -p objectiveai-ensemble-js
+        if ! cargo publish -p objectiveai-ensemble-js 2>&1 | tee /dev/tty | grep -q "already uploaded"; then
+            if [ ${PIPESTATUS[0]} -ne 0 ]; then
+                log_error "Failed to publish objectiveai-ensemble-js"
+                exit 1
+            fi
+        else
+            log_warn "objectiveai-ensemble-js v$VERSION already published, skipping"
+        fi
         log_info "objectiveai-ensemble-js published successfully"
     fi
 
@@ -244,13 +259,33 @@ if [ "$DRY_RUN" = true ]; then
     log_warn "[DRY-RUN] Would modify: $PKG_JSON"
     log_warn "[DRY-RUN] Would add: description, repository, homepage, keywords, author"
 else
+    # Check if package.json exists
+    if [ ! -f "$PKG_JSON" ]; then
+        log_error "package.json not found at $PKG_JSON. wasm-pack build may have failed."
+        exit 1
+    fi
+
     # Use Node.js to safely modify the package.json
     node << 'EOF'
 const fs = require('fs');
 const path = require('path');
 
 const pkgPath = path.join('objectiveai-ensemble-js', 'pkg', 'package.json');
-const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+
+// Check if file exists
+if (!fs.existsSync(pkgPath)) {
+    console.error('Error: package.json not found at', pkgPath);
+    process.exit(1);
+}
+
+let pkg;
+try {
+    const content = fs.readFileSync(pkgPath, 'utf8');
+    pkg = JSON.parse(content);
+} catch (error) {
+    console.error('Error: Failed to parse package.json:', error.message);
+    process.exit(1);
+}
 
 // Ensure name is correct (wasm-pack should set this from Cargo.toml metadata)
 pkg.name = '@objectiveai/ensemble';
@@ -266,9 +301,18 @@ pkg.keywords = ['llm', 'ai', 'ensemble', 'wasm', 'javascript', 'webassembly'];
 pkg.author = 'ObjectiveAI <admin@objective-ai.io>';
 pkg.license = 'MIT';
 
-fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
-console.log('package.json updated successfully');
+try {
+    fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
+    console.log('package.json updated successfully');
+} catch (error) {
+    console.error('Error: Failed to write package.json:', error.message);
+    process.exit(1);
+}
 EOF
+    if [ $? -ne 0 ]; then
+        log_error "Failed to update package.json"
+        exit 1
+    fi
     log_info "package.json updated successfully"
 fi
 echo ""
@@ -278,6 +322,14 @@ log_info "Step 7: Copying LICENSE to pkg directory..."
 if [ "$DRY_RUN" = true ]; then
     log_warn "[DRY-RUN] Would copy: LICENSE -> $PKG_DIR/LICENSE"
 else
+    if [ ! -f "LICENSE" ]; then
+        log_error "LICENSE file not found in repository root"
+        exit 1
+    fi
+    if [ ! -d "$PKG_DIR" ]; then
+        log_error "Package directory $PKG_DIR not found"
+        exit 1
+    fi
     cp LICENSE "$PKG_DIR/LICENSE"
     log_info "LICENSE copied successfully"
 fi
@@ -288,7 +340,7 @@ log_info "Step 8: Publishing to npm..."
 if [ "$DRY_RUN" = true ]; then
     log_warn "[DRY-RUN] Would run: npm publish --access public (from $PKG_DIR)"
 else
-    cd "$PKG_DIR"
+    cd "$PKG_DIR" || { log_error "Failed to change to directory $PKG_DIR"; exit 1; }
     npm publish --access public
     cd ../..
     log_info "@objectiveai/ensemble published to npm successfully"
@@ -308,8 +360,14 @@ if [ "$SKIP_GIT_TAG" = false ]; then
         if git rev-parse "$TAG" >/dev/null 2>&1; then
             log_warn "Tag $TAG already exists, skipping tag creation"
         else
-            git tag "$TAG"
-            git push origin "$TAG"
+            if ! git tag "$TAG"; then
+                log_error "Failed to create git tag $TAG"
+                exit 1
+            fi
+            if ! git push origin "$TAG"; then
+                log_error "Failed to push git tag $TAG"
+                exit 1
+            fi
             log_info "Git tag $TAG created and pushed"
         fi
     fi

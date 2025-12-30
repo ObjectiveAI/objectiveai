@@ -201,18 +201,25 @@ if (-not $NpmOnly) {
         Log-Warn "[DRY-RUN] Would run: cargo publish -p objectiveai-ensemble"
     }
     else {
-        cargo publish -p objectiveai-ensemble
-        if ($LASTEXITCODE -ne 0) {
+        $output = cargo publish -p objectiveai-ensemble 2>&1 | Out-String
+        Write-Host $output
+        if ($output -match "already uploaded") {
+            Log-Warn "objectiveai-ensemble v$Version already published, skipping"
+        }
+        elseif ($LASTEXITCODE -ne 0) {
             Log-Error "Failed to publish objectiveai-ensemble"
             exit 1
         }
-        Log-Info "objectiveai-ensemble published successfully"
+        else {
+            Log-Info "objectiveai-ensemble published successfully"
+        }
     }
 
-    # Wait for crates.io to index
-    Log-Info "Waiting 10 seconds for crates.io to index..."
+    # Wait for crates.io to index (configurable via CRATES_IO_WAIT_SECONDS)
+    $WaitTime = if ($env:CRATES_IO_WAIT_SECONDS) { [int]$env:CRATES_IO_WAIT_SECONDS } else { 30 }
+    Log-Info "Waiting $WaitTime seconds for crates.io to index..."
     if (-not $DryRun) {
-        Start-Sleep -Seconds 10
+        Start-Sleep -Seconds $WaitTime
     }
 
     # Publish objectiveai-ensemble-js
@@ -221,12 +228,18 @@ if (-not $NpmOnly) {
         Log-Warn "[DRY-RUN] Would run: cargo publish -p objectiveai-ensemble-js"
     }
     else {
-        cargo publish -p objectiveai-ensemble-js
-        if ($LASTEXITCODE -ne 0) {
+        $output = cargo publish -p objectiveai-ensemble-js 2>&1 | Out-String
+        Write-Host $output
+        if ($output -match "already uploaded") {
+            Log-Warn "objectiveai-ensemble-js v$Version already published, skipping"
+        }
+        elseif ($LASTEXITCODE -ne 0) {
             Log-Error "Failed to publish objectiveai-ensemble-js"
             exit 1
         }
-        Log-Info "objectiveai-ensemble-js published successfully"
+        else {
+            Log-Info "objectiveai-ensemble-js published successfully"
+        }
     }
 
     Log-Info "All crates published to crates.io"
@@ -266,13 +279,33 @@ if ($DryRun) {
     Log-Warn "[DRY-RUN] Would add: description, repository, homepage, keywords, author"
 }
 else {
+    # Check if package.json exists
+    if (-not (Test-Path $PkgJson)) {
+        Log-Error "package.json not found at $PkgJson. wasm-pack build may have failed."
+        exit 1
+    }
+
     # Use Node.js to safely modify the package.json
     $nodeScript = @'
 const fs = require('fs');
 const path = require('path');
 
 const pkgPath = path.join('objectiveai-ensemble-js', 'pkg', 'package.json');
-const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+
+// Check if file exists
+if (!fs.existsSync(pkgPath)) {
+    console.error('Error: package.json not found at', pkgPath);
+    process.exit(1);
+}
+
+let pkg;
+try {
+    const content = fs.readFileSync(pkgPath, 'utf8');
+    pkg = JSON.parse(content);
+} catch (error) {
+    console.error('Error: Failed to parse package.json:', error.message);
+    process.exit(1);
+}
 
 // Ensure name is correct (wasm-pack should set this from Cargo.toml metadata)
 pkg.name = '@objectiveai/ensemble';
@@ -288,8 +321,13 @@ pkg.keywords = ['llm', 'ai', 'ensemble', 'wasm', 'javascript', 'webassembly'];
 pkg.author = 'ObjectiveAI <admin@objective-ai.io>';
 pkg.license = 'MIT';
 
-fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
-console.log('package.json updated successfully');
+try {
+    fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
+    console.log('package.json updated successfully');
+} catch (error) {
+    console.error('Error: Failed to write package.json:', error.message);
+    process.exit(1);
+}
 '@
 
     $nodeScript | node
@@ -307,6 +345,14 @@ if ($DryRun) {
     Log-Warn "[DRY-RUN] Would copy: LICENSE -> $PkgDir\LICENSE"
 }
 else {
+    if (-not (Test-Path "LICENSE")) {
+        Log-Error "LICENSE file not found in repository root"
+        exit 1
+    }
+    if (-not (Test-Path $PkgDir)) {
+        Log-Error "Package directory $PkgDir not found"
+        exit 1
+    }
     Copy-Item "LICENSE" "$PkgDir\LICENSE"
     Log-Info "LICENSE copied successfully"
 }
@@ -349,9 +395,13 @@ if (-not $SkipGitTag) {
         }
         else {
             git tag $Tag
+            if ($LASTEXITCODE -ne 0) {
+                Log-Error "Failed to create git tag $Tag"
+                exit 1
+            }
             git push origin $Tag
             if ($LASTEXITCODE -ne 0) {
-                Log-Error "Failed to push git tag"
+                Log-Error "Failed to push git tag $Tag"
                 exit 1
             }
             Log-Info "Git tag $Tag created and pushed"
