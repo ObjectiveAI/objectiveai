@@ -294,7 +294,7 @@ pkg.name = '@objectiveai/ensemble';
 pkg.description = 'JavaScript WebAssembly bindings for objectiveai-ensemble';
 pkg.repository = {
     type: 'git',
-    url: 'https://github.com/ObjectiveAI/objectiveai-ensemble'
+    url: 'https://github.com/ObjectiveAI/objectiveai'
 };
 pkg.homepage = 'https://objective-ai.io';
 pkg.keywords = ['llm', 'ai', 'ensemble', 'wasm', 'javascript', 'webassembly'];
