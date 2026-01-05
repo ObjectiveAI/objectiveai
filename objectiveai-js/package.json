@@ -1,0 +1,61 @@
+{
+  "name": "objectiveai",
+  "version": "1.2.0",
+  "description": "SDK for the ObjectiveAI API.",
+  "main": "dist/index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ObjectiveAI/objectiveai.git"
+  },
+  "scripts": {
+    "build": "rimraf dist && npm run build:cjs && npm run build:esm",
+    "build:cjs": "tsc --project tsconfig.cjs.json && shx mv dist/index.js dist/index.cjs",
+    "build:esm": "tsc --project tsconfig.esm.json",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node dist/index.js",
+    "prepare": "npm run build"
+  },
+  "author": {
+    "name": "ObjectiveAI",
+    "email": "admin@objective-ai.io",
+    "url": "https://objective-ai.io"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "openai": "^6.15.0",
+    "rimraf": "^6.1.2",
+    "shx": "^0.4.0",
+    "typescript": "^5.9.3"
+  },
+  "keywords": [
+    "llm",
+    "ai",
+    "api",
+    "client",
+    "sdk",
+    "prompt",
+    "prompt engineering",
+    "machine learning",
+    "ml",
+    "objectiveai",
+    "objective ai",
+    "objective",
+    "confidence",
+    "confidence score",
+    "rank",
+    "score"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ]
+}
