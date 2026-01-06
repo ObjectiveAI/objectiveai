@@ -3229,11 +3229,15 @@ export namespace Function {
     export const ScalarFunctionSchema = z
       .object({
         type: z.literal("scalar.function"),
-        author: z.string().describe("The author of the scalar function."),
+        author: z
+          .string()
+          .describe("The author of the remote scalar function."),
         id: z
           .string()
-          .describe("The unique identifier of the scalar function."),
-        version: z.uint32().describe("The version of the scalar function."),
+          .describe("The unique identifier of the remote scalar function."),
+        version: z
+          .uint32()
+          .describe("The version of the remote scalar function."),
         skip: SkipSchema.optional().nullable(),
         map: MapSchema.optional().nullable(),
         input: z
@@ -3245,7 +3249,7 @@ export namespace Function {
           ])
           .describe(InputExpressionSchema.description!),
       })
-      .describe("A scalar function task.");
+      .describe("A remote scalar function task.");
     export type ScalarFunction = z.infer<typeof ScalarFunctionSchema>;
     // export interface ScalarFunction {
     //   type: "scalar.function";
@@ -3260,11 +3264,15 @@ export namespace Function {
     export const VectorFunctionSchema = z
       .object({
         type: z.literal("vector.function"),
-        author: z.string().describe("The author of the vector function."),
+        author: z
+          .string()
+          .describe("The author of the remote vector function."),
         id: z
           .string()
-          .describe("The unique identifier of the vector function."),
-        version: z.uint32().describe("The version of the vector function."),
+          .describe("The unique identifier of the remote vector function."),
+        version: z
+          .uint32()
+          .describe("The version of the remote vector function."),
         skip: SkipSchema.optional().nullable(),
         map: MapSchema.optional().nullable(),
         input: z
@@ -3276,7 +3284,7 @@ export namespace Function {
           ])
           .describe(InputExpressionSchema.description!),
       })
-      .describe("A vector function task.");
+      .describe("A remote vector function task.");
     export type VectorFunction = z.infer<typeof VectorFunctionSchema>;
     // export interface VectorFunction {
     //   type: "vector.function";
