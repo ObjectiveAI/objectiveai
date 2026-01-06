@@ -2,10 +2,24 @@ import OpenAI from "openai";
 import { Stream } from "openai/streaming";
 import z from "zod";
 
+// Errors
+
+export const ObjectiveAIErrorSchema = z
+  .object({
+    code: z.int().describe("The status code of the error."),
+    message: z.any().describe("The message or details of the error."),
+  })
+  .describe("An error returned by the ObjectiveAI API.");
+export type ObjectiveAIError = z.infer<typeof ObjectiveAIErrorSchema>;
+// export interface ObjectiveAIError {
+//   code: number;
+//   message: JsonValue;
+// }
+
 // Message
 
 export const MessageSchema = z
-  .union([
+  .discriminatedUnion("role", [
     Message.DeveloperSchema,
     Message.SystemSchema,
     Message.UserSchema,
@@ -22,10 +36,12 @@ export type Message = z.infer<typeof MessageSchema>;
 //   | Message.Assistant;
 
 export namespace Message {
-  export const SimpleContentPartSchema = z.object({
-    type: z.literal("text"),
-    text: z.string().describe("The text content."),
-  });
+  export const SimpleContentPartSchema = z
+    .object({
+      type: z.literal("text"),
+      text: z.string().describe("The text content."),
+    })
+    .describe("A simple text content part.");
   export type SimpleContentPart = z.infer<typeof SimpleContentPartSchema>;
   // export interface SimpleContentPart {
   //   type: "text";
@@ -35,19 +51,23 @@ export namespace Message {
   export const SimpleContentSchema = z
     .union([
       z.string().describe("String content."),
-      z.array(SimpleContentPartSchema).describe("An array of content parts."),
+      z
+        .array(SimpleContentPartSchema)
+        .describe("An array of simple content parts."),
     ])
     .describe("Simple content which is plain text.");
   export type SimpleContent = z.infer<typeof SimpleContentSchema>;
   // export type SimpleContent = string | SimpleContentPart[];
 
-  export const RichContentPartSchema = z.union([
-    RichContentPart.TextSchema,
-    RichContentPart.ImageUrlSchema,
-    RichContentPart.InputAudioSchema,
-    RichContentPart.InputVideoSchema,
-    RichContentPart.FileSchema,
-  ]);
+  export const RichContentPartSchema = z
+    .discriminatedUnion("type", [
+      RichContentPart.TextSchema,
+      RichContentPart.ImageUrlSchema,
+      RichContentPart.InputAudioSchema,
+      RichContentPart.InputVideoSchema,
+      RichContentPart.FileSchema,
+    ])
+    .describe("A part of rich content which can include various media types.");
   export type RichContentPart = z.infer<typeof RichContentPartSchema>;
   // export type RichContentPart =
   //   | RichContentPart.Text
@@ -59,7 +79,9 @@ export namespace Message {
   export const RichContentSchema = z
     .union([
       z.string().describe("String content."),
-      z.array(RichContentPartSchema).describe("An array of content parts."),
+      z
+        .array(RichContentPartSchema)
+        .describe("An array of rich content parts."),
     ])
     .describe("Rich content which can include various media types.");
   export type RichContent = z.infer<typeof RichContentSchema>;
@@ -284,7 +306,11 @@ export namespace Message {
         .optional()
         .nullable()
         .describe("The refusal message by the assistant."),
-      tool_calls: z.array(Assistant.ToolCallSchema).optional().nullable(),
+      tool_calls: z
+        .array(Assistant.ToolCallSchema)
+        .optional()
+        .nullable()
+        .describe("Tool calls made by the assistant."),
       reasoning: z
         .string()
         .optional()
@@ -303,16 +329,20 @@ export namespace Message {
   // }
 
   export namespace Assistant {
-    export const ToolCallSchema = z.union([ToolCall.FunctionSchema]);
+    export const ToolCallSchema = z
+      .union([ToolCall.FunctionSchema])
+      .describe("A tool call made by the assistant.");
     export type ToolCall = z.infer<typeof ToolCallSchema>;
     // export type ToolCall = ToolCall.Function;
 
     export namespace ToolCall {
-      export const FunctionSchema = z.object({
-        type: z.literal("function"),
-        id: z.string().describe("The unique identifier for the tool call."),
-        function: Function.DefinitionSchema,
-      });
+      export const FunctionSchema = z
+        .object({
+          type: z.literal("function"),
+          id: z.string().describe("The unique identifier for the tool call."),
+          function: Function.DefinitionSchema,
+        })
+        .describe("A function tool call made by the assistant.");
       export type Function = z.infer<typeof FunctionSchema>;
       // export interface Function {
       //   type: "function";
@@ -321,12 +351,14 @@ export namespace Message {
       // }
 
       export namespace Function {
-        export const DefinitionSchema = z.object({
-          name: z.string().describe("The name of the function called."),
-          arguments: z
-            .string()
-            .describe("The arguments passed to the function."),
-        });
+        export const DefinitionSchema = z
+          .object({
+            name: z.string().describe("The name of the function called."),
+            arguments: z
+              .string()
+              .describe("The arguments passed to the function."),
+          })
+          .describe("The name and arguments of the function called.");
         export type Definition = z.infer<typeof DefinitionSchema>;
       }
     }
@@ -1405,13 +1437,13 @@ export namespace Chat {
       export const UsageSchema = z
         .object({
           completion_tokens: z
-            .number()
+            .uint32()
             .describe("The number of tokens generated in the completion."),
           prompt_tokens: z
-            .number()
+            .uint32()
             .describe("The number of tokens in the prompt."),
           total_tokens: z
-            .number()
+            .uint32()
             .describe(
               "The total number of tokens used in the prompt or generated in the completion."
             ),
@@ -1457,25 +1489,25 @@ export namespace Chat {
         export const CompletionTokensDetailsSchema = z
           .object({
             accepted_prediction_tokens: z
-              .number()
+              .uint32()
               .optional()
               .describe(
                 "The number of accepted prediction tokens in the completion."
               ),
             audio_tokens: z
-              .number()
+              .uint32()
               .optional()
               .describe(
                 "The number of generated audio tokens in the completion."
               ),
             reasoning_tokens: z
-              .number()
+              .uint32()
               .optional()
               .describe(
                 "The number of generated reasoning tokens in the completion."
               ),
             rejected_prediction_tokens: z
-              .number()
+              .uint32()
               .optional()
               .describe(
                 "The number of rejected prediction tokens in the completion."
@@ -1496,19 +1528,19 @@ export namespace Chat {
         export const PromptTokensDetailsSchema = z
           .object({
             audio_tokens: z
-              .number()
+              .uint32()
               .optional()
               .describe("The number of audio tokens in the prompt."),
             cached_tokens: z
-              .number()
+              .uint32()
               .optional()
               .describe("The number of cached tokens in the prompt."),
             cache_write_tokens: z
-              .number()
+              .uint32()
               .optional()
               .describe("The number of prompt tokens written to cache."),
             video_tokens: z
-              .number()
+              .uint32()
               .optional()
               .describe("The number of video tokens in the prompt."),
           })
@@ -1589,7 +1621,7 @@ export namespace Chat {
               .string()
               .describe("The token string which was selected by the sampler."),
             bytes: z
-              .array(z.number())
+              .array(z.uint32())
               .optional()
               .nullable()
               .describe(
@@ -1635,7 +1667,7 @@ export namespace Chat {
             .object({
               token: z.string().describe("The token string."),
               bytes: z
-                .array(z.number())
+                .array(z.uint32())
                 .optional()
                 .nullable()
                 .describe("The byte representation of the token."),
@@ -2011,7 +2043,7 @@ export namespace Chat {
               .array(ChoiceSchema)
               .describe("The list of choices in this chunk."),
             created: z
-              .number()
+              .uint32()
               .describe(
                 "The Unix timestamp (in seconds) when the chat completion was created."
               ),
@@ -2222,7 +2254,7 @@ export namespace Chat {
               .array(ChoiceSchema)
               .describe("The list of choices in this chat completion."),
             created: z
-              .number()
+              .uint32()
               .describe(
                 "The Unix timestamp (in seconds) when the chat completion was created."
               ),
@@ -2407,69 +2439,152 @@ export namespace Vector {
     }
 
     export namespace Response {
-      export namespace Streaming {
-        export interface VectorCompletionChunk {
-          id: string;
-          completions: ChatCompletionChunk[];
-          votes: Vote[];
-          scores: number[];
-          weights: number[];
-          created: number;
-          ensemble: string;
-          object: "vector.completion.chunk";
-          usage?: Usage;
-        }
+      export const VoteSchema = z
+        .object({
+          model: z
+            .string()
+            .describe(
+              "The unique identifier of the Ensemble LLM which generated this vote."
+            ),
+          ensemble_index: z
+            .int()
+            .describe("The index of the Ensemble LLM in the Ensemble."),
+          flat_ensemble_index: z
+            .int()
+            .describe(
+              "The flat index of the Ensemble LLM in the expanded Ensemble, accounting for counts."
+            ),
+          vote: z
+            .array(z.number())
+            .describe(
+              "The vote generated by this Ensemble LLM. It is of the same length of the number of responses provided in the request. If the Ensemble LLM used logprobs, may be a probability distribution; otherwise, one of the responses will have a value of 1 and the rest 0."
+            ),
+          weight: z.number().describe("The weight assigned to this vote."),
+          retry: z
+            .boolean()
+            .optional()
+            .describe(
+              "Whether this vote came from a previous Vector Completion which was retried."
+            ),
+        })
+        .describe("A vote from an Ensemble LLM within a Vector Completion.");
+      export type Vote = z.infer<typeof VoteSchema>;
+      // export interface Vote {
+      //   model: string;
+      //   ensemble_index: number;
+      //   flat_ensemble_index: number;
+      //   vote: number[];
+      //   weight: number;
+      //   retry?: boolean;
+      // }
 
-        export namespace VectorCompletionChunk {
-          export function merged(
-            a: VectorCompletionChunk,
-            b: VectorCompletionChunk
-          ): [VectorCompletionChunk, boolean] {
-            const id = a.id;
-            const [completions, completionsChanged] =
-              ChatCompletionChunk.mergedList(a.completions, b.completions);
-            const [votes, votesChanged] = Vote.mergedList(a.votes, b.votes);
-            const [scores, scoresChanged] = Scores.merged(a.scores, b.scores);
-            const [weights, weightsChanged] = Weights.merged(
-              a.weights,
-              b.weights
+      export namespace Vote {
+        export function mergedList(a: Vote[], b: Vote[]): [Vote[], boolean] {
+          let merged: Vote[] | undefined = undefined;
+          for (const vote of b) {
+            const existingIndex = a.findIndex(
+              ({ flat_ensemble_index }) =>
+                flat_ensemble_index === vote.flat_ensemble_index
             );
-            const created = a.created;
-            const ensemble = a.ensemble;
-            const object = a.object;
-            const [usage, usageChanged] = merge(a.usage, b.usage);
-            if (
-              completionsChanged ||
-              votesChanged ||
-              scoresChanged ||
-              weightsChanged ||
-              usageChanged
-            ) {
-              return [
-                {
-                  id,
-                  completions,
-                  votes,
-                  scores,
-                  weights,
-                  created,
-                  ensemble,
-                  object,
-                  ...(usage !== undefined ? { usage } : {}),
-                },
-                true,
-              ];
-            } else {
-              return [a, false];
+            if (existingIndex === -1) {
+              if (merged === undefined) {
+                merged = [...a, vote];
+              } else {
+                merged.push(vote);
+              }
             }
           }
+          return merged ? [merged, true] : [a, false];
         }
+      }
 
-        export interface ChatCompletionChunk
-          extends Chat.Completions.Response.Streaming.ChatCompletionChunk {
-          index: number;
-          error?: ObjectiveAIError;
-        }
+      export const UsageSchema = z
+        .object({
+          completion_tokens: z
+            .uint32()
+            .describe("The number of tokens generated in the completion."),
+          prompt_tokens: z
+            .uint32()
+            .describe("The number of tokens in the prompt."),
+          total_tokens: z
+            .uint32()
+            .describe(
+              "The total number of tokens used in the prompt or generated in the completion."
+            ),
+          completion_tokens_details:
+            Chat.Completions.Response.Usage.CompletionTokensDetailsSchema.optional(),
+          prompt_tokens_details:
+            Chat.Completions.Response.Usage.PromptTokensDetailsSchema.optional(),
+          cost: z
+            .number()
+            .describe("The cost in credits incurred for this completion."),
+          cost_details:
+            Chat.Completions.Response.Usage.CostDetailsSchema.optional(),
+          total_cost: z
+            .number()
+            .describe(
+              "The total cost in credits incurred including upstream costs."
+            ),
+        })
+        .describe("Token and cost usage statistics for the completion.");
+      export type Usage = z.infer<typeof UsageSchema>;
+      // export interface Usage {
+      //   completion_tokens: number;
+      //   prompt_tokens: number;
+      //   total_tokens: number;
+      //   completion_tokens_details?: Chat.Completions.Response.Usage.CompletionTokensDetails;
+      //   prompt_tokens_details?: Chat.Completions.Response.Usage.PromptTokensDetails;
+      //   cost: number;
+      //   cost_details?: Chat.Completions.Response.Usage.CostDetails;
+      //   total_cost: number;
+      // }
+
+      export const VotesSchema = z
+        .array(VoteSchema)
+        .describe(
+          "The list of votes for responses in the request from the Ensemble LLMs within the provided Ensemble."
+        );
+
+      export const ScoresSchema = z
+        .array(z.number())
+        .describe(
+          "The scores for each response in the request, aggregated from the votes of the Ensemble LLMs."
+        );
+
+      export const WeightsSchema = z
+        .array(z.number())
+        .describe(
+          "The weights assigned to each response in the request, aggregated from the votes of the Ensemble LLMs."
+        );
+
+      export const EnsembleSchema = z
+        .string()
+        .describe(
+          "The unique identifier of the Ensemble used for this vector completion."
+        );
+
+      export namespace Streaming {
+        export const ChatCompletionChunkSchema =
+          Chat.Completions.Response.Streaming.ChatCompletionChunkSchema.extend({
+            index: z
+              .int()
+              .describe(
+                "The index of the completion amongst all chat completions."
+              ),
+            error: ObjectiveAIErrorSchema.optional().describe(
+              "An error encountered during the generation of this chat completion."
+            ),
+          }).describe(
+            "A chat completion chunk generated in the pursuit of a vector completion."
+          );
+        export type ChatCompletionChunk = z.infer<
+          typeof ChatCompletionChunkSchema
+        >;
+        // export interface ChatCompletionChunk
+        //   extends Chat.Completions.Response.Streaming.ChatCompletionChunk {
+        //   index: number;
+        //   error?: ObjectiveAIError;
+        // }
 
         export namespace ChatCompletionChunk {
           export function merged(
@@ -2529,6 +2644,89 @@ export namespace Vector {
           }
         }
 
+        export const VectorCompletionChunkSchema = z
+          .object({
+            id: z
+              .string()
+              .describe("The unique identifier of the vector completion."),
+            completions: z
+              .array(ChatCompletionChunkSchema)
+              .describe(
+                "The list of chat completion chunks created for this vector completion."
+              ),
+            votes: VotesSchema,
+            scores: ScoresSchema,
+            weights: WeightsSchema,
+            created: z
+              .uint32()
+              .describe(
+                "The Unix timestamp (in seconds) when the vector completion was created."
+              ),
+            ensemble: EnsembleSchema,
+            object: z.literal("vector.completion.chunk"),
+            usage: UsageSchema.optional(),
+          })
+          .describe("A chunk in a streaming vector completion response.");
+        export type VectorCompletionChunk = z.infer<
+          typeof VectorCompletionChunkSchema
+        >;
+        // export interface VectorCompletionChunk {
+        //   id: string;
+        //   completions: ChatCompletionChunk[];
+        //   votes: Vote[];
+        //   scores: number[];
+        //   weights: number[];
+        //   created: number;
+        //   ensemble: string;
+        //   object: "vector.completion.chunk";
+        //   usage?: Usage;
+        // }
+
+        export namespace VectorCompletionChunk {
+          export function merged(
+            a: VectorCompletionChunk,
+            b: VectorCompletionChunk
+          ): [VectorCompletionChunk, boolean] {
+            const id = a.id;
+            const [completions, completionsChanged] =
+              ChatCompletionChunk.mergedList(a.completions, b.completions);
+            const [votes, votesChanged] = Vote.mergedList(a.votes, b.votes);
+            const [scores, scoresChanged] = Scores.merged(a.scores, b.scores);
+            const [weights, weightsChanged] = Weights.merged(
+              a.weights,
+              b.weights
+            );
+            const created = a.created;
+            const ensemble = a.ensemble;
+            const object = a.object;
+            const [usage, usageChanged] = merge(a.usage, b.usage);
+            if (
+              completionsChanged ||
+              votesChanged ||
+              scoresChanged ||
+              weightsChanged ||
+              usageChanged
+            ) {
+              return [
+                {
+                  id,
+                  completions,
+                  votes,
+                  scores,
+                  weights,
+                  created,
+                  ensemble,
+                  object,
+                  ...(usage !== undefined ? { usage } : {}),
+                },
+                true,
+              ];
+            } else {
+              return [a, false];
+            }
+          }
+        }
+
         export namespace Scores {
           export function merged(
             a: number[],
@@ -2558,92 +2756,90 @@ export namespace Vector {
       }
 
       export namespace Unary {
-        export interface VectorCompletion {
-          id: string;
-          completions: ChatCompletion[];
-          votes: Vote[];
-          scores: number[];
-          weights: number[];
-          created: number;
-          ensemble: string;
-          object: "vector.completion";
-          usage: Usage;
-        }
+        export const ChatCompletionSchema =
+          Chat.Completions.Response.Unary.ChatCompletionSchema.extend({
+            index: z
+              .int()
+              .describe(
+                "The index of the completion amongst all chat completions."
+              ),
+            error: ObjectiveAIErrorSchema.optional().describe(
+              "An error encountered during the generation of this chat completion."
+            ),
+          }).describe(
+            "A chat completion generated in the pursuit of a vector completion."
+          );
+        export type ChatCompletion = z.infer<typeof ChatCompletionSchema>;
+        // export interface ChatCompletion
+        //   extends Chat.Completions.Response.Unary.ChatCompletion {
+        //   index: number;
+        //   error?: ObjectiveAIError;
+        // }
 
-        export interface ChatCompletion
-          extends Chat.Completions.Response.Unary.ChatCompletion {
-          index: number;
-          error?: ObjectiveAIError;
-        }
+        export const VectorCompletionSchema = z
+          .object({
+            id: z
+              .string()
+              .describe("The unique identifier of the vector completion."),
+            completions: z
+              .array(ChatCompletionSchema)
+              .describe(
+                "The list of chat completions created for this vector completion."
+              ),
+            votes: VotesSchema,
+            scores: ScoresSchema,
+            weights: WeightsSchema,
+            created: z
+              .uint32()
+              .describe(
+                "The Unix timestamp (in seconds) when the vector completion was created."
+              ),
+            ensemble: EnsembleSchema,
+            object: z.literal("vector.completion"),
+            usage: UsageSchema,
+          })
+          .describe("A unary vector completion response.");
+        export type VectorCompletion = z.infer<typeof VectorCompletionSchema>;
+        // export interface VectorCompletion {
+        //   id: string;
+        //   completions: ChatCompletion[];
+        //   votes: Vote[];
+        //   scores: number[];
+        //   weights: number[];
+        //   created: number;
+        //   ensemble: string;
+        //   object: "vector.completion";
+        //   usage: Usage;
+        // }
       }
+    }
 
-      export interface Vote {
-        model: string;
-        ensemble_index: number;
-        flat_ensemble_index: number;
-        vote: number[];
-        weight: number;
-        retry?: boolean;
-      }
-
-      export namespace Vote {
-        export function mergedList(a: Vote[], b: Vote[]): [Vote[], boolean] {
-          let merged: Vote[] | undefined = undefined;
-          for (const vote of b) {
-            const existingIndex = a.findIndex(
-              ({ flat_ensemble_index }) =>
-                flat_ensemble_index === vote.flat_ensemble_index
-            );
-            if (existingIndex === -1) {
-              if (merged === undefined) {
-                merged = [...a, vote];
-              } else {
-                merged.push(vote);
-              }
-            }
-          }
-          return merged ? [merged, true] : [a, false];
-        }
-      }
-
-      export interface Usage {
-        completion_tokens: number;
-        prompt_tokens: number;
-        total_tokens: number;
-        completion_tokens_details?: Chat.Completions.Response.Usage.CompletionTokensDetails;
-        prompt_tokens_details?: Chat.Completions.Response.Usage.PromptTokensDetails;
-        cost: number;
-        cost_details?: Chat.Completions.Response.Usage.CostDetails;
-        total_cost: number;
-      }
-
-      export async function create(
-        openai: OpenAI,
-        body: Request.VectorCompletionCreateParamsStreaming,
-        options?: OpenAI.RequestOptions
-      ): Promise<Stream<Response.Streaming.VectorCompletionChunk>>;
-      export async function create(
-        openai: OpenAI,
-        body: Request.VectorCompletionCreateParamsNonStreaming,
-        options?: OpenAI.RequestOptions
-      ): Promise<Response.Unary.VectorCompletion>;
-      export async function create(
-        openai: OpenAI,
-        body: Request.VectorCompletionCreateParams,
-        options?: OpenAI.RequestOptions
-      ): Promise<
+    export async function create(
+      openai: OpenAI,
+      body: Request.VectorCompletionCreateParamsStreaming,
+      options?: OpenAI.RequestOptions
+    ): Promise<Stream<Response.Streaming.VectorCompletionChunk>>;
+    export async function create(
+      openai: OpenAI,
+      body: Request.VectorCompletionCreateParamsNonStreaming,
+      options?: OpenAI.RequestOptions
+    ): Promise<Response.Unary.VectorCompletion>;
+    export async function create(
+      openai: OpenAI,
+      body: Request.VectorCompletionCreateParams,
+      options?: OpenAI.RequestOptions
+    ): Promise<
+      | Stream<Response.Streaming.VectorCompletionChunk>
+      | Response.Unary.VectorCompletion
+    > {
+      const response = await openai.post("/vector/completions", {
+        body,
+        stream: body.stream ?? false,
+        ...options,
+      });
+      return response as
         | Stream<Response.Streaming.VectorCompletionChunk>
-        | Response.Unary.VectorCompletion
-      > {
-        const response = await openai.post("/vector/completions", {
-          body,
-          stream: body.stream ?? false,
-          ...options,
-        });
-        return response as
-          | Stream<Response.Streaming.VectorCompletionChunk>
-          | Response.Unary.VectorCompletion;
-      }
+        | Response.Unary.VectorCompletion;
     }
   }
 }
@@ -2713,9 +2909,15 @@ export namespace Function {
     profile: number[];
   }
 
-  export interface Expression {
-    $jmespath: string;
-  }
+  export const ExpressionSchema = z
+    .object({
+      $jmespath: z.string().describe("A JMESPath expression."),
+    })
+    .describe("An expression which compiles into a value.");
+  export type Expression = z.infer<typeof ExpressionSchema>;
+  // export interface Expression {
+  //   $jmespath: string;
+  // }
 
   export type InputSchema =
     | InputSchema.Object
@@ -2728,6 +2930,22 @@ export namespace Function {
     | InputSchema.Audio
     | InputSchema.Video
     | InputSchema.File;
+  export const InputSchemaSchema: z.ZodType<InputSchema> = z.lazy(() =>
+    z
+      .union([
+        InputSchema.ObjectSchema,
+        InputSchema.ArraySchema,
+        InputSchema.StringSchema,
+        InputSchema.NumberSchema,
+        InputSchema.IntegerSchema,
+        InputSchema.BooleanSchema,
+        InputSchema.ImageSchema,
+        InputSchema.AudioSchema,
+        InputSchema.VideoSchema,
+        InputSchema.FileSchema,
+      ])
+      .describe("An input schema defining the structure of function inputs.")
+  );
 
   export namespace InputSchema {
     export interface Object {
@@ -2736,6 +2954,24 @@ export namespace Function {
       properties: Record<string, InputSchema>;
       required?: string[] | null;
     }
+    export const ObjectSchema: z.ZodType<Object> = z
+      .object({
+        type: z.literal("object"),
+        description: z
+          .string()
+          .optional()
+          .nullable()
+          .describe("The description of the object input."),
+        properties: z
+          .record(z.string(), InputSchemaSchema)
+          .describe("The properties of the object input."),
+        required: z
+          .array(z.string())
+          .optional()
+          .nullable()
+          .describe("The required properties of the object input."),
+      })
+      .describe("An object input schema.");
 
     export interface Array {
       type: "array";
@@ -2744,12 +2980,50 @@ export namespace Function {
       maxItems?: number | null;
       items: InputSchema;
     }
+    export const ArraySchema: z.ZodType<Array> = z
+      .object({
+        type: z.literal("array"),
+        description: z
+          .string()
+          .optional()
+          .nullable()
+          .describe("The description of the array input."),
+        minItems: z
+          .uint32()
+          .optional()
+          .nullable()
+          .describe("The minimum number of items in the array input."),
+        maxItems: z
+          .uint32()
+          .optional()
+          .nullable()
+          .describe("The maximum number of items in the array input."),
+        items: InputSchemaSchema.describe(
+          "The schema of the items in the array input."
+        ),
+      })
+      .describe("An array input schema.");
 
     export interface String {
       type: "string";
       description?: string | null;
       enum?: string[] | null;
     }
+    export const StringSchema: z.ZodType<String> = z
+      .object({
+        type: z.literal("string"),
+        description: z
+          .string()
+          .optional()
+          .nullable()
+          .describe("The description of the string input."),
+        enum: z
+          .array(z.string())
+          .optional()
+          .nullable()
+          .describe("The enumeration of allowed string values."),
+      })
+      .describe("A string input schema.");
 
     export interface Number {
       type: "number";
@@ -2757,6 +3031,26 @@ export namespace Function {
       minimum?: number | null;
       maximum?: number | null;
     }
+    export const NumberSchema: z.ZodType<Number> = z
+      .object({
+        type: z.literal("number"),
+        description: z
+          .string()
+          .optional()
+          .nullable()
+          .describe("The description of the number input."),
+        minimum: z
+          .number()
+          .optional()
+          .nullable()
+          .describe("The minimum allowed value for the number input."),
+        maximum: z
+          .number()
+          .optional()
+          .nullable()
+          .describe("The maximum allowed value for the number input."),
+      })
+      .describe("A number input schema.");
 
     export interface Integer {
       type: "integer";
@@ -2764,34 +3058,119 @@ export namespace Function {
       minimum?: number | null;
       maximum?: number | null;
     }
+    export const IntegerSchema: z.ZodType<Integer> = z
+      .object({
+        type: z.literal("integer"),
+        description: z
+          .string()
+          .optional()
+          .nullable()
+          .describe("The description of the integer input."),
+        minimum: z
+          .uint32()
+          .optional()
+          .nullable()
+          .describe("The minimum allowed value for the integer input."),
+        maximum: z
+          .uint32()
+          .optional()
+          .nullable()
+          .describe("The maximum allowed value for the integer input."),
+      })
+      .describe("An integer input schema.");
 
     export interface Boolean {
       type: "boolean";
       description?: string | null;
     }
+    export const BooleanSchema: z.ZodType<Boolean> = z
+      .object({
+        type: z.literal("boolean"),
+        description: z
+          .string()
+          .optional()
+          .nullable()
+          .describe("The description of the boolean input."),
+      })
+      .describe("A boolean input schema.");
 
     export interface Image {
       type: "image";
       description?: string | null;
     }
+    export const ImageSchema: z.ZodType<Image> = z
+      .object({
+        type: z.literal("image"),
+        description: z
+          .string()
+          .optional()
+          .nullable()
+          .describe("The description of the image input."),
+      })
+      .describe("An image input schema.");
 
     export interface Audio {
       type: "audio";
       description?: string | null;
     }
+    export const AudioSchema: z.ZodType<Audio> = z
+      .object({
+        type: z.literal("audio"),
+        description: z
+          .string()
+          .optional()
+          .nullable()
+          .describe("The description of the audio input."),
+      })
+      .describe("An audio input schema.");
 
     export interface Video {
       type: "video";
       description?: string | null;
     }
+    export const VideoSchema: z.ZodType<Video> = z
+      .object({
+        type: z.literal("video"),
+        description: z
+          .string()
+          .optional()
+          .nullable()
+          .describe("The description of the video input."),
+      })
+      .describe("A video input schema.");
 
     export interface File {
       type: "file";
       description?: string | null;
     }
+    export const FileSchema: z.ZodType<File> = z
+      .object({
+        type: z.literal("file"),
+        description: z
+          .string()
+          .optional()
+          .nullable()
+          .describe("The description of the file input."),
+      })
+      .describe("A file input schema.");
   }
 
-  export type InputMaps = Expression | Expression[];
+  export const InputMapsExpression = z
+    .union([
+      ExpressionSchema.describe(
+        "An expression which evaluates to a 1D or 2D array of Function Inputs."
+      ),
+      z
+        .array(ExpressionSchema)
+        .describe(
+          "A list of expressions, which each evaluate to a 1D or 2D array of Function Inputs."
+        ),
+    ])
+    .describe(
+      "An expression or list of expressions which each evalute to a 1D or 2D array of Function Inputs. Input is provided as an argument."
+    );
+  export type InputMaps = z.infer<typeof InputMapsExpression>;
+  // export type InputMaps = Expression | Expression[];
 
   export type TaskExpression =
     | TaskExpression.ScalarFunction
@@ -2799,25 +3178,115 @@ export namespace Function {
     | TaskExpression.VectorCompletion;
 
   export namespace TaskExpression {
-    export interface ScalarFunction {
-      type: "scalar.function";
-      author: string;
-      id: string;
-      version: number;
-      skip?: Expression | null;
-      map?: number | null;
-      input: Expression | InputExpression;
-    }
+    export const SkipSchema = ExpressionSchema.describe(
+      "An expression which evaluates to a boolean indicating whether to skip this task."
+    );
+    export type Skip = z.infer<typeof SkipSchema>;
 
-    export interface VectorFunction {
-      type: "vector.function";
-      author: string;
-      id: string;
-      version: number;
-      skip?: Expression | null;
-      map?: number | null;
-      input: Expression | InputExpression;
-    }
+    export const MapSchema = z
+      .uint32()
+      .describe(
+        "If present, indicates that this task should be ran once for each entry in the specified input map (input map is a 2D array indexed by this value)."
+      );
+    export type Map = z.infer<typeof MapSchema>;
+
+    export type InputExpression =
+      | Message.RichContentPart
+      | { [key: string]: Expression | InputExpression }
+      | (Expression | InputExpression)[]
+      | string
+      | number
+      | boolean;
+    export const InputExpressionSchema: z.ZodType<InputExpression> = z.lazy(
+      () =>
+        z
+          .union([
+            Message.RichContentPartSchema,
+            z.record(
+              z.string(),
+              z.union([
+                ExpressionSchema.describe(
+                  "An expression which evaluates to an input value."
+                ),
+                InputExpressionSchema,
+              ])
+            ),
+            z.array(
+              z.union([
+                ExpressionSchema.describe(
+                  "An expression which evaluates to an input value."
+                ),
+                InputExpressionSchema,
+              ])
+            ),
+            z.string(),
+            z.number(),
+            z.boolean(),
+          ])
+          .describe(Executions.Request.InputSchema.description!)
+    );
+
+    export const ScalarFunctionSchema = z
+      .object({
+        type: z.literal("scalar.function"),
+        author: z.string().describe("The author of the scalar function."),
+        id: z
+          .string()
+          .describe("The unique identifier of the scalar function."),
+        version: z.uint32().describe("The version of the scalar function."),
+        skip: SkipSchema.optional().nullable(),
+        map: MapSchema.optional().nullable(),
+        input: z
+          .union([
+            ExpressionSchema.describe(
+              "An expression which evaluates to an input value."
+            ),
+            InputExpressionSchema,
+          ])
+          .describe(InputExpressionSchema.description!),
+      })
+      .describe("A scalar function task.");
+    export type ScalarFunction = z.infer<typeof ScalarFunctionSchema>;
+    // export interface ScalarFunction {
+    //   type: "scalar.function";
+    //   author: string;
+    //   id: string;
+    //   version: number;
+    //   skip?: Expression | null;
+    //   map?: number | null;
+    //   input: Expression | InputExpression;
+    // }
+
+    export const VectorFunctionSchema = z
+      .object({
+        type: z.literal("vector.function"),
+        author: z.string().describe("The author of the vector function."),
+        id: z
+          .string()
+          .describe("The unique identifier of the vector function."),
+        version: z.uint32().describe("The version of the vector function."),
+        skip: SkipSchema.optional().nullable(),
+        map: MapSchema.optional().nullable(),
+        input: z
+          .union([
+            ExpressionSchema.describe(
+              "An expression which evaluates to an input value."
+            ),
+            InputExpressionSchema,
+          ])
+          .describe(InputExpressionSchema.description!),
+      })
+      .describe("A vector function task.");
+    export type VectorFunction = z.infer<typeof VectorFunctionSchema>;
+    // export interface VectorFunction {
+    //   type: "vector.function";
+    //   author: string;
+    //   id: string;
+    //   version: number;
+    //   skip?: Expression | null;
+    //   map?: number | null;
+    //   input: Expression | InputExpression;
+    // }
 
     export interface VectorCompletion {
       type: "vector.completion";
@@ -2830,81 +3299,365 @@ export namespace Function {
         | (Expression | MessageExpression.RichContentExpression)[];
     }
 
-    export type InputExpression =
-      | Message.RichContentPart
-      | { [key: string]: Expression | InputExpression }
-      | (Expression | InputExpression)[]
-      | string
-      | number
-      | boolean;
-
-    export type MessageExpression =
-      | MessageExpression.DeveloperExpression
-      | MessageExpression.SystemExpression
-      | MessageExpression.UserExpression
-      | MessageExpression.ToolExpression
-      | MessageExpression.AssistantExpression;
+    export const MessageExpressionSchema = z
+      .discriminatedUnion("role", [
+        MessageExpression.DeveloperExpressionSchema,
+        MessageExpression.SystemExpressionSchema,
+        MessageExpression.UserExpressionSchema,
+        MessageExpression.ToolExpressionSchema,
+        MessageExpression.AssistantExpressionSchema,
+      ])
+      .describe(MessageSchema.description!);
+    export type MessageExpression = z.infer<typeof MessageExpressionSchema>;
+    // export type MessageExpression =
+    //   | MessageExpression.DeveloperExpression
+    //   | MessageExpression.SystemExpression
+    //   | MessageExpression.UserExpression
+    //   | MessageExpression.ToolExpression
+    //   | MessageExpression.AssistantExpression;
 
     export namespace MessageExpression {
-      export type SimpleContentExpression =
-        | string
-        | (Expression | Message.SimpleContentPart)[];
+      export const SimpleContentExpressionSchema = z
+        .union([
+          z.string().describe("String content."),
+          z
+            .array(
+              z
+                .union([
+                  Message.SimpleContentPartSchema,
+                  ExpressionSchema.describe(
+                    'An expression which evaluates to an object containing "type" ("text") and "text" (string).'
+                  ),
+                ])
+                .describe(Message.SimpleContentPartSchema.description!)
+            )
+            .describe("An array of simple content parts."),
+        ])
+        .describe(Message.SimpleContentSchema.description!);
+      export type SimpleContentExpression = z.infer<
+        typeof SimpleContentExpressionSchema
+      >;
+      // export type SimpleContentExpression =
+      //   | string
+      //   | (Expression | Message.SimpleContentPart)[];
 
-      export type RichContentExpression =
-        | string
-        | (Expression | Message.RichContentPart)[];
+      export const RichContentExpressionSchema = z
+        .union([
+          z.string().describe("String content."),
+          z
+            .array(
+              z
+                .union([
+                  Message.RichContentPartSchema,
+                  ExpressionSchema.describe(
+                    "An expression which evaluates to a rich content part."
+                  ),
+                ])
+                .describe(Message.RichContentPartSchema.description!)
+            )
+            .describe("An array of rich content parts."),
+        ])
+        .describe(Message.RichContentSchema.description!);
+      export type RichContentExpression = z.infer<
+        typeof RichContentExpressionSchema
+      >;
+      // export type RichContentExpression =
+      //   | string
+      //   | (Expression | Message.RichContentPart)[];
 
-      export interface DeveloperExpression {
-        role: "developer";
-        content: Expression | SimpleContentExpression;
-        name?: Expression | string | null;
-      }
+      export const DeveloperExpressionSchema = z
+        .object({
+          role: Message.DeveloperSchema.shape.role,
+          content: z
+            .union([
+              SimpleContentExpressionSchema,
+              ExpressionSchema.describe(
+                "An expression which evaluates to simple content."
+              ),
+            ])
+            .describe(SimpleContentExpressionSchema.description!),
+          name: z
+            .union([
+              Message.NameSchema,
+              ExpressionSchema.describe(
+                "An expression which evaluates to a string."
+              ),
+            ])
+            .optional()
+            .nullable()
+            .describe(Message.NameSchema.description!),
+        })
+        .describe(Message.DeveloperSchema.description!);
+      export type DeveloperExpression = z.infer<
+        typeof DeveloperExpressionSchema
+      >;
+      // export interface DeveloperExpression {
+      //   role: "developer";
+      //   content: Expression | SimpleContentExpression;
+      //   name?: Expression | string | null;
+      // }
 
-      export interface SystemExpression {
-        role: "system";
-        content: Expression | SimpleContentExpression;
-        name?: Expression | string | null;
-      }
+      export const SystemExpressionSchema = z
+        .object({
+          role: Message.SystemSchema.shape.role,
+          content: z
+            .union([
+              SimpleContentExpressionSchema,
+              ExpressionSchema.describe(
+                "An expression which evaluates to simple content."
+              ),
+            ])
+            .describe(SimpleContentExpressionSchema.description!),
+          name: z
+            .union([
+              Message.NameSchema,
+              ExpressionSchema.describe(
+                "An expression which evaluates to a string."
+              ),
+            ])
+            .optional()
+            .nullable()
+            .describe(Message.NameSchema.description!),
+        })
+        .describe(Message.SystemSchema.description!);
+      export type SystemExpression = z.infer<typeof SystemExpressionSchema>;
+      // export interface SystemExpression {
+      //   role: "system";
+      //   content: Expression | SimpleContentExpression;
+      //   name?: Expression | string | null;
+      // }
 
-      export interface UserExpression {
-        role: "user";
-        content: Expression | RichContentExpression;
-        name?: Expression | string | null;
-      }
+      export const UserExpressionSchema = z
+        .object({
+          role: Message.UserSchema.shape.role,
+          content: z
+            .union([
+              RichContentExpressionSchema,
+              ExpressionSchema.describe(
+                "An expression which evaluates to rich content."
+              ),
+            ])
+            .describe(RichContentExpressionSchema.description!),
+          name: z
+            .union([
+              Message.NameSchema,
+              ExpressionSchema.describe(
+                "An expression which evaluates to a string."
+              ),
+            ])
+            .optional()
+            .nullable()
+            .describe(Message.NameSchema.description!),
+        })
+        .describe(Message.UserSchema.description!);
+      export type UserExpression = z.infer<typeof UserExpressionSchema>;
+      // export interface UserExpression {
+      //   role: "user";
+      //   content: Expression | RichContentExpression;
+      //   name?: Expression | string | null;
+      // }
 
-      export interface ToolExpression {
-        role: "tool";
-        content: Expression | RichContentExpression;
-        tool_call_id: Expression | string;
-      }
+      export const ToolExpressionSchema = z
+        .object({
+          role: Message.ToolSchema.shape.role,
+          content: z
+            .union([
+              RichContentExpressionSchema,
+              ExpressionSchema.describe(
+                "An expression which evaluates to rich content."
+              ),
+            ])
+            .describe(RichContentExpressionSchema.description!),
+          tool_call_id: z
+            .union([
+              Message.ToolSchema.shape.tool_call_id,
+              ExpressionSchema.describe(
+                "An expression which evaluates to a string."
+              ),
+            ])
+            .describe(Message.ToolSchema.shape.tool_call_id.description!),
+        })
+        .describe(Message.ToolSchema.description!);
+      export type ToolExpression = z.infer<typeof ToolExpressionSchema>;
+      // export interface ToolExpression {
+      //   role: "tool";
+      //   content: Expression | RichContentExpression;
+      //   tool_call_id: Expression | string;
+      // }
 
-      export interface AssistantExpression {
-        role: "assistant";
-        content?: Expression | RichContentExpression;
-        name?: Expression | string | null;
-        refusal?: Expression | string | null;
-        tool_calls?:
-          | Expression
-          | (Expression | AssistantExpression.ToolCallExpression)[]
-          | null;
-        reasoning?: Expression | string | null;
-      }
+      export const AssistantExpressionSchema = z
+        .object({
+          role: Message.AssistantSchema.shape.role,
+          content: z
+            .union([
+              RichContentExpressionSchema,
+              ExpressionSchema.describe(
+                "An expression which evaluates to rich content."
+              ),
+            ])
+            .optional()
+            .nullable()
+            .describe(RichContentExpressionSchema.description!),
+          name: z
+            .union([
+              Message.NameSchema,
+              ExpressionSchema.describe(
+                "An expression which evaluates to a string."
+              ),
+            ])
+            .optional()
+            .nullable()
+            .describe(Message.NameSchema.description!),
+          refusal: z
+            .union([
+              z
+                .string()
+                .describe(Message.AssistantSchema.shape.refusal.description!),
+              ExpressionSchema.describe(
+                "An expression which evaluates to a string."
+              ),
+            ])
+            .optional()
+            .nullable()
+            .describe(Message.AssistantSchema.shape.refusal.description!),
+          tool_calls: z
+            .union([
+              z
+                .array(
+                  z
+                    .union([
+                      AssistantExpression.ToolCallExpressionSchema,
+                      ExpressionSchema.describe(
+                        "An expression which evaluates to a tool call."
+                      ),
+                    ])
+                    .describe(
+                      AssistantExpression.ToolCallExpressionSchema.description!
+                    )
+                )
+                .describe(
+                  Message.AssistantSchema.shape.tool_calls.description!
+                ),
+              ExpressionSchema.describe(
+                "An expression which evaluates to an array of tool calls."
+              ),
+            ])
+            .optional()
+            .nullable()
+            .describe(Message.AssistantSchema.shape.tool_calls.description!),
+          reasoning: z
+            .union([
+              z
+                .string()
+                .describe(Message.AssistantSchema.shape.reasoning.description!),
+              ExpressionSchema.describe(
+                "An expression which evaluates to a string."
+              ),
+            ])
+            .optional()
+            .nullable()
+            .describe(Message.AssistantSchema.shape.reasoning.description!),
+        })
+        .describe(Message.AssistantSchema.description!);
+      export type AssistantExpression = z.infer<
+        typeof AssistantExpressionSchema
+      >;
+      // export interface AssistantExpression {
+      //   role: "assistant";
+      //   content?: Expression | RichContentExpression;
+      //   name?: Expression | string | null;
+      //   refusal?: Expression | string | null;
+      //   tool_calls?:
+      //     | Expression
+      //     | (Expression | AssistantExpression.ToolCallExpression)[]
+      //     | null;
+      //   reasoning?: Expression | string | null;
+      // }
 
       export namespace AssistantExpression {
-        export type ToolCallExpression = ToolCallExpression.FunctionExpression;
+        export const ToolCallExpressionSchema = z
+          .union([ToolCallExpression.FunctionExpressionSchema])
+          .describe(Message.Assistant.ToolCallSchema.description!);
+        export type ToolCallExpression = z.infer<
+          typeof ToolCallExpressionSchema
+        >;
+        // export type ToolCallExpression = ToolCallExpression.FunctionExpression;
 
         export namespace ToolCallExpression {
-          export interface FunctionExpression {
-            type: "function";
-            id: Expression | string;
-            function: Expression | FunctionExpression.DefinitionExpression;
-          }
+          export const FunctionExpressionSchema = z
+            .object({
+              type: Message.Assistant.ToolCall.FunctionSchema.shape.type,
+              id: z
+                .union([
+                  Message.Assistant.ToolCall.FunctionSchema.shape.id,
+                  ExpressionSchema.describe(
+                    "An expression which evaluates to a string."
+                  ),
+                ])
+                .describe(
+                  Message.Assistant.ToolCall.FunctionSchema.shape.id
+                    .description!
+                ),
+              function: z
+                .union([
+                  FunctionExpression.DefinitionExpressionSchema,
+                  ExpressionSchema.describe(
+                    'An expression which evaluates to an object containing "name" (string) and "arguments" (string).'
+                  ),
+                ])
+                .describe(
+                  FunctionExpression.DefinitionExpressionSchema.description!
+                ),
+            })
+            .describe(Message.Assistant.ToolCall.FunctionSchema.description!);
+          export type FunctionExpression = z.infer<
+            typeof FunctionExpressionSchema
+          >;
+          // export interface FunctionExpression {
+          //   type: "function";
+          //   id: Expression | string;
+          //   function: Expression | FunctionExpression.DefinitionExpression;
+          // }
 
           export namespace FunctionExpression {
-            export interface DefinitionExpression {
-              name: Expression | string;
-              arguments: Expression | string;
-            }
+            export const DefinitionExpressionSchema = z
+              .object({
+                name: z
+                  .union([
+                    Message.Assistant.ToolCall.Function.DefinitionSchema.shape
+                      .name,
+                    ExpressionSchema.describe(
+                      "An expression which evaluates to a string."
+                    ),
+                  ])
+                  .describe(
+                    Message.Assistant.ToolCall.Function.DefinitionSchema.shape
+                      .name.description!
+                  ),
+                arguments: z
+                  .union([
+                    Message.Assistant.ToolCall.Function.DefinitionSchema.shape
+                      .arguments,
+                    ExpressionSchema.describe(
+                      "An expression which evaluates to a string."
+                    ),
+                  ])
+                  .describe(
+                    Message.Assistant.ToolCall.Function.DefinitionSchema.shape
+                      .arguments.description!
+                  ),
+              })
+              .describe(
+                Message.Assistant.ToolCall.Function.DefinitionSchema
+                  .description!
+              );
+            export type DefinitionExpression = z.infer<
+              typeof DefinitionExpressionSchema
+            >;
+            // export interface DefinitionExpression {
+            //   name: Expression | string;
+            //   arguments: Expression | string;
+            // }
           }
         }
       }
@@ -2959,6 +3712,18 @@ export namespace Function {
         | string
         | number
         | boolean;
+      export const InputSchema: z.ZodType<Input> = z
+        .lazy(() =>
+          z.union([
+            Message.RichContentPartSchema,
+            z.record(z.string(), InputSchema),
+            z.array(InputSchema),
+            z.string(),
+            z.number(),
+            z.boolean(),
+          ])
+        )
+        .describe("The input provided to the function.");
 
       // Execute Inline Function
 
@@ -4047,11 +4812,6 @@ export type JsonValue =
   | string
   | JsonValue[]
   | { [key: string]: JsonValue };
-
-export interface ObjectiveAIError {
-  code: number;
-  message: JsonValue;
-}
 
 function merge<T extends {}>(
   a: T,
