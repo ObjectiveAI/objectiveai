@@ -8,7 +8,8 @@ export const ExpressionSchema = z
   .object({
     $jmespath: z.string().describe("A JMESPath expression."),
   })
-  .describe("An expression which evaluates to a value.");
+  .describe("An expression which evaluates to a value.")
+  .meta({ title: "Expression" });
 export type Expression = z.infer<typeof ExpressionSchema>;
 
 // JSON Value
@@ -20,16 +21,30 @@ export type JsonValue =
   | string
   | JsonValue[]
   | { [key: string]: JsonValue };
-export const JsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
-  z.union([
-    z.null(),
-    z.boolean(),
-    z.number(),
-    z.string(),
-    z.array(JsonValueSchema),
-    z.record(z.string(), JsonValueSchema),
-  ])
-);
+export const JsonValueSchema: z.ZodType<JsonValue> = z
+  .lazy(() =>
+    z.union([
+      z.null(),
+      z.boolean(),
+      z.number(),
+      z.string(),
+      z.array(
+        JsonValueSchema.meta({
+          title: "JsonValue",
+          recursive: true,
+        })
+      ),
+      z.record(
+        z.string(),
+        JsonValueSchema.meta({
+          title: "JsonValue",
+          recursive: true,
+        })
+      ),
+    ])
+  )
+  .describe("A JSON value.")
+  .meta({ title: "JsonValue" });
 
 export type JsonValueExpression =
   | null
@@ -46,14 +61,26 @@ export const JsonValueExpressionSchema: z.ZodType<JsonValueExpression> = z
       z.boolean(),
       z.number(),
       z.string(),
-      z.array(JsonValueExpressionSchema),
-      z.record(z.string(), JsonValueExpressionSchema),
+      z.array(
+        JsonValueExpressionSchema.meta({
+          title: "JsonValueExpression",
+          recursive: true,
+        })
+      ),
+      z.record(
+        z.string(),
+        JsonValueExpressionSchema.meta({
+          title: "JsonValueExpression",
+          recursive: true,
+        })
+      ),
       ExpressionSchema.describe(
         "An expression which evaluates to a JSON value."
       ),
     ])
   )
-  .describe(JsonValueSchema.description!);
+  .describe(JsonValueSchema.description!)
+  .meta({ title: "JsonValueExpression" });
 
 // Errors
 
@@ -62,22 +89,18 @@ export const ObjectiveAIErrorSchema = z
     code: z.uint32().describe("The status code of the error."),
     message: z.any().describe("The message or details of the error."),
   })
-  .describe("An error returned by the ObjectiveAI API.");
+  .describe("An error returned by the ObjectiveAI API.")
+  .meta({ title: "ObjectiveAIError" });
 export type ObjectiveAIError = z.infer<typeof ObjectiveAIErrorSchema>;
 
 // Messages
 
 export namespace Message {
-  export const SimpleContentPartSchema = z
-    .object({
-      type: z.literal("text"),
-      text: z.string().describe("The text content."),
-    })
-    .describe("A simple text content part.");
-  export type SimpleContentPart = z.infer<typeof SimpleContentPartSchema>;
-
   export namespace SimpleContent {
-    export const TextSchema = z.string().describe("Plain text content.");
+    export const TextSchema = z
+      .string()
+      .describe("Plain text content.")
+      .meta({ title: "SimpleContentText" });
     export type Text = z.infer<typeof TextSchema>;
 
     export const PartSchema = z
@@ -85,7 +108,8 @@ export namespace Message {
         type: z.literal("text"),
         text: z.string().describe("The text content."),
       })
-      .describe("A simple content part.");
+      .describe("A simple content part.")
+      .meta({ title: "SimpleContentPart" });
     export type Part = z.infer<typeof PartSchema>;
 
     export const PartExpressionSchema = z
@@ -95,23 +119,27 @@ export namespace Message {
           "An expression which evaluates to a simple content part."
         ),
       ])
-      .describe(PartSchema.description!);
+      .describe(PartSchema.description!)
+      .meta({ title: "SimpleContentPartExpression" });
     export type PartExpression = z.infer<typeof PartExpressionSchema>;
 
     export const PartsSchema = z
       .array(PartSchema)
-      .describe("An array of simple content parts.");
+      .describe("An array of simple content parts.")
+      .meta({ title: "SimpleContentParts" });
     export type Parts = z.infer<typeof PartsSchema>;
 
     export const PartsExpressionSchema = z
       .array(PartExpressionSchema)
-      .describe(PartsSchema.description!);
+      .describe(PartsSchema.description!)
+      .meta({ title: "SimpleContentPartExpressions" });
     export type PartsExpression = z.infer<typeof PartsExpressionSchema>;
   }
 
   export const SimpleContentSchema = z
     .union([SimpleContent.TextSchema, SimpleContent.PartsSchema])
-    .describe("Simple content.");
+    .describe("Simple content.")
+    .meta({ title: "SimpleContent" });
   export type SimpleContent = z.infer<typeof SimpleContentSchema>;
 
   export const SimpleContentExpressionSchema = z
@@ -122,13 +150,17 @@ export namespace Message {
         "An expression which evaluates to simple content."
       ),
     ])
-    .describe(SimpleContentSchema.description!);
+    .describe(SimpleContentSchema.description!)
+    .meta({ title: "SimpleContentExpression" });
   export type SimpleContentExpression = z.infer<
     typeof SimpleContentExpressionSchema
   >;
 
   export namespace RichContent {
-    export const TextSchema = z.string().describe("Plain text content.");
+    export const TextSchema = z
+      .string()
+      .describe("Plain text content.")
+      .meta({ title: "RichContentText" });
     export type Text = z.infer<typeof TextSchema>;
 
     export namespace Part {
@@ -142,7 +174,8 @@ export namespace Message {
           type: z.literal("text"),
           text: Text.TextSchema,
         })
-        .describe("A text rich content part.");
+        .describe("A text rich content part.")
+        .meta({ title: "TextRichContentPart" });
       export type Text = z.infer<typeof TextSchema>;
 
       export namespace ImageUrl {
@@ -172,7 +205,8 @@ export namespace Message {
           type: z.literal("image_url"),
           image_url: ImageUrl.DefinitionSchema,
         })
-        .describe("An image rich content part.");
+        .describe("An image rich content part.")
+        .meta({ title: "ImageRichContentPart" });
       export type ImageUrl = z.infer<typeof ImageUrlSchema>;
 
       export namespace InputAudio {
@@ -200,7 +234,8 @@ export namespace Message {
           type: z.literal("input_audio"),
           input_audio: InputAudio.DefinitionSchema,
         })
-        .describe("An audio rich content part.");
+        .describe("An audio rich content part.")
+        .meta({ title: "AudioRichContentPart" });
       export type InputAudio = z.infer<typeof InputAudioSchema>;
 
       export namespace VideoUrl {
@@ -218,7 +253,8 @@ export namespace Message {
           type: z.enum(["video_url", "input_video"]),
           video_url: VideoUrl.DefinitionSchema,
         })
-        .describe("A video rich content part.");
+        .describe("A video rich content part.")
+        .meta({ title: "VideoRichContentPart" });
       export type VideoUrl = z.infer<typeof VideoUrlSchema>;
 
       export namespace File {
@@ -266,7 +302,8 @@ export namespace Message {
           type: z.literal("file"),
           file: File.DefinitionSchema,
         })
-        .describe("A file rich content part.");
+        .describe("A file rich content part.")
+        .meta({ title: "FileRichContentPart" });
       export type File = z.infer<typeof FileSchema>;
     }
 
@@ -278,7 +315,8 @@ export namespace Message {
         Part.VideoUrlSchema,
         Part.FileSchema,
       ])
-      .describe("A rich content part.");
+      .describe("A rich content part.")
+      .meta({ title: "RichContentPart" });
     export type Part = z.infer<typeof PartSchema>;
 
     export const PartExpressionSchema = z
@@ -288,23 +326,27 @@ export namespace Message {
           "An expression which evaluates to a rich content part."
         ),
       ])
-      .describe(PartSchema.description!);
+      .describe(PartSchema.description!)
+      .meta({ title: "RichContentPartExpression" });
     export type PartExpression = z.infer<typeof PartExpressionSchema>;
 
     export const PartsSchema = z
       .array(PartSchema)
-      .describe("An array of rich content parts.");
+      .describe("An array of rich content parts.")
+      .meta({ title: "RichContentParts" });
     export type Parts = z.infer<typeof PartsSchema>;
 
     export const PartsExpressionSchema = z
       .array(PartExpressionSchema)
-      .describe(PartsSchema.description!);
+      .describe(PartsSchema.description!)
+      .meta({ title: "RichContentPartExpressions" });
     export type PartsExpression = z.infer<typeof PartsExpressionSchema>;
   }
 
   export const RichContentSchema = z
     .union([RichContent.TextSchema, RichContent.PartsSchema])
-    .describe("Rich content.");
+    .describe("Rich content.")
+    .meta({ title: "RichContent" });
   export type RichContent = z.infer<typeof RichContentSchema>;
 
   export const RichContentExpressionSchema = z
@@ -315,7 +357,8 @@ export namespace Message {
         "An expression which evaluates to rich content."
       ),
     ])
-    .describe(RichContentSchema.description!);
+    .describe(RichContentSchema.description!)
+    .meta({ title: "RichContentExpression" });
   export type RichContentExpression = z.infer<
     typeof RichContentExpressionSchema
   >;
@@ -324,7 +367,8 @@ export namespace Message {
     .string()
     .describe(
       "An optional name for the participant. Provides the model information to differentiate between participants of the same role."
-    );
+    )
+    .meta({ title: "MessageName" });
   export type Name = z.infer<typeof NameSchema>;
 
   export const NameExpressionSchema = z
@@ -332,7 +376,8 @@ export namespace Message {
       NameSchema,
       ExpressionSchema.describe("An expression which evaluates to a string."),
     ])
-    .describe(NameSchema.description!);
+    .describe(NameSchema.description!)
+    .meta({ title: "MessageNameExpression" });
   export type NameExpression = z.infer<typeof NameExpressionSchema>;
 
   export const DeveloperSchema = z
@@ -343,7 +388,8 @@ export namespace Message {
     })
     .describe(
       "Developer-provided instructions that the model should follow, regardless of messages sent by the user."
-    );
+    )
+    .meta({ title: "DeveloperMessage" });
   export type Developer = z.infer<typeof DeveloperSchema>;
 
   export const DeveloperExpressionSchema = z
@@ -352,7 +398,8 @@ export namespace Message {
       content: SimpleContentExpressionSchema,
       name: NameExpressionSchema.optional().nullable(),
     })
-    .describe(DeveloperSchema.description!);
+    .describe(DeveloperSchema.description!)
+    .meta({ title: "DeveloperMessageExpression" });
   export type DeveloperExpression = z.infer<typeof DeveloperExpressionSchema>;
 
   export const SystemSchema = z
@@ -363,7 +410,8 @@ export namespace Message {
     })
     .describe(
       "Developer-provided instructions that the model should follow, regardless of messages sent by the user."
-    );
+    )
+    .meta({ title: "SystemMessage" });
   export type System = z.infer<typeof SystemSchema>;
 
   export const SystemExpressionSchema = z
@@ -372,7 +420,8 @@ export namespace Message {
       content: SimpleContentExpressionSchema,
       name: NameExpressionSchema.optional().nullable(),
     })
-    .describe(SystemSchema.description!);
+    .describe(SystemSchema.description!)
+    .meta({ title: "SystemMessageExpression" });
   export type SystemExpression = z.infer<typeof SystemExpressionSchema>;
 
   export const UserSchema = z
@@ -383,7 +432,8 @@ export namespace Message {
     })
     .describe(
       "Messages sent by an end user, containing prompts or additional context information."
-    );
+    )
+    .meta({ title: "UserMessage" });
   export type User = z.infer<typeof UserSchema>;
 
   export const UserExpressionSchema = z
@@ -392,13 +442,15 @@ export namespace Message {
       content: RichContentExpressionSchema,
       name: NameExpressionSchema.optional().nullable(),
     })
-    .describe(UserSchema.description!);
+    .describe(UserSchema.description!)
+    .meta({ title: "UserMessageExpression" });
   export type UserExpression = z.infer<typeof UserExpressionSchema>;
 
   export namespace Tool {
     export const ToolCallIdSchema = z
       .string()
-      .describe("The ID of the tool call that this message is responding to.");
+      .describe("The ID of the tool call that this message is responding to.")
+      .meta({ title: "ToolMessageToolCallId" });
     export type ToolCallId = z.infer<typeof ToolCallIdSchema>;
 
     export const ToolCallIdExpressionSchema = z
@@ -406,7 +458,8 @@ export namespace Message {
         ToolCallIdSchema,
         ExpressionSchema.describe("An expression which evaluates to a string."),
       ])
-      .describe(ToolCallIdSchema.description!);
+      .describe(ToolCallIdSchema.description!)
+      .meta({ title: "ToolMessageToolCallIdExpression" });
     export type ToolCallIdExpression = z.infer<
       typeof ToolCallIdExpressionSchema
     >;
@@ -420,7 +473,8 @@ export namespace Message {
     })
     .describe(
       "Messages sent by tools in response to tool calls made by the assistant."
-    );
+    )
+    .meta({ title: "ToolMessage" });
   export type Tool = z.infer<typeof ToolSchema>;
 
   export const ToolExpressionSchema = z
@@ -429,13 +483,15 @@ export namespace Message {
       content: RichContentExpressionSchema,
       tool_call_id: Tool.ToolCallIdExpressionSchema,
     })
-    .describe(ToolSchema.description!);
+    .describe(ToolSchema.description!)
+    .meta({ title: "ToolMessageExpression" });
   export type ToolExpression = z.infer<typeof ToolExpressionSchema>;
 
   export namespace Assistant {
     export const RefusalSchema = z
       .string()
-      .describe("The refusal message by the assistant.");
+      .describe("The refusal message by the assistant.")
+      .meta({ title: "AssistantMessageRefusal" });
     export type Refusal = z.infer<typeof RefusalSchema>;
 
     export const RefusalExpressionSchema = z
@@ -443,12 +499,14 @@ export namespace Message {
         RefusalSchema,
         ExpressionSchema.describe("An expression which evaluates to a string."),
       ])
-      .describe(RefusalSchema.description!);
+      .describe(RefusalSchema.description!)
+      .meta({ title: "AssistantMessageRefusalExpression" });
     export type RefusalExpression = z.infer<typeof RefusalExpressionSchema>;
 
     export const ReasoningSchema = z
       .string()
-      .describe("The reasoning provided by the assistant.");
+      .describe("The reasoning provided by the assistant.")
+      .meta({ title: "AssistantMessageReasoning" });
     export type Reasoning = z.infer<typeof ReasoningSchema>;
 
     export const ReasoningExpressionSchema = z
@@ -456,13 +514,15 @@ export namespace Message {
         ReasoningSchema,
         ExpressionSchema.describe("An expression which evaluates to a string."),
       ])
-      .describe(ReasoningSchema.description!);
+      .describe(ReasoningSchema.description!)
+      .meta({ title: "AssistantMessageReasoningExpression" });
     export type ReasoningExpression = z.infer<typeof ReasoningExpressionSchema>;
 
     export namespace ToolCall {
       export const IdSchema = z
         .string()
-        .describe("The unique identifier for the tool call.");
+        .describe("The unique identifier for the tool call.")
+        .meta({ title: "AssistantMessageToolCallId" });
       export type Id = z.infer<typeof IdSchema>;
 
       export const IdExpressionSchema = z
@@ -472,13 +532,15 @@ export namespace Message {
             "An expression which evaluates to a string."
           ),
         ])
-        .describe(IdSchema.description!);
+        .describe(IdSchema.description!)
+        .meta({ title: "AssistantMessageToolCallIdExpression" });
       export type IdExpression = z.infer<typeof IdExpressionSchema>;
 
       export namespace Function {
         export const NameSchema = z
           .string()
-          .describe("The name of the function called.");
+          .describe("The name of the function called.")
+          .meta({ title: "AssistantMessageToolCallFunctionName" });
         export type Name = z.infer<typeof NameSchema>;
 
         export const NameExpressionSchema = z
@@ -488,12 +550,14 @@ export namespace Message {
               "An expression which evaluates to a string."
             ),
           ])
-          .describe(NameSchema.description!);
+          .describe(NameSchema.description!)
+          .meta({ title: "AssistantMessageToolCallFunctionNameExpression" });
         export type NameExpression = z.infer<typeof NameExpressionSchema>;
 
         export const ArgumentsSchema = z
           .string()
-          .describe("The arguments passed to the function.");
+          .describe("The arguments passed to the function.")
+          .meta({ title: "AssistantMessageToolCallFunctionArguments" });
         export type Arguments = z.infer<typeof ArgumentsSchema>;
 
         export const ArgumentsExpressionSchema = z
@@ -503,7 +567,10 @@ export namespace Message {
               "An expression which evaluates to a string."
             ),
           ])
-          .describe(ArgumentsSchema.description!);
+          .describe(ArgumentsSchema.description!)
+          .meta({
+            title: "AssistantMessageToolCallFunctionArgumentsExpression",
+          });
         export type ArgumentsExpression = z.infer<
           typeof ArgumentsExpressionSchema
         >;
@@ -513,7 +580,8 @@ export namespace Message {
             name: NameSchema,
             arguments: ArgumentsSchema,
           })
-          .describe("The name and arguments of the function called.");
+          .describe("The name and arguments of the function called.")
+          .meta({ title: "AssistantMessageToolCallFunctionDefinition" });
         export type Definition = z.infer<typeof DefinitionSchema>;
 
         export const DefinitionExpressionSchema = z
@@ -521,7 +589,10 @@ export namespace Message {
             name: NameExpressionSchema,
             arguments: ArgumentsExpressionSchema,
           })
-          .describe(DefinitionSchema.description!);
+          .describe(DefinitionSchema.description!)
+          .meta({
+            title: "AssistantMessageToolCallFunctionDefinitionExpression",
+          });
         export type DefinitionExpression = z.infer<
           typeof DefinitionExpressionSchema
         >;
@@ -533,7 +604,8 @@ export namespace Message {
           id: IdSchema,
           function: Function.DefinitionSchema,
         })
-        .describe("A function tool call made by the assistant.");
+        .describe("A function tool call made by the assistant.")
+        .meta({ title: "AssistantMessageToolCallFunction" });
       export type Function = z.infer<typeof FunctionSchema>;
 
       export const FunctionExpressionSchema = z
@@ -542,13 +614,15 @@ export namespace Message {
           id: IdExpressionSchema,
           function: Function.DefinitionExpressionSchema,
         })
-        .describe(FunctionSchema.description!);
+        .describe(FunctionSchema.description!)
+        .meta({ title: "AssistantMessageToolCallFunctionExpression" });
       export type FunctionExpression = z.infer<typeof FunctionExpressionSchema>;
     }
 
     export const ToolCallSchema = z
       .union([ToolCall.FunctionSchema])
-      .describe("A tool call made by the assistant.");
+      .describe("A tool call made by the assistant.")
+      .meta({ title: "AssistantMessageToolCall" });
     export type ToolCall = z.infer<typeof ToolCallSchema>;
 
     export const ToolCallExpressionSchema = z
@@ -558,12 +632,14 @@ export namespace Message {
           "An expression which evaluates to a tool call."
         ),
       ])
-      .describe(ToolCallSchema.description!);
+      .describe(ToolCallSchema.description!)
+      .meta({ title: "AssistantMessageToolCallExpression" });
     export type ToolCallExpression = z.infer<typeof ToolCallExpressionSchema>;
 
     export const ToolCallsSchema = z
       .array(ToolCallSchema)
-      .describe("Tool calls made by the assistant.");
+      .describe("Tool calls made by the assistant.")
+      .meta({ title: "AssistantMessageToolCalls" });
     export type ToolCalls = z.infer<typeof ToolCallsSchema>;
 
     export const ToolCallsExpressionSchema = z
@@ -575,7 +651,8 @@ export namespace Message {
           "An expression which evaluates to an array of tool calls."
         ),
       ])
-      .describe(ToolCallsSchema.description!);
+      .describe(ToolCallsSchema.description!)
+      .meta({ title: "AssistantMessageToolCallsExpression" });
     export type ToolCallsExpression = z.infer<typeof ToolCallsExpressionSchema>;
   }
 
@@ -588,7 +665,8 @@ export namespace Message {
       tool_calls: Assistant.ToolCallsSchema.optional().nullable(),
       reasoning: Assistant.ReasoningSchema.optional().nullable(),
     })
-    .describe("Messages sent by the model in response to user messages.");
+    .describe("Messages sent by the model in response to user messages.")
+    .meta({ title: "AssistantMessage" });
   export type Assistant = z.infer<typeof AssistantSchema>;
 
   export const AssistantExpressionSchema = z
@@ -600,7 +678,8 @@ export namespace Message {
       tool_calls: Assistant.ToolCallsExpressionSchema.optional().nullable(),
       reasoning: Assistant.ReasoningExpressionSchema.optional().nullable(),
     })
-    .describe(AssistantSchema.description!);
+    .describe(AssistantSchema.description!)
+    .meta({ title: "AssistantMessageExpression" });
   export type AssistantExpression = z.infer<typeof AssistantExpressionSchema>;
 }
 
@@ -612,7 +691,8 @@ export const MessageSchema = z
     Message.ToolSchema,
     Message.AssistantSchema,
   ])
-  .describe("A message exchanged in a chat conversation.");
+  .describe("A message exchanged in a chat conversation.")
+  .meta({ title: "Message" });
 export type Message = z.infer<typeof MessageSchema>;
 
 export const MessageExpressionSchema = z
@@ -628,29 +708,38 @@ export const MessageExpressionSchema = z
       .describe(MessageSchema.description!),
     ExpressionSchema.describe("An expression which evaluates to a message."),
   ])
-  .describe(MessageSchema.description!);
+  .describe(MessageSchema.description!)
+  .meta({ title: "MessageExpression" });
 export type MessageExpression = z.infer<typeof MessageExpressionSchema>;
 
 export const MessagesSchema = z
   .array(MessageSchema)
-  .describe("A list of messages exchanged in a chat conversation.");
+  .describe("A list of messages exchanged in a chat conversation.")
+  .meta({ title: "Messages" });
 export type Messages = z.infer<typeof MessagesSchema>;
 
 export const MessagesExpressionSchema = z
   .union([
-    z.array(MessageExpressionSchema).describe(MessagesSchema.description!),
+    z
+      .array(MessageExpressionSchema)
+      .describe(MessagesSchema.description!)
+      .meta({ title: "MessageExpressions" }),
     ExpressionSchema.describe(
       "An expression which evaluates to an array of messages."
     ),
   ])
-  .describe(MessagesSchema.description!);
+  .describe(MessagesSchema.description!)
+  .meta({ title: "MessagesExpression" });
 export type MessagesExpression = z.infer<typeof MessagesExpressionSchema>;
 
 // Tools
 
 export namespace Tool {
   export namespace Function {
-    export const NameSchema = z.string().describe("The name of the function.");
+    export const NameSchema = z
+      .string()
+      .describe("The name of the function.")
+      .meta({ title: "FunctionToolName" });
     export type Name = z.infer<typeof NameSchema>;
 
     export const NameExpressionSchema = z
@@ -658,12 +747,14 @@ export namespace Tool {
         NameSchema,
         ExpressionSchema.describe("An expression which evaluates to a string."),
       ])
-      .describe(NameSchema.description!);
+      .describe(NameSchema.description!)
+      .meta({ title: "FunctionToolNameExpression" });
     export type NameExpression = z.infer<typeof NameExpressionSchema>;
 
     export const DescriptionSchema = z
       .string()
-      .describe("The description of the function.");
+      .describe("The description of the function.")
+      .meta({ title: "FunctionToolDescription" });
     export type Description = z.infer<typeof DescriptionSchema>;
 
     export const DescriptionExpressionSchema = z
@@ -671,14 +762,16 @@ export namespace Tool {
         DescriptionSchema,
         ExpressionSchema.describe("An expression which evaluates to a string."),
       ])
-      .describe(DescriptionSchema.description!);
+      .describe(DescriptionSchema.description!)
+      .meta({ title: "FunctionToolDescriptionExpression" });
     export type DescriptionExpression = z.infer<
       typeof DescriptionExpressionSchema
     >;
 
     export const ParametersSchema = z
       .record(z.string(), JsonValueSchema)
-      .describe("The JSON schema defining the parameters of the function.");
+      .describe("The JSON schema defining the parameters of the function.")
+      .meta({ title: "FunctionToolParameters" });
     export type Parameters = z.infer<typeof ParametersSchema>;
 
     export const ParametersExpressionSchema = z
@@ -688,14 +781,16 @@ export namespace Tool {
           "An expression which evaluates to a JSON schema object."
         ),
       ])
-      .describe(ParametersSchema.description!);
+      .describe(ParametersSchema.description!)
+      .meta({ title: "FunctionToolParametersExpression" });
     export type ParametersExpression = z.infer<
       typeof ParametersExpressionSchema
     >;
 
     export const StrictSchema = z
       .boolean()
-      .describe("Whether to enforce strict adherence to the parameter schema.");
+      .describe("Whether to enforce strict adherence to the parameter schema.")
+      .meta({ title: "FunctionToolStrict" });
     export type Strict = z.infer<typeof StrictSchema>;
 
     export const StrictExpressionSchema = z
@@ -705,7 +800,8 @@ export namespace Tool {
           "An expression which evaluates to a boolean."
         ),
       ])
-      .describe(StrictSchema.description!);
+      .describe(StrictSchema.description!)
+      .meta({ title: "FunctionToolStrictExpression" });
     export type StrictExpression = z.infer<typeof StrictExpressionSchema>;
 
     export const DefinitionSchema = z
@@ -715,7 +811,8 @@ export namespace Tool {
         parameters: ParametersSchema.optional().nullable(),
         strict: StrictSchema.optional().nullable(),
       })
-      .describe("The definition of a function tool.");
+      .describe("The definition of a function tool.")
+      .meta({ title: "FunctionToolDefinition" });
     export type Definition = z.infer<typeof DefinitionSchema>;
 
     export const DefinitionExpressionSchema = z
@@ -725,7 +822,8 @@ export namespace Tool {
         parameters: ParametersExpressionSchema.optional().nullable(),
         strict: StrictExpressionSchema.optional().nullable(),
       })
-      .describe(DefinitionSchema.description!);
+      .describe(DefinitionSchema.description!)
+      .meta({ title: "FunctionToolDefinitionExpression" });
     export type DefinitionExpression = z.infer<
       typeof DefinitionExpressionSchema
     >;
@@ -736,7 +834,8 @@ export namespace Tool {
       type: z.literal("function"),
       function: Function.DefinitionSchema,
     })
-    .describe("A function tool that the assistant can call.");
+    .describe("A function tool that the assistant can call.")
+    .meta({ title: "FunctionTool" });
   export type Function = z.infer<typeof FunctionSchema>;
 
   export const FunctionExpressionSchema = z
@@ -744,13 +843,15 @@ export namespace Tool {
       type: z.literal("function"),
       function: Function.DefinitionExpressionSchema,
     })
-    .describe(FunctionSchema.description!);
+    .describe(FunctionSchema.description!)
+    .meta({ title: "FunctionToolExpression" });
   export type FunctionExpression = z.infer<typeof FunctionExpressionSchema>;
 }
 
 export const ToolSchema = z
   .union([Tool.FunctionSchema])
-  .describe("A tool that the assistant can call.");
+  .describe("A tool that the assistant can call.")
+  .meta({ title: "Tool" });
 export type Tool = z.infer<typeof ToolSchema>;
 
 export const ToolExpressionSchema = z
@@ -758,29 +859,35 @@ export const ToolExpressionSchema = z
     Tool.FunctionExpressionSchema,
     ExpressionSchema.describe("An expression which evaluates to a tool."),
   ])
-  .describe(ToolSchema.description!);
+  .describe(ToolSchema.description!)
+  .meta({ title: "ToolExpression" });
 export type ToolExpression = z.infer<typeof ToolExpressionSchema>;
 
 export const ToolsSchema = z
   .array(ToolSchema)
-  .describe("A list of tools that the assistant can call.");
+  .describe("A list of tools that the assistant can call.")
+  .meta({ title: "Tools" });
 export type Tools = z.infer<typeof ToolsSchema>;
 
 export const ToolsExpressionSchema = z
   .union([
-    z.array(ToolExpressionSchema).describe(ToolsSchema.description!),
+    z
+      .array(ToolExpressionSchema)
+      .describe(ToolsSchema.description!)
+      .meta({ title: "ToolExpressions" }),
     ExpressionSchema.describe(
       "An expression which evaluates to an array of tools."
     ),
   ])
-  .describe(ToolsSchema.description!);
+  .describe(ToolsSchema.description!)
+  .meta({ title: "ToolsExpression" });
 export type ToolsExpression = z.infer<typeof ToolsExpressionSchema>;
 
 // Vector Responses
 
 export const VectorResponseSchema = Message.RichContentSchema.describe(
   "A possible assistant response. The LLMs in the Ensemble may vote for this option."
-);
+).meta({ title: "VectorResponse" });
 export type VectorResponse = z.infer<typeof VectorResponseSchema>;
 
 export const VectorResponseExpressionSchema = z
@@ -790,7 +897,8 @@ export const VectorResponseExpressionSchema = z
       "An expression which evaluates to a possible assistant response."
     ),
   ])
-  .describe(VectorResponseSchema.description!);
+  .describe(VectorResponseSchema.description!)
+  .meta({ title: "VectorResponseExpression" });
 export type VectorResponseExpression = z.infer<
   typeof VectorResponseExpressionSchema
 >;
@@ -799,19 +907,22 @@ export const VectorResponsesSchema = z
   .array(VectorResponseSchema)
   .describe(
     "A list of possible assistant responses which the LLMs in the Ensemble will vote on. The output scores will be of the same length, each corresponding to one response. The winner is the response with the highest score."
-  );
+  )
+  .meta({ title: "VectorResponses" });
 export type VectorResponses = z.infer<typeof VectorResponsesSchema>;
 
 export const VectorResponsesExpressionSchema = z
   .union([
     z
       .array(VectorResponseExpressionSchema)
-      .describe(VectorResponsesSchema.description!),
+      .describe(VectorResponsesSchema.description!)
+      .meta({ title: "VectorResponseExpressions" }),
     ExpressionSchema.describe(
       "An expression which evaluates to an array of possible assistant responses."
     ),
   ])
-  .describe(VectorResponsesSchema.description!);
+  .describe(VectorResponsesSchema.description!)
+  .meta({ title: "VectorResponsesExpression" });
 export type VectorResponsesExpression = z.infer<
   typeof VectorResponsesExpressionSchema
 >;
@@ -830,16 +941,19 @@ export namespace EnsembleLlm {
     .union([
       z
         .string()
-        .describe("Generation will stop when this string is generated."),
+        .describe("Generation will stop when this string is generated.")
+        .meta({ title: "StopString" }),
       z
-        .array(z.string())
+        .array(z.string().meta({ title: "StopString" }))
         .describe(
           "Generation will stop when any of these strings are generated."
-        ),
+        )
+        .meta({ title: "StopStrings" }),
     ])
     .describe(
       "The assistant will stop when any of the provided strings are generated."
-    );
+    )
+    .meta({ title: "Stop" });
   export type Stop = z.infer<typeof StopSchema>;
 
   export namespace Provider {
@@ -855,7 +969,8 @@ export namespace EnsembleLlm {
         "fp32",
         "unknown",
       ])
-      .describe("An LLM quantization.");
+      .describe("An LLM quantization.")
+      .meta({ title: "ProviderQuantization" });
     export type Quantization = z.infer<typeof QuantizationSchema>;
   }
 
@@ -876,21 +991,21 @@ export namespace EnsembleLlm {
           "Whether to require that the provider supports all specified parameters."
         ),
       order: z
-        .array(z.string())
+        .array(z.string().meta({ title: "ProviderName" }))
         .optional()
         .nullable()
         .describe(
           "An ordered list of provider names to use when selecting a provider for this model."
         ),
       only: z
-        .array(z.string())
+        .array(z.string().meta({ title: "ProviderName" }))
         .optional()
         .nullable()
         .describe(
           "A list of provider names to restrict selection to when selecting a provider for this model."
         ),
       ignore: z
-        .array(z.string())
+        .array(z.string().meta({ title: "ProviderName" }))
         .optional()
         .nullable()
         .describe(
@@ -912,14 +1027,16 @@ export namespace EnsembleLlm {
       .enum(["none", "minimal", "low", "medium", "high", "xhigh"])
       .describe(
         "Constrains effort on reasoning for supported reasoning models. Reducing reasoning effort can result in faster responses and fewer tokens used on reasoning in a response."
-      );
+      )
+      .meta({ title: "ReasoningEffort" });
     export type Effort = z.infer<typeof EffortSchema>;
 
     export const SummaryVerbositySchema = z
       .enum(["auto", "concise", "detailed"])
       .describe(
         "Controls the verbosity of the reasoning summary for supported reasoning models."
-      );
+      )
+      .meta({ title: "ReasoningSummaryVerbosity" });
     export type SummaryVerbosity = z.infer<typeof SummaryVerbositySchema>;
   }
 
@@ -1374,14 +1491,16 @@ export namespace Chat {
           .object({
             type: z.literal("text"),
           })
-          .describe("The response will be arbitrary text.");
+          .describe("The response will be arbitrary text.")
+          .meta({ title: "ResponseFormatText" });
         export type Text = z.infer<typeof TextSchema>;
 
         export const JsonObjectSchema = z
           .object({
             type: z.literal("json_object"),
           })
-          .describe("The response will be a JSON object.");
+          .describe("The response will be a JSON object.")
+          .meta({ title: "ResponseFormatJsonObject" });
         export type JsonObject = z.infer<typeof JsonObjectSchema>;
 
         export namespace JsonSchema {
@@ -1405,9 +1524,8 @@ export namespace Chat {
                   "Whether to enforce strict adherence to the JSON schema."
                 ),
             })
-            .describe(
-              "A JSON schema definition for constraining model output."
-            );
+            .describe("A JSON schema definition for constraining model output.")
+            .meta({ title: "ResponseFormatJsonSchemaJsonSchema" });
           export type JsonSchema = z.infer<typeof JsonSchemaSchema>;
         }
 
@@ -1416,7 +1534,8 @@ export namespace Chat {
             type: z.literal("json_schema"),
             json_schema: JsonSchema.JsonSchemaSchema,
           })
-          .describe("The response will conform to the provided JSON schema.");
+          .describe("The response will conform to the provided JSON schema.")
+          .meta({ title: "ResponseFormatJsonSchema" });
         export type JsonSchema = z.infer<typeof JsonSchemaSchema>;
 
         export const GrammarSchema = z
@@ -1428,14 +1547,16 @@ export namespace Chat {
           })
           .describe(
             "The response will conform to the provided grammar definition."
-          );
+          )
+          .meta({ title: "ResponseFormatGrammar" });
         export type Grammar = z.infer<typeof GrammarSchema>;
 
         export const PythonSchema = z
           .object({
             type: z.literal("python"),
           })
-          .describe("The response will be Python code.");
+          .describe("The response will be Python code.")
+          .meta({ title: "ResponseFormatPython" });
         export type Python = z.infer<typeof PythonSchema>;
       }
 
@@ -1447,16 +1568,19 @@ export namespace Chat {
           ResponseFormat.GrammarSchema,
           ResponseFormat.PythonSchema,
         ])
-        .describe("The desired format of the model's response.");
+        .describe("The desired format of the model's response.")
+        .meta({ title: "ResponseFormat" });
       export type ResponseFormat = z.infer<typeof ResponseFormatSchema>;
 
       export namespace ToolChoice {
         export namespace Function {
-          export const FunctionSchema = z.object({
-            name: z
-              .string()
-              .describe("The name of the function the assistant will call."),
-          });
+          export const FunctionSchema = z
+            .object({
+              name: z
+                .string()
+                .describe("The name of the function the assistant will call."),
+            })
+            .meta({ title: "ToolChoiceFunctionFunction" });
           export type Function = z.infer<typeof FunctionSchema>;
         }
 
@@ -1465,7 +1589,8 @@ export namespace Chat {
             type: z.literal("function"),
             function: Function.FunctionSchema,
           })
-          .describe("Specify a function for the assistant to call.");
+          .describe("Specify a function for the assistant to call.")
+          .meta({ title: "ToolChoiceFunction" });
         export type Function = z.infer<typeof FunctionSchema>;
       }
 
@@ -1476,7 +1601,8 @@ export namespace Chat {
           z.literal("required"),
           ToolChoice.FunctionSchema,
         ])
-        .describe("Specifies tool call behavior for the assistant.");
+        .describe("Specifies tool call behavior for the assistant.")
+        .meta({ title: "ToolChoice" });
       export type ToolChoice = z.infer<typeof ToolChoiceSchema>;
 
       export namespace Prediction {
@@ -1486,13 +1612,14 @@ export namespace Chat {
               type: z.literal("text"),
               text: z.string(),
             })
-            .describe("A part of the predicted content.");
+            .describe("A part of the predicted content.")
+            .meta({ title: "PredictionContentPart" });
           export type Part = z.infer<typeof PartSchema>;
         }
 
         export const ContentSchema = z.union([
-          z.string(),
-          z.array(Content.PartSchema),
+          z.string().meta({ title: "PredictionContentText" }),
+          z.array(Content.PartSchema).meta({ title: "PredictionContentParts" }),
         ]);
         export type Content = z.infer<typeof ContentSchema>;
       }
@@ -2860,7 +2987,14 @@ export namespace Function {
           id: z.string().describe("The unique identifier of the profile."),
           version: z.uint32().describe("The version of the profile."),
         }),
-        z.lazy(() => z.array(ProfileVersionRequiredSchema)),
+        z.lazy(() =>
+          z.array(
+            ProfileVersionRequiredSchema.meta({
+              title: "ProfileVersionRequired",
+              recursive: true,
+            })
+          )
+        ),
       ])
       .describe(
         "A function profile where remote profiles must specify a version."
@@ -2897,7 +3031,14 @@ export namespace Function {
             .nullable()
             .describe("The version of the profile."),
         }),
-        z.lazy(() => z.array(ProfileVersionOptionalSchema)),
+        z.lazy(() =>
+          z.array(
+            ProfileVersionOptionalSchema.meta({
+              title: "ProfileVersionOptionalArray",
+              recursive: true,
+            })
+          )
+        ),
       ])
       .describe("A function profile where remote profiles may omit a version.");
 
@@ -2969,7 +3110,13 @@ export namespace Function {
           .nullable()
           .describe("The description of the object input."),
         properties: z
-          .record(z.string(), InputSchemaSchema)
+          .record(
+            z.string(),
+            InputSchemaSchema.meta({
+              title: "InputSchema",
+              recursive: true,
+            })
+          )
           .describe("The properties of the object input."),
         required: z
           .array(z.string())
@@ -3006,7 +3153,10 @@ export namespace Function {
           .describe("The maximum number of items in the array input."),
         items: InputSchemaSchema.describe(
           "The schema of the items in the array input."
-        ),
+        ).meta({
+          title: "InputSchema",
+          recursive: true,
+        }),
       })
       .describe("An array input schema.");
 
@@ -3172,8 +3322,19 @@ export namespace Function {
     .lazy(() =>
       z.union([
         Message.RichContent.PartSchema,
-        z.record(z.string(), InputSchema_),
-        z.array(InputSchema_),
+        z.record(
+          z.string(),
+          InputSchema_.meta({
+            title: "Input",
+            recursive: true,
+          })
+        ),
+        z.array(
+          InputSchema_.meta({
+            title: "Input",
+            recursive: true,
+          })
+        ),
         z.string(),
         z.number(),
         z.boolean(),
@@ -3192,8 +3353,19 @@ export namespace Function {
     z
       .union([
         Message.RichContent.PartSchema,
-        z.record(z.string(), InputExpressionSchema),
-        z.array(InputExpressionSchema),
+        z.record(
+          z.string(),
+          InputExpressionSchema.meta({
+            title: "InputExpression",
+            recursive: true,
+          })
+        ),
+        z.array(
+          InputExpressionSchema.meta({
+            title: "InputExpression",
+            recursive: true,
+          })
+        ),
         z.string(),
         z.number(),
         z.boolean(),
@@ -3872,6 +4044,16 @@ export namespace Function {
                 index: Task.IndexSchema,
                 task_index: Task.TaskIndexSchema,
                 task_path: Task.TaskPathSchema,
+                tasks: z
+                  .array(
+                    TaskChunkSchema.meta({
+                      title: "TaskChunk",
+                      recursive: true,
+                    })
+                  )
+                  .describe(
+                    "The tasks executed as part of the function execution."
+                  ),
               })
             )
             .describe("A chunk of a function execution task.");
@@ -4090,9 +4272,19 @@ export namespace Function {
                 index: Response.Task.IndexSchema,
                 task_index: Response.Task.TaskIndexSchema,
                 task_path: Response.Task.TaskPathSchema,
+                tasks: z
+                  .array(
+                    TaskSchema.meta({
+                      title: "Task",
+                      recursive: true,
+                    })
+                  )
+                  .describe(
+                    "The tasks executed as part of the function execution."
+                  ),
               })
             )
-            .describe("A chunk of a function execution task.");
+            .describe("A function execution task.");
 
           export const VectorCompletionSchema =
             Vector.Completions.Response.Unary.VectorCompletionSchema.extend({
