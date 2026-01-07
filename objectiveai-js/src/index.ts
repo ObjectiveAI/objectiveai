@@ -448,7 +448,7 @@ export namespace Message {
     export const ToolCallIdSchema = z
       .string()
       .describe(
-        "The unique identifier for the tool call that this message is responding to."
+        "The ID of the tool call that this message is responding to."
       );
     export type ToolCallId = z.infer<typeof ToolCallIdSchema>;
 
