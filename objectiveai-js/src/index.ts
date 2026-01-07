@@ -3210,7 +3210,7 @@ export namespace Function {
       .describe(InputSchema_.description!)
   );
 
-  export const InputMapsExpression = z
+  export const InputMapsExpressionSchema = z
     .union([
       ExpressionSchema.describe(
         "An expression which evaluates to a 2D array of Inputs."
@@ -3228,7 +3228,7 @@ export namespace Function {
     .describe(
       "An expression or list of expressions which evaluate to a 2D array of Inputs. Each sub-array will be fed into Tasks which specify an index of this input map."
     );
-  export type InputMaps = z.infer<typeof InputMapsExpression>;
+  export type InputMapsExpression = z.infer<typeof InputMapsExpressionSchema>;
 
   export const TaskExpressionSchema = z
     .discriminatedUnion("type", [
@@ -3335,7 +3335,7 @@ export namespace Function {
           "When present, describes changes from the previous version or versions."
         ),
       input_schema: InputSchemaSchema,
-      input_maps: InputMapsExpression.optional().nullable(),
+      input_maps: InputMapsExpressionSchema.optional().nullable(),
       tasks: TaskExpressionsSchema,
       output: ExpressionSchema.describe(
         "An expression which evaluates to a single number. This is the output of the scalar function. Will be provided with the outputs of all tasks."
@@ -3361,7 +3361,7 @@ export namespace Function {
           "When present, describes changes from the previous version or versions."
         ),
       input_schema: InputSchemaSchema,
-      input_maps: InputMapsExpression.optional().nullable(),
+      input_maps: InputMapsExpressionSchema.optional().nullable(),
       tasks: TaskExpressionsSchema,
       output: ExpressionSchema.describe(
         "An expressions which evaluates to an array of numbers. This is the output of the vector function. Will be provided with the outputs of all tasks."
