@@ -1,244 +1,1149 @@
 import OpenAI from "openai";
 import { Stream } from "openai/streaming";
+import z from "zod";
 
-// Message
+// Expressions
 
-export type Message =
-  | Message.Developer
-  | Message.System
-  | Message.User
-  | Message.Tool
-  | Message.Assistant;
+export const ExpressionSchema = z
+  .object({
+    $jmespath: z.string().describe("A JMESPath expression."),
+  })
+  .describe("An expression which evaluates to a value.");
+export type Expression = z.infer<typeof ExpressionSchema>;
+
+// JSON Value
+
+export type JsonValue =
+  | null
+  | boolean
+  | number
+  | string
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+export const JsonValueSchema: z.ZodType<JsonValue> = z
+  .lazy(() =>
+    z.union([
+      z.null(),
+      z.boolean(),
+      z.number(),
+      z.string(),
+      z.array(JsonValueSchema),
+      z.record(z.string(), JsonValueSchema),
+    ])
+  )
+  .describe("A JSON value.");
+
+export type JsonValueExpression =
+  | null
+  | boolean
+  | number
+  | string
+  | (Expression | JsonValueExpression)[]
+  | { [key: string]: Expression | JsonValueExpression }
+  | Expression;
+export const JsonValueExpressionSchema: z.ZodType<JsonValueExpression> = z
+  .lazy(() =>
+    z.union([
+      z.null(),
+      z.boolean(),
+      z.number(),
+      z.string(),
+      z.array(JsonValueExpressionSchema),
+      z.record(z.string(), JsonValueExpressionSchema),
+      ExpressionSchema.describe(
+        "An expression which evaluates to a JSON value."
+      ),
+    ])
+  )
+  .describe(JsonValueSchema.description!);
+
+// Errors
+
+export const ObjectiveAIErrorSchema = z
+  .object({
+    code: z.uint32().describe("The status code of the error."),
+    message: z.any().describe("The message or details of the error."),
+  })
+  .describe("An error returned by the ObjectiveAI API.");
+export type ObjectiveAIError = z.infer<typeof ObjectiveAIErrorSchema>;
+
+// Messages
+
+export const MessageSchema = z
+  .discriminatedUnion("role", [
+    Message.DeveloperSchema,
+    Message.SystemSchema,
+    Message.UserSchema,
+    Message.ToolSchema,
+    Message.AssistantSchema,
+  ])
+  .describe("A message exchanged in a chat conversation.");
+export type Message = z.infer<typeof MessageSchema>;
+
+export const MessageExpressionSchema = z
+  .union([
+    z
+      .discriminatedUnion("role", [
+        Message.DeveloperExpressionSchema,
+        Message.SystemExpressionSchema,
+        Message.UserExpressionSchema,
+        Message.ToolExpressionSchema,
+        Message.AssistantExpressionSchema,
+      ])
+      .describe(MessageSchema.description!),
+    ExpressionSchema.describe("An expression which evaluates to a message."),
+  ])
+  .describe(MessageSchema.description!);
+export type MessageExpression = z.infer<typeof MessageExpressionSchema>;
 
 export namespace Message {
-  export type SimpleContent = string | SimpleContentPart[];
+  export const SimpleContentPartSchema = z
+    .object({
+      type: z.literal("text"),
+      text: z.string().describe("The text content."),
+    })
+    .describe("A simple text content part.");
+  export type SimpleContentPart = z.infer<typeof SimpleContentPartSchema>;
 
-  export interface SimpleContentPart {
-    type: "text";
-    text: string;
+  export const SimpleContentSchema = z
+    .union([SimpleContent.TextSchema, SimpleContent.PartsSchema])
+    .describe("Simple content.");
+  export type SimpleContent = z.infer<typeof SimpleContentSchema>;
+
+  export const SimpleContentExpressionSchema = z
+    .union([
+      SimpleContent.TextSchema,
+      SimpleContent.PartsExpressionSchema,
+      ExpressionSchema.describe(
+        "An expression which evaluates to simple content."
+      ),
+    ])
+    .describe(SimpleContentSchema.description!);
+  export type SimpleContentExpression = z.infer<
+    typeof SimpleContentExpressionSchema
+  >;
+
+  export namespace SimpleContent {
+    export const TextSchema = z.string().describe("Plain text content.");
+    export type Text = z.infer<typeof TextSchema>;
+
+    export const PartSchema = z
+      .object({
+        type: z.literal("text"),
+        text: z.string().describe("The text content."),
+      })
+      .describe("A simple content part.");
+    export type Part = z.infer<typeof PartSchema>;
+
+    export const PartExpressionSchema = z
+      .union([
+        PartSchema,
+        ExpressionSchema.describe(
+          "An expression which evaluates to a simple content part."
+        ),
+      ])
+      .describe(PartSchema.description!);
+    export type PartExpression = z.infer<typeof PartExpressionSchema>;
+
+    export const PartsSchema = z
+      .array(PartSchema)
+      .describe("An array of simple content parts.");
+    export type Parts = z.infer<typeof PartsSchema>;
+
+    export const PartsExpressionSchema = z
+      .array(PartExpressionSchema)
+      .describe(PartsSchema.description!);
+    export type PartsExpression = z.infer<typeof PartsExpressionSchema>;
   }
 
-  export type RichContent = string | RichContentPart[];
+  export const RichContentSchema = z
+    .union([RichContent.TextSchema, RichContent.PartsSchema])
+    .describe("Rich content.");
+  export type RichContent = z.infer<typeof RichContentSchema>;
 
-  export type RichContentPart =
-    | RichContentPart.Text
-    | RichContentPart.ImageUrl
-    | RichContentPart.InputAudio
-    | RichContentPart.InputVideo
-    | RichContentPart.VideoUrl
-    | RichContentPart.File;
+  export const RichContentExpressionSchema = z
+    .union([
+      RichContent.TextSchema,
+      RichContent.PartsExpressionSchema,
+      ExpressionSchema.describe(
+        "An expression which evaluates to rich content."
+      ),
+    ])
+    .describe(RichContentSchema.description!);
+  export type RichContentExpression = z.infer<
+    typeof RichContentExpressionSchema
+  >;
 
-  export namespace RichContentPart {
-    export interface Text {
-      type: "text";
-      text: string;
-    }
+  export namespace RichContent {
+    export const TextSchema = z.string().describe("Plain text content.");
+    export type Text = z.infer<typeof TextSchema>;
 
-    export interface ImageUrl {
-      type: "image_url";
-      image_url: ImageUrl.Definition;
-    }
+    export const PartSchema = z
+      .discriminatedUnion("type", [
+        Part.TextSchema,
+        Part.ImageUrlSchema,
+        Part.InputAudioSchema,
+        Part.VideoUrlSchema,
+        Part.FileSchema,
+      ])
+      .describe("A rich content part.");
+    export type Part = z.infer<typeof PartSchema>;
 
-    export namespace ImageUrl {
-      export interface Definition {
-        url: string;
-        detail?: Detail | null;
+    export const PartExpressionSchema = z
+      .union([
+        PartSchema,
+        ExpressionSchema.describe(
+          "An expression which evaluates to a rich content part."
+        ),
+      ])
+      .describe(PartSchema.description!);
+    export type PartExpression = z.infer<typeof PartExpressionSchema>;
+
+    export namespace Part {
+      export const TextSchema = z
+        .object({
+          type: z.literal("text"),
+          text: Text.TextSchema,
+        })
+        .describe("A text rich content part.");
+      export type Text = z.infer<typeof TextSchema>;
+
+      export namespace Text {
+        export const TextSchema = z.string().describe("The text content.");
+        export type Text = z.infer<typeof TextSchema>;
       }
 
-      export type Detail = "auto" | "low" | "high";
-    }
+      export const ImageUrlSchema = z
+        .object({
+          type: z.literal("image_url"),
+          image_url: ImageUrl.DefinitionSchema,
+        })
+        .describe("An image rich content part.");
+      export type ImageUrl = z.infer<typeof ImageUrlSchema>;
 
-    export interface InputAudio {
-      type: "input_audio";
-      input_audio: InputAudio.Definition;
-    }
+      export namespace ImageUrl {
+        export const DetailSchema = z
+          .enum(["auto", "low", "high"])
+          .describe("Specifies the detail level of the image.");
+        export type Detail = z.infer<typeof DetailSchema>;
 
-    export namespace InputAudio {
-      export interface Definition {
-        data: string;
-        format: Format;
+        export const UrlSchema = z
+          .string()
+          .describe(
+            "Either a URL of the image or the base64 encoded image data."
+          );
+        export type Url = z.infer<typeof UrlSchema>;
+
+        export const DefinitionSchema = z
+          .object({
+            url: UrlSchema,
+            detail: DetailSchema.optional().nullable(),
+          })
+          .describe("The URL of the image and its optional detail level.");
+        export type Definition = z.infer<typeof DefinitionSchema>;
       }
 
-      export type Format = "wav" | "mp3";
-    }
+      export const InputAudioSchema = z
+        .object({
+          type: z.literal("input_audio"),
+          input_audio: InputAudio.DefinitionSchema,
+        })
+        .describe("An audio rich content part.");
+      export type InputAudio = z.infer<typeof InputAudioSchema>;
 
-    export interface InputVideo {
-      type: "input_video";
-      video_url: InputVideo.Definition;
-    }
+      export namespace InputAudio {
+        export const FormatSchema = z
+          .enum(["wav", "mp3"])
+          .describe("The format of the encoded audio data.");
+        export type Format = z.infer<typeof FormatSchema>;
 
-    export namespace InputVideo {
-      export interface Definition {
-        url: string;
+        export const DataSchema = z
+          .string()
+          .describe("Base64 encoded audio data.");
+        export type Data = z.infer<typeof DataSchema>;
+
+        export const DefinitionSchema = z
+          .object({
+            data: DataSchema,
+            format: FormatSchema,
+          })
+          .describe("The audio data and its format.");
+        export type Definition = z.infer<typeof DefinitionSchema>;
+      }
+
+      export const VideoUrlSchema = z
+        .object({
+          type: z.enum(["video_url", "input_video"]),
+          video_url: VideoUrl.DefinitionSchema,
+        })
+        .describe("A video rich content part.");
+      export type VideoUrl = z.infer<typeof VideoUrlSchema>;
+
+      export namespace VideoUrl {
+        export const UrlSchema = z.string().describe("URL of the video.");
+        export type Url = z.infer<typeof UrlSchema>;
+
+        export const DefinitionSchema = z.object({
+          url: UrlSchema,
+        });
+        export type Definition = z.infer<typeof DefinitionSchema>;
+      }
+
+      export const FileSchema = z
+        .object({
+          type: z.literal("file"),
+          file: File.DefinitionSchema,
+        })
+        .describe("A file rich content part.");
+      export type File = z.infer<typeof FileSchema>;
+
+      export namespace File {
+        export const FileDataSchema = z
+          .string()
+          .describe(
+            "The base64 encoded file data, used when passing the file to the model as a string."
+          );
+        export type FileData = z.infer<typeof FileDataSchema>;
+
+        export const FileIdSchema = z
+          .string()
+          .describe("The ID of an uploaded file to use as input.");
+        export type FileId = z.infer<typeof FileIdSchema>;
+
+        export const FilenameSchema = z
+          .string()
+          .describe(
+            "The name of the file, used when passing the file to the model as a string."
+          );
+        export type Filename = z.infer<typeof FilenameSchema>;
+
+        export const FileUrlSchema = z
+          .string()
+          .describe(
+            "The URL of the file, used when passing the file to the model as a URL."
+          );
+        export type FileUrl = z.infer<typeof FileUrlSchema>;
+
+        export const DefinitionSchema = z
+          .object({
+            file_data: FileDataSchema.optional().nullable(),
+            file_id: FileIdSchema.optional().nullable(),
+            filename: FilenameSchema.optional().nullable(),
+            file_url: FileUrlSchema.optional().nullable(),
+          })
+          .describe(
+            "The file to be used as input, either as base64 data, an uploaded file ID, or a URL."
+          );
+        export type Definition = z.infer<typeof DefinitionSchema>;
       }
     }
 
-    export interface VideoUrl {
-      type: "video_url";
-      video_url: InputVideo.Definition;
-    }
+    export const PartsSchema = z
+      .array(PartSchema)
+      .describe("An array of rich content parts.");
+    export type Parts = z.infer<typeof PartsSchema>;
 
-    export interface File {
-      type: "file";
-      file: File.Definition;
-    }
-
-    export namespace File {
-      export interface Definition {
-        file_data?: string | null;
-        file_id?: string | null;
-        filename?: string | null;
-        file_url?: string | null;
-      }
-    }
+    export const PartsExpressionSchema = z
+      .array(PartExpressionSchema)
+      .describe(PartsSchema.description!);
+    export type PartsExpression = z.infer<typeof PartsExpressionSchema>;
   }
 
-  export interface Developer {
-    role: "developer";
-    content: SimpleContent;
-    name?: string;
+  export const NameSchema = z
+    .string()
+    .describe(
+      "An optional name for the participant. Provides the model information to differentiate between participants of the same role."
+    );
+  export type Name = z.infer<typeof NameSchema>;
+
+  export const NameExpressionSchema = z
+    .union([
+      NameSchema,
+      ExpressionSchema.describe("An expression which evaluates to a string."),
+    ])
+    .describe(NameSchema.description!);
+  export type NameExpression = z.infer<typeof NameExpressionSchema>;
+
+  export const DeveloperSchema = z
+    .object({
+      role: z.literal("developer"),
+      content: SimpleContentSchema,
+      name: NameSchema.optional().nullable(),
+    })
+    .describe(
+      "Developer-provided instructions that the model should follow, regardless of messages sent by the user."
+    );
+  export type Developer = z.infer<typeof DeveloperSchema>;
+
+  export const DeveloperExpressionSchema = z
+    .object({
+      role: z.literal("developer"),
+      content: SimpleContentExpressionSchema,
+      name: NameExpressionSchema.optional().nullable(),
+    })
+    .describe(DeveloperSchema.description!);
+  export type DeveloperExpression = z.infer<typeof DeveloperExpressionSchema>;
+
+  export const SystemSchema = z
+    .object({
+      role: z.literal("system"),
+      content: SimpleContentSchema,
+      name: NameSchema.optional().nullable(),
+    })
+    .describe(
+      "Developer-provided instructions that the model should follow, regardless of messages sent by the user."
+    );
+  export type System = z.infer<typeof SystemSchema>;
+
+  export const SystemExpressionSchema = z
+    .object({
+      role: z.literal("system"),
+      content: SimpleContentExpressionSchema,
+      name: NameExpressionSchema.optional().nullable(),
+    })
+    .describe(SystemSchema.description!);
+  export type SystemExpression = z.infer<typeof SystemExpressionSchema>;
+
+  export const UserSchema = z
+    .object({
+      role: z.literal("user"),
+      content: RichContentSchema,
+      name: NameSchema.optional().nullable(),
+    })
+    .describe(
+      "Messages sent by an end user, containing prompts or additional context information."
+    );
+  export type User = z.infer<typeof UserSchema>;
+
+  export const UserExpressionSchema = z
+    .object({
+      role: z.literal("user"),
+      content: RichContentExpressionSchema,
+      name: NameExpressionSchema.optional().nullable(),
+    })
+    .describe(UserSchema.description!);
+  export type UserExpression = z.infer<typeof UserExpressionSchema>;
+
+  export const ToolSchema = z
+    .object({
+      role: z.literal("tool"),
+      content: RichContentSchema,
+      tool_call_id: Tool.ToolCallIdSchema,
+    })
+    .describe(
+      "Messages sent by tools in response to tool calls made by the assistant."
+    );
+  export type Tool = z.infer<typeof ToolSchema>;
+
+  export const ToolExpressionSchema = z
+    .object({
+      role: z.literal("tool"),
+      content: RichContentExpressionSchema,
+      tool_call_id: Tool.ToolCallIdExpressionSchema,
+    })
+    .describe(ToolSchema.description!);
+  export type ToolExpression = z.infer<typeof ToolExpressionSchema>;
+
+  export namespace Tool {
+    export const ToolCallIdSchema = z
+      .string()
+      .describe(
+        "The ID of the tool call that this message is responding to."
+      );
+    export type ToolCallId = z.infer<typeof ToolCallIdSchema>;
+
+    export const ToolCallIdExpressionSchema = z
+      .union([
+        ToolCallIdSchema,
+        ExpressionSchema.describe("An expression which evaluates to a string."),
+      ])
+      .describe(ToolCallIdSchema.description!);
+    export type ToolCallIdExpression = z.infer<
+      typeof ToolCallIdExpressionSchema
+    >;
   }
 
-  export interface System {
-    role: "system";
-    content: SimpleContent;
-    name?: string;
-  }
+  export const AssistantSchema = z
+    .object({
+      role: z.literal("assistant"),
+      content: RichContentSchema.optional().nullable(),
+      name: NameSchema.optional().nullable(),
+      refusal: Assistant.RefusalSchema.optional().nullable(),
+      tool_calls: Assistant.ToolCallsSchema.optional().nullable(),
+      reasoning: Assistant.ReasoningSchema.optional().nullable(),
+    })
+    .describe("Messages sent by the model in response to user messages.");
+  export type Assistant = z.infer<typeof AssistantSchema>;
 
-  export interface User {
-    role: "user";
-    content: RichContent;
-    name?: string;
-  }
-
-  export interface Tool {
-    role: "tool";
-    content: RichContent;
-    tool_call_id: string;
-  }
-
-  export interface Assistant {
-    role: "assistant";
-    content?: RichContent | null;
-    name?: string | null;
-    refusal?: string | null;
-    tool_calls?: Assistant.ToolCall[] | null;
-    reasoning?: string | null;
-  }
+  export const AssistantExpressionSchema = z
+    .object({
+      role: z.literal("assistant"),
+      content: RichContentExpressionSchema.optional().nullable(),
+      name: NameExpressionSchema.optional().nullable(),
+      refusal: Assistant.RefusalExpressionSchema.optional().nullable(),
+      tool_calls: Assistant.ToolCallsExpressionSchema.optional().nullable(),
+      reasoning: Assistant.ReasoningExpressionSchema.optional().nullable(),
+    })
+    .describe(AssistantSchema.description!);
+  export type AssistantExpression = z.infer<typeof AssistantExpressionSchema>;
 
   export namespace Assistant {
-    export type ToolCall = ToolCall.Function;
+    export const RefusalSchema = z
+      .string()
+      .describe("The refusal message by the assistant.");
+    export type Refusal = z.infer<typeof RefusalSchema>;
+
+    export const RefusalExpressionSchema = z
+      .union([
+        RefusalSchema,
+        ExpressionSchema.describe("An expression which evaluates to a string."),
+      ])
+      .describe(RefusalSchema.description!);
+    export type RefusalExpression = z.infer<typeof RefusalExpressionSchema>;
+
+    export const ReasoningSchema = z
+      .string()
+      .describe("The reasoning provided by the assistant.");
+    export type Reasoning = z.infer<typeof ReasoningSchema>;
+
+    export const ReasoningExpressionSchema = z
+      .union([
+        ReasoningSchema,
+        ExpressionSchema.describe("An expression which evaluates to a string."),
+      ])
+      .describe(ReasoningSchema.description!);
+    export type ReasoningExpression = z.infer<typeof ReasoningExpressionSchema>;
+
+    export const ToolCallSchema = z
+      .union([ToolCall.FunctionSchema])
+      .describe("A tool call made by the assistant.");
+    export type ToolCall = z.infer<typeof ToolCallSchema>;
+
+    export const ToolCallExpressionSchema = z
+      .union([
+        ToolCall.FunctionExpressionSchema,
+        ExpressionSchema.describe(
+          "An expression which evaluates to a tool call."
+        ),
+      ])
+      .describe(ToolCallSchema.description!);
+    export type ToolCallExpression = z.infer<typeof ToolCallExpressionSchema>;
 
     export namespace ToolCall {
-      export interface Function {
-        type: "function";
-        id: string;
-        function: Function.Definition;
-      }
+      export const IdSchema = z
+        .string()
+        .describe("The unique identifier for the tool call.");
+      export type Id = z.infer<typeof IdSchema>;
+
+      export const IdExpressionSchema = z
+        .union([
+          IdSchema,
+          ExpressionSchema.describe(
+            "An expression which evaluates to a string."
+          ),
+        ])
+        .describe(IdSchema.description!);
+      export type IdExpression = z.infer<typeof IdExpressionSchema>;
+
+      export const FunctionSchema = z
+        .object({
+          type: z.literal("function"),
+          id: IdSchema,
+          function: Function.DefinitionSchema,
+        })
+        .describe("A function tool call made by the assistant.");
+      export type Function = z.infer<typeof FunctionSchema>;
+
+      export const FunctionExpressionSchema = z
+        .object({
+          type: z.literal("function"),
+          id: IdExpressionSchema,
+          function: Function.DefinitionExpressionSchema,
+        })
+        .describe(FunctionSchema.description!);
+      export type FunctionExpression = z.infer<typeof FunctionExpressionSchema>;
 
       export namespace Function {
-        export interface Definition {
-          name: string;
-          arguments: string;
-        }
+        export const NameSchema = z
+          .string()
+          .describe("The name of the function called.");
+        export type Name = z.infer<typeof NameSchema>;
+
+        export const NameExpressionSchema = z
+          .union([
+            NameSchema,
+            ExpressionSchema.describe(
+              "An expression which evaluates to a string."
+            ),
+          ])
+          .describe(NameSchema.description!);
+        export type NameExpression = z.infer<typeof NameExpressionSchema>;
+
+        export const ArgumentsSchema = z
+          .string()
+          .describe("The arguments passed to the function.");
+        export type Arguments = z.infer<typeof ArgumentsSchema>;
+
+        export const ArgumentsExpressionSchema = z
+          .union([
+            ArgumentsSchema,
+            ExpressionSchema.describe(
+              "An expression which evaluates to a string."
+            ),
+          ])
+          .describe(ArgumentsSchema.description!);
+        export type ArgumentsExpression = z.infer<
+          typeof ArgumentsExpressionSchema
+        >;
+
+        export const DefinitionSchema = z
+          .object({
+            name: NameSchema,
+            arguments: ArgumentsSchema,
+          })
+          .describe("The name and arguments of the function called.");
+        export type Definition = z.infer<typeof DefinitionSchema>;
+
+        export const DefinitionExpressionSchema = z
+          .object({
+            name: NameExpressionSchema,
+            arguments: ArgumentsExpressionSchema,
+          })
+          .describe(DefinitionSchema.description!);
+        export type DefinitionExpression = z.infer<
+          typeof DefinitionExpressionSchema
+        >;
       }
     }
+
+    export const ToolCallsSchema = z
+      .array(ToolCallSchema)
+      .describe("Tool calls made by the assistant.");
+    export type ToolCalls = z.infer<typeof ToolCallsSchema>;
+
+    export const ToolCallsExpressionSchema = z
+      .union([
+        z
+          .array(ToolCallExpressionSchema)
+          .describe(ToolCallsSchema.description!),
+        ExpressionSchema.describe(
+          "An expression which evaluates to an array of tool calls."
+        ),
+      ])
+      .describe(ToolCallsSchema.description!);
+    export type ToolCallsExpression = z.infer<typeof ToolCallsExpressionSchema>;
   }
 }
+
+export const MessagesSchema = z
+  .array(MessageSchema)
+  .describe("A list of messages exchanged in a chat conversation.");
+export type Messages = z.infer<typeof MessagesSchema>;
+
+export const MessagesExpressionSchema = z
+  .union([
+    z.array(MessageExpressionSchema).describe(MessagesSchema.description!),
+    ExpressionSchema.describe(
+      "An expression which evaluates to an array of messages."
+    ),
+  ])
+  .describe(MessagesSchema.description!);
+export type MessagesExpression = z.infer<typeof MessagesExpressionSchema>;
+
+// Tools
+
+export const ToolSchema = z
+  .union([Tool.FunctionSchema])
+  .describe("A tool that the assistant can call.");
+export type Tool = z.infer<typeof ToolSchema>;
+
+export const ToolExpressionSchema = z
+  .union([
+    Tool.FunctionExpressionSchema,
+    ExpressionSchema.describe("An expression which evaluates to a tool."),
+  ])
+  .describe(ToolSchema.description!);
+export type ToolExpression = z.infer<typeof ToolExpressionSchema>;
+
+export namespace Tool {
+  export const FunctionSchema = z
+    .object({
+      type: z.literal("function"),
+      function: Function.DefinitionSchema,
+    })
+    .describe("A function tool that the assistant can call.");
+  export type Function = z.infer<typeof FunctionSchema>;
+
+  export const FunctionExpressionSchema = z
+    .object({
+      type: z.literal("function"),
+      function: Function.DefinitionExpressionSchema,
+    })
+    .describe(FunctionSchema.description!);
+  export type FunctionExpression = z.infer<typeof FunctionExpressionSchema>;
+
+  export namespace Function {
+    export const NameSchema = z.string().describe("The name of the function.");
+    export type Name = z.infer<typeof NameSchema>;
+
+    export const NameExpressionSchema = z
+      .union([
+        NameSchema,
+        ExpressionSchema.describe("An expression which evaluates to a string."),
+      ])
+      .describe(NameSchema.description!);
+    export type NameExpression = z.infer<typeof NameExpressionSchema>;
+
+    export const DescriptionSchema = z
+      .string()
+      .describe("The description of the function.");
+    export type Description = z.infer<typeof DescriptionSchema>;
+
+    export const DescriptionExpressionSchema = z
+      .union([
+        DescriptionSchema,
+        ExpressionSchema.describe("An expression which evaluates to a string."),
+      ])
+      .describe(DescriptionSchema.description!);
+    export type DescriptionExpression = z.infer<
+      typeof DescriptionExpressionSchema
+    >;
+
+    export const ParametersSchema = z
+      .record(z.string(), JsonValueSchema)
+      .describe("The JSON schema defining the parameters of the function.");
+    export type Parameters = z.infer<typeof ParametersSchema>;
+
+    export const ParametersExpressionSchema = z
+      .union([
+        z.record(z.string(), JsonValueExpressionSchema),
+        ExpressionSchema.describe(
+          "An expression which evaluates to a JSON schema object."
+        ),
+      ])
+      .describe(ParametersSchema.description!);
+    export type ParametersExpression = z.infer<
+      typeof ParametersExpressionSchema
+    >;
+
+    export const StrictSchema = z
+      .boolean()
+      .describe("Whether to enforce strict adherence to the parameter schema.");
+    export type Strict = z.infer<typeof StrictSchema>;
+
+    export const StrictExpressionSchema = z
+      .union([
+        StrictSchema,
+        ExpressionSchema.describe(
+          "An expression which evaluates to a boolean."
+        ),
+      ])
+      .describe(StrictSchema.description!);
+    export type StrictExpression = z.infer<typeof StrictExpressionSchema>;
+
+    export const DefinitionSchema = z
+      .object({
+        name: NameSchema,
+        description: DescriptionSchema.optional().nullable(),
+        parameters: ParametersSchema.optional().nullable(),
+        strict: StrictSchema.optional().nullable(),
+      })
+      .describe("The definition of a function tool.");
+    export type Definition = z.infer<typeof DefinitionSchema>;
+
+    export const DefinitionExpressionSchema = z
+      .object({
+        name: NameExpressionSchema,
+        description: DescriptionExpressionSchema.optional().nullable(),
+        parameters: ParametersExpressionSchema.optional().nullable(),
+        strict: StrictExpressionSchema.optional().nullable(),
+      })
+      .describe(DefinitionSchema.description!);
+    export type DefinitionExpression = z.infer<
+      typeof DefinitionExpressionSchema
+    >;
+  }
+}
+
+export const ToolsSchema = z
+  .array(ToolSchema)
+  .describe("A list of tools that the assistant can call.");
+export type Tools = z.infer<typeof ToolsSchema>;
+
+export const ToolsExpressionSchema = z
+  .union([
+    z.array(ToolExpressionSchema).describe(ToolsSchema.description!),
+    ExpressionSchema.describe(
+      "An expression which evaluates to an array of tools."
+    ),
+  ])
+  .describe(ToolsSchema.description!);
+export type ToolsExpression = z.infer<typeof ToolsExpressionSchema>;
+
+// Vector Responses
+
+export const VectorResponseSchema = Message.RichContentSchema.describe(
+  "A possible assistant response. The LLMs in the Ensemble may vote for this option."
+);
+export type VectorResponse = z.infer<typeof VectorResponseSchema>;
+
+export const VectorResponseExpressionSchema = z
+  .union([
+    VectorResponseSchema,
+    ExpressionSchema.describe(
+      "An expression which evaluates to a possible assistant response."
+    ),
+  ])
+  .describe(VectorResponseSchema.description!);
+export type VectorResponseExpression = z.infer<
+  typeof VectorResponseExpressionSchema
+>;
+
+export const VectorResponsesSchema = z
+  .array(VectorResponseSchema)
+  .describe(
+    "A list of possible assistant responses which the LLMs in the Ensemble will vote on. The output scores will be of the same length, each corresponding to one response. The winner is the response with the highest score."
+  );
+export type VectorResponses = z.infer<typeof VectorResponsesSchema>;
+
+export const VectorResponsesExpressionSchema = z
+  .union([
+    z
+      .array(VectorResponseExpressionSchema)
+      .describe(VectorResponsesSchema.description!),
+    ExpressionSchema.describe(
+      "An expression which evaluates to an array of possible assistant responses."
+    ),
+  ])
+  .describe(VectorResponsesSchema.description!);
+export type VectorResponsesExpression = z.infer<
+  typeof VectorResponsesExpressionSchema
+>;
 
 // Ensemble LLM
 
-export interface EnsembleLlmBase {
-  model: string;
-  output_mode: EnsembleLlm.OutputMode;
-  synthetic_reasoning?: boolean | null;
-  top_logprobs?: number | null;
-  prefix_messages?: Message[] | null;
-  suffix_messages?: Message[] | null;
-  frequency_penalty?: number | null;
-  logit_bias?: Record<string, number> | null;
-  max_completion_tokens?: number | null;
-  presence_penalty?: number | null;
-  stop?: EnsembleLlm.Stop | null;
-  temperature?: number | null;
-  top_p?: number | null;
-  max_tokens?: number | null;
-  min_p?: number | null;
-  provider?: EnsembleLlm.Provider | null;
-  reasoning?: EnsembleLlm.Reasoning | null;
-  repetition_penalty?: number | null;
-  top_a?: number | null;
-  top_k?: number | null;
-  verbosity?: EnsembleLlm.Verbosity | null;
-}
+export const EnsembleLlmBaseSchema = z
+  .object({
+    model: z.string().describe("The full ID of the LLM to use."),
+    output_mode: EnsembleLlm.OutputModeSchema,
+    synthetic_reasoning: z
+      .boolean()
+      .optional()
+      .nullable()
+      .describe(
+        "For Vector Completions only, whether to use synthetic reasoning prior to voting. Works for any LLM, even those that do not have native reasoning capabilities."
+      ),
+    top_logprobs: z
+      .int()
+      .min(0)
+      .max(20)
+      .optional()
+      .nullable()
+      .describe(
+        "For Vector Completions only, whether to use logprobs to make the vote probabilistic. This means that the LLM can vote for multiple keys based on their logprobabilities. Allows LLMs to express native uncertainty when voting."
+      ),
+    prefix_messages: MessagesSchema.optional()
+      .nullable()
+      .describe(
+        `${MessagesSchema.description} These will be prepended to every prompt sent to this LLM. Useful for setting context or influencing behavior.`
+      ),
+    suffix_messages: MessagesSchema.optional()
+      .nullable()
+      .describe(
+        `${MessagesSchema.description} These will be appended to every prompt sent to this LLM. Useful for setting context or influencing behavior.`
+      ),
+    frequency_penalty: z
+      .number()
+      .min(-2.0)
+      .max(2.0)
+      .optional()
+      .nullable()
+      .describe(
+        "This setting aims to control the repetition of tokens based on how often they appear in the input. It tries to use less frequently those tokens that appear more in the input, proportional to how frequently they occur. Token penalty scales with the number of occurrences. Negative values will encourage token reuse."
+      ),
+    logit_bias: z
+      .record(z.string(), z.int().min(-100).max(100))
+      .optional()
+      .nullable()
+      .describe(
+        "Accepts a JSON object that maps tokens (specified by their token ID in the tokenizer) to an associated bias value from -100 to 100. Mathematically, the bias is added to the logits generated by the model prior to sampling. The exact effect will vary per model, but values between -1 and 1 should decrease or increase likelihood of selection; values like -100 or 100 should result in a ban or exclusive selection of the relevant token."
+      ),
+    max_completion_tokens: z
+      .int()
+      .min(0)
+      .max(2147483647)
+      .optional()
+      .nullable()
+      .describe(
+        "An upper bound for the number of tokens that can be generated for a completion, including visible output tokens and reasoning tokens."
+      ),
+    presence_penalty: z
+      .number()
+      .min(-2.0)
+      .max(2.0)
+      .optional()
+      .nullable()
+      .describe(
+        "This setting aims to control the presence of tokens in the output. It tries to encourage the model to use tokens that are less present in the input, proportional to their presence in the input. Token presence scales with the number of occurrences. Negative values will encourage more diverse token usage."
+      ),
+    stop: EnsembleLlm.StopSchema.optional().nullable(),
+    temperature: z
+      .number()
+      .min(0.0)
+      .max(2.0)
+      .optional()
+      .nullable()
+      .describe(
+        "This setting influences the variety in the model’s responses. Lower values lead to more predictable and typical responses, while higher values encourage more diverse and less common responses. At 0, the model always gives the same response for a given input."
+      ),
+    top_p: z
+      .number()
+      .min(0.0)
+      .max(1.0)
+      .optional()
+      .nullable()
+      .describe(
+        "This setting limits the model’s choices to a percentage of likely tokens: only the top tokens whose probabilities add up to P. A lower value makes the model’s responses more predictable, while the default setting allows for a full range of token choices. Think of it like a dynamic Top-K."
+      ),
+    max_tokens: z
+      .int()
+      .min(0)
+      .max(2147483647)
+      .optional()
+      .nullable()
+      .describe(
+        "This sets the upper limit for the number of tokens the model can generate in response. It won’t produce more than this limit. The maximum value is the context length minus the prompt length."
+      ),
+    min_p: z
+      .number()
+      .min(0.0)
+      .max(1.0)
+      .optional()
+      .nullable()
+      .describe(
+        "Represents the minimum probability for a token to be considered, relative to the probability of the most likely token. (The value changes depending on the confidence level of the most probable token.) If your Min-P is set to 0.1, that means it will only allow for tokens that are at least 1/10th as probable as the best possible option."
+      ),
+    provider: EnsembleLlm.ProviderSchema.optional().nullable(),
+    reasoning: EnsembleLlm.ReasoningSchema.optional().nullable(),
+    repetition_penalty: z
+      .number()
+      .min(0.0)
+      .max(2.0)
+      .optional()
+      .nullable()
+      .describe(
+        "Helps to reduce the repetition of tokens from the input. A higher value makes the model less likely to repeat tokens, but too high a value can make the output less coherent (often with run-on sentences that lack small words). Token penalty scales based on original token’s probability."
+      ),
+    top_a: z
+      .number()
+      .min(0.0)
+      .max(1.0)
+      .optional()
+      .nullable()
+      .describe(
+        "Consider only the top tokens with “sufficiently high” probabilities based on the probability of the most likely token. Think of it like a dynamic Top-P. A lower Top-A value focuses the choices based on the highest probability token but with a narrower scope. A higher Top-A value does not necessarily affect the creativity of the output, but rather refines the filtering process based on the maximum probability."
+      ),
+    top_k: z
+      .int()
+      .min(0)
+      .max(2147483647)
+      .optional()
+      .nullable()
+      .describe(
+        "This limits the model’s choice of tokens at each step, making it choose from a smaller set. A value of 1 means the model will always pick the most likely next token, leading to predictable results. By default this setting is disabled, making the model to consider all choices."
+      ),
+    verbosity: EnsembleLlm.VerbositySchema.optional().nullable(),
+  })
+  .describe(
+    "An LLM to be used within an Ensemble or standalone with Chat Completions."
+  );
+export type EnsembleLlmBase = z.infer<typeof EnsembleLlmBaseSchema>;
 
-export interface EnsembleLlmBaseWithFallbacksAndCount {
-  count?: number | null;
-  inner: EnsembleLlmBase;
-  fallbacks?: EnsembleLlmBase[] | null;
-}
+export const EnsembleLlmBaseWithFallbacksAndCountSchema =
+  EnsembleLlmBaseSchema.extend({
+    count: z
+      .uint32()
+      .min(1)
+      .optional()
+      .nullable()
+      .describe(
+        "A count greater than one effectively means that there are multiple instances of this LLM in an ensemble."
+      ),
+    fallbacks: z
+      .array(EnsembleLlmBaseSchema)
+      .optional()
+      .nullable()
+      .describe("A list of fallback LLMs to use if the primary LLM fails."),
+  }).describe(
+    "An LLM to be used within an Ensemble, including optional fallbacks and count."
+  );
+export type EnsembleLlmBaseWithFallbacksAndCount = z.infer<
+  typeof EnsembleLlmBaseWithFallbacksAndCountSchema
+>;
 
-export interface EnsembleLlm extends EnsembleLlmBase {
-  id: string;
-}
+export const EnsembleLlmSchema = EnsembleLlmBaseSchema.extend({
+  id: z.string().describe("The unique identifier for the Ensemble LLM."),
+}).describe(
+  "An LLM to be used within an Ensemble or standalone with Chat Completions, including its unique identifier."
+);
+export type EnsembleLlm = z.infer<typeof EnsembleLlmSchema>;
 
-export interface EnsembleLlmWithFallbacksAndCount {
-  count?: number | null;
-  inner: EnsembleLlm;
-  fallbacks?: EnsembleLlm[] | null;
-}
+export const EnsembleLlmWithFallbacksAndCountSchema = EnsembleLlmSchema.extend({
+  count: EnsembleLlmBaseWithFallbacksAndCountSchema.shape.count,
+  fallbacks: z
+    .array(EnsembleLlmSchema)
+    .optional()
+    .nullable()
+    .describe(
+      EnsembleLlmBaseWithFallbacksAndCountSchema.shape.fallbacks.description!
+    ),
+}).describe(
+  "An LLM to be used within an Ensemble, including its unique identifier, optional fallbacks, and count."
+);
+export type EnsembleLlmWithFallbacksAndCount = z.infer<
+  typeof EnsembleLlmWithFallbacksAndCountSchema
+>;
 
 export namespace EnsembleLlm {
-  export type OutputMode = "instruction" | "json_schema" | "tool_call";
+  export const OutputModeSchema = z
+    .enum(["instruction", "json_schema", "tool_call"])
+    .describe(
+      'For Vector Completions only, specifies the LLM\'s voting output mode. For "instruction", the assistant is instructed to output a key. For "json_schema", the assistant is constrained to output a valid key using a JSON schema. For "tool_call", the assistant is instructed to output a tool call to select the key.'
+    );
+  export type OutputMode = z.infer<typeof OutputModeSchema>;
 
-  export type Stop = string | string[];
+  export const StopSchema = z
+    .union([
+      z
+        .string()
+        .describe("Generation will stop when this string is generated."),
+      z
+        .array(z.string())
+        .describe(
+          "Generation will stop when any of these strings are generated."
+        ),
+    ])
+    .describe(
+      "The assistant will stop when any of the provided strings are generated."
+    );
+  export type Stop = z.infer<typeof StopSchema>;
 
-  export interface Provider {
-    allow_fallbacks?: boolean | null;
-    require_parameters?: boolean | null;
-    order?: string[] | null;
-    only?: string[] | null;
-    ignore?: string[] | null;
-    quantizations?: Provider.Quantization[] | null;
-  }
+  export const ProviderSchema = z
+    .object({
+      allow_fallbacks: z
+        .boolean()
+        .optional()
+        .nullable()
+        .describe(
+          "Whether to allow fallback providers if the preferred provider is unavailable."
+        ),
+      require_parameters: z
+        .boolean()
+        .optional()
+        .nullable()
+        .describe(
+          "Whether to require that the provider supports all specified parameters."
+        ),
+      order: z
+        .array(z.string())
+        .optional()
+        .nullable()
+        .describe(
+          "An ordered list of provider names to use when selecting a provider for this model."
+        ),
+      only: z
+        .array(z.string())
+        .optional()
+        .nullable()
+        .describe(
+          "A list of provider names to restrict selection to when selecting a provider for this model."
+        ),
+      ignore: z
+        .array(z.string())
+        .optional()
+        .nullable()
+        .describe(
+          "A list of provider names to ignore when selecting a provider for this model."
+        ),
+      quantizations: z
+        .array(Provider.QuantizationSchema)
+        .optional()
+        .nullable()
+        .describe(
+          "Specifies the quantizations to allow when selecting providers for this model."
+        ),
+    })
+    .describe("Options for selecting the upstream provider of this model.");
+  export type Provider = z.infer<typeof ProviderSchema>;
 
   export namespace Provider {
-    export type Quantization =
-      | "int4"
-      | "int8"
-      | "fp4"
-      | "fp6"
-      | "fp8"
-      | "fp16"
-      | "bf16"
-      | "fp32"
-      | "unknown";
+    export const QuantizationSchema = z
+      .enum([
+        "int4",
+        "int8",
+        "fp4",
+        "fp6",
+        "fp8",
+        "fp16",
+        "bf16",
+        "fp32",
+        "unknown",
+      ])
+      .describe("An LLM quantization.");
+    export type Quantization = z.infer<typeof QuantizationSchema>;
   }
 
-  export interface Reasoning {
-    enabled?: boolean | null;
-    max_tokens?: number | null;
-    effort?: Reasoning.Effort | null;
-    summary_verbosity?: Reasoning.SummaryVerbosity | null;
-  }
+  export const ReasoningSchema = z
+    .object({
+      enabled: z
+        .boolean()
+        .optional()
+        .nullable()
+        .describe("Enables or disables reasoning for supported models."),
+      max_tokens: z
+        .int()
+        .min(0)
+        .max(2147483647)
+        .optional()
+        .nullable()
+        .describe(
+          "The maximum number of tokens to use for reasoning in a response."
+        ),
+      effort: Reasoning.EffortSchema.optional().nullable(),
+      summary_verbosity: Reasoning.SummaryVerbositySchema.optional().nullable(),
+    })
+    .optional()
+    .nullable()
+    .describe("Options for controlling reasoning behavior of the model.");
+  export type Reasoning = z.infer<typeof ReasoningSchema>;
 
   export namespace Reasoning {
-    export type Effort =
-      | "none"
-      | "minimal"
-      | "low"
-      | "medium"
-      | "high"
-      | "xhigh";
+    export const EffortSchema = z
+      .enum(["none", "minimal", "low", "medium", "high", "xhigh"])
+      .describe(
+        "Constrains effort on reasoning for supported reasoning models. Reducing reasoning effort can result in faster responses and fewer tokens used on reasoning in a response."
+      );
+    export type Effort = z.infer<typeof EffortSchema>;
 
-    export type SummaryVerbosity = "auto" | "concise" | "detailed";
+    export const SummaryVerbositySchema = z
+      .enum(["auto", "concise", "detailed"])
+      .describe(
+        "Controls the verbosity of the reasoning summary for supported reasoning models."
+      );
+    export type SummaryVerbosity = z.infer<typeof SummaryVerbositySchema>;
   }
 
-  export type Verbosity = "low" | "medium" | "high";
+  export const VerbositySchema = z
+    .enum(["low", "medium", "high"])
+    .describe(
+      "Controls the verbosity and length of the model response. Lower values produce more concise responses, while higher values produce more detailed and comprehensive responses."
+    );
+  export type Verbosity = z.infer<typeof VerbositySchema>;
 
-  export interface ListItem {
-    id: string;
-  }
+  export const ListItemSchema = z.object({
+    id: z.string().describe("The unique identifier for the Ensemble LLM."),
+  });
+  export type ListItem = z.infer<typeof ListItemSchema>;
 
   export async function list(
     openai: OpenAI,
@@ -248,9 +1153,14 @@ export namespace EnsembleLlm {
     return response as { data: ListItem[] };
   }
 
-  export interface RetrieveItem extends EnsembleLlm {
-    created: number;
-  }
+  export const RetrieveItemSchema = EnsembleLlmSchema.extend({
+    created: z
+      .uint32()
+      .describe(
+        "The Unix timestamp (in seconds) when the Ensemble LLM was created."
+      ),
+  });
+  export type RetrieveItem = z.infer<typeof RetrieveItemSchema>;
 
   export async function retrieve(
     openai: OpenAI,
@@ -261,12 +1171,23 @@ export namespace EnsembleLlm {
     return response as RetrieveItem;
   }
 
-  export interface HistoricalUsage {
-    requests: number;
-    completion_tokens: number;
-    prompt_tokens: number;
-    total_cost: number;
-  }
+  export const HistoricalUsageSchema = z.object({
+    requests: z
+      .uint32()
+      .describe("The total number of requests made to this Ensemble LLM."),
+    completion_tokens: z
+      .uint32()
+      .describe(
+        "The total number of completion tokens generated by this Ensemble LLM."
+      ),
+    prompt_tokens: z
+      .uint32()
+      .describe("The total number of prompt tokens sent to this Ensemble LLM."),
+    total_cost: z
+      .number()
+      .describe("The total cost incurred by using this Ensemble LLM."),
+  });
+  export type HistoricalUsage = z.infer<typeof HistoricalUsageSchema>;
 
   export async function retrieveUsage(
     openai: OpenAI,
@@ -280,19 +1201,30 @@ export namespace EnsembleLlm {
 
 // Ensemble
 
-export interface EnsembleBase {
-  llms: EnsembleLlmBaseWithFallbacksAndCount[];
-}
+export const EnsembleBaseSchema = z
+  .object({
+    llms: z
+      .array(EnsembleLlmBaseWithFallbacksAndCountSchema)
+      .describe("The list of LLMs that make up the ensemble."),
+  })
+  .describe("An ensemble of LLMs.");
+export type EnsembleBase = z.infer<typeof EnsembleBaseSchema>;
 
-export interface Ensemble {
-  id: string;
-  llms: EnsembleLlmWithFallbacksAndCount[];
-}
+export const EnsembleSchema = z
+  .object({
+    id: z.string().describe("The unique identifier for the Ensemble."),
+    llms: z
+      .array(EnsembleLlmWithFallbacksAndCountSchema)
+      .describe(EnsembleBaseSchema.shape.llms.description!),
+  })
+  .describe("An ensemble of LLMs with a unique identifier.");
+export type Ensemble = z.infer<typeof EnsembleSchema>;
 
 export namespace Ensemble {
-  export interface ListItem {
-    id: string;
-  }
+  export const ListItemSchema = z.object({
+    id: z.string().describe("The unique identifier for the Ensemble."),
+  });
+  export type ListItem = z.infer<typeof ListItemSchema>;
 
   export async function list(
     openai: OpenAI,
@@ -302,9 +1234,14 @@ export namespace Ensemble {
     return response as { data: ListItem[] };
   }
 
-  export interface RetrieveItem extends Ensemble {
-    created: number;
-  }
+  export const RetrieveItemSchema = EnsembleSchema.extend({
+    created: z
+      .uint32()
+      .describe(
+        "The Unix timestamp (in seconds) when the Ensemble was created."
+      ),
+  });
+  export type RetrieveItem = z.infer<typeof RetrieveItemSchema>;
 
   export async function retrieve(
     openai: OpenAI,
@@ -315,12 +1252,23 @@ export namespace Ensemble {
     return response as RetrieveItem;
   }
 
-  export interface HistoricalUsage {
-    requests: number;
-    completion_tokens: number;
-    prompt_tokens: number;
-    total_cost: number;
-  }
+  export const HistoricalUsageSchema = z.object({
+    requests: z
+      .uint32()
+      .describe("The total number of requests made to this Ensemble."),
+    completion_tokens: z
+      .uint32()
+      .describe(
+        "The total number of completion tokens generated by this Ensemble."
+      ),
+    prompt_tokens: z
+      .uint32()
+      .describe("The total number of prompt tokens sent to this Ensemble."),
+    total_cost: z
+      .number()
+      .describe("The total cost incurred by using this Ensemble."),
+  });
+  export type HistoricalUsage = z.infer<typeof HistoricalUsageSchema>;
 
   export async function retrieveUsage(
     openai: OpenAI,
@@ -337,221 +1285,779 @@ export namespace Ensemble {
 export namespace Chat {
   export namespace Completions {
     export namespace Request {
-      export interface ChatCompletionCreateParamsBase {
-        messages: Message[];
-        provider?: Provider | null;
-        model: Model;
-        models?: Model[] | null;
-        top_logprobs?: number | null;
-        response_format?: ResponseFormat | null;
-        seed?: number | null;
-        tool_choice?: ToolChoice | null;
-        tools?: Tool[] | null;
-        parallel_tool_calls?: boolean | null;
-        prediction?: Prediction | null;
-        backoff_max_elapsed_time?: number | null;
-        first_chunk_timeout?: number | null;
-        other_chunk_timeout?: number | null;
-      }
-
-      export interface ChatCompletionCreateParamsStreaming
-        extends ChatCompletionCreateParamsBase {
-        stream: true;
-      }
-
-      export interface ChatCompletionCreateParamsNonStreaming
-        extends ChatCompletionCreateParamsBase {
-        stream?: false | null;
-      }
-
-      export type ChatCompletionCreateParams =
-        | ChatCompletionCreateParamsStreaming
-        | ChatCompletionCreateParamsNonStreaming;
-
-      export interface Provider {
-        data_collection?: Provider.DataCollection | null;
-        zdr?: boolean | null;
-        sort?: Provider.Sort | null;
-        max_price?: Provider.MaxPrice | null;
-        preferred_min_throughput?: number | null;
-        preferred_max_latency?: number | null;
-        min_throughput?: number | null;
-        max_latency?: number | null;
-      }
+      export const ProviderSchema = z
+        .object({
+          data_collection: Provider.DataCollectionSchema.optional().nullable(),
+          zdr: z
+            .boolean()
+            .optional()
+            .nullable()
+            .describe(
+              "Whether to enforce Zero Data Retention (ZDR) policies when selecting providers."
+            ),
+          sort: Provider.SortSchema.optional().nullable(),
+          max_price: Provider.MaxPriceSchema.optional().nullable(),
+          preferred_min_throughput: z
+            .number()
+            .optional()
+            .nullable()
+            .describe("Preferred minimum throughput for the provider."),
+          preferred_max_latency: z
+            .number()
+            .optional()
+            .nullable()
+            .describe("Preferred maximum latency for the provider."),
+          min_throughput: z
+            .number()
+            .optional()
+            .nullable()
+            .describe("Minimum throughput for the provider."),
+          max_latency: z
+            .number()
+            .optional()
+            .nullable()
+            .describe("Maximum latency for the provider."),
+        })
+        .describe(
+          "Options for selecting the upstream provider of this completion."
+        );
+      export type Provider = z.infer<typeof ProviderSchema>;
 
       export namespace Provider {
-        export type DataCollection = "allow" | "deny";
+        export const DataCollectionSchema = z
+          .enum(["allow", "deny"])
+          .describe("Specifies whether to allow providers which collect data.");
+        export type DataCollection = z.infer<typeof DataCollectionSchema>;
 
-        export type Sort = "price" | "throughput" | "latency";
+        export const SortSchema = z
+          .enum(["price", "throughput", "latency"])
+          .describe("Specifies the sorting strategy for provider selection.");
+        export type Sort = z.infer<typeof SortSchema>;
 
-        export interface MaxPrice {
-          prompt?: number | null;
-          completion?: number | null;
-          image?: number | null;
-          audio?: number | null;
-          request?: number | null;
-        }
+        export const MaxPriceSchema = z.object({
+          prompt: z
+            .number()
+            .optional()
+            .nullable()
+            .describe("Maximum price for prompt tokens."),
+          completion: z
+            .number()
+            .optional()
+            .nullable()
+            .describe("Maximum price for completion tokens."),
+          image: z
+            .number()
+            .optional()
+            .nullable()
+            .describe("Maximum price for image generation."),
+          audio: z
+            .number()
+            .optional()
+            .nullable()
+            .describe("Maximum price for audio generation."),
+          request: z
+            .number()
+            .optional()
+            .nullable()
+            .describe("Maximum price per request."),
+        });
+        export type MaxPrice = z.infer<typeof MaxPriceSchema>;
       }
 
-      export type Model = string | EnsembleLlmBase;
+      export const ModelSchema = z
+        .union([z.string(), EnsembleLlmBaseSchema])
+        .describe(
+          "The Ensemble LLM to use for this completion. May be a unique ID or an inline definition."
+        );
+      export type Model = z.infer<typeof ModelSchema>;
 
-      export type ResponseFormat =
-        | ResponseFormat.Text
-        | ResponseFormat.JsonObject
-        | ResponseFormat.JsonSchema
-        | ResponseFormat.Grammar
-        | ResponseFormat.Python;
+      export const ResponseFormatSchema = z
+        .union([
+          ResponseFormat.TextSchema,
+          ResponseFormat.JsonObjectSchema,
+          ResponseFormat.JsonSchemaSchema,
+          ResponseFormat.GrammarSchema,
+          ResponseFormat.PythonSchema,
+        ])
+        .describe("The desired format of the model's response.");
+      export type ResponseFormat = z.infer<typeof ResponseFormatSchema>;
 
       export namespace ResponseFormat {
-        export interface Text {
-          type: "text";
-        }
+        export const TextSchema = z
+          .object({
+            type: z.literal("text"),
+          })
+          .describe("The response will be arbitrary text.");
+        export type Text = z.infer<typeof TextSchema>;
 
-        export interface JsonObject {
-          type: "json_object";
-        }
+        export const JsonObjectSchema = z
+          .object({
+            type: z.literal("json_object"),
+          })
+          .describe("The response will be a JSON object.");
+        export type JsonObject = z.infer<typeof JsonObjectSchema>;
 
-        export interface JsonSchema {
-          type: "json_schema";
-          json_schema: JsonSchema.JsonSchema;
-        }
+        export const JsonSchemaSchema = z
+          .object({
+            type: z.literal("json_schema"),
+            json_schema: JsonSchema.JsonSchemaSchema,
+          })
+          .describe("The response will conform to the provided JSON schema.");
+        export type JsonSchema = z.infer<typeof JsonSchemaSchema>;
 
         export namespace JsonSchema {
-          export interface JsonSchema {
-            name: string;
-            description?: string | null;
-            schema?: JsonValue;
-            strict?: boolean | null;
-          }
+          export const JsonSchemaSchema = z
+            .object({
+              name: z.string().describe("The name of the JSON schema."),
+              description: z
+                .string()
+                .optional()
+                .nullable()
+                .describe("The description of the JSON schema."),
+              schema: z
+                .any()
+                .optional()
+                .describe("The JSON schema definition."),
+              strict: z
+                .boolean()
+                .optional()
+                .nullable()
+                .describe(
+                  "Whether to enforce strict adherence to the JSON schema."
+                ),
+            })
+            .describe(
+              "A JSON schema definition for constraining model output."
+            );
+          export type JsonSchema = z.infer<typeof JsonSchemaSchema>;
         }
 
-        export interface Grammar {
-          type: "grammar";
-          grammar: string;
-        }
+        export const GrammarSchema = z
+          .object({
+            type: z.literal("grammar"),
+            grammar: z
+              .string()
+              .describe("The grammar definition to constrain the response."),
+          })
+          .describe(
+            "The response will conform to the provided grammar definition."
+          );
+        export type Grammar = z.infer<typeof GrammarSchema>;
 
-        export interface Python {
-          type: "python";
-        }
+        export const PythonSchema = z
+          .object({
+            type: z.literal("python"),
+          })
+          .describe("The response will be Python code.");
+        export type Python = z.infer<typeof PythonSchema>;
       }
 
-      export type ToolChoice =
-        | "none"
-        | "auto"
-        | "required"
-        | ToolChoice.Function;
+      export const ToolChoiceSchema = z
+        .union([
+          z.literal("none"),
+          z.literal("auto"),
+          z.literal("required"),
+          ToolChoice.FunctionSchema,
+        ])
+        .describe("Specifies tool call behavior for the assistant.");
+      export type ToolChoice = z.infer<typeof ToolChoiceSchema>;
 
       export namespace ToolChoice {
-        export interface Function {
-          type: "function";
-          function: Function.Function;
-        }
+        export const FunctionSchema = z
+          .object({
+            type: z.literal("function"),
+            function: Function.FunctionSchema,
+          })
+          .describe("Specify a function for the assistant to call.");
+        export type Function = z.infer<typeof FunctionSchema>;
 
         export namespace Function {
-          export interface Function {
-            name: string;
-          }
+          export const FunctionSchema = z.object({
+            name: z
+              .string()
+              .describe("The name of the function the assistant will call."),
+          });
+          export type Function = z.infer<typeof FunctionSchema>;
         }
       }
 
-      export type Tool = Tool.Function;
-
-      export namespace Tool {
-        export interface Function {
-          type: "function";
-          function: Function.Definition;
-        }
-
-        export namespace Function {
-          export interface Definition {
-            name: string;
-            description?: string | null;
-            parameters?: { [key: string]: JsonValue } | null;
-            strict?: boolean | null;
-          }
-        }
-      }
-
-      export interface Prediction {
-        type: "content";
-        content: Prediction.Content;
-      }
+      export const PredictionSchema = z
+        .object({
+          type: z.literal("content"),
+          content: Prediction.ContentSchema,
+        })
+        .describe(
+          "Configuration for a Predicted Output, which can greatly improve response times when large parts of the model response are known ahead of time. This is most common when you are regenerating a file with only minor changes to most of the content."
+        );
+      export type Prediction = z.infer<typeof PredictionSchema>;
 
       export namespace Prediction {
-        export type Content = string | Content.Part[];
+        export const ContentSchema = z.union([
+          z.string(),
+          z.array(Content.PartSchema),
+        ]);
+        export type Content = z.infer<typeof ContentSchema>;
 
         export namespace Content {
-          export interface Part {
-            type: "text";
-            text: string;
-          }
+          export const PartSchema = z
+            .object({
+              type: z.literal("text"),
+              text: z.string(),
+            })
+            .describe("A part of the predicted content.");
+          export type Part = z.infer<typeof PartSchema>;
         }
       }
+
+      export const SeedSchema = z
+        .bigint()
+        .describe(
+          "If specified, upstream systems will make a best effort to sample deterministically, such that repeated requests with the same seed and parameters should return the same result."
+        );
+
+      export const BackoffMaxElapsedTimeSchema = z
+        .uint32()
+        .describe(
+          "The maximum total time in milliseconds to spend on retries when a transient error occurs."
+        );
+
+      export const FirstChunkTimeoutSchema = z
+        .uint32()
+        .describe(
+          "The maximum time in milliseconds to wait for the first chunk of a streaming response."
+        );
+
+      export const OtherChunkTimeoutSchema = z
+        .uint32()
+        .describe(
+          "The maximum time in milliseconds to wait between subsequent chunks of a streaming response."
+        );
+
+      export const ChatCompletionCreateParamsBaseSchema = z
+        .object({
+          messages: MessagesSchema,
+          provider: ProviderSchema.optional().nullable(),
+          model: ModelSchema,
+          models: z
+            .array(ModelSchema)
+            .optional()
+            .nullable()
+            .describe(
+              "Fallback Ensemble LLMs to use if the primary Ensemble LLM fails."
+            ),
+          top_logprobs: z
+            .int()
+            .min(0)
+            .max(20)
+            .optional()
+            .nullable()
+            .describe(
+              "An integer between 0 and 20 specifying the number of most likely tokens to return at each token position, each with an associated log probability."
+            ),
+          response_format: ResponseFormatSchema.optional().nullable(),
+          seed: SeedSchema.optional().nullable(),
+          tool_choice: ToolChoiceSchema.optional().nullable(),
+          tools: ToolsSchema,
+          parallel_tool_calls: z
+            .boolean()
+            .optional()
+            .nullable()
+            .describe(
+              "Whether to allow the model to make multiple tool calls in parallel."
+            ),
+          prediction: PredictionSchema.optional().nullable(),
+          backoff_max_elapsed_time:
+            BackoffMaxElapsedTimeSchema.optional().nullable(),
+          first_chunk_timeout: FirstChunkTimeoutSchema.optional().nullable(),
+          other_chunk_timeout: OtherChunkTimeoutSchema.optional().nullable(),
+        })
+        .describe("Base parameters for creating a chat completion.");
+      export type ChatCompletionCreateParamsBase = z.infer<
+        typeof ChatCompletionCreateParamsBaseSchema
+      >;
+
+      export const StreamTrueSchema = z
+        .literal(true)
+        .describe("Whether to stream the response as a series of chunks.");
+
+      export const ChatCompletionCreateParamsStreamingSchema =
+        ChatCompletionCreateParamsBaseSchema.extend({
+          stream: StreamTrueSchema,
+        }).describe("Parameters for creating a streaming chat completion.");
+      export type ChatCompletionCreateParamsStreaming = z.infer<
+        typeof ChatCompletionCreateParamsStreamingSchema
+      >;
+
+      export const StreamFalseSchema = z
+        .literal(false)
+        .describe("Whether to stream the response as a series of chunks.");
+
+      export const ChatCompletionCreateParamsNonStreamingSchema =
+        ChatCompletionCreateParamsBaseSchema.extend({
+          stream: StreamFalseSchema.optional().nullable(),
+        }).describe("Parameters for creating a unary chat completion.");
+      export type ChatCompletionCreateParamsNonStreaming = z.infer<
+        typeof ChatCompletionCreateParamsNonStreamingSchema
+      >;
+
+      export const ChatCompletionCreateParamsSchema = z
+        .union([
+          ChatCompletionCreateParamsStreamingSchema,
+          ChatCompletionCreateParamsNonStreamingSchema,
+        ])
+        .describe("Parameters for creating a chat completion.");
+      export type ChatCompletionCreateParams = z.infer<
+        typeof ChatCompletionCreateParamsSchema
+      >;
     }
 
     export namespace Response {
-      export namespace Streaming {
-        export interface ChatCompletionChunk {
-          id: string;
-          upstream_id: string;
-          choices: Choice[];
-          created: number;
-          model: string;
-          upstream_model: string;
-          object: "chat.completion.chunk";
-          service_tier?: string;
-          system_fingerprint?: string;
-          usage?: Usage;
-          provider?: string;
+      export const FinishReasonSchema = z
+        .enum(["stop", "length", "tool_calls", "content_filter", "error"])
+        .describe(
+          "The reason why the assistant ceased to generate further tokens."
+        );
+      export type FinishReason = z.infer<typeof FinishReasonSchema>;
+
+      export const UsageSchema = z
+        .object({
+          completion_tokens: z
+            .uint32()
+            .describe("The number of tokens generated in the completion."),
+          prompt_tokens: z
+            .uint32()
+            .describe("The number of tokens in the prompt."),
+          total_tokens: z
+            .uint32()
+            .describe(
+              "The total number of tokens used in the prompt or generated in the completion."
+            ),
+          completion_tokens_details:
+            Usage.CompletionTokensDetailsSchema.optional(),
+          prompt_tokens_details: Usage.PromptTokensDetailsSchema.optional(),
+          cost: z
+            .number()
+            .describe("The cost in credits incurred for this completion."),
+          cost_details: Usage.CostDetailsSchema.optional(),
+          total_cost: z
+            .number()
+            .describe(
+              "The total cost in credits incurred including upstream costs."
+            ),
+          cost_multiplier: z
+            .number()
+            .describe(
+              "The cost multiplier applied to upstream costs for computing ObjectiveAI costs."
+            ),
+          is_byok: z
+            .boolean()
+            .describe(
+              "Whether the completion used a BYOK (Bring Your Own Key) API Key."
+            ),
+        })
+        .describe("Token and cost usage statistics for the completion.");
+      export type Usage = z.infer<typeof UsageSchema>;
+
+      export namespace Usage {
+        export const CompletionTokensDetailsSchema = z
+          .object({
+            accepted_prediction_tokens: z
+              .uint32()
+              .optional()
+              .describe(
+                "The number of accepted prediction tokens in the completion."
+              ),
+            audio_tokens: z
+              .uint32()
+              .optional()
+              .describe(
+                "The number of generated audio tokens in the completion."
+              ),
+            reasoning_tokens: z
+              .uint32()
+              .optional()
+              .describe(
+                "The number of generated reasoning tokens in the completion."
+              ),
+            rejected_prediction_tokens: z
+              .uint32()
+              .optional()
+              .describe(
+                "The number of rejected prediction tokens in the completion."
+              ),
+          })
+          .describe("Detailed breakdown of generated completion tokens.");
+        export type CompletionTokensDetails = z.infer<
+          typeof CompletionTokensDetailsSchema
+        >;
+
+        export const PromptTokensDetailsSchema = z
+          .object({
+            audio_tokens: z
+              .uint32()
+              .optional()
+              .describe("The number of audio tokens in the prompt."),
+            cached_tokens: z
+              .uint32()
+              .optional()
+              .describe("The number of cached tokens in the prompt."),
+            cache_write_tokens: z
+              .uint32()
+              .optional()
+              .describe("The number of prompt tokens written to cache."),
+            video_tokens: z
+              .uint32()
+              .optional()
+              .describe("The number of video tokens in the prompt."),
+          })
+          .describe("Detailed breakdown of prompt tokens.");
+        export type PromptTokensDetails = z.infer<
+          typeof PromptTokensDetailsSchema
+        >;
+
+        export const CostDetailsSchema = z
+          .object({
+            upstream_inference_cost: z
+              .number()
+              .optional()
+              .describe("The cost incurred upstream."),
+            upstream_upstream_inference_cost: z
+              .number()
+              .optional()
+              .describe("The cost incurred by upstream's upstream."),
+          })
+          .describe("Detailed breakdown of upstream costs incurred.");
+        export type CostDetails = z.infer<typeof CostDetailsSchema>;
+      }
+
+      export const LogprobsSchema = z
+        .object({
+          content: z
+            .array(Logprobs.LogprobSchema)
+            .optional()
+            .nullable()
+            .describe("The log probabilities of the tokens in the content."),
+          refusal: z
+            .array(Logprobs.LogprobSchema)
+            .optional()
+            .nullable()
+            .describe("The log probabilities of the tokens in the refusal."),
+        })
+        .describe(
+          "The log probabilities of the tokens generated by the model."
+        );
+      export type Logprobs = z.infer<typeof LogprobsSchema>;
+
+      export namespace Logprobs {
+        export function merged(a: Logprobs, b: Logprobs): [Logprobs, boolean] {
+          const [content, contentChanged] = merge(
+            a.content,
+            b.content,
+            Logprob.mergedList
+          );
+          const [refusal, refusalChanged] = merge(
+            a.refusal,
+            b.refusal,
+            Logprob.mergedList
+          );
+          if (contentChanged || refusalChanged) {
+            return [{ content, refusal }, true];
+          } else {
+            return [a, false];
+          }
         }
 
-        export namespace ChatCompletionChunk {
+        export const LogprobSchema = z
+          .object({
+            token: z
+              .string()
+              .describe("The token string which was selected by the sampler."),
+            bytes: z
+              .array(z.uint32())
+              .optional()
+              .nullable()
+              .describe(
+                "The byte representation of the token which was selected by the sampler."
+              ),
+            logprob: z
+              .number()
+              .describe(
+                "The log probability of the token which was selected by the sampler."
+              ),
+            top_logprobs: z
+              .array(Logprob.TopLogprobSchema)
+              .describe(
+                "The log probabilities of the top tokens for this position."
+              ),
+          })
+          .describe(
+            "The token which was selected by the sampler for this position as well as the logprobabilities of the top options."
+          );
+        export type Logprob = z.infer<typeof LogprobSchema>;
+
+        export namespace Logprob {
+          export function mergedList(
+            a: Logprob[],
+            b: Logprob[]
+          ): [Logprob[], boolean] {
+            if (b.length === 0) {
+              return [a, false];
+            } else if (a.length === 0) {
+              return [b, true];
+            } else {
+              return [[...a, ...b], true];
+            }
+          }
+
+          export const TopLogprobSchema = z
+            .object({
+              token: z.string().describe("The token string."),
+              bytes: z
+                .array(z.uint32())
+                .optional()
+                .nullable()
+                .describe("The byte representation of the token."),
+              logprob: z
+                .number()
+                .optional()
+                .nullable()
+                .describe("The log probability of the token."),
+            })
+            .describe(
+              "The log probability of a token in the list of top tokens."
+            );
+          export type TopLogprob = z.infer<typeof TopLogprobSchema>;
+        }
+      }
+
+      export const RoleSchema = z
+        .enum(["assistant"])
+        .describe("The role of the message author.");
+      export type Role = z.infer<typeof RoleSchema>;
+
+      export const ImageSchema = z
+        .union([Image.ImageUrlSchema])
+        .describe("An image generated by the model.");
+      export type Image = z.infer<typeof ImageSchema>;
+
+      export namespace Image {
+        export function mergedList(a: Image[], b: Image[]): [Image[], boolean] {
+          if (b.length === 0) {
+            return [a, false];
+          } else if (a.length === 0) {
+            return [b, true];
+          } else {
+            return [[...a, ...b], true];
+          }
+        }
+
+        export const ImageUrlSchema = z.object({
+          type: z.literal("image_url"),
+          image_url: z.object({
+            url: z.string().describe("The Base64 URL of the generated image."),
+          }),
+        });
+        export type ImageUrl = z.infer<typeof ImageUrlSchema>;
+      }
+
+      export namespace Streaming {
+        export const ToolCallSchema = z
+          .union([ToolCall.FunctionSchema])
+          .describe("A tool call made by the assistant.");
+        export type ToolCall = z.infer<typeof ToolCallSchema>;
+
+        export namespace ToolCall {
           export function merged(
-            a: ChatCompletionChunk,
-            b: ChatCompletionChunk
-          ): [ChatCompletionChunk, boolean] {
-            const id = a.id;
-            const upstream_id = a.upstream_id;
-            const [choices, choicesChanged] = Choice.mergedList(
-              a.choices,
-              b.choices
+            a: ToolCall,
+            b: ToolCall
+          ): [ToolCall, boolean] {
+            return Function.merged(a, b);
+          }
+          export function mergedList(
+            a: ToolCall[],
+            b: ToolCall[]
+          ): [ToolCall[], boolean] {
+            let merged: ToolCall[] | undefined = undefined;
+            for (const toolCall of b) {
+              const existingIndex = a.findIndex(
+                ({ index }) => index === toolCall.index
+              );
+              if (existingIndex === -1) {
+                if (merged === undefined) {
+                  merged = [...a, toolCall];
+                } else {
+                  merged.push(toolCall);
+                }
+              } else {
+                const [mergedToolCall, toolCallChanged] = ToolCall.merged(
+                  a[existingIndex],
+                  toolCall
+                );
+                if (toolCallChanged) {
+                  if (merged === undefined) {
+                    merged = [...a];
+                  }
+                  merged[existingIndex] = mergedToolCall;
+                }
+              }
+            }
+            return merged ? [merged, true] : [a, false];
+          }
+
+          export const FunctionSchema = z
+            .object({
+              index: z
+                .uint32()
+                .describe(
+                  "The index of the tool call in the sequence of tool calls."
+                ),
+              type: z.literal("function").optional(),
+              id: z
+                .string()
+                .optional()
+                .describe("The unique identifier of the function tool."),
+              function: Function.DefinitionSchema.optional(),
+            })
+            .describe("A function tool call made by the assistant.");
+          export type Function = z.infer<typeof FunctionSchema>;
+
+          export namespace Function {
+            export function merged(
+              a: Function,
+              b: Function
+            ): [Function, boolean] {
+              const index = a.index;
+              const [type, typeChanged] = merge(a.type, b.type);
+              const [id, idChanged] = merge(a.id, b.id);
+              const [function_, functionChanged] = merge(
+                a.function,
+                b.function,
+                Definition.merged
+              );
+              if (idChanged || functionChanged || typeChanged) {
+                return [
+                  {
+                    index,
+                    ...(id !== undefined ? { id } : {}),
+                    ...(function_ !== undefined ? { function: function_ } : {}),
+                    ...(type !== undefined ? { type } : {}),
+                  },
+                  true,
+                ];
+              } else {
+                return [a, false];
+              }
+            }
+
+            export const DefinitionSchema = z.object({
+              name: z.string().optional().describe("The name of the function."),
+              arguments: z
+                .string()
+                .optional()
+                .describe("The arguments passed to the function."),
+            });
+            export type Definition = z.infer<typeof DefinitionSchema>;
+
+            export namespace Definition {
+              export function merged(
+                a: Definition,
+                b: Definition
+              ): [Definition, boolean] {
+                const [name, nameChanged] = merge(a.name, b.name);
+                const [arguments_, argumentsChanged] = merge(
+                  a.arguments,
+                  b.arguments,
+                  mergedString
+                );
+                if (nameChanged || argumentsChanged) {
+                  return [
+                    {
+                      ...(name !== undefined ? { name } : {}),
+                      ...(arguments_ !== undefined
+                        ? { arguments: arguments_ }
+                        : {}),
+                    },
+                    true,
+                  ];
+                } else {
+                  return [a, false];
+                }
+              }
+            }
+          }
+        }
+
+        export const DeltaSchema = z
+          .object({
+            content: z
+              .string()
+              .optional()
+              .describe("The content added in this delta."),
+            refusal: z
+              .string()
+              .optional()
+              .describe("The refusal message added in this delta."),
+            role: RoleSchema.optional(),
+            tool_calls: z
+              .array(ToolCallSchema)
+              .optional()
+              .describe("Tool calls made in this delta."),
+            reasoning: z
+              .string()
+              .optional()
+              .describe("The reasoning added in this delta."),
+            images: z
+              .array(ImageSchema)
+              .optional()
+              .describe("Images added in this delta."),
+          })
+          .describe("A delta in a streaming chat completion response.");
+        export type Delta = z.infer<typeof DeltaSchema>;
+
+        export namespace Delta {
+          export function merged(a: Delta, b: Delta): [Delta, boolean] {
+            const [content, contentChanged] = merge(
+              a.content,
+              b.content,
+              mergedString
             );
-            const created = a.created;
-            const model = a.model;
-            const upstream_model = a.upstream_model;
-            const object = a.object;
-            const [service_tier, service_tierChanged] = merge(
-              a.service_tier,
-              b.service_tier
+            const [refusal, refusalChanged] = merge(
+              a.refusal,
+              b.refusal,
+              mergedString
             );
-            const [system_fingerprint, system_fingerprintChanged] = merge(
-              a.system_fingerprint,
-              b.system_fingerprint
+            const [role, roleChanged] = merge(a.role, b.role);
+            const [tool_calls, tool_callsChanged] = merge(
+              a.tool_calls,
+              b.tool_calls,
+              ToolCall.mergedList
             );
-            const [usage, usageChanged] = merge(a.usage, b.usage);
-            const [provider, providerChanged] = merge(a.provider, b.provider);
+            const [reasoning, reasoningChanged] = merge(
+              a.reasoning,
+              b.reasoning,
+              mergedString
+            );
+            const [images, imagesChanged] = merge(
+              a.images,
+              b.images,
+              Image.mergedList
+            );
             if (
-              choicesChanged ||
-              service_tierChanged ||
-              system_fingerprintChanged ||
-              usageChanged ||
-              providerChanged
+              contentChanged ||
+              reasoningChanged ||
+              refusalChanged ||
+              roleChanged ||
+              tool_callsChanged ||
+              imagesChanged
             ) {
               return [
                 {
-                  id,
-                  upstream_id,
-                  choices,
-                  created,
-                  model,
-                  upstream_model,
-                  object,
-                  ...(service_tier !== undefined ? { service_tier } : {}),
-                  ...(system_fingerprint !== undefined
-                    ? { system_fingerprint }
-                    : {}),
-                  ...(usage !== undefined ? { usage } : {}),
-                  ...(provider !== undefined ? { provider } : {}),
+                  ...(content !== undefined ? { content } : {}),
+                  ...(reasoning !== undefined ? { reasoning } : {}),
+                  ...(refusal !== undefined ? { refusal } : {}),
+                  ...(role !== undefined ? { role } : {}),
+                  ...(tool_calls !== undefined ? { tool_calls } : {}),
+                  ...(images !== undefined ? { images } : {}),
                 },
                 true,
               ];
@@ -561,12 +2067,17 @@ export namespace Chat {
           }
         }
 
-        export interface Choice {
-          delta: Delta;
-          finish_reason: FinishReason | null;
-          index: number;
-          logprobs?: Logprobs;
-        }
+        export const ChoiceSchema = z
+          .object({
+            delta: DeltaSchema,
+            finish_reason: FinishReasonSchema.optional(),
+            index: z
+              .uint32()
+              .describe("The index of the choice in the list of choices."),
+            logprobs: LogprobsSchema.optional(),
+          })
+          .describe("A choice in a streaming chat completion response.");
+        export type Choice = z.infer<typeof ChoiceSchema>;
 
         export namespace Choice {
           export function merged(a: Choice, b: Choice): [Choice, boolean] {
@@ -628,59 +2139,93 @@ export namespace Chat {
           }
         }
 
-        export interface Delta {
-          content?: string;
-          refusal?: string;
-          role?: Role;
-          tool_calls?: ToolCall[];
-          reasoning?: string;
-          images?: Image[];
-        }
+        export const ChatCompletionChunkSchema = z
+          .object({
+            id: z
+              .string()
+              .describe("The unique identifier of the chat completion."),
+            upstream_id: z
+              .string()
+              .describe(
+                "The unique identifier of the upstream chat completion."
+              ),
+            choices: z
+              .array(ChoiceSchema)
+              .describe("The list of choices in this chunk."),
+            created: z
+              .uint32()
+              .describe(
+                "The Unix timestamp (in seconds) when the chat completion was created."
+              ),
+            model: z
+              .string()
+              .describe(
+                "The unique identifier of the Ensemble LLM used for this chat completion."
+              ),
+            upstream_model: z
+              .string()
+              .describe("The upstream model used for this chat completion."),
+            object: z.literal("chat.completion.chunk"),
+            service_tier: z.string().optional(),
+            system_fingerprint: z.string().optional(),
+            usage: UsageSchema.optional(),
+            provider: z
+              .string()
+              .optional()
+              .describe("The provider used for this chat completion."),
+          })
+          .describe("A chunk in a streaming chat completion response.");
+        export type ChatCompletionChunk = z.infer<
+          typeof ChatCompletionChunkSchema
+        >;
 
-        export namespace Delta {
-          export function merged(a: Delta, b: Delta): [Delta, boolean] {
-            const [content, contentChanged] = merge(
-              a.content,
-              b.content,
-              mergedString
+        export namespace ChatCompletionChunk {
+          export function merged(
+            a: ChatCompletionChunk,
+            b: ChatCompletionChunk
+          ): [ChatCompletionChunk, boolean] {
+            const id = a.id;
+            const upstream_id = a.upstream_id;
+            const [choices, choicesChanged] = Choice.mergedList(
+              a.choices,
+              b.choices
             );
-            const [refusal, refusalChanged] = merge(
-              a.refusal,
-              b.refusal,
-              mergedString
+            const created = a.created;
+            const model = a.model;
+            const upstream_model = a.upstream_model;
+            const object = a.object;
+            const [service_tier, service_tierChanged] = merge(
+              a.service_tier,
+              b.service_tier
             );
-            const [role, roleChanged] = merge(a.role, b.role);
-            const [tool_calls, tool_callsChanged] = merge(
-              a.tool_calls,
-              b.tool_calls,
-              ToolCall.mergedList
+            const [system_fingerprint, system_fingerprintChanged] = merge(
+              a.system_fingerprint,
+              b.system_fingerprint
             );
-            const [reasoning, reasoningChanged] = merge(
-              a.reasoning,
-              b.reasoning,
-              mergedString
-            );
-            const [images, imagesChanged] = merge(
-              a.images,
-              b.images,
-              Image.mergedList
-            );
+            const [usage, usageChanged] = merge(a.usage, b.usage);
+            const [provider, providerChanged] = merge(a.provider, b.provider);
             if (
-              contentChanged ||
-              reasoningChanged ||
-              refusalChanged ||
-              roleChanged ||
-              tool_callsChanged ||
-              imagesChanged
+              choicesChanged ||
+              service_tierChanged ||
+              system_fingerprintChanged ||
+              usageChanged ||
+              providerChanged
             ) {
               return [
                 {
-                  ...(content !== undefined ? { content } : {}),
-                  ...(reasoning !== undefined ? { reasoning } : {}),
-                  ...(refusal !== undefined ? { refusal } : {}),
-                  ...(role !== undefined ? { role } : {}),
-                  ...(tool_calls !== undefined ? { tool_calls } : {}),
-                  ...(images !== undefined ? { images } : {}),
+                  id,
+                  upstream_id,
+                  choices,
+                  created,
+                  model,
+                  upstream_model,
+                  object,
+                  ...(service_tier !== undefined ? { service_tier } : {}),
+                  ...(system_fingerprint !== undefined
+                    ? { system_fingerprint }
+                    : {}),
+                  ...(usage !== undefined ? { usage } : {}),
+                  ...(provider !== undefined ? { provider } : {}),
                 },
                 true,
               ];
@@ -689,276 +2234,122 @@ export namespace Chat {
             }
           }
         }
-
-        export type ToolCall = ToolCall.Function;
-
-        export namespace ToolCall {
-          export function merged(
-            a: ToolCall,
-            b: ToolCall
-          ): [ToolCall, boolean] {
-            return Function.merged(a, b);
-          }
-          export function mergedList(
-            a: ToolCall[],
-            b: ToolCall[]
-          ): [ToolCall[], boolean] {
-            let merged: ToolCall[] | undefined = undefined;
-            for (const toolCall of b) {
-              const existingIndex = a.findIndex(
-                ({ index }) => index === toolCall.index
-              );
-              if (existingIndex === -1) {
-                if (merged === undefined) {
-                  merged = [...a, toolCall];
-                } else {
-                  merged.push(toolCall);
-                }
-              } else {
-                const [mergedToolCall, toolCallChanged] = ToolCall.merged(
-                  a[existingIndex],
-                  toolCall
-                );
-                if (toolCallChanged) {
-                  if (merged === undefined) {
-                    merged = [...a];
-                  }
-                  merged[existingIndex] = mergedToolCall;
-                }
-              }
-            }
-            return merged ? [merged, true] : [a, false];
-          }
-          export interface Function {
-            index: number;
-            type?: "function";
-            id?: string;
-            function?: Function.Definition;
-          }
-
-          export namespace Function {
-            export function merged(
-              a: Function,
-              b: Function
-            ): [Function, boolean] {
-              const index = a.index;
-              const [type, typeChanged] = merge(a.type, b.type);
-              const [id, idChanged] = merge(a.id, b.id);
-              const [function_, functionChanged] = merge(
-                a.function,
-                b.function,
-                Definition.merged
-              );
-              if (idChanged || functionChanged || typeChanged) {
-                return [
-                  {
-                    index,
-                    ...(id !== undefined ? { id } : {}),
-                    ...(function_ !== undefined ? { function: function_ } : {}),
-                    ...(type !== undefined ? { type } : {}),
-                  },
-                  true,
-                ];
-              } else {
-                return [a, false];
-              }
-            }
-            export interface Definition {
-              name?: string;
-              arguments?: string;
-            }
-
-            export namespace Definition {
-              export function merged(
-                a: Definition,
-                b: Definition
-              ): [Definition, boolean] {
-                const [name, nameChanged] = merge(a.name, b.name);
-                const [arguments_, argumentsChanged] = merge(
-                  a.arguments,
-                  b.arguments,
-                  mergedString
-                );
-                if (nameChanged || argumentsChanged) {
-                  return [
-                    {
-                      ...(name !== undefined ? { name } : {}),
-                      ...(arguments_ !== undefined
-                        ? { arguments: arguments_ }
-                        : {}),
-                    },
-                    true,
-                  ];
-                } else {
-                  return [a, false];
-                }
-              }
-            }
-          }
-        }
       }
 
       export namespace Unary {
-        export interface ChatCompletion {
-          id: string;
-          upstream_id: string;
-          choices: Choice[];
-          created: number;
-          model: string;
-          upstream_model: string;
-          object: "chat.completion";
-          service_tier?: string;
-          system_fingerprint?: string;
-          usage: Usage;
-          provider?: string;
-        }
-
-        export interface Choice {
-          message: Message;
-          finish_reason: FinishReason;
-          index: number;
-          logprobs: Logprobs | null;
-        }
-
-        export interface Message {
-          content: string | null;
-          refusal: string | null;
-          role: Role;
-          tool_calls: ToolCall[] | null;
-          reasoning?: string;
-          images?: Image[];
-        }
-
-        export type ToolCall = ToolCall.Function;
+        export const ToolCallSchema = z
+          .union([ToolCall.FunctionSchema])
+          .describe(Streaming.ToolCallSchema.description!);
+        export type ToolCall = z.infer<typeof ToolCallSchema>;
 
         export namespace ToolCall {
-          export interface Function {
-            type: "function";
-            id: string;
-            function: Function.Definition;
-          }
+          export const FunctionSchema = z
+            .object({
+              type: z.literal("function"),
+              id: z
+                .string()
+                .describe(
+                  Streaming.ToolCall.FunctionSchema.shape.id.description!
+                ),
+              function: Function.DefinitionSchema,
+            })
+            .describe(Streaming.ToolCall.FunctionSchema.description!);
+          export type Function = z.infer<typeof FunctionSchema>;
 
           export namespace Function {
-            export interface Definition {
-              name: string;
-              arguments: string;
-            }
-          }
-        }
-      }
-
-      export type FinishReason =
-        | "stop"
-        | "length"
-        | "tool_calls"
-        | "content_filter"
-        | "error";
-
-      export interface Usage {
-        completion_tokens: number;
-        prompt_tokens: number;
-        total_tokens: number;
-        completion_tokens_details?: Usage.CompletionTokensDetails;
-        prompt_tokens_details?: Usage.PromptTokensDetails;
-        cost: number;
-        cost_details?: Usage.CostDetails;
-        total_cost: number;
-        cost_multiplier: number;
-        is_byok: boolean;
-      }
-
-      export namespace Usage {
-        export interface CompletionTokensDetails {
-          accepted_prediction_tokens?: number;
-          audio_tokens?: number;
-          reasoning_tokens?: number;
-          rejected_prediction_tokens?: number;
-        }
-
-        export interface PromptTokensDetails {
-          audio_tokens?: number;
-          cached_tokens?: number;
-          cache_write_tokens?: number;
-          video_tokens?: number;
-        }
-
-        export interface CostDetails {
-          upstream_inference_cost?: number;
-          upstream_upstream_inference_cost?: number;
-        }
-      }
-
-      export interface Logprobs {
-        content: Logprobs.Logprob[] | null;
-        refusal: Logprobs.Logprob[] | null;
-      }
-
-      export namespace Logprobs {
-        export function merged(a: Logprobs, b: Logprobs): [Logprobs, boolean] {
-          const [content, contentChanged] = merge(
-            a.content,
-            b.content,
-            Logprob.mergedList
-          );
-          const [refusal, refusalChanged] = merge(
-            a.refusal,
-            b.refusal,
-            Logprob.mergedList
-          );
-          if (contentChanged || refusalChanged) {
-            return [{ content, refusal }, true];
-          } else {
-            return [a, false];
+            export const DefinitionSchema = z.object({
+              name: z
+                .string()
+                .describe(
+                  Streaming.ToolCall.Function.DefinitionSchema.shape.name
+                    .description!
+                ),
+              arguments: z
+                .string()
+                .describe(
+                  Streaming.ToolCall.Function.DefinitionSchema.shape.arguments
+                    .description!
+                ),
+            });
+            export type Definition = z.infer<typeof DefinitionSchema>;
           }
         }
 
-        export interface Logprob {
-          token: string;
-          bytes: number[] | null;
-          logprob: number;
-          top_logprobs: Logprob.TopLogprob[];
-        }
+        export const MessageSchema = z
+          .object({
+            content: z
+              .string()
+              .nullable()
+              .describe("The content of the message."),
+            refusal: z
+              .string()
+              .nullable()
+              .describe("The refusal message, if any."),
+            role: RoleSchema,
+            tool_calls: z
+              .array(ToolCallSchema)
+              .nullable()
+              .describe("The tool calls made by the assistant, if any."),
+            reasoning: z
+              .string()
+              .optional()
+              .describe("The reasoning provided by the assistant, if any."),
+            images: z
+              .array(ImageSchema)
+              .optional()
+              .describe("The images generated by the assistant, if any."),
+          })
+          .describe("A message generated by the assistant.");
 
-        export namespace Logprob {
-          export function mergedList(
-            a: Logprob[],
-            b: Logprob[]
-          ): [Logprob[], boolean] {
-            if (b.length === 0) {
-              return [a, false];
-            } else if (a.length === 0) {
-              return [b, true];
-            } else {
-              return [[...a, ...b], true];
-            }
-          }
+        export const ChoiceSchema = z
+          .object({
+            message: MessageSchema,
+            finish_reason: FinishReasonSchema,
+            index: z
+              .uint32()
+              .describe(Streaming.ChoiceSchema.shape.index.description!),
+            logprobs: LogprobsSchema.nullable(),
+          })
+          .describe("A choice in a unary chat completion response.");
+        export type Choice = z.infer<typeof ChoiceSchema>;
 
-          export interface TopLogprob {
-            token: string;
-            bytes: number[] | null;
-            logprob: number | null;
-          }
-        }
-      }
-
-      export type Role = "assistant";
-
-      export type Image = Image.ImageUrl;
-
-      export namespace Image {
-        export function mergedList(a: Image[], b: Image[]): [Image[], boolean] {
-          if (b.length === 0) {
-            return [a, false];
-          } else if (a.length === 0) {
-            return [b, true];
-          } else {
-            return [[...a, ...b], true];
-          }
-        }
-        export interface ImageUrl {
-          type: "image_url";
-          image_url: { url: string };
-        }
+        export const ChatCompletionSchema = z
+          .object({
+            id: z
+              .string()
+              .describe("The unique identifier of the chat completion."),
+            upstream_id: z
+              .string()
+              .describe(
+                "The unique identifier of the upstream chat completion."
+              ),
+            choices: z
+              .array(ChoiceSchema)
+              .describe("The list of choices in this chat completion."),
+            created: z
+              .uint32()
+              .describe(
+                "The Unix timestamp (in seconds) when the chat completion was created."
+              ),
+            model: z
+              .string()
+              .describe(
+                "The unique identifier of the Ensemble LLM used for this chat completion."
+              ),
+            upstream_model: z
+              .string()
+              .describe("The upstream model used for this chat completion."),
+            object: z.literal("chat.completion"),
+            service_tier: z.string().optional(),
+            system_fingerprint: z.string().optional(),
+            usage: UsageSchema,
+            provider: z
+              .string()
+              .optional()
+              .describe("The provider used for this chat completion."),
+          })
+          .describe("A unary chat completion response.");
+        export type ChatCompletion = z.infer<typeof ChatCompletionSchema>;
       }
     }
 
@@ -999,101 +2390,205 @@ export namespace Chat {
 export namespace Vector {
   export namespace Completions {
     export namespace Request {
-      export interface VectorCompletionCreateParamsBase {
-        retry?: string | null;
-        messages: Message[];
-        provider?: Chat.Completions.Request.Provider | null;
-        ensemble: Ensemble;
-        profile: number[];
-        seed?: number | null;
-        tools?: Chat.Completions.Request.Tool[] | null;
-        responses: Message.RichContent[];
-        backoff_max_elapsed_time?: number | null;
-        first_chunk_timeout?: number | null;
-        other_chunk_timeout?: number | null;
-      }
+      export const EnsembleSchema = z
+        .union([z.string(), EnsembleBaseSchema])
+        .describe(
+          "The Ensemble to use for this completion. May be a unique ID or an inline definition."
+        );
+      export type Ensemble = z.infer<typeof EnsembleSchema>;
 
-      export interface VectorCompletionCreateParamsStreaming
-        extends VectorCompletionCreateParamsBase {
-        stream: true;
-      }
+      export const ProfileSchema = z
+        .array(z.number())
+        .describe(
+          'The profile to use for the completion. Must be of the same length as the Ensemble\'s "LLMs" field, ignoring count.'
+        );
+      export type Profile = z.infer<typeof ProfileSchema>;
 
-      export interface VectorCompletionCreateParamsNonStreaming
-        extends VectorCompletionCreateParamsBase {
-        stream?: false | null;
-      }
+      export const VectorCompletionCreateParamsBaseSchema = z
+        .object({
+          retry: z
+            .string()
+            .optional()
+            .nullable()
+            .describe(
+              "The unique ID of a previous incomplete or failed completion."
+            ),
+          messages: MessagesSchema,
+          provider:
+            Chat.Completions.Request.ProviderSchema.optional().nullable(),
+          ensemble: EnsembleSchema,
+          profile: ProfileSchema,
+          seed: Chat.Completions.Request.SeedSchema.optional().nullable(),
+          tools: ToolsSchema.optional()
+            .nullable()
+            .describe(
+              `${ToolsSchema.description} These are readonly and will only be useful for explaining prior tool calls or otherwise influencing behavior.`
+            ),
+          responses: VectorResponsesSchema,
+          backoff_max_elapsed_time:
+            Chat.Completions.Request.BackoffMaxElapsedTimeSchema.optional().nullable(),
+          first_chunk_timeout:
+            Chat.Completions.Request.FirstChunkTimeoutSchema.optional().nullable(),
+          other_chunk_timeout:
+            Chat.Completions.Request.OtherChunkTimeoutSchema.optional().nullable(),
+        })
+        .describe("Base parameters for creating a vector completion.");
+      export type VectorCompletionCreateParamsBase = z.infer<
+        typeof VectorCompletionCreateParamsBaseSchema
+      >;
 
-      export type VectorCompletionCreateParams =
-        | VectorCompletionCreateParamsStreaming
-        | VectorCompletionCreateParamsNonStreaming;
+      export const VectorCompletionCreateParamsStreamingSchema =
+        VectorCompletionCreateParamsBaseSchema.extend({
+          stream: Chat.Completions.Request.StreamTrueSchema,
+        }).describe("Parameters for creating a streaming vector completion.");
+      export type VectorCompletionCreateParamsStreaming = z.infer<
+        typeof VectorCompletionCreateParamsStreamingSchema
+      >;
 
-      export type Ensemble = string | EnsembleBase;
+      export const VectorCompletionCreateParamsNonStreamingSchema =
+        VectorCompletionCreateParamsBaseSchema.extend({
+          stream:
+            Chat.Completions.Request.StreamFalseSchema.optional().nullable(),
+        }).describe("Parameters for creating a unary vector completion.");
+      export type VectorCompletionCreateParamsNonStreaming = z.infer<
+        typeof VectorCompletionCreateParamsNonStreamingSchema
+      >;
+
+      export const VectorCompletionCreateParamsSchema = z
+        .union([
+          VectorCompletionCreateParamsStreamingSchema,
+          VectorCompletionCreateParamsNonStreamingSchema,
+        ])
+        .describe("Parameters for creating a vector completion.");
+      export type VectorCompletionCreateParams = z.infer<
+        typeof VectorCompletionCreateParamsSchema
+      >;
     }
 
     export namespace Response {
-      export namespace Streaming {
-        export interface VectorCompletionChunk {
-          id: string;
-          completions: ChatCompletionChunk[];
-          votes: Vote[];
-          scores: number[];
-          weights: number[];
-          created: number;
-          ensemble: string;
-          object: "vector.completion.chunk";
-          usage?: Usage;
-        }
+      export const VoteSchema = z
+        .object({
+          model: z
+            .string()
+            .describe(
+              "The unique identifier of the Ensemble LLM which generated this vote."
+            ),
+          ensemble_index: z
+            .uint32()
+            .describe("The index of the Ensemble LLM in the Ensemble."),
+          flat_ensemble_index: z
+            .uint32()
+            .describe(
+              "The flat index of the Ensemble LLM in the expanded Ensemble, accounting for counts."
+            ),
+          vote: z
+            .array(z.number())
+            .describe(
+              "The vote generated by this Ensemble LLM. It is of the same length of the number of responses provided in the request. If the Ensemble LLM used logprobs, may be a probability distribution; otherwise, one of the responses will have a value of 1 and the rest 0."
+            ),
+          weight: z.number().describe("The weight assigned to this vote."),
+          retry: z
+            .boolean()
+            .optional()
+            .describe(
+              "Whether this vote came from a previous Vector Completion which was retried."
+            ),
+        })
+        .describe("A vote from an Ensemble LLM within a Vector Completion.");
+      export type Vote = z.infer<typeof VoteSchema>;
 
-        export namespace VectorCompletionChunk {
-          export function merged(
-            a: VectorCompletionChunk,
-            b: VectorCompletionChunk
-          ): [VectorCompletionChunk, boolean] {
-            const id = a.id;
-            const [completions, completionsChanged] =
-              ChatCompletionChunk.mergedList(a.completions, b.completions);
-            const [votes, votesChanged] = Vote.mergedList(a.votes, b.votes);
-            const [scores, scoresChanged] = Scores.merged(a.scores, b.scores);
-            const [weights, weightsChanged] = Weights.merged(
-              a.weights,
-              b.weights
+      export namespace Vote {
+        export function mergedList(a: Vote[], b: Vote[]): [Vote[], boolean] {
+          let merged: Vote[] | undefined = undefined;
+          for (const vote of b) {
+            const existingIndex = a.findIndex(
+              ({ flat_ensemble_index }) =>
+                flat_ensemble_index === vote.flat_ensemble_index
             );
-            const created = a.created;
-            const ensemble = a.ensemble;
-            const object = a.object;
-            const [usage, usageChanged] = merge(a.usage, b.usage);
-            if (
-              completionsChanged ||
-              votesChanged ||
-              scoresChanged ||
-              weightsChanged ||
-              usageChanged
-            ) {
-              return [
-                {
-                  id,
-                  completions,
-                  votes,
-                  scores,
-                  weights,
-                  created,
-                  ensemble,
-                  object,
-                  ...(usage !== undefined ? { usage } : {}),
-                },
-                true,
-              ];
-            } else {
-              return [a, false];
+            if (existingIndex === -1) {
+              if (merged === undefined) {
+                merged = [...a, vote];
+              } else {
+                merged.push(vote);
+              }
             }
           }
+          return merged ? [merged, true] : [a, false];
         }
+      }
 
-        export interface ChatCompletionChunk
-          extends Chat.Completions.Response.Streaming.ChatCompletionChunk {
-          index: number;
-          error?: ObjectiveAIError;
-        }
+      export const UsageSchema = z
+        .object({
+          completion_tokens: z
+            .uint32()
+            .describe("The number of tokens generated in the completion."),
+          prompt_tokens: z
+            .uint32()
+            .describe("The number of tokens in the prompt."),
+          total_tokens: z
+            .uint32()
+            .describe(
+              "The total number of tokens used in the prompt or generated in the completion."
+            ),
+          completion_tokens_details:
+            Chat.Completions.Response.Usage.CompletionTokensDetailsSchema.optional(),
+          prompt_tokens_details:
+            Chat.Completions.Response.Usage.PromptTokensDetailsSchema.optional(),
+          cost: z
+            .number()
+            .describe("The cost in credits incurred for this completion."),
+          cost_details:
+            Chat.Completions.Response.Usage.CostDetailsSchema.optional(),
+          total_cost: z
+            .number()
+            .describe(
+              "The total cost in credits incurred including upstream costs."
+            ),
+        })
+        .describe("Token and cost usage statistics for the completion.");
+      export type Usage = z.infer<typeof UsageSchema>;
+
+      export const VotesSchema = z
+        .array(VoteSchema)
+        .describe(
+          "The list of votes for responses in the request from the Ensemble LLMs within the provided Ensemble."
+        );
+
+      export const ScoresSchema = z
+        .array(z.number())
+        .describe(
+          "The scores for each response in the request, aggregated from the votes of the Ensemble LLMs."
+        );
+
+      export const WeightsSchema = z
+        .array(z.number())
+        .describe(
+          "The weights assigned to each response in the request, aggregated from the votes of the Ensemble LLMs."
+        );
+
+      export const EnsembleSchema = z
+        .string()
+        .describe(
+          "The unique identifier of the Ensemble used for this vector completion."
+        );
+
+      export namespace Streaming {
+        export const ChatCompletionChunkSchema =
+          Chat.Completions.Response.Streaming.ChatCompletionChunkSchema.extend({
+            index: z
+              .uint32()
+              .describe(
+                "The index of the completion amongst all chat completions."
+              ),
+            error: ObjectiveAIErrorSchema.optional().describe(
+              "An error encountered during the generation of this chat completion."
+            ),
+          }).describe(
+            "A chat completion chunk generated in the pursuit of a vector completion."
+          );
+        export type ChatCompletionChunk = z.infer<
+          typeof ChatCompletionChunkSchema
+        >;
 
         export namespace ChatCompletionChunk {
           export function merged(
@@ -1153,6 +2648,78 @@ export namespace Vector {
           }
         }
 
+        export const VectorCompletionChunkSchema = z
+          .object({
+            id: z
+              .string()
+              .describe("The unique identifier of the vector completion."),
+            completions: z
+              .array(ChatCompletionChunkSchema)
+              .describe(
+                "The list of chat completion chunks created for this vector completion."
+              ),
+            votes: VotesSchema,
+            scores: ScoresSchema,
+            weights: WeightsSchema,
+            created: z
+              .uint32()
+              .describe(
+                "The Unix timestamp (in seconds) when the vector completion was created."
+              ),
+            ensemble: EnsembleSchema,
+            object: z.literal("vector.completion.chunk"),
+            usage: UsageSchema.optional(),
+          })
+          .describe("A chunk in a streaming vector completion response.");
+        export type VectorCompletionChunk = z.infer<
+          typeof VectorCompletionChunkSchema
+        >;
+
+        export namespace VectorCompletionChunk {
+          export function merged(
+            a: VectorCompletionChunk,
+            b: VectorCompletionChunk
+          ): [VectorCompletionChunk, boolean] {
+            const id = a.id;
+            const [completions, completionsChanged] =
+              ChatCompletionChunk.mergedList(a.completions, b.completions);
+            const [votes, votesChanged] = Vote.mergedList(a.votes, b.votes);
+            const [scores, scoresChanged] = Scores.merged(a.scores, b.scores);
+            const [weights, weightsChanged] = Weights.merged(
+              a.weights,
+              b.weights
+            );
+            const created = a.created;
+            const ensemble = a.ensemble;
+            const object = a.object;
+            const [usage, usageChanged] = merge(a.usage, b.usage);
+            if (
+              completionsChanged ||
+              votesChanged ||
+              scoresChanged ||
+              weightsChanged ||
+              usageChanged
+            ) {
+              return [
+                {
+                  id,
+                  completions,
+                  votes,
+                  scores,
+                  weights,
+                  created,
+                  ensemble,
+                  object,
+                  ...(usage !== undefined ? { usage } : {}),
+                },
+                true,
+              ];
+            } else {
+              return [a, false];
+            }
+          }
+        }
+
         export namespace Scores {
           export function merged(
             a: number[],
@@ -1182,135 +2749,97 @@ export namespace Vector {
       }
 
       export namespace Unary {
-        export interface VectorCompletion {
-          id: string;
-          completions: ChatCompletion[];
-          votes: Vote[];
-          scores: number[];
-          weights: number[];
-          created: number;
-          ensemble: string;
-          object: "vector.completion";
-          usage: Usage;
-        }
+        export const ChatCompletionSchema =
+          Chat.Completions.Response.Unary.ChatCompletionSchema.extend({
+            index: z
+              .uint32()
+              .describe(
+                "The index of the completion amongst all chat completions."
+              ),
+            error: ObjectiveAIErrorSchema.optional().describe(
+              "An error encountered during the generation of this chat completion."
+            ),
+          }).describe(
+            "A chat completion generated in the pursuit of a vector completion."
+          );
+        export type ChatCompletion = z.infer<typeof ChatCompletionSchema>;
 
-        export interface ChatCompletion
-          extends Chat.Completions.Response.Unary.ChatCompletion {
-          index: number;
-          error?: ObjectiveAIError;
-        }
+        export const VectorCompletionSchema = z
+          .object({
+            id: z
+              .string()
+              .describe("The unique identifier of the vector completion."),
+            completions: z
+              .array(ChatCompletionSchema)
+              .describe(
+                "The list of chat completions created for this vector completion."
+              ),
+            votes: VotesSchema,
+            scores: ScoresSchema,
+            weights: WeightsSchema,
+            created: z
+              .uint32()
+              .describe(
+                "The Unix timestamp (in seconds) when the vector completion was created."
+              ),
+            ensemble: EnsembleSchema,
+            object: z.literal("vector.completion"),
+            usage: UsageSchema,
+          })
+          .describe("A unary vector completion response.");
+        export type VectorCompletion = z.infer<typeof VectorCompletionSchema>;
       }
+    }
 
-      export interface Vote {
-        model: string;
-        ensemble_index: number;
-        flat_ensemble_index: number;
-        vote: number[];
-        weight: number;
-        retry?: boolean;
-      }
-
-      export namespace Vote {
-        export function mergedList(a: Vote[], b: Vote[]): [Vote[], boolean] {
-          let merged: Vote[] | undefined = undefined;
-          for (const vote of b) {
-            const existingIndex = a.findIndex(
-              ({ flat_ensemble_index }) =>
-                flat_ensemble_index === vote.flat_ensemble_index
-            );
-            if (existingIndex === -1) {
-              if (merged === undefined) {
-                merged = [...a, vote];
-              } else {
-                merged.push(vote);
-              }
-            }
-          }
-          return merged ? [merged, true] : [a, false];
-        }
-      }
-
-      export interface Usage {
-        completion_tokens: number;
-        prompt_tokens: number;
-        total_tokens: number;
-        completion_tokens_details?: Chat.Completions.Response.Usage.CompletionTokensDetails;
-        prompt_tokens_details?: Chat.Completions.Response.Usage.PromptTokensDetails;
-        cost: number;
-        cost_details?: Chat.Completions.Response.Usage.CostDetails;
-        total_cost: number;
-      }
-
-      export async function create(
-        openai: OpenAI,
-        body: Request.VectorCompletionCreateParamsStreaming,
-        options?: OpenAI.RequestOptions
-      ): Promise<Stream<Response.Streaming.VectorCompletionChunk>>;
-      export async function create(
-        openai: OpenAI,
-        body: Request.VectorCompletionCreateParamsNonStreaming,
-        options?: OpenAI.RequestOptions
-      ): Promise<Response.Unary.VectorCompletion>;
-      export async function create(
-        openai: OpenAI,
-        body: Request.VectorCompletionCreateParams,
-        options?: OpenAI.RequestOptions
-      ): Promise<
+    export async function create(
+      openai: OpenAI,
+      body: Request.VectorCompletionCreateParamsStreaming,
+      options?: OpenAI.RequestOptions
+    ): Promise<Stream<Response.Streaming.VectorCompletionChunk>>;
+    export async function create(
+      openai: OpenAI,
+      body: Request.VectorCompletionCreateParamsNonStreaming,
+      options?: OpenAI.RequestOptions
+    ): Promise<Response.Unary.VectorCompletion>;
+    export async function create(
+      openai: OpenAI,
+      body: Request.VectorCompletionCreateParams,
+      options?: OpenAI.RequestOptions
+    ): Promise<
+      | Stream<Response.Streaming.VectorCompletionChunk>
+      | Response.Unary.VectorCompletion
+    > {
+      const response = await openai.post("/vector/completions", {
+        body,
+        stream: body.stream ?? false,
+        ...options,
+      });
+      return response as
         | Stream<Response.Streaming.VectorCompletionChunk>
-        | Response.Unary.VectorCompletion
-      > {
-        const response = await openai.post("/vector/completions", {
-          body,
-          stream: body.stream ?? false,
-          ...options,
-        });
-        return response as
-          | Stream<Response.Streaming.VectorCompletionChunk>
-          | Response.Unary.VectorCompletion;
-      }
+        | Response.Unary.VectorCompletion;
     }
   }
 }
 
 // Function
 
-export type Function = Function.Scalar | Function.Vector;
+export const FunctionSchema = z
+  .discriminatedUnion("type", [Function.ScalarSchema, Function.VectorSchema])
+  .describe("A function.");
+export type Function = z.infer<typeof FunctionSchema>;
 
 export namespace Function {
-  export interface Scalar {
-    type: "scalar.function";
-    author: string;
-    id: string;
-    version: number;
-    description: string;
-    changelog?: string | null;
-    input_schema: InputSchema;
-    input_maps?: InputMaps | null;
-    tasks: TaskExpression[];
-    output: Expression;
-  }
-
-  export interface Vector {
-    type: "vector.function";
-    author: string;
-    id: string;
-    version: number;
-    description: string;
-    changelog?: string | null;
-    input_schema: InputSchema;
-    input_maps?: InputMaps | null;
-    tasks: TaskExpression[];
-    output: Expression;
-    output_length: Expression | number;
-  }
-
-  export type ProfileVersionRequired =
-    | FunctionProfileVersionRequired
-    | VectorCompletionProfile;
-
-  export type ProfileVersionOptional =
-    | FunctionProfileVersionOptional
-    | VectorCompletionProfile;
+  export const VectorCompletionProfileSchema = z
+    .object({
+      ensemble: Vector.Completions.Request.EnsembleSchema,
+      profile: Vector.Completions.Request.ProfileSchema,
+    })
+    .describe(
+      "A vector completion profile containing an Ensemble and array of weights."
+    );
+  export type VectorCompletionProfile = z.infer<
+    typeof VectorCompletionProfileSchema
+  >;
 
   export type FunctionProfileVersionRequired =
     | {
@@ -1321,6 +2850,29 @@ export namespace Function {
         version: number;
       }
     | ProfileVersionRequired[];
+  export const FunctionProfileVersionRequiredSchema: z.ZodType<FunctionProfileVersionRequired> =
+    z
+      .union([
+        z.object({
+          function_author: z
+            .string()
+            .describe(
+              "The author of the function the profile was published to."
+            ),
+          function_id: z
+            .string()
+            .describe(
+              "The unique identifier of the function the profile was published to."
+            ),
+          author: z.string().describe("The author of the profile."),
+          id: z.string().describe("The unique identifier of the profile."),
+          version: z.uint32().describe("The version of the profile."),
+        }),
+        z.lazy(() => z.array(ProfileVersionRequiredSchema)),
+      ])
+      .describe(
+        "A function profile where remote profiles must specify a version."
+      );
 
   export type FunctionProfileVersionOptional =
     | {
@@ -1331,15 +2883,55 @@ export namespace Function {
         version?: number | null;
       }
     | ProfileVersionOptional[];
+  export const FunctionProfileVersionOptionalSchema: z.ZodType<FunctionProfileVersionOptional> =
+    z
+      .union([
+        z.object({
+          function_author: z
+            .string()
+            .describe(
+              "The author of the function the profile was published to."
+            ),
+          function_id: z
+            .string()
+            .describe(
+              "The unique identifier of the function the profile was published to."
+            ),
+          author: z.string().describe("The author of the profile."),
+          id: z.string().describe("The unique identifier of the profile."),
+          version: z
+            .uint32()
+            .optional()
+            .nullable()
+            .describe("The version of the profile."),
+        }),
+        z.lazy(() => z.array(ProfileVersionOptionalSchema)),
+      ])
+      .describe("A function profile where remote profiles may omit a version.");
 
-  export interface VectorCompletionProfile {
-    ensemble: Vector.Completions.Request.Ensemble;
-    profile: number[];
-  }
+  export type ProfileVersionRequired =
+    | FunctionProfileVersionRequired
+    | VectorCompletionProfile;
+  export const ProfileVersionRequiredSchema: z.ZodType<ProfileVersionRequired> =
+    z
+      .union([
+        FunctionProfileVersionRequiredSchema,
+        VectorCompletionProfileSchema,
+      ])
+      .describe(
+        "A profile where remote function profiles must specify a version."
+      );
 
-  export interface Expression {
-    $jmespath: string;
-  }
+  export type ProfileVersionOptional =
+    | FunctionProfileVersionOptional
+    | VectorCompletionProfile;
+  export const ProfileVersionOptionalSchema: z.ZodType<ProfileVersionOptional> =
+    z
+      .union([
+        FunctionProfileVersionOptionalSchema,
+        VectorCompletionProfileSchema,
+      ])
+      .describe("A profile where remote function profiles may omit a version.");
 
   export type InputSchema =
     | InputSchema.Object
@@ -1352,6 +2944,22 @@ export namespace Function {
     | InputSchema.Audio
     | InputSchema.Video
     | InputSchema.File;
+  export const InputSchemaSchema: z.ZodType<InputSchema> = z.lazy(() =>
+    z
+      .union([
+        InputSchema.ObjectSchema,
+        InputSchema.ArraySchema,
+        InputSchema.StringSchema,
+        InputSchema.NumberSchema,
+        InputSchema.IntegerSchema,
+        InputSchema.BooleanSchema,
+        InputSchema.ImageSchema,
+        InputSchema.AudioSchema,
+        InputSchema.VideoSchema,
+        InputSchema.FileSchema,
+      ])
+      .describe("An input schema defining the structure of function inputs.")
+  );
 
   export namespace InputSchema {
     export interface Object {
@@ -1360,6 +2968,24 @@ export namespace Function {
       properties: Record<string, InputSchema>;
       required?: string[] | null;
     }
+    export const ObjectSchema: z.ZodType<Object> = z
+      .object({
+        type: z.literal("object"),
+        description: z
+          .string()
+          .optional()
+          .nullable()
+          .describe("The description of the object input."),
+        properties: z
+          .record(z.string(), InputSchemaSchema)
+          .describe("The properties of the object input."),
+        required: z
+          .array(z.string())
+          .optional()
+          .nullable()
+          .describe("The required properties of the object input."),
+      })
+      .describe("An object input schema.");
 
     export interface Array {
       type: "array";
@@ -1368,12 +2994,50 @@ export namespace Function {
       maxItems?: number | null;
       items: InputSchema;
     }
+    export const ArraySchema: z.ZodType<Array> = z
+      .object({
+        type: z.literal("array"),
+        description: z
+          .string()
+          .optional()
+          .nullable()
+          .describe("The description of the array input."),
+        minItems: z
+          .uint32()
+          .optional()
+          .nullable()
+          .describe("The minimum number of items in the array input."),
+        maxItems: z
+          .uint32()
+          .optional()
+          .nullable()
+          .describe("The maximum number of items in the array input."),
+        items: InputSchemaSchema.describe(
+          "The schema of the items in the array input."
+        ),
+      })
+      .describe("An array input schema.");
 
     export interface String {
       type: "string";
       description?: string | null;
       enum?: string[] | null;
     }
+    export const StringSchema: z.ZodType<String> = z
+      .object({
+        type: z.literal("string"),
+        description: z
+          .string()
+          .optional()
+          .nullable()
+          .describe("The description of the string input."),
+        enum: z
+          .array(z.string())
+          .optional()
+          .nullable()
+          .describe("The enumeration of allowed string values."),
+      })
+      .describe("A string input schema.");
 
     export interface Number {
       type: "number";
@@ -1381,6 +3045,26 @@ export namespace Function {
       minimum?: number | null;
       maximum?: number | null;
     }
+    export const NumberSchema: z.ZodType<Number> = z
+      .object({
+        type: z.literal("number"),
+        description: z
+          .string()
+          .optional()
+          .nullable()
+          .describe("The description of the number input."),
+        minimum: z
+          .number()
+          .optional()
+          .nullable()
+          .describe("The minimum allowed value for the number input."),
+        maximum: z
+          .number()
+          .optional()
+          .nullable()
+          .describe("The maximum allowed value for the number input."),
+      })
+      .describe("A number input schema.");
 
     export interface Integer {
       type: "integer";
@@ -1388,373 +3072,946 @@ export namespace Function {
       minimum?: number | null;
       maximum?: number | null;
     }
+    export const IntegerSchema: z.ZodType<Integer> = z
+      .object({
+        type: z.literal("integer"),
+        description: z
+          .string()
+          .optional()
+          .nullable()
+          .describe("The description of the integer input."),
+        minimum: z
+          .uint32()
+          .optional()
+          .nullable()
+          .describe("The minimum allowed value for the integer input."),
+        maximum: z
+          .uint32()
+          .optional()
+          .nullable()
+          .describe("The maximum allowed value for the integer input."),
+      })
+      .describe("An integer input schema.");
 
     export interface Boolean {
       type: "boolean";
       description?: string | null;
     }
+    export const BooleanSchema: z.ZodType<Boolean> = z
+      .object({
+        type: z.literal("boolean"),
+        description: z
+          .string()
+          .optional()
+          .nullable()
+          .describe("The description of the boolean input."),
+      })
+      .describe("A boolean input schema.");
 
     export interface Image {
       type: "image";
       description?: string | null;
     }
+    export const ImageSchema: z.ZodType<Image> = z
+      .object({
+        type: z.literal("image"),
+        description: z
+          .string()
+          .optional()
+          .nullable()
+          .describe("The description of the image input."),
+      })
+      .describe("An image input schema.");
 
     export interface Audio {
       type: "audio";
       description?: string | null;
     }
+    export const AudioSchema: z.ZodType<Audio> = z
+      .object({
+        type: z.literal("audio"),
+        description: z
+          .string()
+          .optional()
+          .nullable()
+          .describe("The description of the audio input."),
+      })
+      .describe("An audio input schema.");
 
     export interface Video {
       type: "video";
       description?: string | null;
     }
+    export const VideoSchema: z.ZodType<Video> = z
+      .object({
+        type: z.literal("video"),
+        description: z
+          .string()
+          .optional()
+          .nullable()
+          .describe("The description of the video input."),
+      })
+      .describe("A video input schema.");
 
     export interface File {
       type: "file";
       description?: string | null;
     }
+    export const FileSchema: z.ZodType<File> = z
+      .object({
+        type: z.literal("file"),
+        description: z
+          .string()
+          .optional()
+          .nullable()
+          .describe("The description of the file input."),
+      })
+      .describe("A file input schema.");
   }
 
-  export type InputMaps = Expression | Expression[];
+  export type Input =
+    | Message.RichContent.Part
+    | { [key: string]: Input }
+    | Input[]
+    | string
+    | number
+    | boolean;
+  export const InputSchema_: z.ZodType<Input> = z
+    .lazy(() =>
+      z.union([
+        Message.RichContent.PartSchema,
+        z.record(z.string(), InputSchema_),
+        z.array(InputSchema_),
+        z.string(),
+        z.number(),
+        z.boolean(),
+      ])
+    )
+    .describe("The input provided to the function.");
 
-  export type TaskExpression =
-    | TaskExpression.ScalarFunction
-    | TaskExpression.VectorFunction
-    | TaskExpression.VectorCompletion;
+  export type InputExpression =
+    | Message.RichContent.Part
+    | { [key: string]: Expression | InputExpression }
+    | (Expression | InputExpression)[]
+    | string
+    | number
+    | boolean;
+  export const InputExpressionSchema: z.ZodType<InputExpression> = z.lazy(() =>
+    z
+      .union([
+        Message.RichContent.PartSchema,
+        z.record(z.string(), InputExpressionSchema),
+        z.array(InputExpressionSchema),
+        z.string(),
+        z.number(),
+        z.boolean(),
+        ExpressionSchema.describe("An expression which evaluates to an input."),
+      ])
+      .describe(InputSchema_.description!)
+  );
+
+  export const InputMapsExpressionSchema = z
+    .union([
+      ExpressionSchema.describe(
+        "An expression which evaluates to a 2D array of Inputs."
+      ),
+      z
+        .array(
+          ExpressionSchema.describe(
+            "An expression which evaluates to a 1D array of Inputs."
+          )
+        )
+        .describe(
+          "A list of expressions which each evaluate to a 1D array of Inputs."
+        ),
+    ])
+    .describe(
+      "An expression or list of expressions which evaluate to a 2D array of Inputs. Each sub-array will be fed into Tasks which specify an index of this input map."
+    );
+  export type InputMapsExpression = z.infer<typeof InputMapsExpressionSchema>;
+
+  export const TaskExpressionSchema = z
+    .discriminatedUnion("type", [
+      TaskExpression.ScalarFunctionSchema,
+      TaskExpression.VectorFunctionSchema,
+      TaskExpression.VectorCompletionSchema,
+    ])
+    .describe(
+      "A task to be executed as part of the function. Will first be compiled using the parent function's input. May be skipped or mapped."
+    );
+  export type TaskExpression = z.infer<typeof TaskExpressionSchema>;
 
   export namespace TaskExpression {
-    export interface ScalarFunction {
-      type: "scalar.function";
-      author: string;
-      id: string;
-      version: number;
-      skip?: Expression | null;
-      map?: number | null;
-      input: Expression | InputExpression;
-    }
+    export const SkipSchema = ExpressionSchema.describe(
+      "An expression which evaluates to a boolean indicating whether to skip this task."
+    );
+    export type Skip = z.infer<typeof SkipSchema>;
 
-    export interface VectorFunction {
-      type: "vector.function";
-      author: string;
-      id: string;
-      version: number;
-      skip?: Expression | null;
-      map?: number | null;
-      input: Expression | InputExpression;
-    }
+    export const MapSchema = z
+      .uint32()
+      .describe(
+        "If present, indicates that this task should be ran once for each entry in the specified input map (input map is a 2D array indexed by this value)."
+      );
+    export type Map = z.infer<typeof MapSchema>;
 
-    export interface VectorCompletion {
-      type: "vector.completion";
-      skip?: Expression | null;
-      map?: number | null;
-      messages: Expression | (Expression | MessageExpression)[];
-      tools?: Expression | (Expression | ToolExpression)[] | null;
-      responses:
-        | Expression
-        | (Expression | MessageExpression.RichContentExpression)[];
-    }
+    export const ScalarFunctionSchema = z
+      .object({
+        type: z.literal("scalar.function"),
+        author: z
+          .string()
+          .describe("The author of the remote published scalar function."),
+        id: z
+          .string()
+          .describe(
+            "The unique identifier of the remote published scalar function."
+          ),
+        version: z
+          .uint32()
+          .describe("The version of the remote published scalar function."),
+        skip: SkipSchema.optional().nullable(),
+        map: MapSchema.optional().nullable(),
+        input: InputExpressionSchema,
+      })
+      .describe("A remote published scalar function task.");
+    export type ScalarFunction = z.infer<typeof ScalarFunctionSchema>;
 
-    export type InputExpression =
-      | Message.RichContentPart
-      | { [key: string]: Expression | InputExpression }
-      | (Expression | InputExpression)[]
-      | string
-      | number
-      | boolean;
+    export const VectorFunctionSchema = z
+      .object({
+        type: z.literal("vector.function"),
+        author: z
+          .string()
+          .describe("The author of the remote published vector function."),
+        id: z
+          .string()
+          .describe(
+            "The unique identifier of the remote published vector function."
+          ),
+        version: z
+          .uint32()
+          .describe("The version of the remote published vector function."),
+        skip: SkipSchema.optional().nullable(),
+        map: MapSchema.optional().nullable(),
+        input: InputExpressionSchema,
+      })
+      .describe("A remote published vector function task.");
+    export type VectorFunction = z.infer<typeof VectorFunctionSchema>;
 
-    export type MessageExpression =
-      | MessageExpression.DeveloperExpression
-      | MessageExpression.SystemExpression
-      | MessageExpression.UserExpression
-      | MessageExpression.ToolExpression
-      | MessageExpression.AssistantExpression;
-
-    export namespace MessageExpression {
-      export type SimpleContentExpression =
-        | string
-        | (Expression | Message.SimpleContentPart)[];
-
-      export type RichContentExpression =
-        | string
-        | (Expression | Message.RichContentPart)[];
-
-      export interface DeveloperExpression {
-        role: "developer";
-        content: Expression | SimpleContentExpression;
-        name?: Expression | string | null;
-      }
-
-      export interface SystemExpression {
-        role: "system";
-        content: Expression | SimpleContentExpression;
-        name?: Expression | string | null;
-      }
-
-      export interface UserExpression {
-        role: "user";
-        content: Expression | RichContentExpression;
-        name?: Expression | string | null;
-      }
-
-      export interface ToolExpression {
-        role: "tool";
-        content: Expression | RichContentExpression;
-        tool_call_id: Expression | string;
-      }
-
-      export interface AssistantExpression {
-        role: "assistant";
-        content?: Expression | RichContentExpression;
-        name?: Expression | string | null;
-        refusal?: Expression | string | null;
-        tool_calls?:
-          | Expression
-          | (Expression | AssistantExpression.ToolCallExpression)[]
-          | null;
-        reasoning?: Expression | string | null;
-      }
-
-      export namespace AssistantExpression {
-        export type ToolCallExpression = ToolCallExpression.FunctionExpression;
-
-        export namespace ToolCallExpression {
-          export interface FunctionExpression {
-            type: "function";
-            id: Expression | string;
-            function: Expression | FunctionExpression.DefinitionExpression;
-          }
-
-          export namespace FunctionExpression {
-            export interface DefinitionExpression {
-              name: Expression | string;
-              arguments: Expression | string;
-            }
-          }
-        }
-      }
-    }
-
-    export type ToolExpression = ToolExpression.FunctionExpression;
-
-    export namespace ToolExpression {
-      export interface FunctionExpression {
-        type: "function";
-        function: Expression | FunctionExpression.DefinitionExpression;
-      }
-
-      export namespace FunctionExpression {
-        export interface DefinitionExpression {
-          name: Expression | string;
-          description?: Expression | string | null;
-          parameters?:
-            | Expression
-            | { [key: string]: JsonValueExpression }
-            | null;
-          strict?: Expression | boolean | null;
-        }
-
-        export type JsonValueExpression =
-          | null
-          | boolean
-          | number
-          | string
-          | (Expression | JsonValueExpression)[]
-          | { [key: string]: Expression | JsonValueExpression };
-      }
-    }
+    export const VectorCompletionSchema = z
+      .object({
+        type: z.literal("vector.completion"),
+        skip: SkipSchema.optional().nullable(),
+        map: MapSchema.optional().nullable(),
+        messages: MessagesExpressionSchema,
+        tools: ToolsExpressionSchema.optional()
+          .nullable()
+          .describe(
+            `${ToolsExpressionSchema.description} These are readonly and will only be useful for explaining prior tool calls or otherwise influencing behavior.`
+          ),
+        responses: VectorResponsesExpressionSchema,
+      })
+      .describe("A vector completion task.");
+    export type VectorCompletion = z.infer<typeof VectorCompletionSchema>;
   }
+
+  export const TaskExpressionsSchema = z
+    .array(TaskExpressionSchema)
+    .describe("The list of tasks to be executed as part of the function.");
+  export type TaskExpressions = z.infer<typeof TaskExpressionsSchema>;
+
+  export const ScalarSchema = z
+    .object({
+      type: z.literal("scalar.function"),
+      author: z.string().describe("The author of the scalar function."),
+      id: z.string().describe("The unique identifier of the scalar function."),
+      version: z.uint32().describe("The version of the scalar function."),
+      description: z
+        .string()
+        .describe("The description of the scalar function."),
+      changelog: z
+        .string()
+        .optional()
+        .nullable()
+        .describe(
+          "When present, describes changes from the previous version or versions."
+        ),
+      input_schema: InputSchemaSchema,
+      input_maps: InputMapsExpressionSchema.optional().nullable(),
+      tasks: TaskExpressionsSchema,
+      output: ExpressionSchema.describe(
+        "An expression which evaluates to a single number. This is the output of the scalar function. Will be provided with the outputs of all tasks."
+      ),
+    })
+    .describe("A scalar function.");
+  export type Scalar = z.infer<typeof ScalarSchema>;
+
+  export const VectorSchema = z
+    .object({
+      type: z.literal("vector.function"),
+      author: z.string().describe("The author of the vector function."),
+      id: z.string().describe("The unique identifier of the vector function."),
+      version: z.uint32().describe("The version of the vector function."),
+      description: z
+        .string()
+        .describe("The description of the vector function."),
+      changelog: z
+        .string()
+        .optional()
+        .nullable()
+        .describe(
+          "When present, describes changes from the previous version or versions."
+        ),
+      input_schema: InputSchemaSchema,
+      input_maps: InputMapsExpressionSchema.optional().nullable(),
+      tasks: TaskExpressionsSchema,
+      output: ExpressionSchema.describe(
+        "An expressions which evaluates to an array of numbers. This is the output of the vector function. Will be provided with the outputs of all tasks."
+      ),
+      output_length: z
+        .union([
+          z.uint32().describe("The fixed length of the output vector."),
+          ExpressionSchema.describe(
+            "An expression which evaluates to the length of the output vector. Will only be provided with the function input. The output length must be determinable from the input alone."
+          ),
+        ])
+        .describe("The length of the output vector."),
+    })
+    .describe("A vector function.");
+  export type Vector = z.infer<typeof VectorSchema>;
 
   export namespace Executions {
     export namespace Request {
-      export interface FunctionExecutionParamsBase {
-        retry_token?: string | null;
-        input: Input;
-        provider?: Chat.Completions.Request.Provider | null;
-        seed?: number | null;
-        backoff_max_elapsed_time?: number | null;
-        first_chunk_timeout?: number | null;
-        other_chunk_timeout?: number | null;
-      }
-
-      export type Input =
-        | Message.RichContentPart
-        | { [key: string]: Input }
-        | Input[]
-        | string
-        | number
-        | boolean;
+      export const FunctionExecutionParamsBaseSchema = z
+        .object({
+          retry_token: z
+            .string()
+            .optional()
+            .nullable()
+            .describe(
+              "The retry token provided by a previous incomplete or failed function execution."
+            ),
+          input: InputSchema_,
+          provider:
+            Chat.Completions.Request.ProviderSchema.optional().nullable(),
+          seed: Chat.Completions.Request.SeedSchema.optional().nullable(),
+          backoff_max_elapsed_time:
+            Chat.Completions.Request.BackoffMaxElapsedTimeSchema.optional().nullable(),
+          first_chunk_timeout:
+            Chat.Completions.Request.FirstChunkTimeoutSchema.optional().nullable(),
+          other_chunk_timeout:
+            Chat.Completions.Request.OtherChunkTimeoutSchema.optional().nullable(),
+        })
+        .describe("Base parameters for executing a function.");
+      export type FunctionExecutionParamsBase = z.infer<
+        typeof FunctionExecutionParamsBaseSchema
+      >;
 
       // Execute Inline Function
 
-      export interface FunctionExecutionParamsExecuteInlineBase
-        extends FunctionExecutionParamsBase {
-        function: Function;
-        profile: FunctionProfileVersionOptional;
-      }
+      export const FunctionExecutionParamsExecuteInlineBaseSchema =
+        FunctionExecutionParamsBaseSchema.extend({
+          function: FunctionSchema,
+          profile: FunctionProfileVersionOptionalSchema,
+        }).describe("Base parameters for executing an inline function.");
+      export type FunctionExecutionParamsExecuteInlineBase = z.infer<
+        typeof FunctionExecutionParamsExecuteInlineBaseSchema
+      >;
 
-      export interface FunctionExecutionParamsExecuteInlineStreaming
-        extends FunctionExecutionParamsExecuteInlineBase {
-        stream: true;
-      }
+      export const FunctionExecutionParamsExecuteInlineStreamingSchema =
+        FunctionExecutionParamsExecuteInlineBaseSchema.extend({
+          stream: Chat.Completions.Request.StreamTrueSchema,
+        }).describe(
+          "Parameters for executing an inline function and streaming the response."
+        );
+      export type FunctionExecutionParamsExecuteInlineStreaming = z.infer<
+        typeof FunctionExecutionParamsExecuteInlineStreamingSchema
+      >;
 
-      export interface FunctionExecutionParamsExecuteInlineNonStreaming
-        extends FunctionExecutionParamsExecuteInlineBase {
-        stream?: false | null;
-      }
+      export const FunctionExecutionParamsExecuteInlineNonStreamingSchema =
+        FunctionExecutionParamsExecuteInlineBaseSchema.extend({
+          stream:
+            Chat.Completions.Request.StreamFalseSchema.optional().nullable(),
+        }).describe(
+          "Parameters for executing an inline function with a unary response."
+        );
+      export type FunctionExecutionParamsExecuteInlineNonStreaming = z.infer<
+        typeof FunctionExecutionParamsExecuteInlineNonStreamingSchema
+      >;
 
-      export type FunctionExecutionParamsExecuteInline =
-        | FunctionExecutionParamsExecuteInlineStreaming
-        | FunctionExecutionParamsExecuteInlineNonStreaming;
+      export const FunctionExecutionParamsExecuteInlineSchema = z
+        .union([
+          FunctionExecutionParamsExecuteInlineStreamingSchema,
+          FunctionExecutionParamsExecuteInlineNonStreamingSchema,
+        ])
+        .describe("Parameters for executing an inline function.");
+      export type FunctionExecutionParamsExecuteInline = z.infer<
+        typeof FunctionExecutionParamsExecuteInlineSchema
+      >;
 
       // Execute Published Function
 
-      export interface FunctionExecutionParamsExecuteBase
-        extends FunctionExecutionParamsBase {
-        profile?: FunctionProfileVersionOptional | null;
-      }
+      export const FunctionExecutionParamsExecuteBaseSchema =
+        FunctionExecutionParamsBaseSchema.extend({
+          profile: FunctionProfileVersionOptionalSchema.optional().nullable(),
+        }).describe(
+          "Base parameters for executing a remote published function."
+        );
+      export type FunctionExecutionParamsExecuteBase = z.infer<
+        typeof FunctionExecutionParamsExecuteBaseSchema
+      >;
 
-      export interface FunctionExecutionParamsExecuteStreaming
-        extends FunctionExecutionParamsExecuteBase {
-        stream: true;
-      }
+      export const FunctionExecutionParamsExecuteStreamingSchema =
+        FunctionExecutionParamsExecuteBaseSchema.extend({
+          stream: Chat.Completions.Request.StreamTrueSchema,
+        }).describe(
+          "Parameters for executing a remote published function and streaming the response."
+        );
+      export type FunctionExecutionParamsExecuteStreaming = z.infer<
+        typeof FunctionExecutionParamsExecuteStreamingSchema
+      >;
 
-      export interface FunctionExecutionParamsExecuteNonStreaming
-        extends FunctionExecutionParamsExecuteBase {
-        stream?: false | null;
-      }
+      export const FunctionExecutionParamsExecuteNonStreamingSchema =
+        FunctionExecutionParamsExecuteBaseSchema.extend({
+          stream:
+            Chat.Completions.Request.StreamFalseSchema.optional().nullable(),
+        }).describe(
+          "Parameters for executing a remote published function with a unary response."
+        );
+      export type FunctionExecutionParamsExecuteNonStreaming = z.infer<
+        typeof FunctionExecutionParamsExecuteNonStreamingSchema
+      >;
 
-      export type FunctionExecutionParamsExecute =
-        | FunctionExecutionParamsExecuteStreaming
-        | FunctionExecutionParamsExecuteNonStreaming;
+      export const FunctionExecutionParamsExecuteSchema = z
+        .union([
+          FunctionExecutionParamsExecuteStreamingSchema,
+          FunctionExecutionParamsExecuteNonStreamingSchema,
+        ])
+        .describe("Parameters for executing a remote published function.");
+      export type FunctionExecutionParamsExecute = z.infer<
+        typeof FunctionExecutionParamsExecuteSchema
+      >;
 
       // Publish Scalar Function
 
-      export interface FunctionExecutionParamsPublishScalarFunctionBase
-        extends FunctionExecutionParamsBase {
-        function: Scalar;
-        publish_function: {
-          description: string;
-          changelog?: string | null;
-          input_schema: InputSchema;
-        };
-        profile: ProfileVersionRequired[];
-        publish_profile: {
-          id: "default";
-          version: number;
-          description: string;
-          changelog?: string | null;
-        };
-      }
+      export const FunctionExecutionParamsPublishScalarFunctionBaseSchema =
+        FunctionExecutionParamsBaseSchema.extend({
+          function: ScalarSchema,
+          publish_function: z
+            .object({
+              description: z
+                .string()
+                .describe("The description of the published scalar function."),
+              changelog: z
+                .string()
+                .optional()
+                .nullable()
+                .describe(
+                  "When present, describes changes from the previous version or versions."
+                ),
+              input_schema: InputSchemaSchema,
+            })
+            .describe("Details about the scalar function to be published."),
+          profile: FunctionProfileVersionRequiredSchema,
+          publish_profile: z
+            .object({
+              id: z
+                .literal("default")
+                .describe(
+                  'The identifier of the profile to publish. Must be "default" when publishing a function.'
+                ),
+              version: z
+                .uint32()
+                .describe(
+                  "The version of the profile to publish. Must match the function's version."
+                ),
+              description: z
+                .string()
+                .describe("The description of the published profile."),
+              changelog: z
+                .string()
+                .optional()
+                .nullable()
+                .describe(
+                  "When present, describes changes from the previous version or versions."
+                ),
+            })
+            .describe("Details about the profile to be published."),
+        }).describe(
+          "Base parameters for executing and publishing an inline scalar function."
+        );
+      export type FunctionExecutionParamsPublishScalarFunctionBase = z.infer<
+        typeof FunctionExecutionParamsPublishScalarFunctionBaseSchema
+      >;
 
-      export interface FunctionExecutionParamsPublishScalarFunctionStreaming
-        extends FunctionExecutionParamsPublishScalarFunctionBase {
-        stream: true;
-      }
+      export const FunctionExecutionParamsPublishScalarFunctionStreamingSchema =
+        FunctionExecutionParamsPublishScalarFunctionBaseSchema.extend({
+          stream: Chat.Completions.Request.StreamTrueSchema,
+        }).describe(
+          "Parameters for executing and publishing an inline scalar function and streaming the response."
+        );
+      export type FunctionExecutionParamsPublishScalarFunctionStreaming =
+        z.infer<
+          typeof FunctionExecutionParamsPublishScalarFunctionStreamingSchema
+        >;
 
-      export interface FunctionExecutionParamsPublishScalarFunctionNonStreaming
-        extends FunctionExecutionParamsPublishScalarFunctionBase {
-        stream?: false | null;
-      }
+      export const FunctionExecutionParamsPublishScalarFunctionNonStreamingSchema =
+        FunctionExecutionParamsPublishScalarFunctionBaseSchema.extend({
+          stream:
+            Chat.Completions.Request.StreamFalseSchema.optional().nullable(),
+        }).describe(
+          "Parameters for executing and publishing an inline scalar function with a unary response."
+        );
+      export type FunctionExecutionParamsPublishScalarFunctionNonStreaming =
+        z.infer<
+          typeof FunctionExecutionParamsPublishScalarFunctionNonStreamingSchema
+        >;
 
-      export type FunctionExecutionParamsPublishScalarFunction =
-        | FunctionExecutionParamsPublishScalarFunctionStreaming
-        | FunctionExecutionParamsPublishScalarFunctionNonStreaming;
+      export const FunctionExecutionParamsPublishScalarFunctionSchema = z
+        .union([
+          FunctionExecutionParamsPublishScalarFunctionStreamingSchema,
+          FunctionExecutionParamsPublishScalarFunctionNonStreamingSchema,
+        ])
+        .describe(
+          "Parameters for executing and publishing an inline scalar function."
+        );
+      export type FunctionExecutionParamsPublishScalarFunction = z.infer<
+        typeof FunctionExecutionParamsPublishScalarFunctionSchema
+      >;
 
       // Publish Vector Function
 
-      export interface FunctionExecutionParamsPublishVectorFunctionBase
-        extends FunctionExecutionParamsBase {
-        function: Vector;
-        publish_function: {
-          description: string;
-          changelog?: string | null;
-          input_schema: InputSchema;
-          output_length: Expression | number;
-        };
-        profile: ProfileVersionRequired[];
-        publish_profile: {
-          id: "default";
-          version: number;
-          description: string;
-          changelog?: string | null;
-        };
-      }
+      export const FunctionExecutionParamsPublishVectorFunctionBaseSchema =
+        FunctionExecutionParamsBaseSchema.extend({
+          function: VectorSchema,
+          publish_function: z
+            .object({
+              description: z
+                .string()
+                .describe("The description of the published vector function."),
+              changelog: z
+                .string()
+                .optional()
+                .nullable()
+                .describe(
+                  "When present, describes changes from the previous version or versions."
+                ),
+              input_schema: InputSchemaSchema,
+              output_length: z
+                .union([
+                  z.uint32().describe("The fixed length of the output vector."),
+                  ExpressionSchema.describe(
+                    "An expression which evaluates to the length of the output vector. Will only be provided with the function input. The output length must be determinable from the input alone."
+                  ),
+                ])
+                .describe("The length of the output vector."),
+            })
+            .describe("Details about the vector function to be published."),
+          profile: FunctionProfileVersionRequiredSchema,
+          publish_profile: z
+            .object({
+              id: z
+                .literal("default")
+                .describe(
+                  'The identifier of the profile to publish. Must be "default" when publishing a function.'
+                ),
+              version: z
+                .uint32()
+                .describe(
+                  "The version of the profile to publish. Must match the function's version."
+                ),
+              description: z
+                .string()
+                .describe("The description of the published profile."),
+              changelog: z
+                .string()
+                .optional()
+                .nullable()
+                .describe(
+                  "When present, describes changes from the previous version or versions."
+                ),
+            })
+            .describe("Details about the profile to be published."),
+        }).describe(
+          "Base parameters for executing and publishing an inline vector function."
+        );
+      export type FunctionExecutionParamsPublishVectorFunctionBase = z.infer<
+        typeof FunctionExecutionParamsPublishVectorFunctionBaseSchema
+      >;
 
-      export interface FunctionExecutionParamsPublishVectorFunctionStreaming
-        extends FunctionExecutionParamsPublishVectorFunctionBase {
-        stream: true;
-      }
+      export const FunctionExecutionParamsPublishVectorFunctionStreamingSchema =
+        FunctionExecutionParamsPublishVectorFunctionBaseSchema.extend({
+          stream: Chat.Completions.Request.StreamTrueSchema,
+        }).describe(
+          "Parameters for executing and publishing an inline vector function and streaming the response."
+        );
+      export type FunctionExecutionParamsPublishVectorFunctionStreaming =
+        z.infer<
+          typeof FunctionExecutionParamsPublishVectorFunctionStreamingSchema
+        >;
 
-      export interface FunctionExecutionParamsPublishVectorFunctionNonStreaming
-        extends FunctionExecutionParamsPublishVectorFunctionBase {
-        stream?: false | null;
-      }
+      export const FunctionExecutionParamsPublishVectorFunctionNonStreamingSchema =
+        FunctionExecutionParamsPublishVectorFunctionBaseSchema.extend({
+          stream:
+            Chat.Completions.Request.StreamFalseSchema.optional().nullable(),
+        }).describe(
+          "Parameters for executing and publishing an inline vector function with a unary response."
+        );
+      export type FunctionExecutionParamsPublishVectorFunctionNonStreaming =
+        z.infer<
+          typeof FunctionExecutionParamsPublishVectorFunctionNonStreamingSchema
+        >;
 
-      export type FunctionExecutionParamsPublishVectorFunction =
-        | FunctionExecutionParamsPublishVectorFunctionStreaming
-        | FunctionExecutionParamsPublishVectorFunctionNonStreaming;
+      export const FunctionExecutionParamsPublishVectorFunctionSchema = z
+        .union([
+          FunctionExecutionParamsPublishVectorFunctionStreamingSchema,
+          FunctionExecutionParamsPublishVectorFunctionNonStreamingSchema,
+        ])
+        .describe(
+          "Parameters for executing and publishing an inline vector function."
+        );
+      export type FunctionExecutionParamsPublishVectorFunction = z.infer<
+        typeof FunctionExecutionParamsPublishVectorFunctionSchema
+      >;
 
       // Publish Function
 
-      export type FunctionExecutionParamsPublishFunctionStreaming =
-        | FunctionExecutionParamsPublishScalarFunctionStreaming
-        | FunctionExecutionParamsPublishVectorFunctionStreaming;
+      export const FunctionExecutionParamsPublishFunctionStreamingSchema = z
+        .union([
+          FunctionExecutionParamsPublishScalarFunctionStreamingSchema,
+          FunctionExecutionParamsPublishVectorFunctionStreamingSchema,
+        ])
+        .describe(
+          "Parameters for executing and publishing an inline function and streaming the response."
+        );
+      export type FunctionExecutionParamsPublishFunctionStreaming = z.infer<
+        typeof FunctionExecutionParamsPublishFunctionStreamingSchema
+      >;
 
-      export type FunctionExecutionParamsPublishFunctionNonStreaming =
-        | FunctionExecutionParamsPublishScalarFunctionNonStreaming
-        | FunctionExecutionParamsPublishVectorFunctionNonStreaming;
+      export const FunctionExecutionParamsPublishFunctionNonStreamingSchema = z
+        .union([
+          FunctionExecutionParamsPublishScalarFunctionNonStreamingSchema,
+          FunctionExecutionParamsPublishVectorFunctionNonStreamingSchema,
+        ])
+        .describe(
+          "Parameters for executing and publishing an inline function with a unary response."
+        );
+      export type FunctionExecutionParamsPublishFunctionNonStreaming = z.infer<
+        typeof FunctionExecutionParamsPublishFunctionNonStreamingSchema
+      >;
 
-      export type FunctionExecutionParamsPublishFunction =
-        | FunctionExecutionParamsPublishScalarFunction
-        | FunctionExecutionParamsPublishVectorFunction;
+      export const FunctionExecutionParamsPublishFunctionSchema = z
+        .union([
+          FunctionExecutionParamsPublishScalarFunctionSchema,
+          FunctionExecutionParamsPublishVectorFunctionSchema,
+        ])
+        .describe(
+          "Parameters for executing and publishing an inline function."
+        );
+      export type FunctionExecutionParamsPublishFunction = z.infer<
+        typeof FunctionExecutionParamsPublishFunctionSchema
+      >;
 
       // Publish Profile
 
-      export interface FunctionExecutionParamsPublishProfileBase
-        extends FunctionExecutionParamsBase {
-        profile: ProfileVersionRequired[];
-        publish_profile: {
-          id: string;
-          version: number;
-          description: string;
-          changelog?: string | null;
-        };
-      }
+      export const FunctionExecutionParamsPublishProfileBaseSchema =
+        FunctionExecutionParamsBaseSchema.extend({
+          profile: z
+            .array(ProfileVersionRequiredSchema)
+            .describe("The profile to publish."),
+          publish_profile: z
+            .object({
+              id: z
+                .string()
+                .describe("The unique identifier of the profile to publish."),
+              version: z
+                .uint32()
+                .describe("The version of the profile to publish."),
+              description: z
+                .string()
+                .describe("The description of the published profile."),
+              changelog: z
+                .string()
+                .optional()
+                .nullable()
+                .describe(
+                  "When present, describes changes from the previous version or versions."
+                ),
+            })
+            .describe("Details about the profile to be published."),
+        }).describe(
+          "Base parameters for executing a remote published function and publishing a profile."
+        );
+      export type FunctionExecutionParamsPublishProfileBase = z.infer<
+        typeof FunctionExecutionParamsPublishProfileBaseSchema
+      >;
 
-      export interface FunctionExecutionParamsPublishProfileStreaming
-        extends FunctionExecutionParamsPublishProfileBase {
-        stream: true;
-      }
+      export const FunctionExecutionParamsPublishProfileStreamingSchema =
+        FunctionExecutionParamsPublishProfileBaseSchema.extend({
+          stream: Chat.Completions.Request.StreamTrueSchema,
+        }).describe(
+          "Parameters for executing a remote published function, publishing a profile, and streaming the response."
+        );
+      export type FunctionExecutionParamsPublishProfileStreaming = z.infer<
+        typeof FunctionExecutionParamsPublishProfileStreamingSchema
+      >;
 
-      export interface FunctionExecutionParamsPublishProfileNonStreaming
-        extends FunctionExecutionParamsPublishProfileBase {
-        stream?: false | null;
-      }
+      export const FunctionExecutionParamsPublishProfileNonStreamingSchema =
+        FunctionExecutionParamsPublishProfileBaseSchema.extend({
+          stream:
+            Chat.Completions.Request.StreamFalseSchema.optional().nullable(),
+        }).describe(
+          "Parameters for executing a remote published function and publishing a profile with a unary response."
+        );
+      export type FunctionExecutionParamsPublishProfileNonStreaming = z.infer<
+        typeof FunctionExecutionParamsPublishProfileNonStreamingSchema
+      >;
 
-      export type FunctionExecutionParamsPublishProfile =
-        | FunctionExecutionParamsPublishProfileStreaming
-        | FunctionExecutionParamsPublishProfileNonStreaming;
+      export const FunctionExecutionParamsPublishProfileSchema = z
+        .union([
+          FunctionExecutionParamsPublishProfileStreamingSchema,
+          FunctionExecutionParamsPublishProfileNonStreamingSchema,
+        ])
+        .describe(
+          "Parameters for executing a remote published function and publishing a profile."
+        );
+      export type FunctionExecutionParamsPublishProfile = z.infer<
+        typeof FunctionExecutionParamsPublishProfileSchema
+      >;
     }
 
     export namespace Response {
+      export namespace Task {
+        export const IndexSchema = z
+          .uint32()
+          .describe("The index of the task in the sequence of tasks.");
+        export type Index = z.infer<typeof IndexSchema>;
+
+        export const TaskIndexSchema = z
+          .uint32()
+          .describe(
+            "The index of the task amongst all mapped and non-skipped compiled tasks. Used internally."
+          );
+        export type TaskIndex = z.infer<typeof TaskIndexSchema>;
+
+        export const TaskPathSchema = z
+          .array(z.uint32())
+          .describe(
+            "The path of this task which may be used to navigate which nested task this is amongst the root functions tasks and sub-tasks."
+          );
+        export type TaskPath = z.infer<typeof TaskPathSchema>;
+      }
+
       export namespace Streaming {
-        export interface FunctionExecutionChunk {
-          id: string;
-          tasks: TaskChunk[];
-          tasks_errors?: boolean;
-          output?: number | number[] | JsonValue;
-          error?: ObjectiveAIError;
-          retry_token?: string;
-          function_published?: boolean;
-          profile_published?: boolean;
-          created: number;
-          function: string | null;
-          profile: string | null;
-          object:
-            | "scalar.function.execution.chunk"
-            | "vector.function.execution.chunk";
-          usage?: Vector.Completions.Response.Usage;
+        export type TaskChunk = TaskChunk.Function | TaskChunk.VectorCompletion;
+        export const TaskChunkSchema: z.ZodType<TaskChunk> = z
+          .union([TaskChunk.FunctionSchema, TaskChunk.VectorCompletionSchema])
+          .describe("A chunk of a task execution.");
+
+        export namespace TaskChunk {
+          export function merged(
+            a: TaskChunk,
+            b: TaskChunk
+          ): [TaskChunk, boolean] {
+            if ("scores" in a) {
+              return VectorCompletion.merged(a, b as VectorCompletion);
+            } else {
+              return Function.merged(a, b as Function);
+            }
+          }
+
+          export function mergedList(
+            a: TaskChunk[],
+            b: TaskChunk[]
+          ): [TaskChunk[], boolean] {
+            let merged: TaskChunk[] | undefined = undefined;
+            for (const chunk of b) {
+              const existingIndex = a.findIndex(
+                ({ index }) => index === chunk.index
+              );
+              if (existingIndex === -1) {
+                if (merged === undefined) {
+                  merged = [...a, chunk];
+                } else {
+                  merged.push(chunk);
+                }
+              } else {
+                const [mergedChunk, chunkChanged] = TaskChunk.merged(
+                  a[existingIndex],
+                  chunk
+                );
+                if (chunkChanged) {
+                  if (merged === undefined) {
+                    merged = [...a];
+                  }
+                  merged[existingIndex] = mergedChunk;
+                }
+              }
+            }
+            return merged ? [merged, true] : [a, false];
+          }
+
+          export interface Function extends FunctionExecutionChunk {
+            index: number;
+            task_index: number;
+            task_path: number[];
+          }
+          export const FunctionSchema: z.ZodType<Function> = z
+            .lazy(() =>
+              FunctionExecutionChunkSchema.extend({
+                index: Task.IndexSchema,
+                task_index: Task.TaskIndexSchema,
+                task_path: Task.TaskPathSchema,
+              })
+            )
+            .describe("A chunk of a function execution task.");
+
+          export namespace Function {
+            export function merged(
+              a: Function,
+              b: Function
+            ): [Function, boolean] {
+              const index = a.index;
+              const task_index = a.task_index;
+              const task_path = a.task_path;
+              const [base, baseChanged] = FunctionExecutionChunk.merged(a, b);
+              if (baseChanged) {
+                return [
+                  {
+                    index,
+                    task_index,
+                    task_path,
+                    ...base,
+                  },
+                  true,
+                ];
+              } else {
+                return [a, false];
+              }
+            }
+          }
+
+          export const VectorCompletionSchema =
+            Vector.Completions.Response.Streaming.VectorCompletionChunkSchema.extend(
+              {
+                index: Task.IndexSchema,
+                task_index: Task.TaskIndexSchema,
+                task_path: Task.TaskPathSchema,
+                error: ObjectiveAIErrorSchema.optional().describe(
+                  "When present, indicates that an error occurred during the vector completion task."
+                ),
+              }
+            ).describe("A chunk of a vector completion task.");
+          export type VectorCompletion = z.infer<typeof VectorCompletionSchema>;
+
+          export namespace VectorCompletion {
+            export function merged(
+              a: VectorCompletion,
+              b: VectorCompletion
+            ): [VectorCompletion, boolean] {
+              const index = a.index;
+              const task_index = a.task_index;
+              const task_path = a.task_path;
+              const [base, baseChanged] =
+                Vector.Completions.Response.Streaming.VectorCompletionChunk.merged(
+                  a,
+                  b
+                );
+              const [error, errorChanged] = merge(a.error, b.error);
+              if (baseChanged || errorChanged) {
+                return [
+                  {
+                    index,
+                    task_index,
+                    task_path,
+                    ...base,
+                    ...(error !== undefined ? { error } : {}),
+                  },
+                  true,
+                ];
+              } else {
+                return [a, false];
+              }
+            }
+          }
         }
+
+        export const FunctionExecutionChunkSchema = z
+          .object({
+            id: z
+              .string()
+              .describe("The unique identifier of the function execution."),
+            tasks: z
+              .array(TaskChunkSchema)
+              .describe(
+                "The tasks executed as part of the function execution."
+              ),
+            tasks_errors: z
+              .boolean()
+              .optional()
+              .describe(
+                "When true, indicates that one or more tasks encountered errors during execution."
+              ),
+            output: z
+              .union([
+                z
+                  .number()
+                  .describe("The scalar output of the function execution."),
+                z
+                  .array(z.number())
+                  .describe("The vector output of the function execution."),
+                JsonValueSchema.describe(
+                  "The erroneous output of the function execution."
+                ),
+              ])
+              .optional()
+              .describe("The output of the function execution."),
+            error: ObjectiveAIErrorSchema.optional().describe(
+              "When present, indicates that an error occurred during the function execution."
+            ),
+            retry_token: z
+              .string()
+              .optional()
+              .describe(
+                "A token which may be used to retry the function execution."
+              ),
+            function_published: z
+              .boolean()
+              .optional()
+              .describe(
+                "When true, indicates that a function was published as part of this execution."
+              ),
+            profile_published: z
+              .boolean()
+              .optional()
+              .describe(
+                "When true, indicates that a profile was published as part of this execution."
+              ),
+            created: z
+              .uint32()
+              .describe(
+                "The UNIX timestamp (in seconds) when the function execution chunk was created."
+              ),
+            function: z
+              .string()
+              .nullable()
+              .describe(
+                "The unique identifier of the function being executed."
+              ),
+            profile: z
+              .string()
+              .nullable()
+              .describe("The unique identifier of the profile being used."),
+            object: z
+              .enum([
+                "scalar.function.execution.chunk",
+                "vector.function.execution.chunk",
+              ])
+              .describe("The object type."),
+            usage: Vector.Completions.Response.UsageSchema.optional(),
+          })
+          .describe("A chunk of a function execution.");
+        export type FunctionExecutionChunk = z.infer<
+          typeof FunctionExecutionChunkSchema
+        >;
 
         export namespace FunctionExecutionChunk {
           export function merged(
@@ -1826,143 +4083,13 @@ export namespace Function {
             }
           }
         }
-
-        export type TaskChunk = TaskChunk.Function | TaskChunk.VectorCompletion;
-
-        export namespace TaskChunk {
-          export function merged(
-            a: TaskChunk,
-            b: TaskChunk
-          ): [TaskChunk, boolean] {
-            if ("scores" in a) {
-              return VectorCompletion.merged(a, b as VectorCompletion);
-            } else {
-              return Function.merged(a, b as Function);
-            }
-          }
-
-          export function mergedList(
-            a: TaskChunk[],
-            b: TaskChunk[]
-          ): [TaskChunk[], boolean] {
-            let merged: TaskChunk[] | undefined = undefined;
-            for (const chunk of b) {
-              const existingIndex = a.findIndex(
-                ({ index }) => index === chunk.index
-              );
-              if (existingIndex === -1) {
-                if (merged === undefined) {
-                  merged = [...a, chunk];
-                } else {
-                  merged.push(chunk);
-                }
-              } else {
-                const [mergedChunk, chunkChanged] = TaskChunk.merged(
-                  a[existingIndex],
-                  chunk
-                );
-                if (chunkChanged) {
-                  if (merged === undefined) {
-                    merged = [...a];
-                  }
-                  merged[existingIndex] = mergedChunk;
-                }
-              }
-            }
-            return merged ? [merged, true] : [a, false];
-          }
-
-          export interface Function extends FunctionExecutionChunk {
-            index: number;
-            task_index: number;
-            task_path: number[];
-          }
-
-          export namespace Function {
-            export function merged(
-              a: Function,
-              b: Function
-            ): [Function, boolean] {
-              const index = a.index;
-              const task_index = a.task_index;
-              const task_path = a.task_path;
-              const [base, baseChanged] = FunctionExecutionChunk.merged(a, b);
-              if (baseChanged) {
-                return [
-                  {
-                    index,
-                    task_index,
-                    task_path,
-                    ...base,
-                  },
-                  true,
-                ];
-              } else {
-                return [a, false];
-              }
-            }
-          }
-
-          export interface VectorCompletion
-            extends Vector.Completions.Response.Streaming
-              .VectorCompletionChunk {
-            index: number;
-            task_index: number;
-            task_path: number[];
-            error?: ObjectiveAIError;
-          }
-
-          export namespace VectorCompletion {
-            export function merged(
-              a: VectorCompletion,
-              b: VectorCompletion
-            ): [VectorCompletion, boolean] {
-              const index = a.index;
-              const task_index = a.task_index;
-              const task_path = a.task_path;
-              const [base, baseChanged] =
-                Vector.Completions.Response.Streaming.VectorCompletionChunk.merged(
-                  a,
-                  b
-                );
-              const [error, errorChanged] = merge(a.error, b.error);
-              if (baseChanged || errorChanged) {
-                return [
-                  {
-                    index,
-                    task_index,
-                    task_path,
-                    ...base,
-                    ...(error !== undefined ? { error } : {}),
-                  },
-                  true,
-                ];
-              } else {
-                return [a, false];
-              }
-            }
-          }
-        }
       }
 
       export namespace Unary {
-        export interface FunctionExecution {
-          id: string;
-          tasks: Task[];
-          tasks_errors: boolean;
-          output: number | number[] | JsonValue;
-          error: ObjectiveAIError | null;
-          retry_token: string | null;
-          function_published?: boolean;
-          profile_published?: boolean;
-          created: number;
-          function: string | null;
-          profile: string | null;
-          object: "scalar.function.execution" | "vector.function.execution";
-          usage: Vector.Completions.Response.Usage;
-        }
-
         export type Task = Task.Function | Task.VectorCompletion;
+        export const TaskSchema: z.ZodType<Task> = z
+          .union([Task.FunctionSchema, Task.VectorCompletionSchema])
+          .describe("A task execution.");
 
         export namespace Task {
           export interface Function extends FunctionExecution {
@@ -1970,149 +4097,287 @@ export namespace Function {
             task_index: number;
             task_path: number[];
           }
+          export const FunctionSchema: z.ZodType<Function> = z
+            .lazy(() =>
+              FunctionExecutionSchema.extend({
+                index: Response.Task.IndexSchema,
+                task_index: Response.Task.TaskIndexSchema,
+                task_path: Response.Task.TaskPathSchema,
+              })
+            )
+            .describe("A chunk of a function execution task.");
 
-          export interface VectorCompletion
-            extends Vector.Completions.Response.Unary.VectorCompletion {
-            index: number;
-            task_index: number;
-            task_path: number[];
-            error: ObjectiveAIError | null;
-          }
+          export const VectorCompletionSchema =
+            Vector.Completions.Response.Unary.VectorCompletionSchema.extend({
+              index: Response.Task.IndexSchema,
+              task_index: Response.Task.TaskIndexSchema,
+              task_path: Response.Task.TaskPathSchema,
+              error: ObjectiveAIErrorSchema.nullable().describe(
+                "When non-null, indicates that an error occurred during the vector completion task."
+              ),
+            }).describe("A vector completion task.");
+          export type VectorCompletion = z.infer<typeof VectorCompletionSchema>;
         }
+
+        export const FunctionExecutionSchema = z
+          .object({
+            id: z
+              .string()
+              .describe("The unique identifier of the function execution."),
+            tasks: z
+              .array(TaskSchema)
+              .describe(
+                "The tasks executed as part of the function execution."
+              ),
+            tasks_errors: z
+              .boolean()
+              .describe(
+                "When true, indicates that one or more tasks encountered errors during execution."
+              ),
+            output: z
+              .union([
+                z
+                  .number()
+                  .describe("The scalar output of the function execution."),
+                z
+                  .array(z.number())
+                  .describe("The vector output of the function execution."),
+                JsonValueSchema.describe(
+                  "The erroneous output of the function execution."
+                ),
+              ])
+              .describe("The output of the function execution."),
+            error: ObjectiveAIErrorSchema.nullable().describe(
+              "When non-null, indicates that an error occurred during the function execution."
+            ),
+            retry_token: z
+              .string()
+              .nullable()
+              .describe(
+                "A token which may be used to retry the function execution."
+              ),
+            function_published: z
+              .boolean()
+              .optional()
+              .describe(
+                "When true, indicates that a function was published as part of this execution."
+              ),
+            profile_published: z
+              .boolean()
+              .optional()
+              .describe(
+                "When true, indicates that a profile was published as part of this execution."
+              ),
+            created: z
+              .uint32()
+              .describe(
+                "The UNIX timestamp (in seconds) when the function execution chunk was created."
+              ),
+            function: z
+              .string()
+              .nullable()
+              .describe(
+                "The unique identifier of the function being executed."
+              ),
+            profile: z
+              .string()
+              .nullable()
+              .describe("The unique identifier of the profile being used."),
+            object: z
+              .enum(["scalar.function.execution", "vector.function.execution"])
+              .describe("The object type."),
+            usage: Vector.Completions.Response.UsageSchema,
+          })
+          .describe("A function execution.");
+        export type FunctionExecution = z.infer<typeof FunctionExecutionSchema>;
       }
     }
   }
 
   export namespace ComputeProfile {
     export namespace Request {
-      export interface FunctionComputeProfileParamsBase {
-        retry_token?: string | null;
-        max_retries?: number | null;
-        n: number;
-        dataset: DatasetItem[];
-        ensemble: Vector.Completions.Request.Ensemble;
-        provider?: Chat.Completions.Request.Provider | null;
-        seed?: number | null;
-        backoff_max_elapsed_time?: number | null;
-        first_chunk_timeout?: number | null;
-        other_chunk_timeout?: number | null;
-      }
-
-      export interface FunctionComputeProfileParamsStreaming
-        extends FunctionComputeProfileParamsBase {
-        stream: true;
-      }
-
-      export interface FunctionComputeProfileParamsNonStreaming
-        extends FunctionComputeProfileParamsBase {
-        stream?: false | null;
-      }
-
-      export type FunctionComputeProfileParams =
-        | FunctionComputeProfileParamsStreaming
-        | FunctionComputeProfileParamsNonStreaming;
-
-      export interface DatasetItem {
-        input: Executions.Request.Input;
-        target: DatasetItem.Target;
-      }
+      export const DatasetItemSchema = z
+        .object({
+          input: InputSchema_,
+          target: DatasetItem.TargetSchema,
+        })
+        .describe("A Function input and its corresponding target output.");
+      export type DatasetItem = z.infer<typeof DatasetItemSchema>;
 
       export namespace DatasetItem {
-        export type Target =
-          | Target.Scalar
-          | Target.Vector
-          | Target.VectorWinner;
+        export const TargetSchema = z
+          .union([
+            Target.ScalarSchema,
+            Target.VectorSchema,
+            Target.VectorWinnerSchema,
+          ])
+          .describe("The target output for a given function input.");
 
         export namespace Target {
-          export interface Scalar {
-            type: "scalar";
-            value: number;
-          }
+          export const ScalarSchema = z
+            .object({
+              type: z.literal("scalar"),
+              value: z.number(),
+            })
+            .describe(
+              "A scalar target output. The desired output is this exact scalar."
+            );
 
-          export interface Vector {
-            type: "vector";
-            value: number[];
-          }
+          export const VectorSchema = z
+            .object({
+              type: z.literal("vector"),
+              value: z.array(z.number()),
+            })
+            .describe(
+              "A vector target output. The desired output is this exact vector."
+            );
 
-          export interface VectorWinner {
-            type: "vector_winner";
-            value: number;
-          }
+          export const VectorWinnerSchema = z
+            .object({
+              type: z.literal("vector_winner"),
+              value: z.uint32(),
+            })
+            .describe(
+              "A vector winner target output. The desired output is a vector where the highest value is at the specified index."
+            );
         }
       }
+
+      export const FunctionComputeProfileParamsBaseSchema = z
+        .object({
+          retry_token: z
+            .string()
+            .optional()
+            .nullable()
+            .describe(
+              "The retry token provided by a previous incomplete or failed profile computation."
+            ),
+          max_retries: z
+            .uint32()
+            .optional()
+            .nullable()
+            .describe(
+              "The maximum number of retries to attempt when a function execution fails during profile computation."
+            ),
+          n: z
+            .uint32()
+            .describe(
+              "The number of function executions to perform per dataset item. Generally speaking, higher N values increase the quality of the computed profile."
+            ),
+          dataset: z
+            .array(DatasetItemSchema)
+            .describe(
+              "The dataset of input and target output pairs to use for computing the profile."
+            ),
+          ensemble: Vector.Completions.Request.EnsembleSchema,
+          provider:
+            Chat.Completions.Request.ProviderSchema.optional().nullable(),
+          seed: Chat.Completions.Request.SeedSchema.optional().nullable(),
+          backoff_max_elapsed_time:
+            Chat.Completions.Request.BackoffMaxElapsedTimeSchema.optional().nullable(),
+          first_chunk_timeout:
+            Chat.Completions.Request.FirstChunkTimeoutSchema.optional().nullable(),
+          other_chunk_timeout:
+            Chat.Completions.Request.OtherChunkTimeoutSchema.optional().nullable(),
+        })
+        .describe("Base parameters for computing a function profile.");
+      export type FunctionComputeProfileParamsBase = z.infer<
+        typeof FunctionComputeProfileParamsBaseSchema
+      >;
+
+      export const FunctionComputeProfileParamsStreamingSchema =
+        FunctionComputeProfileParamsBaseSchema.extend({
+          stream: Chat.Completions.Request.StreamTrueSchema,
+        }).describe(
+          "Parameters for computing a function profile and streaming the response."
+        );
+      export type FunctionComputeProfileParamsStreaming = z.infer<
+        typeof FunctionComputeProfileParamsStreamingSchema
+      >;
+
+      export const FunctionComputeProfileParamsNonStreamingSchema =
+        FunctionComputeProfileParamsBaseSchema.extend({
+          stream:
+            Chat.Completions.Request.StreamFalseSchema.optional().nullable(),
+        }).describe(
+          "Parameters for computing a function profile with a unary response."
+        );
+      export type FunctionComputeProfileParamsNonStreaming = z.infer<
+        typeof FunctionComputeProfileParamsNonStreamingSchema
+      >;
+
+      export const FunctionComputeProfileParamsSchema = z
+        .union([
+          FunctionComputeProfileParamsStreamingSchema,
+          FunctionComputeProfileParamsNonStreamingSchema,
+        ])
+        .describe("Parameters for computing a function profile.");
+      export type FunctionComputeProfileParams = z.infer<
+        typeof FunctionComputeProfileParamsSchema
+      >;
     }
 
     export namespace Response {
+      export const FittingStatsSchema = z
+        .object({
+          loss: z
+            .number()
+            .describe("The final sum loss achieved during weights fitting."),
+          executions: z
+            .uint32()
+            .describe(
+              "The total number of function executions used during weights fitting."
+            ),
+          starts: z
+            .uint32()
+            .describe(
+              "The number of fitting starts attempted. Each start begins with a randomized weight vector."
+            ),
+          rounds: z
+            .uint32()
+            .describe(
+              "The number of fitting rounds performed across all starts."
+            ),
+          errors: z
+            .uint32()
+            .describe(
+              "The number of errors which occured while computing outputs during fitting."
+            ),
+        })
+        .describe(
+          "Statistics about the fitting process used to compute the weights for the profile."
+        );
+      export type FittingStats = z.infer<typeof FittingStatsSchema>;
+
       export namespace Streaming {
-        export interface FunctionComputeProfileChunk {
-          id: string;
-          executions: FunctionExecutionChunk[];
-          executions_errors?: boolean;
-          profile?: ProfileVersionRequired[];
-          fitting_stats?: FittingStats;
-          created: number;
-          function: string;
-          object: "function.compute.profile.chunk";
-          usage?: Vector.Completions.Response.Usage;
-        }
-
-        export namespace FunctionComputeProfileChunk {
-          export function merged(
-            a: FunctionComputeProfileChunk,
-            b: FunctionComputeProfileChunk
-          ): [FunctionComputeProfileChunk, boolean] {
-            const id = a.id;
-            const [executions, executionsChanged] =
-              FunctionExecutionChunk.mergedList(a.executions, b.executions);
-            const [executions_errors, executions_errorsChanged] = merge(
-              a.executions_errors,
-              b.executions_errors
-            );
-            const [profile, profileChanged] = merge(a.profile, b.profile);
-            const [fitting_stats, fitting_statsChanged] = merge(
-              a.fitting_stats,
-              b.fitting_stats
-            );
-            const created = a.created;
-            const function_ = a.function;
-            const object = a.object;
-            const [usage, usageChanged] = merge(a.usage, b.usage);
-            if (
-              executionsChanged ||
-              executions_errorsChanged ||
-              profileChanged ||
-              fitting_statsChanged ||
-              usageChanged
-            ) {
-              return [
-                {
-                  id,
-                  executions,
-                  ...(executions_errors !== undefined
-                    ? { executions_errors }
-                    : {}),
-                  ...(profile !== undefined ? { profile } : {}),
-                  ...(fitting_stats !== undefined ? { fitting_stats } : {}),
-                  created,
-                  function: function_,
-                  object,
-                  ...(usage !== undefined ? { usage } : {}),
-                },
-                true,
-              ];
-            } else {
-              return [a, false];
-            }
-          }
-        }
-
-        export interface FunctionExecutionChunk
-          extends Executions.Response.Streaming.FunctionExecutionChunk {
-          index: number;
-          dataset: number;
-          n: number;
-          retry: number;
-        }
+        export const FunctionExecutionChunkSchema =
+          Executions.Response.Streaming.FunctionExecutionChunkSchema.extend({
+            index: z
+              .uint32()
+              .describe(
+                "The index of the function execution chunk in the list of executions."
+              ),
+            dataset: z
+              .uint32()
+              .describe(
+                "The index of the dataset item this function execution chunk corresponds to."
+              ),
+            n: z
+              .uint32()
+              .describe(
+                "The N index for this function execution chunk. There will be N function executions, and N comes from the request parameters."
+              ),
+            retry: z
+              .uint32()
+              .describe(
+                "The retry index for this function execution chunk. There may be multiple retries for a given dataset item and N index."
+              ),
+          }).describe(
+            "A chunk of a function execution ran during profile computation."
+          );
+        export type FunctionExecutionChunk = z.infer<
+          typeof FunctionExecutionChunkSchema
+        >;
 
         export namespace FunctionExecutionChunk {
           export function merged(
@@ -2170,48 +4435,182 @@ export namespace Function {
             return merged ? [merged, true] : [a, false];
           }
         }
+
+        export const FunctionComputeProfileChunkSchema = z
+          .object({
+            id: z
+              .string()
+              .describe(
+                "The unique identifier of the function profile computation chunk."
+              ),
+            executions: z
+              .array(FunctionExecutionChunkSchema)
+              .describe(
+                "The function executions performed as part of computing the profile."
+              ),
+            executions_errors: z
+              .boolean()
+              .optional()
+              .describe(
+                "When true, indicates that one or more function executions encountered errors during profile computation."
+              ),
+            profile: z
+              .array(ProfileVersionRequiredSchema)
+              .optional()
+              .describe("The computed function profile."),
+            fitting_stats: FittingStatsSchema.optional(),
+            created: z
+              .uint32()
+              .describe(
+                "The UNIX timestamp (in seconds) when the function profile computation was created."
+              ),
+            function: z
+              .string()
+              .describe(
+                "The unique identifier of the function for which the profile is being computed."
+              ),
+            object: z.literal("function.compute.profile.chunk"),
+            usage: Vector.Completions.Response.UsageSchema.optional(),
+          })
+          .describe("A chunk of a function profile computation.");
+        export type FunctionComputeProfileChunk = z.infer<
+          typeof FunctionComputeProfileChunkSchema
+        >;
+
+        export namespace FunctionComputeProfileChunk {
+          export function merged(
+            a: FunctionComputeProfileChunk,
+            b: FunctionComputeProfileChunk
+          ): [FunctionComputeProfileChunk, boolean] {
+            const id = a.id;
+            const [executions, executionsChanged] =
+              FunctionExecutionChunk.mergedList(a.executions, b.executions);
+            const [executions_errors, executions_errorsChanged] = merge(
+              a.executions_errors,
+              b.executions_errors
+            );
+            const [profile, profileChanged] = merge(a.profile, b.profile);
+            const [fitting_stats, fitting_statsChanged] = merge(
+              a.fitting_stats,
+              b.fitting_stats
+            );
+            const created = a.created;
+            const function_ = a.function;
+            const object = a.object;
+            const [usage, usageChanged] = merge(a.usage, b.usage);
+            if (
+              executionsChanged ||
+              executions_errorsChanged ||
+              profileChanged ||
+              fitting_statsChanged ||
+              usageChanged
+            ) {
+              return [
+                {
+                  id,
+                  executions,
+                  ...(executions_errors !== undefined
+                    ? { executions_errors }
+                    : {}),
+                  ...(profile !== undefined ? { profile } : {}),
+                  ...(fitting_stats !== undefined ? { fitting_stats } : {}),
+                  created,
+                  function: function_,
+                  object,
+                  ...(usage !== undefined ? { usage } : {}),
+                },
+                true,
+              ];
+            } else {
+              return [a, false];
+            }
+          }
+        }
       }
 
       export namespace Unary {
-        export interface FunctionComputeProfile {
-          id: string;
-          executions: FunctionExecution[];
-          executions_errors: boolean;
-          profile: ProfileVersionRequired[];
-          fitting_stats: FittingStats;
-          created: number;
-          function: string;
-          object: "function.compute.profile";
-          usage: Vector.Completions.Response.Usage;
-        }
+        export const FunctionExecutionSchema =
+          Executions.Response.Unary.FunctionExecutionSchema.extend({
+            index: z
+              .uint32()
+              .describe(
+                "The index of the function execution in the list of executions."
+              ),
+            dataset: z
+              .uint32()
+              .describe(
+                "The index of the dataset item this function execution corresponds to."
+              ),
+            n: z
+              .uint32()
+              .describe(
+                "The N index for this function execution. There will be N function executions, and N comes from the request parameters."
+              ),
+            retry: z
+              .uint32()
+              .describe(
+                "The retry index for this function execution. There may be multiple retries for a given dataset item and N index."
+              ),
+          }).describe("A function execution ran during profile computation.");
+        export type FunctionExecution = z.infer<typeof FunctionExecutionSchema>;
 
-        export interface FunctionExecution
-          extends Executions.Response.Unary.FunctionExecution {
-          index: number;
-          dataset: number;
-          n: number;
-          retry: number;
-        }
-      }
-
-      export interface FittingStats {
-        loss: number;
-        executions: number;
-        starts: number;
-        rounds: number;
-        errors: number;
+        export const FunctionComputeProfileSchema = z
+          .object({
+            id: z
+              .string()
+              .describe(
+                "The unique identifier of the function profile computation."
+              ),
+            executions: z
+              .array(FunctionExecutionSchema)
+              .describe(
+                "The function executions performed as part of computing the profile."
+              ),
+            executions_errors: z
+              .boolean()
+              .describe(
+                "When true, indicates that one or more function executions encountered errors during profile computation."
+              ),
+            profile: z
+              .array(ProfileVersionRequiredSchema)
+              .describe("The computed function profile."),
+            fitting_stats: FittingStatsSchema,
+            created: z
+              .uint32()
+              .describe(
+                "The UNIX timestamp (in seconds) when the function profile computation was created."
+              ),
+            function: z
+              .string()
+              .describe(
+                "The unique identifier of the function for which the profile is being computed."
+              ),
+            object: z.literal("function.compute.profile"),
+            usage: Vector.Completions.Response.UsageSchema,
+          })
+          .describe("A function profile computation.");
+        export type FunctionComputeProfile = z.infer<
+          typeof FunctionComputeProfileSchema
+        >;
       }
     }
   }
 
   export namespace Profile {
-    export interface ListItem {
-      function_author: string;
-      function_id: string;
-      author: string;
-      id: string;
-      version: number;
-    }
+    export const ListItemSchema = z.object({
+      function_author: z
+        .string()
+        .describe("The author of the function the profile was published to."),
+      function_id: z
+        .string()
+        .describe(
+          "The unique identifier of the function the profile was published to."
+        ),
+      author: z.string().describe("The author of the profile."),
+      id: z.string().describe("The unique identifier of the profile."),
+      version: z.uint32().describe("The version of the profile."),
+    });
+    export type ListItem = z.infer<typeof ListItemSchema>;
 
     export async function list(
       openai: OpenAI,
@@ -2221,16 +4620,33 @@ export namespace Function {
       return response as ListItem[];
     }
 
-    export interface RetrieveItem {
-      created: number;
-      shape: string;
-      function_author: string;
-      function_id: string;
-      author: string;
-      id: string;
-      version: number;
-      profile: Function.ProfileVersionRequired[];
-    }
+    export const RetrieveItemSchema = z.object({
+      created: z
+        .uint32()
+        .describe(
+          "The UNIX timestamp (in seconds) when the profile was created."
+        ),
+      shape: z
+        .string()
+        .describe(
+          "The shape of the profile. Unless Task Skip expressions work out favorably, profiles only work for functions with the same shape."
+        ),
+      function_author: z
+        .string()
+        .describe("The author of the function the profile was published to."),
+      function_id: z
+        .string()
+        .describe(
+          "The unique identifier of the function the profile was published to."
+        ),
+      author: z.string().describe("The author of the profile."),
+      id: z.string().describe("The unique identifier of the profile."),
+      version: z.uint32().describe("The version of the profile."),
+      profile: z
+        .array(Function.ProfileVersionRequiredSchema)
+        .describe("The function profile."),
+    });
+    export type RetrieveItem = z.infer<typeof RetrieveItemSchema>;
 
     export async function retrieve(
       openai: OpenAI,
@@ -2250,12 +4666,27 @@ export namespace Function {
       return response as RetrieveItem;
     }
 
-    export interface HistoricalUsage {
-      requests: number;
-      completion_tokens: number;
-      prompt_tokens: number;
-      total_cost: number;
-    }
+    export const HistoricalUsageSchema = z.object({
+      requests: z
+        .uint32()
+        .describe(
+          "The total number of requests made to Functions while using this Profile."
+        ),
+      completion_tokens: z
+        .uint32()
+        .describe(
+          "The total number of completion tokens generated by Functions while using this Profile."
+        ),
+      prompt_tokens: z
+        .uint32()
+        .describe(
+          "The total number of prompt tokens sent to Functions while using this Profile."
+        ),
+      total_cost: z
+        .number()
+        .describe("The total cost incurred by using this Profile."),
+    });
+    export type HistoricalUsage = z.infer<typeof HistoricalUsageSchema>;
 
     export async function retrieveUsage(
       openai: OpenAI,
@@ -2467,11 +4898,12 @@ export namespace Function {
       | ComputeProfile.Response.Unary.FunctionComputeProfile;
   }
 
-  export interface ListItem {
-    author: string;
-    id: string;
-    version: number;
-  }
+  export const ListItemSchema = z.object({
+    author: z.string().describe("The author of the function."),
+    id: z.string().describe("The unique identifier of the function."),
+    version: z.uint32().describe("The version of the function."),
+  });
+  export type ListItem = z.infer<typeof ListItemSchema>;
 
   export async function list(
     openai: OpenAI,
@@ -2481,17 +4913,39 @@ export namespace Function {
     return response as { data: ListItem[] };
   }
 
-  export interface ScalarRetrieveItem extends Scalar {
-    created: number;
-    shape: string;
-  }
+  export const ScalarRetrieveItemSchema = ScalarSchema.extend({
+    created: z
+      .uint32()
+      .describe(
+        "The UNIX timestamp (in seconds) when the function was created."
+      ),
+    shape: z
+      .string()
+      .describe(
+        "The shape of the function. Unless Task Skip expressions work out favorably, functions only work with profiles that have the same shape."
+      ),
+  });
+  export type ScalarRetrieveItem = z.infer<typeof ScalarRetrieveItemSchema>;
 
-  export interface VectorRetrieveItem extends Vector {
-    created: number;
-    shape: string;
-  }
+  export const VectorRetrieveItemSchema = VectorSchema.extend({
+    created: z
+      .uint32()
+      .describe(
+        "The UNIX timestamp (in seconds) when the function was created."
+      ),
+    shape: z
+      .string()
+      .describe(
+        "The shape of the function. Unless Task Skip expressions work out favorably, functions only work with profiles that have the same shape."
+      ),
+  });
+  export type VectorRetrieveItem = z.infer<typeof VectorRetrieveItemSchema>;
 
-  export type RetrieveItem = ScalarRetrieveItem | VectorRetrieveItem;
+  export const RetrieveItemSchema = z.discriminatedUnion("type", [
+    ScalarRetrieveItemSchema,
+    VectorRetrieveItemSchema,
+  ]);
+  export type RetrieveItem = z.infer<typeof RetrieveItemSchema>;
 
   export async function retrieve(
     openai: OpenAI,
@@ -2509,12 +4963,23 @@ export namespace Function {
     return response as RetrieveItem;
   }
 
-  export interface HistoricalUsage {
-    requests: number;
-    completion_tokens: number;
-    prompt_tokens: number;
-    total_cost: number;
-  }
+  export const HistoricalUsageSchema = z.object({
+    requests: z
+      .uint32()
+      .describe("The total number of requests made to this Function."),
+    completion_tokens: z
+      .uint32()
+      .describe(
+        "The total number of completion tokens generated by this Function."
+      ),
+    prompt_tokens: z
+      .uint32()
+      .describe("The total number of prompt tokens sent to this Function."),
+    total_cost: z
+      .number()
+      .describe("The total cost incurred by using this Function."),
+  });
+  export type HistoricalUsage = z.infer<typeof HistoricalUsageSchema>;
 
   export async function retrieveUsage(
     openai: OpenAI,
@@ -2534,18 +4999,39 @@ export namespace Function {
 }
 
 export namespace Auth {
-  export interface ApiKey {
-    api_key: string;
-    created: string; // RFC 3339 timestamp
-    expires: string | null; // RFC 3339 timestamp
-    disabled: string | null; // RFC 3339 timestamp
-    name: string;
-    description: string | null;
-  }
+  export const ApiKeySchema = z.object({
+    api_key: z.string().describe("The API key."),
+    created: z
+      .string()
+      .describe("The RFC 3339 timestamp when the API key was created."),
+    expires: z
+      .string()
+      .nullable()
+      .describe(
+        "The RFC 3339 timestamp when the API key expires, or null if it does not expire."
+      ),
+    disabled: z
+      .string()
+      .nullable()
+      .describe(
+        "The RFC 3339 timestamp when the API key was disabled, or null if it is not disabled."
+      ),
+    name: z.string().describe("The name of the API key."),
+    description: z
+      .string()
+      .nullable()
+      .describe(
+        "The description of the API key, or null if no description was provided."
+      ),
+  });
+  export type ApiKey = z.infer<typeof ApiKeySchema>;
 
-  export interface ApiKeyWithCost extends ApiKey {
-    cost: number;
-  }
+  export const ApiKeyWithCostSchema = ApiKeySchema.extend({
+    cost: z
+      .number()
+      .describe("The total cost incurred while using this API key."),
+  });
+  export type ApiKeyWithCost = z.infer<typeof ApiKeyWithCostSchema>;
 
   export namespace ApiKey {
     export async function list(
@@ -2589,9 +5075,10 @@ export namespace Auth {
     }
   }
 
-  export interface OpenRouterApiKey {
-    api_key: string;
-  }
+  export const OpenRouterApiKeySchema = z.object({
+    api_key: z.string().describe("The OpenRouter API key."),
+  });
+  export type OpenRouterApiKey = z.infer<typeof OpenRouterApiKeySchema>;
 
   export namespace OpenRouterApiKey {
     export async function retrieve(
@@ -2625,11 +5112,16 @@ export namespace Auth {
     }
   }
 
-  export interface Credits {
-    credits: number;
-    total_credits_purchased: number;
-    total_credits_used: number;
-  }
+  export const CreditsSchema = z.object({
+    credits: z.number().describe("The current number of credits available."),
+    total_credits_purchased: z
+      .number()
+      .describe("The total number of credits ever purchased."),
+    total_credits_used: z
+      .number()
+      .describe("The total number of credits ever used."),
+  });
+  export type Credits = z.infer<typeof CreditsSchema>;
 
   export namespace Credits {
     export async function retrieve(
@@ -2662,19 +5154,6 @@ export namespace Auth {
       return response as { username: string };
     }
   }
-}
-
-export type JsonValue =
-  | null
-  | boolean
-  | number
-  | string
-  | JsonValue[]
-  | { [key: string]: JsonValue };
-
-export interface ObjectiveAIError {
-  code: number;
-  message: JsonValue;
 }
 
 function merge<T extends {}>(

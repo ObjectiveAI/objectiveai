@@ -24,6 +24,9 @@
     "access": "public"
   },
   "license": "MIT",
+  "dependencies": {
+    "zod": "^4.3.5"
+  },
   "devDependencies": {
     "openai": "^6.15.0",
     "rimraf": "^6.1.2",
