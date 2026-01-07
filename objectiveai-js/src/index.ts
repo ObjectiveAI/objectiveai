@@ -3229,7 +3229,6 @@ export namespace Function {
       "An expression or list of expressions which evaluate to a 2D array of Inputs. Each sub-array will be fed into Tasks which specify an index of this input map."
     );
   export type InputMaps = z.infer<typeof InputMapsExpression>;
-  // export type InputMaps = Expression | Expression[];
 
   export const TaskExpressionSchema = z
     .discriminatedUnion("type", [
