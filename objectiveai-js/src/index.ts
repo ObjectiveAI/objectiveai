@@ -2437,21 +2437,19 @@ export namespace Vector {
         typeof VectorCompletionCreateParamsBaseSchema
       >;
 
-      export const VectorCompletionCreateParamsStreamingSchema = z
-        .object({
+      export const VectorCompletionCreateParamsStreamingSchema =
+        VectorCompletionCreateParamsBaseSchema.extend({
           stream: Chat.Completions.Request.StreamTrueSchema,
-        })
-        .describe("Parameters for creating a streaming vector completion.");
+        }).describe("Parameters for creating a streaming vector completion.");
       export type VectorCompletionCreateParamsStreaming = z.infer<
         typeof VectorCompletionCreateParamsStreamingSchema
       >;
 
-      export const VectorCompletionCreateParamsNonStreamingSchema = z
-        .object({
+      export const VectorCompletionCreateParamsNonStreamingSchema =
+        VectorCompletionCreateParamsBaseSchema.extend({
           stream:
             Chat.Completions.Request.StreamFalseSchema.optional().nullable(),
-        })
-        .describe("Parameters for creating a unary vector completion.");
+        }).describe("Parameters for creating a unary vector completion.");
       export type VectorCompletionCreateParamsNonStreaming = z.infer<
         typeof VectorCompletionCreateParamsNonStreamingSchema
       >;
