@@ -8,6 +8,7 @@ steps:
       - "--recursive"
   # build image
   - name: "gcr.io/cloud-builders/docker"
+    dir: objectiveai-web
     args:
       - "build"
       - "--build-arg"
