@@ -1,0 +1,119 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background-primary: hsl(0, 0%, 100%);
+  --color-background-secondary: hsl(250, 10%, 93.5%);
+  --color-background-muted: hsl(250, 5.6%, 66%);
+  --color-background-muted-ring: hsla(250, 5.6%, 66%, 0.3);
+  --color-background-code: rgba(249, 249, 249, 1);
+  --color-primary: hsl(37, 40.9%, 7.6%);
+  --color-secondary: hsl(37, 30.1%, 25.9%);
+  --color-muted-primary: hsl(37, 8.9%, 31.5%);
+  --color-muted-secondary: hsl(37, 9.9%, 43.2%);
+  --color-highlight-primary: hsl(250, 75%, 57.5%);
+  --color-highlight-secondary: hsl(250, 35%, 67.5%);
+  --color-highlight-muted: hsl(250, 15%, 77.5%);
+  --color-shadow: rgba(0, 0, 0, 0.15);
+}
+
+:root {
+  --confidence-saturation: 50%;
+  --confidence-lightness: 35%;
+}
+
+.dark {
+  --color-background-primary: hsl(250, 20%, 7%);
+  --color-background-secondary: hsl(250, 10%, 15%);
+  --color-background-muted: hsl(250, 6%, 32%);
+  --color-background-muted-ring: hsla(250, 6%, 32%, 0.5);
+  --color-background-code: rgb(5, 0, 10);
+  --color-primary: rgb(242, 235, 224);
+  --color-secondary: rgb(175, 168, 157);
+  --color-muted-primary: rgb(147, 139, 126);
+  --color-muted-secondary: hsl(37, 9.9%, 41.8%);
+  --color-highlight-primary: hsl(250, 75%, 57.5%);
+  --color-highlight-secondary: hsl(250, 45%, 42.5%);
+  --color-highlight-muted: hsl(250, 15%, 27.5%);
+  --color-shadow: rgba(0, 0, 0, 0.65);
+  --confidence-saturation: 100%;
+  --confidence-lightness: 50%;
+}
+
+html {
+  overflow: hidden;
+}
+
+.notransition *,
+.notransition *::before,
+.notransition *::after {
+  transition: none !important;
+}
+
+body {
+  margin: 0;
+  color: var(--color-primary);
+  background: var(--color-background-primary);
+  overflow: hidden;
+}
+
+/* Global scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #4b5563 transparent;
+}
+
+/* Global range slider styles */
+input[type="range"] {
+  width: 100%;
+  height: 1rem;
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.show-tap .show-tap\:opacity-100,
+.show-tap.show-tap\:opacity-100 {
+  opacity: 1 !important;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera*/
+}

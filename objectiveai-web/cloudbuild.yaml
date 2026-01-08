@@ -1,0 +1,68 @@
+steps:
+  # fetch submodules
+  - name: gcr.io/cloud-builders/git
+    args:
+      - "submodule"
+      - "update"
+      - "--init"
+      - "--recursive"
+  # build image
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "--build-arg"
+      - "AUTH_GOOGLE_CLIENT_ID=$_AUTH_GOOGLE_CLIENT_ID"
+      - "--build-arg"
+      - "AUTH_GOOGLE_CLIENT_SECRET=$_AUTH_GOOGLE_CLIENT_SECRET"
+      - "--build-arg"
+      - "AUTH_GITHUB_CLIENT_ID=$_AUTH_GITHUB_CLIENT_ID"
+      - "--build-arg"
+      - "AUTH_GITHUB_CLIENT_SECRET=$_AUTH_GITHUB_CLIENT_SECRET"
+      - "--build-arg"
+      - "AUTH_TWITTER_CLIENT_ID=$_AUTH_TWITTER_CLIENT_ID"
+      - "--build-arg"
+      - "AUTH_TWITTER_CLIENT_SECRET=$_AUTH_TWITTER_CLIENT_SECRET"
+      - "--build-arg"
+      - "AUTH_REDDIT_CLIENT_ID=$_AUTH_REDDIT_CLIENT_ID"
+      - "--build-arg"
+      - "AUTH_REDDIT_CLIENT_SECRET=$_AUTH_REDDIT_CLIENT_SECRET"
+      - "--build-arg"
+      - "NEXTAUTH_URL=$_NEXTAUTH_URL"
+      - "--build-arg"
+      - "NEXTAUTH_SECRET=$_NEXTAUTH_SECRET"
+      - "--build-arg"
+      - "NEXT_PUBLIC_API_URL=$_NEXT_PUBLIC_API_URL"
+      - "--build-arg"
+      - "NODE_ENV=$_NODE_ENV"
+      - "--build-arg"
+      - "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=$_NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY"
+      - "--build-arg"
+      - "IP_RSA_PUBLIC_KEY=$_IP_RSA_PUBLIC_KEY"
+      - "--build-arg"
+      - "USER_IP_HEADER=$_USER_IP_HEADER"
+      - "-t"
+      - "us-docker.pkg.dev/$PROJECT_ID/objectiveai/objectiveai-web:latest"
+      - "-f"
+      - "Dockerfile"
+      - "."
+  # push image to GCR
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "push"
+      - "us-docker.pkg.dev/$PROJECT_ID/objectiveai/objectiveai-web:latest"
+  # deploy to Cloud Run
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: "gcloud"
+    args:
+      - "run"
+      - "deploy"
+      - "objective-ai-web-main"
+      - "--image"
+      - "us-docker.pkg.dev/$PROJECT_ID/objectiveai/objectiveai-web:latest"
+      - "--region"
+      - "us-central1"
+      - "--allow-unauthenticated"
+images: ["us-docker.pkg.dev/$PROJECT_ID/objectiveai/objectiveai-web:latest"]
+timeout: "2100s"
+options:
+  logging: "CLOUD_LOGGING_ONLY"
