@@ -1708,7 +1708,9 @@ export namespace Chat {
       export const ChatCompletionCreateParamsStreamingSchema =
         ChatCompletionCreateParamsBaseSchema.extend({
           stream: StreamTrueSchema,
-        }).describe("Parameters for creating a streaming chat completion.");
+        })
+          .describe("Parameters for creating a streaming chat completion.")
+          .meta({ title: "ChatCompletionCreateParamsStreaming" });
       export type ChatCompletionCreateParamsStreaming = z.infer<
         typeof ChatCompletionCreateParamsStreamingSchema
       >;
@@ -1720,7 +1722,9 @@ export namespace Chat {
       export const ChatCompletionCreateParamsNonStreamingSchema =
         ChatCompletionCreateParamsBaseSchema.extend({
           stream: StreamFalseSchema.optional().nullable(),
-        }).describe("Parameters for creating a unary chat completion.");
+        })
+          .describe("Parameters for creating a unary chat completion.")
+          .meta({ title: "ChatCompletionCreateParamsNonStreaming" });
       export type ChatCompletionCreateParamsNonStreaming = z.infer<
         typeof ChatCompletionCreateParamsNonStreamingSchema
       >;
@@ -1730,7 +1734,8 @@ export namespace Chat {
           ChatCompletionCreateParamsStreamingSchema,
           ChatCompletionCreateParamsNonStreamingSchema,
         ])
-        .describe("Parameters for creating a chat completion.");
+        .describe("Parameters for creating a chat completion.")
+        .meta({ title: "ChatCompletionCreateParams" });
       export type ChatCompletionCreateParams = z.infer<
         typeof ChatCompletionCreateParamsSchema
       >;
@@ -2566,7 +2571,9 @@ export namespace Vector {
       export const VectorCompletionCreateParamsStreamingSchema =
         VectorCompletionCreateParamsBaseSchema.extend({
           stream: Chat.Completions.Request.StreamTrueSchema,
-        }).describe("Parameters for creating a streaming vector completion.");
+        })
+          .describe("Parameters for creating a streaming vector completion.")
+          .meta({ title: "VectorCompletionCreateParamsStreaming" });
       export type VectorCompletionCreateParamsStreaming = z.infer<
         typeof VectorCompletionCreateParamsStreamingSchema
       >;
@@ -2575,7 +2582,9 @@ export namespace Vector {
         VectorCompletionCreateParamsBaseSchema.extend({
           stream:
             Chat.Completions.Request.StreamFalseSchema.optional().nullable(),
-        }).describe("Parameters for creating a unary vector completion.");
+        })
+          .describe("Parameters for creating a unary vector completion.")
+          .meta({ title: "VectorCompletionCreateParamsNonStreaming" });
       export type VectorCompletionCreateParamsNonStreaming = z.infer<
         typeof VectorCompletionCreateParamsNonStreamingSchema
       >;
@@ -2585,7 +2594,8 @@ export namespace Vector {
           VectorCompletionCreateParamsStreamingSchema,
           VectorCompletionCreateParamsNonStreamingSchema,
         ])
-        .describe("Parameters for creating a vector completion.");
+        .describe("Parameters for creating a vector completion.")
+        .meta({ title: "VectorCompletionCreateParams" });
       export type VectorCompletionCreateParams = z.infer<
         typeof VectorCompletionCreateParamsSchema
       >;
@@ -2988,12 +2998,10 @@ export namespace Function {
           version: z.uint32().describe("The version of the profile."),
         }),
         z.lazy(() =>
-          z.array(
-            ProfileVersionRequiredSchema.meta({
-              title: "ProfileVersionRequired",
-              recursive: true,
-            })
-          )
+          z.array(ProfileVersionRequiredSchema).meta({
+            title: "ProfileVersionRequiredArray",
+            recursive: true,
+          })
         ),
       ])
       .describe(
@@ -3031,14 +3039,12 @@ export namespace Function {
             .nullable()
             .describe("The version of the profile."),
         }),
-        z.lazy(() =>
-          z.array(
-            ProfileVersionOptionalSchema.meta({
-              title: "ProfileVersionOptionalArray",
-              recursive: true,
-            })
-          )
-        ),
+        z
+          .lazy(() => z.array(ProfileVersionOptionalSchema))
+          .meta({
+            title: "ProfileVersionOptionalArray",
+            recursive: true,
+          }),
       ])
       .describe("A function profile where remote profiles may omit a version.");
 
@@ -3505,7 +3511,8 @@ export namespace Function {
         "An expression which evaluates to a single number. This is the output of the scalar function. Will be provided with the outputs of all tasks."
       ),
     })
-    .describe("A scalar function.");
+    .describe("A scalar function.")
+    .meta({ title: "ScalarFunction" });
   export type Scalar = z.infer<typeof ScalarSchema>;
 
   export const VectorSchema = z
@@ -3539,7 +3546,8 @@ export namespace Function {
         ])
         .describe("The length of the output vector."),
     })
-    .describe("A vector function.");
+    .describe("A vector function.")
+    .meta({ title: "VectorFunction" });
   export type Vector = z.infer<typeof VectorSchema>;
 
   export namespace Executions {
@@ -3583,9 +3591,11 @@ export namespace Function {
       export const FunctionExecutionParamsExecuteInlineStreamingSchema =
         FunctionExecutionParamsExecuteInlineBaseSchema.extend({
           stream: Chat.Completions.Request.StreamTrueSchema,
-        }).describe(
-          "Parameters for executing an inline function and streaming the response."
-        );
+        })
+          .describe(
+            "Parameters for executing an inline function and streaming the response."
+          )
+          .meta({ title: "FunctionExecutionParamsExecuteInlineStreaming" });
       export type FunctionExecutionParamsExecuteInlineStreaming = z.infer<
         typeof FunctionExecutionParamsExecuteInlineStreamingSchema
       >;
@@ -3594,9 +3604,11 @@ export namespace Function {
         FunctionExecutionParamsExecuteInlineBaseSchema.extend({
           stream:
             Chat.Completions.Request.StreamFalseSchema.optional().nullable(),
-        }).describe(
-          "Parameters for executing an inline function with a unary response."
-        );
+        })
+          .describe(
+            "Parameters for executing an inline function with a unary response."
+          )
+          .meta({ title: "FunctionExecutionParamsExecuteInlineNonStreaming" });
       export type FunctionExecutionParamsExecuteInlineNonStreaming = z.infer<
         typeof FunctionExecutionParamsExecuteInlineNonStreamingSchema
       >;
@@ -3606,7 +3618,8 @@ export namespace Function {
           FunctionExecutionParamsExecuteInlineStreamingSchema,
           FunctionExecutionParamsExecuteInlineNonStreamingSchema,
         ])
-        .describe("Parameters for executing an inline function.");
+        .describe("Parameters for executing an inline function.")
+        .meta({ title: "FunctionExecutionParamsExecuteInline" });
       export type FunctionExecutionParamsExecuteInline = z.infer<
         typeof FunctionExecutionParamsExecuteInlineSchema
       >;
@@ -3626,9 +3639,11 @@ export namespace Function {
       export const FunctionExecutionParamsExecuteStreamingSchema =
         FunctionExecutionParamsExecuteBaseSchema.extend({
           stream: Chat.Completions.Request.StreamTrueSchema,
-        }).describe(
-          "Parameters for executing a remote published function and streaming the response."
-        );
+        })
+          .describe(
+            "Parameters for executing a remote published function and streaming the response."
+          )
+          .meta({ title: "FunctionExecutionParamsExecuteStreaming" });
       export type FunctionExecutionParamsExecuteStreaming = z.infer<
         typeof FunctionExecutionParamsExecuteStreamingSchema
       >;
@@ -3637,9 +3652,11 @@ export namespace Function {
         FunctionExecutionParamsExecuteBaseSchema.extend({
           stream:
             Chat.Completions.Request.StreamFalseSchema.optional().nullable(),
-        }).describe(
-          "Parameters for executing a remote published function with a unary response."
-        );
+        })
+          .describe(
+            "Parameters for executing a remote published function with a unary response."
+          )
+          .meta({ title: "FunctionExecutionParamsExecuteNonStreaming" });
       export type FunctionExecutionParamsExecuteNonStreaming = z.infer<
         typeof FunctionExecutionParamsExecuteNonStreamingSchema
       >;
@@ -3649,7 +3666,8 @@ export namespace Function {
           FunctionExecutionParamsExecuteStreamingSchema,
           FunctionExecutionParamsExecuteNonStreamingSchema,
         ])
-        .describe("Parameters for executing a remote published function.");
+        .describe("Parameters for executing a remote published function.")
+        .meta({ title: "FunctionExecutionParamsExecute" });
       export type FunctionExecutionParamsExecute = z.infer<
         typeof FunctionExecutionParamsExecuteSchema
       >;
@@ -3709,9 +3727,13 @@ export namespace Function {
       export const FunctionExecutionParamsPublishScalarFunctionStreamingSchema =
         FunctionExecutionParamsPublishScalarFunctionBaseSchema.extend({
           stream: Chat.Completions.Request.StreamTrueSchema,
-        }).describe(
-          "Parameters for executing and publishing an inline scalar function and streaming the response."
-        );
+        })
+          .describe(
+            "Parameters for executing and publishing an inline scalar function and streaming the response."
+          )
+          .meta({
+            title: "FunctionExecutionParamsPublishScalarFunctionStreaming",
+          });
       export type FunctionExecutionParamsPublishScalarFunctionStreaming =
         z.infer<
           typeof FunctionExecutionParamsPublishScalarFunctionStreamingSchema
@@ -3721,9 +3743,13 @@ export namespace Function {
         FunctionExecutionParamsPublishScalarFunctionBaseSchema.extend({
           stream:
             Chat.Completions.Request.StreamFalseSchema.optional().nullable(),
-        }).describe(
-          "Parameters for executing and publishing an inline scalar function with a unary response."
-        );
+        })
+          .describe(
+            "Parameters for executing and publishing an inline scalar function with a unary response."
+          )
+          .meta({
+            title: "FunctionExecutionParamsPublishScalarFunctionNonStreaming",
+          });
       export type FunctionExecutionParamsPublishScalarFunctionNonStreaming =
         z.infer<
           typeof FunctionExecutionParamsPublishScalarFunctionNonStreamingSchema
@@ -3736,7 +3762,8 @@ export namespace Function {
         ])
         .describe(
           "Parameters for executing and publishing an inline scalar function."
-        );
+        )
+        .meta({ title: "FunctionExecutionParamsPublishScalarFunction" });
       export type FunctionExecutionParamsPublishScalarFunction = z.infer<
         typeof FunctionExecutionParamsPublishScalarFunctionSchema
       >;
@@ -3804,9 +3831,13 @@ export namespace Function {
       export const FunctionExecutionParamsPublishVectorFunctionStreamingSchema =
         FunctionExecutionParamsPublishVectorFunctionBaseSchema.extend({
           stream: Chat.Completions.Request.StreamTrueSchema,
-        }).describe(
-          "Parameters for executing and publishing an inline vector function and streaming the response."
-        );
+        })
+          .describe(
+            "Parameters for executing and publishing an inline vector function and streaming the response."
+          )
+          .meta({
+            title: "FunctionExecutionParamsPublishVectorFunctionStreaming",
+          });
       export type FunctionExecutionParamsPublishVectorFunctionStreaming =
         z.infer<
           typeof FunctionExecutionParamsPublishVectorFunctionStreamingSchema
@@ -3816,9 +3847,13 @@ export namespace Function {
         FunctionExecutionParamsPublishVectorFunctionBaseSchema.extend({
           stream:
             Chat.Completions.Request.StreamFalseSchema.optional().nullable(),
-        }).describe(
-          "Parameters for executing and publishing an inline vector function with a unary response."
-        );
+        })
+          .describe(
+            "Parameters for executing and publishing an inline vector function with a unary response."
+          )
+          .meta({
+            title: "FunctionExecutionParamsPublishVectorFunctionNonStreaming",
+          });
       export type FunctionExecutionParamsPublishVectorFunctionNonStreaming =
         z.infer<
           typeof FunctionExecutionParamsPublishVectorFunctionNonStreamingSchema
@@ -3831,7 +3866,8 @@ export namespace Function {
         ])
         .describe(
           "Parameters for executing and publishing an inline vector function."
-        );
+        )
+        .meta({ title: "FunctionExecutionParamsPublishVectorFunction" });
       export type FunctionExecutionParamsPublishVectorFunction = z.infer<
         typeof FunctionExecutionParamsPublishVectorFunctionSchema
       >;
@@ -3845,7 +3881,8 @@ export namespace Function {
         ])
         .describe(
           "Parameters for executing and publishing an inline function and streaming the response."
-        );
+        )
+        .meta({ title: "FunctionExecutionParamsPublishFunctionStreaming" });
       export type FunctionExecutionParamsPublishFunctionStreaming = z.infer<
         typeof FunctionExecutionParamsPublishFunctionStreamingSchema
       >;
@@ -3857,7 +3894,8 @@ export namespace Function {
         ])
         .describe(
           "Parameters for executing and publishing an inline function with a unary response."
-        );
+        )
+        .meta({ title: "FunctionExecutionParamsPublishFunctionNonStreaming" });
       export type FunctionExecutionParamsPublishFunctionNonStreaming = z.infer<
         typeof FunctionExecutionParamsPublishFunctionNonStreamingSchema
       >;
@@ -3867,9 +3905,8 @@ export namespace Function {
           FunctionExecutionParamsPublishScalarFunctionSchema,
           FunctionExecutionParamsPublishVectorFunctionSchema,
         ])
-        .describe(
-          "Parameters for executing and publishing an inline function."
-        );
+        .describe("Parameters for executing and publishing an inline function.")
+        .meta({ title: "FunctionExecutionParamsPublishFunction" });
       export type FunctionExecutionParamsPublishFunction = z.infer<
         typeof FunctionExecutionParamsPublishFunctionSchema
       >;
@@ -3911,9 +3948,11 @@ export namespace Function {
       export const FunctionExecutionParamsPublishProfileStreamingSchema =
         FunctionExecutionParamsPublishProfileBaseSchema.extend({
           stream: Chat.Completions.Request.StreamTrueSchema,
-        }).describe(
-          "Parameters for executing a remote published function, publishing a profile, and streaming the response."
-        );
+        })
+          .describe(
+            "Parameters for executing a remote published function, publishing a profile, and streaming the response."
+          )
+          .meta({ title: "FunctionExecutionParamsPublishProfileStreaming" });
       export type FunctionExecutionParamsPublishProfileStreaming = z.infer<
         typeof FunctionExecutionParamsPublishProfileStreamingSchema
       >;
@@ -3922,9 +3961,11 @@ export namespace Function {
         FunctionExecutionParamsPublishProfileBaseSchema.extend({
           stream:
             Chat.Completions.Request.StreamFalseSchema.optional().nullable(),
-        }).describe(
-          "Parameters for executing a remote published function and publishing a profile with a unary response."
-        );
+        })
+          .describe(
+            "Parameters for executing a remote published function and publishing a profile with a unary response."
+          )
+          .meta({ title: "FunctionExecutionParamsPublishProfileNonStreaming" });
       export type FunctionExecutionParamsPublishProfileNonStreaming = z.infer<
         typeof FunctionExecutionParamsPublishProfileNonStreamingSchema
       >;
@@ -3936,7 +3977,8 @@ export namespace Function {
         ])
         .describe(
           "Parameters for executing a remote published function and publishing a profile."
-        );
+        )
+        .meta({ title: "FunctionExecutionParamsPublishProfile" });
       export type FunctionExecutionParamsPublishProfile = z.infer<
         typeof FunctionExecutionParamsPublishProfileSchema
       >;
@@ -4045,12 +4087,11 @@ export namespace Function {
                 task_index: Task.TaskIndexSchema,
                 task_path: Task.TaskPathSchema,
                 tasks: z
-                  .array(
-                    TaskChunkSchema.meta({
-                      title: "TaskChunk",
-                      recursive: true,
-                    })
-                  )
+                  .array(TaskChunkSchema)
+                  .meta({
+                    title: "TaskChunkArray",
+                    recursive: true,
+                  })
                   .describe(
                     "The tasks executed as part of the function execution."
                   ),
@@ -4273,12 +4314,11 @@ export namespace Function {
                 task_index: Response.Task.TaskIndexSchema,
                 task_path: Response.Task.TaskPathSchema,
                 tasks: z
-                  .array(
-                    TaskSchema.meta({
-                      title: "Task",
-                      recursive: true,
-                    })
-                  )
+                  .array(TaskSchema)
+                  .meta({
+                    title: "TaskArray",
+                    recursive: true,
+                  })
                   .describe(
                     "The tasks executed as part of the function execution."
                   ),
@@ -4476,9 +4516,11 @@ export namespace Function {
       export const FunctionComputeProfileParamsStreamingSchema =
         FunctionComputeProfileParamsBaseSchema.extend({
           stream: Chat.Completions.Request.StreamTrueSchema,
-        }).describe(
-          "Parameters for computing a function profile and streaming the response."
-        );
+        })
+          .describe(
+            "Parameters for computing a function profile and streaming the response."
+          )
+          .meta({ title: "FunctionComputeProfileParamsStreaming" });
       export type FunctionComputeProfileParamsStreaming = z.infer<
         typeof FunctionComputeProfileParamsStreamingSchema
       >;
@@ -4487,9 +4529,11 @@ export namespace Function {
         FunctionComputeProfileParamsBaseSchema.extend({
           stream:
             Chat.Completions.Request.StreamFalseSchema.optional().nullable(),
-        }).describe(
-          "Parameters for computing a function profile with a unary response."
-        );
+        })
+          .describe(
+            "Parameters for computing a function profile with a unary response."
+          )
+          .meta({ title: "FunctionComputeProfileParamsNonStreaming" });
       export type FunctionComputeProfileParamsNonStreaming = z.infer<
         typeof FunctionComputeProfileParamsNonStreamingSchema
       >;
@@ -4499,7 +4543,8 @@ export namespace Function {
           FunctionComputeProfileParamsStreamingSchema,
           FunctionComputeProfileParamsNonStreamingSchema,
         ])
-        .describe("Parameters for computing a function profile.");
+        .describe("Parameters for computing a function profile.")
+        .meta({ title: "FunctionComputeProfileParams" });
       export type FunctionComputeProfileParams = z.infer<
         typeof FunctionComputeProfileParamsSchema
       >;
@@ -5112,7 +5157,9 @@ export namespace Function {
       .describe(
         "The shape of the function. Unless Task Skip expressions work out favorably, functions only work with profiles that have the same shape."
       ),
-  });
+  })
+    .describe("A retrieved scalar function.")
+    .meta({ title: "RetrievedScalarFunction" });
   export type ScalarRetrieveItem = z.infer<typeof ScalarRetrieveItemSchema>;
 
   export const VectorRetrieveItemSchema = VectorSchema.extend({
@@ -5126,7 +5173,9 @@ export namespace Function {
       .describe(
         "The shape of the function. Unless Task Skip expressions work out favorably, functions only work with profiles that have the same shape."
       ),
-  });
+  })
+    .describe("A retrieved vector function.")
+    .meta({ title: "RetrievedVectorFunction" });
   export type VectorRetrieveItem = z.infer<typeof VectorRetrieveItemSchema>;
 
   export const RetrieveItemSchema = z.discriminatedUnion("type", [
