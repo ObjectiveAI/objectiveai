@@ -8,7 +8,7 @@ import { Sidebar } from "./Sidebar";
 
 const content = `## What is ObjectiveAI?
 
-ObjectiveAI is a REST API (api.objective-ai.io)[https://api.objective-ai.io] and platform for **scoring, ranking, and simulating decisions** using large language models.
+ObjectiveAI is a REST API ([api.objective-ai.io](https://api.objective-ai.io)) and platform for **scoring, ranking, and simulating decisions** using large language models.
 
 Instead of generating free-form text, ObjectiveAI focuses on producing **structured outputs**:
 - scores
@@ -223,7 +223,7 @@ It is **decision infrastructure**.
 
 ## Where can I learn more?
 
-Documentation and examples are available on our website, and the open-source core lives on GitHub.
+Documentation and examples are available on our website, and the open-source components live on GitHub.
 
 If you're interested in **ranking, scoring, or simulating decisions at scale**, ObjectiveAI is built for that.`;
 
