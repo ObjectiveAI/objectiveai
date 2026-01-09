@@ -37,6 +37,7 @@ export default async function Page() {
           ),
         pcommit: z
           .string()
+          .optional()
           .describe(
             "The commit SHA of the GitHub repository containing the profile."
           ),
