@@ -3034,6 +3034,7 @@ export namespace Function {
             .describe(
               "The commit SHA of the GitHub repository containing the profile."
             )
+            .nullable()
             .optional(),
         }),
         z
