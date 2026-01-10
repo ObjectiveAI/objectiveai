@@ -1,0 +1,44 @@
+steps:
+  # build image
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "--build-arg"
+      - "DISCORD_TOKEN=$_DISCORD_TOKEN"
+      - "--build-arg"
+      - "DISCORD_CHANNEL_ID=$_DISCORD_CHANNEL_ID"
+      - "--build-arg"
+      - "GITHUB_REPOSITORY_OWNER=$_GITHUB_REPOSITORY_OWNER"
+      - "--build-arg"
+      - "GITHUB_REPOSITORY=$_GITHUB_REPOSITORY"
+      - "--build-arg"
+      - "GITHUB_SECRET=$_GITHUB_SECRET"
+      - "-t"
+      - "us-docker.pkg.dev/$PROJECT_ID/objectiveai/objectiveai-github-discord-notifier:latest"
+      - "-f"
+      - "Dockerfile"
+      - "."
+  # push image to GCR
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "push"
+      - "us-docker.pkg.dev/$PROJECT_ID/objectiveai/objectiveai-github-discord-notifier:latest"
+  # deploy to Cloud Run
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: "gcloud"
+    args:
+      - "run"
+      - "deploy"
+      - "objectiveai-github-discord-notifier"
+      - "--image"
+      - "us-docker.pkg.dev/$PROJECT_ID/objectiveai/objectiveai-github-discord-notifier:latest"
+      - "--region"
+      - "us-central1"
+      - "--allow-unauthenticated"
+images:
+  [
+    "us-docker.pkg.dev/$PROJECT_ID/objectiveai/objectiveai-github-discord-notifier:latest",
+  ]
+timeout: "2100s"
+options:
+  logging: "CLOUD_LOGGING_ONLY"
