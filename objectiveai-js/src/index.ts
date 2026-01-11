@@ -4032,7 +4032,8 @@ export namespace Function {
             );
             const [reasoning, reasoningChanged] = merge(
               a.reasoning,
-              b.reasoning
+              b.reasoning,
+              ReasoningSummaryChunk.merged
             );
             const [output, outputChanged] = merge(a.output, b.output);
             const [error, errorChanged] = merge(a.error, b.error);
