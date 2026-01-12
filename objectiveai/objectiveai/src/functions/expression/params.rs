@@ -8,6 +8,18 @@ pub enum Params<'i, 't, 'to, 'm> {
     Ref(ParamsRef<'i, 't, 'to, 'm>),
 }
 
+impl<'de> serde::Deserialize<'de>
+    for Params<'static, 'static, 'static, 'static>
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let owned = ParamsOwned::deserialize(deserializer)?;
+        Ok(Params::Owned(owned))
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParamsOwned {
     pub input: super::Input,
@@ -27,6 +39,16 @@ pub struct ParamsRef<'i, 't, 'to, 'm> {
 pub enum TaskOutput<'a> {
     Owned(TaskOutputOwned),
     Ref(TaskOutputRef<'a>),
+}
+
+impl<'de> serde::Deserialize<'de> for TaskOutput<'static> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let owned = TaskOutputOwned::deserialize(deserializer)?;
+        Ok(TaskOutput::Owned(owned))
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,10 +76,54 @@ pub struct VectorCompletionOutput {
     pub weights: Vec<rust_decimal::Decimal>,
 }
 
+impl From<vector::completions::response::streaming::VectorCompletionChunk>
+    for VectorCompletionOutput
+{
+    fn from(
+        vector::completions::response::streaming::VectorCompletionChunk {
+            votes,
+            scores,
+            weights,
+            ..
+        }: vector::completions::response::streaming::VectorCompletionChunk,
+    ) -> Self {
+        VectorCompletionOutput {
+            votes,
+            scores,
+            weights,
+        }
+    }
+}
+
+impl From<vector::completions::response::unary::VectorCompletion>
+    for VectorCompletionOutput
+{
+    fn from(
+        vector::completions::response::unary::VectorCompletion {
+            votes,
+            scores,
+            weights,
+            ..
+        }: vector::completions::response::unary::VectorCompletion,
+    ) -> Self {
+        VectorCompletionOutput {
+            votes,
+            scores,
+            weights,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum FunctionOutput {
     Scalar(rust_decimal::Decimal),
     Vector(Vec<rust_decimal::Decimal>),
     Err(serde_json::Value),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompiledFunctionOutput {
+    pub output: FunctionOutput,
+    pub valid: bool,
 }

@@ -20,7 +20,7 @@ serde = { version = "1.0.219", features = ["derive"] }
 indexmap = { version = "2.2.3", features = ["serde"] }
 serde_json = { version = "1.0.140", features = ["preserve_order"] }
 twox-hash = { version = "2.1.1", default-features = false, features = ["xxhash3_128", "alloc"] }
-rust_decimal = { version = "1.39.0", features = ["serde-float"] }
+rust_decimal = { version = "1.39.0", features = ["serde-float", "macros"] }
 jmespath = { version = "0.4.0" }
 thiserror = {  version = "2.0.12" }
 base64 = { version = "0.22.1" }

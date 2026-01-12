@@ -257,3 +257,10 @@ pub struct VectorCompletionTask {
     pub tools: Option<Vec<chat::completions::request::Tool>>,
     pub responses: Vec<chat::completions::request::RichContent>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum CompiledTask {
+    One(Task),       // no map field
+    Many(Vec<Task>), // mapped
+}
