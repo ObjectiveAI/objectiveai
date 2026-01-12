@@ -5,7 +5,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ComputeProfileChunk {
+pub struct FunctionComputeProfileChunk {
     pub id: String,
     pub executions: Vec<super::FunctionExecutionChunk>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -23,7 +23,7 @@ pub struct ComputeProfileChunk {
     pub usage: Option<vector::completions::response::Usage>,
 }
 
-impl ComputeProfileChunk {
+impl FunctionComputeProfileChunk {
     pub fn any_usage(&self) -> bool {
         self.usage
             .as_ref()
@@ -32,7 +32,7 @@ impl ComputeProfileChunk {
 
     pub fn push(
         &mut self,
-        ComputeProfileChunk {
+        FunctionComputeProfileChunk {
             executions,
             executions_errors,
             profile,
@@ -40,7 +40,7 @@ impl ComputeProfileChunk {
             retry_token,
             usage,
             ..
-        }: &ComputeProfileChunk,
+        }: &FunctionComputeProfileChunk,
     ) {
         self.push_executions(executions);
         if let Some(true) = executions_errors {

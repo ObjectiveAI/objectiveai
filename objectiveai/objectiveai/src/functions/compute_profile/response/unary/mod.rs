@@ -1,7 +1,7 @@
-mod compute_profile_response;
-mod function_response;
+mod function_compute_profile;
+mod function_execution;
 mod object;
 
-pub use compute_profile_response::*;
-pub use function_response::*;
+pub use function_compute_profile::*;
+pub use function_execution::*;
 pub use object::*;

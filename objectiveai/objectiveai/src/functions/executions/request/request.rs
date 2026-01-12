@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum FunctionRequest {
+pub enum Request {
     FunctionInlineProfileInline {
         body: super::FunctionInlineProfileInlineRequestBody,
     },
@@ -18,4 +18,13 @@ pub enum FunctionRequest {
         path: super::FunctionRemoteProfileRemoteRequestPath,
         body: super::FunctionRemoteProfileRemoteRequestBody,
     },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum FunctionExecutionCreateParams {
+    FunctionInlineProfileInline(super::FunctionInlineProfileInlineRequestBody),
+    FunctionInlineProfileRemote(super::FunctionInlineProfileRemoteRequestBody),
+    FunctionRemoteProfileInline(super::FunctionRemoteProfileInlineRequestBody),
+    FunctionRemoteProfileRemote(super::FunctionRemoteProfileRemoteRequestBody),
 }
