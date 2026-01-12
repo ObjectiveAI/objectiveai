@@ -112,6 +112,21 @@ Functions can be:
 
 If your use case is "give me a score" or "rank these" or "classify this document," you want Functions.
 
+#### GitHub-Hosted Functions
+
+Functions are hosted on **GitHub repositories**.
+
+To execute a remote Function, users specify the repository **owner** and **name**. ObjectiveAI retrieves the repository and looks for a `function.json` file at the repository root.
+
+This approach enables:
+
+- **Decentralized Function definitions** - Anyone can create and share Functions via GitHub
+- **Version control** - Functions benefit from Git's versioning and history
+- **Collaboration** - Teams can collaborate on Function development using standard Git workflows
+- **Discoverability** - Functions can be found, forked, and improved by the community
+
+Example reference: `owner/repo-name` → ObjectiveAI fetches `function.json` from that repository.
+
 ---
 
 ## Training Functions (Profiles)
@@ -144,6 +159,21 @@ Profiles are:
 - Versioned
 - Shareable
 - Reusable across compatible Functions
+
+#### GitHub-Hosted Profiles
+
+Like Functions, Profiles are also hosted on **GitHub repositories**.
+
+To use a remote Profile, users specify the repository **owner** and **name**. ObjectiveAI retrieves the repository and looks for a `profile.json` file at the repository root.
+
+This enables:
+
+- **Sharing trained weights** - Profiles can be published and reused across projects
+- **Version control** - Profile evolution is tracked through Git history
+- **Reproducibility** - Exact Profile configurations can be referenced by Git commit or tag
+- **Community collaboration** - Users can contribute improved Profiles for shared Functions
+
+Example reference: `owner/repo-name` → ObjectiveAI fetches `profile.json` from that repository.
 
 ---
 
