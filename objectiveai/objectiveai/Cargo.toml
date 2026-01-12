@@ -2,6 +2,13 @@
 name = "objectiveai"
 version = "0.1.0"
 edition = "2024"
+authors = ["ObjectiveAI <admin@objective-ai.io>"]
+description = "ObjectiveAI SDK, definitions, and utilities"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://objective-ai.io"
+keywords = ["llm", "ai", "ensemble"]
+publish = true
 
 [features]
 default = ["http"]
