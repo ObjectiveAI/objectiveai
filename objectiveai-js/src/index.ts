@@ -3000,7 +3000,7 @@ export namespace Function {
           recursive: true,
         })
       )
-      .describe("An function profile for a function task defined inline.");
+      .describe("A function profile for a function task defined inline.");
 
   export const TaskProfileSchema = z
     .union([
