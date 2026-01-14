@@ -6,6 +6,9 @@ pub struct VectorCompletionCreateParams {
     // if present, reuses votes from previous request
     #[serde(skip_serializing_if = "Option::is_none")]
     pub retry: Option<String>,
+    // if true, uses cached votes when available
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub from_cache: Option<bool>,
 
     // core config
     pub messages: Vec<chat::completions::request::Message>,
