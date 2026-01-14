@@ -17,15 +17,19 @@ pub struct Vote {
     pub weight: rust_decimal::Decimal,
 
     // if true, vote came from a previous request
-    // weight will be what it was in the previous request
+    // all fields, including weight, will be what it was in the previous request
     // from_cache will also be true
     #[serde(skip_serializing_if = "Option::is_none")]
     pub retry: Option<bool>,
 
     // if true, vote came from cache
-    // if retry is false, weight will come from request profile
     #[serde(skip_serializing_if = "Option::is_none")]
     pub from_cache: Option<bool>,
+
+    // if true, vote was RNGed
+    // from_cache and retry will be false or None
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub from_rng: Option<bool>,
 
     // internal use only
     #[serde(skip)]

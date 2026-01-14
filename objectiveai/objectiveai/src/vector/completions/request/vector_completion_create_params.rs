@@ -9,6 +9,9 @@ pub struct VectorCompletionCreateParams {
     // if true, uses cached votes when available
     #[serde(skip_serializing_if = "Option::is_none")]
     pub from_cache: Option<bool>,
+    // if true, remaining votes are RNGed
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub from_rng: Option<bool>,
 
     // core config
     pub messages: Vec<chat::completions::request::Message>,
