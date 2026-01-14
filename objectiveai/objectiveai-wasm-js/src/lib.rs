@@ -70,3 +70,35 @@ pub fn compileFunctionOutput(
     let output: JsValue = serde_wasm_bindgen::to_value(&output)?;
     Ok(output)
 }
+
+#[wasm_bindgen]
+pub fn promptId(prompt: JsValue) -> Result<String, JsValue> {
+    // deserialize
+    let mut prompt: Vec<objectiveai::chat::completions::request::Message> =
+        serde_wasm_bindgen::from_value(prompt)?;
+    // prepare and compute ID
+    objectiveai::chat::completions::request::prompt::prepare(&mut prompt);
+    let id = objectiveai::chat::completions::request::prompt::id(&prompt);
+    Ok(id)
+}
+
+#[wasm_bindgen]
+pub fn toolsId(tools: JsValue) -> Result<String, JsValue> {
+    // deserialize
+    let tools: Vec<objectiveai::chat::completions::request::Tool> =
+        serde_wasm_bindgen::from_value(tools)?;
+    // compute ID
+    let id = objectiveai::chat::completions::request::tools::id(&tools);
+    Ok(id)
+}
+
+#[wasm_bindgen]
+pub fn vectorResponseId(response: JsValue) -> Result<String, JsValue> {
+    // deserialize
+    let mut response: objectiveai::chat::completions::request::RichContent =
+        serde_wasm_bindgen::from_value(response)?;
+    // prepare and compute ID
+    response.prepare();
+    let id = response.id();
+    Ok(id)
+}
