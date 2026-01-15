@@ -4,7 +4,7 @@ use futures::Stream;
 pub async fn compute_profile_unary(
     client: &HttpClient,
     request: super::request::Request,
-) -> Result<super::response::unary::FunctionComputeProfile, HttpError> {
+) -> Result<super::response::unary::FunctionProfileComputation, HttpError> {
     match request {
         super::request::Request::FunctionInline { mut body } => {
             body.base.stream = None;
@@ -46,7 +46,7 @@ pub async fn compute_profile_streaming(
 ) -> Result<
     impl Stream<
         Item = Result<
-            super::response::streaming::FunctionComputeProfileChunk,
+            super::response::streaming::FunctionProfileComputationChunk,
             HttpError,
         >,
     >,

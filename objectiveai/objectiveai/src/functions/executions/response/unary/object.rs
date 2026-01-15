@@ -4,19 +4,19 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Object {
     #[serde(rename = "scalar.function.execution")]
-    ScalarFunctionResponse,
+    ScalarFunctionExecution,
     #[serde(rename = "vector.function.execution")]
-    VectorFunctionResponse,
+    VectorFunctionExecution,
 }
 
 impl From<response::streaming::Object> for Object {
     fn from(value: response::streaming::Object) -> Self {
         match value {
-            response::streaming::Object::ScalarFunctionResponseChunk => {
-                Object::ScalarFunctionResponse
+            response::streaming::Object::ScalarFunctionExecutionChunk => {
+                Object::ScalarFunctionExecution
             }
-            response::streaming::Object::VectorFunctionResponseChunk => {
-                Object::VectorFunctionResponse
+            response::streaming::Object::VectorFunctionExecutionChunk => {
+                Object::VectorFunctionExecution
             }
         }
     }

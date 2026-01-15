@@ -1,7 +1,7 @@
-mod function_compute_profile;
 mod function_execution;
+mod function_profile_computation;
 mod object;
 
-pub use function_compute_profile::*;
 pub use function_execution::*;
+pub use function_profile_computation::*;
 pub use object::*;

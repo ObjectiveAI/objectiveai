@@ -5,7 +5,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FunctionComputeProfile {
+pub struct FunctionProfileComputation {
     pub id: String,
     pub executions: Vec<super::FunctionExecution>,
     pub executions_errors: bool,
@@ -18,17 +18,17 @@ pub struct FunctionComputeProfile {
     pub usage: vector::completions::response::Usage,
 }
 
-impl FunctionComputeProfile {
+impl FunctionProfileComputation {
     pub fn any_usage(&self) -> bool {
         self.usage.any_usage()
     }
 }
 
-impl From<response::streaming::FunctionComputeProfileChunk>
-    for FunctionComputeProfile
+impl From<response::streaming::FunctionProfileComputationChunk>
+    for FunctionProfileComputation
 {
     fn from(
-        response::streaming::FunctionComputeProfileChunk {
+        response::streaming::FunctionProfileComputationChunk {
             id,
             executions,
             executions_errors,
@@ -39,7 +39,7 @@ impl From<response::streaming::FunctionComputeProfileChunk>
             function,
             object,
             usage,
-        }: response::streaming::FunctionComputeProfileChunk,
+        }: response::streaming::FunctionProfileComputationChunk,
     ) -> Self {
         Self {
             id,
