@@ -47,15 +47,15 @@ impl Request {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum FunctionComputeProfileCreateParams {
+pub enum FunctionProfileComputationCreateParams {
     FunctionInline(super::FunctionInlineRequestBody),
     FunctionRemote(super::FunctionRemoteRequestBody),
 }
 
-impl FunctionComputeProfileCreateParams {
+impl FunctionProfileComputationCreateParams {
     pub fn inline_function(&self) -> Option<&functions::InlineFunction> {
         match self {
-            FunctionComputeProfileCreateParams::FunctionInline(body) => {
+            FunctionProfileComputationCreateParams::FunctionInline(body) => {
                 Some(&body.function)
             }
             _ => None,
@@ -64,19 +64,23 @@ impl FunctionComputeProfileCreateParams {
 
     pub fn base(&self) -> &super::FunctionRemoteRequestBody {
         match self {
-            FunctionComputeProfileCreateParams::FunctionInline(body) => {
+            FunctionProfileComputationCreateParams::FunctionInline(body) => {
                 &body.base
             }
-            FunctionComputeProfileCreateParams::FunctionRemote(body) => body,
+            FunctionProfileComputationCreateParams::FunctionRemote(body) => {
+                body
+            }
         }
     }
 
     pub fn base_mut(&mut self) -> &mut super::FunctionRemoteRequestBody {
         match self {
-            FunctionComputeProfileCreateParams::FunctionInline(body) => {
+            FunctionProfileComputationCreateParams::FunctionInline(body) => {
                 &mut body.base
             }
-            FunctionComputeProfileCreateParams::FunctionRemote(body) => body,
+            FunctionProfileComputationCreateParams::FunctionRemote(body) => {
+                body
+            }
         }
     }
 }
