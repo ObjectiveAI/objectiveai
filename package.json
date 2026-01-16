@@ -1,0 +1,13 @@
+{
+  "name": "objectiveai-monorepo",
+  "private": true,
+  "workspaces": [
+    "objectiveai-js",
+    "objectiveai-web"
+  ],
+  "scripts": {
+    "build:js": "npm run build -w objectiveai-js",
+    "build:web": "npm run build -w objectiveai-web",
+    "build": "npm run build:js && npm run build:web"
+  }
+}

@@ -44,15 +44,13 @@
     "tailwindcss": "^4.1.4",
     "typescript": "^5",
     "zod": "^4.3.5",
-    "objectiveai": "file:../objectiveai-js"
+    "objectiveai": "*"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "degit": "^2.8.4",
     "eslint": "^9",
     "eslint-config-next": "15.2.4",
-    "rimraf": "^6.1.2",
-    "shx": "^0.4.0",
-    "tsup": "^8.5.1"
+    "rimraf": "^6.1.2"
   }
 }

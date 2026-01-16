@@ -42,9 +42,10 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 
 WORKDIR /root
 COPY . .
-WORKDIR /root/objectiveai-web
+# Install all workspace packages from root - this installs deps and runs prepare scripts
 RUN npm install
-RUN npm run build
+# Build objectiveai-web
+RUN npm run build -w objectiveai-web
 
 # Runner
 FROM node:20-slim AS runner
