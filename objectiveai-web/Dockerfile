@@ -43,7 +43,8 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 WORKDIR /root
 COPY . .
 # Install all workspace packages from root - this installs deps and runs prepare scripts
-RUN npm install
+# Use --include=dev to ensure devDependencies are installed even if NODE_ENV=production
+RUN npm install --include=dev
 # Build objectiveai-web
 RUN npm run build -w objectiveai-web
 
