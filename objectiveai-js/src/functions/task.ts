@@ -1,6 +1,9 @@
 import z from "zod";
-import { ExpressionSchema } from "./expression";
-import { InputValueExpressionSchema, InputValueSchema } from "./input";
+import { ExpressionSchema } from "./expression/expression";
+import {
+  InputValueExpressionSchema,
+  InputValueSchema,
+} from "./expression/input";
 import {
   MessagesExpressionSchema,
   MessagesSchema,
@@ -169,7 +172,19 @@ export const TaskSchema = z
   .describe("A task to be executed as part of the function.");
 export type Task = z.infer<typeof TaskSchema>;
 
-export const TasksSchema = z
-  .array(TaskSchema)
-  .describe("The list of tasks to be executed as part of the function.");
-export type Tasks = z.infer<typeof TasksSchema>;
+export const CompiledTaskSchema = z
+  .union([
+    TaskSchema.describe("An un-mapped, un-skipped task."),
+    z
+      .array(TaskSchema)
+      .describe("A task which was mapped over an input array."),
+    z.null().describe("A task which was skipped."),
+  ])
+  .describe("A compiled task, which may be un-mapped, mapped, or skipped.");
+
+export const CompiledTasksSchema = z
+  .array(CompiledTaskSchema)
+  .describe(
+    "The compiled list of tasks to be executed as part of the function."
+  );
+export type CompiledTasks = z.infer<typeof CompiledTasksSchema>;
