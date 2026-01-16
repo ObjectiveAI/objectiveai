@@ -45,8 +45,11 @@ COPY . .
 # Install all workspace packages from root - this installs deps and runs prepare scripts
 # Use --include=dev to ensure devDependencies are installed even if NODE_ENV=production
 RUN npm install --include=dev
+# Rebuild native modules in objectiveai-web to fix platform-specific bindings
+WORKDIR /root/objectiveai-web
+RUN npm rebuild
 # Build objectiveai-web
-RUN npm run build -w objectiveai-web
+RUN npm run build
 
 # Runner
 FROM node:20-slim AS runner
