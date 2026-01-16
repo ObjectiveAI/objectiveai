@@ -1,4 +1,4 @@
-import { validateEnsembleLlm } from "src/wasm/objectiveai_wasm_js";
+import { validateEnsembleLlm } from "#wasm-loader";
 import { EnsembleLlm, EnsembleLlmBase } from "./ensemble_llm";
 
 export function validate(ensemble: EnsembleLlmBase): EnsembleLlm {

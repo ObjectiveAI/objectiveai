@@ -1,7 +1,7 @@
 import {
   compileFunctionOutput as wasmCompileFunctionOutput,
   compileFunctionTasks as wasmCompileFunctionTasks,
-} from "src/wasm/objectiveai_wasm_js";
+} from "#wasm-loader";
 import { Function } from "./function";
 import { CompiledFunctionOutput, InputValue, TaskOutputs } from "./expression";
 import { CompiledTasks } from "./task";

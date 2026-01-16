@@ -1,7 +1,7 @@
 // Test ESM import
 import * as ObjectiveAI from "../dist/index.js";
 
-console.log("Testing ESM import...");
+console.log("Testing ESM...");
 
 if (typeof ObjectiveAI !== "object" || ObjectiveAI === null) {
   console.log("  ✗ Failed to import module");
@@ -15,6 +15,9 @@ if (moduleExports.length === 0) {
   process.exit(1);
 }
 
-console.log(`  ✓ Module imported successfully`);
-console.log(`  ✓ Found ${moduleExports.length} exports`);
+ObjectiveAI.EnsembleLlm.validate({
+  model: "openai/gpt-5-nano",
+  output_mode: "instruction",
+});
+
 console.log("ESM: PASSED");
