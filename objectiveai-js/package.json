@@ -9,7 +9,7 @@
   },
   "type": "module",
   "scripts": {
-    "build": "node ./scripts/install-wasm.cjs && run tsup && shx rm -f dist/*.d.mts && shx rm -f dist/*.d.cts",
+    "build": "node ./scripts/install-wasm.cjs && tsup && shx rm -f dist/*.d.mts && shx rm -f dist/*.d.cts",
     "test": "node test/test-cjs.cjs && node test/test-esm.mjs",
     "prepublishOnly": "npm test",
     "start": "node dist/index.js",
