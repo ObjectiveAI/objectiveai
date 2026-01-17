@@ -1,5 +1,18 @@
+//! JMESPath runtime with custom functions for expression evaluation.
+//!
+//! Extends the standard JMESPath runtime with additional functions:
+//! - `add(a, b)` - Addition
+//! - `subtract(a, b)` - Subtraction
+//! - `multiply(a, b)` - Multiplication
+//! - `divide(a, b)` - Division (returns null if dividing by zero)
+//! - `mod(a, b)` - Modulo (returns null if dividing by zero)
+//! - `json_parse(s)` - Parse a JSON string
+//! - `is_null(v)` - Check if a value is null
+//! - `if(cond, then, else)` - Conditional expression
+
 use std::sync::LazyLock;
 
+/// Global JMESPath runtime instance with custom functions.
 pub static JMESPATH_RUNTIME: LazyLock<jmespath::Runtime> =
     LazyLock::new(|| {
         use jmespath::{

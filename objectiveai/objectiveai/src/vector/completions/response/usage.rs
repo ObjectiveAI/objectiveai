@@ -1,20 +1,35 @@
+//! Usage statistics for vector completions.
+
 use crate::chat;
 use serde::{Deserialize, Serialize};
 
+/// Aggregated token and cost usage for a vector completion.
+///
+/// Since vector completions run multiple chat completions (one per LLM in the
+/// ensemble), this struct aggregates usage across all underlying completions.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Usage {
+    /// Total tokens generated across all completions.
     pub completion_tokens: u64,
+    /// Total prompt tokens across all completions.
     pub prompt_tokens: u64,
+    /// Sum of completion and prompt tokens.
     pub total_tokens: u64,
+    /// Breakdown of completion tokens (reasoning, audio, etc.) if available.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub completion_tokens_details:
         Option<chat::completions::response::CompletionTokensDetails>,
+    /// Breakdown of prompt tokens (cached, audio, etc.) if available.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt_tokens_details:
         Option<chat::completions::response::PromptTokensDetails>,
+    /// Cost charged by ObjectiveAI for this request.
     pub cost: rust_decimal::Decimal,
+    /// Breakdown of upstream and upstream_upstream costs if available.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cost_details: Option<chat::completions::response::CostDetails>,
+    /// Total cost including upstream provider charges. Only differs from `cost`
+    /// when using BYOK (Bring Your Own Key).
     pub total_cost: rust_decimal::Decimal,
 }
 

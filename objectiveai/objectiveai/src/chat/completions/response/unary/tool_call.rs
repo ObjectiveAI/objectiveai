@@ -1,11 +1,17 @@
+//! Tool call types for chat completion responses.
+
 use crate::chat::completions::response;
 use serde::{Deserialize, Serialize};
 
+/// A tool call made by the model.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ToolCall {
+    /// A function call.
     Function {
+        /// Unique identifier for this tool call.
         id: String,
+        /// The function being called.
         function: ToolCallFunction,
     },
 }
@@ -41,9 +47,12 @@ impl From<response::streaming::ToolCall> for ToolCall {
     }
 }
 
+/// A function call with its name and arguments.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ToolCallFunction {
+    /// The name of the function to call.
     pub name: String,
+    /// The arguments to pass, as a JSON string.
     pub arguments: String,
 }
 

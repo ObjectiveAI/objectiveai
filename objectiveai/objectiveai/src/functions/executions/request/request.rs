@@ -1,6 +1,11 @@
+//! Function execution request types.
+
 use crate::functions;
 use serde::{Deserialize, Serialize};
 
+/// Internal request representation with path and body separated.
+///
+/// Used internally to route requests to the appropriate API endpoint.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Request {
@@ -99,12 +104,20 @@ impl Request {
     }
 }
 
+/// Parameters for creating a function execution.
+///
+/// Supports four combinations based on whether the Function and Profile
+/// are provided inline or referenced from GitHub repositories.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum FunctionExecutionCreateParams {
+    /// Inline Function with inline Profile.
     FunctionInlineProfileInline(super::FunctionInlineProfileInlineRequestBody),
+    /// Inline Function with remote Profile.
     FunctionInlineProfileRemote(super::FunctionInlineProfileRemoteRequestBody),
+    /// Remote Function with inline Profile.
     FunctionRemoteProfileInline(super::FunctionRemoteProfileInlineRequestBody),
+    /// Remote Function with remote Profile.
     FunctionRemoteProfileRemote(super::FunctionRemoteProfileRemoteRequestBody),
 }
 

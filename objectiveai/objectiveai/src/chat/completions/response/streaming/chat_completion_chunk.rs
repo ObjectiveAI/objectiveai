@@ -1,23 +1,40 @@
+//! Streaming chat completion chunk type.
+
 use crate::chat::completions::response;
 use serde::{Deserialize, Serialize};
 
+/// A chunk of a streaming chat completion response.
+///
+/// Multiple chunks are received via Server-Sent Events and can be
+/// accumulated into a complete [`ChatCompletion`](response::unary::ChatCompletion)
+/// using the [`push`](Self::push) method.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ChatCompletionChunk {
+    /// ObjectiveAI's unique identifier for this completion.
     pub id: String,
+    /// The upstream provider's identifier.
     pub upstream_id: String,
+    /// The choice deltas in this chunk.
     pub choices: Vec<super::Choice>,
+    /// Unix timestamp when the completion was created.
     pub created: u64,
+    /// The Ensemble LLM ID used.
     pub model: String,
+    /// The upstream model identifier.
     pub upstream_model: String,
+    /// The object type (always "chat.completion.chunk").
     pub object: super::Object,
+    /// The service tier used, if applicable.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub service_tier: Option<String>,
+    /// A fingerprint of the model configuration.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub system_fingerprint: Option<String>,
+    /// Token usage (only present in the final chunk).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub usage: Option<response::Usage>,
 
-    // openrouter fields
+    /// The provider that served the request (OpenRouter-specific).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provider: Option<String>,
 }

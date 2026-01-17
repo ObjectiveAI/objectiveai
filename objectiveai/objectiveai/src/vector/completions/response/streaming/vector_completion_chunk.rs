@@ -1,16 +1,31 @@
+//! Streaming vector completion chunk.
+
 use crate::vector::completions::response;
 use serde::{Deserialize, Serialize};
 
+/// A chunk in a streaming vector completion response.
+///
+/// Each chunk contains incremental updates to the completion. Use the
+/// [`push`](Self::push) method to accumulate chunks into a complete response.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct VectorCompletionChunk {
+    /// Unique identifier for this vector completion.
     pub id: String,
+    /// Incremental chat completion chunks from each LLM.
     pub completions: Vec<super::ChatCompletionChunk>,
+    /// Votes received so far. New votes are appended in subsequent chunks.
     pub votes: Vec<response::Vote>,
+    /// Current weighted scores. Updated as new votes arrive.
     pub scores: Vec<rust_decimal::Decimal>,
+    /// Current weight distribution across responses. Updated as new votes arrive.
     pub weights: Vec<rust_decimal::Decimal>,
+    /// Unix timestamp when the completion was created.
     pub created: u64,
+    /// ID of the ensemble used for this completion.
     pub ensemble: String,
+    /// Object type identifier (`"vector.completion.chunk"`).
     pub object: super::Object,
+    /// Aggregated usage statistics. Typically present only in the final chunk.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub usage: Option<response::Usage>,
 }

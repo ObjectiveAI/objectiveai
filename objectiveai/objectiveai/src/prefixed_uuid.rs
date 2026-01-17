@@ -1,5 +1,37 @@
+//! Prefixed UUID type for ObjectiveAI identifiers.
+//!
+//! This module provides a generic UUID type with a 3-character prefix,
+//! used throughout the ObjectiveAI API for type-safe identifiers.
+//! For example, API keys use the prefix "apk" (e.g., `apk1234...`).
+
 use std::str::FromStr;
 
+/// A UUID with a 3-character prefix for type-safe identifiers.
+///
+/// This struct wraps a standard UUID and adds a compile-time prefix,
+/// ensuring that different types of identifiers (API keys, ensemble IDs, etc.)
+/// cannot be confused at the type level.
+///
+/// The prefix is specified as three `const char` generic parameters.
+///
+/// # Type Parameters
+///
+/// * `PFX_1` - First character of the prefix
+/// * `PFX_2` - Second character of the prefix
+/// * `PFX_3` - Third character of the prefix
+///
+/// # Examples
+///
+/// ```
+/// use objectiveai::prefixed_uuid::PrefixedUuid;
+///
+/// // Define an API key type with prefix "apk"
+/// type ApiKey = PrefixedUuid<'a', 'p', 'k'>;
+///
+/// // Create a new API key
+/// let key = ApiKey::new();
+/// println!("{}", key); // Outputs: apk<uuid>
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct PrefixedUuid<const PFX_1: char, const PFX_2: char, const PFX_3: char>
 {
@@ -14,8 +46,13 @@ impl<const PFX_1: char, const PFX_2: char, const PFX_3: char> From<uuid::Uuid>
     }
 }
 
+/// Error type for parsing prefixed UUIDs from strings.
+///
+/// This enum represents the two possible failure modes when parsing
+/// a prefixed UUID: an invalid prefix or an invalid UUID portion.
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum ParseError<const PFX_1: char, const PFX_2: char, const PFX_3: char> {
+    /// The string did not start with the expected prefix.
     #[error(
         "invalid prefix: expected {}{}{} but got {}",
         PFX_1,
@@ -24,6 +61,7 @@ pub enum ParseError<const PFX_1: char, const PFX_2: char, const PFX_3: char> {
         _0
     )]
     InvalidPrefix(String),
+    /// The UUID portion of the string was invalid.
     #[error("invalid UUID: {0}")]
     InvalidUuid(uuid::Error),
 }
@@ -52,12 +90,33 @@ impl<const PFX_1: char, const PFX_2: char, const PFX_3: char> FromStr
 impl<const PFX_1: char, const PFX_2: char, const PFX_3: char>
     PrefixedUuid<PFX_1, PFX_2, PFX_3>
 {
+    /// Creates a new prefixed UUID with a random v4 UUID.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use objectiveai::prefixed_uuid::PrefixedUuid;
+    ///
+    /// type ApiKey = PrefixedUuid<'a', 'p', 'k'>;
+    /// let key = ApiKey::new();
+    /// ```
     pub fn new() -> Self {
         PrefixedUuid {
             uuid: uuid::Uuid::new_v4(),
         }
     }
 
+    /// Returns the underlying UUID without the prefix.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use objectiveai::prefixed_uuid::PrefixedUuid;
+    ///
+    /// type ApiKey = PrefixedUuid<'a', 'p', 'k'>;
+    /// let key = ApiKey::new();
+    /// let uuid = key.uuid();
+    /// ```
     pub fn uuid(&self) -> uuid::Uuid {
         self.uuid
     }

@@ -1,16 +1,37 @@
+//! Core Ensemble types and validation logic.
+
 use crate::ensemble_llm;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use twox_hash::XxHash3_128;
 
+/// The base configuration for an Ensemble (without computed ID).
+///
+/// Contains a list of LLM configurations that will be validated, deduplicated,
+/// and sorted when converting to [`Ensemble`].
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EnsembleBase {
+    /// The LLMs in this ensemble, with optional counts and fallbacks.
     pub llms: Vec<ensemble_llm::EnsembleLlmBaseWithFallbacksAndCount>,
 }
 
+/// A validated Ensemble with its computed content-addressed ID.
+///
+/// Created by converting from [`EnsembleBase`] via [`TryFrom`]. The conversion:
+/// 1. Validates and normalizes each LLM
+/// 2. Merges duplicate LLMs (by full_id) and sums their counts
+/// 3. Sorts LLMs by full_id for deterministic ordering
+/// 4. Computes the ensemble ID from the sorted (full_id, count) pairs
+///
+/// # Constraints
+///
+/// - Individual LLMs with `count: 0` are skipped
+/// - Total LLM count (sum of all counts) must be between 1 and 128
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Ensemble {
+    /// The deterministic content-addressed ID (22-character base62 string).
     pub id: String,
+    /// The validated and deduplicated LLMs, sorted by full_id.
     pub llms: Vec<ensemble_llm::EnsembleLlmWithFallbacksAndCount>,
 }
 

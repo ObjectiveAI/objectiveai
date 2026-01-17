@@ -1,71 +1,143 @@
+//! Core Ensemble LLM types and validation logic.
+
 use crate::chat;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use twox_hash::XxHash3_128;
 
+/// The base configuration for an Ensemble LLM (without computed ID).
+///
+/// This struct contains all configurable parameters for a single LLM within
+/// an ensemble. Use [`TryFrom`] to convert to [`EnsembleLlm`] which includes
+/// the computed content-addressed ID.
+///
+/// # Normalization
+///
+/// Before ID computation, configurations are normalized via [`prepare`](Self::prepare):
+/// - Default values are removed (e.g., `temperature: 1.0` → `None`)
+/// - Empty collections are removed
+/// - Collections are sorted for deterministic ordering
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EnsembleLlmBase {
-    // the upstream language model to use
+    /// The upstream language model identifier (e.g., `"gpt-4"`, `"claude-3-opus"`).
     pub model: String,
 
-    // output mode
+    /// The output mode for vector completions. Ignored for chat completions.
     #[serde(default)]
     pub output_mode: super::OutputMode,
 
-    // whether to use synthetic reasoning for non-reasoning LLMs
-    // excludes output_mode: instruction
+    /// Enable synthetic reasoning for non-reasoning LLMs.
+    ///
+    /// **Vector completions only.** Ignored for chat completions.
+    ///
+    /// When enabled, forces the LLM to output a `_think` field before voting,
+    /// simulating chain-of-thought reasoning. Requires `output_mode` to be
+    /// `JsonSchema` or `ToolCall` (not `Instruction`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub synthetic_reasoning: Option<bool>,
 
-    // whether to use logprobs
-    // changes `vote` to probabilities (if upstream actually provides them)
+    /// Number of top log probabilities to return (2-20).
+    ///
+    /// **Vector completions only.** Ignored for chat completions.
+    ///
+    /// When set, vector completion votes use token probabilities instead of
+    /// discrete selections (if the upstream model provides logprobs).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub top_logprobs: Option<u64>,
 
-    // messages which will precede the user prompt
+    /// Messages prepended to the user's prompt.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prefix_messages: Option<Vec<chat::completions::request::Message>>,
 
-    // messages which will follow the user prompt
+    /// Messages appended after the user's prompt.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub suffix_messages: Option<Vec<chat::completions::request::Message>>,
 
-    // openai fields
+    // --- OpenAI-compatible parameters ---
+
+    /// Penalizes tokens based on their frequency in the output so far (-2.0 to 2.0).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub frequency_penalty: Option<f64>,
+    /// Token ID to bias mapping (-100 to 100). Positive values increase likelihood.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub logit_bias: Option<IndexMap<String, i64>>,
+    /// Maximum tokens in the completion.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_completion_tokens: Option<u64>,
+    /// Penalizes tokens based on their presence in the output so far (-2.0 to 2.0).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub presence_penalty: Option<f64>,
+    /// Stop sequences that halt generation.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stop: Option<super::Stop>,
+    /// Sampling temperature (0.0 to 2.0). Higher = more random.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub temperature: Option<f64>,
+    /// Nucleus sampling probability (0.0 to 1.0).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub top_p: Option<f64>,
 
-    // openrouter fields
+    // --- OpenRouter-specific parameters ---
+
+    /// Maximum tokens (OpenRouter variant of max_completion_tokens).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<u64>,
+    /// Minimum probability threshold for sampling (0.0 to 1.0).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub min_p: Option<f64>,
+    /// Provider routing preferences.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provider: Option<super::Provider>,
+    /// Reasoning/thinking configuration for supported models.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reasoning: Option<super::Reasoning>,
+    /// Repetition penalty (0.0 to 2.0). Values > 1.0 penalize repetition.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub repetition_penalty: Option<f64>,
+    /// Top-a sampling parameter (0.0 to 1.0).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub top_a: Option<f64>,
+    /// Top-k sampling: only consider the k most likely tokens.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub top_k: Option<u64>,
+    /// Output verbosity hint for supported models.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub verbosity: Option<super::Verbosity>,
 }
 
+impl Default for EnsembleLlmBase {
+    fn default() -> Self {
+        Self {
+            model: String::new(),
+            output_mode: super::OutputMode::default(),
+            synthetic_reasoning: None,
+            top_logprobs: None,
+            prefix_messages: None,
+            suffix_messages: None,
+            frequency_penalty: None,
+            logit_bias: None,
+            max_completion_tokens: None,
+            presence_penalty: None,
+            stop: None,
+            temperature: None,
+            top_p: None,
+            max_tokens: None,
+            min_p: None,
+            provider: None,
+            reasoning: None,
+            repetition_penalty: None,
+            top_a: None,
+            top_k: None,
+            verbosity: None,
+        }
+    }
+}
+
 impl EnsembleLlmBase {
+    /// Normalizes the configuration for deterministic ID computation.
+    ///
+    /// This method removes default values, empty collections, and sorts
+    /// collections to ensure identical configurations produce identical IDs.
     pub fn prepare(&mut self) {
         self.synthetic_reasoning = match self.synthetic_reasoning {
             Some(false) => None,
@@ -162,6 +234,10 @@ impl EnsembleLlmBase {
         };
     }
 
+    /// Validates the configuration.
+    ///
+    /// Checks that all fields are within valid ranges and that incompatible
+    /// options are not combined (e.g., `synthetic_reasoning` with `Instruction` mode).
     pub fn validate(&self) -> Result<(), String> {
         fn validate_f64(
             name: &str,
@@ -266,6 +342,10 @@ impl EnsembleLlmBase {
         Ok(())
     }
 
+    /// Computes the deterministic content-addressed ID.
+    ///
+    /// The ID is a base62-encoded XXHash3-128 hash of the JSON serialization,
+    /// padded to 22 characters.
     pub fn id(&self) -> String {
         let mut hasher = XxHash3_128::with_seed(0);
         hasher.write(serde_json::to_string(self).unwrap().as_bytes());
@@ -273,9 +353,15 @@ impl EnsembleLlmBase {
     }
 }
 
+/// A validated Ensemble LLM with its computed content-addressed ID.
+///
+/// Created by converting from [`EnsembleLlmBase`] via [`TryFrom`].
+/// The conversion normalizes and validates the configuration, then computes the ID.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EnsembleLlm {
+    /// The deterministic content-addressed ID (22-character base62 string).
     pub id: String,
+    /// The normalized configuration.
     #[serde(flatten)]
     pub base: EnsembleLlmBase,
 }
@@ -290,22 +376,35 @@ impl TryFrom<EnsembleLlmBase> for EnsembleLlm {
     }
 }
 
+/// Wrapper that adds fallback LLMs and a count to any LLM type.
+///
+/// Used to specify how many instances of an LLM to include in an ensemble,
+/// along with fallback models to try if the primary fails.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WithFallbacksAndCount<T> {
+    /// Number of instances of this LLM in the ensemble. Defaults to 1.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub count: Option<u64>,
+    /// The primary LLM configuration.
     #[serde(flatten)]
     pub inner: T,
+    /// Fallback LLMs to try if the primary fails.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fallbacks: Option<Vec<T>>,
 }
 
+/// An [`EnsembleLlmBase`] with optional fallbacks and count (pre-validation).
 pub type EnsembleLlmBaseWithFallbacksAndCount =
     WithFallbacksAndCount<EnsembleLlmBase>;
 
+/// A validated [`EnsembleLlm`] with optional fallbacks and count.
 pub type EnsembleLlmWithFallbacksAndCount = WithFallbacksAndCount<EnsembleLlm>;
 
 impl EnsembleLlmWithFallbacksAndCount {
+    /// Returns the concatenated IDs of the primary LLM and all fallbacks.
+    ///
+    /// Used by [`Ensemble`](crate::ensemble::Ensemble) to compute its own
+    /// content-addressed ID.
     pub fn full_id(&self) -> String {
         match &self.fallbacks {
             Some(fallbacks) => {
@@ -322,6 +421,7 @@ impl EnsembleLlmWithFallbacksAndCount {
         }
     }
 
+    /// Returns an iterator over the IDs of the primary LLM and all fallbacks.
     pub fn ids(&self) -> impl Iterator<Item = &str> {
         std::iter::once(self.inner.id.as_str()).chain(
             self.fallbacks.as_ref().into_iter().flat_map(|fallbacks| {

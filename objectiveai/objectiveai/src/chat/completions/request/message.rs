@@ -1,11 +1,19 @@
+//! Message types for chat completions.
+//!
+//! Messages represent the conversation history sent to the model. Each message
+//! has a role (system, user, assistant, tool, or developer) and content.
+
 use crate::functions;
 use serde::{Deserialize, Serialize};
 
+/// Utilities for working with message prompts.
 pub mod prompt {
+    /// Prepares a list of messages by normalizing each one.
     pub fn prepare(messages: &mut Vec<super::Message>) {
         messages.iter_mut().for_each(super::Message::prepare);
     }
 
+    /// Computes a content-addressed ID for a list of messages.
     pub fn id(messages: &[super::Message]) -> String {
         let mut hasher = twox_hash::XxHash3_128::with_seed(0);
         hasher.write(serde_json::to_string(messages).unwrap().as_bytes());
@@ -13,17 +21,23 @@ pub mod prompt {
     }
 }
 
+/// A message in the conversation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "role")]
 pub enum Message {
+    /// A developer message (similar to system, but from the developer).
     #[serde(rename = "developer")]
     Developer(DeveloperMessage),
+    /// A system message setting context or instructions.
     #[serde(rename = "system")]
     System(SystemMessage),
+    /// A user message from the end user.
     #[serde(rename = "user")]
     User(UserMessage),
+    /// An assistant message (model's previous response).
     #[serde(rename = "assistant")]
     Assistant(AssistantMessage),
+    /// A tool message containing the result of a tool call.
     #[serde(rename = "tool")]
     Tool(ToolMessage),
 }
@@ -80,9 +94,12 @@ impl MessageExpression {
     }
 }
 
+/// A developer message.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeveloperMessage {
+    /// The message content.
     pub content: SimpleContent,
+    /// Optional name for the message author.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 }
@@ -118,9 +135,12 @@ impl DeveloperMessageExpression {
     }
 }
 
+/// A system message setting context or instructions.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemMessage {
+    /// The message content.
     pub content: SimpleContent,
+    /// Optional name for the message author.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 }
@@ -156,9 +176,12 @@ impl SystemMessageExpression {
     }
 }
 
+/// A user message from the end user.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserMessage {
+    /// The message content (supports text, images, audio, video, files).
     pub content: RichContent,
+    /// Optional name for the user.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 }
@@ -440,10 +463,13 @@ impl AssistantToolCallFunctionExpression {
     }
 }
 
+/// Simple text content for system/developer messages.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum SimpleContent {
+    /// Plain text content.
     Text(String),
+    /// Multi-part text content.
     Parts(Vec<SimpleContentPart>),
 }
 
@@ -512,10 +538,13 @@ pub enum SimpleContentPart {
     Text { text: String },
 }
 
+/// Rich content for user/assistant messages (supports multimodal input).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum RichContent {
+    /// Plain text content.
     Text(String),
+    /// Multi-part content (text, images, audio, video, files).
     Parts(Vec<RichContentPart>),
 }
 
@@ -617,14 +646,21 @@ impl RichContentExpression {
     }
 }
 
+/// A part of rich content.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum RichContentPart {
+    /// Text content.
     Text { text: String },
+    /// An image URL.
     ImageUrl { image_url: ImageUrl },
+    /// Audio input.
     InputAudio { input_audio: InputAudio },
+    /// Video input.
     InputVideo { video_url: VideoUrl },
+    /// A video URL.
     VideoUrl { video_url: VideoUrl },
+    /// A file.
     File { file: File },
 }
 

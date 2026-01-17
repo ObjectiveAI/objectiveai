@@ -1,14 +1,36 @@
+//! Function types and client-side compilation.
+
 use serde::{Deserialize, Serialize};
 use std::sync::LazyLock;
 
+/// A Function definition, either remote (GitHub-hosted) or inline.
+///
+/// Functions are composable scoring pipelines that transform structured input
+/// into scores. Use [`compile_tasks`](Self::compile_tasks) and
+/// [`compile_output`](Self::compile_output) to preview how expressions resolve
+/// for given inputs.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Function {
+    /// A GitHub-hosted function with metadata (description, schema, changelog, etc.).
     Remote(RemoteFunction),
+    /// An inline function definition without metadata.
     Inline(InlineFunction),
 }
 
 impl Function {
+    /// Compiles task expressions to show the final tasks for a given input.
+    ///
+    /// Evaluates all JMESPath expressions in the function's tasks using the
+    /// provided input data. Tasks with `skip` expressions that evaluate to true
+    /// return `None`. Tasks with `map` fields produce multiple task instances.
+    ///
+    /// # Returns
+    ///
+    /// A vector where each element corresponds to a task definition:
+    /// - `None` if the task was skipped
+    /// - `Some(CompiledTask::One(...))` for non-mapped tasks
+    /// - `Some(CompiledTask::Many(...))` for mapped tasks
     pub fn compile_tasks(
         self,
         input: &super::expression::Input,
@@ -110,6 +132,12 @@ impl Function {
         Ok(tasks)
     }
 
+    /// Computes the final output given input and task outputs.
+    ///
+    /// Evaluates the function's output expression using the provided input data
+    /// and task results. Also validates that the output meets constraints:
+    /// - Scalar functions: output must be in [0, 1]
+    /// - Vector functions: output must sum to approximately 1
     pub fn compile_output(
         self,
         input: &super::expression::Input,
@@ -263,31 +291,64 @@ impl Function {
     }
 }
 
+/// A GitHub-hosted function with full metadata.
+///
+/// Remote functions are stored as `function.json` in GitHub repositories and
+/// referenced by `owner/repository`. They include documentation fields that
+/// inline functions lack.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum RemoteFunction {
+    /// Produces a single score in [0, 1].
     #[serde(rename = "scalar.function")]
     Scalar {
+        /// Human-readable description of what the function does.
         description: String,
+        /// Version history and changes for this function.
         #[serde(skip_serializing_if = "Option::is_none")]
         changelog: Option<String>,
+        /// JSON Schema defining the expected input structure.
         input_schema: super::expression::InputSchema,
+        /// Expressions that transform input into a 2D array for mapped tasks.
+        /// Each sub-array can be referenced by tasks via their `map` index.
+        /// Receives: `input`.
         #[serde(skip_serializing_if = "Option::is_none")]
-        input_maps: Option<super::expression::InputMaps>, // receives input
-        tasks: Vec<super::TaskExpression>, // receives input + maps
-        output: super::expression::Expression, // receives input + tasks
+        input_maps: Option<super::expression::InputMaps>,
+        /// The list of tasks to execute. Tasks with a `map` index are expanded
+        /// into multiple instances, one per element in the referenced sub-array.
+        /// Each instance is compiled with `map` set to that element's value.
+        /// Receives: `input`, `map` (if mapped).
+        tasks: Vec<super::TaskExpression>,
+        /// Expression computing the final score from task results.
+        /// Receives: `input`, `tasks`.
+        output: super::expression::Expression,
     },
+    /// Produces a vector of scores that sums to 1.
     #[serde(rename = "vector.function")]
     Vector {
+        /// Human-readable description of what the function does.
         description: String,
+        /// Version history and changes for this function.
         #[serde(skip_serializing_if = "Option::is_none")]
         changelog: Option<String>,
+        /// JSON Schema defining the expected input structure.
         input_schema: super::expression::InputSchema,
+        /// Expressions that transform input into a 2D array for mapped tasks.
+        /// Each sub-array can be referenced by tasks via their `map` index.
+        /// Receives: `input`.
         #[serde(skip_serializing_if = "Option::is_none")]
-        input_maps: Option<super::expression::InputMaps>, // receives input
-        tasks: Vec<super::TaskExpression>, // receives input + maps
-        output: super::expression::Expression, // receives input + tasks
-        output_length: super::expression::WithExpression<u64>, // receives input
+        input_maps: Option<super::expression::InputMaps>,
+        /// The list of tasks to execute. Tasks with a `map` index are expanded
+        /// into multiple instances, one per element in the referenced sub-array.
+        /// Each instance is compiled with `map` set to that element's value.
+        /// Receives: `input`, `map` (if mapped).
+        tasks: Vec<super::TaskExpression>,
+        /// Expression computing the final score vector from task results.
+        /// Receives: `input`, `tasks`.
+        output: super::expression::Expression,
+        /// Expression computing the expected output vector length.
+        /// Receives: `input`.
+        output_length: super::expression::WithExpression<u64>,
     },
 }
 
@@ -344,21 +405,46 @@ impl RemoteFunction {
     }
 }
 
+/// An inline function definition without metadata.
+///
+/// Used when embedding function logic directly in requests rather than
+/// referencing a GitHub-hosted function. Lacks description, changelog,
+/// and input schema fields.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum InlineFunction {
+    /// Produces a single score in [0, 1].
     #[serde(rename = "scalar.function")]
     Scalar {
+        /// Expressions that transform input into a 2D array for mapped tasks.
+        /// Each sub-array can be referenced by tasks via their `map` index.
+        /// Receives: `input`.
         #[serde(skip_serializing_if = "Option::is_none")]
         input_maps: Option<super::expression::InputMaps>,
+        /// The list of tasks to execute. Tasks with a `map` index are expanded
+        /// into multiple instances, one per element in the referenced sub-array.
+        /// Each instance is compiled with `map` set to that element's value.
+        /// Receives: `input`, `map` (if mapped).
         tasks: Vec<super::TaskExpression>,
+        /// Expression computing the final score from task results.
+        /// Receives: `input`, `tasks`.
         output: super::expression::Expression,
     },
+    /// Produces a vector of scores that sums to 1.
     #[serde(rename = "vector.function")]
     Vector {
+        /// Expressions that transform input into a 2D array for mapped tasks.
+        /// Each sub-array can be referenced by tasks via their `map` index.
+        /// Receives: `input`.
         #[serde(skip_serializing_if = "Option::is_none")]
         input_maps: Option<super::expression::InputMaps>,
+        /// The list of tasks to execute. Tasks with a `map` index are expanded
+        /// into multiple instances, one per element in the referenced sub-array.
+        /// Each instance is compiled with `map` set to that element's value.
+        /// Receives: `input`, `map` (if mapped).
         tasks: Vec<super::TaskExpression>,
+        /// Expression computing the final score vector from task results.
+        /// Receives: `input`, `tasks`.
         output: super::expression::Expression,
     },
 }

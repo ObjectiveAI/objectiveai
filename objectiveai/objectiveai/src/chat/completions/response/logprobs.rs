@@ -1,8 +1,13 @@
+//! Log probability information for generated tokens.
+
 use serde::{Deserialize, Serialize};
 
+/// Log probabilities for generated tokens.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Logprobs {
+    /// Log probabilities for content tokens.
     pub content: Option<Vec<Logprob>>,
+    /// Log probabilities for refusal tokens.
     pub refusal: Option<Vec<Logprob>>,
 }
 
@@ -29,17 +34,26 @@ impl Logprobs {
     }
 }
 
+/// Log probability information for a single token.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Logprob {
+    /// The token string.
     pub token: String,
+    /// The raw bytes of the token.
     pub bytes: Option<Vec<u8>>,
+    /// The log probability of this token.
     pub logprob: rust_decimal::Decimal,
+    /// The top alternative tokens and their log probabilities.
     pub top_logprobs: Vec<TopLogprob>,
 }
 
+/// A top alternative token with its log probability.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TopLogprob {
+    /// The token string.
     pub token: String,
+    /// The raw bytes of the token.
     pub bytes: Option<Vec<u8>>,
+    /// The log probability of this token.
     pub logprob: Option<rust_decimal::Decimal>,
 }

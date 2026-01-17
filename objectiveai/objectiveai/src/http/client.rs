@@ -1,19 +1,54 @@
+//! HTTP client implementation for ObjectiveAI API.
+
 use crate::error;
 use eventsource_stream::Event as MessageEvent;
 use futures::{Stream, StreamExt};
 use reqwest_eventsource::{Event, RequestBuilderExt};
 
+/// HTTP client for making requests to the ObjectiveAI API.
+///
+/// Handles authentication, request building, and response parsing for both
+/// unary and streaming endpoints.
+///
+/// # Example
+///
+/// ```ignore
+/// let client = HttpClient::new(
+///     reqwest::Client::new(),
+///     None, // Use default API base
+///     Some("your-api-key"),
+///     None, // user_agent
+///     None, // x_title
+///     None, // referer
+/// );
+/// ```
 #[derive(Debug, Clone)]
 pub struct HttpClient {
+    /// The underlying reqwest HTTP client.
     pub http_client: reqwest::Client,
+    /// Base URL for API requests. Defaults to `https://api.objective-ai.io`.
     pub api_base: String,
+    /// API key for authentication. Sent as `Bearer` token in `Authorization` header.
     pub api_key: Option<String>,
-    pub user_agent: Option<String>, // user-agent header
-    pub x_title: Option<String>,    // x-title header
-    pub referer: Option<String>,    // referer and http-referer headers
+    /// Value for the `User-Agent` header.
+    pub user_agent: Option<String>,
+    /// Value for the `X-Title` header.
+    pub x_title: Option<String>,
+    /// Value for both `Referer` and `HTTP-Referer` headers.
+    pub referer: Option<String>,
 }
 
 impl HttpClient {
+    /// Creates a new HTTP client.
+    ///
+    /// # Arguments
+    ///
+    /// * `http_client` - The reqwest client to use for requests
+    /// * `api_base` - Base URL for API requests (defaults to `https://api.objective-ai.io`)
+    /// * `api_key` - API key for authentication
+    /// * `user_agent` - Optional User-Agent header value
+    /// * `x_title` - Optional X-Title header value
+    /// * `referer` - Optional Referer header value
     pub fn new(
         http_client: reqwest::Client,
         api_base: Option<impl Into<String>>,
@@ -35,6 +70,7 @@ impl HttpClient {
         }
     }
 
+    /// Builds a request with authentication and custom headers.
     fn request(
         &self,
         method: reqwest::Method,
@@ -67,6 +103,22 @@ impl HttpClient {
         request
     }
 
+    /// Sends a unary (request-response) API call and deserializes the response.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `T` - The expected response type to deserialize into
+    ///
+    /// # Arguments
+    ///
+    /// * `method` - HTTP method (GET, POST, etc.)
+    /// * `path` - API endpoint path (will be appended to `api_base`)
+    /// * `body` - Optional request body to serialize as JSON
+    ///
+    /// # Errors
+    ///
+    /// Returns [`super::HttpError`] if the request fails, returns a non-success status,
+    /// or the response cannot be deserialized.
     pub async fn send_unary<T: serde::de::DeserializeOwned + Send + 'static>(
         &self,
         method: reqwest::Method,
@@ -109,6 +161,19 @@ impl HttpClient {
         }
     }
 
+    /// Sends a unary API call that expects no response body.
+    ///
+    /// Useful for DELETE or other operations that only return a status code.
+    ///
+    /// # Arguments
+    ///
+    /// * `method` - HTTP method (GET, POST, DELETE, etc.)
+    /// * `path` - API endpoint path (will be appended to `api_base`)
+    /// * `body` - Optional request body to serialize as JSON
+    ///
+    /// # Errors
+    ///
+    /// Returns [`super::HttpError`] if the request fails or returns a non-success status.
     pub async fn send_unary_no_response(
         &self,
         method: reqwest::Method,
@@ -145,6 +210,28 @@ impl HttpClient {
         }
     }
 
+    /// Sends a streaming API call using Server-Sent Events (SSE).
+    ///
+    /// Returns a stream of deserialized chunks. The stream automatically handles:
+    /// - SSE `[DONE]` messages (filtered out)
+    /// - Comment lines starting with `:` (filtered out)
+    /// - Empty data lines (filtered out)
+    /// - API errors embedded in stream data
+    ///
+    /// # Type Parameters
+    ///
+    /// * `T` - The expected chunk type to deserialize each SSE message into
+    ///
+    /// # Arguments
+    ///
+    /// * `method` - HTTP method (typically POST for streaming)
+    /// * `path` - API endpoint path (will be appended to `api_base`)
+    /// * `body` - Optional request body to serialize as JSON
+    ///
+    /// # Errors
+    ///
+    /// Returns [`super::HttpError`] if the stream cannot be established. Individual
+    /// stream items may also contain errors if chunks fail to deserialize.
     pub async fn send_streaming<
         T: serde::de::DeserializeOwned + Send + 'static,
     >(

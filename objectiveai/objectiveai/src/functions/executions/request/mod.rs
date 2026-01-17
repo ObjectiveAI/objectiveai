@@ -1,3 +1,5 @@
+//! Request types for function executions.
+
 mod body;
 mod path;
 mod reasoning;

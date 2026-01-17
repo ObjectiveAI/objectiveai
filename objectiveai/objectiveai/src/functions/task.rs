@@ -1,6 +1,17 @@
+//! Task types for Function definitions.
+//!
+//! Tasks are the building blocks of Functions. Each task either calls another
+//! Function or runs a Vector Completion. Tasks can be conditionally skipped
+//! or mapped over arrays of inputs.
+
 use crate::chat;
 use serde::{Deserialize, Serialize};
 
+/// A task definition with JMESPath expressions (pre-compilation).
+///
+/// Task expressions contain dynamic fields that are resolved against input
+/// data during compilation. Use [`compile`](Self::compile) to produce a
+/// concrete [`Task`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum TaskExpression {
@@ -47,32 +58,45 @@ impl TaskExpression {
     }
 }
 
+/// A compiled task ready for execution.
+///
+/// Produced by compiling a [`TaskExpression`] against input data. All
+/// JMESPath expressions have been resolved to concrete values.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Task {
+    /// Calls a scalar function (produces a single score).
     #[serde(rename = "scalar.function")]
     ScalarFunction(ScalarFunctionTask),
+    /// Calls a vector function (produces a vector of scores).
     #[serde(rename = "vector.function")]
     VectorFunction(VectorFunctionTask),
+    /// Runs a vector completion.
     #[serde(rename = "vector.completion")]
     VectorCompletion(VectorCompletionTask),
 }
 
+/// Expression for a task that calls a scalar function (pre-compilation).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScalarFunctionTaskExpression {
+    /// GitHub repository owner.
     pub owner: String,
+    /// GitHub repository name.
     pub repository: String,
+    /// Git commit SHA for the function version.
     pub commit: String,
 
-    // receives input
+    /// If this expression evaluates to true, skip the task. Receives: `input`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub skip: Option<super::expression::Expression>,
 
-    // indexes into maps
+    /// Index into `input_maps` for mapped execution. If set, this task is
+    /// expanded into multiple instances.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub map: Option<u64>,
 
-    // receives input + maps
+    /// Expression for the input to pass to the function.
+    /// Receives: `input`, `map` (if mapped).
     pub input:
         super::expression::WithExpression<super::expression::InputExpression>,
 }
@@ -92,29 +116,40 @@ impl ScalarFunctionTaskExpression {
     }
 }
 
+/// A compiled scalar function task ready for execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScalarFunctionTask {
+    /// GitHub repository owner.
     pub owner: String,
+    /// GitHub repository name.
     pub repository: String,
+    /// Git commit SHA for the function version.
     pub commit: String,
+    /// The resolved input to pass to the function.
     pub input: super::expression::Input,
 }
 
+/// Expression for a task that calls a vector function (pre-compilation).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VectorFunctionTaskExpression {
+    /// GitHub repository owner.
     pub owner: String,
+    /// GitHub repository name.
     pub repository: String,
+    /// Git commit SHA for the function version.
     pub commit: String,
 
-    // receives input
+    /// If this expression evaluates to true, skip the task. Receives: `input`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub skip: Option<super::expression::Expression>,
 
-    // indexes into maps
+    /// Index into `input_maps` for mapped execution. If set, this task is
+    /// expanded into multiple instances.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub map: Option<u64>,
 
-    // receives input + maps
+    /// Expression for the input to pass to the function.
+    /// Receives: `input`, `map` (if mapped).
     pub input:
         super::expression::WithExpression<super::expression::InputExpression>,
 }
@@ -134,25 +169,33 @@ impl VectorFunctionTaskExpression {
     }
 }
 
+/// A compiled vector function task ready for execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VectorFunctionTask {
+    /// GitHub repository owner.
     pub owner: String,
+    /// GitHub repository name.
     pub repository: String,
+    /// Git commit SHA for the function version.
     pub commit: String,
+    /// The resolved input to pass to the function.
     pub input: super::expression::Input,
 }
 
+/// Expression for a task that runs a vector completion (pre-compilation).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VectorCompletionTaskExpression {
-    // receives input
+    /// If this expression evaluates to true, skip the task. Receives: `input`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub skip: Option<super::expression::Expression>,
 
-    // indexes into maps
+    /// Index into `input_maps` for mapped execution. If set, this task is
+    /// expanded into multiple instances.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub map: Option<u64>,
 
-    // receives input + maps
+    /// Expression for the conversation messages (the prompt).
+    /// Receives: `input`, `map` (if mapped).
     pub messages: super::expression::WithExpression<
         Vec<
             super::expression::WithExpression<
@@ -160,6 +203,8 @@ pub struct VectorCompletionTaskExpression {
             >,
         >,
     >,
+    /// Expression for tools available to the completion (read-only context).
+    /// Receives: `input`, `map` (if mapped).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tools: Option<
         super::expression::WithExpression<
@@ -172,6 +217,8 @@ pub struct VectorCompletionTaskExpression {
             >,
         >,
     >,
+    /// Expression for the possible responses the LLMs can vote for.
+    /// Receives: `input`, `map` (if mapped).
     pub responses: super::expression::WithExpression<
         Vec<
             super::expression::WithExpression<
@@ -250,17 +297,28 @@ impl VectorCompletionTaskExpression {
     }
 }
 
+/// A compiled vector completion task ready for execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VectorCompletionTask {
+    /// The resolved conversation messages.
     pub messages: Vec<chat::completions::request::Message>,
+    /// The resolved tools (read-only context for the completion).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tools: Option<Vec<chat::completions::request::Tool>>,
+    /// The resolved response options the LLMs can vote for.
     pub responses: Vec<chat::completions::request::RichContent>,
 }
 
+/// The result of compiling a task expression.
+///
+/// Tasks without a `map` field compile to a single task. Tasks with a `map`
+/// field are expanded into multiple tasks, one per element in the referenced
+/// input map sub-array.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum CompiledTask {
-    One(Task),       // no map field
-    Many(Vec<Task>), // mapped
+    /// A single task (no mapping).
+    One(Task),
+    /// Multiple task instances from mapped execution.
+    Many(Vec<Task>),
 }

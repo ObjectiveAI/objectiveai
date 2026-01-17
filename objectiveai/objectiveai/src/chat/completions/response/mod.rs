@@ -1,3 +1,11 @@
+//! Response types for chat completions.
+//!
+//! This module contains types for parsing chat completion responses:
+//!
+//! - [`unary`] - Non-streaming (single response) types
+//! - [`streaming`] - Streaming (Server-Sent Events) types
+//! - Common types: [`FinishReason`], [`Usage`], [`Role`], [`Logprobs`]
+
 mod finish_reason;
 mod image;
 mod logprobs;

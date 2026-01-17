@@ -1,11 +1,18 @@
+//! Choice type for unary chat completions.
+
 use crate::chat::completions::response;
 use serde::{Deserialize, Serialize};
 
+/// A generated choice in a chat completion response.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Choice {
+    /// The generated message.
     pub message: super::Message,
+    /// Why the model stopped generating.
     pub finish_reason: response::FinishReason,
+    /// The index of this choice.
     pub index: u64,
+    /// Log probabilities for the generated tokens.
     pub logprobs: Option<response::Logprobs>,
 }
 

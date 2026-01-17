@@ -1,3 +1,8 @@
+//! Non-streaming chat completion response types.
+//!
+//! These types are used when `stream: false` or when streaming responses
+//! are accumulated into a final result.
+
 mod chat_completion;
 mod choice;
 mod message;

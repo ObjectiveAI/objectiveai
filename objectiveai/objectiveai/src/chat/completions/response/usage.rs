@@ -1,20 +1,35 @@
+//! Token usage and cost information.
+
 use crate::chat::completions::response::util;
 use serde::{Deserialize, Serialize};
 
+/// Token usage and cost statistics for a completion.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Usage {
+    /// Number of tokens in the completion.
     pub completion_tokens: u64,
+    /// Number of tokens in the prompt.
     pub prompt_tokens: u64,
+    /// Total tokens (prompt + completion).
     pub total_tokens: u64,
+    /// Detailed breakdown of completion tokens.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub completion_tokens_details: Option<CompletionTokensDetails>,
+    /// Detailed breakdown of prompt tokens.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt_tokens_details: Option<PromptTokensDetails>,
+    /// The cost charged by ObjectiveAI for this request.
     pub cost: rust_decimal::Decimal,
+    /// Detailed cost breakdown.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cost_details: Option<CostDetails>,
+    /// Total cost including ObjectiveAI's charge plus all upstream charges.
+    /// For BYOK requests, ObjectiveAI only charges the cost_multiplier difference,
+    /// but total_cost still includes what the upstream provider charged.
     pub total_cost: rust_decimal::Decimal,
+    /// The multiplier applied to compute ObjectiveAI's charge.
     pub cost_multiplier: rust_decimal::Decimal,
+    /// Whether this request used Bring Your Own Key (BYOK).
     pub is_byok: bool,
 }
 
@@ -61,14 +76,19 @@ impl Usage {
     }
 }
 
+/// Detailed breakdown of completion token usage.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CompletionTokensDetails {
+    /// Tokens from accepted predictions (speculative decoding).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub accepted_prediction_tokens: Option<u64>,
+    /// Audio output tokens.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub audio_tokens: Option<u64>,
+    /// Tokens used for reasoning/thinking.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reasoning_tokens: Option<u64>,
+    /// Tokens from rejected predictions (speculative decoding).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rejected_prediction_tokens: Option<u64>,
 }
@@ -98,14 +118,19 @@ impl CompletionTokensDetails {
     }
 }
 
+/// Detailed breakdown of prompt token usage.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PromptTokensDetails {
+    /// Audio input tokens.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub audio_tokens: Option<u64>,
+    /// Tokens served from cache.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cached_tokens: Option<u64>,
+    /// Tokens written to cache.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cache_write_tokens: Option<u64>,
+    /// Video input tokens.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub video_tokens: Option<u64>,
 }
@@ -129,9 +154,12 @@ impl PromptTokensDetails {
     }
 }
 
+/// Detailed cost breakdown.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CostDetails {
+    /// Cost charged by the immediate upstream (e.g., OpenRouter).
     pub upstream_inference_cost: rust_decimal::Decimal,
+    /// Cost charged by the upstream's upstream (e.g., the actual model provider).
     pub upstream_upstream_inference_cost: rust_decimal::Decimal,
 }
 

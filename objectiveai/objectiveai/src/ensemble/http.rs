@@ -1,5 +1,8 @@
+//! HTTP client functions for Ensemble endpoints.
+
 use crate::{HttpClient, HttpError};
 
+/// Lists all Ensembles that have been used by the authenticated user.
 pub async fn list_ensembles(
     client: &HttpClient,
 ) -> Result<Vec<super::response::ListEnsemble>, HttpError> {
@@ -8,6 +11,7 @@ pub async fn list_ensembles(
         .await
 }
 
+/// Retrieves a specific Ensemble by its content-addressed ID.
 pub async fn get_ensemble(
     client: &HttpClient,
     ensemble_id: &str,
@@ -21,6 +25,7 @@ pub async fn get_ensemble(
         .await
 }
 
+/// Retrieves usage statistics for a specific Ensemble.
 pub async fn get_ensemble_usage(
     client: &HttpClient,
     ensemble_id: &str,

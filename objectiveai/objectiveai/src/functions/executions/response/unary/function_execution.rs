@@ -1,3 +1,5 @@
+//! Complete function execution response.
+
 use crate::{
     error,
     functions::{self, executions::response},
@@ -5,19 +7,32 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
+/// A complete function execution response (non-streaming).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FunctionExecution {
+    /// Unique identifier for this execution.
     pub id: String,
+    /// Results from each task in the function.
     pub tasks: Vec<super::Task>,
+    /// Whether any tasks encountered errors.
     pub tasks_errors: bool,
+    /// Reasoning summary if reasoning was enabled.
     pub reasoning: Option<super::ReasoningSummary>,
+    /// The final output (scalar or vector score).
     pub output: functions::expression::FunctionOutput,
+    /// Error details if the execution failed.
     pub error: Option<error::ResponseError>,
+    /// Token for retrying this execution with cached votes.
     pub retry_token: Option<String>,
+    /// Unix timestamp when the execution was created.
     pub created: u64,
+    /// ID of the function used (if remote).
     pub function: Option<String>,
+    /// ID of the profile used (if remote).
     pub profile: Option<String>,
+    /// Object type identifier.
     pub object: super::Object,
+    /// Aggregated token and cost usage.
     pub usage: vector::completions::response::Usage,
 }
 
