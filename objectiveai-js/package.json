@@ -1,6 +1,6 @@
 {
   "name": "objectiveai",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "SDK for the ObjectiveAI API.",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
@@ -12,7 +12,6 @@
   "scripts": {
     "build": "shx rm -rf dist && node ./scripts/install-wasm.cjs && tsup && shx rm -f dist/*.d.mts && shx rm -f dist/*.d.cts",
     "test": "node test/test-cjs.cjs && node test/test-esm.mjs",
-    "prepublishOnly": "npm test",
     "start": "node dist/index.js",
     "prepare": "npm run build"
   },

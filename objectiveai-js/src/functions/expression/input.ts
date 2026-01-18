@@ -211,6 +211,25 @@ export const FileInputSchemaSchema = z
   .meta({ title: "FileInputSchema" });
 export type FileInputSchema = z.infer<typeof FileInputSchemaSchema>;
 
+export interface AnyOfInputSchema {
+  anyOf: InputSchema[];
+}
+export const AnyOfInputSchemaSchema: z.ZodType<AnyOfInputSchema> = z
+  .object({
+    anyOf: z
+      .array(
+        z
+          .lazy(() => InputSchemaSchema)
+          .meta({
+            title: "InputSchema",
+            recursive: true,
+          })
+      )
+      .describe("The possible schemas that the input can match."),
+  })
+  .describe("A union of schemas - input must match at least one.")
+  .meta({ title: "AnyOfInputSchema" });
+
 export const InputSchemaSchema = z
   .union([
     ObjectInputSchemaSchema,
@@ -223,6 +242,7 @@ export const InputSchemaSchema = z
     AudioInputSchemaSchema,
     VideoInputSchemaSchema,
     FileInputSchemaSchema,
+    AnyOfInputSchemaSchema,
   ])
   .describe("An input schema defining the structure of function inputs.")
   .meta({ title: "InputSchema" });

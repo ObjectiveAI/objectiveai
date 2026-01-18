@@ -759,7 +759,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "base62",
  "base64",
@@ -781,7 +781,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-wasm-js"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "objectiveai",
  "serde-wasm-bindgen",
