@@ -20,7 +20,15 @@ export type SimpleContentPart = z.infer<typeof SimpleContentPartSchema>;
 
 export const SimpleContentPartExpressionSchema = z
   .union([
-    SimpleContentPartSchema,
+    z.object({
+      type: z.literal("text"),
+      text: z.union([
+        z.string().describe("The text content."),
+        ExpressionSchema.describe(
+          "An expression which evaluates to the text content."
+        ),
+      ]),
+    }),
     ExpressionSchema.describe(
       "An expression which evaluates to a simple content part."
     ),
@@ -74,6 +82,19 @@ export type TextRichContentPartText = z.infer<
   typeof TextRichContentPartTextSchema
 >;
 
+export const TextRichContentPartTextExpressionSchema = z
+  .union([
+    TextRichContentPartTextSchema,
+    ExpressionSchema.describe(
+      "An expression which evaluates to the text content."
+    ),
+  ])
+  .describe(TextRichContentPartTextSchema.description!)
+  .meta({ title: "TextRichContentPartTextExpression" });
+export type TextRichContentPartTextExpression = z.infer<
+  typeof TextRichContentPartTextExpressionSchema
+>;
+
 export const TextRichContentPartSchema = z
   .object({
     type: z.literal("text"),
@@ -82,6 +103,17 @@ export const TextRichContentPartSchema = z
   .describe("A text rich content part.")
   .meta({ title: "TextRichContentPart" });
 export type TextRichContentPart = z.infer<typeof TextRichContentPartSchema>;
+
+export const TextRichContentPartExpressionSchema = z
+  .object({
+    type: z.literal("text"),
+    text: TextRichContentPartTextExpressionSchema,
+  })
+  .describe(TextRichContentPartSchema.description!)
+  .meta({ title: "TextRichContentPartExpression" });
+export type TextRichContentPartExpression = z.infer<
+  typeof TextRichContentPartExpressionSchema
+>;
 
 // Image Rich Content Part
 
@@ -107,6 +139,19 @@ export type ImageRichContentPartDefinition = z.infer<
   typeof ImageRichContentPartDefinitionSchema
 >;
 
+export const ImageRichContentPartDefinitionExpressionSchema = z
+  .union([
+    ImageRichContentPartDefinitionSchema,
+    ExpressionSchema.describe(
+      "An expression which evaluates to the image URL definition."
+    ),
+  ])
+  .describe(ImageRichContentPartDefinitionSchema.description!)
+  .meta({ title: "ImageRichContentPartDefinitionExpression" });
+export type ImageRichContentPartDefinitionExpression = z.infer<
+  typeof ImageRichContentPartDefinitionExpressionSchema
+>;
+
 export const ImageRichContentPartSchema = z
   .object({
     type: z.literal("image_url"),
@@ -115,6 +160,17 @@ export const ImageRichContentPartSchema = z
   .describe("An image rich content part.")
   .meta({ title: "ImageRichContentPart" });
 export type ImageRichContentPart = z.infer<typeof ImageRichContentPartSchema>;
+
+export const ImageRichContentPartExpressionSchema = z
+  .object({
+    type: z.literal("image_url"),
+    image_url: ImageRichContentPartDefinitionExpressionSchema,
+  })
+  .describe(ImageRichContentPartSchema.description!)
+  .meta({ title: "ImageRichContentPartExpression" });
+export type ImageRichContentPartExpression = z.infer<
+  typeof ImageRichContentPartExpressionSchema
+>;
 
 // Audio Rich Content Part
 
@@ -142,6 +198,19 @@ export type AudioRichContentPartDefinition = z.infer<
   typeof AudioRichContentPartDefinitionSchema
 >;
 
+export const AudioRichContentPartDefinitionExpressionSchema = z
+  .union([
+    AudioRichContentPartDefinitionSchema,
+    ExpressionSchema.describe(
+      "An expression which evaluates to the audio definition."
+    ),
+  ])
+  .describe(AudioRichContentPartDefinitionSchema.description!)
+  .meta({ title: "AudioRichContentPartDefinitionExpression" });
+export type AudioRichContentPartDefinitionExpression = z.infer<
+  typeof AudioRichContentPartDefinitionExpressionSchema
+>;
+
 export const AudioRichContentPartSchema = z
   .object({
     type: z.literal("input_audio"),
@@ -150,6 +219,17 @@ export const AudioRichContentPartSchema = z
   .describe("An audio rich content part.")
   .meta({ title: "AudioRichContentPart" });
 export type AudioRichContentPart = z.infer<typeof AudioRichContentPartSchema>;
+
+export const AudioRichContentPartExpressionSchema = z
+  .object({
+    type: z.literal("input_audio"),
+    input_audio: AudioRichContentPartDefinitionExpressionSchema,
+  })
+  .describe(AudioRichContentPartSchema.description!)
+  .meta({ title: "AudioRichContentPartExpression" });
+export type AudioRichContentPartExpression = z.infer<
+  typeof AudioRichContentPartExpressionSchema
+>;
 
 // Video Rich Content Part
 
@@ -167,6 +247,19 @@ export type VideoRichContentPartDefinition = z.infer<
   typeof VideoRichContentPartDefinitionSchema
 >;
 
+export const VideoRichContentPartDefinitionExpressionSchema = z
+  .union([
+    VideoRichContentPartDefinitionSchema,
+    ExpressionSchema.describe(
+      "An expression which evaluates to the video URL definition."
+    ),
+  ])
+  .describe("The video URL definition.")
+  .meta({ title: "VideoRichContentPartDefinitionExpression" });
+export type VideoRichContentPartDefinitionExpression = z.infer<
+  typeof VideoRichContentPartDefinitionExpressionSchema
+>;
+
 export const VideoRichContentPartSchema = z
   .object({
     type: z.enum(["video_url", "input_video"]),
@@ -175,6 +268,17 @@ export const VideoRichContentPartSchema = z
   .describe("A video rich content part.")
   .meta({ title: "VideoRichContentPart" });
 export type VideoRichContentPart = z.infer<typeof VideoRichContentPartSchema>;
+
+export const VideoRichContentPartExpressionSchema = z
+  .object({
+    type: z.enum(["video_url", "input_video"]),
+    video_url: VideoRichContentPartDefinitionExpressionSchema,
+  })
+  .describe(VideoRichContentPartSchema.description!)
+  .meta({ title: "VideoRichContentPartExpression" });
+export type VideoRichContentPartExpression = z.infer<
+  typeof VideoRichContentPartExpressionSchema
+>;
 
 // File Rich Content Part
 
@@ -227,6 +331,19 @@ export type FileRichContentPartDefinition = z.infer<
   typeof FileRichContentPartDefinitionSchema
 >;
 
+export const FileRichContentPartDefinitionExpressionSchema = z
+  .union([
+    FileRichContentPartDefinitionSchema,
+    ExpressionSchema.describe(
+      "An expression which evaluates to the file definition."
+    ),
+  ])
+  .describe(FileRichContentPartDefinitionSchema.description!)
+  .meta({ title: "FileRichContentPartDefinitionExpression" });
+export type FileRichContentPartDefinitionExpression = z.infer<
+  typeof FileRichContentPartDefinitionExpressionSchema
+>;
+
 export const FileRichContentPartSchema = z
   .object({
     type: z.literal("file"),
@@ -235,6 +352,17 @@ export const FileRichContentPartSchema = z
   .describe("A file rich content part.")
   .meta({ title: "FileRichContentPart" });
 export type FileRichContentPart = z.infer<typeof FileRichContentPartSchema>;
+
+export const FileRichContentPartExpressionSchema = z
+  .object({
+    type: z.literal("file"),
+    file: FileRichContentPartDefinitionExpressionSchema,
+  })
+  .describe(FileRichContentPartSchema.description!)
+  .meta({ title: "FileRichContentPartExpression" });
+export type FileRichContentPartExpression = z.infer<
+  typeof FileRichContentPartExpressionSchema
+>;
 
 // Rich Content
 
@@ -258,7 +386,15 @@ export type RichContentPart = z.infer<typeof RichContentPartSchema>;
 
 export const RichContentPartExpressionSchema = z
   .union([
-    RichContentPartSchema,
+    z
+      .discriminatedUnion("type", [
+        TextRichContentPartExpressionSchema,
+        ImageRichContentPartExpressionSchema,
+        AudioRichContentPartExpressionSchema,
+        VideoRichContentPartExpressionSchema,
+        FileRichContentPartExpressionSchema,
+      ])
+      .describe(RichContentPartSchema.description!),
     ExpressionSchema.describe(
       "An expression which evaluates to a rich content part."
     ),

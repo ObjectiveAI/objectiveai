@@ -502,7 +502,9 @@ impl SimpleContent {
 #[serde(untagged)]
 pub enum SimpleContentExpression {
     Text(String),
-    Parts(Vec<functions::expression::WithExpression<SimpleContentPart>>),
+    Parts(
+        Vec<functions::expression::WithExpression<SimpleContentPartExpression>>,
+    ),
 }
 
 impl SimpleContentExpression {
@@ -519,10 +521,12 @@ impl SimpleContentExpression {
                 for part in parts {
                     match part.compile_one_or_many(params)? {
                         functions::expression::OneOrMany::One(one_part) => {
-                            compiled_parts.push(one_part);
+                            compiled_parts.push(one_part.compile(params)?);
                         }
                         functions::expression::OneOrMany::Many(many_parts) => {
-                            compiled_parts.extend(many_parts);
+                            for part in many_parts {
+                                compiled_parts.push(part.compile(params)?);
+                            }
                         }
                     }
                 }
@@ -536,6 +540,28 @@ impl SimpleContentExpression {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum SimpleContentPart {
     Text { text: String },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum SimpleContentPartExpression {
+    Text {
+        text: functions::expression::WithExpression<String>,
+    },
+}
+
+impl SimpleContentPartExpression {
+    pub fn compile(
+        self,
+        params: &functions::expression::Params,
+    ) -> Result<SimpleContentPart, functions::expression::ExpressionError> {
+        match self {
+            SimpleContentPartExpression::Text { text } => {
+                let text = text.compile_one(params)?;
+                Ok(SimpleContentPart::Text { text })
+            }
+        }
+    }
 }
 
 /// Rich content for user/assistant messages (supports multimodal input).
@@ -618,7 +644,9 @@ impl RichContent {
 #[serde(untagged)]
 pub enum RichContentExpression {
     Text(String),
-    Parts(Vec<functions::expression::WithExpression<RichContentPart>>),
+    Parts(
+        Vec<functions::expression::WithExpression<RichContentPartExpression>>,
+    ),
 }
 
 impl RichContentExpression {
@@ -633,10 +661,12 @@ impl RichContentExpression {
                 for part in parts {
                     match part.compile_one_or_many(params)? {
                         functions::expression::OneOrMany::One(one_part) => {
-                            compiled_parts.push(one_part);
+                            compiled_parts.push(one_part.compile(params)?);
                         }
                         functions::expression::OneOrMany::Many(many_parts) => {
-                            compiled_parts.extend(many_parts);
+                            for part in many_parts {
+                                compiled_parts.push(part.compile(params)?);
+                            }
                         }
                     }
                 }
@@ -690,6 +720,63 @@ impl RichContentPart {
             RichContentPart::InputVideo { video_url } => video_url.is_empty(),
             RichContentPart::VideoUrl { video_url } => video_url.is_empty(),
             RichContentPart::File { file } => file.is_empty(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum RichContentPartExpression {
+    Text {
+        text: functions::expression::WithExpression<String>,
+    },
+    ImageUrl {
+        image_url: functions::expression::WithExpression<ImageUrl>,
+    },
+    InputAudio {
+        input_audio: functions::expression::WithExpression<InputAudio>,
+    },
+    InputVideo {
+        video_url: functions::expression::WithExpression<VideoUrl>,
+    },
+    VideoUrl {
+        video_url: functions::expression::WithExpression<VideoUrl>,
+    },
+    File {
+        file: functions::expression::WithExpression<File>,
+    },
+}
+
+impl RichContentPartExpression {
+    pub fn compile(
+        self,
+        params: &functions::expression::Params,
+    ) -> Result<RichContentPart, functions::expression::ExpressionError> {
+        match self {
+            RichContentPartExpression::Text { text } => {
+                let text = text.compile_one(params)?;
+                Ok(RichContentPart::Text { text })
+            }
+            RichContentPartExpression::ImageUrl { image_url } => {
+                let image_url = image_url.compile_one(params)?;
+                Ok(RichContentPart::ImageUrl { image_url })
+            }
+            RichContentPartExpression::InputAudio { input_audio } => {
+                let input_audio = input_audio.compile_one(params)?;
+                Ok(RichContentPart::InputAudio { input_audio })
+            }
+            RichContentPartExpression::InputVideo { video_url } => {
+                let video_url = video_url.compile_one(params)?;
+                Ok(RichContentPart::InputVideo { video_url })
+            }
+            RichContentPartExpression::VideoUrl { video_url } => {
+                let video_url = video_url.compile_one(params)?;
+                Ok(RichContentPart::VideoUrl { video_url })
+            }
+            RichContentPartExpression::File { file } => {
+                let file = file.compile_one(params)?;
+                Ok(RichContentPart::File { file })
+            }
         }
     }
 }
