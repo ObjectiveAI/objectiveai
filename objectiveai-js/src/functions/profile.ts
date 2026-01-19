@@ -30,15 +30,18 @@ export interface InlineFunctionTaskProfile {
   tasks: TaskProfile[];
 }
 export const InlineFunctionTaskProfileSchema: z.ZodType<InlineFunctionTaskProfile> =
-  z.object({
-    tasks: z
-      .array(
-        z
-          .lazy(() => TaskProfileSchema)
-          .meta({ title: "TaskProfile", recursive: true })
-      )
-      .describe("The list of task profiles."),
-  });
+  z
+    .object({
+      tasks: z
+        .array(
+          z
+            .lazy(() => TaskProfileSchema)
+            .meta({ title: "TaskProfile", recursive: true })
+        )
+        .describe("The list of task profiles."),
+    })
+    .describe("A function profile defined inline.")
+    .meta({ title: "InlineFunctionTaskProfile" });
 
 export const VectorCompletionTaskProfileSchema = z
   .object({
@@ -69,29 +72,25 @@ export type TaskProfiles = z.infer<typeof TaskProfilesSchema>;
 // Inline Profile
 
 export const InlineProfileSchema = z
-  .array(
-    z.object({
-      tasks: TaskProfilesSchema,
-    })
-  )
+  .object({
+    tasks: TaskProfilesSchema,
+  })
   .describe("A function profile defined inline.")
   .meta({ title: "InlineProfile" });
 export type InlineProfile = z.infer<typeof InlineProfileSchema>;
 
 // Remote Profile
 
-export const RemoteProfileSchema = z
-  .object({
-    description: z.string().describe("The description of the profile."),
-    changelog: z
-      .string()
-      .optional()
-      .nullable()
-      .describe(
-        "When present, describes changes from the previous version or versions."
-      ),
-    tasks: z.array(TaskProfileSchema).describe("The list of task profiles."),
-  })
+export const RemoteProfileSchema = InlineProfileSchema.extend({
+  description: z.string().describe("The description of the profile."),
+  changelog: z
+    .string()
+    .optional()
+    .nullable()
+    .describe(
+      "When present, describes changes from the previous version or versions."
+    ),
+})
   .describe('A function profile fetched from GitHub. "profile.json"')
   .meta({ title: "RemoteProfile" });
 export type RemoteProfile = z.infer<typeof RemoteProfileSchema>;
