@@ -466,14 +466,14 @@ pub static JMESPATH_RUNTIME: LazyLock<jmespath::Runtime> = LazyLock::new(
             Box::new(CustomFunction::new(
                 Signature::new(
                     vec![
-                        ArgumentType::TypedArray(Box::new(ArgumentType::Array)),
                         ArgumentType::Expref,
+                        ArgumentType::TypedArray(Box::new(ArgumentType::Array)),
                     ],
                     None,
                 ),
                 Box::new(|args: &[Rcvar], ctx: &mut Context| {
-                    let input_array = args[0].as_array().unwrap();
-                    let expref = args[1].as_expref().unwrap();
+                    let expref = args[0].as_expref().unwrap();
+                    let input_array = args[1].as_array().unwrap();
                     let mut output_array = Vec::with_capacity(
                         input_array
                             .iter()
