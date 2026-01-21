@@ -1,4 +1,0 @@
-[workspace]
-members = [
-    "objectiveai", "objectiveai-wasm-js",
-]

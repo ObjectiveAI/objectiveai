@@ -10,9 +10,8 @@ ObjectiveAI is a REST API platform for scoring, ranking, and simulating preferen
 
 ```
 objectiveai/
-├── objectiveai/                    # Rust SDK
-│   ├── objectiveai/                # Core crate (data structures, validation, compilation)
-│   └── objectiveai-wasm-js/        # WASM bindings for browser/Node.js
+├── objectiveai-rs/                 # Rust SDK (core crate: data structures, validation, compilation)
+├── objectiveai-rs-wasm-js/         # WASM bindings for browser/Node.js
 ├── objectiveai-js/                 # TypeScript SDK (npm: objectiveai)
 └── objectiveai-web/                # Next.js web interface
 ```
@@ -170,7 +169,7 @@ Client-side compilation is for **previewing during authoring**, not required bef
 
 ## Rust SDK
 
-Location: `objectiveai/objectiveai/`
+Location: `objectiveai-rs/`
 
 **Capabilities:**
 1. Data structures and validation
@@ -189,7 +188,7 @@ Location: `objectiveai/objectiveai/`
 
 ## WASM Bindings
 
-Location: `objectiveai/objectiveai-wasm-js/`
+Location: `objectiveai-rs-wasm-js/`
 
 Exports:
 - `validateEnsembleLlm(llm)` - Validate and compute Ensemble LLM ID

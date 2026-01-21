@@ -14,6 +14,6 @@ publish = true
 crate-type = ["cdylib"]
 
 [dependencies]
-objectiveai = { path = "../objectiveai", version = "0.1.2", default-features = false }
+objectiveai = { path = "../objectiveai-rs", version = "0.1.2", default-features = false }
 wasm-bindgen = { version = "0.2.105" }
 serde-wasm-bindgen = { version = "0.6.5" }

@@ -5,7 +5,7 @@ const path = require("path");
 // Paths
 const jsRoot = process.cwd(); // objectiveai-js
 const repoRoot = path.resolve(jsRoot, ".."); // objectiveai
-const wasmDir = path.join(repoRoot, "objectiveai", "objectiveai-wasm-js");
+const wasmDir = path.join(repoRoot, "objectiveai-rs-wasm-js");
 const outDir = path.join(jsRoot, "src", "wasm");
 
 // Clean up old files

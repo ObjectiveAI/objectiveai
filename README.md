@@ -103,9 +103,8 @@ Give it a dataset of inputs and expected outputs. It optimizes the weights to ma
 
 ```
 objectiveai/
-├── objectiveai/              # Rust SDK
-│   ├── objectiveai/          # Core crate
-│   └── objectiveai-wasm-js/  # WASM bindings
+├── objectiveai-rs/           # Rust SDK (core crate)
+├── objectiveai-rs-wasm-js/   # WASM bindings
 ├── objectiveai-js/           # TypeScript SDK
 └── objectiveai-web/          # Web interface
 ```
