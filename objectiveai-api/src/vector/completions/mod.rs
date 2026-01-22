@@ -1,3 +1,4 @@
+pub mod cache;
 pub mod cache_vote_fetcher;
 mod client;
 pub mod completion_votes_fetcher;
