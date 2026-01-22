@@ -21,7 +21,7 @@ pub struct Client<CTXEXT, FENSLLM, CUSG> {
     pub backoff_randomization_factor: f64,
     pub backoff_multiplier: f64,
     pub backoff_max_interval: Duration,
-    pub backoff_max_elapsed_time: Option<Duration>,
+    pub backoff_max_elapsed_time: Duration,
 }
 
 impl<CTXEXT, FENSLLM, CUSG> Client<CTXEXT, FENSLLM, CUSG> {
@@ -36,7 +36,7 @@ impl<CTXEXT, FENSLLM, CUSG> Client<CTXEXT, FENSLLM, CUSG> {
         backoff_randomization_factor: f64,
         backoff_multiplier: f64,
         backoff_max_interval: Duration,
-        backoff_max_elapsed_time: Option<Duration>,
+        backoff_max_elapsed_time: Duration,
     ) -> Self {
         Self {
             ensemble_llm_fetcher,
@@ -309,11 +309,13 @@ where
             multiplier: self.backoff_multiplier,
             max_interval: self.backoff_max_interval,
             start_time: std::time::Instant::now(),
-            max_elapsed_time: request
-                .backoff_max_elapsed_time
-                .map(|ms| ms.min(600_000)) // at most 10 minutes
-                .map(Duration::from_millis)
-                .or(self.backoff_max_elapsed_time),
+            max_elapsed_time: Some(
+                request
+                    .backoff_max_elapsed_time
+                    .map(|ms| ms.min(600_000)) // at most 10 minutes
+                    .map(Duration::from_millis)
+                    .unwrap_or(self.backoff_max_elapsed_time),
+            ),
             clock: backoff::SystemClock::default(),
         };
         let first_chunk_timeout = Duration::from_millis(
@@ -442,11 +444,13 @@ where
             multiplier: self.backoff_multiplier,
             max_interval: self.backoff_max_interval,
             start_time: std::time::Instant::now(),
-            max_elapsed_time: request
-                .backoff_max_elapsed_time
-                .map(|ms| ms.min(600_000)) // at most 10 minutes
-                .map(Duration::from_millis)
-                .or(self.backoff_max_elapsed_time),
+            max_elapsed_time: Some(
+                request
+                    .backoff_max_elapsed_time
+                    .map(|ms| ms.min(600_000)) // at most 10 minutes
+                    .map(Duration::from_millis)
+                    .unwrap_or(self.backoff_max_elapsed_time),
+            ),
             clock: backoff::SystemClock::default(),
         };
         let first_chunk_timeout = Duration::from_millis(
