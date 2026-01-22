@@ -111,6 +111,25 @@ pub struct VectorCompletionOutput {
     pub weights: Vec<rust_decimal::Decimal>,
 }
 
+impl VectorCompletionOutput {
+    pub fn default_from_request_responses_len(
+        request_responses_len: usize,
+    ) -> Self {
+        let weights = vec![rust_decimal::Decimal::ZERO; request_responses_len];
+        let scores =
+            vec![
+                rust_decimal::Decimal::ONE
+                    / rust_decimal::Decimal::from(request_responses_len);
+                request_responses_len
+            ];
+        Self {
+            votes: Vec::new(),
+            scores,
+            weights,
+        }
+    }
+}
+
 impl From<vector::completions::response::streaming::VectorCompletionChunk>
     for VectorCompletionOutput
 {
@@ -159,6 +178,20 @@ pub enum FunctionOutput {
     Vector(Vec<rust_decimal::Decimal>),
     /// An error occurred during execution.
     Err(serde_json::Value),
+}
+
+impl FunctionOutput {
+    pub fn into_err(self) -> Self {
+        match self {
+            Self::Scalar(scalar) => {
+                Self::Err(serde_json::to_value(scalar).unwrap())
+            }
+            Self::Vector(vector) => {
+                Self::Err(serde_json::to_value(vector).unwrap())
+            }
+            Self::Err(err) => Self::Err(err),
+        }
+    }
 }
 
 /// Result of compiling a function's output expression.

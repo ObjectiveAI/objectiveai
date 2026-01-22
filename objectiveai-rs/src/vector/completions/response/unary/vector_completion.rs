@@ -31,6 +31,31 @@ pub struct VectorCompletion {
     pub usage: response::Usage,
 }
 
+impl VectorCompletion {
+    pub fn default_from_request_responses_len(
+        request_responses_len: usize,
+    ) -> Self {
+        let weights = vec![rust_decimal::Decimal::ZERO; request_responses_len];
+        let scores =
+            vec![
+                rust_decimal::Decimal::ONE
+                    / rust_decimal::Decimal::from(request_responses_len);
+                request_responses_len
+            ];
+        Self {
+            id: String::new(),
+            completions: Vec::new(),
+            votes: Vec::new(),
+            scores,
+            weights,
+            created: 0,
+            ensemble: String::new(),
+            object: super::Object::default(),
+            usage: response::Usage::default(),
+        }
+    }
+}
+
 impl From<response::streaming::VectorCompletionChunk> for VectorCompletion {
     fn from(
         response::streaming::VectorCompletionChunk {

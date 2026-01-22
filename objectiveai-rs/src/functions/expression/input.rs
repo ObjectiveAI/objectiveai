@@ -76,6 +76,221 @@ pub enum Input {
     Boolean(bool),
 }
 
+impl Input {
+    pub fn to_rich_content_parts(
+        self,
+        depth: usize,
+    ) -> impl Iterator<Item = chat::completions::request::RichContentPart> {
+        enum Iter {
+            RichContentPart(RichContentPartIter),
+            Object(Box<ObjectIter>),
+            Array(Box<ArrayIter>),
+            Primitive(Option<String>),
+        }
+        impl Iter {
+            pub fn new(input: Input, depth: usize) -> Self {
+                match input {
+                    Input::RichContentPart(rich_content_part) => {
+                        Iter::RichContentPart(RichContentPartIter {
+                            first: true,
+                            part: Some(rich_content_part),
+                            last: true,
+                        })
+                    }
+                    Input::Object(object) => {
+                        Iter::Object(Box::new(ObjectIter {
+                            object: object.into_iter(),
+                            first: true,
+                            child: None,
+                            depth,
+                        }))
+                    }
+                    Input::Array(array) => Iter::Array(Box::new(ArrayIter {
+                        array: array.into_iter(),
+                        first: true,
+                        child: None,
+                        depth,
+                    })),
+                    Input::String(string) => Iter::Primitive(Some(format!(
+                        "\"{}\"",
+                        json_escape::escape_str(&string),
+                    ))),
+                    Input::Integer(integer) => {
+                        Iter::Primitive(Some(integer.to_string()))
+                    }
+                    Input::Number(number) => {
+                        Iter::Primitive(Some(number.to_string()))
+                    }
+                    Input::Boolean(boolean) => {
+                        Iter::Primitive(Some(boolean.to_string()))
+                    }
+                }
+            }
+        }
+        impl Iterator for Iter {
+            type Item = chat::completions::request::RichContentPart;
+            fn next(&mut self) -> Option<Self::Item> {
+                match self {
+                    Iter::RichContentPart(rich_content_part_iter) => {
+                        rich_content_part_iter.next()
+                    }
+                    Iter::Object(object_iter) => object_iter.next(),
+                    Iter::Array(array_iter) => array_iter.next(),
+                    Iter::Primitive(primitive_option) => {
+                        primitive_option.take().map(|text| {
+                            chat::completions::request::RichContentPart::Text {
+                                text,
+                            }
+                        })
+                    }
+                }
+            }
+        }
+        struct RichContentPartIter {
+            first: bool,
+            part: Option<chat::completions::request::RichContentPart>,
+            last: bool,
+        }
+        impl Iterator for RichContentPartIter {
+            type Item = chat::completions::request::RichContentPart;
+            fn next(&mut self) -> Option<Self::Item> {
+                if self.first {
+                    self.first = false;
+                    Some(chat::completions::request::RichContentPart::Text {
+                        text: '"'.to_string(),
+                    })
+                } else if let Some(part) = self.part.take() {
+                    Some(part)
+                } else if self.last {
+                    self.last = false;
+                    Some(chat::completions::request::RichContentPart::Text {
+                        text: '"'.to_string(),
+                    })
+                } else {
+                    None
+                }
+            }
+        }
+        struct ObjectIter {
+            object: indexmap::map::IntoIter<String, Input>,
+            first: bool,
+            child: Option<Iter>,
+            depth: usize,
+        }
+        impl Iterator for ObjectIter {
+            type Item = chat::completions::request::RichContentPart;
+            fn next(&mut self) -> Option<Self::Item> {
+                if self.first {
+                    self.first = false;
+                    if let Some((key, input)) = self.object.next() {
+                        self.child = Some(Iter::new(input, self.depth + 1));
+                        Some(
+                            chat::completions::request::RichContentPart::Text {
+                                text: format!(
+                                    "{{\n{}\"{}\": ",
+                                    "    ".repeat(self.depth + 1),
+                                    key,
+                                ),
+                            },
+                        )
+                    } else {
+                        Some(
+                            chat::completions::request::RichContentPart::Text {
+                                text: format!("{{}}"),
+                            },
+                        )
+                    }
+                } else if let Some(child) = &mut self.child {
+                    if let Some(part) = child.next() {
+                        Some(part)
+                    } else if let Some((key, input)) = self.object.next() {
+                        self.child = Some(Iter::new(input, self.depth + 1));
+                        Some(
+                            chat::completions::request::RichContentPart::Text {
+                                text: format!(
+                                    ",\n{}\"{}\": ",
+                                    "    ".repeat(self.depth + 1),
+                                    key,
+                                ),
+                            },
+                        )
+                    } else {
+                        self.child = None;
+                        Some(
+                            chat::completions::request::RichContentPart::Text {
+                                text: format!(
+                                    "\n{}}}",
+                                    "    ".repeat(self.depth)
+                                ),
+                            },
+                        )
+                    }
+                } else {
+                    None
+                }
+            }
+        }
+        struct ArrayIter {
+            array: std::vec::IntoIter<Input>,
+            first: bool,
+            child: Option<Iter>,
+            depth: usize,
+        }
+        impl Iterator for ArrayIter {
+            type Item = chat::completions::request::RichContentPart;
+            fn next(&mut self) -> Option<Self::Item> {
+                if self.first {
+                    self.first = false;
+                    if let Some(input) = self.array.next() {
+                        self.child = Some(Iter::new(input, self.depth + 1));
+                        Some(
+                            chat::completions::request::RichContentPart::Text {
+                                text: format!(
+                                    "[\n{}",
+                                    "    ".repeat(self.depth + 1)
+                                ),
+                            },
+                        )
+                    } else {
+                        Some(
+                            chat::completions::request::RichContentPart::Text {
+                                text: format!("[]"),
+                            },
+                        )
+                    }
+                } else if let Some(child) = &mut self.child {
+                    if let Some(part) = child.next() {
+                        Some(part)
+                    } else if let Some(input) = self.array.next() {
+                        self.child = Some(Iter::new(input, self.depth + 1));
+                        Some(
+                            chat::completions::request::RichContentPart::Text {
+                                text: format!(
+                                    ",\n{}",
+                                    "    ".repeat(self.depth + 1),
+                                ),
+                            },
+                        )
+                    } else {
+                        self.child = None;
+                        Some(
+                            chat::completions::request::RichContentPart::Text {
+                                text: format!(
+                                    "\n{}]",
+                                    "    ".repeat(self.depth)
+                                ),
+                            },
+                        )
+                    }
+                } else {
+                    None
+                }
+            }
+        }
+        Iter::new(self, depth)
+    }
+}
+
 /// An input value that may contain JMESPath expressions (pre-compilation).
 ///
 /// Similar to [`Input`] but object values and array elements can be
