@@ -19,6 +19,23 @@ pub async fn list_functions(
         .await
 }
 
+pub async fn get_function(
+    client: &HttpClient,
+    owner: &str,
+    repository: &str,
+    commit: Option<&str>,
+) -> Result<super::response::GetFunction, HttpError> {
+    let path = match commit {
+        Some(commit) => {
+            format!("functions/{}/{}/{}", owner, repository, commit)
+        }
+        None => format!("functions/{}/{}", owner, repository),
+    };
+    client
+        .send_unary(reqwest::Method::GET, &path, None::<String>)
+        .await
+}
+
 /// Gets usage statistics for a specific function.
 ///
 /// # Arguments

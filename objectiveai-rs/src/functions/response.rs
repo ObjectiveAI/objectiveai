@@ -1,5 +1,6 @@
 //! Function listing and usage response types.
 
+use crate::functions;
 use serde::{Deserialize, Serialize};
 
 /// Response from listing functions.
@@ -18,6 +19,15 @@ pub struct ListFunctionItem {
     pub repository: String,
     /// Git commit SHA.
     pub commit: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetFunction {
+    pub owner: String,
+    pub repository: String,
+    pub commit: String,
+    #[serde(flatten)]
+    pub inner: functions::RemoteFunction,
 }
 
 /// Usage statistics for a function.

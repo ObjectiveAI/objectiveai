@@ -19,6 +19,23 @@ pub async fn list_profiles(
         .await
 }
 
+pub async fn get_profile(
+    client: &HttpClient,
+    owner: &str,
+    repository: &str,
+    commit: Option<&str>,
+) -> Result<super::response::GetProfile, HttpError> {
+    let path = match commit {
+        Some(commit) => {
+            format!("functions/profiles/{}/{}/{}", owner, repository, commit)
+        }
+        None => format!("functions/profiles/{}/{}", owner, repository),
+    };
+    client
+        .send_unary(reqwest::Method::GET, &path, None::<String>)
+        .await
+}
+
 /// Gets usage statistics for a specific profile.
 ///
 /// # Arguments

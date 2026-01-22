@@ -1,5 +1,6 @@
 //! Profile listing and usage response types.
 
+use crate::functions;
 use serde::{Deserialize, Serialize};
 
 /// Response from listing profiles.
@@ -18,6 +19,15 @@ pub struct ListProfileItem {
     pub repository: String,
     /// Git commit SHA.
     pub commit: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetProfile {
+    pub owner: String,
+    pub repository: String,
+    pub commit: String,
+    #[serde(flatten)]
+    pub inner: functions::RemoteProfile,
 }
 
 /// Usage statistics for a profile.
