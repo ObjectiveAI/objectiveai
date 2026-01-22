@@ -51,15 +51,17 @@ where
         + Send
         + Sync
         + 'static,
-    CUSG:
-        chat::completions::usage_handler::UsageHandler + Send + Sync + 'static,
+    CUSG: chat::completions::usage_handler::UsageHandler<CTXEXT>
+        + Send
+        + Sync
+        + 'static,
     FENS: super::ensemble_fetcher::Fetcher<CTXEXT> + Send + Sync + 'static,
     FVVOTE: super::completion_votes_fetcher::Fetcher<CTXEXT>
         + Send
         + Sync
         + 'static,
     FCVOTE: super::cache_vote_fetcher::Fetcher<CTXEXT> + Send + Sync + 'static,
-    VUSG: super::usage_handler::UsageHandler + Send + Sync + 'static,
+    VUSG: super::usage_handler::UsageHandler<CTXEXT> + Send + Sync + 'static,
 {
     pub async fn create_unary_handle_usage(
         self: Arc<Self>,
@@ -158,8 +160,10 @@ where
         + Send
         + Sync
         + 'static,
-    CUSG:
-        chat::completions::usage_handler::UsageHandler + Send + Sync + 'static,
+    CUSG: chat::completions::usage_handler::UsageHandler<CTXEXT>
+        + Send
+        + Sync
+        + 'static,
     FENS: super::ensemble_fetcher::Fetcher<CTXEXT> + Send + Sync + 'static,
     FVVOTE: super::completion_votes_fetcher::Fetcher<CTXEXT>
         + Send

@@ -57,7 +57,7 @@ where
     CTXEXT: ctx::ContextExt + Send + Sync + 'static,
     FENSLLM:
         super::ensemble_llm_fetcher::Fetcher<CTXEXT> + Send + Sync + 'static,
-    CUSG: super::usage_handler::UsageHandler + Send + Sync + 'static,
+    CUSG: super::usage_handler::UsageHandler<CTXEXT> + Send + Sync + 'static,
 {
     pub async fn create_unary_for_chat_handle_usage(
         self: Arc<Self>,
