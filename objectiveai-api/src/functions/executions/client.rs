@@ -30,7 +30,9 @@ pub struct Client<
     FUSG,
 > {
     pub chat_client: Arc<chat::completions::Client<CTXEXT, FENSLLM, CUSG>>,
-    pub ensemble_fetcher: Arc<FENS>,
+    pub ensemble_fetcher: Arc<
+        vector::completions::ensemble_fetcher::CachingFetcher<CTXEXT, FENS>,
+    >,
     pub vector_client: Arc<
         vector::completions::Client<
             CTXEXT,
@@ -52,7 +54,9 @@ impl<CTXEXT, FENSLLM, CUSG, FENS, FVVOTE, FCVOTE, VUSG, FFN, FPFL, FUSG>
 {
     pub fn new(
         chat_client: Arc<chat::completions::Client<CTXEXT, FENSLLM, CUSG>>,
-        ensemble_fetcher: Arc<FENS>,
+        ensemble_fetcher: Arc<
+            vector::completions::ensemble_fetcher::CachingFetcher<CTXEXT, FENS>,
+        >,
         vector_client: Arc<
             vector::completions::Client<
                 CTXEXT,

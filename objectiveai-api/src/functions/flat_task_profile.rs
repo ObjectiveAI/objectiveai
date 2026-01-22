@@ -249,12 +249,18 @@ pub async fn get_flat_task_profile<CTXEXT>(
         impl super::profile_fetcher::Fetcher<CTXEXT> + Send + Sync + 'static,
     >,
     ensemble_fetcher: Arc<
-        impl vector::completions::ensemble_fetcher::Fetcher<CTXEXT>
-        + Send
-        + Sync
-        + 'static,
+        vector::completions::ensemble_fetcher::CachingFetcher<
+            CTXEXT,
+            impl vector::completions::ensemble_fetcher::Fetcher<CTXEXT>
+            + Send
+            + Sync
+            + 'static,
+        >,
     >,
-) -> Result<super::FunctionFlatTaskProfile, super::executions::Error> {
+) -> Result<super::FunctionFlatTaskProfile, super::executions::Error>
+where
+    CTXEXT: Send + Sync + 'static,
+{
     static EMPTY_TASKS: LazyLock<
         Vec<Option<objectiveai::functions::expression::TaskOutput>>,
     > = LazyLock::new(|| Vec::new());
@@ -701,12 +707,18 @@ async fn get_vector_completion_flat_task_profile<CTXEXT>(
     ensemble: objectiveai::vector::completions::request::Ensemble,
     profile: Vec<rust_decimal::Decimal>,
     ensemble_fetcher: Arc<
-        impl vector::completions::ensemble_fetcher::Fetcher<CTXEXT>
-        + Send
-        + Sync
-        + 'static,
+        vector::completions::ensemble_fetcher::CachingFetcher<
+            CTXEXT,
+            impl vector::completions::ensemble_fetcher::Fetcher<CTXEXT>
+            + Send
+            + Sync
+            + 'static,
+        >,
     >,
-) -> Result<super::VectorCompletionFlatTaskProfile, super::executions::Error> {
+) -> Result<super::VectorCompletionFlatTaskProfile, super::executions::Error>
+where
+    CTXEXT: Send + Sync + 'static,
+{
     // switch based on profile
     let ensemble = match ensemble {
         objectiveai::vector::completions::request::Ensemble::Id(id) => {
