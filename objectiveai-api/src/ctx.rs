@@ -41,6 +41,40 @@ pub struct Context<CTXEXT> {
             >,
         >,
     >,
+    pub function_cache: Arc<
+        DashMap<
+            (
+                String,         // owner
+                String,         // repository
+                Option<String>, // commit
+            ),
+            Shared<
+                tokio::sync::oneshot::Receiver<
+                    Result<
+                        Option<objectiveai::functions::response::GetFunction>,
+                        objectiveai::error::ResponseError,
+                    >,
+                >,
+            >,
+        >,
+    >,
+    pub profile_cache: Arc<
+        DashMap<
+            (
+                String,         // owner
+                String,         // repository
+                Option<String>, // commit
+            ),
+            Shared<
+                tokio::sync::oneshot::Receiver<
+                    Result<
+                        Option<objectiveai::functions::profiles::response::GetProfile>,
+                        objectiveai::error::ResponseError,
+                    >,
+                >,
+            >,
+        >,
+    >,
 }
 
 impl<CTXEXT> Clone for Context<CTXEXT> {
@@ -50,6 +84,8 @@ impl<CTXEXT> Clone for Context<CTXEXT> {
             cost_multiplier: self.cost_multiplier,
             ensemble_cache: self.ensemble_cache.clone(),
             ensemble_llm_cache: self.ensemble_llm_cache.clone(),
+            function_cache: self.function_cache.clone(),
+            profile_cache: self.profile_cache.clone(),
         }
     }
 }
@@ -64,6 +100,8 @@ impl<CTXEXT> Context<CTXEXT> {
             cost_multiplier,
             ensemble_cache: Arc::new(DashMap::new()),
             ensemble_llm_cache: Arc::new(DashMap::new()),
+            function_cache: Arc::new(DashMap::new()),
+            profile_cache: Arc::new(DashMap::new()),
         }
     }
 }
