@@ -53,6 +53,25 @@ impl TryFrom<EnsembleBase> for Ensemble {
             }
             let llm: ensemble_llm::EnsembleLlmWithFallbacksAndCount =
                 base_llm.try_into()?;
+            // validate no 2 identical IDs in primary/fallbacks
+            if let Some(fallbacks) = &llm.fallbacks {
+                if fallbacks.iter().any(|fb| fb.id == llm.inner.id) {
+                    return Err(format!(
+                        "Ensemble LLM cannot have identical primary and fallback IDs: {}",
+                        llm.inner.id
+                    ));
+                }
+                for i in 0..fallbacks.len() {
+                    for j in (i + 1)..fallbacks.len() {
+                        if fallbacks[i].id == fallbacks[j].id {
+                            return Err(format!(
+                                "Ensemble LLM cannot have duplicate fallback IDs: {}",
+                                fallbacks[i].id
+                            ));
+                        }
+                    }
+                }
+            }
             let full_id = llm.full_id();
             match llms_with_full_id.get_mut(&full_id) {
                 Some(existing_llm) => existing_llm.count += llm.count,
