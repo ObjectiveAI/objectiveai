@@ -15,7 +15,7 @@ pub async fn get_completion_votes(
 
 pub async fn get_cache_vote(
     client: &HttpClient,
-    request: &super::request::CacheVoteRequest,
+    request: &super::request::CacheVoteRequest<'_>,
 ) -> Result<super::response::CacheVote, HttpError> {
     client
         .send_unary(
