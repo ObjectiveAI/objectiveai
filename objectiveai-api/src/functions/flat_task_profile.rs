@@ -726,7 +726,7 @@ where
             ensemble_fetcher
                 .fetch(ctx, &id)
                 .map(|result| match result {
-                    Ok(Some(res)) => Ok(res),
+                    Ok(Some((ensemble, _))) => Ok(ensemble),
                     Ok(None) => Err(super::executions::Error::EnsembleNotFound),
                     Err(e) => Err(super::executions::Error::FetchEnsemble(e)),
                 })

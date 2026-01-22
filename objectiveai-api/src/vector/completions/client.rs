@@ -211,7 +211,7 @@ where
                     self.ensemble_fetcher.fetch(ctx.clone(), ensemble_id).map(
                         |result| {
                             match result {
-                                Ok(Some(ensemble)) => Ok(ensemble),
+                                Ok(Some((ensemble, _))) => Ok(ensemble),
                                 Ok(None) => Err(super::Error::EnsembleNotFound),
                                 Err(e) => Err(super::Error::FetchEnsemble(e)),
                             }
@@ -272,7 +272,7 @@ where
                     .ensemble_fetcher
                     .fetch(ctx.clone(), ensemble_id)
                     .map(|result| match result {
-                        Ok(Some(ensemble)) => Ok(ensemble),
+                        Ok(Some((ensemble, _))) => Ok(ensemble),
                         Ok(None) => Err(super::Error::EnsembleNotFound),
                         Err(e) => Err(super::Error::FetchEnsemble(e)),
                     })
@@ -377,18 +377,38 @@ where
 
         // fetch from cache if requested
         if request.from_cache.is_some_and(|bool| bool) {
+            // collect model refs so they're owned here
+            let mut model_refs = Vec::with_capacity(llms.len());
+            for (_, _, llm, _) in &llms {
+                let model =
+                    objectiveai::chat::completions::request::Model::Provided(
+                        llm.inner.base.clone(),
+                    );
+                let models = llm.fallbacks.as_ref().map(|fallbacks| {
+                    fallbacks
+                        .iter()
+                        .map(|fallback| objectiveai::chat::completions::request::Model::Provided(
+                            fallback.base.clone(),
+                        ))
+                        .collect::<Vec<_>>()
+                });
+                model_refs.push((model, models));
+            }
+            // execute the futures
             let mut futs = Vec::with_capacity(llms.len());
-            for (flat_ensemble_index, ensemble_index, llm, weight) in &llms {
-                futs.push(async {
-                    let models = llm.fallbacks.as_ref().map(|fallbacks| {
-                        fallbacks
-                            .iter()
-                            .map(|fallback| fallback.id.as_str())
-                            .collect::<Vec<_>>()
-                    });
-                    match self.cache_vote_fetcher.fetch(
-                        ctx.clone(),
-                        &llm.inner.id,
+            for (
+                (flat_ensemble_index, ensemble_index, _, weight),
+                (model, models),
+            ) in llms.iter().zip(model_refs.iter())
+            {
+                let cache_vote_fetcher = self.cache_vote_fetcher.clone();
+                let request = request.clone();
+                let ctx = ctx.clone();
+                let responses_ids = responses_ids.clone();
+                futs.push(async move {
+                    match cache_vote_fetcher.fetch(
+                        ctx,
+                        model,
                         models.as_deref(),
                         &request.messages,
                         request.tools.as_deref(),
@@ -421,7 +441,7 @@ where
                                 rearranged_vote[i] = vote.vote[pos];
                             }
                             vote.vote = rearranged_vote;
-                            vote.responses_ids = responses_ids.clone();
+                            vote.responses_ids = responses_ids;
 
                             // return vote
                             Ok(Some(vote))

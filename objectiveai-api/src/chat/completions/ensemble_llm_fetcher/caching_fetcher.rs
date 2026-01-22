@@ -49,7 +49,7 @@ where
         ctx: ctx::Context<CTXEXT>,
         id: &str,
     ) -> Result<
-        Option<objectiveai::ensemble_llm::EnsembleLlm>,
+        Option<(objectiveai::ensemble_llm::EnsembleLlm, u64)>,
         objectiveai::error::ResponseError,
     > {
         // Clone the shared future while holding the lock, then release the lock before awaiting.

@@ -12,7 +12,7 @@ pub struct Context<CTXEXT> {
             Shared<
                 tokio::sync::oneshot::Receiver<
                     Result<
-                        Option<objectiveai::ensemble::Ensemble>,
+                        Option<(objectiveai::ensemble::Ensemble, u64)>,
                         objectiveai::error::ResponseError,
                     >,
                 >,
@@ -25,7 +25,7 @@ pub struct Context<CTXEXT> {
             Shared<
                 tokio::sync::oneshot::Receiver<
                     Result<
-                        Option<objectiveai::ensemble_llm::EnsembleLlm>,
+                        Option<(objectiveai::ensemble_llm::EnsembleLlm, u64)>,
                         objectiveai::error::ResponseError,
                     >,
                 >,

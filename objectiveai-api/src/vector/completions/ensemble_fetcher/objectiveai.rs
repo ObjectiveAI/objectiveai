@@ -22,11 +22,11 @@ where
         _ctx: ctx::Context<CTXEXT>,
         id: &str,
     ) -> Result<
-        Option<objectiveai::ensemble::Ensemble>,
+        Option<(objectiveai::ensemble::Ensemble, u64)>,
         objectiveai::error::ResponseError,
     > {
         match objectiveai::ensemble::get_ensemble(&self.client, id).await {
-            Ok(ensemble_llm) => Ok(Some(ensemble_llm.inner)),
+            Ok(ensemble) => Ok(Some((ensemble.inner, ensemble.created))),
             Err(e) if e.status() == 404 => Ok(None),
             Err(e) => Err(objectiveai::error::ResponseError::from(&e)),
         }
