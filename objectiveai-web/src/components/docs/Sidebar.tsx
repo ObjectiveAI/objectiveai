@@ -93,6 +93,13 @@ export function Sidebar({ className }: { className?: string }): ReactElement {
           <SidebarItemSpacer />
           <SidebarApiItem
             method="GET"
+            path="/functions/{fowner}/{frepository}/{fcommit}"
+            href="/docs/api/get/functions/fowner/frepository/fcommit"
+            description="Retrieve a remote ObjectiveAI Function"
+          />
+          <SidebarItemSpacer />
+          <SidebarApiItem
+            method="GET"
             path="/functions/{fowner}/{frepository}/{fcommit}/usage"
             href="/docs/api/get/functions/fowner/frepository/fcommit/usage"
             description="Retrieve historical usage for a remote ObjectiveAI Function"
@@ -152,6 +159,13 @@ export function Sidebar({ className }: { className?: string }): ReactElement {
           <SidebarItemSpacer />
           <SidebarApiItem
             method="GET"
+            path="/functions/profiles/{powner}/{prepository}/{pcommit}"
+            href="/docs/api/get/functions/profiles/powner/prepository/pcommit"
+            description="Retrieve a remote ObjectiveAI Function Profile"
+          />
+          <SidebarItemSpacer />
+          <SidebarApiItem
+            method="GET"
             path="/functions/profiles/{powner}/{prepository}/{pcommit}/usage"
             href="/docs/api/get/functions/profiles/powner/prepository/pcommit/usage"
             description="Retrieve historical usage for a remote ObjectiveAI Function Profile"
@@ -165,6 +179,20 @@ export function Sidebar({ className }: { className?: string }): ReactElement {
             path="/vector/completions"
             href="/docs/api/post/vector/completions"
             description="Create a new Vector Completion"
+          />
+          <SidebarItemSpacer />
+          <SidebarApiItem
+            method="GET"
+            path="/vector/completions/{id}"
+            href="/docs/api/get/vector/completions/id"
+            description="Retrieve votes from a historical Vector Completion"
+          />
+          <SidebarItemSpacer />
+          <SidebarApiItem
+            method="GET"
+            path="/vector/completions/cache"
+            href="/docs/api/get/vector/completions/cache"
+            description="Request a cached vote from the global ObjectiveAI vote cache"
           />
 
           <SidebarSectionSpacer />
