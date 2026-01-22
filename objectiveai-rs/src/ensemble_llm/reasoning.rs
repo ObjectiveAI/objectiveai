@@ -33,6 +33,7 @@ pub struct Reasoning {
 }
 
 impl Reasoning {
+    /// Normalizes the reasoning configuration for deterministic hashing.
     pub fn prepare(mut self) -> Option<Self> {
         if let Some(0) = self.max_tokens {
             self.max_tokens = None;
@@ -58,6 +59,7 @@ impl Reasoning {
         }
     }
 
+    /// Validates the reasoning configuration.
     pub fn validate(&self) -> Result<(), String> {
         if self
             .max_tokens

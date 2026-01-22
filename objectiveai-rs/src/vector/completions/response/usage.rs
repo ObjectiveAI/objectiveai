@@ -34,6 +34,7 @@ pub struct Usage {
 }
 
 impl Usage {
+    /// Returns `true` if any usage metrics are non-zero.
     pub fn any_usage(&self) -> bool {
         self.completion_tokens > 0
             || self.prompt_tokens > 0
@@ -51,6 +52,7 @@ impl Usage {
             || self.total_cost > rust_decimal::Decimal::ZERO
     }
 
+    /// Appends usage statistics from another instance.
     pub fn push(&mut self, other: &Usage) {
         self.completion_tokens += other.completion_tokens;
         self.prompt_tokens += other.prompt_tokens;
@@ -92,6 +94,7 @@ impl Usage {
         self.total_cost += other.total_cost;
     }
 
+    /// Appends usage from a chat completion response.
     pub fn push_chat_completion_usage(
         &mut self,
         other: &chat::completions::response::Usage,

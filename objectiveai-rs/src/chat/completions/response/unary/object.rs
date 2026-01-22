@@ -1,8 +1,12 @@
+//! Object type for unary chat completion responses.
+
 use crate::chat::completions::response;
 use serde::{Deserialize, Serialize};
 
+/// The object type for chat completion responses.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
 pub enum Object {
+    /// A chat completion object.
     #[serde(rename = "chat.completion")]
     #[default]
     ChatCompletion,

@@ -12,6 +12,7 @@ pub struct Logprobs {
 }
 
 impl Logprobs {
+    /// Appends log probabilities from another instance.
     pub fn push(&mut self, other: &Logprobs) {
         match (&mut self.content, &other.content) {
             (Some(self_content), Some(other_content)) => {

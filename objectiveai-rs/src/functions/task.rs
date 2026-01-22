@@ -24,6 +24,7 @@ pub enum TaskExpression {
 }
 
 impl TaskExpression {
+    /// Takes and returns the skip expression, if present.
     pub fn take_skip(&mut self) -> Option<super::expression::Expression> {
         match self {
             TaskExpression::ScalarFunction(task) => task.skip.take(),
@@ -32,6 +33,7 @@ impl TaskExpression {
         }
     }
 
+    /// Returns the map index, if this is a mapped task.
     pub fn input_map(&self) -> Option<u64> {
         match self {
             TaskExpression::ScalarFunction(task) => task.map,
@@ -40,6 +42,7 @@ impl TaskExpression {
         }
     }
 
+    /// Compiles the expression into a concrete [`Task`].
     pub fn compile(
         self,
         params: &super::expression::Params,
@@ -102,6 +105,7 @@ pub struct ScalarFunctionTaskExpression {
 }
 
 impl ScalarFunctionTaskExpression {
+    /// Compiles the expression into a concrete [`ScalarFunctionTask`].
     pub fn compile(
         self,
         params: &super::expression::Params,
@@ -155,6 +159,7 @@ pub struct VectorFunctionTaskExpression {
 }
 
 impl VectorFunctionTaskExpression {
+    /// Compiles the expression into a concrete [`VectorFunctionTask`].
     pub fn compile(
         self,
         params: &super::expression::Params,
@@ -229,6 +234,7 @@ pub struct VectorCompletionTaskExpression {
 }
 
 impl VectorCompletionTaskExpression {
+    /// Compiles the expression into a concrete [`VectorCompletionTask`].
     pub fn compile(
         self,
         params: &super::expression::Params,

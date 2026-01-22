@@ -40,6 +40,9 @@ pub struct ChatCompletionChunk {
 }
 
 impl ChatCompletionChunk {
+    /// Accumulates another chunk into this one.
+    ///
+    /// This is used to build up a complete response from streaming chunks.
     pub fn push(
         &mut self,
         ChatCompletionChunk {

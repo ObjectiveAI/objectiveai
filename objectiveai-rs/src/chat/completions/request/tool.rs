@@ -22,15 +22,19 @@ pub enum Tool {
     Function { function: FunctionTool },
 }
 
+/// Expression variant of [`Tool`] for dynamic content.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ToolExpression {
+    /// A function tool expression.
     Function {
+        /// The function definition expression.
         function: functions::expression::WithExpression<FunctionToolExpression>,
     },
 }
 
 impl ToolExpression {
+    /// Compiles the expression into a concrete [`Tool`].
     pub fn compile(
         self,
         params: &functions::expression::Params,
@@ -59,12 +63,16 @@ pub struct FunctionTool {
     pub strict: Option<bool>,
 }
 
+/// Expression variant of [`FunctionTool`] for dynamic content.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FunctionToolExpression {
+    /// The function name expression.
     pub name: functions::expression::WithExpression<String>,
+    /// The description expression.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description:
         Option<functions::expression::WithExpression<Option<String>>>,
+    /// The parameters expression.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parameters: Option<
         functions::expression::WithExpression<
@@ -76,11 +84,13 @@ pub struct FunctionToolExpression {
             >,
         >,
     >,
+    /// The strict mode expression.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub strict: Option<functions::expression::WithExpression<Option<bool>>>,
 }
 
 impl FunctionToolExpression {
+    /// Compiles the expression into a concrete [`FunctionTool`].
     pub fn compile(
         self,
         params: &functions::expression::Params,
@@ -124,14 +134,24 @@ impl FunctionToolExpression {
     }
 }
 
+/// A JSON value expression for dynamic content.
+///
+/// This allows JSON values to contain JMESPath expressions that are
+/// evaluated at runtime.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum ValueExpression {
+    /// A null value.
     Null,
+    /// A boolean value.
     Bool(bool),
+    /// A numeric value.
     Number(serde_json::Number),
+    /// A string value.
     String(String),
+    /// An array of value expressions.
     Array(Vec<functions::expression::WithExpression<ValueExpression>>),
+    /// An object with value expressions.
     Object(
         IndexMap<
             String,
@@ -141,6 +161,7 @@ pub enum ValueExpression {
 }
 
 impl ValueExpression {
+    /// Compiles the expression into a concrete JSON value.
     pub fn compile(
         self,
         params: &functions::expression::Params,

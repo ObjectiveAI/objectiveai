@@ -31,6 +31,7 @@ pub struct Delta {
 }
 
 impl Delta {
+    /// Accumulates another delta into this one.
     pub fn push(
         &mut self,
         Delta {

@@ -112,6 +112,7 @@ pub struct VectorCompletionOutput {
 }
 
 impl VectorCompletionOutput {
+    /// Creates a default output with uniform scores when no votes are cast.
     pub fn default_from_request_responses_len(
         request_responses_len: usize,
     ) -> Self {
@@ -181,6 +182,7 @@ pub enum FunctionOutput {
 }
 
 impl FunctionOutput {
+    /// Converts the output into an error variant (wrapping the value as JSON).
     pub fn into_err(self) -> Self {
         match self {
             Self::Scalar(scalar) => {

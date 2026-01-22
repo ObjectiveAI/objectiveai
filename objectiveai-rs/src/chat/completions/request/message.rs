@@ -43,6 +43,10 @@ pub enum Message {
 }
 
 impl Message {
+    /// Prepares the message for sending by normalizing its content.
+    ///
+    /// This method consolidates consecutive text parts, removes empty parts,
+    /// and normalizes optional fields (setting empty strings to `None`).
     pub fn prepare(&mut self) {
         match self {
             Message::Developer(msg) => msg.prepare(),
@@ -54,6 +58,10 @@ impl Message {
     }
 }
 
+/// A message with JMESPath expressions for dynamic content.
+///
+/// This is the expression variant of [`Message`] used in function definitions
+/// where message content can be computed from the function input at runtime.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "role")]
 pub enum MessageExpression {
@@ -70,6 +78,14 @@ pub enum MessageExpression {
 }
 
 impl MessageExpression {
+    /// Compiles the expression into a concrete [`Message`].
+    ///
+    /// Evaluates all JMESPath expressions using the provided parameters
+    /// and returns the resulting message.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any expression evaluation fails.
     pub fn compile(
         self,
         params: &functions::expression::Params,
@@ -105,6 +121,7 @@ pub struct DeveloperMessage {
 }
 
 impl DeveloperMessage {
+    /// Prepares the message by normalizing content and optional fields.
     pub fn prepare(&mut self) {
         self.content.prepare();
         if self.name.as_ref().is_some_and(String::is_empty) {
@@ -113,14 +130,18 @@ impl DeveloperMessage {
     }
 }
 
+/// Expression variant of [`DeveloperMessage`] for dynamic content.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeveloperMessageExpression {
+    /// The message content expression.
     pub content: functions::expression::WithExpression<SimpleContentExpression>,
+    /// Optional name expression.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<functions::expression::WithExpression<Option<String>>>,
 }
 
 impl DeveloperMessageExpression {
+    /// Compiles the expression into a concrete [`DeveloperMessage`].
     pub fn compile(
         self,
         params: &functions::expression::Params,
@@ -146,6 +167,7 @@ pub struct SystemMessage {
 }
 
 impl SystemMessage {
+    /// Prepares the message by normalizing content and optional fields.
     pub fn prepare(&mut self) {
         self.content.prepare();
         if self.name.as_ref().is_some_and(String::is_empty) {
@@ -154,14 +176,18 @@ impl SystemMessage {
     }
 }
 
+/// Expression variant of [`SystemMessage`] for dynamic content.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemMessageExpression {
+    /// The message content expression.
     pub content: functions::expression::WithExpression<SimpleContentExpression>,
+    /// Optional name expression.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<functions::expression::WithExpression<Option<String>>>,
 }
 
 impl SystemMessageExpression {
+    /// Compiles the expression into a concrete [`SystemMessage`].
     pub fn compile(
         self,
         params: &functions::expression::Params,
@@ -187,6 +213,7 @@ pub struct UserMessage {
 }
 
 impl UserMessage {
+    /// Prepares the message by normalizing content and optional fields.
     pub fn prepare(&mut self) {
         self.content.prepare();
         if self.name.as_ref().is_some_and(String::is_empty) {
@@ -195,14 +222,18 @@ impl UserMessage {
     }
 }
 
+/// Expression variant of [`UserMessage`] for dynamic content.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserMessageExpression {
+    /// The message content expression.
     pub content: functions::expression::WithExpression<RichContentExpression>,
+    /// Optional name expression.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<functions::expression::WithExpression<Option<String>>>,
 }
 
 impl UserMessageExpression {
+    /// Compiles the expression into a concrete [`UserMessage`].
     pub fn compile(
         self,
         params: &functions::expression::Params,
@@ -217,25 +248,33 @@ impl UserMessageExpression {
     }
 }
 
+/// A tool message containing the result of a tool call.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolMessage {
+    /// The content of the tool response.
     pub content: RichContent,
+    /// The ID of the tool call this message responds to.
     pub tool_call_id: String,
 }
 
 impl ToolMessage {
+    /// Prepares the message by normalizing its content.
     pub fn prepare(&mut self) {
         self.content.prepare();
     }
 }
 
+/// Expression variant of [`ToolMessage`] for dynamic content.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolMessageExpression {
+    /// The content expression.
     pub content: functions::expression::WithExpression<RichContentExpression>,
+    /// The tool call ID expression.
     pub tool_call_id: functions::expression::WithExpression<String>,
 }
 
 impl ToolMessageExpression {
+    /// Compiles the expression into a concrete [`ToolMessage`].
     pub fn compile(
         self,
         params: &functions::expression::Params,
@@ -249,21 +288,28 @@ impl ToolMessageExpression {
     }
 }
 
+/// An assistant message (model's previous response).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AssistantMessage {
+    /// The message content, if any.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<RichContent>,
+    /// Optional name for the assistant.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    /// Refusal message if the model declined to respond.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refusal: Option<String>,
+    /// Tool calls made by the assistant.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<AssistantToolCall>>,
+    /// Reasoning content from models that support chain-of-thought.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reasoning: Option<String>,
 }
 
 impl AssistantMessage {
+    /// Prepares the message by normalizing content and optional fields.
     pub fn prepare(&mut self) {
         if let Some(content) = &mut self.content {
             content.prepare();
@@ -289,8 +335,10 @@ impl AssistantMessage {
     }
 }
 
+/// Expression variant of [`AssistantMessage`] for dynamic content.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AssistantMessageExpression {
+    /// The content expression.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<
         functions::expression::WithExpression<Option<RichContentExpression>>,
@@ -317,6 +365,7 @@ pub struct AssistantMessageExpression {
 }
 
 impl AssistantMessageExpression {
+    /// Compiles the expression into a concrete [`AssistantMessage`].
     pub fn compile(
         self,
         params: &functions::expression::Params,
@@ -388,16 +437,21 @@ impl AssistantMessageExpression {
     }
 }
 
+/// A tool call made by the assistant.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AssistantToolCall {
+    /// A function call with an ID and function details.
     Function {
+        /// The unique ID of this tool call.
         id: String,
+        /// The function being called.
         function: AssistantToolCallFunction,
     },
 }
 
 impl AssistantToolCall {
+    /// Returns `true` if all fields are empty.
     pub fn is_empty(&self) -> bool {
         match self {
             AssistantToolCall::Function { id, function } => {
@@ -407,11 +461,15 @@ impl AssistantToolCall {
     }
 }
 
+/// Expression variant of [`AssistantToolCall`] for dynamic content.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AssistantToolCallExpression {
+    /// A function call expression.
     Function {
+        /// The tool call ID expression.
         id: functions::expression::WithExpression<String>,
+        /// The function expression.
         function: functions::expression::WithExpression<
             AssistantToolCallFunctionExpression,
         >,
@@ -419,6 +477,7 @@ pub enum AssistantToolCallExpression {
 }
 
 impl AssistantToolCallExpression {
+    /// Compiles the expression into a concrete [`AssistantToolCall`].
     pub fn compile(
         self,
         params: &functions::expression::Params,
@@ -433,25 +492,33 @@ impl AssistantToolCallExpression {
     }
 }
 
+/// Details of a function call made by the assistant.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AssistantToolCallFunction {
+    /// The name of the function to call.
     pub name: String,
+    /// The arguments to pass to the function, as a JSON string.
     pub arguments: String,
 }
 
 impl AssistantToolCallFunction {
+    /// Returns `true` if both name and arguments are empty.
     pub fn is_empty(&self) -> bool {
         self.name.is_empty() && self.arguments.is_empty()
     }
 }
 
+/// Expression variant of [`AssistantToolCallFunction`] for dynamic content.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AssistantToolCallFunctionExpression {
+    /// The function name expression.
     pub name: functions::expression::WithExpression<String>,
+    /// The arguments expression.
     pub arguments: functions::expression::WithExpression<String>,
 }
 
 impl AssistantToolCallFunctionExpression {
+    /// Compiles the expression into a concrete [`AssistantToolCallFunction`].
     pub fn compile(
         self,
         params: &functions::expression::Params,
@@ -474,6 +541,7 @@ pub enum SimpleContent {
 }
 
 impl SimpleContent {
+    /// Prepares the content by consolidating parts into a single text string.
     pub fn prepare(&mut self) {
         match self {
             SimpleContent::Text(_) => {}
@@ -498,16 +566,20 @@ impl SimpleContent {
     }
 }
 
+/// Expression variant of [`SimpleContent`] for dynamic content.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum SimpleContentExpression {
+    /// Plain text content.
     Text(String),
+    /// Multi-part text content expressions.
     Parts(
         Vec<functions::expression::WithExpression<SimpleContentPartExpression>>,
     ),
 }
 
 impl SimpleContentExpression {
+    /// Compiles the expression into a concrete [`SimpleContent`].
     pub fn compile(
         self,
         params: &functions::expression::Params,
@@ -536,21 +608,30 @@ impl SimpleContentExpression {
     }
 }
 
+/// A part of simple text content.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum SimpleContentPart {
-    Text { text: String },
+    /// A text part.
+    Text {
+        /// The text content.
+        text: String,
+    },
 }
 
+/// Expression variant of [`SimpleContentPart`] for dynamic content.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum SimpleContentPartExpression {
+    /// A text part expression.
     Text {
+        /// The text expression.
         text: functions::expression::WithExpression<String>,
     },
 }
 
 impl SimpleContentPartExpression {
+    /// Compiles the expression into a concrete [`SimpleContentPart`].
     pub fn compile(
         self,
         params: &functions::expression::Params,
@@ -575,6 +656,10 @@ pub enum RichContent {
 }
 
 impl RichContent {
+    /// Prepares the content by normalizing parts.
+    ///
+    /// This consolidates consecutive text parts, removes empty parts,
+    /// and converts single-part content to plain text.
     pub fn prepare(&mut self) {
         // nothing to prepare for plain text
         let parts = match self {
@@ -626,6 +711,7 @@ impl RichContent {
         }
     }
 
+    /// Returns `true` if the content is empty.
     pub fn is_empty(&self) -> bool {
         match self {
             RichContent::Text(text) => text.is_empty(),
@@ -633,6 +719,7 @@ impl RichContent {
         }
     }
 
+    /// Computes a content-addressed ID for this content.
     pub fn id(&self) -> String {
         let mut hasher = twox_hash::XxHash3_128::with_seed(0);
         hasher.write(serde_json::to_string(self).unwrap().as_bytes());
@@ -640,16 +727,20 @@ impl RichContent {
     }
 }
 
+/// Expression variant of [`RichContent`] for dynamic content.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum RichContentExpression {
+    /// Plain text content.
     Text(String),
+    /// Multi-part content expressions.
     Parts(
         Vec<functions::expression::WithExpression<RichContentPartExpression>>,
     ),
 }
 
 impl RichContentExpression {
+    /// Compiles the expression into a concrete [`RichContent`].
     pub fn compile(
         self,
         params: &functions::expression::Params,
@@ -695,6 +786,7 @@ pub enum RichContentPart {
 }
 
 impl RichContentPart {
+    /// Prepares the content part by normalizing optional fields.
     pub fn prepare(&mut self) {
         match self {
             RichContentPart::Text { .. } => {}
@@ -710,6 +802,7 @@ impl RichContentPart {
         }
     }
 
+    /// Returns `true` if the content part is empty.
     pub fn is_empty(&self) -> bool {
         match self {
             RichContentPart::Text { text } => text.is_empty(),
@@ -724,6 +817,7 @@ impl RichContentPart {
     }
 }
 
+/// Expression variant of [`RichContentPart`] for dynamic content.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum RichContentPartExpression {
@@ -748,6 +842,7 @@ pub enum RichContentPartExpression {
 }
 
 impl RichContentPartExpression {
+    /// Compiles the expression into a concrete [`RichContentPart`].
     pub fn compile(
         self,
         params: &functions::expression::Params,
@@ -781,71 +876,93 @@ impl RichContentPartExpression {
     }
 }
 
+/// An image URL for multimodal input.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImageUrl {
+    /// The URL of the image (can be a data URL or HTTP URL).
     pub url: String,
+    /// The detail level for image processing.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub detail: Option<ImageUrlDetail>,
 }
 
 impl ImageUrl {
+    /// Prepares the image URL by normalizing the detail field.
     pub fn prepare(&mut self) {
         if matches!(self.detail, Some(ImageUrlDetail::Auto)) {
             self.detail = None;
         }
     }
 
+    /// Returns `true` if the URL is empty and no detail is set.
     pub fn is_empty(&self) -> bool {
         self.url.is_empty() && self.detail.is_none()
     }
 }
 
+/// Detail level for image processing.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum ImageUrlDetail {
+    /// Let the model decide the detail level.
     #[serde(rename = "auto")]
     Auto,
+    /// Low detail mode (faster, less tokens).
     #[serde(rename = "low")]
     Low,
+    /// High detail mode (more accurate, more tokens).
     #[serde(rename = "high")]
     High,
 }
 
+/// Audio input for multimodal messages.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InputAudio {
+    /// Base64-encoded audio data.
     pub data: String,
+    /// The audio format (e.g., "wav", "mp3").
     pub format: String,
 }
 
 impl InputAudio {
+    /// Returns `true` if both data and format are empty.
     pub fn is_empty(&self) -> bool {
         self.data.is_empty() && self.format.is_empty()
     }
 }
 
+/// A video URL for multimodal input.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VideoUrl {
+    /// The URL of the video.
     pub url: String,
 }
 
 impl VideoUrl {
+    /// Returns `true` if the URL is empty.
     pub fn is_empty(&self) -> bool {
         self.url.is_empty()
     }
 }
 
+/// A file attachment for multimodal input.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct File {
+    /// Base64-encoded file data.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub file_data: Option<String>,
+    /// The ID of a previously uploaded file.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub file_id: Option<String>,
+    /// The filename for display purposes.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub filename: Option<String>,
+    /// A URL to fetch the file from.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub file_url: Option<String>,
 }
 
 impl File {
+    /// Prepares the file by normalizing empty strings to `None`.
     pub fn prepare(&mut self) {
         if self.file_data.as_ref().is_some_and(String::is_empty) {
             self.file_data = None;
@@ -861,6 +978,7 @@ impl File {
         }
     }
 
+    /// Returns `true` if all file fields are `None`.
     pub fn is_empty(&self) -> bool {
         self.file_data.is_none()
             && self.file_id.is_none()

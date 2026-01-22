@@ -31,6 +31,7 @@ pub struct VectorCompletionChunk {
 }
 
 impl VectorCompletionChunk {
+    /// Creates a default chunk with uniform scores for the given number of responses.
     pub fn default_from_request_responses_len(
         request_responses_len: usize,
     ) -> Self {
@@ -54,6 +55,9 @@ impl VectorCompletionChunk {
         }
     }
 
+    /// Accumulates another chunk into this one.
+    ///
+    /// Updates scores, weights, and usage, appends new votes.
     pub fn push(
         &mut self,
         VectorCompletionChunk {

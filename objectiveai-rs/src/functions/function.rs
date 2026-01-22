@@ -233,6 +233,7 @@ impl Function {
         Ok(super::expression::CompiledFunctionOutput { output, valid })
     }
 
+    /// Returns the function's description, if available.
     pub fn description(&self) -> Option<&str> {
         match self {
             Function::Remote(remote_function) => {
@@ -242,6 +243,7 @@ impl Function {
         }
     }
 
+    /// Returns the function's changelog, if available.
     pub fn changelog(&self) -> Option<&str> {
         match self {
             Function::Remote(remote_function) => remote_function.changelog(),
@@ -249,6 +251,7 @@ impl Function {
         }
     }
 
+    /// Returns the function's input schema, if available.
     pub fn input_schema(&self) -> Option<&super::expression::InputSchema> {
         match self {
             Function::Remote(remote_function) => {
@@ -258,6 +261,7 @@ impl Function {
         }
     }
 
+    /// Returns the function's input maps, if defined.
     pub fn input_maps(&self) -> Option<&super::expression::InputMaps> {
         match self {
             Function::Remote(remote_function) => remote_function.input_maps(),
@@ -265,6 +269,7 @@ impl Function {
         }
     }
 
+    /// Returns the function's tasks.
     pub fn tasks(&self) -> &[super::TaskExpression] {
         match self {
             Function::Remote(remote_function) => remote_function.tasks(),
@@ -272,6 +277,7 @@ impl Function {
         }
     }
 
+    /// Returns the function's output expression.
     pub fn output(&self) -> &super::expression::Expression {
         match self {
             Function::Remote(remote_function) => remote_function.output(),
@@ -279,6 +285,7 @@ impl Function {
         }
     }
 
+    /// Returns the function's expected output length expression, if defined.
     pub fn output_length(
         &self,
     ) -> Option<&super::expression::WithExpression<u64>> {
@@ -353,6 +360,7 @@ pub enum RemoteFunction {
 }
 
 impl RemoteFunction {
+    /// Returns the function's description.
     pub fn description(&self) -> &str {
         match self {
             RemoteFunction::Scalar { description, .. } => description,
@@ -360,6 +368,7 @@ impl RemoteFunction {
         }
     }
 
+    /// Returns the function's changelog, if present.
     pub fn changelog(&self) -> Option<&str> {
         match self {
             RemoteFunction::Scalar { changelog, .. } => changelog.as_deref(),
@@ -367,6 +376,7 @@ impl RemoteFunction {
         }
     }
 
+    /// Returns the function's input schema.
     pub fn input_schema(&self) -> &super::expression::InputSchema {
         match self {
             RemoteFunction::Scalar { input_schema, .. } => input_schema,
@@ -374,6 +384,7 @@ impl RemoteFunction {
         }
     }
 
+    /// Returns the function's input maps, if defined.
     pub fn input_maps(&self) -> Option<&super::expression::InputMaps> {
         match self {
             RemoteFunction::Scalar { input_maps, .. } => input_maps.as_ref(),
@@ -381,6 +392,7 @@ impl RemoteFunction {
         }
     }
 
+    /// Returns the function's tasks.
     pub fn tasks(&self) -> &[super::TaskExpression] {
         match self {
             RemoteFunction::Scalar { tasks, .. } => tasks,
@@ -388,6 +400,7 @@ impl RemoteFunction {
         }
     }
 
+    /// Returns the function's output expression.
     pub fn output(&self) -> &super::expression::Expression {
         match self {
             RemoteFunction::Scalar { output, .. } => output,
@@ -395,6 +408,7 @@ impl RemoteFunction {
         }
     }
 
+    /// Returns the function's expected output length, if defined (vector functions only).
     pub fn output_length(
         &self,
     ) -> Option<&super::expression::WithExpression<u64>> {
@@ -450,6 +464,7 @@ pub enum InlineFunction {
 }
 
 impl InlineFunction {
+    /// Returns the function's input maps, if defined.
     pub fn input_maps(&self) -> Option<&super::expression::InputMaps> {
         match self {
             InlineFunction::Scalar { input_maps, .. } => input_maps.as_ref(),
@@ -457,6 +472,7 @@ impl InlineFunction {
         }
     }
 
+    /// Returns the function's tasks.
     pub fn tasks(&self) -> &[super::TaskExpression] {
         match self {
             InlineFunction::Scalar { tasks, .. } => tasks,
@@ -464,6 +480,7 @@ impl InlineFunction {
         }
     }
 
+    /// Returns the function's output expression.
     pub fn output(&self) -> &super::expression::Expression {
         match self {
             InlineFunction::Scalar { output, .. } => output,

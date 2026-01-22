@@ -1,3 +1,6 @@
+//! Utility functions for accumulating response data.
+
+/// Adds an optional u64 value to another optional u64.
 pub fn push_option_u64(
     self_value: &mut Option<u64>,
     other_value: &Option<u64>,
@@ -13,6 +16,7 @@ pub fn push_option_u64(
     }
 }
 
+/// Adds an optional decimal value to another optional decimal.
 pub fn push_option_decimal(
     self_value: &mut Option<rust_decimal::Decimal>,
     other_value: &Option<rust_decimal::Decimal>,
@@ -28,6 +32,7 @@ pub fn push_option_decimal(
     }
 }
 
+/// Appends an optional string to another optional string.
 pub fn push_option_string(
     self_value: &mut Option<String>,
     other_value: &Option<String>,
@@ -43,6 +48,7 @@ pub fn push_option_string(
     }
 }
 
+/// Extends an optional vector with another optional vector.
 pub fn push_option_vec<T: Clone>(
     self_value: &mut Option<Vec<T>>,
     other_value: &Option<Vec<T>>,

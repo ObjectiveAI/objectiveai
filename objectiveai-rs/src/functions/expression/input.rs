@@ -22,6 +22,7 @@ pub enum InputMaps {
 }
 
 impl InputMaps {
+    /// Compiles the input maps expressions into concrete 2D arrays.
     pub fn compile(
         self,
         params: &super::Params,
@@ -77,6 +78,10 @@ pub enum Input {
 }
 
 impl Input {
+    /// Converts the input to a sequence of rich content parts.
+    ///
+    /// This is used to render structured input data as formatted JSON
+    /// in multimodal messages.
     pub fn to_rich_content_parts(
         self,
         depth: usize,
@@ -315,6 +320,7 @@ pub enum InputExpression {
 }
 
 impl InputExpression {
+    /// Compiles the expression into a concrete [`Input`].
     pub fn compile(
         self,
         params: &super::Params,
@@ -388,6 +394,7 @@ pub enum InputSchema {
 }
 
 impl InputSchema {
+    /// Validates that an input value conforms to this schema.
     pub fn validate_input(&self, input: &Input) -> bool {
         match self {
             InputSchema::Object(schema) => schema.validate_input(input),
@@ -619,6 +626,7 @@ pub struct AnyOfInputSchema {
 }
 
 impl AnyOfInputSchema {
+    /// Validates that an input matches at least one schema in the union.
     pub fn validate_input(&self, input: &Input) -> bool {
         self.any_of
             .iter()
@@ -641,6 +649,7 @@ pub struct ObjectInputSchema {
 }
 
 impl ObjectInputSchema {
+    /// Validates that an input is an object matching this schema.
     pub fn validate_input(&self, input: &Input) -> bool {
         match input {
             Input::Object(map) => {
@@ -679,6 +688,7 @@ pub struct ArrayInputSchema {
 }
 
 impl ArrayInputSchema {
+    /// Validates that an input is an array matching this schema.
     pub fn validate_input(&self, input: &Input) -> bool {
         match input {
             Input::Array(array) => {
@@ -712,6 +722,7 @@ pub struct StringInputSchema {
 }
 
 impl StringInputSchema {
+    /// Validates that an input is a string matching this schema.
     pub fn validate_input(&self, input: &Input) -> bool {
         match input {
             Input::String(s) => {
@@ -742,6 +753,7 @@ pub struct IntegerInputSchema {
 }
 
 impl IntegerInputSchema {
+    /// Validates that an input is an integer matching this schema.
     pub fn validate_input(&self, input: &Input) -> bool {
         match input {
             Input::Integer(integer) => {
@@ -794,6 +806,7 @@ pub struct NumberInputSchema {
 }
 
 impl NumberInputSchema {
+    /// Validates that an input is a number matching this schema.
     pub fn validate_input(&self, input: &Input) -> bool {
         match input {
             Input::Integer(integer) => {
@@ -838,6 +851,7 @@ pub struct BooleanInputSchema {
 }
 
 impl BooleanInputSchema {
+    /// Validates that an input is a boolean.
     pub fn validate_input(&self, input: &Input) -> bool {
         match input {
             Input::Boolean(_) => true,
@@ -856,6 +870,7 @@ pub struct ImageInputSchema {
 }
 
 impl ImageInputSchema {
+    /// Validates that an input is an image.
     pub fn validate_input(&self, input: &Input) -> bool {
         match input {
             Input::RichContentPart(
@@ -878,6 +893,7 @@ pub struct AudioInputSchema {
 }
 
 impl AudioInputSchema {
+    /// Validates that an input is audio content.
     pub fn validate_input(&self, input: &Input) -> bool {
         match input {
             Input::RichContentPart(
@@ -900,6 +916,7 @@ pub struct VideoInputSchema {
 }
 
 impl VideoInputSchema {
+    /// Validates that an input is video content.
     pub fn validate_input(&self, input: &Input) -> bool {
         match input {
             Input::RichContentPart(
@@ -927,6 +944,7 @@ pub struct FileInputSchema {
 }
 
 impl FileInputSchema {
+    /// Validates that an input is a file.
     pub fn validate_input(&self, input: &Input) -> bool {
         match input {
             Input::RichContentPart(

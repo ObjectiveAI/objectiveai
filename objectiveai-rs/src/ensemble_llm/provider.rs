@@ -35,6 +35,9 @@ pub struct Provider {
 }
 
 impl Provider {
+    /// Normalizes the provider configuration for deterministic hashing.
+    ///
+    /// Removes default values, empty collections, and deduplicates lists.
     pub fn prepare(mut self) -> Option<Self> {
         if let Some(true) = self.allow_fallbacks {
             self.allow_fallbacks = None;
@@ -87,6 +90,7 @@ impl Provider {
         }
     }
 
+    /// Validates that provider names are non-empty strings.
     pub fn validate(&self) -> Result<(), String> {
         if self.order.iter().any(|s| s.is_empty()) {
             Err("`provider.order` strings cannot be empty".to_string())

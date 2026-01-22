@@ -34,6 +34,7 @@ pub struct Usage {
 }
 
 impl Usage {
+    /// Appends usage statistics from another instance.
     pub fn push(&mut self, other: &Usage) {
         self.completion_tokens += other.completion_tokens;
         self.prompt_tokens += other.prompt_tokens;
@@ -94,6 +95,7 @@ pub struct CompletionTokensDetails {
 }
 
 impl CompletionTokensDetails {
+    /// Returns `true` if any token count is non-zero.
     pub fn any_usage(&self) -> bool {
         self.accepted_prediction_tokens.is_some_and(|v| v > 0)
             || self.audio_tokens.is_some_and(|v| v > 0)
@@ -101,6 +103,7 @@ impl CompletionTokensDetails {
             || self.rejected_prediction_tokens.is_some_and(|v| v > 0)
     }
 
+    /// Appends token details from another instance.
     pub fn push(&mut self, other: &CompletionTokensDetails) {
         util::push_option_u64(
             &mut self.accepted_prediction_tokens,
@@ -136,6 +139,7 @@ pub struct PromptTokensDetails {
 }
 
 impl PromptTokensDetails {
+    /// Returns `true` if any token count is non-zero.
     pub fn any_usage(&self) -> bool {
         self.audio_tokens.is_some_and(|v| v > 0)
             || self.cached_tokens.is_some_and(|v| v > 0)
@@ -143,6 +147,7 @@ impl PromptTokensDetails {
             || self.video_tokens.is_some_and(|v| v > 0)
     }
 
+    /// Appends token details from another instance.
     pub fn push(&mut self, other: &PromptTokensDetails) {
         util::push_option_u64(&mut self.audio_tokens, &other.audio_tokens);
         util::push_option_u64(&mut self.cached_tokens, &other.cached_tokens);
@@ -164,12 +169,14 @@ pub struct CostDetails {
 }
 
 impl CostDetails {
+    /// Returns `true` if any cost is non-zero.
     pub fn any_usage(&self) -> bool {
         self.upstream_inference_cost > rust_decimal::Decimal::ZERO
             || self.upstream_upstream_inference_cost
                 > rust_decimal::Decimal::ZERO
     }
 
+    /// Appends cost details from another instance.
     pub fn push(&mut self, other: &CostDetails) {
         self.upstream_inference_cost += other.upstream_inference_cost;
         self.upstream_upstream_inference_cost +=
