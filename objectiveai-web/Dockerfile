@@ -39,8 +39,9 @@ RUN apt-get update \
 ENV PATH="/root/.cargo/bin:${PATH}"
 # Install workspace
 WORKDIR /root
-COPY package.json package-lock.json ./
-COPY objectiveai/ objectiveai/
+COPY package.json package-lock.json Cargo.toml Cargo.lock ./
+COPY objectiveai-rs/ objectiveai-rs/
+COPY objectiveai-rs-wasm-js/ objectiveai-rs-wasm-js/
 COPY objectiveai-js/ objectiveai-js/
 COPY objectiveai-web/package.json objectiveai-web/
 RUN npm install --include=dev
