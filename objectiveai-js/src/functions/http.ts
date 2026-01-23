@@ -68,8 +68,8 @@ export async function retrieveUsage(
 }
 
 export const RetrieveSchema = z.discriminatedUnion("type", [
-  RemoteScalarFunctionSchema.extend(ListItemSchema),
-  RemoteVectorFunctionSchema.extend(ListItemSchema),
+  RemoteScalarFunctionSchema.extend(ListItemSchema.shape),
+  RemoteVectorFunctionSchema.extend(ListItemSchema.shape),
 ]);
 export type Retrieve = z.infer<typeof RetrieveSchema>;
 
