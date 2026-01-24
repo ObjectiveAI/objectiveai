@@ -68,6 +68,19 @@ Responses: ["blue", "green", "red", "yellow"]
 -> Scores: [0.85, 0.05, 0.05, 0.05]  (sums to 1)
 ```
 
+#### Probabilistic Voting
+
+LLMs are inherently probabilistic - the sampler makes the final discrete choice. ObjectiveAI bypasses the sampler entirely using **logprobs** to capture the model's full preference distribution.
+
+Instead of asking "which is best?" and getting one answer, we extract the probability the model assigns to *each* option simultaneously. If the model is 70% confident in A and 30% in B, we capture that nuance rather than losing it to sampling.
+
+```
+Traditional: Model outputs "A" (loses the 30% signal for B)
+ObjectiveAI: Model vote = [0.70, 0.30, 0.00, 0.00] (full distribution)
+```
+
+For large response sets exceeding logprobs limits, a prefix tree structure captures preferences in stages - the tree width matches logprobs count (typically 20), enabling voting over hundreds of options while preserving probability information at each level.
+
 ### Functions
 
 **Functions** are the main interface. They're composable scoring pipelines hosted on GitHub as `function.json` files.
@@ -103,9 +116,9 @@ Give it a dataset of inputs and expected outputs. It optimizes the weights to ma
 
 ```
 objectiveai/
-├── objectiveai/              # Rust SDK
-│   ├── objectiveai/          # Core crate
-│   └── objectiveai-wasm-js/  # WASM bindings
+├── objectiveai-rs/           # Rust SDK (core crate)
+├── objectiveai-api/          # API server (run locally or import as library)
+├── objectiveai-rs-wasm-js/   # WASM bindings
 ├── objectiveai-js/           # TypeScript SDK
 └── objectiveai-web/          # Web interface
 ```

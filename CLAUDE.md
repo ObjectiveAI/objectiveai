@@ -10,9 +10,9 @@ ObjectiveAI is a REST API platform for scoring, ranking, and simulating preferen
 
 ```
 objectiveai/
-├── objectiveai/                    # Rust SDK
-│   ├── objectiveai/                # Core crate (data structures, validation, compilation)
-│   └── objectiveai-wasm-js/        # WASM bindings for browser/Node.js
+├── objectiveai-rs/                 # Rust SDK (core crate: data structures, validation, compilation)
+├── objectiveai-api/                # API server (self-hostable, or import as library)
+├── objectiveai-rs-wasm-js/         # WASM bindings for browser/Node.js
 ├── objectiveai-js/                 # TypeScript SDK (npm: objectiveai)
 └── objectiveai-web/                # Next.js web interface
 ```
@@ -65,6 +65,12 @@ The core primitive. Produces **scores**, not text:
 - `scores` vector: Same length as `responses`. Final normalized scores (sum ≈ 1).
 - For discrete votes, an LLM's full weight goes to its selected response.
 - For probabilistic votes, weight is divided according to the distribution.
+
+**Probabilistic Voting via Logprobs:**
+
+LLMs are inherently probabilistic - the sampler makes the final discrete choice. ObjectiveAI bypasses the sampler using **logprobs** to capture the model's full preference distribution. Instead of getting one answer and losing confidence signals, we extract probabilities for each option simultaneously.
+
+The prefix tree (`pfx.rs` in objectiveai-api) structures responses around logprobs limits. Tree width matches the number of logprobs returned (typically 20), enabling voting over hundreds of options while preserving probability information at each level. For large response sets, nested prefixes (e.g., `` `A` `` `` `B` ``) capture preferences in stages.
 
 ### Functions
 
@@ -170,7 +176,7 @@ Client-side compilation is for **previewing during authoring**, not required bef
 
 ## Rust SDK
 
-Location: `objectiveai/objectiveai/`
+Location: `objectiveai-rs/`
 
 **Capabilities:**
 1. Data structures and validation
@@ -187,9 +193,34 @@ Location: `objectiveai/objectiveai/`
 - `functions/` - Function definitions, tasks, profiles, expressions
 - `http/` - HTTP client (feature-gated)
 
+## API Server
+
+Location: `objectiveai-api/`
+
+Self-hostable API server. Can be run locally or imported as a library to build custom servers.
+
+**Modules:**
+- `auth/` - Authentication client
+- `chat/completions/` - Chat completions with backoff and streaming
+- `vector/completions/` - Vector completions orchestration, probabilistic voting, caching
+- `functions/` - Function execution, flattening, Profile computations
+- `ensemble/` and `ensemble_llm/` - Fetching and caching
+- `ctx/` - Request context for dependency injection (enables BYOK)
+
+**Key implementation details:**
+- `pfx.rs` - Prefix tree for logprobs-based probabilistic voting
+- `flat_task_profile.rs` - Flattens nested Function + Profile trees for parallel execution
+- `completion_votes_fetcher/` - Fetches votes from actual LLM inference (excludes cached/RNG votes, includes retries)
+
+**Running locally:**
+```bash
+cd objectiveai-api
+OPENROUTER_API_KEY=sk-or-... cargo run --release
+```
+
 ## WASM Bindings
 
-Location: `objectiveai/objectiveai-wasm-js/`
+Location: `objectiveai-rs-wasm-js/`
 
 Exports:
 - `validateEnsembleLlm(llm)` - Validate and compute Ensemble LLM ID

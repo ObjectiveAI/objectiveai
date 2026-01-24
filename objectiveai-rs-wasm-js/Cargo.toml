@@ -1,0 +1,21 @@
+[package]
+name = "objectiveai-wasm-js"
+version = "0.1.3"
+edition = "2024"
+authors = ["ObjectiveAI <admin@objective-ai.io>"]
+description = "JavaScript WebAssembly bindings for ObjectiveAI"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://objective-ai.io"
+documentation = "https://docs.rs/objectiveai-wasm-js"
+readme = "README.md"
+keywords = ["llm", "ai", "ensemble"]
+publish = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+objectiveai = { path = "../objectiveai-rs", version = "0.1.3", default-features = false }
+wasm-bindgen = { version = "0.2.105" }
+serde-wasm-bindgen = { version = "0.6.5" }

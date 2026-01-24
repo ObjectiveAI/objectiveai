@@ -1,5 +1,6 @@
 [workspace]
 members = [
-    "objectiveai/objectiveai",
-    "objectiveai/objectiveai-wasm-js",
+    "objectiveai-api",
+    "objectiveai-rs",
+    "objectiveai-rs-wasm-js",
 ]
