@@ -208,7 +208,7 @@ impl FunctionFlatTaskProfile {
 }
 
 /// The type of a Function's output.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum FunctionType {
     /// Produces a single score in [0, 1].
     Scalar,
@@ -216,6 +216,18 @@ pub enum FunctionType {
     Vector {
         /// Expected output length, if known from output_length expression.
         output_length: Option<u64>,
+        /// input_split expression if defined
+        input_split: Option<
+            objectiveai::functions::expression::WithExpression<
+                Vec<objectiveai::functions::expression::Input>,
+            >,
+        >,
+        /// input_merge expression if defined
+        input_merge: Option<
+            objectiveai::functions::expression::WithExpression<
+                objectiveai::functions::expression::Input,
+            >,
+        >,
     },
 }
 
@@ -324,10 +336,7 @@ pub async fn get_flat_task_profile<CTXEXT>(
     ensemble_fetcher: Arc<
         crate::ensemble::fetcher::CachingFetcher<
             CTXEXT,
-            impl crate::ensemble::fetcher::Fetcher<CTXEXT>
-            + Send
-            + Sync
-            + 'static,
+            impl crate::ensemble::fetcher::Fetcher<CTXEXT> + Send + Sync + 'static,
         >,
     >,
 ) -> Result<super::FunctionFlatTaskProfile, super::executions::Error>
@@ -491,6 +500,8 @@ where
         objectiveai::functions::Function::Remote(
             objectiveai::functions::RemoteFunction::Vector {
                 ref output_length,
+                ref input_split,
+                ref input_merge,
                 ..
             },
         ) => {
@@ -505,15 +516,23 @@ where
                 output_length: Some(
                     output_length.clone().compile_one(&params)?,
                 ),
+                input_split: Some(input_split.clone()),
+                input_merge: Some(input_merge.clone()),
             }
         }
         objectiveai::functions::Function::Inline(
             objectiveai::functions::InlineFunction::Scalar { .. },
         ) => FunctionType::Scalar,
         objectiveai::functions::Function::Inline(
-            objectiveai::functions::InlineFunction::Vector { .. },
+            objectiveai::functions::InlineFunction::Vector {
+                ref input_split,
+                ref input_merge,
+                ..
+            },
         ) => FunctionType::Vector {
             output_length: None,
+            input_split: input_split.clone(),
+            input_merge: input_merge.clone(),
         },
     };
 
@@ -782,10 +801,7 @@ async fn get_vector_completion_flat_task_profile<CTXEXT>(
     ensemble_fetcher: Arc<
         crate::ensemble::fetcher::CachingFetcher<
             CTXEXT,
-            impl crate::ensemble::fetcher::Fetcher<CTXEXT>
-            + Send
-            + Sync
-            + 'static,
+            impl crate::ensemble::fetcher::Fetcher<CTXEXT> + Send + Sync + 'static,
         >,
     >,
 ) -> Result<super::VectorCompletionFlatTaskProfile, super::executions::Error>
