@@ -1,5 +1,6 @@
 import z from "zod";
 import { ReasoningSchema } from "./reasoning";
+import { StrategySchema } from "./strategy";
 import { InputValueSchema } from "src/functions/expression/input";
 import { ProviderSchema } from "src/chat/completions/request/provider";
 import {
@@ -39,6 +40,11 @@ export const FunctionExecutionCreateParamsRemoteFunctionRemoteProfileBaseSchema 
         .nullable()
         .describe(
           "If true, any remaining votes from vector completion tasks are generated via RNG. Has lower priority than `retry_token` or `from_cache`."
+        ),
+      strategy: StrategySchema.optional()
+        .nullable()
+        .describe(
+          "Strategy for function execution. Defaults to 'default'. Use 'swiss_system' for vector functions to run tournament-style ranking across multiple rounds."
         ),
       reasoning: ReasoningSchema.optional().nullable(),
       input: InputValueSchema,
