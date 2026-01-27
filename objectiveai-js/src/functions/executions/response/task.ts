@@ -18,3 +18,17 @@ export const TaskTaskPathSchema = z
     "The path of this task which may be used to navigate which nested task this is amongst the root functions tasks and sub-tasks."
   );
 export type TaskTaskPath = z.infer<typeof TaskTaskPathSchema>;
+
+export const TaskSwissRoundSchema = z
+  .number()
+  .int()
+  .positive()
+  .describe("The Swiss system round number (1-indexed).");
+export type TaskSwissRound = z.infer<typeof TaskSwissRoundSchema>;
+
+export const TaskSwissPoolIndexSchema = z
+  .number()
+  .int()
+  .nonnegative()
+  .describe("The index of this task within its Swiss system pool.");
+export type TaskSwissPoolIndex = z.infer<typeof TaskSwissPoolIndexSchema>;

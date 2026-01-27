@@ -57,6 +57,12 @@ pub enum Error {
         "invalid vector output, expected vector of numbers summing to 1 of length {0}"
     )]
     InvalidVectorOutput(usize),
+    /// Invalid Function for Strategy
+    #[error("invalid function for strategy: {0}")]
+    InvalidFunctionForStrategy(String),
+    /// Invalid Strategy
+    #[error("invalid strategy: {0}")]
+    InvalidStrategy(String),
 }
 
 impl objectiveai::error::StatusError for Error {
@@ -78,6 +84,8 @@ impl objectiveai::error::StatusError for Error {
             Error::InputSchemaMismatch => 400,
             Error::InvalidScalarOutput => 400,
             Error::InvalidVectorOutput(_) => 400,
+            Error::InvalidFunctionForStrategy(_) => 400,
+            Error::InvalidStrategy(_) => 400,
         }
     }
 
@@ -148,6 +156,14 @@ impl objectiveai::error::StatusError for Error {
                 Error::InvalidVectorOutput(len) => serde_json::json!({
                     "kind": "invalid_vector_output",
                     "error": format!("invalid vector output, expected vector of numbers summing to 1 of length {}", len),
+                }),
+                Error::InvalidFunctionForStrategy(msg) => serde_json::json!({
+                    "kind": "invalid_function_for_strategy",
+                    "error": msg,
+                }),
+                Error::InvalidStrategy(msg) => serde_json::json!({
+                    "kind": "invalid_strategy",
+                    "error": msg,
                 }),
             }
         }))

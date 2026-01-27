@@ -42,7 +42,6 @@ pub struct FunctionRemoteProfileInlineRequestBody {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FunctionRemoteProfileRemoteRequestBody {
     // --- Caching and retry options ---
-
     /// If present, reuses votes from a previous execution with this token.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub retry_token: Option<String>,
@@ -54,13 +53,15 @@ pub struct FunctionRemoteProfileRemoteRequestBody {
     pub from_rng: Option<bool>,
 
     // --- Reasoning configuration ---
-
     /// Reasoning summary configuration.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reasoning: Option<super::Reasoning>,
 
     // --- Core configuration ---
-
+    /// Execution strategy.
+    /// Defaults to `Default` strategy if not specified.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub strategy: Option<super::Strategy>,
     /// The input data to pass to the Function.
     pub input: functions::expression::Input,
     /// Provider routing preferences.
@@ -74,7 +75,6 @@ pub struct FunctionRemoteProfileRemoteRequestBody {
     pub stream: Option<bool>,
 
     // --- Retry configuration ---
-
     /// Maximum elapsed time (ms) for exponential backoff retries.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub backoff_max_elapsed_time: Option<u64>,

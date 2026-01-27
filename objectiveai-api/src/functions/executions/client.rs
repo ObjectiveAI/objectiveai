@@ -7,7 +7,12 @@ use crate::{
 };
 use futures::{Stream, StreamExt, TryStreamExt};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, hash::Hasher, sync::Arc, time};
+use std::{
+    collections::HashMap,
+    hash::Hasher,
+    sync::{Arc, LazyLock},
+    time,
+};
 
 /// Generates a unique response ID for scalar Function executions.
 pub fn scalar_response_id(created: u64) -> String {
@@ -41,9 +46,8 @@ pub struct Client<
     /// Chat completions client for reasoning summaries.
     pub chat_client: Arc<chat::completions::Client<CTXEXT, FENSLLM, CUSG>>,
     /// Fetcher for Ensemble definitions.
-    pub ensemble_fetcher: Arc<
-        crate::ensemble::fetcher::CachingFetcher<CTXEXT, FENS>,
-    >,
+    pub ensemble_fetcher:
+        Arc<crate::ensemble::fetcher::CachingFetcher<CTXEXT, FENS>>,
     /// Vector completions client for executing Vector Completion tasks.
     pub vector_client: Arc<
         vector::completions::Client<
@@ -103,18 +107,13 @@ impl<CTXEXT, FENSLLM, CUSG, FENS, FVVOTE, FCVOTE, VUSG, FFN, FPFL, FUSG>
     Client<CTXEXT, FENSLLM, CUSG, FENS, FVVOTE, FCVOTE, VUSG, FFN, FPFL, FUSG>
 where
     CTXEXT: ctx::ContextExt + Send + Sync + 'static,
-    FENSLLM: crate::ensemble_llm::fetcher::Fetcher<CTXEXT>
-        + Send
-        + Sync
-        + 'static,
+    FENSLLM:
+        crate::ensemble_llm::fetcher::Fetcher<CTXEXT> + Send + Sync + 'static,
     CUSG: chat::completions::usage_handler::UsageHandler<CTXEXT>
         + Send
         + Sync
         + 'static,
-    FENS: crate::ensemble::fetcher::Fetcher<CTXEXT>
-        + Send
-        + Sync
-        + 'static,
+    FENS: crate::ensemble::fetcher::Fetcher<CTXEXT> + Send + Sync + 'static,
     FVVOTE: vector::completions::completion_votes_fetcher::Fetcher<CTXEXT>
         + Send
         + Sync
@@ -220,18 +219,13 @@ impl<CTXEXT, FENSLLM, CUSG, FENS, FVVOTE, FCVOTE, VUSG, FFN, FPFL, FUSG>
     Client<CTXEXT, FENSLLM, CUSG, FENS, FVVOTE, FCVOTE, VUSG, FFN, FPFL, FUSG>
 where
     CTXEXT: ctx::ContextExt + Send + Sync + 'static,
-    FENSLLM: crate::ensemble_llm::fetcher::Fetcher<CTXEXT>
-        + Send
-        + Sync
-        + 'static,
+    FENSLLM:
+        crate::ensemble_llm::fetcher::Fetcher<CTXEXT> + Send + Sync + 'static,
     CUSG: chat::completions::usage_handler::UsageHandler<CTXEXT>
         + Send
         + Sync
         + 'static,
-    FENS: crate::ensemble::fetcher::Fetcher<CTXEXT>
-        + Send
-        + Sync
-        + 'static,
+    FENS: crate::ensemble::fetcher::Fetcher<CTXEXT> + Send + Sync + 'static,
     FVVOTE: vector::completions::completion_votes_fetcher::Fetcher<CTXEXT>
         + Send
         + Sync
@@ -263,6 +257,10 @@ where
         + 'static,
         super::Error,
     >{
+        static EMPTY_TASKS: LazyLock<
+            Vec<Option<objectiveai::functions::expression::TaskOutput>>,
+        > = LazyLock::new(|| Vec::new());
+
         // timestamp the completion
         let created = time::SystemTime::now()
             .duration_since(time::UNIX_EPOCH)
@@ -283,10 +281,62 @@ where
             .transpose()?
             .map(Arc::new);
 
+        // validate that input_split and input_merge are present if strategy is Swiss
+        match (&request.base().strategy, request.inline_function()) {
+            (
+                Some(
+                    objectiveai::functions::executions::request::Strategy::SwissSystem {
+                        ..
+                    },
+                ),
+                Some(objectiveai::functions::InlineFunction::Vector {
+                    input_split: Some(_),
+                    input_merge: Some(_),
+                    ..
+                })
+            )=> { }
+            (
+                Some(
+                    objectiveai::functions::executions::request::Strategy::SwissSystem {
+                        ..
+                    },
+                ),
+                Some(_)
+            ) => {
+                return Err(super::Error::InvalidFunctionForStrategy(
+                    "With 'swiss_system' strategy, Inline Function must be vector with both `input_split` and `input_merge` present."
+                        .to_string(),
+                ));
+            }
+            _ => { }
+        }
+
         // fetch function flat task profile + latest function/profile versions if publishing
         let mut ftp = self
-            .fetch_function_flat_task_profile(ctx.clone(), request.clone())
+            .fetch_function_flat_task_profile(
+                ctx.clone(),
+                request.clone(),
+                None,
+            )
             .await?;
+
+        // validate that ftp type is Vector if strategy is Swiss
+        match (&request.base().strategy, &ftp.r#type) {
+            (
+                Some(
+                    objectiveai::functions::executions::request::Strategy::SwissSystem {
+                        ..
+                    },
+                ),
+                functions::FunctionType::Scalar,
+            ) => {
+                return Err(super::Error::InvalidFunctionForStrategy(
+                    "With 'swiss_system' strategy, Function must be of type 'vector'."
+                        .to_string(),
+                ));
+            }
+            _ => { }
+        }
 
         // take description from ftp
         let description = ftp.description.take();
@@ -365,227 +415,863 @@ where
                     }
                     (index_map, confidence_responses)
                 },
-                None::<objectiveai::functions::executions::response::streaming::FunctionExecutionChunk>,
+                None::<
+                    objectiveai::functions::executions::response::streaming::FunctionExecutionChunk,
+                >,
             ))
         } else {
             None
         };
 
-        // get function stream
-        let stream = self
-            .clone()
-            .execute_function_ftp_streaming(
-                ctx.clone(),
-                request.clone(),
-                retry_token,
-                ftp,
-                created,
-                0,
-                Arc::new(ChoiceIndexer::new(0)),
-            )
-            .await;
+        // Swiss System Strategy
+        //
+        // A tournament-style ranking algorithm for vector functions:
+        //
+        // 1. Splits input into pools of `pool` size (or pool+1 when len % pool == 1
+        //    to avoid single-item trailing chunks)
+        // 2. Each pool must have at least 2 items, except when the original input
+        //    itself has only 1 item (user's choice)
+        // 3. Runs each round, accumulating scores for each item
+        // 4. After each round, re-sorts items by cumulative scores and re-pools
+        // 5. Final output is the average of scores from all rounds, mapped back
+        //    to original input order
+        //
+        // Only the first round uses retry tokens; subsequent rounds do not.
+        // Errors from subsequent rounds are included in the final output chunk.
+        if let Some(
+            objectiveai::functions::executions::request::Strategy::SwissSystem {
+                pool,
+                rounds,
+            }
+        ) = &request.base().strategy {
+            // take and unwrap input_split and input_merge
+            let (input_split, input_merge) = match &ftp.r#type {
+                functions::FunctionType::Vector {
+                    input_split,
+                    input_merge,
+                    ..
+                } => (
+                    input_split.clone().expect("missing input_split"),
+                    input_merge.clone().expect("missing input_merge"),
+                ),
+                _ => unreachable!(),
+            };
 
-        Ok(async_stream::stream! {
-            futures::pin_mut!(stream);
-            // stream all chunks
-            while let Some(
-                FtpStreamChunk::FunctionExecutionChunk(chunk)
-            ) = stream.next().await {
-                // handle reasoning tasks if needed
-                if reasoning {
-                    // unwrap reasoning data
-                    let (
-                        vector_completions,
-                        _,
-                        final_chunk,
-                    ) = &mut reasoning_data
-                        .as_mut()
-                        .unwrap();
-                    // aggregate vector completions
-                    for chunk in chunk.inner.vector_completion_tasks() {
-                        if !chunk.inner.id.is_empty() {
-                            match vector_completions.get_mut(&chunk.inner.id) {
-                                Some(existing_chunk) => {
-                                    existing_chunk.push(chunk);
-                                }
-                                None => {
-                                    let _ = vector_completions.insert(
-                                        chunk.inner.id.clone(),
-                                        chunk.clone(),
-                                    );
+            // validate pool and rounds
+            let pool = pool.unwrap_or(10);
+            let rounds = rounds.unwrap_or(3);
+            if pool <= 1 || rounds == 0 {
+                return Err(super::Error::InvalidStrategy(
+                    "For 'swiss_system' strategy, 'pool' must be > 1 and 'rounds' must be > 0."
+                        .to_string(),
+                ));
+            }
+
+            // split input
+            let split_input = input_split.compile_one(
+                &objectiveai::functions::expression::Params::Ref(
+                    objectiveai::functions::expression::ParamsRef {
+                        input: &request.base().input,
+                        tasks: &EMPTY_TASKS,
+                        map: None,
+                    }
+                ),
+            )?;
+
+            // fetch initial FTPs
+            let mut ftp_futs = Vec::with_capacity(split_input.len() / pool + 1);
+            let mut pool_chunk_sizes: Vec<usize> = Vec::with_capacity(split_input.len() / pool + 1);
+            let chunks = split_input.chunks(
+                if split_input.len() % pool == 1 {
+                    pool + 1
+                } else {
+                    pool
+                }
+            );
+            for chunk in chunks {
+                pool_chunk_sizes.push(chunk.len());
+                let joined_input = input_merge.clone().compile_one(
+                    &objectiveai::functions::expression::Params::Owned(
+                        objectiveai::functions::expression::ParamsOwned {
+                            input: objectiveai::functions::expression::Input::Array(
+                                chunk.to_vec(),
+                            ),
+                            tasks: Vec::new(),
+                            map: None,
+                        }
+                    )
+                )?;
+                ftp_futs.push(self.fetch_function_flat_task_profile(
+                    ctx.clone(),
+                    request.clone(),
+                    Some(joined_input),
+                ));
+            }
+            let mut ftps = futures::future::try_join_all(ftp_futs).await?;
+
+            // setup reasoning data for Swiss system
+            let (mut swiss_vector_completions, mut swiss_index_maps, swiss_confidence_responses) = if reasoning {
+                // extract confidence_responses from reasoning_data (built from original ftp)
+                let (_, (_, confidence_responses), _) = reasoning_data.take().unwrap();
+
+                // build index_maps for initial FTPs (round 1)
+                let mut index_maps: HashMap<(u64, usize), HashMap<Vec<u64>, Vec<usize>>> = HashMap::new();
+                for (pool_idx, ftp) in ftps.iter().enumerate() {
+                    let mut ftp_index_map: HashMap<Vec<u64>, Vec<usize>> = HashMap::new();
+                    for vector_completion_ftp in ftp
+                        .tasks
+                        .iter()
+                        .filter_map(|task| task.as_ref())
+                        .flat_map(|task| task.vector_completion_ftps())
+                    {
+                        let mut completion_index_map = Vec::with_capacity(
+                            vector_completion_ftp.responses.len(),
+                        );
+                        for response in &vector_completion_ftp.responses {
+                            let mut response = response.clone();
+                            response.prepare();
+                            let response_string =
+                                serde_json::to_string(&response).unwrap_or_default();
+                            if response_string.is_empty() {
+                                continue;
+                            }
+                            let mut hasher = ahash::AHasher::default();
+                            hasher.write(response_string.as_bytes());
+                            let response_hash = hasher.finish();
+                            // find matching confidence_response by hash
+                            for (i, confidence_response) in confidence_responses.iter().enumerate() {
+                                if confidence_response.response_hash == response_hash {
+                                    completion_index_map.push(i);
+                                    break;
                                 }
                             }
                         }
+                        ftp_index_map.insert(
+                            vector_completion_ftp.path.clone(),
+                            completion_index_map,
+                        );
                     }
-                    // stash the final chunk
-                    if chunk.inner.output.is_some() {
-                        // will be returned after reasoning summary
-                        *final_chunk = Some(chunk.inner);
-                    } else {
-                        // yield chunk
-                        yield chunk.inner;
-                    }
-                } else {
-                    // yield chunk
-                    yield chunk.inner;
+                    index_maps.insert((1, pool_idx), ftp_index_map);
                 }
+
+                (
+                    Some(HashMap::<String, (u64, usize, objectiveai::functions::executions::response::streaming::VectorCompletionTaskChunk)>::new()),
+                    Some(index_maps),
+                    Some(confidence_responses),
+                )
+            } else {
+                (None, None, None)
+            };
+
+            // identify the completion and get response type
+            let (response_id, object) = match ftp.r#type {
+                functions::FunctionType::Vector { .. } => (
+                    vector_response_id(created),
+                    objectiveai::functions::executions::response::streaming::Object::VectorFunctionExecutionChunk,
+                ),
+                _ => unreachable!(),
+            };
+
+            // track usage
+            let mut usage =
+                objectiveai::vector::completions::response::Usage::default();
+
+            // track retry token index
+            let mut retry_token_indices = Vec::new();
+            let mut retry_token_index = 0;
+
+            // first round retry token (only first round gets retry tokens)
+            // calculate total task_index_len for first round before draining
+            let first_round_task_index_len: usize = ftps.iter()
+                .map(|ftp| ftp.task_index_len())
+                .sum();
+            let mut first_round_retry_token = objectiveai::functions::executions::RetryToken(
+                Vec::with_capacity(first_round_task_index_len),
+            );
+            for _ in 0..first_round_task_index_len {
+                first_round_retry_token.0.push(None);
             }
 
-            // handle reasoning
-            if reasoning {
-                // unpack reasoning data
-                let objectiveai::functions::executions::request::Reasoning {
-                    model,
-                    models,
-                } = request.base().reasoning.as_ref().unwrap();
-                let (
-                    vector_completions,
-                    (
-                        index_map,
-                        mut confidence_responses,
-                    ),
-                    final_chunk,
-                ) = reasoning_data.unwrap();
-                let mut final_chunk = final_chunk.unwrap();
+            // track original indices: current_position -> original_index
+            let num_items = split_input.len();
+            let mut current_to_original: Vec<usize> = (0..num_items).collect();
 
-                // iterate over vector completion chat completions
-                for mut vector_completion in vector_completions.into_values() {
-                    let indices = index_map.get(&vector_completion.task_path)
-                        .expect("missing index map for vector completion task path");
-                    for (i, score) in vector_completion
-                        .inner
-                        .scores
-                        .iter()
-                        .enumerate()
-                    {
-                        let confidence_response =
-                            &mut confidence_responses[indices[i]];
-                        confidence_response.confidence += *score;
+            // track cumulative scores per original index (for sorting)
+            let mut cumulative_scores: Vec<rust_decimal::Decimal> =
+                vec![rust_decimal::Decimal::ZERO; num_items];
+
+            // track outputs per round: round -> (original_index -> score)
+            let mut round_outputs: Vec<Vec<rust_decimal::Decimal>> = Vec::with_capacity(rounds as usize);
+
+            // identifiers
+            let function =
+                ftp.full_function_id.map(|(owner, repository, commit)| {
+                    format!("{}/{}/{}", owner, repository, commit)
+                });
+            let profile = ftp.full_profile_id.map(|(owner, repository, commit)| {
+                format!("{}/{}/{}", owner, repository, commit)
+            });
+
+            // track whether child errors occurred
+            let mut tasks_errors = false;
+
+            Ok(futures::future::Either::Left(async_stream::stream! {
+                // track errors from subsequent rounds to include in final output
+                let mut subsequent_round_error: Option<objectiveai::error::ResponseError> = None;
+
+                'rounds: for current_round in 1..=rounds {
+                    let is_first_round = current_round == 1;
+                    let is_last_round = current_round == rounds;
+
+                    // run all pools for this round
+                    let mut streams = Vec::with_capacity(ftps.len());
+
+                    for (i, ftp) in ftps.drain(..).enumerate() {
+                        let task_index_len = ftp.task_index_len();
+
+                        streams.push((
+                            i,
+                            self.clone().execute_function_ftp_streaming(
+                                ctx.clone(),
+                                request.clone(),
+                                if is_first_round {
+                                    retry_token.clone().map(|retry_token| {
+                                        Arc::new(retry_token.clone_slice(
+                                            retry_token_index..retry_token_index + task_index_len,
+                                        ))
+                                    })
+                                } else {
+                                    None
+                                },
+                                ftp,
+                                created,
+                                0,
+                                Arc::new(ChoiceIndexer::new(0)),
+                                Some(current_round as u64),
+                                Some(i as u64),
+                            ).boxed(),
+                        ));
+                        retry_token_indices.push(retry_token_index);
+                        retry_token_index += task_index_len;
                     }
-                    for vote in vector_completion.inner.votes {
-                        if let Some(completion_index) = vote.completion_index {
-                            let mut winning_index: usize = 0;
-                            let mut highest_vote =
-                                rust_decimal::Decimal::ZERO;
-                            for (i, &score) in vote.vote.iter().enumerate() {
-                                if score > highest_vote {
-                                    highest_vote = score;
-                                    winning_index = i;
+
+                    // collect outputs from this round, keyed by pool index
+                    let mut pool_outputs: HashMap<usize, Vec<rust_decimal::Decimal>> = HashMap::new();
+
+                    // stream and collect results
+                    let stream = futures::stream::select_all(
+                        streams.into_iter().map(|(pool_idx, stream)| {
+                            stream.map(move |chunk| (pool_idx, chunk))
+                        })
+                    );
+                    futures::pin_mut!(stream);
+
+                    while let Some((pool_idx, chunk)) = stream.next().await {
+                        match chunk {
+                            FtpStreamChunk::FunctionExecutionChunk(chunk) => {
+                                // check for output
+                                if let Some(ref output) = chunk.inner.output {
+                                    if let objectiveai::functions::expression::FunctionOutput::Vector(scores) = output {
+                                        pool_outputs.insert(pool_idx, scores.clone());
+                                    }
+                                }
+
+                                // track usage and errors
+                                tasks_errors |= chunk.inner.error.is_some()
+                                    || chunk.inner.tasks_errors.unwrap_or(false);
+                                if let Some(chunk_usage) = &chunk.inner.usage {
+                                    usage.push(chunk_usage);
+                                }
+
+                                // yield chunk
+                                yield objectiveai::functions::executions::response::streaming::FunctionExecutionChunk {
+                                    id: response_id.clone(),
+                                    tasks: vec![
+                                        objectiveai::functions::executions::response::streaming::TaskChunk::FunctionExecution(
+                                            chunk,
+                                        ),
+                                    ],
+                                    tasks_errors: if tasks_errors {
+                                        Some(true)
+                                    } else {
+                                        None
+                                    },
+                                    reasoning: None,
+                                    output: None,
+                                    error: None,
+                                    retry_token: None,
+                                    created,
+                                    function: function.clone(),
+                                    profile: profile.clone(),
+                                    object,
+                                    usage: None,
+                                };
+                            }
+                            FtpStreamChunk::OutputChunk { retry_token: chunk_retry_token, .. } => {
+                                // capture retry tokens from first round only
+                                if is_first_round {
+                                    let insert_idx = retry_token_indices.get(pool_idx).copied().unwrap_or(0);
+                                    first_round_retry_token.insert(insert_idx, chunk_retry_token);
                                 }
                             }
-                            let confidence_response =
-                                &mut confidence_responses[indices[winning_index]];
-                            let completion = vector_completion
-                                .inner
-                                .completions
-                                .iter_mut()
-                                .find(|c| c.index == completion_index)
-                                .expect(
-                                    "missing completion for vote completion index",
-                                );
-                            let delta = &mut completion
-                                .inner
-                                .choices[0]
-                                .delta;
-                            if let Some(reasoning) = delta.reasoning.take() {
-                                confidence_response.reasoning.push(reasoning);
-                            }
-                            if let Some(content) = delta.content.take()
-                                && let Ok(vector::completions::ResponseKey {
-                                    _think: Some(reasoning),
-                                    ..
-                                }) = serde_json::from_str(&content)
-                            {
-                                confidence_response.reasoning.push(reasoning);
-                            }
-                            if let Some(tool_calls) = delta.tool_calls.take() {
-                                for tool_call in tool_calls {
-                                    if let objectiveai::chat::completions::response::streaming::ToolCall {
-                                        function: Some(
-                                            objectiveai::chat::completions::response::streaming::ToolCallFunction {
-                                                arguments: Some(arguments),
-                                                ..
+                            FtpStreamChunk::VectorCompletionTaskChunk(chunk) => {
+                                // track usage and errors
+                                tasks_errors |= chunk.error.is_some();
+                                if let Some(chunk_usage) = &chunk.inner.usage {
+                                    usage.push(chunk_usage);
+                                }
+                                // aggregate for reasoning
+                                if let Some(vector_completions) = &mut swiss_vector_completions {
+                                    if !chunk.inner.id.is_empty() {
+                                        match vector_completions.get_mut(&chunk.inner.id) {
+                                            Some((_, _, existing_chunk)) => {
+                                                existing_chunk.push(&chunk);
                                             }
-                                        ),
-                                        ..
-                                    } = tool_call
-                                        && let Ok(vector::completions::ResponseKey {
-                                            _think: Some(reasoning),
-                                            ..
-                                        }) = serde_json::from_str(&arguments)
-                                    {
-                                        confidence_response.reasoning.push(
-                                            reasoning,
-                                        );
+                                            None => {
+                                                vector_completions.insert(
+                                                    chunk.inner.id.clone(),
+                                                    (current_round as u64, pool_idx, chunk.clone()),
+                                                );
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
                     }
-                }
 
-                // normalize response confidences
-                for confidence_response in &mut confidence_responses {
-                    if confidence_response.confidence_count
-                        > rust_decimal::Decimal::ONE
-                    {
-                        confidence_response.confidence /= confidence_response
-                            .confidence_count;
+                    // map pool outputs back to original indices and update cumulative scores
+                    let mut this_round_scores: Vec<rust_decimal::Decimal> =
+                        vec![rust_decimal::Decimal::ZERO; num_items];
+
+                    let mut position = 0usize;
+                    for (pool_idx, &chunk_size) in pool_chunk_sizes.iter().enumerate() {
+                        if let Some(scores) = pool_outputs.get(&pool_idx) {
+                            for (local_idx, &score) in scores.iter().enumerate() {
+                                let current_pos = position + local_idx;
+                                if current_pos < current_to_original.len() {
+                                    let original_idx = current_to_original[current_pos];
+                                    this_round_scores[original_idx] = score;
+                                    cumulative_scores[original_idx] += score;
+                                }
+                            }
+                        }
+                        // always advance by expected chunk size, even if pool had no output
+                        position += chunk_size;
+                    }
+                    round_outputs.push(this_round_scores);
+
+                    // if not last round, re-sort and prepare next round
+                    if !is_last_round {
+                        // create sorted indices by cumulative score (descending), with original index as tie-breaker
+                        let mut sorted_indices: Vec<usize> = (0..num_items).collect();
+                        sorted_indices.sort_by(|&a, &b| {
+                            cumulative_scores[b].cmp(&cumulative_scores[a])
+                                .then_with(|| a.cmp(&b))
+                        });
+
+                        // update current_to_original mapping
+                        // sorted_indices[new_pos] = original_idx
+                        current_to_original = sorted_indices.clone();
+
+                        // rebuild split_input in new sorted order
+                        let sorted_split_input: Vec<objectiveai::functions::expression::Input> =
+                            sorted_indices.iter()
+                                .map(|&orig_idx| split_input[orig_idx].clone())
+                                .collect();
+
+                        // re-chunk and fetch new FTPs
+                        let chunks = sorted_split_input.chunks(
+                            if sorted_split_input.len() % pool == 1 {
+                                pool + 1
+                            } else {
+                                pool
+                            }
+                        );
+
+                        // update pool_chunk_sizes for this round
+                        pool_chunk_sizes.clear();
+                        let mut ftp_futs = Vec::with_capacity(chunks.len());
+                        for chunk in chunks {
+                            pool_chunk_sizes.push(chunk.len());
+                            let joined_input = match input_merge.clone().compile_one(
+                                &objectiveai::functions::expression::Params::Owned(
+                                    objectiveai::functions::expression::ParamsOwned {
+                                        input: objectiveai::functions::expression::Input::Array(
+                                            chunk.to_vec(),
+                                        ),
+                                        tasks: Vec::new(),
+                                        map: None,
+                                    }
+                                )
+                            ) {
+                                Ok(input) => input,
+                                Err(e) => {
+                                    // store error for final output and break
+                                    subsequent_round_error = Some(objectiveai::error::ResponseError::from(
+                                        &super::Error::from(e)
+                                    ));
+                                    tasks_errors = true;
+                                    break 'rounds;
+                                }
+                            };
+                            ftp_futs.push(self.fetch_function_flat_task_profile(
+                                ctx.clone(),
+                                request.clone(),
+                                Some(joined_input),
+                            ));
+                        }
+
+                        ftps = match futures::future::try_join_all(ftp_futs).await {
+                            Ok(new_ftps) => new_ftps,
+                            Err(e) => {
+                                // store error for final output and break
+                                subsequent_round_error = Some(objectiveai::error::ResponseError::from(&e));
+                                tasks_errors = true;
+                                break 'rounds;
+                            }
+                        };
+
+                        // build index_maps for new FTPs (next round)
+                        if let (Some(index_maps), Some(confidence_responses)) = (&mut swiss_index_maps, &swiss_confidence_responses) {
+                            let next_round = current_round + 1;
+                            for (pool_idx, ftp) in ftps.iter().enumerate() {
+                                let mut ftp_index_map: HashMap<Vec<u64>, Vec<usize>> = HashMap::new();
+                                for vector_completion_ftp in ftp
+                                    .tasks
+                                    .iter()
+                                    .filter_map(|task| task.as_ref())
+                                    .flat_map(|task| task.vector_completion_ftps())
+                                {
+                                    let mut completion_index_map = Vec::with_capacity(
+                                        vector_completion_ftp.responses.len(),
+                                    );
+                                    for response in &vector_completion_ftp.responses {
+                                        let mut response = response.clone();
+                                        response.prepare();
+                                        let response_string =
+                                            serde_json::to_string(&response).unwrap_or_default();
+                                        if response_string.is_empty() {
+                                            continue;
+                                        }
+                                        let mut hasher = ahash::AHasher::default();
+                                        hasher.write(response_string.as_bytes());
+                                        let response_hash = hasher.finish();
+                                        // find matching confidence_response by hash
+                                        for (i, confidence_response) in confidence_responses.iter().enumerate() {
+                                            if confidence_response.response_hash == response_hash {
+                                                completion_index_map.push(i);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    ftp_index_map.insert(
+                                        vector_completion_ftp.path.clone(),
+                                        completion_index_map,
+                                    );
+                                }
+                                index_maps.insert((next_round as u64, pool_idx), ftp_index_map);
+                            }
+                        }
+
+                        // reset retry token tracking for next round
+                        retry_token_indices.clear();
+                        retry_token_index = 0;
                     }
                 }
 
-                // create a chat completion summarizing the reasoning
-                let stream = self.create_reasoning_summary_streaming(
-                    ctx,
-                    request.clone(),
-                    model.clone(),
-                    models.clone(),
-                    description,
-                    final_chunk.output.clone().expect("missing output"),
-                    confidence_responses,
-                ).await;
+                // compute final output: average scores across rounds, in original order
+                let num_rounds = round_outputs.len();
+                let mut final_output: Vec<rust_decimal::Decimal> = vec![rust_decimal::Decimal::ZERO; num_items];
 
-                // yield chunks
-                futures::pin_mut!(stream);
-                while let Some(chunk) = stream.next().await {
-                    // collect usage
-                    if let Some(chunk_usage) = &chunk.inner.usage {
-                        if let Some(usage) = &mut final_chunk.usage {
-                            usage.push_chat_completion_usage(chunk_usage);
-                        } else {
-                            let mut usage = objectiveai::vector::completions::response::Usage::default();
-                            usage.push_chat_completion_usage(chunk_usage);
-                            final_chunk.usage = Some(usage);
+                if num_rounds > 0 {
+                    let num_rounds_dec = rust_decimal::Decimal::from(num_rounds as u64);
+                    for original_idx in 0..num_items {
+                        let mut sum = rust_decimal::Decimal::ZERO;
+                        for round in &round_outputs {
+                            sum += round[original_idx];
+                        }
+                        final_output[original_idx] = sum / num_rounds_dec;
+                    }
+
+                    // normalize to sum to 1
+                    let total: rust_decimal::Decimal = final_output.iter().copied().sum();
+                    if total > rust_decimal::Decimal::ZERO {
+                        for score in &mut final_output {
+                            *score /= total;
+                        }
+                    }
+                }
+
+                // handle reasoning for Swiss system
+                if let (Some(vector_completions), Some(index_maps), Some(mut confidence_responses)) =
+                    (swiss_vector_completions, swiss_index_maps, swiss_confidence_responses)
+                {
+                    // unpack reasoning params
+                    let objectiveai::functions::executions::request::Reasoning {
+                        model,
+                        models,
+                    } = request.base().reasoning.as_ref().unwrap();
+
+                    // iterate over vector completion chunks
+                    for (_, (round, pool_idx, mut vector_completion)) in vector_completions.into_iter() {
+                        // get index_map for this round/pool
+                        if let Some(ftp_index_map) = index_maps.get(&(round, pool_idx)) {
+                            if let Some(indices) = ftp_index_map.get(&vector_completion.task_path) {
+                                for (i, score) in vector_completion
+                                    .inner
+                                    .scores
+                                    .iter()
+                                    .enumerate()
+                                {
+                                    if let Some(&idx) = indices.get(i) {
+                                        confidence_responses[idx].confidence += *score;
+                                    }
+                                }
+                                for vote in vector_completion.inner.votes {
+                                    if let Some(completion_index) = vote.completion_index {
+                                        let mut winning_index: usize = 0;
+                                        let mut highest_vote = rust_decimal::Decimal::ZERO;
+                                        for (i, &score) in vote.vote.iter().enumerate() {
+                                            if score > highest_vote {
+                                                highest_vote = score;
+                                                winning_index = i;
+                                            }
+                                        }
+                                        if let Some(&idx) = indices.get(winning_index) {
+                                            let confidence_response = &mut confidence_responses[idx];
+                                            let completion = vector_completion
+                                                .inner
+                                                .completions
+                                                .iter_mut()
+                                                .find(|c| c.index == completion_index)
+                                                .expect("missing completion for vote completion index");
+                                            let delta = &mut completion.inner.choices[0].delta;
+                                            if let Some(reasoning) = delta.reasoning.take() {
+                                                confidence_response.reasoning.push(reasoning);
+                                            }
+                                            if let Some(content) = delta.content.take()
+                                                && let Ok(vector::completions::ResponseKey {
+                                                    _think: Some(reasoning),
+                                                    ..
+                                                }) = serde_json::from_str(&content)
+                                            {
+                                                confidence_response.reasoning.push(reasoning);
+                                            }
+                                            if let Some(tool_calls) = delta.tool_calls.take() {
+                                                for tool_call in tool_calls {
+                                                    if let objectiveai::chat::completions::response::streaming::ToolCall {
+                                                        function: Some(
+                                                            objectiveai::chat::completions::response::streaming::ToolCallFunction {
+                                                                arguments: Some(arguments),
+                                                                ..
+                                                            }
+                                                        ),
+                                                        ..
+                                                    } = tool_call
+                                                        && let Ok(vector::completions::ResponseKey {
+                                                            _think: Some(reasoning),
+                                                            ..
+                                                        }) = serde_json::from_str(&arguments)
+                                                    {
+                                                        confidence_response.reasoning.push(reasoning);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
 
-                    // yield chunk
-                    yield objectiveai::functions::executions::response::streaming::FunctionExecutionChunk {
-                        id: final_chunk.id.clone(),
-                        tasks: Vec::new(),
-                        tasks_errors: final_chunk.tasks_errors,
-                        reasoning: Some(chunk),
-                        output: None,
-                        error: None,
-                        retry_token: None,
-                        created: final_chunk.created,
-                        function: final_chunk.function.clone(),
-                        profile: final_chunk.profile.clone(),
-                        object: final_chunk.object.clone(),
-                        usage: None,
-                    };
+                    // normalize response confidences
+                    for confidence_response in &mut confidence_responses {
+                        if confidence_response.confidence_count > rust_decimal::Decimal::ONE {
+                            confidence_response.confidence /= confidence_response.confidence_count;
+                        }
+                    }
+
+                    // create a chat completion summarizing the reasoning
+                    let reasoning_stream = self.create_reasoning_summary_streaming(
+                        ctx,
+                        request.clone(),
+                        model.clone(),
+                        models.clone(),
+                        description,
+                        objectiveai::functions::expression::FunctionOutput::Vector(final_output.clone()),
+                        confidence_responses,
+                    ).await;
+
+                    // yield reasoning chunks
+                    futures::pin_mut!(reasoning_stream);
+                    while let Some(chunk) = reasoning_stream.next().await {
+                        // collect usage
+                        if let Some(chunk_usage) = &chunk.inner.usage {
+                            usage.push_chat_completion_usage(chunk_usage);
+                        }
+
+                        // yield chunk
+                        yield objectiveai::functions::executions::response::streaming::FunctionExecutionChunk {
+                            id: response_id.clone(),
+                            tasks: Vec::new(),
+                            tasks_errors: if tasks_errors {
+                                Some(true)
+                            } else {
+                                None
+                            },
+                            reasoning: Some(chunk),
+                            output: None,
+                            error: None,
+                            retry_token: None,
+                            created,
+                            function: function.clone(),
+                            profile: profile.clone(),
+                            object,
+                            usage: None,
+                        };
+                    }
                 }
 
-                // yield final chunk
-                yield final_chunk;
-            }
-        })
+                // yield final output chunk
+                yield objectiveai::functions::executions::response::streaming::FunctionExecutionChunk {
+                    id: response_id.clone(),
+                    tasks: Vec::new(),
+                    tasks_errors: if tasks_errors {
+                        Some(true)
+                    } else {
+                        None
+                    },
+                    reasoning: None,
+                    output: Some(objectiveai::functions::expression::FunctionOutput::Vector(final_output)),
+                    error: subsequent_round_error,
+                    retry_token: Some(first_round_retry_token.to_string()),
+                    created,
+                    function,
+                    profile,
+                    object,
+                    usage: Some(usage),
+                };
+            }))
+        } else {
+            // get function stream
+            let stream = self
+                .clone()
+                .execute_function_ftp_streaming(
+                    ctx.clone(),
+                    request.clone(),
+                    retry_token,
+                    ftp,
+                    created,
+                    0,
+                    Arc::new(ChoiceIndexer::new(0)),
+                    None,
+                    None,
+                );
+
+            Ok(futures::future::Either::Right(async_stream::stream! {
+                futures::pin_mut!(stream);
+                // stream all chunks
+                while let Some(
+                    FtpStreamChunk::FunctionExecutionChunk(chunk)
+                ) = stream.next().await {
+                    // handle reasoning tasks if needed
+                    if reasoning {
+                        // unwrap reasoning data
+                        let (
+                            vector_completions,
+                            _,
+                            final_chunk,
+                        ) = &mut reasoning_data
+                            .as_mut()
+                            .unwrap();
+                        // aggregate vector completions
+                        for chunk in chunk.inner.vector_completion_tasks() {
+                            if !chunk.inner.id.is_empty() {
+                                match vector_completions.get_mut(&chunk.inner.id) {
+                                    Some(existing_chunk) => {
+                                        existing_chunk.push(chunk);
+                                    }
+                                    None => {
+                                        let _ = vector_completions.insert(
+                                            chunk.inner.id.clone(),
+                                            chunk.clone(),
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                        // stash the final chunk
+                        if chunk.inner.output.is_some() {
+                            // will be returned after reasoning summary
+                            *final_chunk = Some(chunk.inner);
+                        } else {
+                            // yield chunk
+                            yield chunk.inner;
+                        }
+                    } else {
+                        // yield chunk
+                        yield chunk.inner;
+                    }
+                }
+
+                // handle reasoning
+                if reasoning {
+                    // unpack reasoning data
+                    let objectiveai::functions::executions::request::Reasoning {
+                        model,
+                        models,
+                    } = request.base().reasoning.as_ref().unwrap();
+                    let (
+                        vector_completions,
+                        (
+                            index_map,
+                            mut confidence_responses,
+                        ),
+                        final_chunk,
+                    ) = reasoning_data.unwrap();
+                    let mut final_chunk = final_chunk.unwrap();
+
+                    // iterate over vector completion chat completions
+                    for mut vector_completion in vector_completions.into_values() {
+                        let indices = index_map.get(&vector_completion.task_path)
+                            .expect("missing index map for vector completion task path");
+                        for (i, score) in vector_completion
+                            .inner
+                            .scores
+                            .iter()
+                            .enumerate()
+                        {
+                            let confidence_response =
+                                &mut confidence_responses[indices[i]];
+                            confidence_response.confidence += *score;
+                        }
+                        for vote in vector_completion.inner.votes {
+                            if let Some(completion_index) = vote.completion_index {
+                                let mut winning_index: usize = 0;
+                                let mut highest_vote =
+                                    rust_decimal::Decimal::ZERO;
+                                for (i, &score) in vote.vote.iter().enumerate() {
+                                    if score > highest_vote {
+                                        highest_vote = score;
+                                        winning_index = i;
+                                    }
+                                }
+                                let confidence_response =
+                                    &mut confidence_responses[indices[winning_index]];
+                                let completion = vector_completion
+                                    .inner
+                                    .completions
+                                    .iter_mut()
+                                    .find(|c| c.index == completion_index)
+                                    .expect(
+                                        "missing completion for vote completion index",
+                                    );
+                                let delta = &mut completion
+                                    .inner
+                                    .choices[0]
+                                    .delta;
+                                if let Some(reasoning) = delta.reasoning.take() {
+                                    confidence_response.reasoning.push(reasoning);
+                                }
+                                if let Some(content) = delta.content.take()
+                                    && let Ok(vector::completions::ResponseKey {
+                                        _think: Some(reasoning),
+                                        ..
+                                    }) = serde_json::from_str(&content)
+                                {
+                                    confidence_response.reasoning.push(reasoning);
+                                }
+                                if let Some(tool_calls) = delta.tool_calls.take() {
+                                    for tool_call in tool_calls {
+                                        if let objectiveai::chat::completions::response::streaming::ToolCall {
+                                            function: Some(
+                                                objectiveai::chat::completions::response::streaming::ToolCallFunction {
+                                                    arguments: Some(arguments),
+                                                    ..
+                                                }
+                                            ),
+                                            ..
+                                        } = tool_call
+                                            && let Ok(vector::completions::ResponseKey {
+                                                _think: Some(reasoning),
+                                                ..
+                                            }) = serde_json::from_str(&arguments)
+                                        {
+                                            confidence_response.reasoning.push(
+                                                reasoning,
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // normalize response confidences
+                    for confidence_response in &mut confidence_responses {
+                        if confidence_response.confidence_count
+                            > rust_decimal::Decimal::ONE
+                        {
+                            confidence_response.confidence /= confidence_response
+                                .confidence_count;
+                        }
+                    }
+
+                    // create a chat completion summarizing the reasoning
+                    let stream = self.create_reasoning_summary_streaming(
+                        ctx,
+                        request.clone(),
+                        model.clone(),
+                        models.clone(),
+                        description,
+                        final_chunk.output.clone().expect("missing output"),
+                        confidence_responses,
+                    ).await;
+
+                    // yield chunks
+                    futures::pin_mut!(stream);
+                    while let Some(chunk) = stream.next().await {
+                        // collect usage
+                        if let Some(chunk_usage) = &chunk.inner.usage {
+                            if let Some(usage) = &mut final_chunk.usage {
+                                usage.push_chat_completion_usage(chunk_usage);
+                            } else {
+                                let mut usage = objectiveai::vector::completions::response::Usage::default();
+                                usage.push_chat_completion_usage(chunk_usage);
+                                final_chunk.usage = Some(usage);
+                            }
+                        }
+
+                        // yield chunk
+                        yield objectiveai::functions::executions::response::streaming::FunctionExecutionChunk {
+                            id: final_chunk.id.clone(),
+                            tasks: Vec::new(),
+                            tasks_errors: final_chunk.tasks_errors,
+                            reasoning: Some(chunk),
+                            output: None,
+                            error: None,
+                            retry_token: None,
+                            created: final_chunk.created,
+                            function: final_chunk.function.clone(),
+                            profile: final_chunk.profile.clone(),
+                            object: final_chunk.object.clone(),
+                            usage: None,
+                        };
+                    }
+
+                    // yield final chunk
+                    yield final_chunk;
+                }
+            }))
+        }
     }
 
     async fn fetch_function_flat_task_profile(
         &self,
         ctx: ctx::Context<CTXEXT>,
         request: Arc<objectiveai::functions::executions::request::Request>,
+        input: Option<objectiveai::functions::expression::Input>,
     ) -> Result<functions::FunctionFlatTaskProfile, super::Error> {
         match &*request {
             objectiveai::functions::executions::request::Request::FunctionInlineProfileInline {
@@ -606,7 +1292,7 @@ where
                             body.profile.clone(),
                         ),
                     },
-                    body.base.input.clone(),
+                    input.unwrap_or_else(|| body.base.input.clone()),
                     self.function_fetcher.clone(),
                     self.profile_fetcher.clone(),
                     self.ensemble_fetcher.clone(),
@@ -631,7 +1317,7 @@ where
                         repository: path.prepository.clone(),
                         commit: path.pcommit.clone(),
                     },
-                    body.base.input.clone(),
+                    input.unwrap_or_else(|| body.base.input.clone()),
                     self.function_fetcher.clone(),
                     self.profile_fetcher.clone(),
                     self.ensemble_fetcher.clone(),
@@ -656,7 +1342,7 @@ where
                             body.profile.clone(),
                         ),
                     },
-                    body.base.input.clone(),
+                    input.unwrap_or_else(|| body.base.input.clone()),
                     self.function_fetcher.clone(),
                     self.profile_fetcher.clone(),
                     self.ensemble_fetcher.clone(),
@@ -680,7 +1366,7 @@ where
                         repository: path.prepository.clone(),
                         commit: path.pcommit.clone(),
                     },
-                    body.input.clone(),
+                    input.unwrap_or_else(|| body.input.clone()),
                     self.function_fetcher.clone(),
                     self.profile_fetcher.clone(),
                     self.ensemble_fetcher.clone(),
@@ -701,38 +1387,38 @@ where
         created: u64,
         task_index: u64,
         choice_indexer: Arc<ChoiceIndexer>,
+        swiss_round: Option<u64>,
+        swiss_pool_index: Option<u64>,
     ) -> futures::stream::BoxStream<'static, FtpStreamChunk> {
         match ftp {
-            functions::FlatTaskProfile::Function(function_ftp) => {
-                futures::stream::once(
-                    self.clone().execute_function_ftp_streaming(
-                        ctx,
-                        request,
-                        root_retry_token,
-                        function_ftp,
-                        created,
-                        task_index,
-                        choice_indexer,
-                    ),
+            functions::FlatTaskProfile::Function(function_ftp) => self
+                .clone()
+                .execute_function_ftp_streaming(
+                    ctx,
+                    request,
+                    root_retry_token,
+                    function_ftp,
+                    created,
+                    task_index,
+                    choice_indexer,
+                    swiss_round,
+                    swiss_pool_index,
                 )
-                .flatten()
-                .boxed()
-            }
-            functions::FlatTaskProfile::MapFunction(map_function_ftp) => {
-                futures::stream::once(
-                    self.clone().execute_map_function_ftp_streaming(
-                        ctx,
-                        request,
-                        root_retry_token,
-                        map_function_ftp,
-                        created,
-                        task_index,
-                        choice_indexer,
-                    ),
+                .boxed(),
+            functions::FlatTaskProfile::MapFunction(map_function_ftp) => self
+                .clone()
+                .execute_map_function_ftp_streaming(
+                    ctx,
+                    request,
+                    root_retry_token,
+                    map_function_ftp,
+                    created,
+                    task_index,
+                    choice_indexer,
+                    swiss_round,
+                    swiss_pool_index,
                 )
-                .flatten()
-                .boxed()
-            }
+                .boxed(),
             functions::FlatTaskProfile::VectorCompletion(vector_ftp) => {
                 futures::stream::once(
                     self.clone().execute_vector_ftp_streaming(
@@ -764,7 +1450,7 @@ where
         }
     }
 
-    async fn execute_map_function_ftp_streaming(
+    fn execute_map_function_ftp_streaming(
         self: Arc<Self>,
         ctx: ctx::Context<CTXEXT>,
         request: Arc<objectiveai::functions::executions::request::Request>,
@@ -775,6 +1461,8 @@ where
         created: u64,
         task_index: u64,
         choice_indexer: Arc<ChoiceIndexer>,
+        swiss_round: Option<u64>,
+        swiss_pool_index: Option<u64>,
     ) -> impl Stream<Item = FtpStreamChunk> + Send + 'static {
         // initialize output and task indices
         let ftp_inner_len = ftp.len();
@@ -805,18 +1493,17 @@ where
         let outer_task_indices = task_indices.clone();
         let stream = futures::stream::iter(
             ftp.functions.into_iter().enumerate().map(move |(i, ftp)| {
-                futures::stream::once(
-                    self.clone().execute_function_ftp_streaming(
-                        ctx.clone(),
-                        request.clone(),
-                        root_retry_token.clone(),
-                        ftp,
-                        created,
-                        task_index + outer_task_indices[i],
-                        choice_indexer.clone(),
-                    ),
+                self.clone().execute_function_ftp_streaming(
+                    ctx.clone(),
+                    request.clone(),
+                    root_retry_token.clone(),
+                    ftp,
+                    created,
+                    task_index + outer_task_indices[i],
+                    choice_indexer.clone(),
+                    swiss_round,
+                    swiss_pool_index,
                 )
-                .flatten()
             }),
         )
         .flatten();
@@ -864,7 +1551,7 @@ where
         }
     }
 
-    async fn execute_function_ftp_streaming(
+    fn execute_function_ftp_streaming(
         self: Arc<Self>,
         ctx: ctx::Context<CTXEXT>,
         request: Arc<objectiveai::functions::executions::request::Request>,
@@ -875,6 +1562,8 @@ where
         created: u64,
         task_index: u64,
         choice_indexer: Arc<ChoiceIndexer>,
+        swiss_round: Option<u64>,
+        swiss_pool_index: Option<u64>,
     ) -> impl Stream<Item = FtpStreamChunk> + Send + 'static {
         // identify the completion and get response type
         let (response_id, object) = match ftp.r#type {
@@ -948,6 +1637,8 @@ where
                                     created,
                                     task_index + task_indices[i],
                                     child_choice_indexer.clone(),
+                                    swiss_round,
+                                    swiss_pool_index,
                                 ))
                             } else {
                                 None
@@ -997,6 +1688,8 @@ where
                                 ),
                                 task_index,
                                 task_path: ftp.path.clone(),
+                                swiss_round,
+                                swiss_pool_index,
                                 inner: objectiveai::functions::executions::response::streaming::FunctionExecutionChunk {
                                     id: response_id.clone(),
                                     tasks: vec![
@@ -1035,6 +1728,8 @@ where
                                 ),
                                 task_index,
                                 task_path: ftp.path.clone(),
+                                swiss_round,
+                                swiss_pool_index,
                                 inner: objectiveai::functions::executions::response::streaming::FunctionExecutionChunk {
                                     id: response_id.clone(),
                                     tasks: vec![
@@ -1117,7 +1812,7 @@ where
                     )),
                 ),
                 (
-                    functions::FunctionType::Vector { output_length },
+                    functions::FunctionType::Vector { output_length, .. },
                     Ok(objectiveai::functions::expression::FunctionOutput::Vector(vector)),
                 ) if {
                     output_length.is_none_or(|len| len == vector.len() as u64)
@@ -1132,7 +1827,7 @@ where
                     None,
                 ),
                 (
-                    functions::FunctionType::Vector { output_length },
+                    functions::FunctionType::Vector { output_length, .. },
                     Ok(output)
                 ) => (
                     output.into_err(),
@@ -1156,6 +1851,8 @@ where
                     ),
                     task_index,
                     task_path: ftp.path,
+                    swiss_round,
+                    swiss_pool_index,
                     inner: objectiveai::functions::executions::response::streaming::FunctionExecutionChunk {
                         id: response_id.clone(),
                         tasks: Vec::new(),

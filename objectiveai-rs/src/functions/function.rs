@@ -296,6 +296,28 @@ impl Function {
             Function::Inline(_) => None,
         }
     }
+
+    /// Returns the function's input_split expression, if defined.
+    pub fn input_split(
+        &self,
+    ) -> Option<&super::expression::WithExpression<Vec<super::expression::Input>>>
+    {
+        match self {
+            Function::Remote(remote_function) => remote_function.input_split(),
+            Function::Inline(inline_function) => inline_function.input_split(),
+        }
+    }
+
+    /// Returns the function's input_merge expression, if defined.
+    pub fn input_merge(
+        &self,
+    ) -> Option<&super::expression::WithExpression<super::expression::Input>>
+    {
+        match self {
+            Function::Remote(remote_function) => remote_function.input_merge(),
+            Function::Inline(inline_function) => inline_function.input_merge(),
+        }
+    }
 }
 
 /// A GitHub-hosted function with full metadata.
@@ -356,6 +378,17 @@ pub enum RemoteFunction {
         /// Expression computing the expected output vector length.
         /// Receives: `input`.
         output_length: super::expression::WithExpression<u64>,
+        /// Expression transforming input into an input array of the output_length
+        /// When the Function is executed with any input from the array,
+        /// The output_length should be 1.
+        /// Receives: `input`.
+        input_split:
+            super::expression::WithExpression<Vec<super::expression::Input>>,
+        /// Expression transforming an array of inputs computed by `input_split`
+        /// into a single Input object for the Function.
+        /// Receives: `input` (as an array).
+        input_merge:
+            super::expression::WithExpression<super::expression::Input>,
     },
 }
 
@@ -417,6 +450,28 @@ impl RemoteFunction {
             RemoteFunction::Vector { output_length, .. } => Some(output_length),
         }
     }
+
+    /// Returns the function's input_split expression, if defined (vector functions only).
+    pub fn input_split(
+        &self,
+    ) -> Option<&super::expression::WithExpression<Vec<super::expression::Input>>>
+    {
+        match self {
+            RemoteFunction::Scalar { .. } => None,
+            RemoteFunction::Vector { input_split, .. } => Some(input_split),
+        }
+    }
+
+    /// Returns the function's input_merge expression, if defined (vector functions only).
+    pub fn input_merge(
+        &self,
+    ) -> Option<&super::expression::WithExpression<super::expression::Input>>
+    {
+        match self {
+            RemoteFunction::Scalar { .. } => None,
+            RemoteFunction::Vector { input_merge, .. } => Some(input_merge),
+        }
+    }
 }
 
 /// An inline function definition without metadata.
@@ -460,6 +515,20 @@ pub enum InlineFunction {
         /// Expression computing the final score vector from task results.
         /// Receives: `input`, `tasks`.
         output: super::expression::Expression,
+        /// Expression transforming input into an input array of the output_length
+        /// When the Function is executed with any input from the array,
+        /// The output_length should be 1.
+        /// Receives: `input`.
+        /// Only required if the request uses a strategy that needs input splitting.
+        input_split: Option<
+            super::expression::WithExpression<Vec<super::expression::Input>>,
+        >,
+        /// Expression transforming an array of inputs computed by `input_split`
+        /// into a single Input object for the Function.
+        /// Receives: `input` (as an array).
+        /// Only required if the request uses a strategy that needs input splitting.
+        input_merge:
+            Option<super::expression::WithExpression<super::expression::Input>>,
     },
 }
 
@@ -485,6 +554,28 @@ impl InlineFunction {
         match self {
             InlineFunction::Scalar { output, .. } => output,
             InlineFunction::Vector { output, .. } => output,
+        }
+    }
+
+    /// Returns the function's input_split expression, if defined (vector functions only).
+    pub fn input_split(
+        &self,
+    ) -> Option<&super::expression::WithExpression<Vec<super::expression::Input>>>
+    {
+        match self {
+            InlineFunction::Scalar { .. } => None,
+            InlineFunction::Vector { input_split, .. } => input_split.as_ref(),
+        }
+    }
+
+    /// Returns the function's input_merge expression, if defined (vector functions only).
+    pub fn input_merge(
+        &self,
+    ) -> Option<&super::expression::WithExpression<super::expression::Input>>
+    {
+        match self {
+            InlineFunction::Scalar { .. } => None,
+            InlineFunction::Vector { input_merge, .. } => input_merge.as_ref(),
         }
     }
 }

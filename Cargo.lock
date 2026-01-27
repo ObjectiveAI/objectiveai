@@ -978,7 +978,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "base62",
  "base64",
@@ -1001,7 +1001,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-api"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "ahash 0.8.12",
  "async-stream",
@@ -1034,7 +1034,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-wasm-js"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "objectiveai",
  "serde-wasm-bindgen",
