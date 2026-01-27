@@ -1,8 +1,8 @@
 import {
   validateFunctionInput as wasmValidateFunctionInput,
   compileFunctionInputMaps as wasmCompileFunctionInputMaps,
-  compileFunctionOutput as wasmCompileFunctionOutput,
   compileFunctionTasks as wasmCompileFunctionTasks,
+  compileFunctionOutput as wasmCompileFunctionOutput,
   compileFunctionOutputLength as wasmCompileFunctionOutputLength,
   compileFunctionInputSplit as wasmCompileFunctionInputSplit,
   compileFunctionInputMerge as wasmCompileFunctionInputMerge,
