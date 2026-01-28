@@ -29,6 +29,16 @@ export const InlineVectorFunctionSchema = z
     output: ExpressionSchema.describe(
       "An expression which evaluates to an array of numbers. This is the output of the vector function. Will be provided with the outputs of all tasks."
     ),
+    input_split: ExpressionSchema.optional()
+      .nullable()
+      .describe(
+        "An expression transforming input into an array of inputs. When the Function is executed with any input from the array, the output_length should be 1. Only required if the request uses a strategy that needs input splitting (e.g., swiss_system)."
+      ),
+    input_merge: ExpressionSchema.optional()
+      .nullable()
+      .describe(
+        "An expression transforming an array of inputs (computed by input_split) into a single Input object for the Function. Only required if the request uses a strategy that needs input splitting (e.g., swiss_system)."
+      ),
   })
   .describe("A vector function defined inline.")
   .meta({ title: "InlineVectorFunction" });
@@ -68,6 +78,7 @@ export const RemoteVectorFunctionSchema = InlineVectorFunctionSchema.extend({
     .describe(
       "When present, describes changes from the previous version or versions."
     ),
+  input_schema: InputSchemaSchema,
   output_length: z
     .union([
       z.uint32().describe("The fixed length of the output vector."),
@@ -76,6 +87,12 @@ export const RemoteVectorFunctionSchema = InlineVectorFunctionSchema.extend({
       ),
     ])
     .describe("The length of the output vector."),
+  input_split: ExpressionSchema.describe(
+    "An expression transforming input into an array of inputs. When the Function is executed with any input from the array, the output_length should be 1."
+  ),
+  input_merge: ExpressionSchema.describe(
+    "An expression transforming an array of inputs (computed by input_split) into a single Input object for the Function."
+  ),
 })
   .describe('A vector function fetched from GitHub. "function.json"')
   .meta({ title: "RemoteVectorFunction" });

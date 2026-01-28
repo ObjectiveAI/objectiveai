@@ -12,6 +12,15 @@ use serde::{Deserialize, Serialize};
 pub struct RetryToken(pub Vec<Option<String>>);
 
 impl RetryToken {
+    pub fn clone_slice(&self, range: std::ops::Range<usize>) -> Self {
+        let len = range.end.saturating_sub(range.start);
+        let mut out = Vec::with_capacity(len);
+        for i in range.start..range.end {
+            out.push(self.0.get(i).cloned().unwrap_or(None));
+        }
+        RetryToken(out)
+    }
+
     /// Appends another token's entries to this token.
     pub fn push(&mut self, other: RetryToken) {
         self.0.extend(other.0)
