@@ -1,4 +1,4 @@
-import { mapsToRecords } from "src/mapsToRecords.js";
+import { mapsToRecords } from "src/mapsToRecords";
 import { validateEnsemble } from "../wasm/loader.js";
 import { Ensemble, EnsembleBase } from "./ensemble";
 

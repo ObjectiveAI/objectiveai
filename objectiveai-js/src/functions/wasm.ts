@@ -10,7 +10,7 @@ import {
 import { Function } from "./function";
 import { CompiledFunctionOutput, InputValue, TaskOutputs } from "./expression";
 import { CompiledTasks } from "./task";
-import { mapsToRecords } from "src/mapsToRecords.js";
+import { mapsToRecords } from "src/mapsToRecords";
 
 export function validateFunctionInput(
   function_: Function,
