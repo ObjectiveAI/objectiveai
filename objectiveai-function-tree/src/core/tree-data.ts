@@ -63,8 +63,7 @@ function functionState(
  */
 export function buildTree(
   execution: InputFunctionExecution | null,
-  modelNames?: Record<string, string>,
-  responseLabels?: Record<string, string[]>
+  modelNames?: Record<string, string>
 ): TreeData | null {
   if (!execution) return null;
 
@@ -95,8 +94,6 @@ export function buildTree(
           : null,
       taskCount: execution.tasks?.length ?? 0,
       error: execution.error?.message ?? null,
-      swissRound: null,
-      swissPoolIndex: null,
     },
   };
   nodes.set(rootId, rootNode);
@@ -104,7 +101,7 @@ export function buildTree(
   // Process tasks
   if (execution.tasks) {
     for (let i = 0; i < execution.tasks.length; i++) {
-      processTask(execution.tasks[i], rootId, i, nodes, modelNames, responseLabels);
+      processTask(execution.tasks[i], rootId, i, nodes, modelNames);
     }
   }
 
@@ -116,21 +113,19 @@ function processTask(
   parentId: string,
   fallbackIndex: number,
   nodes: Map<string, TreeNode>,
-  modelNames?: Record<string, string>,
-  responseLabels?: Record<string, string[]>
+  modelNames?: Record<string, string>
 ): void {
   // A task with sub-tasks is always a function execution task,
   // regardless of whether it also carries scores/votes properties
   if (isFunctionExecutionTask(task)) {
-    processFunctionTask(task, parentId, fallbackIndex, nodes, modelNames, responseLabels);
+    processFunctionTask(task, parentId, fallbackIndex, nodes, modelNames);
   } else {
     processVectorCompletionTask(
       task as InputVectorCompletionTask,
       parentId,
       fallbackIndex,
       nodes,
-      modelNames,
-      responseLabels
+      modelNames
     );
   }
 }
@@ -140,24 +135,18 @@ function processFunctionTask(
   parentId: string,
   fallbackIndex: number,
   nodes: Map<string, TreeNode>,
-  modelNames?: Record<string, string>,
-  responseLabels?: Record<string, string[]>
+  modelNames?: Record<string, string>
 ): void {
   const idx = task.index ?? fallbackIndex;
   const path = task.task_path ?? [idx];
   const id = nodeId("func", path);
 
-  const hasSwiss = task.swiss_round !== undefined;
-  const label = hasSwiss
-    ? `Round ${task.swiss_round} · Pool ${task.swiss_pool_index ?? 0}`
-    : task.function
-      ? task.function.split("/").pop() || `Task ${idx}`
-      : `Task ${idx}`;
-
   const node: TreeNode = {
     id,
     kind: "function",
-    label,
+    label: task.function
+      ? task.function.split("/").pop() || `Task ${idx}`
+      : `Task ${idx}`,
     parentId,
     children: [],
     x: 0,
@@ -175,8 +164,6 @@ function processFunctionTask(
           : null,
       taskCount: task.tasks?.length ?? 0,
       error: task.error?.message ?? null,
-      swissRound: task.swiss_round ?? null,
-      swissPoolIndex: task.swiss_pool_index ?? null,
     },
   };
 
@@ -189,7 +176,7 @@ function processFunctionTask(
   // Recurse into sub-tasks
   if (task.tasks) {
     for (let i = 0; i < task.tasks.length; i++) {
-      processTask(task.tasks[i], id, i, nodes, modelNames, responseLabels);
+      processTask(task.tasks[i], id, i, nodes, modelNames);
     }
   }
 }
@@ -199,23 +186,18 @@ function processVectorCompletionTask(
   parentId: string,
   fallbackIndex: number,
   nodes: Map<string, TreeNode>,
-  modelNames?: Record<string, string>,
-  responseLabels?: Record<string, string[]>
+  modelNames?: Record<string, string>
 ): void {
   const idx = task.index ?? fallbackIndex;
   const path = task.task_path ?? [idx];
   const id = nodeId("vc", path);
-
-  // Resolve response labels for this task by its path key
-  const pathKey = path.join(",");
-  const labels = responseLabels?.[pathKey] ?? null;
 
   const node: TreeNode = {
     id,
     kind: "vector-completion",
     label: `Task ${idx}`,
     parentId,
-    children: [],
+    children: [], // LLM nodes no longer rendered in tree — vote data stored on this node
     x: 0,
     y: 0,
     width: SIZES["vector-completion"].width,
@@ -226,7 +208,7 @@ function processVectorCompletionTask(
       taskIndex: task.task_index ?? idx,
       taskPath: path,
       scores: task.scores ?? null,
-      responses: labels,
+      responses: null,
       voteCount: task.votes?.length ?? 0,
       votes: task.votes ?? null,
       completions: task.completions ?? null,

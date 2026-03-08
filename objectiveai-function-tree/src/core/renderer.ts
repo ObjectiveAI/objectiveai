@@ -1,4 +1,4 @@
-import type { TreeNode, FunctionNodeData, VectorCompletionNodeData } from "../types";
+import type { TreeNode, TreeNodeKind, FunctionNodeData, VectorCompletionNodeData, LlmNodeData } from "../types";
 import { scoreColor, SCORE_COLORS } from "../types";
 import type { Viewport } from "./viewport";
 import type { LodLevel, LodParams } from "./lod";
@@ -282,6 +282,9 @@ export class TreeRenderer {
         case "vector-completion":
           this.drawVectorCompletionNode(node, x, y, theme, params);
           break;
+        case "llm":
+          this.drawLlmNode(node, x, y, theme, params);
+          break;
       }
 
       // State indicator (top-right corner)
@@ -396,6 +399,56 @@ export class TreeRenderer {
     }
   }
 
+  private drawLlmNode(
+    node: TreeNode,
+    x: number, y: number,
+    theme: RenderTheme,
+    params: LodParams
+  ): void {
+    const ctx = this.ctx;
+    const data = node.data as LlmNodeData;
+    const padding = 8;
+
+    // Label (model name)
+    if (params.showLabels) {
+      ctx.font = theme.font;
+      ctx.fillStyle = theme.text;
+      const label = params.maxLabelLength > 0
+        ? truncate(node.label, params.maxLabelLength)
+        : node.label;
+      ctx.fillText(label, x + padding, y + 16, node.width - padding * 2);
+    }
+
+    // Weight indicator
+    if (params.showScoreBars) {
+      const barY = y + 24;
+      const barWidth = node.width - padding * 2;
+      const barHeight = 4;
+
+      ctx.fillStyle = theme.nodeBorder;
+      this.drawRoundedRectFill(x + padding, barY, barWidth, barHeight, 2);
+
+      ctx.fillStyle = theme.accent;
+      this.drawRoundedRectFill(x + padding, barY, barWidth * Math.min(data.weight, 1), barHeight, 2);
+    }
+
+    // Streaming text preview
+    if (params.showStreamingText && data.streamingText) {
+      ctx.font = theme.fontSmall;
+      ctx.fillStyle = theme.textSecondary;
+      const preview = truncate(data.streamingText.replace(/\n/g, " "), 30);
+      ctx.fillText(preview, x + padding, y + 44, node.width - padding * 2);
+    }
+
+    // Source badge (cache/rng)
+    if (params.showLabels && (data.fromCache || data.fromRng)) {
+      ctx.font = theme.fontSmall;
+      ctx.fillStyle = data.fromRng ? SCORE_COLORS.orange : SCORE_COLORS.yellow;
+      const badge = data.fromRng ? "RNG" : "CACHE";
+      ctx.fillText(badge, x + node.width - padding - this.measureText(badge, theme.fontSmall), y + 16);
+    }
+  }
+
   // -- Helpers --------------------------------------------------------------
 
   private drawStateIndicator(
@@ -452,6 +505,7 @@ export class TreeRenderer {
     switch (node.kind) {
       case "function": return theme.accent;
       case "vector-completion": return SCORE_COLORS.green;
+      case "llm": return SCORE_COLORS.yellow;
     }
   }
 
