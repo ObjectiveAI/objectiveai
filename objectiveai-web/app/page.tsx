@@ -27,23 +27,20 @@ interface FeaturedFunction {
 
 export default function Home() {
   const { isMobile } = useResponsive();
-  const [slots, setSlots] = useState<(FeaturedFunction | null)[]>(
-    Array.from({ length: FEATURED_COUNT }, () => null)
-  );
-  const [isListLoading, setIsListLoading] = useState(true);
+  const [functions, setFunctions] = useState<FeaturedFunction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch functions from API — progressive loading
+  // Fetch functions from API
   useEffect(() => {
-    let cancelled = false;
-
     async function fetchFunctions() {
       try {
-        setIsListLoading(true);
+        setIsLoading(true);
 
+        // Fetch functions list via SDK
         const client = createPublicClient();
         const result = await Functions.list(client);
 
-        // Deduplicate by owner/repository
+        // Deduplicate by owner/repository (same function may have multiple commits)
         const uniqueFunctions = new Map<string, { owner: string; repository: string; commit: string }>();
         for (const fn of result.data) {
           const key = `${fn.owner}/${fn.repository}`;
@@ -52,55 +49,49 @@ export default function Home() {
           }
         }
 
-        const entries = Array.from(uniqueFunctions.values()).slice(0, FEATURED_COUNT);
-        if (cancelled) return;
+        // Limit to FEATURED_COUNT
+        const limitedFunctions = Array.from(uniqueFunctions.values()).slice(0, FEATURED_COUNT);
 
-        // Initialize slots to match actual count
-        setSlots(Array.from({ length: entries.length }, () => null));
-        setIsListLoading(false);
-
-        // Fire all detail fetches — fill slots as each resolves
-        entries.forEach((fn, index) => {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 5000);
-
-          Functions.retrieve(client, "github", fn.owner, fn.repository, fn.commit, { signal: controller.signal })
-            .then((details) => {
+        const functionItems: FeaturedFunction[] = (await Promise.all(
+          limitedFunctions.map(async (fn): Promise<FeaturedFunction | null> => {
+            try {
+              const slug = `${fn.owner}/${fn.repository}`;
+              const controller = new AbortController();
+              const timeout = setTimeout(() => controller.abort(), 5000);
+              const details = await Functions.retrieve(client, "github", fn.owner, fn.repository, fn.commit, { signal: controller.signal });
               clearTimeout(timeout);
-              if (cancelled) return;
 
+              const category = deriveCategory(details);
               const name = deriveDisplayName(fn.repository);
+
+              // Extract tags from repository name
               const tags = fn.repository.split("-").filter((t: string) => t.length > 2);
               if (details.type === "vector.function") tags.push("ranking");
               else tags.push("scoring");
 
-              const item: FeaturedFunction = {
-                slug: `${fn.owner}/${fn.repository}`,
+              return {
+                slug,
                 name,
                 description: details.description || `${name} function`,
-                category: deriveCategory(details),
+                category,
                 tags,
               };
+            } catch {
+              // Skip functions that fail to load
+              return null;
+            }
+          })
+        )).filter((fn): fn is FeaturedFunction => fn !== null);
 
-              setSlots(prev => {
-                const next = [...prev];
-                next[index] = item;
-                return next;
-              });
-            })
-            .catch(() => {
-              clearTimeout(timeout);
-            });
-        });
+        setFunctions(functionItems);
       } catch {
-        if (!cancelled) {
-          setIsListLoading(false);
-        }
+        // Silent failure - page still renders, just without featured functions
+      } finally {
+        setIsLoading(false);
       }
     }
 
     fetchFunctions();
-    return () => { cancelled = true; };
   }, []);
 
   return (
@@ -195,99 +186,122 @@ export default function Home() {
             </Link>
           </div>
 
-          {/* Function Cards Grid — slots fill progressively */}
+          {/* Function Cards Grid */}
           <div className="gridThree">
-            {slots.map((fn, i) => fn ? (
-              <Link
-                key={fn.slug}
-                href={`/functions/${fn.slug}`}
-                style={{ textDecoration: 'none', color: 'inherit' }}
-              >
-                <div className="card" style={{
-                  cursor: 'pointer',
-                  height: '100%',
+            {isLoading ? (
+              // Loading skeleton
+              Array.from({ length: FEATURED_COUNT }).map((_, i) => (
+                <div key={i} className="card" style={{
+                  padding: '16px',
+                  height: '180px',
                   display: 'flex',
                   flexDirection: 'column',
-                  position: 'relative',
-                  padding: '16px',
+                  gap: '8px',
                 }}>
-                  <span className="tag" style={{
-                    alignSelf: 'flex-start',
-                    marginBottom: '8px',
-                    fontSize: '11px',
-                    padding: '4px 10px'
-                  }}>
-                    {fn.category}
-                  </span>
-                  <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '6px' }}>
-                    {fn.name}
-                  </h3>
-                  <p style={{
-                    fontSize: '13px',
-                    lineHeight: 1.5,
-                    color: 'var(--text-muted)',
-                    flex: 1,
-                    marginBottom: '12px',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden',
-                  }}>
-                    {fn.description}
-                  </p>
                   <div style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: '4px',
-                    marginBottom: '10px',
-                  }}>
-                    {fn.tags.slice(0, 2).map(tag => (
-                      <span key={tag} style={{
-                        fontSize: '11px',
-                        padding: '3px 8px',
-                        background: 'var(--border)',
-                        borderRadius: '10px',
-                        color: 'var(--text-muted)',
-                      }}>
-                        {tag}
-                      </span>
-                    ))}
-                    {fn.tags.length > 2 && (
-                      <span style={{
-                        fontSize: '11px',
-                        padding: '3px 8px',
-                        color: 'var(--text-muted)',
-                      }}>
-                        +{fn.tags.length - 2}
-                      </span>
-                    )}
-                  </div>
+                    width: '60px',
+                    height: '20px',
+                    background: 'var(--border)',
+                    borderRadius: '10px',
+                    animation: 'pulse 1.5s ease-in-out infinite',
+                  }} />
                   <div style={{
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    color: 'var(--accent)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}>
-                    Open <span>→</span>
-                  </div>
+                    width: '80%',
+                    height: '18px',
+                    background: 'var(--border)',
+                    borderRadius: '4px',
+                    animation: 'pulse 1.5s ease-in-out infinite',
+                  }} />
+                  <div style={{
+                    width: '100%',
+                    height: '32px',
+                    background: 'var(--border)',
+                    borderRadius: '4px',
+                    animation: 'pulse 1.5s ease-in-out infinite',
+                  }} />
                 </div>
-              </Link>
+              ))
+            ) : functions.length > 0 ? (
+              functions.map(fn => (
+                <Link
+                  key={fn.slug}
+                  href={`/functions/${fn.slug}`}
+                  style={{ textDecoration: 'none', color: 'inherit' }}
+                >
+                  <div className="card" style={{
+                    cursor: 'pointer',
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    position: 'relative',
+                    padding: '16px',
+                  }}>
+                    <span className="tag" style={{
+                      alignSelf: 'flex-start',
+                      marginBottom: '8px',
+                      fontSize: '11px',
+                      padding: '4px 10px'
+                    }}>
+                      {fn.category}
+                    </span>
+                    <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '6px' }}>
+                      {fn.name}
+                    </h3>
+                    <p style={{
+                      fontSize: '13px',
+                      lineHeight: 1.5,
+                      color: 'var(--text-muted)',
+                      flex: 1,
+                      marginBottom: '12px',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                    }}>
+                      {fn.description}
+                    </p>
+                    <div style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '4px',
+                      marginBottom: '10px',
+                    }}>
+                      {fn.tags.slice(0, 2).map(tag => (
+                        <span key={tag} style={{
+                          fontSize: '11px',
+                          padding: '3px 8px',
+                          background: 'var(--border)',
+                          borderRadius: '10px',
+                          color: 'var(--text-muted)',
+                        }}>
+                          {tag}
+                        </span>
+                      ))}
+                      {fn.tags.length > 2 && (
+                        <span style={{
+                          fontSize: '11px',
+                          padding: '3px 8px',
+                          color: 'var(--text-muted)',
+                        }}>
+                          +{fn.tags.length - 2}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: 'var(--accent)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}>
+                      Open <span>→</span>
+                    </div>
+                  </div>
+                </Link>
+              ))
             ) : (
-              <div key={i} className="card" style={{
-                padding: '16px',
-                height: '180px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px',
-              }}>
-                <div style={{ width: '60px', height: '20px', background: 'var(--border)', borderRadius: '10px', animation: 'pulse 1.5s ease-in-out infinite' }} />
-                <div style={{ width: '80%', height: '18px', background: 'var(--border)', borderRadius: '4px', animation: 'pulse 1.5s ease-in-out infinite' }} />
-                <div style={{ width: '100%', height: '32px', background: 'var(--border)', borderRadius: '4px', animation: 'pulse 1.5s ease-in-out infinite' }} />
-              </div>
-            ))}
-            {!isListLoading && slots.length === 0 && (
+              // Empty state
               <div style={{
                 gridColumn: '1 / -1',
                 textAlign: 'center',

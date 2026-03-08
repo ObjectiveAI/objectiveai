@@ -7,7 +7,7 @@ import { createPublicClient } from "../../lib/client";
 import { deriveCategory, deriveDisplayName } from "../../lib/objectiveai";
 import { NAV_HEIGHT_CALCULATION_DELAY_MS, STICKY_BAR_HEIGHT, STICKY_SEARCH_OVERLAP } from "../../lib/constants";
 import { useResponsive } from "../../hooks/useResponsive";
-import { ErrorAlert, EmptyState } from "../../components/ui";
+import { LoadingSpinner, ErrorAlert, EmptyState } from "../../components/ui";
 
 // Function item type for UI
 interface FunctionItem {
@@ -28,8 +28,7 @@ const LOAD_MORE_COUNT = 6;
 
 export default function FunctionsPage() {
   const [functions, setFunctions] = useState<FunctionItem[]>([]);
-  const [isListLoading, setIsListLoading] = useState(true);
-  const [detailsLoaded, setDetailsLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -41,16 +40,12 @@ export default function FunctionsPage() {
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  // Fetch functions from API — progressive loading
+  // Fetch functions from API
   useEffect(() => {
-    let cancelled = false;
-
     async function fetchFunctions() {
       try {
-        setIsListLoading(true);
-        setDetailsLoaded(false);
+        setIsLoading(true);
         setError(null);
-        setFunctions([]);
 
         // Get all functions via SDK
         const client = createPublicClient();
@@ -65,67 +60,51 @@ export default function FunctionsPage() {
           }
         }
 
-        if (cancelled) return;
-        setIsListLoading(false);
+        // Fetch details for each unique function (skip any that fail)
+        const functionItems: FunctionItem[] = (await Promise.all(
+          Array.from(uniqueFunctions.values()).map(async (fn): Promise<FunctionItem | null> => {
+            try {
+              const slug = `${fn.owner}/${fn.repository}`;
 
-        // Fire all detail fetches concurrently — update state as each resolves
-        const entries = Array.from(uniqueFunctions.values());
-        let settled = 0;
-
-        entries.forEach((fn) => {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 5000);
-
-          Functions.retrieve(client, "github", fn.owner, fn.repository, fn.commit, { signal: controller.signal })
-            .then((details) => {
+              const controller = new AbortController();
+              const timeout = setTimeout(() => controller.abort(), 5000);
+              const details = await Functions.retrieve(client, "github", fn.owner, fn.repository, fn.commit, { signal: controller.signal });
               clearTimeout(timeout);
-              if (cancelled) return;
 
+              const category = deriveCategory(details);
               const name = deriveDisplayName(fn.repository);
+
+              // Extract tags from repository name
               const tags = fn.repository.split("-").filter((t: string) => t.length > 2);
               if (details.type === "vector.function") tags.push("ranking");
               else tags.push("scoring");
 
-              const item: FunctionItem = {
-                slug: `${fn.owner}/${fn.repository}`,
+              return {
+                slug,
                 owner: fn.owner,
                 repository: fn.repository,
                 commit: fn.commit,
                 name,
                 description: details.description || `${name} function`,
-                category: deriveCategory(details),
+                category,
                 tags,
               };
+            } catch {
+              // Skip functions that fail to load (deleted repo, etc.)
+              return null;
+            }
+          })
+        )).filter((fn): fn is FunctionItem => fn !== null);
 
-              setFunctions(prev => [...prev, item]);
-            })
-            .catch(() => {
-              clearTimeout(timeout);
-              // Skip functions that fail to load
-            })
-            .finally(() => {
-              settled++;
-              if (settled === entries.length && !cancelled) {
-                setDetailsLoaded(true);
-              }
-            });
-        });
-
-        // Edge case: no functions to fetch details for
-        if (entries.length === 0) {
-          setDetailsLoaded(true);
-        }
+        setFunctions(functionItems);
       } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load functions");
-          setIsListLoading(false);
-          setDetailsLoaded(true);
-        }
+        setError(err instanceof Error ? err.message : "Failed to load functions");
+      } finally {
+        setIsLoading(false);
       }
     }
 
     fetchFunctions();
-    return () => { cancelled = true; };
   }, []);
 
   // Load pinned functions from localStorage
@@ -313,37 +292,8 @@ export default function FunctionsPage() {
             flexDirection: 'column',
             width: '100%',
           }}>
-            {/* Skeleton grid while list is loading */}
-            {isListLoading && (
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: isMobile
-                  ? '1fr'
-                  : isTablet
-                    ? 'repeat(2, 1fr)'
-                    : filtersOpen
-                      ? 'repeat(2, 1fr)'
-                      : 'repeat(3, 1fr)',
-                gap: isMobile ? '12px' : '16px',
-              }}>
-                {Array.from({ length: INITIAL_VISIBLE_COUNT }).map((_, i) => (
-                  <div key={i} className="card" style={{
-                    padding: '16px',
-                    height: '180px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px',
-                  }}>
-                    <div style={{ width: '60px', height: '20px', background: 'var(--border)', borderRadius: '10px', animation: 'pulse 1.5s ease-in-out infinite' }} />
-                    <div style={{ width: '80%', height: '18px', background: 'var(--border)', borderRadius: '4px', animation: 'pulse 1.5s ease-in-out infinite' }} />
-                    <div style={{ width: '100%', height: '32px', background: 'var(--border)', borderRadius: '4px', animation: 'pulse 1.5s ease-in-out infinite' }} />
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Function cards — render progressively as details arrive */}
-            {!isListLoading && !error && visibleFunctions.length > 0 && (
+            {/* Only render grid when we have results */}
+            {!isLoading && !error && visibleFunctions.length > 0 && (
             <>
               <div style={{
                 display: 'grid',
@@ -454,11 +404,15 @@ export default function FunctionsPage() {
             </>
             )}
 
-            {error && !isListLoading && (
+            {isLoading && (
+              <LoadingSpinner fullPage message="Loading functions..." />
+            )}
+
+            {error && !isLoading && (
               <ErrorAlert title="Failed to load functions" message={error} />
             )}
 
-            {!isListLoading && !error && detailsLoaded && filteredFunctions.length === 0 && (
+            {!isLoading && !error && filteredFunctions.length === 0 && (
               <EmptyState message="No functions found matching your criteria" />
             )}
           </div>
