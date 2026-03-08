@@ -150,46 +150,8 @@ export default function FunctionDetailPage({ params }: { params: Promise<{ slug:
           inputSchema: (details as { input_schema?: Record<string, unknown> }).input_schema || null,
         });
 
-        // Try to get available profiles (separately, so function loads even if no profiles exist)
-        let functionProfiles: Array<{ owner: string; repository: string; commit: string; label: string; description: string }> = [];
-        try {
-          const pairs = await Functions.listPairs(publicClient);
-          const matchingPairs = pairs.data.filter(
-            (p: { function: { owner: string; repository: string } }) =>
-              p.function.owner === owner && p.function.repository === repository
-          );
-          functionProfiles = matchingPairs.map(
-            (p: { profile: { owner: string; repository: string; commit: string } }) => ({
-              owner: p.profile.owner,
-              repository: p.profile.repository,
-              commit: p.profile.commit,
-              label: deriveDisplayName(p.profile.repository),
-              description: `${p.profile.owner}/${p.profile.repository}`,
-            })
-          );
-        } catch {
-          // If pairs fetch fails, continue to fallback
-          functionProfiles = [];
-        }
-
-        // Fallback: try fetching profile from same repo (CLI puts profile.json in the function repo)
-        if (functionProfiles.length === 0) {
-          try {
-            const profile = await Functions.Profiles.retrieve(publicClient, "github", owner, repository, null);
-            functionProfiles = [{
-              owner,
-              repository,
-              commit: profile.commit,
-              label: deriveDisplayName(repository),
-              description: `${owner}/${repository}`,
-            }];
-          } catch {
-            // Genuinely no profile exists for this function
-          }
-        }
-
-        // Function-specific profiles first, then defaults
-        setAvailableProfiles([...functionProfiles, ...DEFAULT_PROFILES]);
+        // Only show default profiles (Nano first as cheapest/fastest)
+        setAvailableProfiles(DEFAULT_PROFILES);
         setSelectedProfileIndex(0);
       } catch (err) {
         setLoadError(err instanceof Error ? err.message : "Failed to load function");
