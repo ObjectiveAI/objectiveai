@@ -1,5 +1,5 @@
 # Builder
-FROM node:22 AS builder
+FROM node:20 AS builder
 ARG AUTH_GOOGLE_CLIENT_ID
 ENV AUTH_GOOGLE_CLIENT_ID=${AUTH_GOOGLE_CLIENT_ID}
 ARG AUTH_GOOGLE_CLIENT_SECRET
@@ -45,7 +45,7 @@ COPY objectiveai-web/ objectiveai-web/
 RUN npm run build --workspace=objectiveai-web
 
 # Runner (standalone output — no node_modules needed)
-FROM node:22-slim AS runner
+FROM node:20-slim AS runner
 ARG AUTH_GOOGLE_CLIENT_ID
 ENV AUTH_GOOGLE_CLIENT_ID=${AUTH_GOOGLE_CLIENT_ID}
 ARG AUTH_GOOGLE_CLIENT_SECRET

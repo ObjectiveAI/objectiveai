@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsMobile } from "../../../hooks/useIsMobile";
 import { useObjectiveAI } from "../../../hooks/useObjectiveAI";
 import { COPY_FEEDBACK_DURATION_MS } from "../../../lib/constants";
 import { Auth } from "objectiveai";
 import { ObjectiveAIFetchError } from "objectiveai";
+import { LoadingSpinner, ErrorAlert, EmptyState } from "../../../components/ui";
 
 interface ApiKey {
   api_key: string;
@@ -164,16 +166,8 @@ export default function ApiKeysPage() {
   if (isLoading) {
     return (
       <div className="page">
-        <div className="container" style={{ textAlign: 'center', paddingTop: '80px' }}>
-          <div style={{
-            width: '40px',
-            height: '40px',
-            border: '3px solid var(--border)',
-            borderTopColor: 'var(--accent)',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
-            margin: '0 auto',
-          }} />
+        <div className="container" style={{ paddingTop: '80px' }}>
+          <LoadingSpinner fullPage />
         </div>
       </div>
     );
@@ -300,103 +294,24 @@ export default function ApiKeysPage() {
 
         {/* Keys List */}
         {keysLoading ? (
-          <div className="card" style={{
-            padding: isMobile ? '40px 16px' : '60px 32px',
-            textAlign: 'center',
-          }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              border: '3px solid var(--border)',
-              borderTopColor: 'var(--accent)',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite',
-              margin: '0 auto 16px',
-            }} />
-            <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
-              Loading API keys...
-            </p>
+          <div className="card">
+            <LoadingSpinner fullPage size={32} message="Loading API keys..." />
           </div>
         ) : keysError ? (
-          <div className="card" style={{
-            padding: isMobile ? '40px 16px' : '60px 32px',
-            textAlign: 'center',
-          }}>
-            <svg
-              width="48"
-              height="48"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="var(--color-error)"
-              strokeWidth="1.5"
-              style={{ marginBottom: '16px', opacity: 0.6 }}
-            >
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            <h3 style={{
-              fontSize: '18px',
-              fontWeight: 600,
-              marginBottom: '8px',
-            }}>
-              Failed to load keys
-            </h3>
-            <p style={{
-              color: 'var(--text-muted)',
-              fontSize: '14px',
-              maxWidth: '300px',
-              margin: '0 auto 16px',
-            }}>
-              {keysError}
-            </p>
-            <button
-              onClick={fetchKeys}
-              style={{
-                padding: '8px 16px',
-                fontSize: '13px',
-                fontWeight: 500,
-                color: 'var(--accent)',
-                background: 'transparent',
-                border: '1px solid var(--accent)',
-                borderRadius: '8px',
-                cursor: 'pointer',
-              }}
-            >
-              Try Again
-            </button>
+          <div className="card">
+            <ErrorAlert
+              fullPage
+              title="Failed to load keys"
+              message={keysError}
+              onRetry={fetchKeys}
+            />
           </div>
         ) : keys.length === 0 ? (
-          <div className="card" style={{
-            padding: isMobile ? '40px 16px' : '60px 32px',
-            textAlign: 'center',
-          }}>
-            <svg
-              width="48"
-              height="48"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="var(--text-muted)"
-              strokeWidth="1.5"
-              style={{ marginBottom: '16px', opacity: 0.4 }}
-            >
-              <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
-            </svg>
-            <h3 style={{
-              fontSize: '18px',
-              fontWeight: 600,
-              marginBottom: '8px',
-            }}>
-              No API keys yet
-            </h3>
-            <p style={{
-              color: 'var(--text-muted)',
-              fontSize: '14px',
-              maxWidth: '300px',
-              margin: '0 auto',
-            }}>
-              Create your first API key to start making requests to the ObjectiveAI API.
-            </p>
+          <div className="card">
+            <EmptyState
+              title="No API keys yet"
+              message="Create your first API key to start making requests to the ObjectiveAI API."
+            />
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -585,10 +500,13 @@ export default function ApiKeysPage() {
             width: isMobile ? 'calc(100% - 40px)' : '440px',
             maxWidth: '440px',
             zIndex: 1001,
-          }}>
+          }}
+            role="dialog"
+            aria-labelledby="create-key-title"
+          >
             {newlyCreatedKey ? (
               <>
-                <h2 style={{
+                <h2 id="create-key-title" style={{
                   fontSize: '20px',
                   fontWeight: 700,
                   marginBottom: '8px',
@@ -655,7 +573,7 @@ export default function ApiKeysPage() {
               </>
             ) : (
               <>
-                <h2 style={{
+                <h2 id="create-key-title" style={{
                   fontSize: '20px',
                   fontWeight: 700,
                   marginBottom: '20px',

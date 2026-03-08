@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useRef } from "react";
 import type { FieldProps, ArrayInputSchema, InputValue } from "../types";
 import { getErrorsForPath, getErrorMessage } from "../validation";
 import { joinPath, getDefaultValue } from "../utils";
@@ -8,6 +9,8 @@ import SchemaField from "../SchemaField";
 interface ArrayFieldProps extends FieldProps<InputValue[]> {
   schema: ArrayInputSchema;
 }
+
+let globalKeyCounter = 0;
 
 export default function ArrayField({
   schema,
@@ -20,6 +23,28 @@ export default function ArrayField({
   depth = 0,
 }: ArrayFieldProps) {
   const items = Array.isArray(value) ? value : [];
+  const [itemKeys, setItemKeys] = useState<number[]>(() =>
+    items.map(() => globalKeyCounter++)
+  );
+
+  // Sync key array with items length (handles external value changes)
+  const prevLength = useRef(items.length);
+  if (items.length !== prevLength.current) {
+    let keys = itemKeys;
+    if (items.length > keys.length) {
+      keys = [...keys];
+      while (keys.length < items.length) {
+        keys.push(globalKeyCounter++);
+      }
+    } else if (items.length < keys.length) {
+      keys = keys.slice(0, items.length);
+    }
+    if (keys !== itemKeys) {
+      setItemKeys(keys);
+    }
+    prevLength.current = items.length;
+  }
+
   const canAdd = schema.maxItems == null || items.length < schema.maxItems;
   const canRemove = items.length > (schema.minItems ?? 0);
 
@@ -27,10 +52,12 @@ export default function ArrayField({
 
   const addItem = () => {
     const defaultVal = getDefaultValue(schema.items);
+    setItemKeys((prev) => [...prev, globalKeyCounter++]);
     onChange([...items, defaultVal]);
   };
 
   const removeItem = (index: number) => {
+    setItemKeys((prev) => prev.filter((_, i) => i !== index));
     onChange(items.filter((_, i) => i !== index));
   };
 
@@ -64,7 +91,7 @@ export default function ArrayField({
 
           return (
             <div
-              key={index}
+              key={itemKeys[index]}
               style={{
                 display: "flex",
                 gap: "8px",

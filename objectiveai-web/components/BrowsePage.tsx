@@ -5,6 +5,7 @@ import React, {
   useContext,
   useState,
   useEffect,
+  useMemo,
   useRef,
   ReactNode,
 } from "react";
@@ -97,7 +98,7 @@ function BrowsePageRoot({ children, maxWidth = "1400px" }: BrowsePageProps) {
   const searchBarTop = navOffset;
   const sidebarTop = navOffset + STICKY_BAR_HEIGHT + SAFE_GAP;
 
-  const contextValue: BrowsePageContextValue = {
+  const contextValue = useMemo<BrowsePageContextValue>(() => ({
     isMobile,
     isTablet,
     filtersOpen,
@@ -107,7 +108,7 @@ function BrowsePageRoot({ children, maxWidth = "1400px" }: BrowsePageProps) {
     sidebarTop,
     searchQuery,
     setSearchQuery,
-  };
+  }), [isMobile, isTablet, filtersOpen, navOffset, searchBarTop, sidebarTop, searchQuery]);
 
   return (
     <BrowsePageContext.Provider value={contextValue}>

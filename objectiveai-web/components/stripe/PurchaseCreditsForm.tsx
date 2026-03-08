@@ -159,7 +159,7 @@ export function PurchaseCreditsForm({
 
   // Handle confirm (creates payment intent with tax)
   const handleConfirm = async () => {
-    if (!paymentIntentPreview || !amountCents) return;
+    if (!paymentIntentPreview || !amountCents || confirming) return;
 
     setConfirming(true);
     setError(null);
