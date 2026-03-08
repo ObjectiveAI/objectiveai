@@ -5,6 +5,7 @@ import type { FunctionTreeConfig, InputFunctionExecution, TreeNode } from "../ty
 interface UseEngineOptions {
   data: InputFunctionExecution | null;
   modelNames?: Record<string, string>;
+  responseLabels?: Record<string, string[]>;
   config?: Partial<FunctionTreeConfig>;
   onNodeClick?: (node: TreeNode) => void;
   onNodeHover?: (node: TreeNode | null) => void;
@@ -73,8 +74,8 @@ export function useEngine(options: UseEngineOptions): UseEngineResult {
   useEffect(() => {
     const engine = engineRef.current;
     if (!engine) return;
-    engine.setData(options.data, options.modelNames);
-  }, [options.data, options.modelNames]);
+    engine.setData(options.data, options.modelNames, options.responseLabels);
+  }, [options.data, options.modelNames, options.responseLabels]);
 
   // Sync config
   useEffect(() => {

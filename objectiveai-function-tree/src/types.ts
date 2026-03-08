@@ -4,7 +4,7 @@
 
 // -- Tree Node Types --------------------------------------------------------
 
-export type TreeNodeKind = "function" | "vector-completion" | "llm";
+export type TreeNodeKind = "function" | "vector-completion";
 
 export type TreeNodeState = "pending" | "streaming" | "complete" | "error";
 
@@ -16,6 +16,10 @@ export interface FunctionNodeData {
   output: number | number[] | null;
   taskCount: number;
   error: string | null;
+  /** Swiss system round number (null if not a Swiss execution). */
+  swissRound: number | null;
+  /** Swiss system pool index (null if not a Swiss execution). */
+  swissPoolIndex: number | null;
 }
 
 /** Data payload for a vector completion task node. */
@@ -33,31 +37,9 @@ export interface VectorCompletionNodeData {
   error: string | null;
 }
 
-/** Data payload for an LLM leaf node (one Vote). */
-export interface LlmNodeData {
-  kind: "llm";
-  /** 22-char content-addressed Ensemble LLM ID. */
-  modelId: string;
-  /** Resolved readable name (e.g., "openai/gpt-4o"). Null until resolved. */
-  modelName: string | null;
-  /** Vote distribution over responses. Null while pending. */
-  vote: number[] | null;
-  /** Weight assigned to this vote. */
-  weight: number;
-  /** Accumulated streaming completion text. */
-  streamingText: string;
-  /** Whether this vote came from the global cache. */
-  fromCache: boolean;
-  /** Whether this vote was generated via RNG. */
-  fromRng: boolean;
-  /** Index into the ensemble. */
-  flatEnsembleIndex: number;
-}
-
 export type TreeNodeData =
   | FunctionNodeData
-  | VectorCompletionNodeData
-  | LlmNodeData;
+  | VectorCompletionNodeData;
 
 /** A single node in the function execution tree. */
 export interface TreeNode {
@@ -133,6 +115,8 @@ export interface InputFunctionExecutionTask {
   error?: { message?: string } | null;
   function?: string | null;
   profile?: string | null;
+  swiss_round?: number;
+  swiss_pool_index?: number;
 }
 
 export type InputTask =
@@ -192,7 +176,6 @@ export const DEFAULT_CONFIG: FunctionTreeConfig = {
 export const NODE_SIZES: Record<TreeNodeKind, { width: number; height: number }> = {
   function: { width: 200, height: 80 },
   "vector-completion": { width: 180, height: 70 },
-  llm: { width: 150, height: 60 },
 };
 
 // -- React Component Props --------------------------------------------------
@@ -202,6 +185,8 @@ export interface FunctionTreeProps {
   data: InputFunctionExecution | null;
   /** Resolved model names: { [22-char-id]: "openai/gpt-4o" }. */
   modelNames?: Record<string, string>;
+  /** Response labels per task: { [taskPath]: ["Option A", "Option B", ...] }. */
+  responseLabels?: Record<string, string[]>;
   /** Configuration overrides. */
   config?: Partial<FunctionTreeConfig>;
   /** Called when a node is clicked. */

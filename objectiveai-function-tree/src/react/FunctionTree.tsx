@@ -7,11 +7,12 @@ import { DetailPanel } from "./DetailPanel";
 /**
  * FunctionTree — 2D canvas visualization of ObjectiveAI function execution trees.
  *
- * Each LLM is a leaf node. Supports streaming data, pan/zoom, and node selection.
+ * Supports streaming data, pan/zoom, node selection, and Swiss system display.
  */
 export function FunctionTree({
   data,
   modelNames,
+  responseLabels,
   config,
   onNodeClick,
   onNodeHover,
@@ -39,6 +40,7 @@ export function FunctionTree({
   } = useEngine({
     data,
     modelNames,
+    responseLabels,
     config,
     onNodeClick: handleNodeClick,
     onNodeHover,

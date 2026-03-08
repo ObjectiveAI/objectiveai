@@ -86,11 +86,12 @@ export class FunctionTreeEngine {
   /** Update the tree data. Call on each streaming chunk or complete result. */
   setData(
     data: InputFunctionExecution | null,
-    modelNames?: Record<string, string>
+    modelNames?: Record<string, string>,
+    responseLabels?: Record<string, string[]>
   ): void {
     if (this.destroyed) return;
 
-    const newTree = buildTree(data, modelNames);
+    const newTree = buildTree(data, modelNames, responseLabels);
 
     if (!newTree) {
       this.treeData = null;

@@ -1,5 +1,5 @@
 import React from "react";
-import type { TreeNode, FunctionNodeData, VectorCompletionNodeData, LlmNodeData } from "../types";
+import type { TreeNode, FunctionNodeData, VectorCompletionNodeData } from "../types";
 import { scoreColor } from "../types";
 
 interface DetailPanelProps {
@@ -38,9 +38,6 @@ export function DetailPanel({ node, modelNames, onClose }: DetailPanelProps): Re
       {node.data.kind === "vector-completion" && (
         <VectorCompletionDetails data={node.data} modelNames={modelNames} />
       )}
-      {node.data.kind === "llm" && (
-        <LlmDetails data={node.data} modelNames={modelNames} />
-      )}
     </div>
   );
 }
@@ -53,6 +50,12 @@ function FunctionDetails({ data }: { data: FunctionNodeData }): React.ReactEleme
       )}
       {data.profileId && (
         <DetailRow label="Profile" value={data.profileId} />
+      )}
+      {data.swissRound !== null && (
+        <DetailRow label="Swiss Round" value={String(data.swissRound)} />
+      )}
+      {data.swissPoolIndex !== null && (
+        <DetailRow label="Pool Index" value={String(data.swissPoolIndex)} />
       )}
       <DetailRow label="Tasks" value={String(data.taskCount)} />
       {data.output !== null && (
@@ -98,7 +101,9 @@ function VectorCompletionDetails({
                   }}
                 />
                 <span className="ft-detail-score-label">
-                  {(score * 100).toFixed(1)}%
+                  {data.responses?.[i]
+                    ? `${data.responses[i]}: ${(score * 100).toFixed(1)}%`
+                    : `${(score * 100).toFixed(1)}%`}
                 </span>
               </div>
             ))}
@@ -149,59 +154,6 @@ function VectorCompletionDetails({
   );
 }
 
-function LlmDetails({
-  data,
-  modelNames,
-}: {
-  data: LlmNodeData;
-  modelNames?: Record<string, string>;
-}): React.ReactElement {
-  const resolvedName = modelNames?.[data.modelId] ?? data.modelName;
-  const maxVote = data.vote ? Math.max(...data.vote) : 0;
-
-  return (
-    <div className="ft-detail-body">
-      <DetailRow
-        label="Model"
-        value={resolvedName ?? data.modelId}
-      />
-      <DetailRow label="Weight" value={data.weight.toFixed(3)} />
-
-      {data.fromCache && <DetailRow label="Source" value="Cached" />}
-      {data.fromRng && <DetailRow label="Source" value="RNG (simulated)" />}
-
-      {data.vote && data.vote.length > 0 && (
-        <div className="ft-detail-scores">
-          <span className="ft-detail-label">Vote Distribution</span>
-          <div className="ft-detail-score-bars">
-            {data.vote.map((v, i) => (
-              <div key={i} className="ft-detail-score-bar">
-                <div
-                  className="ft-detail-score-fill"
-                  style={{
-                    width: `${v * 100}%`,
-                    background: scoreColor(v),
-                  }}
-                />
-                <span className="ft-detail-score-label">
-                  {(v * 100).toFixed(1)}%
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {data.streamingText && (
-        <div className="ft-detail-text">
-          <span className="ft-detail-label">Reasoning</span>
-          <pre className="ft-detail-pre">{data.streamingText}</pre>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // -- Helpers ----------------------------------------------------------------
 
 function DetailRow({
@@ -227,7 +179,6 @@ function kindLabel(kind: string): string {
   switch (kind) {
     case "function": return "Function";
     case "vector-completion": return "Vector Completion";
-    case "llm": return "LLM";
     default: return kind;
   }
 }

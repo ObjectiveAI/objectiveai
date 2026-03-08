@@ -26,7 +26,6 @@ export type {
   TreeData,
   FunctionNodeData,
   VectorCompletionNodeData,
-  LlmNodeData,
   FunctionTreeConfig,
   FunctionTreeProps,
   InputFunctionExecution,
