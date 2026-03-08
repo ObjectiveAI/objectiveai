@@ -3,13 +3,15 @@
   "private": true,
   "workspaces": [
     "objectiveai-cli",
+    "objectiveai-function-tree",
     "objectiveai-js",
     "objectiveai-web"
   ],
   "scripts": {
     "dev": "npm run dev -w objectiveai-web",
     "build:js": "npm run build -w objectiveai-js",
+    "build:tree": "npm run build -w @objectiveai/function-tree",
     "build:web": "npm run build -w objectiveai-web",
-    "build": "npm run build:js && npm run build:web"
+    "build": "npm run build:js && npm run build:tree && npm run build:web"
   }
 }

@@ -11,7 +11,7 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: path.join(import.meta.dirname, ".."),
-  transpilePackages: ["objectiveai"],
+  transpilePackages: ["objectiveai", "@objectiveai/function-tree"],
   images: {
     remotePatterns: [
       {
