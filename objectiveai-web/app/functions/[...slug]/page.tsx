@@ -774,6 +774,7 @@ export default function FunctionDetailPage({ params }: { params: Promise<{ slug:
           gridTemplateColumns: "1fr 1fr",
           gap: isMobile ? "16px" : "32px",
           alignItems: isMobile ? "stretch" : "start",
+          maxWidth: "900px",
         }}>
           {/* Left - Input */}
           <div className="card" style={{ padding: isMobile ? "16px" : undefined }}>
