@@ -66,10 +66,8 @@ export default function FunctionsPage() {
             try {
               const slug = `${fn.owner}/${fn.repository}`;
 
-              const controller = new AbortController();
-              const timeout = setTimeout(() => controller.abort(), 5000);
-              const details = await Functions.retrieve(client, "github", fn.owner, fn.repository, fn.commit, { signal: controller.signal });
-              clearTimeout(timeout);
+              // Fetch full function details via SDK
+              const details = await Functions.retrieve(client, "github", fn.owner, fn.repository, fn.commit);
 
               const category = deriveCategory(details);
               const name = deriveDisplayName(fn.repository);
