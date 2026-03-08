@@ -60,39 +60,34 @@ export default function FunctionsPage() {
           }
         }
 
-        // Fetch details for each unique function (skip any that fail)
-        const functionItems: FunctionItem[] = (await Promise.all(
-          Array.from(uniqueFunctions.values()).map(async (fn): Promise<FunctionItem | null> => {
-            try {
-              const slug = `${fn.owner}/${fn.repository}`;
+        // Fetch details for each unique function via API route
+        const functionItems: FunctionItem[] = await Promise.all(
+          Array.from(uniqueFunctions.values()).map(async (fn) => {
+            const slug = `${fn.owner}/${fn.repository}`;
 
-              // Fetch full function details via SDK
-              const details = await Functions.retrieve(client, "github", fn.owner, fn.repository, fn.commit);
+            // Fetch full function details via SDK
+            const details = await Functions.retrieve(client, "github", fn.owner, fn.repository, fn.commit);
 
-              const category = deriveCategory(details);
-              const name = deriveDisplayName(fn.repository);
+            const category = deriveCategory(details);
+            const name = deriveDisplayName(fn.repository);
 
-              // Extract tags from repository name
-              const tags = fn.repository.split("-").filter((t: string) => t.length > 2);
-              if (details.type === "vector.function") tags.push("ranking");
-              else tags.push("scoring");
+            // Extract tags from repository name
+            const tags = fn.repository.split("-").filter((t: string) => t.length > 2);
+            if (details.type === "vector.function") tags.push("ranking");
+            else tags.push("scoring");
 
-              return {
-                slug,
-                owner: fn.owner,
-                repository: fn.repository,
-                commit: fn.commit,
-                name,
-                description: details.description || `${name} function`,
-                category,
-                tags,
-              };
-            } catch {
-              // Skip functions that fail to load (deleted repo, etc.)
-              return null;
-            }
+            return {
+              slug,
+              owner: fn.owner,
+              repository: fn.repository,
+              commit: fn.commit,
+              name,
+              description: details.description || `${name} function`,
+              category,
+              tags,
+            };
           })
-        )).filter((fn): fn is FunctionItem => fn !== null);
+        );
 
         setFunctions(functionItems);
       } catch (err) {

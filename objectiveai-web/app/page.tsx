@@ -52,34 +52,29 @@ export default function Home() {
         // Limit to FEATURED_COUNT
         const limitedFunctions = Array.from(uniqueFunctions.values()).slice(0, FEATURED_COUNT);
 
-        const functionItems: FeaturedFunction[] = (await Promise.all(
-          limitedFunctions.map(async (fn): Promise<FeaturedFunction | null> => {
-            try {
-              const slug = `${fn.owner}/${fn.repository}`;
-              // Fetch full function details via SDK
-              const details = await Functions.retrieve(client, "github", fn.owner, fn.repository, fn.commit);
+        const functionItems: FeaturedFunction[] = await Promise.all(
+          limitedFunctions.map(async (fn) => {
+            const slug = `${fn.owner}/${fn.repository}`;
+            // Fetch full function details via SDK
+            const details = await Functions.retrieve(client, "github", fn.owner, fn.repository, fn.commit);
 
-              const category = deriveCategory(details);
-              const name = deriveDisplayName(fn.repository);
+            const category = deriveCategory(details);
+            const name = deriveDisplayName(fn.repository);
 
-              // Extract tags from repository name
-              const tags = fn.repository.split("-").filter((t: string) => t.length > 2);
-              if (details.type === "vector.function") tags.push("ranking");
-              else tags.push("scoring");
+            // Extract tags from repository name
+            const tags = fn.repository.split("-").filter((t: string) => t.length > 2);
+            if (details.type === "vector.function") tags.push("ranking");
+            else tags.push("scoring");
 
-              return {
-                slug,
-                name,
-                description: details.description || `${name} function`,
-                category,
-                tags,
-              };
-            } catch {
-              // Skip functions that fail to load
-              return null;
-            }
+            return {
+              slug,
+              name,
+              description: details.description || `${name} function`,
+              category,
+              tags,
+            };
           })
-        )).filter((fn): fn is FeaturedFunction => fn !== null);
+        );
 
         setFunctions(functionItems);
       } catch {
