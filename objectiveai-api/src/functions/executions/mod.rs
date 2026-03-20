@@ -7,6 +7,8 @@
 mod client;
 mod error;
 pub mod usage_handler;
+/// Cost estimation for Function executions based on historical usage.
+pub mod cost_estimate;
 
 #[cfg(test)]
 mod client_tests;

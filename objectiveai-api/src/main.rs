@@ -630,6 +630,102 @@ async fn main() {
                 }
             }),
         )
+        // Function-Profile Pairs - estimate execution cost (no commits)
+        .route(
+            "/functions/{fowner}/{frepository}/profiles/{powner}/{prepository}/estimate",
+            axum::routing::post({
+                let pairs_client = pairs_client.clone();
+                move |headers: HeaderMap,
+                      Path((fowner, frepository, powner, prepository)): Path<(String, String, String, String)>,
+                      Json(body): Json<
+                    objectiveai_api::functions::executions::cost_estimate::CostEstimateRequestBody,
+                >| {
+                    estimate_function_profile_pair_cost(
+                        pairs_client,
+                        headers,
+                        fowner,
+                        frepository,
+                        None,
+                        powner,
+                        prepository,
+                        None,
+                        body,
+                    )
+                }
+            }),
+        )
+        // Function-Profile Pairs - estimate execution cost (fcommit only)
+        .route(
+            "/functions/{fowner}/{frepository}/{fcommit}/profiles/{powner}/{prepository}/estimate",
+            axum::routing::post({
+                let pairs_client = pairs_client.clone();
+                move |headers: HeaderMap,
+                      Path((fowner, frepository, fcommit, powner, prepository)): Path<(String, String, String, String, String)>,
+                      Json(body): Json<
+                    objectiveai_api::functions::executions::cost_estimate::CostEstimateRequestBody,
+                >| {
+                    estimate_function_profile_pair_cost(
+                        pairs_client,
+                        headers,
+                        fowner,
+                        frepository,
+                        Some(fcommit),
+                        powner,
+                        prepository,
+                        None,
+                        body,
+                    )
+                }
+            }),
+        )
+        // Function-Profile Pairs - estimate execution cost (pcommit only)
+        .route(
+            "/functions/{fowner}/{frepository}/profiles/{powner}/{prepository}/{pcommit}/estimate",
+            axum::routing::post({
+                let pairs_client = pairs_client.clone();
+                move |headers: HeaderMap,
+                      Path((fowner, frepository, powner, prepository, pcommit)): Path<(String, String, String, String, String)>,
+                      Json(body): Json<
+                    objectiveai_api::functions::executions::cost_estimate::CostEstimateRequestBody,
+                >| {
+                    estimate_function_profile_pair_cost(
+                        pairs_client,
+                        headers,
+                        fowner,
+                        frepository,
+                        None,
+                        powner,
+                        prepository,
+                        Some(pcommit),
+                        body,
+                    )
+                }
+            }),
+        )
+        // Function-Profile Pairs - estimate execution cost (both commits)
+        .route(
+            "/functions/{fowner}/{frepository}/{fcommit}/profiles/{powner}/{prepository}/{pcommit}/estimate",
+            axum::routing::post({
+                let pairs_client = pairs_client.clone();
+                move |headers: HeaderMap,
+                      Path((fowner, frepository, fcommit, powner, prepository, pcommit)): Path<(String, String, String, String, String, String)>,
+                      Json(body): Json<
+                    objectiveai_api::functions::executions::cost_estimate::CostEstimateRequestBody,
+                >| {
+                    estimate_function_profile_pair_cost(
+                        pairs_client,
+                        headers,
+                        fowner,
+                        frepository,
+                        Some(fcommit),
+                        powner,
+                        prepository,
+                        Some(pcommit),
+                        body,
+                    )
+                }
+            }),
+        )
         // Function Profile Computations - create
         .route(
             "/functions/profiles/compute",
@@ -1195,6 +1291,61 @@ async fn get_function_profile_pair_usage(
     let ctx = context(&headers);
     match usage_router.get_function_profile_pair_usage(&ctx, &params).await {
         Ok(r) => Json(r).into_response(),
+        Err(e) => e.into_response(),
+    }
+}
+
+async fn estimate_function_profile_pair_cost(
+    client: Arc<
+        impl functions::pair_retrieval_client::Client<ctx::DefaultContextExt>
+        + Send
+        + Sync
+        + 'static,
+    >,
+    headers: HeaderMap,
+    fowner: String,
+    frepository: String,
+    fcommit: Option<String>,
+    powner: String,
+    prepository: String,
+    pcommit: Option<String>,
+    body: objectiveai_api::functions::executions::cost_estimate::CostEstimateRequestBody,
+) -> axum::response::Response {
+    let ctx = context(&headers);
+    match client
+        .get_function_profile_pair_usage(
+            ctx,
+            &fowner,
+            &frepository,
+            fcommit.as_deref(),
+            &powner,
+            &prepository,
+            pcommit.as_deref(),
+        )
+        .await
+    {
+        Ok(usage) => {
+            let (input_size, estimate) =
+                objectiveai_api::functions::executions::cost_estimate::estimate_cost(
+                    &usage,
+                    &body.input,
+                );
+
+            let response =
+                objectiveai_api::functions::executions::cost_estimate::CostEstimateResponse {
+                    function_owner: fowner,
+                    function_repository: frepository,
+                    function_commit: fcommit,
+                    profile_owner: powner,
+                    profile_repository: prepository,
+                    profile_commit: pcommit,
+                    input_size,
+                    usage,
+                    estimate,
+                };
+
+            Json(response).into_response()
+        }
         Err(e) => e.into_response(),
     }
 }
