@@ -1,0 +1,153 @@
+/* ── Explore — Unified Directory ── */
+
+.page {
+  max-width: 1280px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 0 0 48px;
+}
+
+/* ── Section ── */
+
+.section {
+  padding: 0 24px;
+}
+
+.section + .section {
+  margin-top: 32px;
+  padding-top: 32px;
+  border-top: 1px solid var(--node-border);
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.sectionTitle {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--info-dim);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.sectionCount {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--info-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Grids ── */
+
+.functionsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 10px;
+}
+
+.profilesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.swarmsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 10px;
+}
+
+/* ── Section loading / empty ── */
+
+.sectionLoading {
+  display: flex;
+  align-items: center;
+  padding: 24px 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--info-dim);
+}
+
+.sectionLoadingDot {
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  background: var(--copper-mid);
+  border-radius: 1px;
+  margin-right: 8px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+.sectionEmpty {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--info-dim);
+  padding: 24px 0;
+  font-style: italic;
+}
+
+/* ── Page header ── */
+
+.pageHeader {
+  padding: 32px 24px 24px;
+}
+
+.pageTitle {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--info-bright);
+  font-weight: 400;
+}
+
+.pageSubtitle {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--info-dim);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+/* ── Responsive ── */
+
+@media (max-width: 768px) {
+  .functionsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .profilesGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .swarmsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .page {
+    padding: 0 0 32px;
+  }
+
+  .pageHeader {
+    padding: 20px 16px 16px;
+  }
+
+  .section {
+    padding: 0 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sectionLoadingDot {
+    animation: none;
+    opacity: 0.6;
+  }
+}

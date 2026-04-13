@@ -1,5 +1,5 @@
-import { FunctionsBrowse } from "@/components/FunctionsBrowse";
+import { redirect } from "next/navigation";
 
 export default function Functions() {
-  return <FunctionsBrowse />;
+  redirect("/explore");
 }

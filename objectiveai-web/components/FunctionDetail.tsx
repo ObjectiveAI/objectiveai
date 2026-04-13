@@ -126,6 +126,9 @@ export function FunctionDetail({ owner, repo }: Props) {
   return (
     <div className={styles.detail}>
       <div className={styles.detailHeader}>
+        <Link href="/explore" className={styles.backLink}>
+          &#x2190; explore
+        </Link>
         <div className={styles.detailTitleRow}>
           <h1 className={styles.detailName}>{repo}</h1>
           <span className={styles.detailType}>{type}</span>

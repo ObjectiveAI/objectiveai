@@ -81,7 +81,7 @@ export function SwarmDetail({ id }: Props) {
 
   return (
     <div className={styles.detail}>
-      <Link href="/swarms" className={styles.back}>← swarms</Link>
+      <Link href="/explore" className={styles.back}>&#x2190; explore</Link>
 
       <div className={styles.header}>
         <div className={styles.titleRow}>

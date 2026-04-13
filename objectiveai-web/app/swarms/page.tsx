@@ -1,9 +1,5 @@
-import { SwarmsBrowse } from "@/components/SwarmsBrowse";
-
-export const metadata = {
-  title: "swarms — objectiveai",
-};
+import { redirect } from "next/navigation";
 
 export default function SwarmsPage() {
-  return <SwarmsBrowse />;
+  redirect("/explore");
 }

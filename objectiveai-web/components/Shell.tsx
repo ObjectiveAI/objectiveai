@@ -23,7 +23,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <Link
               href="/explore"
               className={`${styles.navLink} ${
-                pathname.startsWith("/explore") || pathname.startsWith("/functions") ? styles.navLinkActive : ""
+                pathname.startsWith("/explore") || pathname.startsWith("/functions") || pathname.startsWith("/swarms") ? styles.navLinkActive : ""
               }`}
             >
               explore

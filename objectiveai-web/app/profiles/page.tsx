@@ -1,9 +1,5 @@
-import { ProfilesBrowse } from "@/components/ProfilesBrowse";
-
-export const metadata = {
-  title: "profiles — objectiveai",
-};
+import { redirect } from "next/navigation";
 
 export default function ProfilesPage() {
-  return <ProfilesBrowse />;
+  redirect("/explore");
 }

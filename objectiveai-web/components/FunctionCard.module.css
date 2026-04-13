@@ -124,6 +124,22 @@
   margin: 0 auto;
 }
 
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--info-dim);
+  text-decoration: none;
+  margin-bottom: 16px;
+  transition: color 150ms;
+}
+
+.backLink:hover {
+  color: var(--copper-mid);
+}
+
 .detailHeader {
   margin-bottom: 24px;
 }
@@ -557,6 +573,29 @@
   font-size: 10px;
   color: var(--info-dim);
   font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+
+  .detail {
+    padding: 16px;
+  }
+
+  .pageHeader {
+    padding: 16px 16px 0;
+  }
+
+  .detailTitleRow {
+    flex-wrap: wrap;
+  }
+
+  .profileCardTiers {
+    flex-wrap: wrap;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
