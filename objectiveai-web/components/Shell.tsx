@@ -8,10 +8,12 @@ import styles from "./Shell.module.css";
 export function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isHome = pathname === "/";
+  const isDemo = pathname === "/demo";
+  const isViewerPreview = pathname === "/viewer-preview";
 
   return (
     <>
-      {!isHome && (
+      {!isHome && !isDemo && !isViewerPreview && (
         <header className={styles.header}>
           <Link href="/" className={styles.logo}>
             <span className={styles.logoMark} />
@@ -19,28 +21,12 @@ export function Shell({ children }: { children: ReactNode }) {
           </Link>
           <nav className={styles.nav}>
             <Link
-              href="/functions"
+              href="/explore"
               className={`${styles.navLink} ${
-                pathname.startsWith("/functions") ? styles.navLinkActive : ""
+                pathname.startsWith("/explore") || pathname.startsWith("/functions") ? styles.navLinkActive : ""
               }`}
             >
-              functions
-            </Link>
-            <Link
-              href="/swarms"
-              className={`${styles.navLink} ${
-                pathname.startsWith("/swarms") ? styles.navLinkActive : ""
-              }`}
-            >
-              swarms
-            </Link>
-            <Link
-              href="/profiles"
-              className={`${styles.navLink} ${
-                pathname.startsWith("/profiles") ? styles.navLinkActive : ""
-              }`}
-            >
-              profiles
+              explore
             </Link>
           </nav>
         </header>
