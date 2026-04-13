@@ -1,0 +1,271 @@
+/* ── VectorPlayground ── */
+/* Interactive prompt → responses → vote convergence visualization. */
+
+.container {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--info-bright);
+  background: var(--ground);
+  border: 1px solid var(--ground-surface);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+/* ── Header ── */
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--ground-surface);
+}
+
+.headerTitle {
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: -0.02em;
+}
+
+.headerState {
+  font-size: 9px;
+  color: var(--info-dim);
+  margin-left: auto;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.stateDot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 1px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+/* ── Input area ── */
+
+.inputArea {
+  padding: 16px;
+  border-bottom: 1px solid var(--ground-surface);
+}
+
+.promptLabel {
+  display: block;
+  font-size: 9px;
+  color: var(--info-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+}
+
+.promptTextarea {
+  width: 100%;
+  min-height: 60px;
+  padding: 8px 10px;
+  background: var(--ground-raised);
+  border: 1px solid var(--ground-surface);
+  border-radius: 2px;
+  color: var(--info-bright);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 16px;
+  resize: vertical;
+}
+
+.promptTextarea:focus {
+  outline: none;
+  border-color: var(--copper-mid);
+}
+
+/* ── Responses ── */
+
+.responsesSection {
+  padding: 16px;
+  border-bottom: 1px solid var(--ground-surface);
+}
+
+.responsesLabel {
+  display: block;
+  font-size: 9px;
+  color: var(--info-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+}
+
+.responseRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.responseIndex {
+  font-size: 9px;
+  color: var(--info-dim);
+  width: 16px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.responseInput {
+  flex: 1;
+  padding: 6px 8px;
+  background: var(--ground-raised);
+  border: 1px solid var(--ground-surface);
+  border-radius: 2px;
+  color: var(--info-bright);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.responseInput:focus {
+  outline: none;
+  border-color: var(--copper-mid);
+}
+
+.responseRemove {
+  background: none;
+  border: none;
+  color: var(--info-dim);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.responseRemove:hover {
+  color: var(--info-bright);
+}
+
+.addResponse {
+  background: none;
+  border: 1px dashed var(--ground-surface);
+  border-radius: 2px;
+  color: var(--info-dim);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 4px 8px;
+  margin-top: 4px;
+}
+
+.addResponse:hover {
+  border-color: var(--copper-dim);
+  color: var(--info-bright);
+}
+
+/* ── Run button ── */
+
+.actions {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--ground-surface);
+  display: flex;
+  gap: 8px;
+}
+
+.runButton {
+  padding: 6px 16px;
+  background: var(--copper-dim);
+  border: 1px solid var(--copper-mid);
+  border-radius: 2px;
+  color: var(--ground);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.runButton:hover {
+  background: var(--copper-mid);
+}
+
+.runButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Results area ── */
+
+.results {
+  padding: 16px;
+}
+
+.scoresBar {
+  display: flex;
+  gap: 2px;
+  height: 24px;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.scoreSegment {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--ground);
+  transition: flex 0.3s ease;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.voteList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.voteRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.voteModel {
+  font-size: 9px;
+  color: var(--info-dim);
+  width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.voteBar {
+  display: flex;
+  flex: 1;
+  height: 12px;
+  gap: 1px;
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.voteSegment {
+  transition: flex 0.3s ease;
+  min-width: 0;
+}
+
+.voteWeight {
+  font-size: 9px;
+  color: var(--info-dim);
+  width: 32px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.emptyState {
+  color: var(--info-dim);
+  font-style: italic;
+  text-align: center;
+  padding: 24px 16px;
+}
