@@ -1,12 +1,18 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Functions } from "objectiveai";
-import type { Functions as FunctionsNs } from "objectiveai";
+import {
+  functionsExecutionsCreateFunctionExecution,
+  functionsExecutionsResponseStreamingFunctionExecutionChunkMerged,
+} from "objectiveai";
+import type {
+  FunctionsExecutionsResponseStreamingFunctionExecutionChunk,
+  FunctionsExpressionInputValue,
+} from "objectiveai";
 import { getClient } from "./sdk";
 
-type Chunk = FunctionsNs.Executions.Response.Streaming.FunctionExecutionChunk;
-type InputValue = FunctionsNs.Expression.InputValue;
+type Chunk = FunctionsExecutionsResponseStreamingFunctionExecutionChunk;
+type InputValue = FunctionsExpressionInputValue;
 
 export type ExecutionState = "idle" | "streaming" | "done" | "error";
 
@@ -54,7 +60,7 @@ interface UseExecutionParams {
 /**
  * Hook for streaming a function execution via the ObjectiveAI SDK.
  *
- * Uses Functions.Executions.remoteFunctionRemoteProfileCreate with stream: true,
+ * Uses functionsExecutionsCreateFunctionExecution with stream: true,
  * accumulating chunks via the SDK's merge system. Extracts votes, scores, and
  * weights from vector completion tasks for easy display.
  */
@@ -84,15 +90,27 @@ export function useExecution({
 
     try {
       const client = getClient();
-      const stream = await Functions.Executions.remoteFunctionRemoteProfileCreate(
+      const functionRef = {
+        remote: "github" as const,
+        owner: functionOwner,
+        repository: functionRepo,
+        ...(functionCommit ? { commit: functionCommit } : {}),
+      };
+      const profileRef = {
+        remote: "github" as const,
+        owner: profileOwner,
+        repository: profileRepo,
+        ...(profileCommit ? { commit: profileCommit } : {}),
+      };
+
+      const stream = await functionsExecutionsCreateFunctionExecution(
         client,
-        functionOwner,
-        functionRepo,
-        functionCommit ?? null,
-        profileOwner,
-        profileRepo,
-        profileCommit ?? null,
-        { input, stream: true as const },
+        {
+          function: functionRef,
+          profile: profileRef,
+          input,
+          stream: true as const,
+        },
         { signal: controller.signal },
       );
 
@@ -102,7 +120,7 @@ export function useExecution({
         if (acc === null) {
           acc = c;
         } else {
-          const [merged] = Functions.Executions.Response.Streaming.FunctionExecutionChunk.merged(acc, c);
+          const [merged] = functionsExecutionsResponseStreamingFunctionExecutionChunkMerged(acc, c);
           acc = merged;
         }
         setChunk(acc);

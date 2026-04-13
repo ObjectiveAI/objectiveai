@@ -7,132 +7,8 @@ import { fetchFunctionList, fetchFunctionDefinition, fetchRecursive } from "@/li
 import { apiFetch } from "@/lib/client";
 import { fetchProfileBySlug } from "@/lib/profiles/fetch";
 import type { ProfileMeta } from "@/lib/profiles/types";
-import { adaptDefinition, adaptSubFunctions, adaptProfile } from "@/lib/tree/adapter";
-import { FunctionTree } from "@objectiveai/function-tree";
-import type { InputFunctionDefinition, InputFunctionExecution, InputProfile } from "@objectiveai/function-tree/core";
-import { ExecutionResult } from "./ExecutionResult";
-import "@objectiveai/function-tree/styles";
-import "./FunctionTreeTheme.css";
+import { JudgmentStack } from "./JudgmentStack";
 import styles from "./FunctionCard.module.css";
-
-// ── Example execution generation ──
-// Generates deterministic, plausible execution data from a function definition
-// and its paired profile. Used to show what running the function looks like.
-
-function generateVote(numResponses: number, winnerIdx: number, confidence: number, seed: number): number[] {
-  // Ensure winner always gets more than equal share
-  const equalShare = 1 / numResponses;
-  // Small per-model variance so rows aren't identical
-  const jitter = ((seed * 7) % 10) / 100; // 0.00-0.09
-  const winnerShare = equalShare + (confidence * 0.7 + jitter) * (1 - equalShare);
-  const clamped = Math.min(winnerShare, 0.95);
-  const remainder = 1 - clamped;
-  return Array.from({ length: numResponses }, (_, i) =>
-    i === winnerIdx ? clamped : remainder / Math.max(1, numResponses - 1)
-  );
-}
-
-function buildExampleExecution(
-  def: InputFunctionDefinition,
-  profile: InputProfile,
-  meta: ProfileMeta,
-  slug: string,
-): {
-  execution: InputFunctionExecution;
-  inputProfile: InputProfile;
-  modelNames: Record<string, string>;
-  responseLabels: Record<string, string[]>;
-} | null {
-  // Only generate for tasks that are vector completions (have votes)
-  const vcTasks = def.tasks.filter((t) => t.type === "vector.completion");
-  if (vcTasks.length === 0) return null;
-
-  const modelNames: Record<string, string> = {};
-  meta.llms.forEach((llm, i) => {
-    modelNames[`llm-${String(i).padStart(3, "0")}`] = llm.model;
-  });
-
-  const responseLabels: Record<string, string[]> = {};
-
-  const tasks = def.tasks.map((taskDef, ti) => {
-    const isVc = taskDef.type === "vector.completion";
-    const responses = (taskDef.responses ?? []) as string[];
-    const numResponses = responses.length || 2;
-    const profileTask = profile.tasks[ti];
-    const weights = profileTask?.profile ?? meta.weights;
-    const maxWeight = Math.max(...weights, 0);
-
-    // Store response labels
-    if (numResponses > 0) {
-      responseLabels[String(ti)] = Array.from({ length: numResponses }, (_, ri) => {
-        const r = responses[ri];
-        if (typeof r === "string") return r.length > 20 ? r.slice(0, 18) + "…" : r;
-        return `Response ${ri + 1}`;
-      });
-    }
-
-    if (!isVc) {
-      // Sub-function tasks: show as complete with a scalar score
-      return {
-        index: ti, task_index: ti, task_path: [ti],
-        scores: [0.68], votes: [], completions: [],
-      };
-    }
-
-    // Generate votes — each model votes with confidence proportional to its weight
-    // Winner varies per task for visual variety
-    const winnerIdx = ti % numResponses;
-    const votes = weights.map((w, mi) => {
-      const relW = maxWeight > 0 ? w / maxWeight : 0.5;
-      // Low-weight models occasionally dissent (vote for next response)
-      const thisWinner = relW < 0.3 && mi % 3 === 2
-        ? (winnerIdx + 1) % numResponses
-        : winnerIdx;
-      return {
-        model: `llm-${String(mi).padStart(3, "0")}`,
-        vote: generateVote(numResponses, thisWinner, relW, mi + ti * 10),
-        weight: w,
-        from_cache: mi % 3 === 1, // Every third model cached
-        from_rng: false,
-      };
-    });
-
-    // Weighted scores
-    const totalWeight = votes.reduce((s, v) => s + v.weight, 0);
-    const scores = Array.from({ length: numResponses }, (_, ri) =>
-      totalWeight > 0
-        ? votes.reduce((s, v) => s + v.vote[ri] * v.weight, 0) / totalWeight
-        : 1 / numResponses
-    );
-
-    return {
-      index: ti, task_index: ti, task_path: [ti],
-      scores, votes, completions: [],
-    };
-  });
-
-  // Compute output based on function type
-  const firstVc = tasks.find((t) => t.votes.length > 0);
-  const isScalar = def.type === "scalar.function";
-  // Scalar functions produce a single number; vector functions produce a score array.
-  // Without evaluating output expressions, use the winning score as approximation.
-  const output = isScalar
-    ? (firstVc?.scores?.[0] ?? 0.5)
-    : (firstVc?.scores ?? [1]);
-
-  return {
-    execution: {
-      id: `example-${slug.slice(0, 12)}`,
-      function: `${meta.owner}/${slug}`,
-      profile: meta.repository,
-      output,
-      tasks,
-    },
-    inputProfile: profile,
-    modelNames,
-    responseLabels,
-  };
-}
 
 interface Props {
   owner: string;
@@ -161,13 +37,11 @@ export function FunctionDetail({ owner, repo }: Props) {
           const full = await fetchProfileBySlug(match.profile.owner, match.profile.repository);
           if (!cancelled) setPairedProfile(full);
         } else {
-          // No pair found — use standard profile as default
           const fallback = await fetchProfileBySlug("ObjectiveAI", "profile-standard");
           if (!cancelled) setPairedProfile(fallback);
         }
       })
       .catch(async () => {
-        // API unreachable — load standard profile directly from GitHub
         try {
           const fallback = await fetchProfileBySlug("ObjectiveAI", "profile-standard");
           if (!cancelled) setPairedProfile(fallback);
@@ -208,28 +82,6 @@ export function FunctionDetail({ owner, repo }: Props) {
     return () => { cancelled = true; };
   }, [owner, repo]);
 
-  const definition = useMemo(
-    () => rootDef ? adaptDefinition(rootDef) : null,
-    [rootDef]
-  );
-
-  const resolvedSubFunctions = useMemo(
-    () => adaptSubFunctions(allDefs),
-    [allDefs]
-  );
-
-  const inputProfile = useMemo(
-    () => pairedProfile && rootDef ? adaptProfile(pairedProfile, rootDef.tasks.length) : null,
-    [pairedProfile, rootDef]
-  );
-
-  const exampleExecution = useMemo(
-    () => definition && inputProfile && pairedProfile
-      ? buildExampleExecution(definition, inputProfile, pairedProfile, repo)
-      : null,
-    [definition, inputProfile, pairedProfile, repo]
-  );
-
   if (loading) {
     return (
       <div className={styles.loading} role="status" aria-live="polite">
@@ -243,7 +95,7 @@ export function FunctionDetail({ owner, repo }: Props) {
     return <div className={styles.error} role="alert">unable to load function</div>;
   }
 
-  if (!rootDef || !definition) return null;
+  if (!rootDef) return null;
 
   const type = rootDef.type
     .replace(/^alpha\./, "")
@@ -322,12 +174,12 @@ export function FunctionDetail({ owner, repo }: Props) {
               onClick={() => setSchemaOpen(!schemaOpen)}
             >
               <span className={`${styles.schemaArrow} ${schemaOpen ? styles.schemaArrowOpen : ""}`}>
-                ▸
+                &#x25B8;
               </span>
               input_schema
               {typeof schema?.description === "string" && (
                 <span style={{ color: "var(--info-dim)", fontWeight: 400 }}>
-                  — {schema.description}
+                  &mdash; {schema.description}
                 </span>
               )}
             </button>
@@ -355,34 +207,15 @@ export function FunctionDetail({ owner, repo }: Props) {
         )}
       </div>
 
-      <FunctionTree
-        data={null}
-        definition={definition}
-        resolvedSubFunctions={resolvedSubFunctions}
-        height={500}
-        borderless
-        config={{ theme: "dark" }}
+      <JudgmentStack
+        definition={rootDef}
+        profile={pairedProfile}
+        resolvedSubFunctions={allDefs}
       />
-
-      {exampleExecution && (
-        <div style={{ marginTop: 16 }}>
-          <p className={styles.nodeDetailLabel} style={{ marginBottom: 8 }}>
-            example execution
-          </p>
-          <ExecutionResult
-            execution={exampleExecution.execution}
-            definition={definition}
-            profile={exampleExecution.inputProfile}
-            modelNames={exampleExecution.modelNames}
-            responseLabels={exampleExecution.responseLabels}
-          />
-        </div>
-      )}
     </div>
   );
 }
 
-/** Render schema type, handling anyOf and simple types */
 function renderSchemaType(prop: Record<string, unknown>): string {
   if (prop.anyOf && Array.isArray(prop.anyOf)) {
     return (prop.anyOf as Record<string, unknown>[])
@@ -391,4 +224,3 @@ function renderSchemaType(prop: Record<string, unknown>): string {
   }
   return (prop.type as string) ?? "object";
 }
-
