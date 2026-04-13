@@ -11,6 +11,7 @@
   border: 1px solid var(--ground-surface);
   border-radius: var(--radius);
   overflow: hidden;
+  max-width: 720px;
 }
 
 .nested {
@@ -86,6 +87,7 @@
 
 .outputSeg {
   min-width: 2px;
+  transition: flex 0.4s ease;
 }
 
 /* ── Reasoning ── */
@@ -255,6 +257,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  max-width: 480px;
 }
 
 .structuralAgent {
@@ -337,6 +340,12 @@
 
 .agentRow {
   border-top: 1px solid var(--ground);
+  animation: fadeIn 0.25s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .weightCell {
@@ -366,6 +375,7 @@
 .weightFill {
   width: 100%;
   border-radius: 1px;
+  transition: height 0.3s ease;
 }
 
 .weightNum {
@@ -414,6 +424,7 @@
 .contributionFill {
   height: 100%;
   border-radius: 1px;
+  transition: width 0.3s ease;
 }
 
 .flagCell {

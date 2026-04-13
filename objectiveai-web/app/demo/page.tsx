@@ -1,6 +1,8 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import { JudgmentStack } from "@/components/JudgmentStack";
+import type { FunctionExecution } from "@/components/JudgmentStack";
 import { InventionStream } from "@/components/InventionStream";
 import { VectorPlayground } from "@/components/VectorPlayground";
 import { DEMO_INVENTION, DEMO_VECTOR_COMPLETION, DEMO_MODEL_NAMES } from "@/lib/demo-data";
@@ -105,6 +107,69 @@ const JS_EXECUTION = {
   ],
 };
 
+/* ── Streaming simulation ── */
+
+function useStreamingExecution(fullExecution: typeof JS_EXECUTION) {
+  const [exec, setExec] = useState<FunctionExecution | null>(null);
+  const [phase, setPhase] = useState<"idle" | "streaming" | "done">("idle");
+
+  const replay = useCallback(() => {
+    setExec(null);
+    setPhase("streaming");
+
+    const allVotes = fullExecution.tasks.flatMap((t, ti) =>
+      t.votes.map((v, vi) => ({ taskIndex: ti, voteIndex: vi, vote: v }))
+    );
+
+    // Phase 1: show header + reasoning
+    setTimeout(() => {
+      setExec({
+        id: fullExecution.id,
+        function: fullExecution.function,
+        profile: fullExecution.profile,
+        tasks: fullExecution.tasks.map((t) => ({
+          task_path: t.task_path,
+          votes: [],
+          scores: [],
+        })),
+      });
+    }, 200);
+
+    // Phase 2: votes arrive one by one
+    allVotes.forEach((item, i) => {
+      setTimeout(() => {
+        setExec((prev) => {
+          if (!prev?.tasks) return prev;
+          const tasks = prev.tasks.map((t, ti) => {
+            if (ti !== item.taskIndex) return t;
+            const votes = [...(t.votes ?? []), item.vote];
+            // Recompute scores as weighted average of votes so far
+            const totalW = votes.reduce((s, v) => s + v.weight, 0);
+            const numR = item.vote.vote.length;
+            const scores = Array.from({ length: numR }, (_, ri) =>
+              totalW > 0 ? votes.reduce((s, v) => s + v.vote[ri] * v.weight, 0) / totalW : 0
+            );
+            return { ...t, votes, scores };
+          });
+          return { ...prev, tasks };
+        });
+      }, 600 + i * 400);
+    });
+
+    // Phase 3: final output
+    setTimeout(() => {
+      setExec((prev) => ({
+        ...prev,
+        output: fullExecution.output,
+        reasoning: fullExecution.reasoning,
+      }));
+      setPhase("done");
+    }, 600 + allVotes.length * 400 + 300);
+  }, [fullExecution]);
+
+  return { exec, phase, replay };
+}
+
 const sectionLabel: React.CSSProperties = {
   fontFamily: '"JetBrains Mono", monospace',
   fontSize: 11,
@@ -115,6 +180,8 @@ const sectionLabel: React.CSSProperties = {
 };
 
 export default function Demo() {
+  const { exec: streamExec, phase, replay } = useStreamingExecution(JS_EXECUTION);
+
   return (
     <main style={{ padding: 24, background: "#1B1B1B", minHeight: "100vh" }}>
       <h2 style={{
@@ -126,6 +193,38 @@ export default function Demo() {
         component reference
       </h2>
 
+      {/* JudgmentStack — streaming simulation */}
+      <div style={{ marginBottom: 48 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+          <p style={{ ...sectionLabel, marginBottom: 0 }}>judgment stack — streaming convergence</p>
+          <button
+            onClick={replay}
+            disabled={phase === "streaming"}
+            style={{
+              fontFamily: '"JetBrains Mono", monospace',
+              fontSize: 9,
+              color: phase === "streaming" ? "#78716c" : "#d97706",
+              background: "transparent",
+              border: "1px solid",
+              borderColor: phase === "streaming" ? "#3f3f46" : "#92400e",
+              borderRadius: 2,
+              padding: "3px 10px",
+              cursor: phase === "streaming" ? "default" : "pointer",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+            }}
+          >
+            {phase === "idle" ? "simulate" : phase === "streaming" ? "streaming\u2026" : "replay"}
+          </button>
+        </div>
+        <JudgmentStack
+          definition={JS_DEFINITION}
+          execution={streamExec}
+          profile={JS_PROFILE}
+          modelNames={DEMO_MODEL_NAMES}
+        />
+      </div>
+
       {/* JudgmentStack — structural */}
       <div style={{ marginBottom: 48 }}>
         <p style={sectionLabel}>judgment stack — structural (definition + profile only)</p>
@@ -136,9 +235,9 @@ export default function Demo() {
         />
       </div>
 
-      {/* JudgmentStack — execution */}
+      {/* JudgmentStack — execution (static) */}
       <div style={{ marginBottom: 48 }}>
-        <p style={sectionLabel}>judgment stack — execution (with vote data)</p>
+        <p style={sectionLabel}>judgment stack — execution (static, all data)</p>
         <JudgmentStack
           definition={JS_DEFINITION}
           execution={JS_EXECUTION}

@@ -10,6 +10,7 @@
   border: 1px solid var(--ground-surface);
   border-radius: var(--radius);
   overflow: hidden;
+  max-width: 720px;
 }
 
 /* ── Progress rail ── */
