@@ -1,13 +1,16 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import type { FunctionDefinition } from "@/lib/functions/types";
-import { fetchFunctionList, fetchFunctionDefinition, fetchRecursive } from "@/lib/functions/fetch";
+import { fetchFunctionList, fetchRecursive } from "@/lib/functions/fetch";
 import { apiFetch } from "@/lib/client";
 import { fetchProfileBySlug } from "@/lib/profiles/fetch";
 import type { ProfileMeta } from "@/lib/profiles/types";
 import { JudgmentStack } from "./JudgmentStack";
+import type { FunctionExecution } from "./JudgmentStack";
+import { SchemaForm } from "./SchemaForm";
+import { DEMO_EXECUTION_COMPLETE, DEMO_MODEL_NAMES } from "@/lib/demo-data";
 import styles from "./FunctionCard.module.css";
 
 interface Props {
@@ -24,6 +27,20 @@ export function FunctionDetail({ owner, repo }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [schemaOpen, setSchemaOpen] = useState(false);
   const [pairedProfile, setPairedProfile] = useState<ProfileMeta | null>(null);
+  const [executeOpen, setExecuteOpen] = useState(false);
+  const [execution, setExecution] = useState<FunctionExecution | null>(null);
+  const [execState, setExecState] = useState<"idle" | "streaming" | "done">("idle");
+
+  const handleExecute = useCallback((_values: Record<string, unknown>) => {
+    // TODO: Replace with useExecution() when API is available
+    setExecState("streaming");
+    // Simulate streaming delay then show full execution
+    const t = setTimeout(() => {
+      setExecution(DEMO_EXECUTION_COMPLETE);
+      setExecState("done");
+    }, 800);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -205,12 +222,47 @@ export function FunctionDetail({ owner, repo }: Props) {
             )}
           </div>
         )}
+        {hasSchema && (
+          <div className={styles.executePanel}>
+            <button
+              className={styles.executeToggle}
+              onClick={() => setExecuteOpen(!executeOpen)}
+            >
+              <span className={`${styles.schemaArrow} ${executeOpen ? styles.schemaArrowOpen : ""}`}>
+                &#x25B8;
+              </span>
+              execute
+            </button>
+            {executeOpen && (
+              <div className={styles.executeBody}>
+                <SchemaForm
+                  schema={schema as { type?: string; properties?: Record<string, Record<string, unknown>>; required?: string[]; description?: string }}
+                  onSubmit={handleExecute}
+                  disabled={execState === "streaming"}
+                />
+                {execState !== "idle" && (
+                  <div className={styles.executeState}>
+                    <span
+                      className={styles.executeStateDot}
+                      style={{
+                        background: execState === "streaming" ? "var(--copper-mid)" : "var(--copper-hot)",
+                      }}
+                    />
+                    {execState === "streaming" ? "executing..." : "complete"}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <JudgmentStack
         definition={rootDef}
+        execution={execution}
         profile={pairedProfile}
         resolvedSubFunctions={allDefs}
+        modelNames={execution ? DEMO_MODEL_NAMES : undefined}
       />
     </div>
   );

@@ -334,6 +334,58 @@
   flex-shrink: 0;
 }
 
+/* ── Execute Panel ── */
+
+.executePanel {
+  margin-top: 16px;
+  border: 1px solid var(--node-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.executeToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--ground-raised);
+  border: none;
+  color: var(--copper-dim);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: color 0.15s;
+}
+
+.executeToggle:hover {
+  color: var(--copper-warm);
+}
+
+.executeBody {
+  padding: 16px;
+  border-top: 1px solid var(--node-border);
+  background: var(--ground);
+}
+
+.executeState {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--info-dim);
+  padding: 8px 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.executeStateDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
 /* ── Node Detail Panel ── */
 
 .nodeDetail {
