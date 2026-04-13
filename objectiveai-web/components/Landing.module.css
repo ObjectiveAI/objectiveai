@@ -13,12 +13,113 @@
   padding: 64px 0 40px;
 }
 
+.heroBrand {
+  margin-bottom: 24px;
+}
+
+.logoMark {
+  height: 40px;
+  width: auto;
+  color: var(--info-bright);
+}
+
 .heroTitle {
   font-family: var(--font-mono);
   font-size: 16px;
   font-weight: 500;
   color: var(--info-bright);
   letter-spacing: 0.5px;
+}
+
+.heroBody {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--info-dim);
+  margin-top: 16px;
+  line-height: 1.7;
+  max-width: 560px;
+}
+
+/* ── Email signup ── */
+
+.emailSection {
+  margin-top: 40px;
+}
+
+.status {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--copper-mid);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 500;
+}
+
+.form {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  max-width: 400px;
+}
+
+.emailInput {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--info-bright);
+  background: var(--ground-surface);
+  border: 1px solid var(--node-border);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  flex: 1;
+  min-width: 0;
+  outline: none;
+  transition: border-color 150ms;
+}
+
+.emailInput::placeholder {
+  color: var(--info-dim);
+}
+
+.emailInput:focus {
+  border-color: var(--copper-dim);
+}
+
+.submitBtn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--info-dim);
+  background: var(--ground-surface);
+  border: 1px solid var(--node-border);
+  border-radius: var(--radius);
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: border-color 150ms, color 150ms;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.submitBtn:hover {
+  border-color: var(--copper-dim);
+  color: var(--info-bright);
+}
+
+.submitBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.confirmation {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--copper-mid);
+  margin-top: 8px;
+}
+
+.error {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--info-dim);
+  margin-top: 8px;
 }
 
 .install {
@@ -492,9 +593,130 @@
   }
 }
 
+/* ── Text sections (agent-native, concepts, etc.) ── */
+
+.textSection {
+  margin-top: 56px;
+}
+
+.textSectionTitle {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--info-mid);
+  font-weight: 400;
+  margin-bottom: 12px;
+}
+
+.textSectionBody {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--info-dim);
+  line-height: 1.7;
+  max-width: 640px;
+}
+
+.textColumns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 20px;
+}
+
+.textColumn {
+  /* no special styling */
+}
+
+.textColumnTitle {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--info-bright);
+  font-weight: 400;
+  margin-bottom: 6px;
+}
+
+.textColumnBody {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--info-dim);
+  line-height: 1.6;
+}
+
+/* ── Concept grid ── */
+
+.conceptGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1px;
+  background: var(--node-border);
+  border: 1px solid var(--node-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-top: 12px;
+}
+
+.concept {
+  background: var(--ground-raised);
+  padding: 16px;
+}
+
+.conceptName {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--copper-mid);
+  font-weight: 400;
+  margin-bottom: 6px;
+}
+
+.conceptBody {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--info-dim);
+  line-height: 1.5;
+}
+
+/* ── Footer ── */
+
+.landingFooter {
+  display: flex;
+  gap: 20px;
+  padding: 56px 0 24px;
+}
+
+.footerLink {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--info-dim);
+  text-decoration: none;
+  transition: color 150ms;
+}
+
+.footerLink:hover {
+  color: var(--copper-mid);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .loadingDot {
     animation: none;
     opacity: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .textColumns {
+    grid-template-columns: 1fr;
+  }
+
+  .conceptGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .form {
+    flex-direction: column;
+    max-width: 100%;
+  }
+
+  .landingFooter {
+    flex-wrap: wrap;
+    gap: 12px 20px;
   }
 }
