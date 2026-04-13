@@ -405,9 +405,10 @@
 
 .contributionTrack {
   width: 100%;
-  height: 3px;
+  height: 4px;
   background: var(--ground);
   border-radius: 1px;
+  margin-top: 1px;
 }
 
 .contributionFill {

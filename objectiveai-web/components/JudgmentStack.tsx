@@ -40,7 +40,7 @@ export interface FunctionExecution {
 export interface JudgmentStackProps {
   definition?: FunctionDefinition | null;
   execution?: FunctionExecution | null;
-  profile?: ProfileMeta | null | undefined | undefined;
+  profile?: ProfileMeta | null | undefined;
   resolvedSubFunctions?: Map<string, FunctionDefinition>;
   modelNames?: Record<string, string>;
   depth?: number;
@@ -184,8 +184,11 @@ export function JudgmentStack({
           <span className={styles.state} style={{ background: stateColor(state) }} />
           <span className={styles.name}>
             {execution?.function?.split("/").pop() ??
-              definition?.description?.slice(0, 40) ??
-              "Function"}
+              (definition?.description
+                ? definition.description.length > 48
+                  ? definition.description.slice(0, 45) + "\u2026"
+                  : definition.description
+                : "Function")}
           </span>
           {funcType && (
             <span className={styles.typeBadge}>{funcType.replace(".function", "")}</span>
@@ -272,7 +275,7 @@ function TaskBand({
   index: number;
   taskDef: TaskDefinition;
   taskExec: TaskExecution | null;
-  profile: ProfileMeta | null | undefined | undefined;
+  profile: ProfileMeta | null | undefined;
   taskCount: number;
   expanded: boolean;
   onToggle: () => void;
@@ -327,7 +330,11 @@ function TaskBand({
         <span className={styles.taskType}>{type}</span>
         {taskW != null && <span className={styles.taskWeight}>&times;{taskW.toFixed(2)}</span>}
         {isSubFn && subFnKey && <span className={styles.taskRef}>{subFnKey}</span>}
-        {isVc && agentCount > 0 && <span className={styles.taskMeta}>{agentCount} agents</span>}
+        {isVc && (votes.length > 0 || agentCount > 0) && (
+          <span className={styles.taskMeta}>
+            {votes.length > 0 ? `${votes.length} votes` : `${agentCount} agents`}
+          </span>
+        )}
         {isVc && responses.length > 0 && (
           <span className={styles.taskMeta}>{responses.length} responses</span>
         )}
@@ -609,7 +616,7 @@ function StructuralVc({
                 <div
                   className={styles.structuralAgentBar}
                   style={{
-                    width: `${Math.max(8, rel * 60)}%`,
+                    width: `${Math.max(20, rel * 80)}%`,
                     background: `rgba(245, 158, 11, ${0.2 + rel * 0.5})`,
                   }}
                 />
