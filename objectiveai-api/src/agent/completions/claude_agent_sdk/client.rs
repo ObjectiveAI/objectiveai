@@ -1,6 +1,5 @@
 use std::pin::Pin;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 use futures::{Stream, StreamExt};
 use tokio::io::AsyncBufReadExt;
 use tokio::io::BufReader;
@@ -9,20 +8,20 @@ use tokio_stream::wrappers::LinesStream;
 
 use super::super::{ContinuationItem, StreamItem, UpstreamClient};
 use super::invention_server::InventionServer;
+use super::mcp_server_config::McpHttpServerConfig;
 use super::prompt::Prompt;
 use super::sdk_message::SDKMessage;
 use crate::util::StreamOnce;
 
 /// Claude Agent SDK client for agent completions.
 ///
-/// Lazily resolves the path to the globally installed `@anthropic-ai/claude-agent-sdk`
-/// package and passes it to spawned Node.js subprocesses via an environment variable.
+/// Extracts the embedded Python-based `objectiveai-claude-agent-sdk-runner` binary
+/// on first use and spawns it as a subprocess for each query.
 #[derive(Debug, Clone)]
 pub struct Client {
     pub user_agent: String,
     pub enabled: bool,
-    sdk_path: Arc<std::sync::OnceLock<String>>,
-    next_id: Arc<AtomicU64>,
+    binary_path: Arc<std::sync::OnceLock<String>>,
 }
 
 impl Client {
@@ -30,28 +29,94 @@ impl Client {
         Self {
             user_agent,
             enabled,
-            sdk_path: Arc::new(std::sync::OnceLock::new()),
-            next_id: Arc::new(AtomicU64::new(0)),
+            binary_path: Arc::new(std::sync::OnceLock::new()),
         }
     }
 
-    /// Resolves the absolute path to the `@anthropic-ai/claude-agent-sdk` package.
+    /// Extracts the embedded runner binary to a temp directory and returns its path.
     ///
-    /// Cached after first resolution. Uses `node -e` to call `require.resolve`.
-    fn sdk_path(&self) -> Option<&str> {
-        let path = self.sdk_path.get_or_init(|| {
-            std::process::Command::new("node")
-                .arg("-e")
-                .arg("console.log(require.resolve('@anthropic-ai/claude-agent-sdk'))")
-                .stdout(std::process::Stdio::piped())
-                .stderr(std::process::Stdio::null())
-                .output()
-                .ok()
-                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_owned())
-                .unwrap_or_default()
+    /// Cached after first extraction. Uses a content-based hash in the directory name
+    /// so different API versions get separate binaries and the same version reuses
+    /// the cached binary across restarts.
+    fn binary_path(&self) -> Option<&str> {
+        let path = self.binary_path.get_or_init(|| {
+            let binary = super::claude_agent_sdk_binary::CLAUDE_AGENT_SDK_RUNNER;
+
+            // Fast fingerprint: hash length + head/tail for cache key.
+            use std::hash::{Hash, Hasher};
+            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+            binary.len().hash(&mut hasher);
+            binary[..binary.len().min(4096)].hash(&mut hasher);
+            binary[binary.len().saturating_sub(4096)..].hash(&mut hasher);
+            let hash = hasher.finish();
+
+            let binary_name = if cfg!(windows) {
+                "objectiveai-claude-agent-sdk-runner.exe"
+            } else {
+                "objectiveai-claude-agent-sdk-runner"
+            };
+
+            let dir = std::env::temp_dir()
+                .join(format!("objectiveai-sdk-runner-{hash:016x}"));
+            let path = dir.join(binary_name);
+
+            if !path.exists() {
+                std::fs::create_dir_all(&dir).ok();
+                if std::fs::write(&path, binary).is_err() {
+                    return String::new();
+                }
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    let _ = std::fs::set_permissions(
+                        &path,
+                        std::fs::Permissions::from_mode(0o755),
+                    );
+                }
+            }
+
+            path.to_string_lossy().to_string()
         });
         if path.is_empty() { None } else { Some(path.as_str()) }
     }
+}
+
+/// Builds the MCP servers JSON object from connections and an optional invention server.
+fn build_mcp_servers_json(
+    mcp_connections: &[Arc<crate::mcp::Connection>],
+    invention_server: Option<&InventionServer>,
+) -> String {
+    use indexmap::IndexMap;
+    use std::collections::HashMap;
+
+    let mut name_counts: HashMap<String, usize> = HashMap::new();
+    for conn in mcp_connections {
+        let name = &conn.initialize_result.server_info.name;
+        *name_counts.entry(name.clone()).or_default() += 1;
+    }
+
+    let mut servers: IndexMap<String, serde_json::Value> = IndexMap::new();
+
+    for conn in mcp_connections {
+        let name = &conn.initialize_result.server_info.name;
+        let key = if name_counts.get(name).copied().unwrap_or(0) > 1 {
+            format!("{name} ({})", conn.url)
+        } else {
+            name.clone()
+        };
+        let config = McpHttpServerConfig::from(conn.as_ref());
+        servers.insert(key, serde_json::to_value(&config).unwrap());
+    }
+
+    if let Some(inv) = invention_server {
+        let config = inv.mcp_server_config();
+        servers.insert(
+            "objectiveai-invention".to_string(),
+            serde_json::to_value(&config).unwrap(),
+        );
+    }
+
+    serde_json::to_string(&servers).unwrap()
 }
 
 /// Validates that the response_format is compatible with the Claude Agent SDK.
@@ -157,16 +222,11 @@ impl UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::ag
                 None
             };
 
-            // Build JS code.
-            let js = super::js::build_js(
-                &prompt,
-                &agent.base.model,
-                agent.base.effort,
-                agent.base.thinking,
-                &mcp_connections,
-                invention_server.as_ref(),
-                Some(client.user_agent.as_str()),
-            )?;
+            // Serialize message and MCP servers for CLI args.
+            let message_json = serde_json::to_string(&prompt.message)
+                .map_err(|e| super::Error::Json(e.to_string()))?;
+            let mcp_servers_json =
+                build_mcp_servers_json(&mcp_connections, invention_server.as_ref());
 
             // Compute assistant_index from continuation.
             // State items carry a message_count (may be >1 since the SDK
@@ -184,41 +244,41 @@ impl UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::ag
                 })
                 .unwrap_or(0);
 
-            let sdk_path = client.sdk_path().map(|s| s.to_owned());
-            let tmp_id = client.next_id.fetch_add(1, Ordering::Relaxed);
+            let binary = client.binary_path()
+                .ok_or_else(|| super::Error::Spawn(
+                    "failed to extract claude-agent-sdk-runner binary".to_string(),
+                ))?
+                .to_owned();
             let agent_id = agent.id.clone();
 
+            // Spawn the Python-based runner binary with CLI args.
+            let mut cmd = Command::new(&binary);
+            cmd.arg("--model").arg(&agent.base.model)
+                .arg("--message").arg(&message_json);
 
-            // Write JS to temp file.
-            let tmp_dir = std::env::temp_dir();
-            let tmp_path = tmp_dir.join(format!(
-                "claude_agent_sdk_{}_{tmp_id}.js",
-                std::process::id()
-            ));
-            std::fs::write(&tmp_path, &js).map_err(|e| {
-                super::Error::Io(e.to_string())
-            })?;
-
-            // Guard that removes the temp file on drop (handles early returns
-            // and stream cancellation).
-            struct TmpGuard(std::path::PathBuf);
-            impl Drop for TmpGuard {
-                fn drop(&mut self) {
-                    let _ = std::fs::remove_file(&self.0);
-                }
+            if let Some(s) = &prompt.system_prompt {
+                cmd.arg("--system-prompt").arg(s);
             }
-            let tmp_guard = TmpGuard(tmp_path.clone());
+            if let Some(e) = agent.base.effort {
+                cmd.arg("--effort").arg(e.as_str());
+            }
+            if agent.base.thinking == Some(false) {
+                cmd.arg("--thinking-disabled");
+            }
+            if mcp_servers_json != "{}" {
+                cmd.arg("--mcp-servers").arg(&mcp_servers_json);
+            }
+            let session_id = &prompt.message.session_id;
+            if !session_id.is_empty() {
+                cmd.arg("--resume").arg(session_id);
+            }
+            cmd.arg("--user-agent").arg(&client.user_agent);
 
-            // Spawn node subprocess.
-            let mut cmd = Command::new("node");
-            cmd.arg(&tmp_path)
-                .stdin(std::process::Stdio::null())
+            cmd.stdin(std::process::Stdio::null())
                 .stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::piped());
             cmd.env_remove("CLAUDECODE");
-            if let Some(ref sp) = sdk_path {
-                cmd.env("CLAUDE_AGENT_SDK_PATH", sp);
-            }
+
             let mut child = cmd.spawn().map_err(|e| {
                 super::Error::Spawn(e.to_string())
             })?;
@@ -239,8 +299,7 @@ impl UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::ag
 
             let id_for_peek = id.clone();
             let internal_stream = async_stream::stream! {
-                // Keep guards alive for the duration of the stream.
-                let _tmp_guard = tmp_guard;
+                // Keep invention server alive for the duration of the stream.
                 let _invention_server_guard = invention_server;
 
                 let mut latest_session_id = String::new();

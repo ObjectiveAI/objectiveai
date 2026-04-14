@@ -182,17 +182,32 @@ where
 #[cfg(feature = "viewer")]
 const VIEWER_BINARY: &[u8] = include_bytes!(env!("OBJECTIVEAI_VIEWER_BINARY_PATH"));
 
-/// Extracts the embedded viewer binary to a temp file and returns its path.
+/// Extracts the embedded viewer binary to a hash-keyed temp directory and returns its path.
+///
+/// Uses a content-based hash in the directory name so different CLI versions get separate
+/// binaries and the same version reuses the cached binary across restarts.
 #[cfg(feature = "viewer")]
 fn extract_viewer_binary() -> Result<std::path::PathBuf, crate::error::Error> {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    VIEWER_BINARY.len().hash(&mut hasher);
+    VIEWER_BINARY[..VIEWER_BINARY.len().min(4096)].hash(&mut hasher);
+    VIEWER_BINARY[VIEWER_BINARY.len().saturating_sub(4096)..].hash(&mut hasher);
+    let hash = hasher.finish();
+
     let name = if cfg!(windows) { "objectiveai-viewer.exe" } else { "objectiveai-viewer" };
-    let path = std::env::temp_dir().join(name);
-    std::fs::write(&path, VIEWER_BINARY).map_err(crate::error::Error::ViewerSpawn)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
-            .map_err(crate::error::Error::ViewerSpawn)?;
+    let dir = std::env::temp_dir().join(format!("objectiveai-viewer-{hash:016x}"));
+    let path = dir.join(name);
+
+    if !path.exists() {
+        std::fs::create_dir_all(&dir).map_err(crate::error::Error::ViewerSpawn)?;
+        std::fs::write(&path, VIEWER_BINARY).map_err(crate::error::Error::ViewerSpawn)?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
+                .map_err(crate::error::Error::ViewerSpawn)?;
+        }
     }
     Ok(path)
 }
