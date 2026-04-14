@@ -28,8 +28,7 @@ export function Landing() {
       <section className={styles.hero}>
         <h1 className={styles.heroTitle}>the agentic collective judgment harness</h1>
         <p className={styles.heroBody}>
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod
-          tempor incididunt ut labore et dolore magna aliqua.
+          Any agent can call out to a swarm of models for collective judgment; routing decisions through recursive scoring trees that produce a vector of scores across every option. No fine-tuning. ObjectiveAI learns weights.
         </p>
 
         {/* CTA — Ronald's hyperprompt / CLI install */}
@@ -143,34 +142,32 @@ export function Landing() {
       <section className={styles.textSection}>
         <h2 className={styles.textSectionTitle}>structure</h2>
         <p className={styles.textSectionBody}>
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nemo enim ipsam
-          voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia
-          consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.
+          agent.json ← swarm.json ← profile.json ← function.json. Core primitives that reference each other. A function references a profile. A profile references a swarm with weights. A swarm references agents. Each link is either inline or a remote path.
         </p>
         <div className={styles.conceptGrid}>
           <div className={styles.concept}>
             <h3 className={styles.conceptName}>functions</h3>
-            <p className={styles.conceptBody}>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+            <p className={styles.conceptBody}>Composable scoring pipelines. Data in, scores out. Recursive decision trees that contain vector completions, nested function calls, and map operations, arbitrarily composed.</p>
           </div>
           <div className={styles.concept}>
             <h3 className={styles.conceptName}>vector completions</h3>
-            <p className={styles.conceptBody}>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+            <p className={styles.conceptBody}>The core primitive. Give a swarm a prompt and a set of possible responses. Each agent votes. Votes combine with weights to produce a score vector that sums to 1.</p>
           </div>
           <div className={styles.concept}>
             <h3 className={styles.conceptName}>swarms</h3>
-            <p className={styles.conceptBody}>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+            <p className={styles.conceptBody}>A named collection of agents used together for collective judgment. Does not contain weights, as weights are external, learnable, and never baked in.</p>
           </div>
           <div className={styles.concept}>
             <h3 className={styles.conceptName}>profiles</h3>
-            <p className={styles.conceptBody}>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+            <p className={styles.conceptBody}>Learned weight configurations across agents and tasks. Human-readable. Looking at the weights tells you about the perspective being simulated.</p>
           </div>
           <div className={styles.concept}>
             <h3 className={styles.conceptName}>agents</h3>
-            <p className={styles.conceptBody}>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+            <p className={styles.conceptBody}>A complete configuration of a single upstream model: sampling parameters, prompt framing, tool access, voting behavior. Content-addressed; same configuration, same ID, always.</p>
           </div>
           <div className={styles.concept}>
             <h3 className={styles.conceptName}>weights</h3>
-            <p className={styles.conceptBody}>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+            <p className={styles.conceptBody}>Parameters controlling each agent's influence over the final score. Supplied separately from the swarm, learned through profile training. The only thing that changes between one perspective and another.</p>
           </div>
         </div>
       </section>
@@ -179,20 +176,19 @@ export function Landing() {
       <section className={styles.textSection}>
         <h2 className={styles.textSectionTitle}>invention</h2>
         <p className={styles.textSectionBody}>
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut enim ad minima
-          veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam.
+          Agents don&apos;t just execute functions. They build them. Pick an agent, give them a spec. They invent the function, spawn more agents to invent the sub-functions, and those spawn more for theirs. The result is a complete decision tree, ready to deploy and train.
         </p>
         <div className={styles.textColumns}>
           <div className={styles.textColumn}>
-            <h3 className={styles.textColumnTitle}>lorem ipsum</h3>
+            <h3 className={styles.textColumnTitle}>invent</h3>
             <p className={styles.textColumnBody}>
-              Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet.
+              Give an agent a description of what you want to score. They reason about what qualities matter, design the input schema, write the task tree, and validate at each step. Recursive; sub-functions are invented concurrently by their own agents.
             </p>
           </div>
           <div className={styles.textColumn}>
-            <h3 className={styles.textColumnTitle}>lorem ipsum</h3>
+            <h3 className={styles.textColumnTitle}>deploy</h3>
             <p className={styles.textColumnBody}>
-              Ut enim ad minima veniam, quis nostrum exercitationem ullam.
+              The result is a complete function.json. Train a profile on your data to learn the right weights. Deploy them, call them from your agent, or let your agent do all of that on their own.
             </p>
           </div>
         </div>

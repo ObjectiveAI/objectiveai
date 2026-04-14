@@ -58,9 +58,6 @@ export function Explore() {
     <div className={styles.page}>
       <div className={styles.pageHeader}>
         <h1 className={styles.pageTitle}>explore</h1>
-        <p className={styles.pageSubtitle}>
-          Lorem ipsum dolor sit amet — functions, profiles, and swarms registered on the network.
-        </p>
       </div>
 
       {/* ── Functions ── */}
