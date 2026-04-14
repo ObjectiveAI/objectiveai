@@ -23,6 +23,7 @@
   --node-border: #292524;
   --node-bg: var(--ground-raised);
   --connector: #292524;
+  --error: #b91c1c;
 
   /* Type */
   --font-mono: var(--font-jetbrains-mono), 'JetBrains Mono', ui-monospace, monospace;

@@ -2,38 +2,27 @@
 
 import { useState } from "react";
 import type { FunctionDefinition, TaskDefinition } from "@/lib/functions/types";
-import type { ProfileMeta, ProfileLlm } from "@/lib/profiles/types";
+import type { ProfileMeta } from "@/lib/profiles/types";
+import type { FunctionExecution, TaskExecution } from "@/lib/judgment-stack-utils";
+import {
+  scoreColor,
+  pct,
+  dotPct,
+  stateColor,
+  taskState,
+  funcState,
+  normalizeType,
+  shortType,
+  exprStr,
+  promptPreview,
+  getTaskAgents,
+  getTaskWeight,
+} from "@/lib/judgment-stack-utils";
+import { VoteMatrix } from "./VoteMatrix";
+import { StructuralVc } from "./StructuralVc";
 import styles from "./JudgmentStack.module.css";
 
-/* ── Execution types (SDK streaming shape) ── */
-
-interface Vote {
-  model: string;
-  vote: number[];
-  weight: number;
-  from_cache?: boolean;
-  from_rng?: boolean;
-}
-
-interface TaskExecution {
-  task_path?: number[];
-  votes?: Vote[];
-  completions?: Array<Record<string, unknown>>;
-  scores?: number[];
-  error?: { message?: string } | null;
-  tasks?: TaskExecution[];
-  output?: number | number[];
-}
-
-export interface FunctionExecution {
-  id?: string;
-  function?: string;
-  profile?: string;
-  output?: number | number[];
-  error?: unknown;
-  reasoning?: { choices?: Array<{ message?: { content?: string } }> };
-  tasks?: TaskExecution[];
-}
+export type { FunctionExecution } from "@/lib/judgment-stack-utils";
 
 /* ── Props ── */
 
@@ -44,106 +33,6 @@ export interface JudgmentStackProps {
   resolvedSubFunctions?: Map<string, FunctionDefinition>;
   modelNames?: Record<string, string>;
   depth?: number;
-}
-
-/* ── Helpers ── */
-
-function scoreColor(s: number): string {
-  if (s >= 0.5) return "var(--copper-hot)";
-  if (s >= 0.3) return "var(--copper-mid)";
-  if (s >= 0.15) return "var(--copper-warm)";
-  return "var(--copper-dim)";
-}
-
-function pct(n: number): string {
-  return (n * 100).toFixed(1) + "%";
-}
-
-function dotPct(n: number): string {
-  return "." + (n * 100).toFixed(0).padStart(2, "0");
-}
-
-function stateColor(s: string): string {
-  if (s === "complete") return "var(--copper-hot)";
-  if (s === "streaming") return "var(--copper-mid)";
-  if (s === "error") return "#b91c1c";
-  return "var(--node-border)";
-}
-
-function taskState(exec?: TaskExecution | null): string {
-  if (!exec) return "structural";
-  if (exec.error) return "error";
-  if (exec.scores?.length) return "complete";
-  if (exec.completions?.length) return "streaming";
-  return "pending";
-}
-
-function funcState(exec?: FunctionExecution | null): string {
-  if (!exec) return "structural";
-  if (exec.error) return "error";
-  if (exec.output != null) return "complete";
-  if (exec.tasks?.length) return "streaming";
-  return "pending";
-}
-
-function normalizeType(t: string): string {
-  return t.replace(/^alpha\./, "");
-}
-
-function shortType(t: string): string {
-  const n = normalizeType(t);
-  if (n === "vector.completion") return "vc";
-  if (n.includes("placeholder")) return "placeholder";
-  if (n.includes("vector.function")) return "vector fn";
-  if (n.includes("scalar.function")) return "scalar fn";
-  return n;
-}
-
-function labelFor(r: unknown, i: number): string {
-  if (typeof r === "string") return r.length > 24 ? r.slice(0, 22) + "\u2026" : r;
-  if (r && typeof r === "object") {
-    const o = r as Record<string, unknown>;
-    if (typeof o.text === "string") return o.text.length > 24 ? o.text.slice(0, 22) + "\u2026" : o.text;
-    if (o.$jmespath || o.$starlark) return "[dynamic]";
-  }
-  return `#${i + 1}`;
-}
-
-function promptPreview(task: TaskDefinition): string | null {
-  if (!Array.isArray(task.messages)) return null;
-  const msgs = task.messages as Array<Record<string, unknown>>;
-  for (const role of ["system", "developer", "user"]) {
-    const m = msgs.find((x) => x.role === role);
-    if (m && typeof m.content === "string") {
-      return m.content.length > 80 ? m.content.slice(0, 77) + "\u2026" : m.content;
-    }
-  }
-  return null;
-}
-
-function exprStr(expr: Record<string, unknown> | undefined): string | null {
-  if (!expr) return null;
-  if (typeof expr.$jmespath === "string") return `jmes: ${expr.$jmespath}`;
-  if (typeof expr.$starlark === "string") {
-    const s = expr.$starlark as string;
-    return s.length > 40 ? `star: ${s.slice(0, 37)}\u2026` : `star: ${s}`;
-  }
-  return null;
-}
-
-function getTaskAgents(
-  profile: ProfileMeta | null | undefined,
-  ti: number,
-): { llms: ProfileLlm[]; weights: number[] } | null {
-  if (!profile) return null;
-  if (profile.kind === "tasks" && profile.taskConfigs[ti]) return profile.taskConfigs[ti];
-  return { llms: profile.llms, weights: profile.weights };
-}
-
-function getTaskWeight(profile: ProfileMeta | null | undefined, ti: number, total: number): number | null {
-  if (!profile) return null;
-  if (profile.kind === "tasks" && profile.taskWeights.length > ti) return profile.taskWeights[ti];
-  return total > 0 ? 1 / total : null;
 }
 
 /* ── Main Component ── */
@@ -396,243 +285,6 @@ function TaskBand({
             <div className={styles.streaming}>&#x258C; running&hellip;</div>
           )}
         </div>
-      )}
-    </div>
-  );
-}
-
-/* ── Vote Matrix ── */
-
-function VoteMatrix({
-  votes,
-  scores,
-  responses,
-  agents,
-  modelNames,
-}: {
-  votes: Vote[];
-  scores: number[];
-  responses: unknown[];
-  agents: { llms: ProfileLlm[]; weights: number[] } | null;
-  modelNames?: Record<string, string>;
-}) {
-  const numR = scores.length || responses.length || (votes[0]?.vote.length ?? 0);
-  const maxWeight = Math.max(...votes.map((v) => v.weight), 0) || 1;
-  const totalWeight = votes.reduce((s, v) => s + v.weight, 0);
-  const maxScore = scores.length > 0 ? Math.max(...scores) : 0;
-
-  return (
-    <div className={styles.matrixWrap}>
-      <table className={styles.matrix}>
-        <thead>
-          <tr>
-            <th className={styles.colWeight}>weight</th>
-            <th className={styles.colAgent}>agent</th>
-            {Array.from({ length: numR }, (_, ri) => {
-              const isW = scores.length > 0 && scores[ri] === maxScore;
-              return (
-                <th
-                  key={ri}
-                  className={`${styles.colResponse}${isW ? " " + styles.winner : ""}`}
-                >
-                  {labelFor(responses[ri], ri)}
-                </th>
-              );
-            })}
-            <th className={styles.colFlags} />
-          </tr>
-        </thead>
-        <tbody>
-          {votes.map((vote, vi) => {
-            const name = modelNames?.[vote.model] ?? vote.model;
-            const shortName = name.includes("/") ? name.split("/").pop()! : name;
-            const relW = maxWeight > 0 ? vote.weight / maxWeight : 0;
-            const maxV = Math.max(...vote.vote);
-            const llmDef = agents?.llms?.[vi];
-
-            return (
-              <tr
-                key={vi}
-                className={styles.agentRow}
-                style={{
-                  background:
-                    relW > 0.7
-                      ? `rgba(245, 158, 11, ${relW * 0.04})`
-                      : "transparent",
-                }}
-              >
-                {/* Weight */}
-                <td className={styles.weightCell}>
-                  <div className={styles.weightInner}>
-                    <div className={styles.weightBar}>
-                      <div
-                        className={styles.weightFill}
-                        style={{
-                          height: `${relW * 100}%`,
-                          background: `rgba(245, 158, 11, ${0.4 + relW * 0.5})`,
-                        }}
-                      />
-                    </div>
-                    <span className={styles.weightNum}>{vote.weight.toFixed(2)}</span>
-                  </div>
-                </td>
-                {/* Agent */}
-                <td className={styles.agentCell}>
-                  <span className={styles.agentName}>{shortName}</span>
-                  {llmDef?.outputMode && llmDef.outputMode !== "default" && (
-                    <span className={styles.agentMode}>
-                      {llmDef.outputMode === "log_probs"
-                        ? "LP"
-                        : llmDef.outputMode.slice(0, 3)}
-                      {llmDef.topLogprobs ?? ""}
-                    </span>
-                  )}
-                </td>
-                {/* Votes */}
-                {vote.vote.map((v, ri) => {
-                  const isMax = v === maxV && v > 0;
-                  const heat =
-                    v > 0.01 ? `rgba(245, 158, 11, ${v * 0.3})` : "transparent";
-                  const contribution =
-                    totalWeight > 0 ? (v * vote.weight) / totalWeight : 0;
-                  const scoreR = scores[ri] ?? 0;
-                  const share = scoreR > 0 ? contribution / scoreR : 0;
-
-                  return (
-                    <td
-                      key={ri}
-                      className={styles.voteCell}
-                      style={{ background: heat }}
-                    >
-                      <div
-                        className={styles.voteNum}
-                        style={{
-                          color: isMax
-                            ? "var(--info-bright)"
-                            : v > 0.2
-                              ? "var(--info-mid)"
-                              : "var(--info-dim)",
-                          fontWeight: isMax ? 600 : 400,
-                        }}
-                      >
-                        {dotPct(v)}
-                      </div>
-                      {scores.length > 0 && (
-                        <div className={styles.contributionTrack}>
-                          <div
-                            className={styles.contributionFill}
-                            style={{
-                              width: `${Math.min(100, share * 100)}%`,
-                              background: isMax
-                                ? "rgba(245, 158, 11, 0.6)"
-                                : "rgba(120, 113, 108, 0.35)",
-                            }}
-                          />
-                        </div>
-                      )}
-                    </td>
-                  );
-                })}
-                {/* Flags */}
-                <td className={styles.flagCell}>
-                  {vote.from_cache && <span>C</span>}
-                  {vote.from_rng && (
-                    <span style={{ color: "var(--copper-mid)" }}>R</span>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-
-          {/* Convergence: Σ weighted */}
-          {scores.length > 0 && (
-            <tr className={styles.convergenceRow}>
-              <td />
-              <td className={styles.convergenceLabel}>&Sigma; weighted</td>
-              {scores.map((score, ri) => {
-                const isW = score === maxScore;
-                return (
-                  <td
-                    key={ri}
-                    className={styles.convergenceScore}
-                    style={{
-                      background: isW
-                        ? "rgba(245, 158, 11, 0.1)"
-                        : "transparent",
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: isW ? 13 : 10,
-                        fontWeight: isW ? 700 : 500,
-                        color: isW ? "var(--info-bright)" : "var(--copper-dim)",
-                      }}
-                    >
-                      {pct(score)}
-                    </span>
-                  </td>
-                );
-              })}
-              <td />
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-/* ── Structural VC (definition only, no execution) ── */
-
-function StructuralVc({
-  responses,
-  agents,
-}: {
-  responses: unknown[];
-  agents: { llms: ProfileLlm[]; weights: number[] } | null;
-}) {
-  const maxW = agents ? Math.max(...agents.weights, 0) || 1 : 1;
-
-  return (
-    <div>
-      {responses.length > 0 && (
-        <div className={styles.responses}>
-          {responses.map((r, i) => (
-            <span key={i} className={styles.responseTag}>
-              {labelFor(r, i)}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {agents && agents.llms.length > 0 && (
-        <div className={styles.structuralAgents}>
-          {agents.llms.map((llm, i) => {
-            const w = agents.weights[i] ?? 0;
-            const rel = maxW > 0 ? w / maxW : 0;
-            const name = llm.model.includes("/") ? llm.model.split("/").pop() : llm.model;
-            return (
-              <div key={i} className={styles.structuralAgent}>
-                <div
-                  className={styles.structuralAgentBar}
-                  style={{
-                    width: `${Math.max(20, rel * 80)}%`,
-                    background: `rgba(245, 158, 11, ${0.2 + rel * 0.5})`,
-                  }}
-                />
-                <span className={styles.structuralAgentName}>
-                  {name}
-                  {llm.count > 1 ? ` \u00d7${llm.count}` : ""}
-                </span>
-                <span className={styles.structuralAgentWeight}>{w.toFixed(2)}</span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {!agents && responses.length === 0 && (
-        <div className={styles.empty}>no configuration</div>
       )}
     </div>
   );

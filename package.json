@@ -14,5 +14,8 @@
     "build:tree": "npm run build -w @objectiveai/function-tree",
     "build:web": "npm run build -w objectiveai-web",
     "build": "npm run build:js && npm run build:tree && npm run build:web"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0"
   }
 }

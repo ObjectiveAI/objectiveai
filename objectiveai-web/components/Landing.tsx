@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { EmailSignup } from "./EmailSignup";
 import styles from "./Landing.module.css";
 
 /* ── Static example — realistic votes from a startup-idea-ranker execution ── */
@@ -21,41 +21,6 @@ const EXAMPLE_VOTES = [
 ];
 
 export function Landing() {
-  const [email, setEmail] = useState("");
-  const [emailState, setEmailState] = useState<"idle" | "submitting" | "success" | "error">("idle");
-  const [errorMsg, setErrorMsg] = useState("something went wrong");
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (emailState === "submitting") return;
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setEmailState("error");
-      setErrorMsg("enter a valid email");
-      return;
-    }
-    setEmailState("submitting");
-    try {
-      const res = await fetch(
-        "https://buttondown.com/api/emails/embed-subscribe/objectiveai",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({ email }),
-        }
-      );
-      if (res.ok || res.status === 303) {
-        setEmailState("success");
-        setEmail("");
-      } else {
-        setErrorMsg("something went wrong");
-        setEmailState("error");
-      }
-    } catch {
-      setErrorMsg("something went wrong");
-      setEmailState("error");
-    }
-  }
-
   return (
     <div className={styles.landing}>
 
@@ -241,21 +206,13 @@ export function Landing() {
           <a href="https://x.com/mkgores" target="_blank" rel="noopener noreferrer" className={styles.footerLink}>x.com/mkgores</a>
           <a href="https://x.com/ronald_obj_ai" target="_blank" rel="noopener noreferrer" className={styles.footerLink}>x.com/ronald_obj_ai</a>
         </div>
-        <form className={styles.footerForm} onSubmit={handleSubmit} noValidate>
-          <input
-            type="email"
-            className={styles.emailInput}
-            placeholder="your email"
-            value={email}
-            onChange={(e) => { setEmail(e.target.value); if (emailState === "error") setEmailState("idle"); }}
-            required
-          />
-          <button type="submit" className={styles.submitBtn} disabled={emailState === "submitting"}>
-            {emailState === "submitting" ? "..." : "notify me"}
-          </button>
-        </form>
-        {emailState === "success" && <p className={styles.confirmation}>you&apos;re on the list</p>}
-        {emailState === "error" && <p className={styles.footerError}>{errorMsg}</p>}
+        <EmailSignup
+          formClassName={styles.footerForm}
+          inputClassName={styles.emailInput}
+          buttonClassName={styles.submitBtn}
+          confirmationClassName={styles.confirmation}
+          errorClassName={styles.footerError}
+        />
       </footer>
     </div>
   );

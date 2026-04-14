@@ -23,7 +23,7 @@ interface EnsembleRetrieveResponse {
 
 /** Cache for the swarm list + details */
 let swarmCache: { data: SwarmMeta[]; ts: number } | null = null;
-const CACHE_TTL = 60_000;
+const CACHE_TTL = 300_000; // 5 minutes
 
 /** Fetch all swarms with resolved agent details */
 export async function fetchAllSwarms(): Promise<SwarmMeta[]> {
@@ -31,26 +31,20 @@ export async function fetchAllSwarms(): Promise<SwarmMeta[]> {
     return swarmCache.data;
   }
 
-  try {
-    const list = await apiFetch<EnsembleListResponse>("/ensembles");
+  const list = await apiFetch<EnsembleListResponse>("/ensembles");
 
-    const results = await Promise.allSettled(
-      list.data.map((item) => resolveSwarm(item.id))
-    );
+  const results = await Promise.allSettled(
+    list.data.map((item) => resolveSwarm(item.id))
+  );
 
-    const swarms = results
-      .filter(
-        (r): r is PromiseFulfilledResult<SwarmMeta> => r.status === "fulfilled"
-      )
-      .map((r) => r.value);
+  const swarms = results
+    .filter(
+      (r): r is PromiseFulfilledResult<SwarmMeta> => r.status === "fulfilled"
+    )
+    .map((r) => r.value);
 
-    swarmCache = { data: swarms, ts: Date.now() };
-    return swarms;
-  } catch {
-    // API unreachable — swarms require the API, return empty
-    swarmCache = { data: [], ts: Date.now() };
-    return [];
-  }
+  swarmCache = { data: swarms, ts: Date.now() };
+  return swarms;
 }
 
 function parseAgent(llm: EnsembleLlmResponse): Agent {

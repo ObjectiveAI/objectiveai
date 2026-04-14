@@ -19,21 +19,24 @@ export function Explore() {
   const [loadingFn, setLoadingFn] = useState(true);
   const [loadingPr, setLoadingPr] = useState(true);
   const [loadingSw, setLoadingSw] = useState(true);
+  const [errorFn, setErrorFn] = useState<string | null>(null);
+  const [errorPr, setErrorPr] = useState<string | null>(null);
+  const [errorSw, setErrorSw] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     fetchAllFunctions()
       .then((fns) => { if (!cancelled) { setFunctions(fns); setLoadingFn(false); } })
-      .catch(() => { if (!cancelled) setLoadingFn(false); });
+      .catch((err) => { if (!cancelled) { setErrorFn(err instanceof Error ? err.message : "failed to load"); setLoadingFn(false); } });
 
     fetchDefaultProfiles()
       .then((prs) => { if (!cancelled) { setProfiles(prs); setLoadingPr(false); } })
-      .catch(() => { if (!cancelled) setLoadingPr(false); });
+      .catch((err) => { if (!cancelled) { setErrorPr(err instanceof Error ? err.message : "failed to load"); setLoadingPr(false); } });
 
     fetchAllSwarms()
       .then((sws) => { if (!cancelled) { setSwarms(sws); setLoadingSw(false); } })
-      .catch(() => { if (!cancelled) setLoadingSw(false); });
+      .catch((err) => { if (!cancelled) { setErrorSw(err instanceof Error ? err.message : "failed to load"); setLoadingSw(false); } });
 
     return () => { cancelled = true; };
   }, []);
@@ -73,6 +76,10 @@ export function Explore() {
             <span className={styles.sectionLoadingDot} />
             loading functions
           </div>
+        ) : errorFn ? (
+          <div className={styles.sectionError}>
+            could not load functions &mdash; {errorFn}
+          </div>
         ) : functions.length === 0 ? (
           <div className={styles.sectionEmpty}>
             no functions registered yet
@@ -99,6 +106,10 @@ export function Explore() {
             <span className={styles.sectionLoadingDot} />
             loading profiles
           </div>
+        ) : errorPr ? (
+          <div className={styles.sectionError}>
+            could not load profiles &mdash; {errorPr}
+          </div>
         ) : profiles.length === 0 ? (
           <div className={styles.sectionEmpty}>
             no profiles available
@@ -124,6 +135,10 @@ export function Explore() {
           <div className={styles.sectionLoading}>
             <span className={styles.sectionLoadingDot} />
             loading swarms
+          </div>
+        ) : errorSw ? (
+          <div className={styles.sectionError}>
+            could not load swarms &mdash; {errorSw}
           </div>
         ) : swarms.length === 0 ? (
           <div className={styles.sectionEmpty}>

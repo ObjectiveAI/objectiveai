@@ -127,8 +127,8 @@
 }
 
 .arrayRemove:hover {
-  color: #b91c1c;
-  border-color: #b91c1c;
+  color: var(--error);
+  border-color: var(--error);
 }
 
 .arrayAdd {

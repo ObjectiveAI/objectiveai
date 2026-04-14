@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { EmailSignup } from "./EmailSignup";
 import styles from "./ComingSoon.module.css";
 
 /** {ai} logo mark — from OBJAI_Logo_Mark_Dark.svg, bg removed */
@@ -35,43 +35,6 @@ function Wordmark({ className }: { className?: string }) {
 }
 
 export function ComingSoon() {
-  const [email, setEmail] = useState("");
-  const [state, setState] = useState<"idle" | "submitting" | "success" | "error">("idle");
-  const [errorMsg, setErrorMsg] = useState("something went wrong");
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (state === "submitting") return;
-
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setState("error");
-      setErrorMsg("enter a valid email");
-      return;
-    }
-
-    setState("submitting");
-    try {
-      const res = await fetch(
-        "https://buttondown.com/api/emails/embed-subscribe/objectiveai",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({ email }),
-        }
-      );
-      if (res.ok || res.status === 303) {
-        setState("success");
-        setEmail("");
-      } else {
-        setErrorMsg("something went wrong");
-        setState("error");
-      }
-    } catch {
-      setErrorMsg("something went wrong");
-      setState("error");
-    }
-  }
-
   return (
     <div className={styles.page}>
       <div className={styles.content}>
@@ -91,25 +54,13 @@ export function ComingSoon() {
 
         <div className={styles.status}>shipping soon</div>
 
-        <form className={styles.form} onSubmit={handleSubmit} noValidate>
-          <input
-            type="email"
-            className={styles.emailInput}
-            placeholder="your email"
-            value={email}
-            onChange={(e) => { setEmail(e.target.value); if (state === "error") setState("idle"); }}
-            required
-          />
-          <button
-            type="submit"
-            className={styles.submitBtn}
-            disabled={state === "submitting"}
-          >
-            {state === "submitting" ? "..." : "notify me"}
-          </button>
-        </form>
-        {state === "success" && <p className={styles.confirmation}>you&apos;re on the list</p>}
-        {state === "error" && <p className={styles.error}>{errorMsg}</p>}
+        <EmailSignup
+          formClassName={styles.form}
+          inputClassName={styles.emailInput}
+          buttonClassName={styles.submitBtn}
+          confirmationClassName={styles.confirmation}
+          errorClassName={styles.error}
+        />
         <p className={styles.hint}>we&apos;ll only email about objectiveai</p>
       </div>
 

@@ -182,9 +182,9 @@ function extractDisplayData(chunk: Chunk | null): {
   if (!chunk) return { votes: [], scores: [], weights: [] };
 
   for (const task of chunk.tasks) {
-    // VectorCompletionTaskChunk has votes/scores/weights; FunctionExecutionTaskChunk does not
-    if (!("votes" in task)) continue;
-    const vcTask = task as unknown as { votes: Array<{ agent: string; vote: number[]; weight: number }>; scores: number[]; weights: number[] };
+    if (!("votes" in task) || !("scores" in task) || !("weights" in task)) continue;
+    const vcTask = task as { votes: Array<{ agent: string; vote: number[]; weight: number }>; scores: number[]; weights: number[] };
+    if (!Array.isArray(vcTask.votes) || !Array.isArray(vcTask.scores) || !Array.isArray(vcTask.weights)) continue;
     const votes: DisplayVote[] = vcTask.votes.map((v) => ({
       agent: v.agent,
       vote: v.vote,
@@ -210,12 +210,13 @@ function toJudgmentExecution(chunk: Chunk | null): JudgmentExecution | null {
 
   return {
     tasks: chunk.tasks.map((task, i) => {
-      if ("votes" in task) {
-        const vcTask = task as unknown as {
+      if ("votes" in task && "scores" in task) {
+        const vcTask = task as {
           votes: Array<{ agent: string; vote: number[]; weight: number; from_cache?: boolean; from_rng?: boolean }>;
           scores: number[];
           completions?: Array<Record<string, unknown>>;
         };
+        if (!Array.isArray(vcTask.votes) || !Array.isArray(vcTask.scores)) return { task_path: [i] };
         return {
           task_path: [i],
           votes: vcTask.votes.map((v) => ({
