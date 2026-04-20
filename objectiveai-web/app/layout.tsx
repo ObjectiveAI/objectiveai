@@ -19,11 +19,11 @@ export const metadata: Metadata = {
     default: "ObjectiveAI",
     template: "%s | ObjectiveAI",
   },
-  description: "Score everything. Rank everything. Simulate anyone.",
+  description: "The agentic collective judgment harness.",
   metadataBase: new URL("https://objective-ai.io"),
   openGraph: {
     title: "ObjectiveAI",
-    description: "Score everything. Rank everything. Simulate anyone.",
+    description: "The agentic collective judgment harness.",
     url: "https://objective-ai.io",
     siteName: "ObjectiveAI",
     locale: "en_US",
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary",
     title: "ObjectiveAI",
-    description: "Score everything. Rank everything. Simulate anyone.",
+    description: "The agentic collective judgment harness.",
     creator: "@objectv_ai",
   },
   robots: {

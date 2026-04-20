@@ -1,11 +1,11 @@
 {
   "name": "ObjectiveAI",
   "short_name": "ObjectiveAI",
-  "description": "Score everything. Rank everything. Simulate anyone.",
+  "description": "The agentic collective judgment harness.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a0a0a",
-  "theme_color": "#0a0a0a",
+  "background_color": "#0c0a09",
+  "theme_color": "#0c0a09",
   "icons": [
     {
       "src": "/favicon.ico",
