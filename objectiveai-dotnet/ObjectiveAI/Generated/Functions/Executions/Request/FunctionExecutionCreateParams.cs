@@ -68,6 +68,11 @@ public partial class FunctionExecutionCreateParams
     [JsonSchemaNullable]
     public long? Seed { get; set; } = null;
 
+    [JsonPropertyName("split")]
+    [JsonSchemaOmitEmpty]
+    [JsonSchemaNullable]
+    public bool? Split { get; set; } = null;
+
     [JsonPropertyName("strategy")]
     [JsonSchemaOmitEmpty]
     [JsonSchemaNullable]

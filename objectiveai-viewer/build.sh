@@ -23,11 +23,25 @@ run() {
     return 0
   fi
 
-  # Build with a separate target dir to avoid cargo lock contention.
-  # Always pass --target so the output lands in <target-dir>/<triple>/<profile>/.
-  TARGET_DIR="$REPO_ROOT/target-$MODULE"
-  echo "Building $MODULE ($PROFILE, $TARGET)..."
-  if ! cargo build -p "$MODULE" --target-dir "$TARGET_DIR" --target "$TARGET" "$@"; then
+  # Use `tauri build --no-bundle` — this is the ONLY supported way to build
+  # a Tauri app and properly embed the frontend. It:
+  #   1. Runs `beforeBuildCommand` from tauri.conf.json (builds the frontend)
+  #   2. Invokes cargo with the right flags
+  #   3. Makes tauri-build's include of frontendDist actually reflect latest dist
+  # Plain `cargo build -p <crate>` skips step 1 and can use stale cached
+  # builds that don't re-embed updated frontend assets.
+  #
+  # --no-bundle skips the installer/msi/nsis generation (we just want the exe).
+
+  local tauri_args=("--no-bundle" "--target" "$TARGET")
+  if [ "$PROFILE" = "release" ]; then
+    :  # tauri build defaults to release
+  else
+    tauri_args+=("--debug")
+  fi
+
+  echo "Building $MODULE ($PROFILE, $TARGET) via tauri build..."
+  if ! (cd "$SCRIPT_DIR" && pnpm exec tauri build "${tauri_args[@]}"); then
     return 1
   fi
 
@@ -41,7 +55,8 @@ run() {
     BINARY_NAME="$MODULE"
   fi
 
-  BUILT="$TARGET_DIR/$TARGET/$PROFILE/$BINARY_NAME"
+  # tauri build uses the workspace's default target dir: target/<triple>/<profile>/
+  BUILT="$REPO_ROOT/target/$TARGET/$PROFILE/$BINARY_NAME"
   if [ ! -f "$BUILT" ]; then
     echo "ERROR: expected binary at $BUILT" >&2
     return 1

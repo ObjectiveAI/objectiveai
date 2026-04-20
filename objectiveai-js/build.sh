@@ -15,7 +15,7 @@ LOG_FILE="$LOG_DIR/$MODULE.txt"
 
 mkdir -p "$LOG_DIR"
 
-if npm run build --workspace=objectiveai > "$LOG_FILE" 2>&1; then
+if pnpm --filter objectiveai run build > "$LOG_FILE" 2>&1; then
   echo "$MODULE: SUCCESS"
 else
   echo "$MODULE: ERROR"

@@ -1,6 +1,6 @@
 const { ObjectiveAI, Functions } = require("objectiveai");
 
-const client = new ObjectiveAI({ apiKey: "none", apiBase: "https://api.objective-ai.io" });
+const client = new ObjectiveAI({ apiKey: "none", apiBase: "https://api.objectiveai.dev" });
 
 async function test() {
   try {

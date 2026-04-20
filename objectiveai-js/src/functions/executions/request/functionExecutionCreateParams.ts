@@ -18,6 +18,7 @@ export const FunctionsExecutionsRequestFunctionExecutionCreateParamsSchema = z.o
   reasoning: FunctionsExecutionsRequestReasoningSchema.nullable().meta({ omitempty: true }).optional(),
   retry_token: z.string().nullable().meta({ omitempty: true }).optional(),
   seed: z.number().int().min(-9223372036854776000).max(9223372036854776000).nullable().meta({ omitempty: true }).optional(),
+  split: z.boolean().nullable().meta({ omitempty: true }).optional(),
   strategy: FunctionsExecutionsRequestStrategySchema.nullable().meta({ omitempty: true }).optional(),
   stream: z.boolean().nullable().meta({ omitempty: true }).optional(),
 }).describe("Parameters for creating a function execution.").meta({ title: "functions.executions.request.FunctionExecutionCreateParams" });

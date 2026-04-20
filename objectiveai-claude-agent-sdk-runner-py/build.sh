@@ -8,7 +8,7 @@
 
 set -euo pipefail
 
-MODULE="objectiveai-claude-agent-sdk-runner"
+MODULE="objectiveai-claude-agent-sdk-runner-py"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 VENV_DIR="$SCRIPT_DIR/venv"

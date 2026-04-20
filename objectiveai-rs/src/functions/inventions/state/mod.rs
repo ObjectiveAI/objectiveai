@@ -6,10 +6,16 @@ mod alpha_vector_leaf_state;
 mod alpha_vector_state;
 pub mod error;
 pub(super) mod files;
+#[cfg(feature = "http")]
+mod http;
+
+#[cfg(feature = "http")]
+pub use http::*;
 mod input_schema;
 mod params;
 mod params_state_or_remote;
 mod readme;
+pub mod response;
 
 pub use input_schema::*;
 pub use params_state_or_remote::*;

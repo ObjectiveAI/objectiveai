@@ -33,7 +33,7 @@ pub fn resolve_continuation(fields: ContinuationFields) -> Result<Option<String>
         let messages: Vec<objectiveai::agent::completions::message::Message> = {
             let mut de = serde_json::Deserializer::from_str(&inline);
             serde_path_to_error::deserialize(&mut de)
-                .map_err(crate::error::Error::PythonDeserialize)?
+                .map_err(crate::error::Error::InlineDeserialize)?
         };
         let cont = objectiveai::agent::Continuation::Openrouter(
             objectiveai::agent::openrouter::Continuation {
@@ -74,7 +74,7 @@ pub fn resolve_continuation(fields: ContinuationFields) -> Result<Option<String>
         let messages: Vec<objectiveai::agent::completions::message::Message> = {
             let mut de = serde_json::Deserializer::from_str(&inline);
             serde_path_to_error::deserialize(&mut de)
-                .map_err(crate::error::Error::PythonDeserialize)?
+                .map_err(crate::error::Error::InlineDeserialize)?
         };
         let cont = objectiveai::agent::Continuation::Mock(
             objectiveai::agent::mock::Continuation {

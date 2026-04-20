@@ -1,6 +1,9 @@
 use clap::{Args, Subcommand};
 use futures::StreamExt;
 
+crate::define_inline_or_ref!(FunctionArg, "function", objectiveai::functions::FullInlineFunctionOrRemoteCommitOptional, Remote);
+crate::define_inline_or_ref!(ProfileArg, "profile", objectiveai::functions::InlineProfileOrRemoteCommitOptional, Remote);
+
 /// How input is provided to the function execution.
 #[derive(Args)]
 #[group(required = true, multiple = false)]
@@ -21,7 +24,7 @@ impl InputSource {
         if let Some(inline) = self.input_inline {
             let mut de = serde_json::Deserializer::from_str(&inline);
             return serde_path_to_error::deserialize(&mut de)
-                .map_err(crate::error::Error::PythonDeserialize);
+                .map_err(crate::error::Error::InlineDeserialize);
         }
         if let Some(code) = self.input_python_inline {
             return crate::python::exec_code(&code);
@@ -109,12 +112,10 @@ fn collect_errors(chunk: &objectiveai::functions::executions::response::streamin
 pub enum Commands {
     /// Standard execution strategy (scalar or vector)
     Standard {
-        /// Function reference (e.g. favorite=name or remote=github,owner=x,repository=y)
-        #[arg(long)]
-        function: crate::favorite_ref::FavoriteRef,
-        /// Profile reference (e.g. favorite=name or remote=github,owner=x,repository=y)
-        #[arg(long)]
-        profile: crate::favorite_ref::FavoriteRef,
+        #[command(flatten)]
+        function: FunctionArg,
+        #[command(flatten)]
+        profile: ProfileArg,
         #[command(flatten)]
         input: InputSource,
         #[command(flatten)]
@@ -125,18 +126,19 @@ pub enum Commands {
         /// Seed for deterministic mock responses
         #[arg(long)]
         seed: Option<i64>,
+        /// Treat input as an array and execute once per element
+        #[arg(long)]
+        split: bool,
         /// Run in the background: print PID and log path, then exit
         #[arg(long)]
         detach: bool,
     },
     /// Swiss System tournament strategy (vector only)
     SwissSystem {
-        /// Function reference (e.g. favorite=name or remote=github,owner=x,repository=y)
-        #[arg(long)]
-        function: crate::favorite_ref::FavoriteRef,
-        /// Profile reference (e.g. favorite=name or remote=github,owner=x,repository=y)
-        #[arg(long)]
-        profile: crate::favorite_ref::FavoriteRef,
+        #[command(flatten)]
+        function: FunctionArg,
+        #[command(flatten)]
+        profile: ProfileArg,
         #[command(flatten)]
         input: InputSource,
         #[command(flatten)]
@@ -147,6 +149,9 @@ pub enum Commands {
         /// Seed for deterministic mock responses
         #[arg(long)]
         seed: Option<i64>,
+        /// Treat input as an array and execute once per element
+        #[arg(long)]
+        split: bool,
         /// How many vector responses per execution (default 10)
         #[arg(long)]
         pool: Option<usize>,
@@ -171,17 +176,13 @@ async fn profile_favorites(cli_config: &crate::Config) -> Vec<objectiveai::files
 
 impl Commands {
     pub async fn handle(self, cli_config: &crate::Config) -> Result<crate::Output, crate::error::Error> {
-        let (function_path, profile_path, input_source, continuation_args, retry_token, seed, strategy, detach) = match self {
-            Commands::Standard { function, profile, input, continuation, retry_token, seed, detach } => {
-                let fp = function.resolve(|| fn_favorites(cli_config)).await?;
-                let pp = profile.resolve(|| profile_favorites(cli_config)).await?;
-                (fp, pp, input, continuation, retry_token, seed, objectiveai::functions::executions::request::Strategy::Default, detach)
+        let (function_source, profile_source, input_source, continuation_args, retry_token, seed, split, strategy, detach) = match self {
+            Commands::Standard { function, profile, input, continuation, retry_token, seed, split, detach } => {
+                (function, profile, input, continuation, retry_token, seed, split, objectiveai::functions::executions::request::Strategy::Default, detach)
             }
-            Commands::SwissSystem { function, profile, input, continuation, retry_token, seed, pool, rounds, detach } => {
-                let fp = function.resolve(|| fn_favorites(cli_config)).await?;
-                let pp = profile.resolve(|| profile_favorites(cli_config)).await?;
+            Commands::SwissSystem { function, profile, input, continuation, retry_token, seed, split, pool, rounds, detach } => {
                 let strategy = objectiveai::functions::executions::request::Strategy::SwissSystem { pool, rounds };
-                (fp, pp, input, continuation, retry_token, seed, strategy, detach)
+                (function, profile, input, continuation, retry_token, seed, split, strategy, detach)
             }
         };
 
@@ -189,17 +190,20 @@ impl Commands {
             crate::api::detach::detach().await;
         }
 
+        let function = function_source.resolve(|| fn_favorites(cli_config)).await?;
+        let profile = profile_source.resolve(|| profile_favorites(cli_config)).await?;
         let input_value = input_source.resolve()?;
         let continuation = continuation_args.resolve()?;
 
         let params = objectiveai::functions::executions::request::FunctionExecutionCreateParams {
-            function: objectiveai::functions::FullInlineFunctionOrRemoteCommitOptional::Remote(function_path),
-            profile: objectiveai::functions::InlineProfileOrRemoteCommitOptional::Remote(profile_path),
+            function,
+            profile,
             retry_token,
             from_cache: None,
             reasoning: None,
             strategy: Some(strategy),
             input: input_value,
+            split: if split { Some(true) } else { None },
             provider: None,
             seed,
             stream: Some(true),

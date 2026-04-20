@@ -1,21 +1,19 @@
 {
   "name": "objectiveai-monorepo",
   "private": true,
-  "workspaces": [
-    "objectiveai-cli",
-    "objectiveai-js",
-    "objectiveai-function-tree",
-    "objectiveai-web",
-    "objectiveai-viewer"
-  ],
+  "packageManager": "pnpm@10.25.0",
   "scripts": {
-    "dev": "npm run dev -w objectiveai-web",
-    "build:js": "npm run build -w objectiveai-js",
-    "build:tree": "npm run build -w @objectiveai/function-tree",
-    "build:web": "npm run build -w objectiveai-web",
-    "build": "npm run build:js && npm run build:tree && npm run build:web"
+    "dev": "pnpm --filter objectiveai-web run dev",
+    "build:js": "pnpm --filter objectiveai run build",
+    "build:tree": "pnpm --filter @objectiveai/function-tree run build",
+    "build:web": "pnpm --filter objectiveai-web run build",
+    "build": "pnpm run build:js && pnpm run build:tree && pnpm run build:web"
   },
-  "devDependencies": {
-    "esbuild": "^0.28.0"
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp",
+      "unrs-resolver"
+    ]
   }
 }

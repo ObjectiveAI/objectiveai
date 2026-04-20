@@ -1,6 +1,8 @@
 use clap::{Args, Subcommand};
 use futures::StreamExt;
 
+crate::define_inline_or_ref!(AgentArg, "agent", objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional, Remote);
+
 /// How messages are provided to the agent completion.
 #[derive(Args)]
 #[group(required = true, multiple = false)]
@@ -21,7 +23,7 @@ impl MessageSource {
         if let Some(inline) = self.messages_inline {
             let mut de = serde_json::Deserializer::from_str(&inline);
             return serde_path_to_error::deserialize(&mut de)
-                .map_err(crate::error::Error::PythonDeserialize);
+                .map_err(crate::error::Error::InlineDeserialize);
         }
         if let Some(code) = self.messages_python_inline {
             return crate::python::exec_code(&code);
@@ -40,9 +42,8 @@ pub enum Commands {
     Standard {
         #[command(flatten)]
         messages: MessageSource,
-        /// Agent reference (e.g. favorite=name or remote=github,owner=x,repository=y)
-        #[arg(long)]
-        agent: crate::agent_ref::AgentRef,
+        #[command(flatten)]
+        agent: AgentArg,
         #[command(flatten)]
         continuation: crate::continuation::ContinuationArgs,
         #[command(flatten)]
@@ -58,7 +59,7 @@ pub enum Commands {
 
 impl Commands {
     pub async fn handle(self, cli_config: &crate::Config) -> Result<crate::Output, crate::error::Error> {
-        let (message_source, agent_ref, continuation_args, response_format_args, seed, detach) = match self {
+        let (message_source, agent_arg, continuation_args, response_format_args, seed, detach) = match self {
             Commands::Standard { messages, agent, continuation, response_format, seed, detach } => {
                 (messages, agent, continuation, response_format, seed, detach)
             }
@@ -69,7 +70,7 @@ impl Commands {
         }
 
         let messages = message_source.resolve()?;
-        let agent = agent_ref.resolve(|| async {
+        let agent = agent_arg.resolve(|| async {
             let (_, mut c) = crate::config::read(cli_config).await.unwrap();
             c.agents().get_favorites().to_vec()
         }).await?;

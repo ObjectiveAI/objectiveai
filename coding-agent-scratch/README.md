@@ -6,17 +6,17 @@ This folder is for testing ObjectiveAI SDK calls and exploring API behavior.
 
 ```bash
 cd coding-agent-scratch
-npm install
+pnpm install
 ```
 
 ## Running Tests
 
 ```bash
 # Run the SDK test script
-npm test
+pnpm test
 
 # Or directly with ts-node
-npx ts-node test-sdk.ts
+pnpm exec ts-node test-sdk.ts
 ```
 
 ## Environment Variables

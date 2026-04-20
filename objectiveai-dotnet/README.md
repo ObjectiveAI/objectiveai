@@ -2,7 +2,7 @@
 
 **This SDK is not yet usable.**
 
-SDK for the [ObjectiveAI](https://objective-ai.io) API.
+SDK for the [ObjectiveAI](https://objectiveai.dev) API.
 
 ## Installation
 
@@ -17,5 +17,5 @@ using ObjectiveAI;
 using ObjectiveAI.Agent;
 
 // Types are auto-generated from the ObjectiveAI JSON Schema.
-// See https://api.objective-ai.io for API documentation.
+// See https://api.objectiveai.dev for API documentation.
 ```

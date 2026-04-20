@@ -30374,6 +30374,7 @@ declare const FunctionsExecutionsRequestFunctionExecutionCreateParamsSchema: z.Z
     }, z.core.$strip>>>;
     retry_token: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     seed: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    split: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     strategy: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodObject<{
         type: z.ZodLiteral<"default">;
     }, z.core.$strip>, z.ZodObject<{
@@ -31742,6 +31743,7 @@ interface FunctionsExecutionsResponseStreamingFunctionExecutionTaskChunk {
     profile?: (RemotePath) | null;
     reasoning?: (FunctionsExecutionsResponseStreamingReasoningSummaryChunk) | null;
     retry_token?: (string) | null;
+    split_index?: (number) | null;
     swiss_pool_index?: (number) | null;
     swiss_round?: (number) | null;
     task_index: number;
@@ -32433,6 +32435,7 @@ interface FunctionsExecutionsResponseUnaryFunctionExecutionTask {
     profile?: (RemotePath) | null;
     reasoning?: (FunctionsExecutionsResponseUnaryReasoningSummary) | null;
     retry_token?: (string) | null;
+    split_index?: (number) | null;
     swiss_pool_index?: (number) | null;
     swiss_round?: (number) | null;
     task_index: number;

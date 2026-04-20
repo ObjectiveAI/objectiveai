@@ -19,5 +19,5 @@ const client = new ObjectiveAI({ apiBase: "http://localhost:8080" });
 ## Rules
 
 - All API calls go through the SDK. No exceptions.
-- Run `npm` commands from the workspace root.
+- Run `pnpm` commands from the workspace root.
 - No design system or copy guidance lives in this file. That comes from the design brief.

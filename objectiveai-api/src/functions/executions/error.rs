@@ -75,6 +75,9 @@ pub enum Error {
     /// Cannot use both from_cache and continuation at the same time.
     #[error("from_cache and continuation are mutually exclusive")]
     CacheAndContinuationConflict,
+    /// Split requires input to be an array.
+    #[error("split requires input to be an array")]
+    SplitInputNotArray,
 }
 
 /// Error from evaluating a task's output expression.
@@ -111,6 +114,7 @@ impl objectiveai::error::StatusError for Error {
             Error::TaskOutputExpressionErrors(_) => 400,
             Error::CircularDependency(_) => 400,
             Error::CacheAndContinuationConflict => 400,
+            Error::SplitInputNotArray => 400,
         }
     }
 
@@ -208,6 +212,10 @@ impl objectiveai::error::StatusError for Error {
                 Error::CacheAndContinuationConflict => serde_json::json!({
                     "kind": "cache_and_continuation_conflict",
                     "error": "from_cache and continuation are mutually exclusive",
+                }),
+                Error::SplitInputNotArray => serde_json::json!({
+                    "kind": "split_input_not_array",
+                    "error": "split requires input to be an array",
                 }),
             }
         }))

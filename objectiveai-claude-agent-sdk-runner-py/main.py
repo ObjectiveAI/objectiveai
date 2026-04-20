@@ -16,9 +16,10 @@ import asyncio
 import json
 import os
 import sys
+import time
 from typing import Any
 
-from claude_agent_sdk import query, ClaudeAgentOptions
+from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient
 from claude_agent_sdk.types import (
     AssistantMessage,
     Message,
@@ -243,12 +244,63 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="User agent string (sets CLAUDE_AGENT_SDK_CLIENT_APP env var)",
     )
+    parser.add_argument(
+        "--rate-limit-max-retries",
+        type=int,
+        required=True,
+        help="Maximum number of retries on 429 rate limit (with retry-after backoff)",
+    )
     return parser.parse_args()
 
 
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
+
+async def wait_for_mcp_servers(
+    client: ClaudeSDKClient,
+    our_servers: set[str],
+) -> None:
+    """Poll MCP server status until all configured servers are connected."""
+    if not our_servers:
+        return
+
+    first = True
+    delay = 0.001  # 1ms initial, doubles up to 100ms
+    while True:
+        status = await client.get_mcp_status()
+        servers = status.get("mcpServers", [])
+
+        if first:
+            status_names = {s["name"] for s in servers}
+            missing = our_servers - status_names
+            if missing:
+                raise RuntimeError(
+                    f"MCP servers not found in status list: {', '.join(sorted(missing))}. "
+                    f"Available: {', '.join(sorted(status_names))}"
+                )
+            first = False
+
+        pending = False
+        for s in servers:
+            if s["name"] not in our_servers:
+                continue
+            st = s.get("status", "")
+            if st in ("failed", "needs-auth"):
+                error = s.get("error", "")
+                raise RuntimeError(
+                    f"MCP server {s['name']}: {st}" + (f" - {error}" if error else "")
+                )
+            if st == "pending":
+                pending = True
+
+        if not pending:
+            break
+
+        await asyncio.sleep(delay)
+        if delay < 0.1:
+            delay *= 2
 
 
 async def run(args: argparse.Namespace) -> None:
@@ -287,17 +339,64 @@ async def run(args: argparse.Namespace) -> None:
         permission_mode="bypassPermissions",
     )
 
-    # Create an async generator that yields the single SDK user message,
-    # mirroring the JS: async function* messages() { yield message; }
+    # Create an async generator that yields the single SDK user message.
     async def messages():
         yield message
 
+    our_servers = set(mcp_servers.keys())
+
     # Stream events as JSONL to stdout.
-    async for msg in query(prompt=messages(), options=opts):
-        d = serialize_message(msg)
-        if d is not None:
-            sys.stdout.write(json.dumps(d) + "\n")
-            sys.stdout.flush()
+    # If rate-limited with status "rejected", wait until resets_at and retry.
+    # On retry, resume the same session so the agent's memory is preserved.
+    max_retries = args.rate_limit_max_retries
+    current_session_id: str | None = None
+    for attempt in range(max_retries + 1):
+        rate_limited = False
+
+        # On retry, resume the session captured from the previous attempt.
+        if current_session_id is not None:
+            opts = replace_opts(opts, resume=current_session_id)
+
+        async with ClaudeSDKClient(opts) as client:
+            # Only send the original message on the first attempt. On resume,
+            # the session already has the conversation history.
+            if attempt == 0:
+                await client.connect(prompt=messages())
+            else:
+                await client.connect()
+
+            # Wait for all MCP servers to be connected.
+            await wait_for_mcp_servers(client, our_servers)
+
+            # Stream messages.
+            async for msg in client.receive_messages():
+                # Track session_id from any message that has it.
+                msg_session_id = getattr(msg, "session_id", None)
+                if msg_session_id:
+                    current_session_id = msg_session_id
+
+                if isinstance(msg, RateLimitEvent) and msg.rate_limit_info.status == "rejected":
+                    resets_at = msg.rate_limit_info.resets_at
+                    if resets_at is not None and attempt < max_retries:
+                        wait = max(0, resets_at - time.time()) + 1
+                        sys.stderr.write(f"Rate limited, retrying in {wait:.0f}s (attempt {attempt + 1}/{max_retries})\n")
+                        sys.stderr.flush()
+                        await asyncio.sleep(wait)
+                        rate_limited = True
+                        break
+                d = serialize_message(msg)
+                if d is not None:
+                    sys.stdout.write(json.dumps(d) + "\n")
+                    sys.stdout.flush()
+
+        if not rate_limited:
+            break
+
+
+def replace_opts(opts: ClaudeAgentOptions, **changes: Any) -> ClaudeAgentOptions:
+    """Return a copy of opts with the given fields replaced."""
+    from dataclasses import replace
+    return replace(opts, **changes)
 
 
 def main() -> None:

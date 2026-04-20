@@ -15,6 +15,12 @@ const wasmDir = path.join(repoRoot, "objectiveai-rs-wasm-js");
 const outDir = path.join(jsRoot, "src", "wasm");
 const wasmDistDir = path.join(wasmDir, "dist");
 
+// If WASM dist is unavailable but output files already exist, skip (e.g. Docker build)
+if (!existsSync(wasmDistDir) && existsSync(path.join(outDir, "loader.cjs"))) {
+  console.log("✓ WASM loader already present, skipping (no WASM dist available)");
+  process.exit(0);
+}
+
 // 1. Validate dist/ is up to date
 const validateResult = spawnSync("bash", [path.join(wasmDir, "validate.sh")], {
   stdio: "inherit",

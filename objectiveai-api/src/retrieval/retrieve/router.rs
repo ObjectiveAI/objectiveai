@@ -499,6 +499,22 @@ where
         }
     }
 
+    /// API endpoint: fetch a remote function invention state, wrap in response.
+    pub async fn endpoint_get_function_invention_state<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+        self: &Arc<Self>,
+        ctx: &ctx::Context<CTXEXT, PC>,
+        params: &objectiveai::RemotePathCommitOptional,
+    ) -> Result<objectiveai::functions::inventions::state::response::GetFunctionInventionStateResponse, ResponseError> {
+        let path = self.resolve_path(ctx, crate::retrieval::Kind::Functions, params).await?
+            .ok_or_else(|| not_found("function invention state"))?;
+        let state = self.get_function_invention_state(
+            ctx,
+            objectiveai::functions::inventions::ParamsStateOrRemoteCommitOptional::Remote(params.clone()),
+        ).await?
+            .ok_or_else(|| not_found("function invention state"))?;
+        Ok(objectiveai::functions::inventions::state::response::GetFunctionInventionStateResponse { path, inner: state })
+    }
+
     /// API endpoint: fetch a remote profile, wrap in response.
     pub async fn endpoint_get_profile<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         self: &Arc<Self>,

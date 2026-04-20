@@ -15,7 +15,7 @@ async function main() {
   // Initialize client (uses OBJECTIVEAI_API_KEY from env, or anonymous)
   const client = new ObjectiveAI({
     apiKey: process.env.OBJECTIVEAI_API_KEY ?? "none",
-    apiBase: "https://api.objective-ai.io",
+    apiBase: "https://api.objectiveai.dev",
   });
 
   console.log("=== ObjectiveAI SDK Test ===\n");

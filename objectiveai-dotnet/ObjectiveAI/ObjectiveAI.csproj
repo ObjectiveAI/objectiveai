@@ -13,7 +13,7 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/ObjectiveAI/objectiveai</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageProjectUrl>https://objective-ai.io</PackageProjectUrl>
+    <PackageProjectUrl>https://objectiveai.dev</PackageProjectUrl>
     <PackageTags>llm;ai;swarm;scoring;ranking</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>

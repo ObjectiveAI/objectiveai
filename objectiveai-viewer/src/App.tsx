@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { AgentCompletionView } from "./AgentCompletionView";
 import { z } from "zod";
 import {
   AgentCompletionsRequestAgentCompletionCreateParamsSchema,
@@ -146,6 +147,9 @@ function classifyLaboratoryExecution(payload: unknown): LaboratoryExecutionEvent
 }
 
 function EntryView({ entry }: { entry: Entry }) {
+  if (entry.kind === "agent-completion") {
+    return <AgentCompletionView entry={entry} />;
+  }
   if (entry.error) {
     return <pre style={{ color: "red" }}>{JSON.stringify(entry.error, null, 2)}</pre>;
   }

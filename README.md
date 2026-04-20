@@ -8,7 +8,7 @@
 
 Your agent doesn't have to decide alone. ObjectiveAI lets any agent call out to a **swarm** of models for collective judgment — routing decisions through recursive scoring trees that map arbitrary input into a vector of scores across every option. Functions are invented by agents, trained on data, and deployed as reusable decision infrastructure that gets better over time.
 
-[Website](https://objective-ai.io) | [API](https://api.objective-ai.io) | [Discord](https://discord.gg/gbNFHensby) | [npm](https://www.npmjs.com/package/objectiveai) | [crates.io](https://crates.io/crates/objectiveai)
+[Website](https://objectiveai.dev) | [API](https://api.objectiveai.dev) | [Discord](https://discord.gg/gbNFHensby) | [npm](https://www.npmjs.com/package/objectiveai) | [crates.io](https://crates.io/crates/objectiveai)
 
 ## What this is
 

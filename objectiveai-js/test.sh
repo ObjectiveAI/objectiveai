@@ -26,7 +26,7 @@ if [ -z "${OBJECTIVEAI_TEST_PORT:-}" ]; then
 fi
 
 # Run tests, capture all output
-if npm test --workspace=objectiveai -- --reporter=verbose >> "$LOG_FILE" 2>&1; then
+if pnpm --filter objectiveai run test -- --reporter=verbose >> "$LOG_FILE" 2>&1; then
   # vitest summary: "Tests  959 passed | 6 todo (965)" or "Tests  3 failed | 959 passed | 6 todo (965)"
   # Strip ANSI codes; parse passed + failed, ignore todo/skipped
   CLEAN=$(sed 's/\x1b\[[0-9;]*m//g' "$LOG_FILE")

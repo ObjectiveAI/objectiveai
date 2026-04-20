@@ -14,6 +14,9 @@ pub struct FunctionExecutionTask {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub swiss_round: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub split_index: Option<u64>,
     #[serde(flatten)]
     pub inner: super::FunctionExecution,
 }
@@ -28,6 +31,7 @@ impl From<response::streaming::FunctionExecutionTaskChunk>
             task_path,
             swiss_pool_index,
             swiss_round,
+            split_index,
             inner,
         }: response::streaming::FunctionExecutionTaskChunk,
     ) -> Self {
@@ -37,6 +41,7 @@ impl From<response::streaming::FunctionExecutionTaskChunk>
             task_path,
             swiss_pool_index,
             swiss_round,
+            split_index,
             inner: inner.into(),
         }
     }

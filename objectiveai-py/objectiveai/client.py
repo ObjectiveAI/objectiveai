@@ -12,7 +12,7 @@ from objectiveai.stream import Stream
 
 T = TypeVar("T")
 
-DEFAULT_ADDRESS = "https://api.objective-ai.io"
+DEFAULT_ADDRESS = "https://api.objectiveai.dev"
 
 
 class ObjectiveAI:
@@ -21,7 +21,7 @@ class ObjectiveAI:
     Args:
         address: Base URL for the API.
             Falls back to ``OBJECTIVEAI_ADDRESS`` env var,
-            then ``https://api.objective-ai.io``.
+            then ``https://api.objectiveai.dev``.
         authorization: API key for authentication.
             Falls back to ``OBJECTIVEAI_AUTHORIZATION`` env var.
         user_agent: ``User-Agent`` header.

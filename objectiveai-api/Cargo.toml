@@ -2,20 +2,22 @@
 name = "objectiveai-api"
 version = "2.0.0"
 edition = "2024"
-authors = ["ObjectiveAI <admin@objective-ai.io>"]
+authors = ["ObjectiveAI <admin@objectiveai.dev>"]
 description = "ObjectiveAI API Server"
 license = "MIT"
 repository = "https://github.com/ObjectiveAI/objectiveai"
-homepage = "https://objective-ai.io"
+homepage = "https://objectiveai.dev"
 documentation = "https://docs.rs/objectiveai-api"
 readme = "README.md"
 keywords = ["llm", "ai", "swarm"]
 publish = true
 
 [features]
-default = ["orchestrator-bollard"]
+default = ["orchestrator-bollard", "claude-agent-sdk-javascript"]
 sqlite-persistent-cache = ["dep:rusqlite"]
 orchestrator-bollard = ["dep:bollard", "dep:tar"]
+claude-agent-sdk-python = []
+claude-agent-sdk-javascript = []
 
 [dependencies]
 objectiveai = { path = "../objectiveai-rs", version = "2.0.0", default-features = false, features = ["http"] }

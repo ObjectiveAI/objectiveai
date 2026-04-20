@@ -81,6 +81,19 @@
         }
       ]
     },
+    "split_index": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "swiss_pool_index": {
       "anyOf": [
         {

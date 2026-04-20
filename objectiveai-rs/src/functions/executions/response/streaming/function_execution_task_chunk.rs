@@ -18,6 +18,10 @@ pub struct FunctionExecutionTaskChunk {
     #[schemars(extend("omitempty" = true))]
     #[arbitrary(with = crate::arbitrary_util::arbitrary_option_u64)]
     pub swiss_round: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    #[arbitrary(with = crate::arbitrary_util::arbitrary_option_u64)]
+    pub split_index: Option<u64>,
     #[serde(flatten)]
     pub inner: super::FunctionExecutionChunk,
 }
@@ -48,6 +52,9 @@ impl FunctionExecutionTaskChunk {
             }
             if let Some(v) = self.swiss_round {
                 map.insert("swiss_round".to_string(), serde_json::json!(v));
+            }
+            if let Some(v) = self.split_index {
+                map.insert("split_index".to_string(), serde_json::json!(v));
             }
         }
         (reference, files)

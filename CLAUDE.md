@@ -4,7 +4,7 @@
 
 ObjectiveAI is an agentic collective judgment harness. It uses scoring, ranking, and simulation across swarms of agents to produce collective judgments that can be easily fine-tuned. Full brand description is a WIP.
 
-**API:** https://api.objective-ai.io
+**API:** https://api.objectiveai.dev
 
 ## Repository Structure
 
@@ -174,6 +174,10 @@ After declaring work "complete" on multi-page tasks, enumerate all affected page
 - Focus on component rendering, user interactions, and state management
 
 ## Development Workflow
+
+### Package Manager
+
+This repo uses **pnpm** (not npm). Run all commands with `pnpm`. Workspace filtering uses `pnpm --filter <package-name> run <script>`.
 
 ### SDK Testing
 

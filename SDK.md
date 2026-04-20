@@ -31,7 +31,7 @@ Published as `objectiveai` on npm.
 - **Client:** `src/client.ts` — HTTP client with Zod-validated options, env var fallbacks, streaming support.
 - **Merge system:** `src/merge.ts` — Immutable `merge(a, b) → [result, boolean]` for streaming chunk accumulation. Returns original reference when unchanged (React identity optimization).
 - **WASM:** Compiled from `objectiveai-rs-wasm-js`, embedded as base64 at build time (no filesystem dependency).
-- **Build:** `npm run build` via tsup → `dist/` with CJS + ESM.
+- **Build:** `pnpm run build` via tsup → `dist/` with CJS + ESM.
 - **Tests:** vitest + `tsc --noEmit`. HTTP integration tests use shared API server.
 
 ## Python SDK (`objectiveai-py`)

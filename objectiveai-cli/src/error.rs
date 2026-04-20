@@ -30,6 +30,8 @@ pub enum Error {
     PythonDeserialize(serde_path_to_error::Error<serde_json::Error>),
     #[error("internal error: python harness output is malformed: {0}")]
     PythonHarnessBroken(String),
+    #[error("inline JSON deserialization failed: {0}")]
+    InlineDeserialize(serde_path_to_error::Error<serde_json::Error>),
     #[error("stream ended without producing any chunks")]
     EmptyStream,
     #[error("config set forbidden by server configuration")]

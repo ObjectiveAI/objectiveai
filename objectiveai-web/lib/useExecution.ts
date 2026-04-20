@@ -109,24 +109,21 @@ export function useExecution({
 
     try {
       const client = getClient();
-      const functionRef = {
-        remote: "github" as const,
-        owner: functionOwner,
-        repository: functionRepo,
-        ...(functionCommit ? { commit: functionCommit } : {}),
-      };
-      const profileRef = {
-        remote: "github" as const,
-        owner: profileOwner,
-        repository: profileRepo,
-        ...(profileCommit ? { commit: profileCommit } : {}),
-      };
-
       const stream = await functionsExecutionsCreateFunctionExecution(
         client,
         {
-          function: functionRef,
-          profile: profileRef,
+          function: {
+            remote: "github" as const,
+            owner: functionOwner,
+            repository: functionRepo,
+            commit: functionCommit ?? undefined,
+          },
+          profile: {
+            remote: "github" as const,
+            owner: profileOwner,
+            repository: profileRepo,
+            commit: profileCommit ?? undefined,
+          },
           input,
           stream: true as const,
         },
@@ -230,7 +227,6 @@ function toJudgmentExecution(chunk: Chunk | null): JudgmentExecution | null {
           completions: vcTask.completions,
         };
       }
-      // FunctionExecutionTaskChunk (sub-function) — pass through
       return { task_path: [i] };
     }),
   };

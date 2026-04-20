@@ -1,4 +1,4 @@
-# Builder
+# Builder (pnpm)
 FROM node:20 AS builder
 ARG AUTH_GOOGLE_CLIENT_ID
 ENV AUTH_GOOGLE_CLIENT_ID=${AUTH_GOOGLE_CLIENT_ID}
@@ -35,25 +35,31 @@ ENV NEXT_PUBLIC_SONARLY_PROJECT_KEY=${NEXT_PUBLIC_SONARLY_PROJECT_KEY}
 ARG NEXT_PUBLIC_SONARLY_INGEST_POINT
 ENV NEXT_PUBLIC_SONARLY_INGEST_POINT=${NEXT_PUBLIC_SONARLY_INGEST_POINT}
 
+# Install pnpm via corepack
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
 # Install workspace dependencies
 WORKDIR /root
-COPY package.json package-lock.json ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
 COPY objectiveai-js/package.json objectiveai-js/
 COPY objectiveai-function-tree/package.json objectiveai-function-tree/
 COPY objectiveai-web/package.json objectiveai-web/
-RUN npm install --include=dev
+COPY objectiveai-viewer/package.json objectiveai-viewer/
+RUN pnpm install --frozen-lockfile
 
 # Build JS SDK (workspace resolves "objectiveai" locally)
+COPY objectiveai-json-schema/ objectiveai-json-schema/
+COPY objectiveai-rs-wasm-js/ objectiveai-rs-wasm-js/
 COPY objectiveai-js/ objectiveai-js/
-RUN npm run build:js
+RUN pnpm run build:js
 
 # Build function-tree
 COPY objectiveai-function-tree/ objectiveai-function-tree/
-RUN npm run build:tree
+RUN pnpm run build:tree
 
 # Build web
 COPY objectiveai-web/ objectiveai-web/
-RUN npm run build:web
+RUN pnpm run build:web
 
 # Runner
 FROM node:20-slim AS runner
@@ -95,7 +101,7 @@ ENV NEXT_PUBLIC_SONARLY_INGEST_POINT=${NEXT_PUBLIC_SONARLY_INGEST_POINT}
 WORKDIR /root
 COPY --from=builder /root/objectiveai-web/.next .next
 COPY --from=builder /root/objectiveai-web/public public
-COPY --from=builder /root/objectiveai-web/node_modules node_modules
+COPY --from=builder /root/node_modules node_modules
 COPY --from=builder \
     /root/objectiveai-web/package.json \
     /root/objectiveai-web/next.config.ts \

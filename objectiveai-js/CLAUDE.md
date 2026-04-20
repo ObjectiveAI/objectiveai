@@ -4,7 +4,7 @@ TypeScript SDK for ObjectiveAI. Published as `objectiveai` on npm.
 
 ## Building
 
-`npm run build --workspace=objectiveai` (from the repo root) rebuilds everything, including `objectiveai-rs-wasm-js` (WASM). Do NOT run `wasm-pack` directly — the build script handles it.
+`pnpm --filter objectiveai run build` (from the repo root) rebuilds everything, including `objectiveai-rs-wasm-js` (WASM). Do NOT run `wasm-pack` directly — the build script handles it.
 
 ## Merge System
 

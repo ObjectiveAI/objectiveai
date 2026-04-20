@@ -1,0 +1,145 @@
+{
+  "id": "",
+  "tasks": [
+    {
+      "index": 0,
+      "task_index": 0,
+      "task_path": [
+        0
+      ],
+      "id": "",
+      "completions": [
+        {
+          "index": 0,
+          "id": "",
+          "created": 0,
+          "messages": [
+            {
+              "role": "assistant",
+              "index": 0,
+              "created": 0,
+              "agent": "425mMcWqssOpPRrsDrjB0B",
+              "model": "mock",
+              "upstream_id": "",
+              "reasoning": "BPQkz2BMPcoOgu8SmLgzXK t5L46KRxNy3uCLSKGcWGnNK7Se kn8adHSlS5t6o88tlJovmQCLPD2dYM9sd6wtFdWLvPVp5Hh6oBL9wJYOv5DxccIe1oS30EfqD 09dlt8XgxKXEAOYtXQDuML6XFdOgEZg2oeZp  SJRWcUd2Q0d tpEjk14CuKqKLzUNB DssWeHkMPLri 8lmzbe3f8dHlhD94SzeyU6iTB7fJm2S6wGAoF6UqPsmJDMv3ZlTU tHsrGH00V OmmNCriaBQM3rj0ER4E0vroonJIiCN2g7VgD9xxPH8MEJjznYyfysFHQasmuGOoNQGILx2vzrdbJ1CvbkRNYyBE9mKGBZdu 4RjJYLNVIl3UMbOCBVKPlWyobKArOJxaVV5HPeUI7t5q8M55D8QWoOle2Ti2JPk1kOAbrEHb4pIkcvvUF",
+              "tool_calls": null,
+              "content": "27tVDJojGEhV 5qY 8u1duFRPYkhiD9xlJqyJ12xEzT5IjX5puFYQ4vVN4qN7obOjewFFbJ1D1V2MwpWtPL9FqqSjP7LMryhgFjONCbmpupfUGQ5FPnSq2s8UBxbgIftWuD1jzSZLL9VRfFCxUap2DIFn8dttRVp7c38MIgpxvaaUC8gFvm1qLC0Kd5cyiGxMmdE7uxS4H3v5d8A8LImwThRtizvW7QF1gVV7tp",
+              "refusal": null,
+              "finish_reason": "stop",
+              "logprobs": null,
+              "usage": {
+                "completion_tokens": 0,
+                "prompt_tokens": 0,
+                "total_tokens": 0,
+                "cost": 0.0,
+                "total_cost": 0.0,
+                "cost_multiplier": 0.0,
+                "is_byok": false
+              }
+            }
+          ],
+          "object": "agent.completion",
+          "usage": {
+            "completion_tokens": 0,
+            "prompt_tokens": 0,
+            "total_tokens": 0,
+            "cost": 0.0,
+            "total_cost": 0.0
+          },
+          "upstream": "mock",
+          "error": null,
+          "continuation": "eyJ1cHN0cmVhbSI6Im1vY2siLCJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiJHb29kIG1vcm5pbmcifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IlxuXG5TZWxlY3QgdGhlIHJlc3BvbnNlOlxuXG4ifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IntcbiAgICBcImBSYFwiOiBcIiJ9LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiTm8ifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IlwiLFxuICAgIFwiYE5gXCI6IFwiIn0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJZZXMifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IlwiXG59In0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJcblxuT3V0cHV0IG9uZSByZXNwb25zZSBrZXkgaW5jbHVkaW5nIGJhY2t0aWNrczpcbi0gYFJgXG4tIGBOYCJ9XX1dLCJtY3Bfc2Vzc2lvbnMiOnt9fQ=="
+        },
+        {
+          "index": 1,
+          "id": "",
+          "created": 0,
+          "messages": [
+            {
+              "role": "assistant",
+              "index": 0,
+              "created": 0,
+              "agent": "425mMcWqssOpPRrsDrjB0B",
+              "model": "mock",
+              "upstream_id": "",
+              "reasoning": "sXVsY2aX7s8sdA QKGks3IuEi11mbztdCCtPViFSsLvYx4FHYWZDuIKTv9PiVQYu3mLifGmfrLBT8OhR7nvdBijYN6DJsgdIMPzolfuU2M3D8Rm5kZG7COO38f6gjU8rGLqBFieHF2wiv8Hp uNkfvK73GoZPigJjOPDeDsHetYU6kCUl3QxtukjNfQM5CnCkB2oDmJ6etzwPA9EQXMryuHP8fJpHOei1EAzIgT4WtRupGYpepkJZFj94IbmATjTAqbzRUQAmsaPNNEBUFt85baTDWnjEBGG9mjBTgB8HtBCz1A9Kk7vQXy1KiMuTV1sLwa eUExohhJAqmkrMlSxZ2tBLHZ9txxfpta kiH42ZTysZCTAf JNbdRLTrJo1l7EmRYjDrhyBhKyoS613JeszyCs71sPhC v6KYN6MpVQkm7fLzY7sQMw9SoqIkuw5n83n2Rr7lP1HYqGWmfo4dmlohYQiGBCsrJk4hU16AXy7ZwZUilj2v69AuE3Oo0dnlLwX2FUJkS48uBtGsbrVwRd1RG4NIvgXwUu2cBpSISCiCrenxriMGruXfP5nm4muqjdCLOCSweuKRO5bc5F0XxMXKKI3ceTDC7JqQsCYhWDMrCjtHPaOv129coGOi0HAzn3hdSa2WtnDEF9368fZc2hhgPtTl0B3DmHNAahbORyqDS4LpkIfRDANNGe3kqaJjIKq9FQBE1umRlZS1c0T8dbEQgJlcmaRGcCZjjSZhDv3RFB7uEjWaTZEfteNGGP63lwI8YgSfdHrcIk1IsQnIxbWlOpOUQsihlAAmN1wgCm5lrTO72cUh8w6yxENY9qxregAipVGKmZ5NxsO0ZvA1MbA37wtxQGSJUd7zHKDjNnyyxaYbJVkl4C Qqo3pt1vXmi78aWUUuZVYGjbxdtGXFYPRa8jQPyj146SberZ0l3AzJMzVF8KOG1oEG4RWLBQsZrDTzYQbrACute0BGAP29RLCMCtaytRsPOsus2UDFulh8FBaQx8zVIsiEh9a8tDKM40CJWMxzCG32 biZWjj1HBgBYkvoYCXalRj4711AnfoxsbYUsLK6Wh1F7mBPt6c0YadYhe2nHBQ4L5dkjbh258miTkEV0lLgwzoFd0mcibbzmgfouEgUQtYE",
+              "tool_calls": null,
+              "content": "l9MU5xP9umcZOJSqxLbnlO1H3gwlRkmfWIFggpZblswXoatPMWdOl eseDn0IfH3OKWbltTo3XA8 cOtwkGoMP 2BxjHXwZDLkGOq8ZeOfUbp7kUFLt8GsReQiJ C5jlZ9HWJLbzFZ2tTNozF2Pcp1tVbTBX92wgMv9wfGDXZC6",
+              "refusal": null,
+              "finish_reason": "stop",
+              "logprobs": null,
+              "usage": {
+                "completion_tokens": 0,
+                "prompt_tokens": 0,
+                "total_tokens": 0,
+                "cost": 0.0,
+                "total_cost": 0.0,
+                "cost_multiplier": 0.0,
+                "is_byok": false
+              }
+            }
+          ],
+          "object": "agent.completion",
+          "usage": {
+            "completion_tokens": 0,
+            "prompt_tokens": 0,
+            "total_tokens": 0,
+            "cost": 0.0,
+            "total_cost": 0.0
+          },
+          "upstream": "mock",
+          "error": null,
+          "continuation": "eyJ1cHN0cmVhbSI6Im1vY2siLCJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiJHb29kIG1vcm5pbmcifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IlxuXG5TZWxlY3QgdGhlIHJlc3BvbnNlOlxuXG4ifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IntcbiAgICBcImBSYFwiOiBcIiJ9LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiTm8ifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IlwiLFxuICAgIFwiYE5gXCI6IFwiIn0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJZZXMifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IlwiXG59In0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJcblxuT3V0cHV0IG9uZSByZXNwb25zZSBrZXkgaW5jbHVkaW5nIGJhY2t0aWNrczpcbi0gYFJgXG4tIGBOYCJ9XX0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJZb3VyIHJlc3BvbnNlIGluY2x1ZGVkIDAgcmVzcG9uc2Uga2V5cy5cblxuT3V0cHV0IG9uZSByZXNwb25zZSBrZXkgaW5jbHVkaW5nIGJhY2t0aWNrczpcbi0gYFJgXG4tIGBOYCJ9XSwibWNwX3Nlc3Npb25zIjp7fX0="
+        }
+      ],
+      "votes": [],
+      "scores": [
+        0.5,
+        0.5
+      ],
+      "weights": [
+        0.0,
+        0.0
+      ],
+      "created": 0,
+      "swarm": "3IIMLyE17jvB2l1RMkS3G8",
+      "object": "vector.completion",
+      "usage": {
+        "completion_tokens": 0,
+        "prompt_tokens": 0,
+        "total_tokens": 0,
+        "cost": 0.0,
+        "total_cost": 0.0
+      },
+      "error": null
+    }
+  ],
+  "tasks_errors": false,
+  "reasoning": null,
+  "output": {
+    "output": [
+      0.5,
+      0.5,
+      0.5
+    ]
+  },
+  "error": null,
+  "retry_token": null,
+  "created": 0,
+  "function": {
+    "remote": "mock",
+    "name": "binary-classifier"
+  },
+  "profile": {
+    "remote": "mock",
+    "name": "solo-instruction"
+  },
+  "object": "scalar.function.execution",
+  "usage": {
+    "completion_tokens": 0,
+    "prompt_tokens": 0,
+    "total_tokens": 0,
+    "cost": 0.0,
+    "total_cost": 0.0
+  }
+}

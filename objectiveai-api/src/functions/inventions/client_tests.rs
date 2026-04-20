@@ -193,7 +193,7 @@ fn make_client() -> Arc<TestClient> {
     let filesystem_client = Arc::new(crate::filesystem::Client::new(
         std::path::PathBuf::from("/tmp/objectiveai-test"),
         "ObjectiveAI".to_string(),
-        "noreply@objective-ai.io".to_string(),
+        "noreply@objectiveai.dev".to_string(),
     ));
     let function_retrieve_router = Arc::new(crate::retrieval::retrieve::Router::new(
         Arc::new(crate::retrieval::retrieve::mock::MockClient),

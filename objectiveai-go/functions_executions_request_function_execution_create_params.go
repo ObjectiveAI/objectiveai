@@ -21,6 +21,7 @@ type FunctionsExecutionsRequestFunctionExecutionCreateParams struct {
 	Reasoning *FunctionsExecutionsRequestReasoning `json:"reasoning,omitempty"`
 	RetryToken *string `json:"retry_token,omitempty"`
 	Seed *int64 `json:"seed,omitempty" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
+	Split *bool `json:"split,omitempty"`
 	Strategy *FunctionsExecutionsRequestStrategy `json:"strategy,omitempty"`
 	Stream *bool `json:"stream,omitempty"`
 }

@@ -1,0 +1,319 @@
+.ac-container {
+  text-align: left;
+  max-width: 800px;
+  margin: 0 auto 24px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 14px;
+}
+
+.ac-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: #f0f0f0;
+  border-bottom: 1px solid #ddd;
+  font-size: 12px;
+  color: #666;
+}
+
+.ac-header-model {
+  font-weight: 600;
+  color: #333;
+}
+
+.ac-header-upstream {
+  background: #e0e0e0;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  text-transform: lowercase;
+}
+
+.ac-header-id {
+  font-family: monospace;
+  font-size: 11px;
+  opacity: 0.6;
+  margin-left: auto;
+}
+
+.ac-status {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ac-status-streaming { background: #f0ad4e; }
+.ac-status-complete { background: #5cb85c; }
+.ac-status-error { background: #d9534f; }
+
+.ac-messages {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* System/Developer banner */
+.ac-system-banner {
+  background: #f8f8f8;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #888;
+}
+
+.ac-system-label {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  color: #aaa;
+}
+
+.ac-system-content {
+  font-family: monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+/* User bubble */
+.ac-user-bubble {
+  align-self: flex-end;
+  max-width: 75%;
+  background: #dcf0ff;
+  border-radius: 12px 12px 2px 12px;
+  padding: 10px 14px;
+}
+
+.ac-bubble-role {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #999;
+  margin-bottom: 4px;
+}
+
+.ac-bubble-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+}
+
+/* Assistant bubble */
+.ac-assistant-bubble {
+  align-self: flex-start;
+  max-width: 85%;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 12px 12px 12px 2px;
+  padding: 10px 14px;
+}
+
+.ac-assistant-meta {
+  font-size: 10px;
+  color: #aaa;
+  margin-bottom: 6px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ac-assistant-agent {
+  font-family: monospace;
+  font-size: 10px;
+}
+
+/* Reasoning */
+.ac-reasoning {
+  background: #faf8f0;
+  border: 1px solid #ece8d8;
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: #998;
+  font-style: italic;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.ac-reasoning-label {
+  font-weight: 600;
+  font-style: normal;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  color: #bba;
+}
+
+.ac-reasoning-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Refusal */
+.ac-refusal {
+  color: #c0392b;
+  background: #fdf0ef;
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+/* Tool calls */
+.ac-tool-calls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.ac-tool-call {
+  background: #f4f8fc;
+  border: 1px solid #d8e8f4;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.ac-tool-call-name {
+  font-weight: 600;
+  font-family: monospace;
+  color: #2c6fbb;
+  margin-bottom: 4px;
+}
+
+.ac-tool-call-args {
+  font-family: monospace;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #555;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+/* Tool result bubble */
+.ac-tool-result-bubble {
+  align-self: flex-start;
+  max-width: 80%;
+  margin-left: 24px;
+  background: #f4f8fc;
+  border: 1px solid #d8e8f4;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.ac-tool-result-id {
+  font-family: monospace;
+  font-size: 10px;
+  color: #2c6fbb;
+  margin-bottom: 4px;
+}
+
+.ac-tool-result-content {
+  font-family: monospace;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* Finish reason badge */
+.ac-finish-badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-weight: 600;
+  text-transform: lowercase;
+}
+
+.ac-finish-stop { background: #e8f5e9; color: #2e7d32; }
+.ac-finish-length { background: #fff3e0; color: #e65100; }
+.ac-finish-tool_calls { background: #e3f2fd; color: #1565c0; }
+.ac-finish-content_filter { background: #fce4ec; color: #c62828; }
+.ac-finish-error { background: #fce4ec; color: #c62828; }
+
+/* Footer */
+.ac-footer {
+  padding: 8px 16px;
+  border-top: 1px solid #eee;
+  font-size: 11px;
+  color: #999;
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.ac-footer-item {
+  display: flex;
+  gap: 4px;
+}
+
+.ac-footer-label {
+  color: #bbb;
+}
+
+.ac-error-banner {
+  background: #fdf0ef;
+  border-top: 1px solid #f5c6cb;
+  padding: 8px 16px;
+  color: #c0392b;
+  font-size: 12px;
+}
+
+/* Rich content */
+.ac-image-thumb {
+  max-width: 300px;
+  max-height: 200px;
+  border-radius: 4px;
+  margin-top: 4px;
+}
+
+.ac-attachment {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #eee;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  color: #666;
+  margin-top: 4px;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .ac-container { border-color: #444; }
+  .ac-header { background: #383838; border-color: #444; color: #aaa; }
+  .ac-header-model { color: #ddd; }
+  .ac-header-upstream { background: #4a4a4a; color: #ccc; }
+  .ac-system-banner { background: #333; border-color: #444; color: #999; }
+  .ac-system-content { color: #bbb; }
+  .ac-user-bubble { background: #1a3a5c; color: #dde8f4; }
+  .ac-assistant-bubble { background: #363636; border-color: #4a4a4a; color: #ddd; }
+  .ac-reasoning { background: #3a3828; border-color: #4a4838; color: #bba; }
+  .ac-refusal { background: #4a2020; color: #f0a0a0; }
+  .ac-tool-call { background: #2a3444; border-color: #3a4a5a; }
+  .ac-tool-call-name { color: #6aafee; }
+  .ac-tool-call-args { color: #bbb; }
+  .ac-tool-result-bubble { background: #2a3444; border-color: #3a4a5a; }
+  .ac-tool-result-id { color: #6aafee; }
+  .ac-tool-result-content { color: #bbb; }
+  .ac-footer { border-color: #444; }
+  .ac-error-banner { background: #4a2020; border-color: #5a3030; color: #f0a0a0; }
+}

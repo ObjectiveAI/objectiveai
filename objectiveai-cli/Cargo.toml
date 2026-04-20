@@ -4,14 +4,16 @@ version = "2.0.0"
 edition = "2024"
 
 [features]
-default = ["viewer", "rustpython", "systempython"]
+default = ["viewer", "rustpython", "systempython", "claude-agent-sdk-javascript"]
 viewer = []
 rustpython = ["dep:rustpython"]
 systempython = []
+claude-agent-sdk-javascript = ["objectiveai-api/claude-agent-sdk-javascript"]
+claude-agent-sdk-python = ["objectiveai-api/claude-agent-sdk-python"]
 
 [dependencies]
 objectiveai = { path = "../objectiveai-rs", version = "2.0.0" }
-objectiveai-api = { path = "../objectiveai-api", version = "2.0.0" }
+objectiveai-api = { path = "../objectiveai-api", version = "2.0.0", default-features = false, features = ["orchestrator-bollard"] }
 clap = { version = "4.6.0", features = ["derive"] }
 ratatui = "0.30.0"
 tokio = { version = "1.50.0", features = ["full"] }

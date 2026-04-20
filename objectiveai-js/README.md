@@ -5,9 +5,9 @@
 
 **Score everything. Rank everything. Simulate anyone.**
 
-The official JavaScript/TypeScript SDK for [ObjectiveAI](https://objective-ai.io) - a platform for remote Functions that score, rank, and simulate preferences using swarms of LLMs.
+The official JavaScript/TypeScript SDK for [ObjectiveAI](https://objectiveai.dev) - a platform for remote Functions that score, rank, and simulate preferences using swarms of LLMs.
 
-[Website](https://objective-ai.io) | [GitHub](https://github.com/ObjectiveAI/objectiveai) | [Discord](https://discord.gg/gbNFHensby)
+[Website](https://objectiveai.dev) | [GitHub](https://github.com/ObjectiveAI/objectiveai) | [Discord](https://discord.gg/gbNFHensby)
 
 ## Installation
 

@@ -611,9 +611,7 @@ where
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
         request: Arc<objectiveai::functions::executions::request::FunctionExecutionCreateParams>,
     ) -> Result<
-        impl Stream<Item = objectiveai::functions::executions::response::streaming::FunctionExecutionChunk>
-        + Send
-        + 'static,
+        futures::stream::BoxStream<'static, objectiveai::functions::executions::response::streaming::FunctionExecutionChunk>,
         super::Error,
     >{
         // Reject conflicting from_cache + continuation.
@@ -659,6 +657,164 @@ where
             .transpose().map_err(&send_err)?
             .map(Arc::new);
 
+        let request_input = request.input.clone();
+
+        // ── Split dispatch ─────────────────────────────────────────────
+        if request.split.unwrap_or(false) {
+            let elements = match request.input.clone() {
+                objectiveai::functions::expression::InputValue::Array(arr) => arr,
+                _ => return Err(send_err(super::Error::SplitInputNotArray)),
+            };
+
+            let viewer_client = self.viewer_client.clone();
+            let viewer_ctx = ctx.clone();
+
+            return Ok(async_stream::stream! {
+                let mut all_outputs: Vec<objectiveai::functions::expression::TaskOutputOwned> =
+                    Vec::with_capacity(elements.len());
+                let mut total_usage =
+                    objectiveai::agent::completions::response::Usage::default();
+                let mut tasks_errors = false;
+                let mut function_path = None;
+                let mut profile_path = None;
+                let mut object = objectiveai::functions::executions::response::streaming::Object::ScalarFunctionExecutionChunk;
+
+                for (split_idx, element) in elements.into_iter().enumerate() {
+                    let inner_stream = self.clone().execute_for_input(
+                        ctx.clone(),
+                        request.clone(),
+                        element,
+                        retry_token.clone(),
+                        response_id.clone(),
+                        created,
+                        Some(split_idx as u64),
+                    ).await;
+
+                    let inner_stream = match inner_stream {
+                        Ok(s) => s,
+                        Err(e) => {
+                            all_outputs.push(
+                                objectiveai::functions::expression::TaskOutputOwned::Err(
+                                    serde_json::json!({"error": e.to_string()})
+                                )
+                            );
+                            continue;
+                        }
+                    };
+
+                    futures::pin_mut!(inner_stream);
+                    while let Some(chunk) = inner_stream.next().await {
+                        // capture function/profile paths and object from first chunk
+                        if function_path.is_none() {
+                            function_path = chunk.function.clone();
+                            profile_path = chunk.profile.clone();
+                            object = chunk.object.clone();
+                        }
+                        if let Some(ref output) = chunk.output {
+                            all_outputs.push(output.output.clone());
+                        }
+                        if chunk.tasks_errors.unwrap_or(false) {
+                            tasks_errors = true;
+                        }
+                        if let Some(ref u) = chunk.usage {
+                            total_usage.push(u);
+                        }
+                        // yield chunk without individual output (combine at end)
+                        let mut forwarded = chunk;
+                        forwarded.output = None;
+                        forwarded.usage = None;
+                        yield forwarded;
+                    }
+                }
+
+                // combine outputs
+                let combined = if all_outputs.is_empty() {
+                    objectiveai::functions::expression::TaskOutputOwned::Err(
+                        serde_json::json!({"error": "no split outputs"})
+                    )
+                } else {
+                    match &all_outputs[0] {
+                        objectiveai::functions::expression::TaskOutputOwned::Scalar(_) => {
+                            objectiveai::functions::expression::TaskOutputOwned::Vector(
+                                all_outputs.into_iter().map(|o| match o {
+                                    objectiveai::functions::expression::TaskOutputOwned::Scalar(d) => d,
+                                    _ => rust_decimal::Decimal::ZERO,
+                                }).collect()
+                            )
+                        }
+                        objectiveai::functions::expression::TaskOutputOwned::Vector(_) => {
+                            objectiveai::functions::expression::TaskOutputOwned::Vectors(
+                                all_outputs.into_iter().map(|o| match o {
+                                    objectiveai::functions::expression::TaskOutputOwned::Vector(v) => v,
+                                    _ => Vec::new(),
+                                }).collect()
+                            )
+                        }
+                        _ => {
+                            objectiveai::functions::expression::TaskOutputOwned::Err(
+                                serde_json::json!({"error": "unexpected output type in split"})
+                            )
+                        }
+                    }
+                };
+
+                yield objectiveai::functions::executions::response::streaming::FunctionExecutionChunk {
+                    id: response_id.clone(),
+                    tasks: Vec::new(),
+                    tasks_errors: if tasks_errors { Some(true) } else { None },
+                    reasoning: None,
+                    output: Some(objectiveai::functions::executions::response::Output { output: combined }),
+                    error: None,
+                    retry_token: None,
+                    created,
+                    function: function_path,
+                    profile: profile_path,
+                    object,
+                    usage: Some(total_usage),
+                };
+            }.inspect(move |chunk| {
+                viewer_client.send_function_execution_continue(viewer_ctx.clone(), chunk.clone());
+            }).boxed());
+        }
+
+        // ── Single execution (no split) ───────────────────────────────
+        self.execute_for_input(
+            ctx,
+            request,
+            request_input,
+            retry_token,
+            response_id,
+            created,
+            None,
+        ).await.map(|s| s.boxed())
+    }
+
+    /// Executes a single function for one input. Contains strategy dispatch
+    /// (Swiss System vs default) and reasoning summary handling.
+    async fn execute_for_input(
+        self: Arc<Self>,
+        ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+        request: Arc<objectiveai::functions::executions::request::FunctionExecutionCreateParams>,
+        input: objectiveai::functions::expression::InputValue,
+        retry_token: Option<Arc<objectiveai::functions::executions::RetryToken>>,
+        response_id: String,
+        created: u64,
+        split_index: Option<u64>,
+    ) -> Result<
+        impl Stream<Item = objectiveai::functions::executions::response::streaming::FunctionExecutionChunk>
+        + Send
+        + 'static,
+        super::Error,
+    > {
+        let send_err = |e: super::Error| -> super::Error {
+            self.viewer_client.send_function_execution_error(
+                ctx.clone(),
+                response_id.clone(),
+                &e,
+            );
+            e
+        };
+
         // validate that input_split and input_merge are present if strategy is Swiss
         let inline_function = match &request.function {
             objectiveai::functions::FullInlineFunctionOrRemoteCommitOptional::Inline(f) => Some(f.clone().transpile()),
@@ -699,7 +855,7 @@ where
                 Vec::new(),
                 request.function.clone(),
                 request.profile.clone(),
-                request.input.clone(),
+                input.clone(),
                 None,
                 false,
                 self.retrieve_router.clone(),
@@ -884,7 +1040,7 @@ where
             let split_input: Vec<objectiveai::functions::expression::InputValue> = input_split.compile_one(
                 &objectiveai::functions::expression::Params::Ref(
                     objectiveai::functions::expression::ParamsRef {
-                        input: &request.input,
+                        input: &input,
                         output: None,
                         map: None,
                         tasks_min: None,
@@ -1085,6 +1241,7 @@ where
                                 choice_indexer.clone(),
                                 Some(current_round as u64),
                                 Some(i as u64),
+                                split_index,
                             ).boxed(),
                         ));
                         retry_token_indices.push(retry_token_index);
@@ -1523,6 +1680,7 @@ where
                     choice_indexer,
                     None,
                     None,
+                    split_index,
                 );
 
             Ok(futures::future::Either::Right(async_stream::stream! {
@@ -1730,6 +1888,7 @@ where
         choice_indexer: Arc<ChoiceIndexer>,
         swiss_round: Option<u64>,
         swiss_pool_index: Option<u64>,
+        split_index: Option<u64>,
     ) -> futures::stream::BoxStream<'static, FtpStreamChunk> {
         match ftp {
             functions::FlatTaskProfile::Function(function_ftp) => self
@@ -1745,6 +1904,7 @@ where
                     choice_indexer,
                     swiss_round,
                     swiss_pool_index,
+                    split_index,
                 )
                 .boxed(),
             functions::FlatTaskProfile::MapFunction(map_function_ftp) => self
@@ -1759,6 +1919,7 @@ where
                     choice_indexer,
                     swiss_round,
                     swiss_pool_index,
+                    split_index,
                 )
                 .boxed(),
             functions::FlatTaskProfile::VectorCompletion(vector_ftp) => {
@@ -1891,6 +2052,7 @@ where
         choice_indexer: Arc<ChoiceIndexer>,
         swiss_round: Option<u64>,
         swiss_pool_index: Option<u64>,
+        split_index: Option<u64>,
     ) -> impl Stream<Item = FtpStreamChunk> + Send + 'static {
         // initialize output and task indices
         let ftp_inner_len = ftp.len();
@@ -1932,6 +2094,7 @@ where
                     choice_indexer.clone(),
                     swiss_round,
                     swiss_pool_index,
+                    split_index,
                 )
             }),
         )
@@ -2022,6 +2185,7 @@ where
         choice_indexer: Arc<ChoiceIndexer>,
         swiss_round: Option<u64>,
         swiss_pool_index: Option<u64>,
+        split_index: Option<u64>,
     ) -> impl Stream<Item = FtpStreamChunk> + Send + 'static {
         // identify the completion and get response type
         let response_id = response_id.unwrap_or_else(|| self::response_id(created));
@@ -2141,6 +2305,7 @@ where
                                     child_choice_indexer.clone(),
                                     swiss_round,
                                     swiss_pool_index,
+                                    split_index,
                                 ))
                             } else {
                                 None
@@ -2187,6 +2352,7 @@ where
                                 task_path: ftp.path.clone(),
                                 swiss_round,
                                 swiss_pool_index,
+                                split_index,
                                 inner: objectiveai::functions::executions::response::streaming::FunctionExecutionChunk {
                                     id: response_id.clone(),
                                     tasks: vec![
@@ -2227,6 +2393,7 @@ where
                                 task_path: ftp.path.clone(),
                                 swiss_round,
                                 swiss_pool_index,
+                                split_index,
                                 inner: objectiveai::functions::executions::response::streaming::FunctionExecutionChunk {
                                     id: response_id.clone(),
                                     tasks: vec![
@@ -2319,6 +2486,7 @@ where
                     task_path: ftp.path,
                     swiss_round,
                     swiss_pool_index,
+                    split_index,
                     inner: objectiveai::functions::executions::response::streaming::FunctionExecutionChunk {
                         id: response_id.clone(),
                         tasks: Vec::new(),

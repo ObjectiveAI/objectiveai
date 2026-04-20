@@ -2,6 +2,7 @@ pub mod config;
 pub mod logs;
 pub mod remote;
 pub mod recursive;
+pub mod state;
 
 use clap::Subcommand;
 
@@ -27,6 +28,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: remote::Commands,
     },
+    /// Invention state
+    State {
+        #[command(subcommand)]
+        command: state::Commands,
+    },
 }
 
 impl Commands {
@@ -36,6 +42,7 @@ impl Commands {
             Commands::Config { command } => command.handle(cli_config).await,
             Commands::Logs { command } => command.handle(cli_config).await,
             Commands::Remote { command } => command.handle(cli_config).await,
+            Commands::State { command } => command.handle(cli_config).await,
         }
     }
 }

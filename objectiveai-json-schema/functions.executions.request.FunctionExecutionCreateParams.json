@@ -83,6 +83,17 @@
       ],
       "omitempty": true
     },
+    "split": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "strategy": {
       "anyOf": [
         {

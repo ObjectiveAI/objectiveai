@@ -1,0 +1,5 @@
+packages:
+  - objectiveai-js
+  - objectiveai-function-tree
+  - objectiveai-web
+  - objectiveai-viewer

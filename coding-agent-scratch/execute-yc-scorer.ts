@@ -9,7 +9,7 @@
  * Run: OBJECTIVEAI_API_KEY=apk... npx ts-node execute-yc-scorer.ts
  */
 
-const API_BASE = "https://api.objective-ai.io";
+const API_BASE = "https://api.objectiveai.dev";
 const API_KEY = process.env.OBJECTIVEAI_API_KEY ?? "none";
 const FUNCTION_OWNER =
   process.env.YC_SCORER_OWNER ?? "ObjectiveAI-claude-code-1";
@@ -64,8 +64,8 @@ function buildInlineProfile() {
 const SAMPLE_INPUT = {
   company_name: "Objective Artificial Intelligence, Inc.",
   company_description_short: "Score everything. Rank everything. Simulate anyone.",
-  company_url: "https://objective-ai.io",
-  product_link: "https://objective-ai.io",
+  company_url: "https://objectiveai.dev",
+  product_link: "https://objectiveai.dev",
   what_company_makes:
     "ObjectiveAI is a REST API platform for scoring, ranking, and simulating preferences using ensembles of LLMs. Instead of asking one model for an answer, it uses multiple LLMs with explicit weights to produce structured numeric outputs. Developers define scoring functions as composable pipelines of vector completions, where each LLM votes on responses and votes are combined using learned weights. The platform supports probabilistic voting via logprobs, profile training to learn optimal weights, and content-addressed immutable definitions.",
   location: "San Francisco, USA / San Francisco, USA",
@@ -91,7 +91,7 @@ const SAMPLE_INPUT = {
     "Ronald writes all backend code — the Rust core SDK, API server, WASM bindings, TypeScript SDK. Maya works with Claude Code on the web frontend. No non-founder technical work.",
   looking_for_cofounder: false,
   how_far_along:
-    "Fully launched. Production API at api.objective-ai.io serving real traffic. Complete TypeScript SDK published on npm. Web interface live with function browsing, execution UI, API key management, credit purchasing via Stripe, and 32-page API docs. Multiple scoring functions deployed and indexed.",
+    "Fully launched. Production API at api.objectiveai.dev serving real traffic. Complete TypeScript SDK published on npm. Web interface live with function browsing, execution UI, API key management, credit purchasing via Stripe, and 32-page API docs. Multiple scoring functions deployed and indexed.",
   how_long_working:
     "Ronald has been working on this for approximately 8 months, full-time for the last 5 months. Maya joined as Co-Founder and has been working on design and frontend for several months.",
   tech_stack:

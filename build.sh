@@ -43,12 +43,14 @@ CLI_PID=$!
 # Embedded binaries (depend on phase 1, run concurrently with phases 2+3).
 # viewer + mcp are cargo builds; claude-agent-sdk-runner is PyInstaller.
 # No --target for viewer/runner (host platform); mcp always linux-musl (for Docker).
-bash "$REPO_ROOT/objectiveai-viewer/build.sh" &
+bash "$REPO_ROOT/objectiveai-viewer/build.sh" --release &
 VIEWER_PID=$!
 bash "$REPO_ROOT/objectiveai-mcp/build.sh" --target "$(uname -m)-unknown-linux-musl" &
 MCP_PID=$!
-bash "$REPO_ROOT/objectiveai-claude-agent-sdk-runner/build.sh" &
-SDK_RUNNER_PID=$!
+bash "$REPO_ROOT/objectiveai-claude-agent-sdk-runner-py/build.sh" &
+SDK_RUNNER_PY_PID=$!
+bash "$REPO_ROOT/objectiveai-claude-agent-sdk-runner-js/build.sh" &
+SDK_RUNNER_JS_PID=$!
 
 # Phase 2: wasm + pyo3 + cffi (need build tools from phase 1)
 run_phase objectiveai-rs-wasm-js/build.sh objectiveai-rs-pyo3/build.sh objectiveai-rs-cffi/build.sh
@@ -58,7 +60,7 @@ run_phase objectiveai-js/build.sh objectiveai-py/build.sh objectiveai-go/build.s
 
 # Wait for background builds
 FAILED=false
-for pid in $CLI_PID $VIEWER_PID $MCP_PID $SDK_RUNNER_PID; do
+for pid in $CLI_PID $VIEWER_PID $MCP_PID $SDK_RUNNER_PY_PID $SDK_RUNNER_JS_PID; do
   if ! wait "$pid"; then
     FAILED=true
   fi

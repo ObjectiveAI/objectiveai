@@ -5,9 +5,9 @@
 
 **Score everything. Rank everything. Simulate anyone.**
 
-A self-hostable API server for [ObjectiveAI](https://objective-ai.io) - run the full ObjectiveAI platform locally or use the library to build your own custom server.
+A self-hostable API server for [ObjectiveAI](https://objectiveai.dev) - run the full ObjectiveAI platform locally or use the library to build your own custom server.
 
-[Website](https://objective-ai.io) | [API](https://api.objective-ai.io) | [GitHub](https://github.com/ObjectiveAI/objectiveai) | [Discord](https://discord.gg/gbNFHensby)
+[Website](https://objectiveai.dev) | [API](https://api.objectiveai.dev) | [GitHub](https://github.com/ObjectiveAI/objectiveai) | [Discord](https://discord.gg/gbNFHensby)
 
 ## Overview
 
@@ -49,7 +49,7 @@ The server starts on `http://localhost:5000` by default.
 |----------|---------|-------------|
 | `OPENROUTER_API_KEY` | (required) | Your OpenRouter API key |
 | `OBJECTIVEAI_API_KEY` | (optional) | ObjectiveAI API key for caching and remote Functions |
-| `OBJECTIVEAI_API_BASE` | `https://api.objective-ai.io` | ObjectiveAI API base URL |
+| `OBJECTIVEAI_API_BASE` | `https://api.objectiveai.dev` | ObjectiveAI API base URL |
 | `OPENROUTER_API_BASE` | `https://openrouter.ai/api/v1` | OpenRouter API base URL |
 | `ADDRESS` | `0.0.0.0` | Server bind address |
 | `PORT` | `5000` | Server port |
@@ -88,7 +88,7 @@ let http_client = reqwest::Client::new();
 // Create the ObjectiveAI HTTP client
 let objectiveai_client = Arc::new(objectiveai::HttpClient::new(
     http_client.clone(),
-    Some("https://api.objective-ai.io".to_string()),
+    Some("https://api.objectiveai.dev".to_string()),
     Some("apk...".to_string()),
     None, None, None,
 ));

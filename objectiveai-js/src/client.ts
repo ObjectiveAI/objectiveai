@@ -24,7 +24,7 @@ export const ObjectiveAIOptionsSchema = z
       .string()
       .nullish()
       .describe(
-        "Base URL for the API. Falls back to OBJECTIVEAI_ADDRESS env var, then https://api.objective-ai.io",
+        "Base URL for the API. Falls back to OBJECTIVEAI_ADDRESS env var, then https://api.objectiveai.dev",
       ),
     authorization: z
       .string()
@@ -116,7 +116,7 @@ export class ObjectiveAI {
     this.address =
       options?.address ??
       readEnv("OBJECTIVEAI_ADDRESS") ??
-      "https://api.objective-ai.io";
+      "https://api.objectiveai.dev";
     this.authorization =
       options?.authorization ?? readEnv("OBJECTIVEAI_AUTHORIZATION") ?? undefined;
     this.userAgent =

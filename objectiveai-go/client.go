@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-const defaultAddress = "https://api.objective-ai.io"
+const defaultAddress = "https://api.objectiveai.dev"
 
 // Client is the HTTP client for the ObjectiveAI API.
 type Client struct {

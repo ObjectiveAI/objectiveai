@@ -15,8 +15,35 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ObjectiveAI",
+  title: {
+    default: "ObjectiveAI",
+    template: "%s | ObjectiveAI",
+  },
   description: "Score everything. Rank everything. Simulate anyone.",
+  metadataBase: new URL("https://objective-ai.io"),
+  openGraph: {
+    title: "ObjectiveAI",
+    description: "Score everything. Rank everything. Simulate anyone.",
+    url: "https://objective-ai.io",
+    siteName: "ObjectiveAI",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "ObjectiveAI",
+    description: "Score everything. Rank everything. Simulate anyone.",
+    creator: "@objectv_ai",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
+  manifest: "/site.webmanifest",
 };
 
 export default function RootLayout({

@@ -11,7 +11,7 @@
  * Run: npx ts-node execute-aggrandizement.ts
  */
 
-const API_BASE = "https://api.objective-ai.io";
+const API_BASE = "https://api.objectiveai.dev";
 const API_KEY = process.env.OBJECTIVEAI_API_KEY ?? "none";
 const FUNCTION_OWNER = "ObjectiveAI-claude-code-1";
 const FUNCTION_REPO = "ai-self-aggrandizement-scorer";

@@ -74,7 +74,7 @@ impl BuilderMessageSource {
         if let Some(inline) = self.builder_messages_inline {
             let mut de = serde_json::Deserializer::from_str(&inline);
             return serde_path_to_error::deserialize(&mut de)
-                .map_err(crate::error::Error::PythonDeserialize);
+                .map_err(crate::error::Error::InlineDeserialize);
         }
         if let Some(code) = self.builder_messages_python_inline {
             return crate::python::exec_code(&code);
@@ -104,7 +104,7 @@ impl EvaluationMessageSource {
             let mut de = serde_json::Deserializer::from_str(&inline);
             return serde_path_to_error::deserialize(&mut de)
                 .map(Some)
-                .map_err(crate::error::Error::PythonDeserialize);
+                .map_err(crate::error::Error::InlineDeserialize);
         }
         if let Some(code) = self.evaluation_messages_python_inline {
             return crate::python::exec_code(&code).map(Some);
@@ -134,7 +134,7 @@ impl EvaluationOutputSchemaSource {
             let mut de = serde_json::Deserializer::from_str(&inline);
             return serde_path_to_error::deserialize(&mut de)
                 .map(Some)
-                .map_err(crate::error::Error::PythonDeserialize);
+                .map_err(crate::error::Error::InlineDeserialize);
         }
         if let Some(code) = self.evaluation_output_schema_python_inline {
             return crate::python::exec_code(&code).map(Some);

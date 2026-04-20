@@ -23,14 +23,14 @@ impl BodySource {
         if let Some(inline) = self.body_inline {
             let mut de = serde_json::Deserializer::from_str(&inline);
             return serde_path_to_error::deserialize(&mut de)
-                .map_err(crate::error::Error::PythonDeserialize);
+                .map_err(crate::error::Error::InlineDeserialize);
         }
         if let Some(path) = self.body_file {
             let contents = std::fs::read_to_string(&path)
                 .map_err(|e| crate::error::Error::PythonFileRead(path, e))?;
             let mut de = serde_json::Deserializer::from_str(&contents);
             return serde_path_to_error::deserialize(&mut de)
-                .map_err(crate::error::Error::PythonDeserialize);
+                .map_err(crate::error::Error::InlineDeserialize);
         }
         if let Some(code) = self.body_python_inline {
             return crate::python::exec_code(&code);

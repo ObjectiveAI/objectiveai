@@ -64,7 +64,7 @@ impl ResponseFormatArgs {
             let schema = {
                 let mut de = serde_json::Deserializer::from_str(&inline);
                 serde_path_to_error::deserialize(&mut de)
-                    .map_err(crate::error::Error::PythonDeserialize)?
+                    .map_err(crate::error::Error::InlineDeserialize)?
             };
             return Ok(Some(ResponseFormat::JsonSchema { schema }));
         }
@@ -90,7 +90,7 @@ impl ResponseFormatArgs {
             let schema = if let Some(inline) = self.response_format_tool_call_schema_inline {
                 let mut de = serde_json::Deserializer::from_str(&inline);
                 serde_path_to_error::deserialize(&mut de)
-                    .map_err(crate::error::Error::PythonDeserialize)?
+                    .map_err(crate::error::Error::InlineDeserialize)?
             } else if let Some(code) = self.response_format_tool_call_schema_python_inline {
                 crate::python::exec_code(&code)?
             } else if let Some(path) = self.response_format_tool_call_schema_python_file {

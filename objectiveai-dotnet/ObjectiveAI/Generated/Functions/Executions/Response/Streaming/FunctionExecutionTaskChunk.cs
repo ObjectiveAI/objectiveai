@@ -56,6 +56,12 @@ public partial class FunctionExecutionTaskChunk
     [JsonSchemaNullable]
     public string? RetryToken { get; set; } = null;
 
+    [JsonPropertyName("split_index")]
+    [JsonSchemaRange(Minimum = "0", Maximum = "18446744073709551615")]
+    [JsonSchemaOmitEmpty]
+    [JsonSchemaNullable]
+    public ulong? SplitIndex { get; set; } = null;
+
     [JsonPropertyName("swiss_pool_index")]
     [JsonSchemaRange(Minimum = "0", Maximum = "18446744073709551615")]
     [JsonSchemaOmitEmpty]

@@ -68,5 +68,5 @@ fn resolve_author_email(explicit: Option<impl Into<String>>) -> String {
     if let Ok(email) = std::env::var("COMMIT_AUTHOR_EMAIL") {
         return email;
     }
-    "admin@objective-ai.io".to_string()
+    "admin@objectiveai.dev".to_string()
 }

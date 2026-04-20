@@ -20,6 +20,7 @@ export interface FunctionsExecutionsResponseUnaryFunctionExecutionTask {
   profile?: (RemotePath) | null;
   reasoning?: (FunctionsExecutionsResponseUnaryReasoningSummary) | null;
   retry_token?: (string) | null;
+  split_index?: (number) | null;
   swiss_pool_index?: (number) | null;
   swiss_round?: (number) | null;
   task_index: number;
@@ -39,6 +40,7 @@ export const FunctionsExecutionsResponseUnaryFunctionExecutionTaskSchema: z.ZodT
   profile: RemotePathSchema.nullable().describe("The profile used (if remote).").optional(),
   reasoning: FunctionsExecutionsResponseUnaryReasoningSummarySchema.nullable().describe("Reasoning summary if reasoning was enabled.").optional(),
   retry_token: z.string().nullable().describe("Token for retrying this execution with cached votes.").optional(),
+  split_index: z.number().int().min(0).max(18446744073709552000).nullable().meta({ omitempty: true }).optional(),
   swiss_pool_index: z.number().int().min(0).max(18446744073709552000).nullable().meta({ omitempty: true }).optional(),
   swiss_round: z.number().int().min(0).max(18446744073709552000).nullable().meta({ omitempty: true }).optional(),
   task_index: z.number().int().min(0).max(18446744073709552000),

@@ -24,6 +24,7 @@ class FunctionExecutionCreateParams(BaseModel):
     reasoning: Optional[Reasoning] = Field(None, json_schema_extra={'omitempty': True})
     retry_token: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     seed: Optional[Annotated[int, Field(ge=-9223372036854775808, le=9223372036854775807)]] = Field(None, json_schema_extra={'omitempty': True})
+    split: Optional[bool] = Field(None, json_schema_extra={'omitempty': True})
     strategy: Optional[Strategy] = Field(None, json_schema_extra={'omitempty': True})
     stream: Optional[bool] = Field(None, json_schema_extra={'omitempty': True})
 

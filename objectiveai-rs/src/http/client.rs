@@ -34,7 +34,7 @@ use std::sync::Arc;
 pub struct HttpClient {
     /// The underlying reqwest HTTP client.
     pub http_client: reqwest::Client,
-    /// Base URL for API requests. Defaults to `https://api.objective-ai.io`.
+    /// Base URL for API requests. Defaults to `https://api.objectiveai.dev`.
     pub address: String,
     /// API key for authentication. Sent as `Bearer` token in `Authorization` header.
     pub authorization: Option<Arc<String>>,
@@ -66,7 +66,7 @@ impl HttpClient {
     /// # Arguments
     ///
     /// * `http_client` - The reqwest client to use for requests
-    /// * `address` - Base URL for API requests (defaults to `https://api.objective-ai.io`)
+    /// * `address` - Base URL for API requests (defaults to `https://api.objectiveai.dev`)
     /// * `authorization` - API key for authentication
     /// * `user_agent` - Optional User-Agent header value
     /// * `x_title` - Optional X-Title header value
@@ -102,9 +102,9 @@ impl HttpClient {
                 Some(base) => base.into(),
                 #[cfg(feature = "env")]
                 None => env("OBJECTIVEAI_ADDRESS")
-                    .unwrap_or_else(|| "https://api.objective-ai.io".to_string()),
+                    .unwrap_or_else(|| "https://api.objectiveai.dev".to_string()),
                 #[cfg(not(feature = "env"))]
-                None => "https://api.objective-ai.io".to_string(),
+                None => "https://api.objectiveai.dev".to_string(),
             },
             authorization: authorization.map(|k| Arc::new(k.into()))
                 .or_else(|| { #[cfg(feature = "env")] { env("OBJECTIVEAI_AUTHORIZATION").map(Arc::new) } #[cfg(not(feature = "env"))] { None } }),

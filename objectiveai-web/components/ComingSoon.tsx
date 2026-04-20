@@ -47,7 +47,7 @@ export function ComingSoon() {
 
         <p className={styles.body}>
           Your agent doesn&apos;t have to decide alone. ObjectiveAI lets any agent
-          call out to a swarm of models for collective judgment, routing decisions
+          call out to a swarm of other agents for collective judgment, routing decisions
           through recursive scoring trees that map arbitrary input into a vector of
           scores across every option.
         </p>

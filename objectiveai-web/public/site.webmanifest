@@ -1,0 +1,21 @@
+{
+  "name": "ObjectiveAI",
+  "short_name": "ObjectiveAI",
+  "description": "Score everything. Rank everything. Simulate anyone.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "16x16 32x32",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/logo-mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
