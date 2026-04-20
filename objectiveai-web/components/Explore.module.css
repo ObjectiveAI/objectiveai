@@ -7,10 +7,47 @@
   padding: 0 0 48px;
 }
 
+/* ── Tab bar ── */
+
+.tabBar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  gap: 0;
+  padding: 0 24px;
+  background: var(--ground);
+  border-bottom: 1px solid var(--node-border);
+}
+
+.tab {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--info-dim);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 10px 16px 8px;
+  cursor: pointer;
+  transition: color 150ms, border-color 150ms;
+}
+
+.tab:hover {
+  color: var(--info-mid);
+}
+
+.tabActive {
+  color: var(--info-bright);
+  border-bottom-color: var(--copper-mid);
+}
+
 /* ── Section ── */
 
 .section {
   padding: 0 24px;
+  scroll-margin-top: 48px;
 }
 
 .section + .section {
@@ -149,6 +186,10 @@
   }
 
   .section {
+    padding: 0 16px;
+  }
+
+  .tabBar {
     padding: 0 16px;
   }
 }
