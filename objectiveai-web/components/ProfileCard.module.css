@@ -56,12 +56,6 @@
   border-radius: var(--radius);
   background: var(--ground-raised);
   overflow: hidden;
-  transition: border-color 200ms, background 200ms;
-}
-
-.card:hover {
-  border-color: var(--copper-dim);
-  background: var(--ground-surface);
 }
 
 .cardBody {
@@ -246,5 +240,4 @@
 
 @media (prefers-reduced-motion: reduce) {
   .loadingDot { animation: none; opacity: 0.6; }
-  .card { transition: none; }
 }
