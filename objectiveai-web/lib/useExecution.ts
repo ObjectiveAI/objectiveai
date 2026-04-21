@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useEffect } from "react";
 import {
   functionsExecutionsCreateFunctionExecution,
   functionsExecutionsResponseStreamingFunctionExecutionChunkMerged,
@@ -10,11 +10,13 @@ import type {
   FunctionsExpressionInputValue,
 } from "objectiveai";
 import { getClient } from "./sdk";
+import { useSDKStream } from "./useSDKStream";
+import type { StreamState } from "./useSDKStream";
 
 type Chunk = FunctionsExecutionsResponseStreamingFunctionExecutionChunk;
 type InputValue = FunctionsExpressionInputValue;
 
-export type ExecutionState = "idle" | "streaming" | "done" | "error";
+export type ExecutionState = StreamState;
 
 /** A simplified vote for display purposes */
 export interface DisplayVote {
@@ -41,48 +43,28 @@ interface JudgmentExecution {
 }
 
 export interface ExecutionResult {
-  /** Current accumulated chunk (null before first chunk) */
   chunk: Chunk | null;
-  /** Simplified vote list extracted from the latest chunk */
   votes: DisplayVote[];
-  /** Current scores vector */
   scores: number[];
-  /** Current weights vector */
   weights: number[];
-  /** JudgmentStack-compatible execution (pass directly to JudgmentStack.execution) */
   judgmentExecution: JudgmentExecution | null;
-  /** Execution lifecycle state */
   state: ExecutionState;
-  /** Error message if state is "error" */
   error: string | null;
-  /** Start a new execution */
   execute: () => void;
-  /** Abort a running execution */
   abort: () => void;
 }
 
 interface UseExecutionParams {
-  /** Function owner/repository */
   functionOwner: string;
   functionRepo: string;
   functionCommit?: string | null;
-  /** Profile owner/repository */
   profileOwner: string;
   profileRepo: string;
   profileCommit?: string | null;
-  /** Function input */
   input: InputValue;
-  /** Auto-start on mount */
   autoStart?: boolean;
 }
 
-/**
- * Hook for streaming a function execution via the ObjectiveAI SDK.
- *
- * Uses functionsExecutionsCreateFunctionExecution with stream: true,
- * accumulating chunks via the SDK's merge system. Extracts votes, scores, and
- * weights from vector completion tasks for easy display.
- */
 export function useExecution({
   functionOwner,
   functionRepo,
@@ -93,23 +75,10 @@ export function useExecution({
   input,
   autoStart = false,
 }: UseExecutionParams): ExecutionResult {
-  const [chunk, setChunk] = useState<Chunk | null>(null);
-  const [state, setState] = useState<ExecutionState>("idle");
-  const [error, setError] = useState<string | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-
-  const execute = useCallback(async () => {
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    setState("streaming");
-    setError(null);
-    setChunk(null);
-
-    try {
+  const { chunk, state, error, start: execute, abort } = useSDKStream<Chunk>({
+    createStream: (signal) => {
       const client = getClient();
-      const stream = await functionsExecutionsCreateFunctionExecution(
+      return functionsExecutionsCreateFunctionExecution(
         client,
         {
           function: {
@@ -127,50 +96,23 @@ export function useExecution({
           input,
           stream: true as const,
         },
-        { signal: controller.signal },
+        { signal },
       );
-
-      let acc: Chunk | null = null;
-      for await (const c of stream) {
-        if (controller.signal.aborted) break;
-        if (acc === null) {
-          acc = c;
-        } else {
-          const [merged] = functionsExecutionsResponseStreamingFunctionExecutionChunkMerged(acc, c);
-          acc = merged;
-        }
-        setChunk(acc);
-      }
-
-      if (!controller.signal.aborted) {
-        setState("done");
-      }
-    } catch (err: unknown) {
-      if ((err as Error)?.name === "AbortError") return;
-      const msg = err instanceof Error ? err.message : String(err);
-      setError(msg);
-      setState("error");
-    }
-  }, [functionOwner, functionRepo, functionCommit, profileOwner, profileRepo, profileCommit, input]);
-
-  const abort = useCallback(() => {
-    abortRef.current?.abort();
-    setState("idle");
-  }, []);
+    },
+    merge: (acc, next) => functionsExecutionsResponseStreamingFunctionExecutionChunkMerged(acc, next)[0],
+    deps: [functionOwner, functionRepo, functionCommit, profileOwner, profileRepo, profileCommit, input],
+  });
 
   useEffect(() => {
     if (autoStart) execute();
-    return () => { abortRef.current?.abort(); };
   }, [autoStart, execute]);
 
   const { votes, scores, weights } = extractDisplayData(chunk);
-
   const judgmentExecution = toJudgmentExecution(chunk);
 
   return { chunk, votes, scores, weights, judgmentExecution, state, error, execute, abort };
 }
 
-/** Pull votes/scores/weights from the first vector completion task in the chunk */
 function extractDisplayData(chunk: Chunk | null): {
   votes: DisplayVote[];
   scores: number[];
@@ -197,11 +139,6 @@ function extractDisplayData(chunk: Chunk | null): {
   return { votes: [], scores: [], weights: [] };
 }
 
-/**
- * Transform SDK FunctionExecutionChunk → JudgmentStack FunctionExecution.
- * The SDK chunk already has the nested task tree — we just remap field names.
- * Key difference: SDK uses `agent` for voter identity, JudgmentStack uses `model`.
- */
 function toJudgmentExecution(chunk: Chunk | null): JudgmentExecution | null {
   if (!chunk) return null;
 

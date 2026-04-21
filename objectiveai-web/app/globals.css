@@ -14,9 +14,11 @@
 
   /* Life layer — copper spectrum (cold → hot) */
   --copper-dim: #78716c;
+  --copper-dim-rgb: 120, 113, 108;
   --copper-warm: #b45309;
   --copper-mid: #d97706;
   --copper-hot: #f59e0b;
+  --copper-hot-rgb: 245, 158, 11;
   --copper-bright: #fbbf24;
 
   /* Semantic */

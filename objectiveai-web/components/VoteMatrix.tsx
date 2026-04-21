@@ -54,12 +54,7 @@ export function VoteMatrix({
               <tr
                 key={vi}
                 className={styles.agentRow}
-                style={{
-                  background:
-                    relW > 0.7
-                      ? `rgba(245, 158, 11, ${relW * 0.04})`
-                      : "transparent",
-                }}
+                style={{ "--row-alpha": relW > 0.7 ? relW * 0.04 : 0 } as React.CSSProperties}
               >
                 {/* Weight */}
                 <td className={styles.weightCell}>
@@ -67,10 +62,7 @@ export function VoteMatrix({
                     <div className={styles.weightBar}>
                       <div
                         className={styles.weightFill}
-                        style={{
-                          height: `${relW * 100}%`,
-                          background: `rgba(245, 158, 11, ${0.4 + relW * 0.5})`,
-                        }}
+                        style={{ height: `${relW * 100}%`, "--fill-alpha": 0.4 + relW * 0.5 } as React.CSSProperties}
                       />
                     </div>
                     <span className={styles.weightNum}>{vote.weight.toFixed(2)}</span>
@@ -91,8 +83,6 @@ export function VoteMatrix({
                 {/* Votes */}
                 {vote.vote.map((v, ri) => {
                   const isMax = v === maxV && v > 0;
-                  const heat =
-                    v > 0.01 ? `rgba(245, 158, 11, ${v * 0.3})` : "transparent";
                   const contribution =
                     totalWeight > 0 ? (v * vote.weight) / totalWeight : 0;
                   const scoreR = scores[ri] ?? 0;
@@ -102,31 +92,18 @@ export function VoteMatrix({
                     <td
                       key={ri}
                       className={styles.voteCell}
-                      style={{ background: heat }}
+                      style={{ "--heat-alpha": v > 0.01 ? v * 0.3 : 0 } as React.CSSProperties}
                     >
                       <div
-                        className={styles.voteNum}
-                        style={{
-                          color: isMax
-                            ? "var(--info-bright)"
-                            : v > 0.2
-                              ? "var(--info-mid)"
-                              : "var(--info-dim)",
-                          fontWeight: isMax ? 600 : 400,
-                        }}
+                        className={`${styles.voteNum} ${isMax ? styles.voteMax : v > 0.2 ? styles.voteMid : styles.voteDim}`}
                       >
                         {dotPct(v)}
                       </div>
                       {scores.length > 0 && (
                         <div className={styles.contributionTrack}>
                           <div
-                            className={styles.contributionFill}
-                            style={{
-                              width: `${Math.min(100, share * 100)}%`,
-                              background: isMax
-                                ? "rgba(245, 158, 11, 0.6)"
-                                : "rgba(120, 113, 108, 0.35)",
-                            }}
+                            className={`${styles.contributionFill} ${isMax ? styles.contributionWinner : ""}`}
+                            style={{ width: `${Math.min(100, share * 100)}%` }}
                           />
                         </div>
                       )}
@@ -137,7 +114,7 @@ export function VoteMatrix({
                 <td className={styles.flagCell}>
                   {vote.from_cache && <span>C</span>}
                   {vote.from_rng && (
-                    <span style={{ color: "var(--copper-mid)" }}>R</span>
+                    <span className={styles.flagRng}>R</span>
                   )}
                 </td>
               </tr>
@@ -154,20 +131,9 @@ export function VoteMatrix({
                 return (
                   <td
                     key={ri}
-                    className={styles.convergenceScore}
-                    style={{
-                      background: isW
-                        ? "rgba(245, 158, 11, 0.1)"
-                        : "transparent",
-                    }}
+                    className={`${styles.convergenceScore} ${isW ? styles.convergenceWinner : ""}`}
                   >
-                    <span
-                      style={{
-                        fontSize: isW ? 13 : 10,
-                        fontWeight: isW ? 700 : 500,
-                        color: isW ? "var(--info-bright)" : "var(--copper-dim)",
-                      }}
-                    >
+                    <span className={`${styles.convergenceValue} ${isW ? styles.convergenceValueWinner : ""}`}>
                       {pct(score)}
                     </span>
                   </td>

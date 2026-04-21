@@ -6,6 +6,6 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: "/",
     },
-    sitemap: "https://objective-ai.io/sitemap.xml",
+    sitemap: "https://objectiveai.dev/sitemap.xml",
   };
 }

@@ -20,11 +20,11 @@ export const metadata: Metadata = {
     template: "%s | ObjectiveAI",
   },
   description: "The agentic collective judgment harness.",
-  metadataBase: new URL("https://objective-ai.io"),
+  metadataBase: new URL("https://objectiveai.dev"),
   openGraph: {
     title: "ObjectiveAI",
     description: "The agentic collective judgment harness.",
-    url: "https://objective-ai.io",
+    url: "https://objectiveai.dev",
     siteName: "ObjectiveAI",
     locale: "en_US",
     type: "website",

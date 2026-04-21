@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
 import {
   vectorCompletionsCreateVectorCompletion,
   vectorCompletionsResponseStreamingVectorCompletionChunkMerged,
@@ -9,10 +8,12 @@ import type {
   VectorCompletionsResponseStreamingVectorCompletionChunk,
 } from "objectiveai";
 import { getClient } from "./sdk";
+import { useSDKStream } from "./useSDKStream";
+import type { StreamState } from "./useSDKStream";
 
 type Chunk = VectorCompletionsResponseStreamingVectorCompletionChunk;
 
-export type VectorCompletionState = "idle" | "streaming" | "done" | "error";
+export type VectorCompletionState = StreamState;
 
 export interface DisplayVote {
   model: string;
@@ -21,41 +22,24 @@ export interface DisplayVote {
 }
 
 export interface VectorCompletionResult {
-  /** Raw accumulated chunk */
   chunk: Chunk | null;
-  /** Votes extracted from chunk */
   votes: DisplayVote[];
-  /** Current scores vector */
   scores: number[];
-  /** Current weights vector */
   weights: number[];
-  /** Lifecycle state */
   state: VectorCompletionState;
-  /** Error message */
   error: string | null;
-  /** Start completion */
   run: () => void;
-  /** Abort */
   abort: () => void;
 }
 
 interface UseVectorCompletionParams {
-  /** Prompt messages */
   prompt: string;
-  /** Response options to vote on */
   responses: string[];
-  /** Swarm reference */
   swarmOwner: string;
   swarmRepo: string;
   swarmCommit?: string | null;
 }
 
-/**
- * Hook for streaming a vector completion via the ObjectiveAI SDK.
- *
- * Simplest hook — single task, no function composition. Agents vote on
- * responses and scores converge as votes arrive.
- */
 export function useVectorCompletion({
   prompt,
   responses,
@@ -63,23 +47,10 @@ export function useVectorCompletion({
   swarmRepo,
   swarmCommit,
 }: UseVectorCompletionParams): VectorCompletionResult {
-  const [chunk, setChunk] = useState<Chunk | null>(null);
-  const [state, setState] = useState<VectorCompletionState>("idle");
-  const [error, setError] = useState<string | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-
-  const run = useCallback(async () => {
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    setState("streaming");
-    setError(null);
-    setChunk(null);
-
-    try {
+  const { chunk, state, error, start: run, abort } = useSDKStream<Chunk>({
+    createStream: (signal) => {
       const client = getClient();
-      const stream = await vectorCompletionsCreateVectorCompletion(
+      return vectorCompletionsCreateVectorCompletion(
         client,
         {
           messages: [{ role: "user", content: prompt }],
@@ -92,36 +63,12 @@ export function useVectorCompletion({
           },
           stream: true as const,
         },
-        { signal: controller.signal },
+        { signal },
       );
-
-      let acc: Chunk | null = null;
-      for await (const c of stream) {
-        if (controller.signal.aborted) break;
-        if (acc === null) {
-          acc = c;
-        } else {
-          const [merged] = vectorCompletionsResponseStreamingVectorCompletionChunkMerged(acc, c);
-          acc = merged;
-        }
-        setChunk(acc);
-      }
-
-      if (!controller.signal.aborted) {
-        setState("done");
-      }
-    } catch (err: unknown) {
-      if ((err as Error)?.name === "AbortError") return;
-      const msg = err instanceof Error ? err.message : String(err);
-      setError(msg);
-      setState("error");
-    }
-  }, [prompt, responses, swarmOwner, swarmRepo, swarmCommit]);
-
-  const abort = useCallback(() => {
-    abortRef.current?.abort();
-    setState("idle");
-  }, []);
+    },
+    merge: (acc, next) => vectorCompletionsResponseStreamingVectorCompletionChunkMerged(acc, next)[0],
+    deps: [prompt, responses, swarmOwner, swarmRepo, swarmCommit],
+  });
 
   const { votes, scores, weights } = extractData(chunk);
 

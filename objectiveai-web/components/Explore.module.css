@@ -1,4 +1,4 @@
-/* ── Explore — Unified Directory ── */
+/* ── Explore — Tabbed Browse ── */
 
 .page {
   max-width: 1280px;
@@ -16,7 +16,9 @@
   display: flex;
   gap: 0;
   padding: 0 24px;
-  background: var(--ground);
+  background: rgba(12, 10, 9, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--node-border);
 }
 
@@ -29,7 +31,7 @@
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
-  padding: 10px 16px 8px;
+  padding: 14px 16px 12px;
   cursor: pointer;
   transition: color 150ms, border-color 150ms;
 }
@@ -43,47 +45,21 @@
   border-bottom-color: var(--copper-mid);
 }
 
-/* ── Section ── */
-
-.section {
-  padding: 0 24px;
-  scroll-margin-top: 48px;
-}
-
-.section + .section {
-  margin-top: 32px;
-  padding-top: 32px;
-  border-top: 1px solid var(--node-border);
-}
-
-.sectionHeader {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-
-.sectionTitle {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--info-dim);
-  font-weight: 400;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.sectionCount {
-  font-family: var(--font-mono);
-  font-size: 10px;
+.tabCount {
+  margin-left: 6px;
   color: var(--info-dim);
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Grids ── */
+/* ── Grid ── */
+
+.grid {
+  padding: 0 24px;
+}
 
 .functionsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 10px;
 }
 
@@ -95,22 +71,34 @@
 
 .swarmsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   gap: 10px;
 }
 
-/* ── Section loading / empty ── */
+/* ── Empty state ── */
 
-.sectionLoading {
+.empty {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--info-dim);
+  padding: 40px 0;
+  text-align: center;
+  font-style: italic;
+}
+
+/* ── Loading / Error ── */
+
+.loading {
   display: flex;
   align-items: center;
-  padding: 24px 0;
+  justify-content: center;
+  padding: 40px 0;
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--info-dim);
 }
 
-.sectionLoadingDot {
+.loadingDot {
   display: inline-block;
   width: 4px;
   height: 4px;
@@ -125,46 +113,18 @@
   50% { opacity: 1; }
 }
 
-.sectionEmpty {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--info-dim);
-  padding: 24px 0;
-  font-style: italic;
-}
-
-.sectionError {
+.error {
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--error, #b91c1c);
-  padding: 24px 0;
+  padding: 40px 0;
+  text-align: center;
   font-style: italic;
-}
-
-/* ── Page header ── */
-
-.pageHeader {
-  padding: 32px 24px 24px;
-}
-
-.pageTitle {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: var(--info-bright);
-  font-weight: 400;
-}
-
-.pageSubtitle {
-  font-family: var(--font-sans);
-  font-size: 11px;
-  color: var(--info-dim);
-  margin-top: 4px;
-  line-height: 1.4;
 }
 
 /* ── Responsive ── */
 
-@media (max-width: 768px) {
+@media (max-width: 640px) {
   .functionsGrid {
     grid-template-columns: 1fr;
   }
@@ -177,25 +137,21 @@
     grid-template-columns: 1fr;
   }
 
-  .page {
-    padding: 0 0 32px;
-  }
-
-  .pageHeader {
-    padding: 20px 16px 16px;
-  }
-
-  .section {
+  .grid {
     padding: 0 16px;
   }
 
   .tabBar {
     padding: 0 16px;
   }
+
+  .page {
+    padding: 0 0 32px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sectionLoadingDot {
+  .loadingDot {
     animation: none;
     opacity: 0.6;
   }

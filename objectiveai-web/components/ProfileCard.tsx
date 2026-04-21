@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { ProfileMeta } from "@/lib/profiles/types";
 import styles from "./ProfileCard.module.css";
 
@@ -14,23 +15,20 @@ export function ProfileCard({ profile }: { profile: ProfileMeta }) {
   const hasMid = tiers.mid.length > 0;
   const hasBudget = tiers.budget.length > 0;
 
+  const maxW = Math.max(...profile.weights, 0);
+
   return (
-    <div className={styles.card}>
+    <Link href={`/profiles/${profile.name}`} className={styles.card}>
       <div className={styles.cardBody}>
         <div className={styles.cardHeader}>
           <span className={styles.cardName}>{profile.name}</span>
           <span className={styles.agentBadge}>{profile.totalAgents}</span>
         </div>
 
-        {profile.description && (
-          <span className={styles.cardDescription}>{profile.description}</span>
-        )}
-
         {/* Weight bar — segments colored by tier */}
         {profile.weights.length > 0 && (
           <div className={styles.weightBar}>
             {profile.weights.map((w, i) => {
-              const maxW = Math.max(...profile.weights);
               const ratio = maxW > 0 ? w / maxW : 0;
               return (
                 <div
@@ -89,6 +87,6 @@ export function ProfileCard({ profile }: { profile: ProfileMeta }) {
           )}
         </div>
       </div>
-    </div>
+    </Link>
   );
 }

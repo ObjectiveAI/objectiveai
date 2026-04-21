@@ -20,10 +20,10 @@
 }
 
 .logoMark {
-  width: 6px;
-  height: 6px;
-  background: var(--copper-warm);
-  border-radius: 1px;
+  width: 18px;
+  height: 18px;
+  color: var(--copper-warm);
+  flex-shrink: 0;
 }
 
 .nav {

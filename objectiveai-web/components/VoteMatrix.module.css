@@ -48,6 +48,7 @@
 
 .agentRow {
   border-top: 1px solid var(--ground);
+  background: rgba(var(--copper-hot-rgb), var(--row-alpha, 0));
   animation: fadeIn 0.25s ease;
 }
 
@@ -83,6 +84,7 @@
 .weightFill {
   width: 100%;
   border-radius: 1px;
+  background: rgba(var(--copper-hot-rgb), var(--fill-alpha, 0.5));
   transition: height 0.3s ease;
 }
 
@@ -114,11 +116,27 @@
   text-align: center;
   border-left: 1px solid var(--ground);
   vertical-align: middle;
+  background: rgba(var(--copper-hot-rgb), var(--heat-alpha, 0));
 }
 
 .voteNum {
   font-size: 10px;
   margin-bottom: 2px;
+}
+
+.voteMax {
+  color: var(--info-bright);
+  font-weight: 600;
+}
+
+.voteMid {
+  color: var(--info-mid);
+  font-weight: 400;
+}
+
+.voteDim {
+  color: var(--info-dim);
+  font-weight: 400;
 }
 
 .contributionTrack {
@@ -132,7 +150,12 @@
 .contributionFill {
   height: 100%;
   border-radius: 1px;
+  background: rgba(var(--copper-dim-rgb), 0.35);
   transition: width 0.3s ease;
+}
+
+.contributionWinner {
+  background: rgba(var(--copper-hot-rgb), 0.6);
 }
 
 .flagCell {
@@ -140,6 +163,10 @@
   text-align: center;
   font-size: 8px;
   color: var(--info-dim);
+}
+
+.flagRng {
+  color: var(--copper-mid);
 }
 
 /* ── Convergence row ── */
@@ -161,4 +188,20 @@
 .convergenceScore {
   text-align: center;
   border-left: 1px solid var(--ground);
+}
+
+.convergenceWinner {
+  background: rgba(var(--copper-hot-rgb), 0.1);
+}
+
+.convergenceValue {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--copper-dim);
+}
+
+.convergenceValueWinner {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--info-bright);
 }
