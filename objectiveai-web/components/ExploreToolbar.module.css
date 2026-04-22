@@ -55,6 +55,10 @@
   gap: 4px;
 }
 
+.filterGroup + .filterGroup {
+  margin-left: 8px;
+}
+
 .filterLabel {
   font-family: var(--font-mono);
   font-size: 8px;
@@ -84,13 +88,6 @@
 .filterPillActive {
   color: var(--info-bright);
   border-color: var(--copper-dim);
-}
-
-.filterSep {
-  width: 1px;
-  height: 14px;
-  background: var(--node-border);
-  margin: 0 4px;
 }
 
 @media (max-width: 640px) {

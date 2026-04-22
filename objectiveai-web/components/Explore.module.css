@@ -1,8 +1,6 @@
 /* ── Explore — Tabbed Browse ── */
 
 .page {
-  max-width: 1280px;
-  margin: 0 auto;
   width: 100%;
   padding: 0 0 48px;
 }
@@ -14,12 +12,12 @@
   top: 0;
   z-index: 10;
   display: flex;
+  justify-content: center;
   gap: 0;
   padding: 0 24px;
   background: rgba(12, 10, 9, 0.85);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  border-bottom: 1px solid var(--node-border);
 }
 
 .tab {

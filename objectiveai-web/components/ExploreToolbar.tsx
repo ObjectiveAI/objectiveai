@@ -50,7 +50,6 @@ export function ExploreToolbar({
         <div className={styles.filterRow}>
           {filters.map((filter, fi) => (
             <div key={filter.key} className={styles.filterGroup}>
-              {fi > 0 && <span className={styles.filterSep} />}
               <span className={styles.filterLabel}>{filter.label}</span>
               {filter.options.map((opt) => (
                 <button

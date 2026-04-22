@@ -11,10 +11,6 @@ interface Props {
   name: string;
 }
 
-function shortModel(model: string): string {
-  return model.includes("/") ? model.split("/").pop()! : model;
-}
-
 function formatWeight(w: number): string {
   return (w * 100).toFixed(1) + "%";
 }
@@ -118,7 +114,7 @@ export function ProfileDetail({ name }: Props) {
 
   return (
     <div className={styles.detail}>
-      <Link href="/explore" className={styles.back}>&#x2190; explore</Link>
+      <Link href="/explore?tab=profiles" className={styles.back}>&#x2190; explore</Link>
 
       <div className={styles.header}>
         <div className={styles.titleRow}>
