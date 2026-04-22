@@ -5,6 +5,7 @@
   flex-direction: column;
   gap: 10px;
   padding: 16px 24px;
+  max-width: 1400px;
 }
 
 .searchRow {

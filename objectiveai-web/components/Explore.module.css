@@ -29,7 +29,7 @@
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
-  padding: 14px 16px 12px;
+  padding: 10px 16px 10px;
   cursor: pointer;
   transition: color 150ms, border-color 150ms;
 }
