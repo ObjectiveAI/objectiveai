@@ -470,38 +470,43 @@ impl Client {
         .await
     }
 
-    /// Publishes files to a GitHub repository.
+    /// Publishes files to a GitHub repository. The owner is resolved
+    /// internally from the request's commit-author name (falling back to
+    /// the filesystem client's configured commit_author_name), matching
+    /// how the local git commit is attributed.
     pub async fn publish<CTXEXT: ctx::ContextExt + Send + Sync>(
         &self,
         filesystem_client: &crate::filesystem::Client,
         ctx: &ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-        name: &str,
+        repo: &str,
         description: &str,
         files: &[(&str, &str)],
     ) -> Result<objectiveai::RemotePath, super::Error> {
-        let (owner, repo) = if let Some((o, r)) = name.split_once('/') {
-            (o.to_string(), r.to_string())
-        } else {
-            let user = self.get_authenticated_user(ctx).await?;
-            (user, name.to_string())
-        };
+        // Resolve owner the same way the filesystem client does — from the
+        // request context's commit-author name, with the client's own
+        // configured commit_author_name as fallback. This guarantees that
+        // the local commit author and the GitHub target namespace agree.
+        let owner = ctx
+            .commit_author_name()
+            .await
+            .map(|s| (*s).clone())
+            .unwrap_or_else(|| filesystem_client.commit_author_name.clone());
 
-        let exists = self.repository_exists(ctx, &owner, &repo).await?;
+        let exists = self.repository_exists(ctx, &owner, repo).await?;
         if !exists {
-            self.create_repository(ctx, &repo, description).await?;
+            self.create_repository(ctx, repo, description).await?;
         }
 
         let token = self.require_authorization(ctx).await?;
         let bare_token = strip_bearer(&token).to_string();
         let remote_url = format!("https://github.com/{}/{}.git", owner, repo);
-        let commit_message = format!("Publish {}", name);
+        let commit_message = format!("Publish {}", repo);
 
-        let commit_sha = filesystem_client
+        let (_commit_owner, commit_sha) = filesystem_client
             .publish_and_push(
                 ctx,
                 crate::retrieval::Kind::Functions,
-                &owner,
-                &repo,
+                repo,
                 files,
                 &commit_message,
                 &remote_url,
@@ -510,11 +515,11 @@ impl Client {
             .await
             .map_err(super::Error::Filesystem)?;
 
-        let _ = self.update_description(ctx, &owner, &repo, description).await;
+        let _ = self.update_description(ctx, &owner, repo, description).await;
 
         Ok(objectiveai::RemotePath::Github {
             owner,
-            repository: repo,
+            repository: repo.to_string(),
             commit: commit_sha,
         })
     }

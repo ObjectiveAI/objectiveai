@@ -20,6 +20,7 @@ mod viewer;
 mod schemas;
 mod laboratories;
 mod log_line;
+mod log_stream;
 mod logs;
 mod vector;
 

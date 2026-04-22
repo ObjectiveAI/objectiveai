@@ -89,36 +89,20 @@ impl Commands {
         };
 
         let fs_client = objectiveai::filesystem::Client::new(cli_config.config_base_dir.as_deref(), None::<String>, None::<String>);
-        let mut log_writer = objectiveai::filesystem::logs::client::write_agent_completion(&fs_client);
+        let log_writer = objectiveai::filesystem::logs::client::write_agent_completion(&fs_client);
 
         crate::api::run(Box::new(|http_client| Box::pin(async move {
             let stream = objectiveai::agent::completions::create_agent_completion_streaming(
                 &http_client, params,
             ).await?;
-            tokio::pin!(stream);
 
-            // Accumulate all chunks
-            let mut accumulated: Option<objectiveai::agent::completions::response::streaming::AgentCompletionChunk> = None;
-            let mut logged_id = false;
-            while let Some(chunk) = stream.next().await {
-                let chunk = chunk?;
-                match &mut accumulated {
-                    Some(agg) => agg.push(&chunk),
-                    None => accumulated = Some(chunk),
-                }
-                if let Some(agg) = &accumulated {
-                    let _ = log_writer.write(agg).await;
-                }
-                if !logged_id {
-                    if let Some(id) = log_writer.primary_id() {
-                        crate::log_line::print_log_id(id);
-                        logged_id = true;
-                    }
-                }
-            }
+            let accumulated = crate::log_stream::consume_with_coalesced_writes(
+                stream.map(|r| r.map_err(crate::error::Error::from)),
+                log_writer,
+                |agg: &mut objectiveai::agent::completions::response::streaming::AgentCompletionChunk, c| agg.push(c),
+            ).await?;
 
-            let completion: objectiveai::agent::completions::response::unary::AgentCompletion =
-                accumulated.ok_or(crate::error::Error::EmptyStream)?.into();
+            let completion: objectiveai::agent::completions::response::unary::AgentCompletion = accumulated.into();
 
             // Extract the last assistant message content
             let content = completion.messages.iter().rev()

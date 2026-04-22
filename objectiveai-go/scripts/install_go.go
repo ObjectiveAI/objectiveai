@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -42,14 +43,15 @@ var (
 )
 
 func init() {
-	wd, _ := os.Getwd()
-	if filepath.Base(wd) == "scripts" {
-		rootDir = filepath.Dir(filepath.Dir(wd))
-	} else if filepath.Base(wd) == "objectiveai-go" {
-		rootDir = filepath.Dir(wd)
-	} else {
-		rootDir = wd
+	// Resolve the repo root by walking up from this source file's directory.
+	// This avoids depending on the caller's working directory.
+	_, thisFile, _, ok := runtime.Caller(0)
+	if !ok {
+		fmt.Fprintln(os.Stderr, "Failed to resolve install_go.go path")
+		os.Exit(1)
 	}
+	// thisFile = .../objectiveai-go/scripts/install_go.go
+	rootDir = filepath.Dir(filepath.Dir(filepath.Dir(thisFile)))
 	schemaDir = filepath.Join(rootDir, "objectiveai-json-schema")
 	srcDir = filepath.Join(rootDir, "objectiveai-go")
 }

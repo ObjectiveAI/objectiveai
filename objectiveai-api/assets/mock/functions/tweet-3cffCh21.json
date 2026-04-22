@@ -1,0 +1,133 @@
+{
+  "type": "alpha.scalar.leaf.function",
+  "description": "This function distinguishes authentic AI and technology discourse from casual mentions. It evaluates directness of focus, substantive contribution quality, and engagement with core ecosystem concerns like ethics and safety. It identifies tweets that meaningfully grapple with AI advancement versus those that merely invoke these terms in passing.",
+  "input_schema": {
+    "type": "object",
+    "description": "A scraped post with text, images, and videos.",
+    "properties": {
+      "text": {
+        "type": "string",
+        "description": "The text content of the post."
+      },
+      "images": {
+        "type": "array",
+        "description": "Images attached to the post.",
+        "items": {
+          "type": "image",
+          "description": "An image URL."
+        }
+      },
+      "videos": {
+        "type": "array",
+        "description": "Videos attached to the post.",
+        "items": {
+          "type": "video",
+          "description": "A video URL."
+        }
+      }
+    },
+    "required": [
+      "text",
+      "images",
+      "videos"
+    ]
+  },
+  "tasks": [
+    {
+      "type": "vector.completion",
+      "messages": {
+        "$starlark": "[{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"Analyze the following tweet and evaluate whether its primary focus is genuinely on AI and technology advancement, or whether AI/technology are only secondary mentions.\\n\\nTweet: \" + input[\"text\"]}] + input[\"images\"] + input[\"videos\"]}]"
+      },
+      "responses": [
+        [
+          {
+            "type": "text",
+            "text": "This tweet is primarily about something entirely different; AI or technology are only mentioned in passing."
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "This tweet discusses AI or technology but they are not the primary focus—other topics take precedence."
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "This tweet has AI and technology as a clear primary focus, genuinely centered on advancement in these fields."
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "This tweet is intensely and directly focused on AI and technology advancement with specific technical engagement."
+          }
+        ]
+      ]
+    },
+    {
+      "type": "vector.completion",
+      "messages": {
+        "$starlark": "[{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"Evaluate the substantive quality of this tweet's contribution to AI and technology discourse. Does it offer genuine insight, original analysis, critical thinking, or practical experience—or does it merely repackage existing observations?\\n\\nTweet: \" + input[\"text\"]}]}]"
+      },
+      "responses": [
+        [
+          {
+            "type": "text",
+            "text": "This tweet merely mentions AI or technology without any substantive content; it's surface-level with no meaningful contribution."
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "This tweet comments on AI or technology but mostly repackages common observations with limited originality or depth."
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "This tweet offers reasonable insight, asks meaningful questions, or provides practical perspective that meaningfully contributes to AI and technology discourse."
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "This tweet demonstrates original thinking, critical analysis, expert knowledge, or substantive inquiry that significantly advances understanding within the field."
+          }
+        ]
+      ]
+    },
+    {
+      "type": "vector.completion",
+      "messages": {
+        "$starlark": "[{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"Does this tweet engage with authentic concerns and challenges of the AI and technology ecosystem, such as ethics, safety, governance, innovation, interpretability, environmental impact, talent development, or societal integration?\\n\\nTweet: \" + input[\"text\"]}]}]"
+      },
+      "responses": [
+        [
+          {
+            "type": "text",
+            "text": "This tweet does not engage with any genuine concerns or challenges of the AI and technology ecosystem."
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "This tweet touches on AI and technology topics but shows limited connection to authentic ecosystem concerns that matter to the community."
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "This tweet addresses at least one genuine concern or challenge of the AI and technology ecosystem with meaningful engagement."
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "This tweet substantively grapples with core ecosystem concerns, demonstrating deep understanding of what matters to the AI and technology community."
+          }
+        ]
+      ]
+    }
+  ]
+}

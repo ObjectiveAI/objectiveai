@@ -24,8 +24,9 @@ impl SDKPartialAssistantMessage {
         created: u64,
         agent: String,
         assistant_index: u64,
+        upstream: objectiveai::agent::Upstream,
     ) -> Option<objectiveai::agent::completions::response::streaming::AgentCompletionChunk> {
         self.event
-            .into_downstream(id, created, agent, assistant_index, self.session_id)
+            .into_downstream(id, created, agent, assistant_index, self.session_id, upstream)
     }
 }

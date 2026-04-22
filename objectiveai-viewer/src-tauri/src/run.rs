@@ -8,10 +8,15 @@ use serde::Serialize;
 use subtle::ConstantTimeEq;
 use std::sync::Arc;
 use tauri::Emitter;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, Notify};
 use crate::agent;
 use crate::functions;
 use crate::laboratories;
+
+#[tauri::command]
+fn viewer_ready(state: tauri::State<'_, Arc<Notify>>) {
+    state.notify_one();
+}
 
 #[derive(Envconfig)]
 struct EnvConfigBuilder {
@@ -148,7 +153,12 @@ pub fn serve(
         axum::serve(listener, app).await
     });
 
+    let ready = Arc::new(Notify::new());
+    let ready_for_task = ready.clone();
+
     tauri::Builder::default()
+        .manage(ready)
+        .invoke_handler(tauri::generate_handler![viewer_ready])
         .setup(move |tauri_app| {
             let handle = tauri_app.handle().clone();
             if let Some(tx) = exiter_tx {
@@ -156,8 +166,27 @@ pub fn serve(
                 tx.send(Box::new(move |code| exit_handle.exit(code))).ok();
             }
             tauri::async_runtime::spawn(async move {
+                // Buffer events until the frontend signals it is listening.
+                let mut buffer = Vec::new();
+                loop {
+                    tokio::select! {
+                        biased;
+                        _ = ready_for_task.notified() => break,
+                        event = rx.recv() => {
+                            match event {
+                                Some(e) => buffer.push(e),
+                                None => return,
+                            }
+                        }
+                    }
+                }
+                // Drain buffered events.
+                for event in buffer {
+                    let _ = handle.emit(event.name(), &event);
+                }
+                // Forward remaining events directly.
                 while let Some(event) = rx.recv().await {
-                    let result = handle.emit(event.name(), &event);
+                    let _ = handle.emit(event.name(), &event);
                 }
             });
             Ok(())

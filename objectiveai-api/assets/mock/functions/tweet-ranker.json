@@ -1,0 +1,67 @@
+{
+  "type": "alpha.vector.branch.function",
+  "description": "Ranks tweets by AI and technology value, prioritizing substantive technical content. Evaluates technical depth and specificity, direct relevance, and constructive contribution. Helps researchers and professionals surface meaningful technical discourse from social media noise.",
+  "input_schema": {
+    "items": {
+      "type": "object",
+      "description": "A scraped post with text, images, and videos.",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "The text content of the post."
+        },
+        "images": {
+          "type": "array",
+          "description": "Images attached to the post.",
+          "items": {
+            "type": "image",
+            "description": "An image URL."
+          }
+        },
+        "videos": {
+          "type": "array",
+          "description": "Videos attached to the post.",
+          "items": {
+            "type": "video",
+            "description": "A video URL."
+          }
+        }
+      },
+      "required": [
+        "text",
+        "images",
+        "videos"
+      ]
+    }
+  },
+  "tasks": [
+    {
+      "type": "alpha.vector.function",
+      "remote": "mock",
+      "name": "tweet-3YQMcu20",
+      "input": {
+        "items": {
+          "$starlark": "input['items']"
+        }
+      }
+    },
+    {
+      "type": "alpha.scalar.function",
+      "remote": "mock",
+      "name": "tweet-3YQMcu21",
+      "input": {
+        "$starlark": "input['items'][map]"
+      }
+    },
+    {
+      "type": "alpha.vector.function",
+      "remote": "mock",
+      "name": "tweet-3YQMcu22",
+      "input": {
+        "items": {
+          "$starlark": "input['items']"
+        }
+      }
+    }
+  ]
+}

@@ -123,11 +123,10 @@ impl Client {
         &self,
         ctx: &crate::ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
         kind: Kind,
-        owner: &str,
         repository: &str,
         files: &[(&str, &str)],
         commit_message: &str,
-    ) -> Result<String, super::Error> {
+    ) -> Result<(String, String), super::Error> {
         let (ctx_name, ctx_email) = tokio::join!(
             ctx.commit_author_name(),
             ctx.commit_author_email(),
@@ -138,7 +137,9 @@ impl Client {
         let commit_author_email = ctx_email
             .map(|a| a.to_string())
             .unwrap_or_else(|| self.commit_author_email.clone());
-        let repo_path = self.repo_path(kind, owner, repository);
+        // Owner is the resolved commit author name.
+        let owner = commit_author_name.clone();
+        let repo_path = self.repo_path(kind, &owner, repository);
 
         // Create directory recursively if needed.
         std::fs::create_dir_all(&repo_path)?;
@@ -182,7 +183,7 @@ impl Client {
         let parent = repo.head().ok().and_then(|h| h.peel_to_commit().ok());
         if let Some(ref parent) = parent {
             if parent.tree_id() == tree_oid {
-                return Ok(parent.id().to_string());
+                return Ok((owner, parent.id().to_string()));
             }
         }
 
@@ -200,7 +201,7 @@ impl Client {
             &parents,
         )?;
 
-        Ok(commit_oid.to_string())
+        Ok((owner, commit_oid.to_string()))
     }
 
     /// Publishes files to a local git repository and pushes to a remote.
@@ -213,13 +214,12 @@ impl Client {
         &self,
         ctx: &crate::ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
         kind: Kind,
-        owner: &str,
         repository: &str,
         files: &[(&str, &str)],
         commit_message: &str,
         remote_url: &str,
         token: &str,
-    ) -> Result<String, super::Error> {
+    ) -> Result<(String, String), super::Error> {
         let (ctx_name, ctx_email) = tokio::join!(
             ctx.commit_author_name(),
             ctx.commit_author_email(),
@@ -230,7 +230,9 @@ impl Client {
         let commit_author_email = ctx_email
             .map(|a| a.to_string())
             .unwrap_or_else(|| self.commit_author_email.clone());
-        let repo_path = self.repo_path(kind, owner, repository);
+        // Owner is the resolved commit author name.
+        let owner = commit_author_name.clone();
+        let repo_path = self.repo_path(kind, &owner, repository);
 
         // Create directory recursively if needed.
         std::fs::create_dir_all(&repo_path)?;
@@ -304,7 +306,7 @@ impl Client {
         let parent = repo.head().ok().and_then(|h| h.peel_to_commit().ok());
         if let Some(ref parent) = parent {
             if parent.tree_id() == tree_oid {
-                return Ok(parent.id().to_string());
+                return Ok((owner, parent.id().to_string()));
             }
         }
 
@@ -332,7 +334,7 @@ impl Client {
 
         remote.push(&[&refspec], Some(&mut push_options))?;
 
-        Ok(commit_oid.to_string())
+        Ok((owner, commit_oid.to_string()))
     }
 }
 

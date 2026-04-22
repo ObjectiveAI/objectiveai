@@ -1,0 +1,64 @@
+{
+  "type": "alpha.vector.leaf.function",
+  "description": "Ranks tweets by technical depth across three dimensions: concrete specificity (specific algorithms/frameworks vs. generic terms), demonstrated expertise (understanding of trade-offs and limitations), and practical applicability (actionable insights for practitioners). Elevates substantive technical discourse over AI hype.",
+  "input_schema": {
+    "items": {
+      "type": "object",
+      "description": "A tweet with text, images, and videos",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "The text content of the post"
+        },
+        "images": {
+          "type": "array",
+          "description": "Images attached to the post",
+          "items": {
+            "type": "image"
+          }
+        },
+        "videos": {
+          "type": "array",
+          "description": "Videos attached to the post",
+          "items": {
+            "type": "video"
+          }
+        }
+      },
+      "required": [
+        "text",
+        "images",
+        "videos"
+      ]
+    }
+  },
+  "tasks": [
+    {
+      "type": "vector.completion",
+      "messages": {
+        "$starlark": "[{'role': 'user', 'content': [{'type': 'text', 'text': 'Which of these tweets demonstrates the most specific technical knowledge about particular algorithms, frameworks, methodologies, or established technologies?'}]}]"
+      },
+      "responses": {
+        "$starlark": "[[{'type': 'text', 'text': t['text']}] + t['images'] + t['videos'] for t in input['items']]"
+      }
+    },
+    {
+      "type": "vector.completion",
+      "messages": {
+        "$starlark": "[{'role': 'user', 'content': [{'type': 'text', 'text': 'Which tweet best demonstrates genuine technical expertise through discussion of trade-offs, limitations, complexity, or awareness of current research directions?'}]}]"
+      },
+      "responses": {
+        "$starlark": "[[{'type': 'text', 'text': t['text']}] + t['images'] + t['videos'] for t in input['items']]"
+      }
+    },
+    {
+      "type": "vector.completion",
+      "messages": {
+        "$starlark": "[{'role': 'user', 'content': [{'type': 'text', 'text': 'Which tweet would be most valuable to a practitioner or researcher looking for actionable insights and concrete approaches to technical problems?'}]}]"
+      },
+      "responses": {
+        "$starlark": "[[{'type': 'text', 'text': t['text']}] + t['images'] + t['videos'] for t in input['items']]"
+      }
+    }
+  ]
+}

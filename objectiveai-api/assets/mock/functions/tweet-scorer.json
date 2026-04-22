@@ -1,0 +1,61 @@
+{
+  "type": "alpha.scalar.branch.function",
+  "description": "This function scores tweets on their substantive contribution to AI and technology discourse by evaluating technical depth, domain relevance, and constructive intent. It distinguishes genuine technical conversations from casual mentions, helping communities identify meaningful discourse that advances understanding and innovation.",
+  "input_schema": {
+    "type": "object",
+    "description": "A scraped post with text, images, and videos.",
+    "properties": {
+      "text": {
+        "type": "string",
+        "description": "The text content of the post."
+      },
+      "images": {
+        "type": "array",
+        "description": "Images attached to the post.",
+        "items": {
+          "type": "image",
+          "description": "An image URL."
+        }
+      },
+      "videos": {
+        "type": "array",
+        "description": "Videos attached to the post.",
+        "items": {
+          "type": "video",
+          "description": "A video URL."
+        }
+      }
+    },
+    "required": [
+      "text",
+      "images",
+      "videos"
+    ]
+  },
+  "tasks": [
+    {
+      "type": "alpha.scalar.function",
+      "remote": "mock",
+      "name": "tweet-3cffCh20",
+      "input": {
+        "$jmespath": "input"
+      }
+    },
+    {
+      "type": "alpha.scalar.function",
+      "remote": "mock",
+      "name": "tweet-3cffCh21",
+      "input": {
+        "$jmespath": "input"
+      }
+    },
+    {
+      "type": "alpha.scalar.function",
+      "remote": "mock",
+      "name": "tweet-3cffCh22",
+      "input": {
+        "$jmespath": "input"
+      }
+    }
+  ]
+}

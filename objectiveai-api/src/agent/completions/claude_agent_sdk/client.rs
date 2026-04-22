@@ -22,15 +22,17 @@ pub struct Client {
     pub user_agent: String,
     pub enabled: bool,
     pub rate_limit_max_retries: u64,
+    pub rate_limit_max_wait_secs: u64,
     binary_path: Arc<std::sync::OnceLock<String>>,
 }
 
 impl Client {
-    pub fn new(user_agent: String, enabled: bool, rate_limit_max_retries: u64) -> Self {
+    pub fn new(user_agent: String, enabled: bool, rate_limit_max_retries: u64, rate_limit_max_wait_secs: u64) -> Self {
         Self {
             user_agent,
             enabled,
             rate_limit_max_retries,
+            rate_limit_max_wait_secs,
             binary_path: Arc::new(std::sync::OnceLock::new()),
         }
     }
@@ -40,6 +42,12 @@ impl Client {
     /// Cached after first extraction. Uses a content-based hash in the directory name
     /// so different API versions get separate binaries and the same version reuses
     /// the cached binary across restarts.
+    ///
+    /// Returns `None` when the crate is built without either
+    /// `claude-agent-sdk-javascript` or `claude-agent-sdk-python` feature — in
+    /// that configuration no runner binary is embedded, and `create()` returns
+    /// `Error::NotEnabled` before this method is reached.
+    #[cfg(any(feature = "claude-agent-sdk-javascript", feature = "claude-agent-sdk-python"))]
     fn binary_path(&self) -> Option<&str> {
         let path = self.binary_path.get_or_init(|| {
             let binary = super::claude_agent_sdk_binary::CLAUDE_AGENT_SDK_RUNNER;
@@ -80,6 +88,11 @@ impl Client {
             path.to_string_lossy().to_string()
         });
         if path.is_empty() { None } else { Some(path.as_str()) }
+    }
+
+    #[cfg(not(any(feature = "claude-agent-sdk-javascript", feature = "claude-agent-sdk-python")))]
+    fn binary_path(&self) -> Option<&str> {
+        None
     }
 }
 
@@ -200,6 +213,14 @@ impl UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::ag
                 return Err(super::Error::NotEnabled);
             }
 
+            // When built without a Claude Agent SDK runner feature, no
+            // runner binary is embedded, so the client is non-functional
+            // regardless of the `enabled` flag.
+            #[cfg(not(any(feature = "claude-agent-sdk-javascript", feature = "claude-agent-sdk-python")))]
+            {
+                return Err(super::Error::NotEnabled);
+            }
+
             if is_byok {
                 return Err(super::Error::InvalidByok);
             }
@@ -276,6 +297,7 @@ impl UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::ag
             }
             cmd.arg("--user-agent").arg(&client.user_agent);
             cmd.arg("--rate-limit-max-retries").arg(client.rate_limit_max_retries.to_string());
+            cmd.arg("--rate-limit-max-wait-secs").arg(client.rate_limit_max_wait_secs.to_string());
 
             cmd.stdin(std::process::Stdio::null())
                 .stdout(std::process::Stdio::piped())
@@ -362,6 +384,7 @@ impl UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::ag
                                 msg_index,
                                 is_byok,
                                 cost_multiplier,
+                                objectiveai::agent::Upstream::ClaudeAgentSdk,
                             ) {
                                 Some(Ok(chunk)) => {
                                     // Advance the index when a message slot is

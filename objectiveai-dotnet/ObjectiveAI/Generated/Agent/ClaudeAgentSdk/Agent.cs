@@ -74,29 +74,6 @@ public partial class Agent
     public RichContent? SuffixContent { get; set; } = null;
 
     /// <summary>
-    /// Enable synthetic reasoning for non-reasoning LLMs.
-    /// 
-    /// **Vector completions only.** Ignored for agent completions.
-    /// 
-    /// When enabled, forces the LLM to output a `_think` field before voting,
-    /// simulating chain-of-thought reasoning. Requires `output_mode` to be
-    /// `ToolCall` (not `Instruction`).
-    /// </summary>
-    [Description("""
-Enable synthetic reasoning for non-reasoning LLMs.
-
-**Vector completions only.** Ignored for agent completions.
-
-When enabled, forces the LLM to output a `_think` field before voting,
-simulating chain-of-thought reasoning. Requires `output_mode` to be
-`ToolCall` (not `Instruction`).
-""")]
-    [JsonPropertyName("synthetic_reasoning")]
-    [JsonSchemaOmitEmpty]
-    [JsonSchemaNullable]
-    public bool? SyntheticReasoning { get; set; } = null;
-
-    /// <summary>
     /// System prompt for the agent.
     /// </summary>
     [Description("System prompt for the agent.")]

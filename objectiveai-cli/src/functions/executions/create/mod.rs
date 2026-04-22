@@ -211,35 +211,18 @@ impl Commands {
         };
 
         let fs_client = objectiveai::filesystem::Client::new(cli_config.config_base_dir.as_deref(), None::<String>, None::<String>);
-        let mut log_writer = objectiveai::filesystem::logs::client::write_function_execution(&fs_client);
+        let log_writer = objectiveai::filesystem::logs::client::write_function_execution(&fs_client);
 
         crate::api::run(Box::new(|http_client| Box::pin(async move {
             let stream = objectiveai::functions::executions::create_function_execution_streaming(
                 &http_client, params,
             ).await?;
-            tokio::pin!(stream);
 
-            // Aggregate all chunks into one
-            let mut aggregated: Option<objectiveai::functions::executions::response::streaming::FunctionExecutionChunk> = None;
-            let mut logged_id = false;
-            while let Some(chunk) = stream.next().await {
-                let chunk = chunk?;
-                match &mut aggregated {
-                    Some(agg) => agg.push(&chunk),
-                    None => aggregated = Some(chunk),
-                }
-                if let Some(agg) = &aggregated {
-                    let _ = log_writer.write(agg).await;
-                }
-                if !logged_id {
-                    if let Some(id) = log_writer.primary_id() {
-                        crate::log_line::print_log_id(id);
-                        logged_id = true;
-                    }
-                }
-            }
-
-            let chunk = aggregated.ok_or(crate::error::Error::EmptyStream)?;
+            let chunk = crate::log_stream::consume_with_coalesced_writes(
+                stream.map(|r| r.map_err(crate::error::Error::from)),
+                log_writer,
+                |agg: &mut objectiveai::functions::executions::response::streaming::FunctionExecutionChunk, c| agg.push(c),
+            ).await?;
 
             // Recursively collect all errors
             let mut errors = Vec::new();

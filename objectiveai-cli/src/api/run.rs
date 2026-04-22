@@ -277,7 +277,7 @@ fn resolve_viewer_secret(
 
 /// Builds the local API server config. Priority: ENV → config file → defaults.
 ///
-/// Overlays authorization headers and `claude_agent_sdk` from the config file
+/// Overlays authorization headers and `claude_agent_sdk_enabled` from the config file
 /// for any fields not already set by ENV.
 ///
 /// `viewer_address` and `viewer_signature` control how viewer fields are resolved:
@@ -293,8 +293,8 @@ fn build_api_config(
 ) -> objectiveai_api::Config {
     let mut builder = objectiveai_api::ConfigBuilder::init_from_env().unwrap_or_default();
 
-    // Config file overlay: read claude_agent_sdk before borrowing headers
-    builder.claude_agent_sdk = builder.claude_agent_sdk.or(config.api().local().get_claude_agent_sdk());
+    // Config file overlay: read claude_agent_sdk_enabled before borrowing headers
+    builder.claude_agent_sdk_enabled = builder.claude_agent_sdk_enabled.or(config.api().local().get_claude_agent_sdk());
 
     // Config file overlay: fill None fields from ApiHeadersConfig
     let headers = config.api().headers();

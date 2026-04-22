@@ -21,14 +21,6 @@ type AgentClaudeAgentSdkAgentBase struct {
 	PrefixContent *AgentCompletionsMessageRichContent `json:"prefix_content,omitempty"`
 	// Rich content appended after the user's prompt.
 	SuffixContent *AgentCompletionsMessageRichContent `json:"suffix_content,omitempty"`
-	// Enable synthetic reasoning for non-reasoning LLMs.
-	//
-	// **Vector completions only.** Ignored for agent completions.
-	//
-	// When enabled, forces the LLM to output a `_think` field before voting,
-	// simulating chain-of-thought reasoning. Requires `output_mode` to be
-	// `ToolCall` (not `Instruction`).
-	SyntheticReasoning *bool `json:"synthetic_reasoning,omitempty"`
 	// System prompt for the agent.
 	SystemPrompt *string `json:"system_prompt,omitempty"`
 	// Whether thinking/extended thinking is enabled.

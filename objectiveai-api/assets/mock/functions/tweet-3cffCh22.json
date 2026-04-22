@@ -1,0 +1,115 @@
+{
+  "type": "alpha.scalar.leaf.function",
+  "description": "The Discourse Value Function identifies tweets that meaningfully advance AI and technology discourse. It evaluates substantive knowledge contribution, technical rigor, constructive community engagement, and genuine insights that reframe understanding. The function elevates discourse that builds understanding rather than merely tears down.",
+  "input_schema": {
+    "type": "object",
+    "description": "A scraped post with text, images, and videos.",
+    "properties": {
+      "text": {
+        "type": "string",
+        "description": "The text content of the post."
+      },
+      "images": {
+        "type": "array",
+        "description": "Images attached to the post.",
+        "items": {
+          "type": "image",
+          "description": "An image URL."
+        }
+      },
+      "videos": {
+        "type": "array",
+        "description": "Videos attached to the post.",
+        "items": {
+          "type": "video",
+          "description": "A video URL."
+        }
+      }
+    },
+    "required": [
+      "text",
+      "images",
+      "videos"
+    ]
+  },
+  "tasks": [
+    {
+      "type": "vector.completion",
+      "messages": {
+        "$starlark": "[{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"Evaluate this tweet's substantive contribution to AI and technology discourse. Does it provide new information, synthesize existing knowledge in novel ways, document hard-won lessons, or connect disparate ideas? Does it demonstrate genuine expertise and engage with actually difficult questions in the field?\\n\\nTweet:\\n\" + input[\"text\"]}] + input[\"images\"] + input[\"videos\"]}]"
+      },
+      "responses": [
+        [
+          {
+            "type": "text",
+            "text": "This tweet doesn't provide substantive knowledge, technical insight, or meaningful contribution to AI and technology discourse."
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "This tweet provides some useful information or perspective on AI and technology, though the contribution could be more substantial or technically rigorous."
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "This tweet makes a clear, substantive contribution to AI and technology discourse, providing valuable knowledge, genuine technical insight, or novel synthesis that advances understanding."
+          }
+        ]
+      ]
+    },
+    {
+      "type": "vector.completion",
+      "messages": {
+        "$starlark": "[{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"Does this tweet build up or tear down the AI and technology community? Is the discourse constructive and designed to foster understanding and growth, or is it primarily critical or mocking without offering solutions or inviting dialogue?\\n\\nTweet:\\n\" + input[\"text\"]}] + input[\"images\"] + input[\"videos\"]}]"
+      },
+      "responses": [
+        [
+          {
+            "type": "text",
+            "text": "This tweet primarily tears down, mocks, or criticizes without offering constructive insight, solutions, or genuine dialogue that would advance community understanding."
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "This tweet includes both critical and constructive elements, with some attempt to invite dialogue or offer perspective alongside critique."
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "This tweet builds up the community through genuinely constructive discourse, offering critical perspectives in service of improvement, inviting dialogue, and treating others as collaborators in collective growth."
+          }
+        ]
+      ]
+    },
+    {
+      "type": "vector.completion",
+      "messages": {
+        "$starlark": "[{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"Does this tweet offer genuine insight that reframes how we understand AI and technology problems? Look for moments of clarity such as novel conceptual distinctions, surprising connections between domains, penetrating questions that expose hidden assumptions, narratives that make complex ideas visceral, or contrarian perspectives grounded in evidence.\\n\\nTweet:\\n\" + input[\"text\"]}] + input[\"images\"] + input[\"videos\"]}]"
+      },
+      "responses": [
+        [
+          {
+            "type": "text",
+            "text": "This tweet doesn't offer genuine insight or meaningful reframing. It states familiar ideas or perspectives without notable originality or clarity."
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "This tweet offers some insight or interesting perspective that modestly advances how we think about AI and technology, though the reframing is not particularly novel or penetrating."
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "This tweet offers genuine, memorable insight that meaningfully reframes how we understand AI and technology problems—through novel conceptual distinctions, surprising connections, penetrating questions, or evidence-grounded contrarian perspectives that challenge conventional wisdom."
+          }
+        ]
+      ]
+    }
+  ]
+}

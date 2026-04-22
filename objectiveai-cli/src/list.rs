@@ -9,6 +9,8 @@ pub enum Source {
     Favorites,
     /// List from ObjectiveAI
     Objectiveai,
+    /// List from the Mock provider
+    Mock,
     /// List from all sources
     All,
 }

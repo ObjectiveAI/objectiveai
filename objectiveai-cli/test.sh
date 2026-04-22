@@ -16,6 +16,14 @@ LOG_FILE="$LOG_DIR/$MODULE.txt"
 
 mkdir -p "$LOG_DIR"
 
+# Deterministically wipe CLI test artifacts on every exit path (success,
+# failure, or interrupt). Keeps the tests folder free of gitignored runtime
+# state (logs, cached repos, filesystem config) between runs.
+CLI_TESTS_SCRATCH="$SCRIPT_DIR/tests/.objectiveai"
+cleanup() { rm -rf "$CLI_TESTS_SCRATCH"; }
+trap cleanup EXIT INT TERM
+cleanup  # start from a clean slate as well
+
 # Parse flags
 CARGO_ARGS=()
 while [[ $# -gt 0 ]]; do

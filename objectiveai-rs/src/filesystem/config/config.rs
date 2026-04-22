@@ -42,6 +42,6 @@ impl Config {
     }
 
     pub fn jq(&self, filter: &str) -> Result<Vec<serde_json::Value>, super::super::Error> {
-        super::jq::run_jq(self, filter)
+        super::super::run_jq(self, filter)
     }
 }

@@ -39,6 +39,10 @@ pub enum Commands {
         #[command(subcommand)]
         command: GetCommand,
     },
+    GetFunctionInventionStateResponse {
+        #[command(subcommand)]
+        command: GetCommand,
+    },
     InputSchema {
         #[command(subcommand)]
         command: GetCommand,
@@ -64,7 +68,7 @@ pub enum Commands {
 impl Commands {
     pub fn handle(self) -> Result<crate::Output, crate::error::Error> {
         match self {
-            Commands::List => Ok(crate::Output::Schema("[\"AlphaScalarBranchState\",\"AlphaScalarLeafState\",\"AlphaScalarState\",\"AlphaVectorBranchState\",\"AlphaVectorLeafState\",\"AlphaVectorState\",\"InputSchema\",\"Params\",\"ParamsState\",\"ParamsStateOrRemoteCommitOptional\",\"State\"]")),
+            Commands::List => Ok(crate::Output::Schema("[\"AlphaScalarBranchState\",\"AlphaScalarLeafState\",\"AlphaScalarState\",\"AlphaVectorBranchState\",\"AlphaVectorLeafState\",\"AlphaVectorState\",\"GetFunctionInventionStateResponse\",\"InputSchema\",\"Params\",\"ParamsState\",\"ParamsStateOrRemoteCommitOptional\",\"State\"]")),
             Commands::AlphaScalarBranchState { .. } => Ok(crate::Output::Schema(
                 include_str!("../../../../../../objectiveai-json-schema/functions.inventions.state.AlphaScalarBranchState.json"),
             )),
@@ -82,6 +86,9 @@ impl Commands {
             )),
             Commands::AlphaVectorState { .. } => Ok(crate::Output::Schema(
                 include_str!("../../../../../../objectiveai-json-schema/functions.inventions.state.AlphaVectorState.json"),
+            )),
+            Commands::GetFunctionInventionStateResponse { .. } => Ok(crate::Output::Schema(
+                include_str!("../../../../../../objectiveai-json-schema/functions.inventions.state.GetFunctionInventionStateResponse.json"),
             )),
             Commands::InputSchema { .. } => Ok(crate::Output::Schema(
                 include_str!("../../../../../../objectiveai-json-schema/functions.inventions.state.InputSchema.json"),

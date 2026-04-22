@@ -71,8 +71,9 @@ impl Commands {
             Commands::List { source } => {
                 match source {
                     crate::list::Source::Favorites => crate::list::pair_favorites(|| get_favorites(cli_config)).await,
-                    crate::list::Source::Filesystem => Err(crate::error::Error::PairsFilesystemNotSupported),
+                    crate::list::Source::Filesystem => Err(crate::error::Error::PairsSourceNotSupported("filesystem")),
                     crate::list::Source::Objectiveai => crate::list::pair_single(|c| Box::pin(list_objectiveai(c))).await,
+                    crate::list::Source::Mock => Err(crate::error::Error::PairsSourceNotSupported("mock")),
                     crate::list::Source::All => crate::list::pair_all(
                         || get_favorites(cli_config),
                         |c| Box::pin(list_objectiveai(c)),

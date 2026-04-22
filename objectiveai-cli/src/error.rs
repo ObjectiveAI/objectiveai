@@ -14,8 +14,8 @@ pub enum Error {
     ViewerSecretSignatureEnvMismatch,
     #[error("{0}")]
     Http(#[from] objectiveai::HttpError),
-    #[error("filesystem source is not supported for function-profile pairs")]
-    PairsFilesystemNotSupported,
+    #[error("{0} source is not supported for function-profile pairs")]
+    PairsSourceNotSupported(&'static str),
     #[error("favorite not found: {0}")]
     FavoriteNotFound(String),
     #[error("{0}")]
@@ -36,4 +36,6 @@ pub enum Error {
     EmptyStream,
     #[error("config set forbidden by server configuration")]
     ConfigSetForbidden,
+    #[error("log writer task panicked or was cancelled")]
+    WriterPanic,
 }

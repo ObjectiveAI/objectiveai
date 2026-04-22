@@ -4153,6 +4153,7 @@ dependencies = [
  "futures",
  "glob",
  "indexmap 2.13.0",
+ "objectiveai",
  "objectiveai-cli",
  "pathdiff",
  "regex",

@@ -90,6 +90,7 @@ impl Commands {
                     crate::list::Source::Favorites => crate::list::favorites(|| get_favorites(cli_config)).await,
                     crate::list::Source::Filesystem => crate::list::single(|c| Box::pin(list_source(c, ListFunctionsSource::Filesystem))).await,
                     crate::list::Source::Objectiveai => crate::list::single(|c| Box::pin(list_source(c, ListFunctionsSource::Objectiveai))).await,
+                    crate::list::Source::Mock => crate::list::single(|c| Box::pin(list_source(c, ListFunctionsSource::Mock))).await,
                     crate::list::Source::All => crate::list::all(
                         || get_favorites(cli_config),
                         |c| Box::pin(list_source(c, ListFunctionsSource::Filesystem)),

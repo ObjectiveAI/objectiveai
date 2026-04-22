@@ -1,0 +1,8 @@
+{
+  "title": "agent.claude_code.OutputMode",
+  "description": "The model is instructed via the prompt to output a specific key.",
+  "type": "string",
+  "enum": [
+    "instruction"
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "title": "agent.claude_code.Upstream",
+  "description": "Claude Code upstream marker.",
+  "type": "string",
+  "enum": [
+    "claude_code"
+  ]
+}

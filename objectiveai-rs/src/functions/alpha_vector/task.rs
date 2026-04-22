@@ -151,7 +151,13 @@ impl ScalarFunctionTaskExpression {
         functions::ScalarFunctionTaskExpression {
             path: self.path,
             skip: self.skip,
-            map: None,
+            // Scalar sub-tasks of an alpha-vector parent must be mapped
+            // over `input['items']`, otherwise expressions like
+            // `input['items'][map]` see `map = None` at runtime. Mirrors
+            // PlaceholderScalarFunctionTaskExpression::transpile below.
+            map: Some(functions::expression::Expression::Special(
+                functions::expression::Special::InputItemsOutputLength,
+            )),
             input:
                 super::expression::scalar_function_input_value_expression::transpile(
                     self.input,

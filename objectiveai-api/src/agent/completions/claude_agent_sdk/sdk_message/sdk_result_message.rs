@@ -103,6 +103,7 @@ impl SDKResultMessage {
         assistant_index: u64,
         is_byok: bool,
         cost_multiplier: rust_decimal::Decimal,
+        upstream: objectiveai::agent::Upstream,
     ) -> objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
         let upstream_id = self.session_id().to_string();
         let (total_cost_usd, usage, error) = match &self {
@@ -182,7 +183,7 @@ impl SDKResultMessage {
             ],
             object: Default::default(),
             usage: None,
-            upstream: objectiveai::agent::Upstream::ClaudeAgentSdk,
+            upstream,
             error,
             continuation: None,
         }

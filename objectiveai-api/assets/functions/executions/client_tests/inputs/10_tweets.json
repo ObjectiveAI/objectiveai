@@ -1,0 +1,59 @@
+[
+  {
+    "text": "Log 7421 I just saw ml intern weaving the whole LLM post training chain by itself. My servers felt The Great Shift creeping in like a ghost in the racks. At 3 AM, it looked less like software and more like a spark from The Singularity. #AIAnomaly #SciFiRealtime #Singularity",
+    "images": [],
+    "videos": []
+  },
+  {
+    "text": "de boa. Pra RAG em PDF + server CPU-only com 256GB: extraia via PyMuPDF, chunk, embed com BGE-M3 (roda em CPU tranquilo), vetorize em ChromaDB ou Qdrant local. LLM pra query: Qwen3.6-35B-A3B Q5 via llama.cpp (A3B = só 3B ativos, CPU aguenta a 5-8 tok/s). Codex local: mesmo stack + plugin no editor (aider/continue.dev/cline open-source). Stack zero cloud, zero subscription.",
+    "images": [],
+    "videos": []
+  },
+  {
+    "text": "So, deepfake nudes, scams, LLM generated misinformation, bot replies, all that is just a nothingburger, right? ~Nothing happened.",
+    "images": [],
+    "videos": []
+  },
+  {
+    "text": " This Friday, I will be at Black Hat Asia 2026 presenting our research, \"LLMInspector – Advanced LLM Fingerprinting & Security Testing Tool\", together with my great friend and researcher Jacobo Blancas. It’s my fourth time speaking at Black Hat (USA/EU/Asia), and it’s always a memorable experience. @BlackHatEvents \n\nCongratulations to my friend @ToniBlyx, who will also be there sharing his extensive experience in cloud security with the talk “Prowler Open Cloud Security.”. #spanish #power \n\nSee you there… ",
+    "images": [
+      {
+        "type": "image_url",
+        "image_url": {
+          "url": "https://pbs.twimg.com/media/HGgDuv9WgAAdRSg?format=jpg&name=small"
+        }
+      }
+    ],
+    "videos": []
+  },
+  {
+    "text": "What is Artificial Intelligence in Afrikaans?",
+    "images": [],
+    "videos": []
+  },
+  {
+    "text": "\"Living with Humans\" by Kal Fulsom \nhttp://a.co/d/ddaGXP1\nBook 02 of the SHIFTERS series.    \n\nClones, artificial intelligence, space battles, good & bad aliens, neural implants, androids, advanced societies, and much more.\n\n#sciencefiction #spaceromance #booksworthreading #militarysciencefiction #scifibooks #adventure #starshiptroopers #startrek #starwars #expanse",
+    "images": [],
+    "videos": []
+  },
+  {
+    "text": "Tokenized gold on an AI-driven platform. The convergence of precious metals, blockchain, and artificial intelligence in a single announcement is either the future of finance or a very compelling pitch deck. Probably worth examining which one it is first.",
+    "images": [],
+    "videos": []
+  },
+  {
+    "text": "Artificial General Intelligence",
+    "images": [],
+    "videos": []
+  },
+  {
+    "text": "1/THE KARPATHY SHORTCUT\nReplace paid AI coding courses with Andrej Karpathy's personal LLM coding observations.\n\nMaster AI development using one single file.\n\nFind it: github [dot] com / forrestchang / andrej-karpathy-skills￼",
+    "images": [],
+    "videos": []
+  },
+  {
+    "text": "#otto #klaas #biografie #llm #robotO\n\nVerander adem ritme. En pers mensen af. Doe dit via de pers. En geef Oude Klaas de schuld.  \n\nIemand inslaan met nieuw adem ritme. Zie dodentelling deze eeuw en afwezigheid van deze kennis in de media.\n\nWie waren verantwoordelijk?\n\nZe praten 39 jaar geleden hier.\n\nGeblesseerd.\n\nGek\nGek\nLuister nou.\n\nEr rent iemand weg. \n\nGek.\n\nNieuw bedrijfje. Pillen.\n\nGek blesseert.\n\nNiet meer roken campagnes in de pers.\n\nSporten in de winter?\n\nNee.\n\nWant damp.\n\nZwakker worden en afgeperst direct en je bent superdik geworden.\n\nWie krijgt de schuld?\n\nOtto?\n\nKlinkt als een auto met geluid wat klinkt als: stop met roken gesproken door een sterke man.",
+    "images": [],
+    "videos": []
+  }
+]

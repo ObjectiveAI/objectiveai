@@ -6,7 +6,6 @@ mod agents;
 mod swarms;
 mod viewer;
 mod favorite;
-mod jq;
 
 pub use config::*;
 pub use api::*;

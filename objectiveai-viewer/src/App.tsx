@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 import { AgentCompletionView } from "./AgentCompletionView";
 import { z } from "zod";
 import {
@@ -306,6 +307,11 @@ function App() {
         }
       });
     });
+
+    // Signal the Rust backend that all listeners are registered.
+    // Events are buffered on the Rust side until this resolves.
+    Promise.all([unlistenAgentCompletion, unlistenExecution, unlistenInvention, unlistenLaboratory])
+      .then(() => invoke("viewer_ready"));
 
     return () => {
       unlistenAgentCompletion.then((fn) => fn());

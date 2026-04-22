@@ -207,12 +207,35 @@ pub fn write_laboratory_execution(client: &super::super::Client) -> super::LogWr
 // Read helpers
 // -----------------------------------------------------------------------
 
-async fn read_json(client: &super::super::Client, dir: &str, stem: &str) -> Result<serde_json::Value, super::super::Error> {
+async fn read_json(
+    client: &super::super::Client,
+    dir: &str,
+    stem: &str,
+    jq: Option<&str>,
+) -> Result<serde_json::Value, super::super::Error> {
     let full = client.logs_dir().join(dir).join(format!("{stem}.json"));
     let bytes = tokio::fs::read(&full).await
         .map_err(|e| super::super::Error::Read(full.clone(), e))?;
-    serde_json::from_slice(&bytes)
-        .map_err(|e| super::super::Error::Parse(full, e))
+    let value: serde_json::Value = serde_json::from_slice(&bytes)
+        .map_err(|e| super::super::Error::Parse(full, e))?;
+    apply_jq(value, jq)
+}
+
+/// Applies a jq filter to a JSON value, collapsing the multi-result vector
+/// the same way the CLI `config get` command does: a single result is
+/// unwrapped, an empty result becomes JSON null, and multiple results are
+/// wrapped as an array. When `jq` is `None`, the value is returned as-is.
+fn apply_jq(
+    value: serde_json::Value,
+    jq: Option<&str>,
+) -> Result<serde_json::Value, super::super::Error> {
+    let Some(filter) = jq else { return Ok(value); };
+    let mut results = super::super::run_jq(&value, filter)?;
+    Ok(match results.len() {
+        0 => serde_json::Value::Null,
+        1 => results.remove(0),
+        _ => serde_json::Value::Array(results),
+    })
 }
 
 /// Finds the first file in `dir` whose name starts with `stem.` (any extension)
@@ -246,20 +269,20 @@ async fn read_data_url_by_stem(client: &super::super::Client, dir: &str, stem: &
 // Read methods — agent completions
 // -----------------------------------------------------------------------
 
-pub async fn read_agent_completion(client: &super::super::Client, id: &str) -> Result<serde_json::Value, super::super::Error> {
-    read_json(client, "agents/completions", id).await
+pub async fn read_agent_completion(client: &super::super::Client, id: &str, jq: Option<&str>) -> Result<serde_json::Value, super::super::Error> {
+    read_json(client, "agents/completions", id, jq).await
 }
 
-pub async fn read_agent_completion_continuation(client: &super::super::Client, id: &str) -> Result<serde_json::Value, super::super::Error> {
-    read_json(client, "agents/completions/continuation", id).await
+pub async fn read_agent_completion_continuation(client: &super::super::Client, id: &str, jq: Option<&str>) -> Result<serde_json::Value, super::super::Error> {
+    read_json(client, "agents/completions/continuation", id, jq).await
 }
 
-pub async fn read_agent_completion_message(client: &super::super::Client, id: &str, message_index: u64) -> Result<serde_json::Value, super::super::Error> {
-    read_json(client, "agents/completions/messages", &format!("{id}_{message_index}")).await
+pub async fn read_agent_completion_message(client: &super::super::Client, id: &str, message_index: u64, jq: Option<&str>) -> Result<serde_json::Value, super::super::Error> {
+    read_json(client, "agents/completions/messages", &format!("{id}_{message_index}"), jq).await
 }
 
-pub async fn read_agent_completion_message_logprobs(client: &super::super::Client, id: &str, message_index: u64) -> Result<serde_json::Value, super::super::Error> {
-    read_json(client, "agents/completions/messages/logprobs", &format!("{id}_{message_index}")).await
+pub async fn read_agent_completion_message_logprobs(client: &super::super::Client, id: &str, message_index: u64, jq: Option<&str>) -> Result<serde_json::Value, super::super::Error> {
+    read_json(client, "agents/completions/messages/logprobs", &format!("{id}_{message_index}"), jq).await
 }
 
 pub async fn read_agent_completion_message_image(client: &super::super::Client, id: &str, message_index: u64, media_index: u64) -> Result<String, super::super::Error> {
@@ -282,44 +305,44 @@ pub async fn read_agent_completion_message_file(client: &super::super::Client, i
 // Read methods — vector completions
 // -----------------------------------------------------------------------
 
-pub async fn read_vector_completion(client: &super::super::Client, id: &str) -> Result<serde_json::Value, super::super::Error> {
-    read_json(client, "vector/completions", id).await
+pub async fn read_vector_completion(client: &super::super::Client, id: &str, jq: Option<&str>) -> Result<serde_json::Value, super::super::Error> {
+    read_json(client, "vector/completions", id, jq).await
 }
 
 // -----------------------------------------------------------------------
 // Read methods — function executions
 // -----------------------------------------------------------------------
 
-pub async fn read_function_execution(client: &super::super::Client, id: &str) -> Result<serde_json::Value, super::super::Error> {
-    read_json(client, "functions/executions", id).await
+pub async fn read_function_execution(client: &super::super::Client, id: &str, jq: Option<&str>) -> Result<serde_json::Value, super::super::Error> {
+    read_json(client, "functions/executions", id, jq).await
 }
 
-pub async fn read_function_execution_retry_token(client: &super::super::Client, id: &str) -> Result<serde_json::Value, super::super::Error> {
-    read_json(client, "functions/executions/retry_token", id).await
+pub async fn read_function_execution_retry_token(client: &super::super::Client, id: &str, jq: Option<&str>) -> Result<serde_json::Value, super::super::Error> {
+    read_json(client, "functions/executions/retry_token", id, jq).await
 }
 
 // -----------------------------------------------------------------------
 // Read methods — function inventions
 // -----------------------------------------------------------------------
 
-pub async fn read_function_invention(client: &super::super::Client, id: &str) -> Result<serde_json::Value, super::super::Error> {
-    read_json(client, "functions/inventions", id).await
+pub async fn read_function_invention(client: &super::super::Client, id: &str, jq: Option<&str>) -> Result<serde_json::Value, super::super::Error> {
+    read_json(client, "functions/inventions", id, jq).await
 }
 
 // -----------------------------------------------------------------------
 // Read methods — function inventions recursive
 // -----------------------------------------------------------------------
 
-pub async fn read_function_invention_recursive(client: &super::super::Client, id: &str) -> Result<serde_json::Value, super::super::Error> {
-    read_json(client, "functions/inventions/recursive", id).await
+pub async fn read_function_invention_recursive(client: &super::super::Client, id: &str, jq: Option<&str>) -> Result<serde_json::Value, super::super::Error> {
+    read_json(client, "functions/inventions/recursive", id, jq).await
 }
 
 // -----------------------------------------------------------------------
 // Read methods — laboratory executions
 // -----------------------------------------------------------------------
 
-pub async fn read_laboratory_execution(client: &super::super::Client, id: &str) -> Result<serde_json::Value, super::super::Error> {
-    read_json(client, "laboratories/executions", id).await
+pub async fn read_laboratory_execution(client: &super::super::Client, id: &str, jq: Option<&str>) -> Result<serde_json::Value, super::super::Error> {
+    read_json(client, "laboratories/executions", id, jq).await
 }
 
 // -----------------------------------------------------------------------
@@ -328,18 +351,29 @@ pub async fn read_laboratory_execution(client: &super::super::Client, id: &str) 
 
 /// Polls for a JSON file. If `require_modification` is false, returns
 /// immediately when the file exists. If true, waits for creation or
-/// modification. Returns `None` on deletion or timeout.
+/// modification. Returns `Ok(None)` on deletion or timeout. When `jq` is
+/// provided, the result is run through the filter before returning.
 async fn subscribe_json(
     client: &super::super::Client,
     dir: &str,
     stem: &str,
     timeout: std::time::Duration,
     require_modification: bool,
-) -> Option<serde_json::Value> {
+    jq: Option<&str>,
+) -> Result<Option<serde_json::Value>, super::super::Error> {
     let full = client.logs_dir().join(dir).join(format!("{stem}.json"));
-    poll_file(&full, timeout, require_modification).await?;
-    let bytes = tokio::fs::read(&full).await.ok()?;
-    serde_json::from_slice(&bytes).ok()
+    if poll_file(&full, timeout, require_modification).await.is_none() {
+        return Ok(None);
+    }
+    let bytes = match tokio::fs::read(&full).await {
+        Ok(b) => b,
+        Err(_) => return Ok(None),
+    };
+    let value: serde_json::Value = match serde_json::from_slice(&bytes) {
+        Ok(v) => v,
+        Err(_) => return Ok(None),
+    };
+    apply_jq(value, jq).map(Some)
 }
 
 /// Polls for a media file (any extension matching `stem.`). If
@@ -457,20 +491,20 @@ async fn find_file_mtime_by_prefix(
 // Subscribe methods — agent completions
 // -----------------------------------------------------------------------
 
-pub async fn subscribe_agent_completion(client: &super::super::Client, id: &str, timeout: std::time::Duration, require_modification: bool) -> Option<serde_json::Value> {
-    subscribe_json(client, "agents/completions", id, timeout, require_modification).await
+pub async fn subscribe_agent_completion(client: &super::super::Client, id: &str, timeout: std::time::Duration, require_modification: bool, jq: Option<&str>) -> Result<Option<serde_json::Value>, super::super::Error> {
+    subscribe_json(client, "agents/completions", id, timeout, require_modification, jq).await
 }
 
-pub async fn subscribe_agent_completion_continuation(client: &super::super::Client, id: &str, timeout: std::time::Duration, require_modification: bool) -> Option<serde_json::Value> {
-    subscribe_json(client, "agents/completions/continuation", id, timeout, require_modification).await
+pub async fn subscribe_agent_completion_continuation(client: &super::super::Client, id: &str, timeout: std::time::Duration, require_modification: bool, jq: Option<&str>) -> Result<Option<serde_json::Value>, super::super::Error> {
+    subscribe_json(client, "agents/completions/continuation", id, timeout, require_modification, jq).await
 }
 
-pub async fn subscribe_agent_completion_message(client: &super::super::Client, id: &str, message_index: u64, timeout: std::time::Duration, require_modification: bool) -> Option<serde_json::Value> {
-    subscribe_json(client, "agents/completions/messages", &format!("{id}_{message_index}"), timeout, require_modification).await
+pub async fn subscribe_agent_completion_message(client: &super::super::Client, id: &str, message_index: u64, timeout: std::time::Duration, require_modification: bool, jq: Option<&str>) -> Result<Option<serde_json::Value>, super::super::Error> {
+    subscribe_json(client, "agents/completions/messages", &format!("{id}_{message_index}"), timeout, require_modification, jq).await
 }
 
-pub async fn subscribe_agent_completion_message_logprobs(client: &super::super::Client, id: &str, message_index: u64, timeout: std::time::Duration, require_modification: bool) -> Option<serde_json::Value> {
-    subscribe_json(client, "agents/completions/messages/logprobs", &format!("{id}_{message_index}"), timeout, require_modification).await
+pub async fn subscribe_agent_completion_message_logprobs(client: &super::super::Client, id: &str, message_index: u64, timeout: std::time::Duration, require_modification: bool, jq: Option<&str>) -> Result<Option<serde_json::Value>, super::super::Error> {
+    subscribe_json(client, "agents/completions/messages/logprobs", &format!("{id}_{message_index}"), timeout, require_modification, jq).await
 }
 
 pub async fn subscribe_agent_completion_message_image(client: &super::super::Client, id: &str, message_index: u64, media_index: u64, timeout: std::time::Duration, require_modification: bool) -> Option<String> {
@@ -493,42 +527,42 @@ pub async fn subscribe_agent_completion_message_file(client: &super::super::Clie
 // Subscribe methods — vector completions
 // -----------------------------------------------------------------------
 
-pub async fn subscribe_vector_completion(client: &super::super::Client, id: &str, timeout: std::time::Duration, require_modification: bool) -> Option<serde_json::Value> {
-    subscribe_json(client, "vector/completions", id, timeout, require_modification).await
+pub async fn subscribe_vector_completion(client: &super::super::Client, id: &str, timeout: std::time::Duration, require_modification: bool, jq: Option<&str>) -> Result<Option<serde_json::Value>, super::super::Error> {
+    subscribe_json(client, "vector/completions", id, timeout, require_modification, jq).await
 }
 
 // -----------------------------------------------------------------------
 // Subscribe methods — function executions
 // -----------------------------------------------------------------------
 
-pub async fn subscribe_function_execution(client: &super::super::Client, id: &str, timeout: std::time::Duration, require_modification: bool) -> Option<serde_json::Value> {
-    subscribe_json(client, "functions/executions", id, timeout, require_modification).await
+pub async fn subscribe_function_execution(client: &super::super::Client, id: &str, timeout: std::time::Duration, require_modification: bool, jq: Option<&str>) -> Result<Option<serde_json::Value>, super::super::Error> {
+    subscribe_json(client, "functions/executions", id, timeout, require_modification, jq).await
 }
 
-pub async fn subscribe_function_execution_retry_token(client: &super::super::Client, id: &str, timeout: std::time::Duration, require_modification: bool) -> Option<serde_json::Value> {
-    subscribe_json(client, "functions/executions/retry_token", id, timeout, require_modification).await
+pub async fn subscribe_function_execution_retry_token(client: &super::super::Client, id: &str, timeout: std::time::Duration, require_modification: bool, jq: Option<&str>) -> Result<Option<serde_json::Value>, super::super::Error> {
+    subscribe_json(client, "functions/executions/retry_token", id, timeout, require_modification, jq).await
 }
 
 // -----------------------------------------------------------------------
 // Subscribe methods — function inventions
 // -----------------------------------------------------------------------
 
-pub async fn subscribe_function_invention(client: &super::super::Client, id: &str, timeout: std::time::Duration, require_modification: bool) -> Option<serde_json::Value> {
-    subscribe_json(client, "functions/inventions", id, timeout, require_modification).await
+pub async fn subscribe_function_invention(client: &super::super::Client, id: &str, timeout: std::time::Duration, require_modification: bool, jq: Option<&str>) -> Result<Option<serde_json::Value>, super::super::Error> {
+    subscribe_json(client, "functions/inventions", id, timeout, require_modification, jq).await
 }
 
 // -----------------------------------------------------------------------
 // Subscribe methods — function inventions recursive
 // -----------------------------------------------------------------------
 
-pub async fn subscribe_function_invention_recursive(client: &super::super::Client, id: &str, timeout: std::time::Duration, require_modification: bool) -> Option<serde_json::Value> {
-    subscribe_json(client, "functions/inventions/recursive", id, timeout, require_modification).await
+pub async fn subscribe_function_invention_recursive(client: &super::super::Client, id: &str, timeout: std::time::Duration, require_modification: bool, jq: Option<&str>) -> Result<Option<serde_json::Value>, super::super::Error> {
+    subscribe_json(client, "functions/inventions/recursive", id, timeout, require_modification, jq).await
 }
 
 // -----------------------------------------------------------------------
 // Subscribe methods — laboratory executions
 // -----------------------------------------------------------------------
 
-pub async fn subscribe_laboratory_execution(client: &super::super::Client, id: &str, timeout: std::time::Duration, require_modification: bool) -> Option<serde_json::Value> {
-    subscribe_json(client, "laboratories/executions", id, timeout, require_modification).await
+pub async fn subscribe_laboratory_execution(client: &super::super::Client, id: &str, timeout: std::time::Duration, require_modification: bool, jq: Option<&str>) -> Result<Option<serde_json::Value>, super::super::Error> {
+    subscribe_json(client, "laboratories/executions", id, timeout, require_modification, jq).await
 }

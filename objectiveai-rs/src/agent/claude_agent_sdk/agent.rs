@@ -17,17 +17,6 @@ pub struct AgentBase {
     /// The output mode for vector completions. Ignored for agent completions.
     pub output_mode: super::OutputMode,
 
-    /// Enable synthetic reasoning for non-reasoning LLMs.
-    ///
-    /// **Vector completions only.** Ignored for agent completions.
-    ///
-    /// When enabled, forces the LLM to output a `_think` field before voting,
-    /// simulating chain-of-thought reasoning. Requires `output_mode` to be
-    /// `ToolCall` (not `Instruction`).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub synthetic_reasoning: Option<bool>,
-
     /// Whether thinking/extended thinking is enabled.
     ///
     /// Defaults to `true`. Set to `false` to disable.
@@ -64,10 +53,6 @@ pub struct AgentBase {
 impl AgentBase {
     /// Normalizes the configuration for deterministic ID computation.
     pub fn prepare(&mut self) {
-        self.synthetic_reasoning = match self.synthetic_reasoning {
-            Some(false) => None,
-            other => other,
-        };
         self.thinking = match self.thinking {
             Some(true) => None,
             other => other,
@@ -106,14 +91,6 @@ impl AgentBase {
     pub fn validate(&self) -> Result<(), String> {
         if self.model.is_empty() {
             return Err("`model` string cannot be empty".to_string());
-        }
-        if self.synthetic_reasoning.is_some()
-            && let super::OutputMode::Instruction = self.output_mode
-        {
-            return Err(
-                "`synthetic_reasoning` cannot be true when `output_mode` is \"instruction\""
-                    .to_string(),
-            );
         }
         if let Some(effort) = &self.effort {
             effort.validate()?;

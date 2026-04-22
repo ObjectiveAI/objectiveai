@@ -1,0 +1,18 @@
+{
+  "title": "agent.claude_code.Continuation",
+  "type": "object",
+  "properties": {
+    "mcp_sessions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "session_id": {
+      "type": "string"
+    },
+    "upstream": {
+      "$ref": "agent.claude_code.Upstream"
+    }
+  }
+}

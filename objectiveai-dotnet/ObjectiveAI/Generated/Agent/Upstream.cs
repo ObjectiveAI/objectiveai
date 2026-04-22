@@ -38,6 +38,13 @@ public partial class Upstream
     public string? ClaudeAgentSdk { get; set; }
 
     /// <summary>
+    /// Claude Code Upstream.
+    /// </summary>
+    [Description("Claude Code Upstream.")]
+    [JsonSchemaVariant("ClaudeCode", Type = "string", Enum = new[] { "claude_code" })]
+    public string? ClaudeCode { get; set; }
+
+    /// <summary>
     /// Mock Upstream.
     /// </summary>
     [Description("Mock Upstream.")]
@@ -58,6 +65,7 @@ public class UpstreamConverter : JsonConverter<Upstream>
             "unknown" => new Upstream { Unknown = "unknown" },
             "openrouter" => new Upstream { Openrouter = "openrouter" },
             "claude_agent_sdk" => new Upstream { ClaudeAgentSdk = "claude_agent_sdk" },
+            "claude_code" => new Upstream { ClaudeCode = "claude_code" },
             "mock" => new Upstream { Mock = "mock" },
             _ => throw new JsonException($"Unknown variant of Upstream: {str}")
         };
@@ -79,6 +87,11 @@ public class UpstreamConverter : JsonConverter<Upstream>
         if (value.ClaudeAgentSdk != null)
         {
             writer.WriteStringValue(value.ClaudeAgentSdk);
+            return;
+        }
+        if (value.ClaudeCode != null)
+        {
+            writer.WriteStringValue(value.ClaudeCode);
             return;
         }
         if (value.Mock != null)

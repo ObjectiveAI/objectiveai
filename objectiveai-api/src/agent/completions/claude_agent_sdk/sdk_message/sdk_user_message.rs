@@ -77,6 +77,7 @@ impl SDKUserMessage {
         id: String,
         created: u64,
         message_index: u64,
+        upstream: objectiveai::agent::Upstream,
     ) -> Option<objectiveai::agent::completions::response::streaming::AgentCompletionChunk> {
         let (Some(tool_use_result), Some(tool_call_id)) =
             (self.tool_use_result, self.parent_tool_use_id)
@@ -105,7 +106,7 @@ impl SDKUserMessage {
                 messages: vec![message],
                 object: Default::default(),
                 usage: None,
-                upstream: objectiveai::agent::Upstream::ClaudeAgentSdk,
+                upstream,
                 error: None,
                 continuation: None,
             },

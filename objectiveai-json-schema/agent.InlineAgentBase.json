@@ -11,6 +11,10 @@
       "$ref": "agent.claude_agent_sdk.AgentBase"
     },
     {
+      "title": "ClaudeCode",
+      "$ref": "agent.claude_code.AgentBase"
+    },
+    {
       "title": "Mock",
       "$ref": "agent.mock.AgentBase"
     }

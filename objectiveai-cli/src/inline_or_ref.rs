@@ -36,11 +36,11 @@
 macro_rules! define_inline_or_ref {
     ($struct_name:ident, $arg_name:literal, $output_ty:ty, $remote_variant:ident) => {
         #[derive(clap::Args)]
-        #[group(required = true, multiple = false)]
+        #[group(id = concat!($arg_name, "-group"), required = true, multiple = false)]
         pub struct $struct_name {
-            #[arg(long = $arg_name, help = concat!("Reference (e.g. favorite=name or remote=github,owner=x,repository=y)"))]
+            #[arg(id = $arg_name, long = $arg_name, value_name = "REFERENCE", help = concat!("Reference (e.g. favorite=name or remote=github,owner=x,repository=y)"))]
             reference: Option<crate::favorite_ref::FavoriteRef>,
-            #[arg(long = concat!($arg_name, "-inline"), help = "Inline JSON definition")]
+            #[arg(id = concat!($arg_name, "-inline"), long = concat!($arg_name, "-inline"), value_name = "INLINE", help = "Inline JSON definition")]
             inline: Option<String>,
         }
 

@@ -1,0 +1,165 @@
+{
+  "type": "alpha.scalar.leaf.function",
+  "description": "Evaluates tweets to distinguish genuine technical knowledge from performative expertise. Assesses concrete technical references, depth of understanding via trade-offs, engagement with real technical challenges, and proper terminology use. Scores substantive technical engagement grounded in experience and understanding.",
+  "input_schema": {
+    "type": "object",
+    "description": "A scraped post with text, images, and videos.",
+    "properties": {
+      "text": {
+        "type": "string",
+        "description": "The text content of the post."
+      },
+      "images": {
+        "type": "array",
+        "description": "Images attached to the post.",
+        "items": {
+          "type": "image",
+          "description": "An image URL."
+        }
+      },
+      "videos": {
+        "type": "array",
+        "description": "Videos attached to the post.",
+        "items": {
+          "type": "video",
+          "description": "A video URL."
+        }
+      }
+    },
+    "required": [
+      "text",
+      "images",
+      "videos"
+    ]
+  },
+  "tasks": [
+    {
+      "type": "vector.completion",
+      "messages": {
+        "$starlark": "[{'role': 'user', 'content': [{'type': 'text', 'text': 'Evaluate this tweet for evidence of genuine technical knowledge depth. Does the author demonstrate understanding by discussing trade-offs, limitations, reasoning behind choices, or the why behind technical decisions? Or does it merely state facts?\\n\\nTweet: ' + input['text']}]}]"
+      },
+      "responses": [
+        [
+          {
+            "type": "text",
+            "text": "Surface-level statements only - facts stated without reasoning or understanding of implications"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "Basic understanding shown - some discussion of what things do but limited depth on why"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "Strong understanding demonstrated - discusses trade-offs, limitations, and reasoning behind technical choices"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "Exceptional depth - clearly demonstrates engagement with subtle technical implications, trade-offs, and architectural reasoning"
+          }
+        ]
+      ]
+    },
+    {
+      "type": "vector.completion",
+      "messages": {
+        "$starlark": "[{'role': 'user', 'content': [{'type': 'text', 'text': 'Evaluate this tweet for engagement with real technical challenges. Does it address authentic technical problems practitioners actually face, such as computational constraints, optimization challenges, design trade-offs, or implementation realities? Or is it theoretical and disconnected?\\n\\nTweet: ' + input['text']}]}]"
+      },
+      "responses": [
+        [
+          {
+            "type": "text",
+            "text": "Theoretical or disconnected - no engagement with practical technical constraints or real-world challenges"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "Minimal practical engagement - mentions some practical concerns but mostly abstract"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "Good practical awareness - addresses real technical challenges and constraints practitioners encounter"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "Strong real-world grounding - clearly engages with authentic technical difficulties and implementation realities"
+          }
+        ]
+      ]
+    },
+    {
+      "type": "vector.completion",
+      "messages": {
+        "$starlark": "[{'role': 'user', 'content': [{'type': 'text', 'text': 'Evaluate this tweet\\'s use of technical terminology. Is technical language used precisely to communicate specific concepts with clarity, or is it deployed primarily as window dressing for credibility? Does the terminology reflect genuine understanding?\\n\\nTweet: ' + input['text']}]}]"
+      },
+      "responses": [
+        [
+          {
+            "type": "text",
+            "text": "Jargon for credibility - technical terms used without clear understanding or proper context"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "Mixed usage - some precise terminology alongside some imprecise or decorative jargon"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "Mostly precise - technical terminology generally used correctly to convey specific concepts"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "Exemplary precision - all technical terminology used with clear understanding and communicative efficiency"
+          }
+        ]
+      ]
+    },
+    {
+      "type": "vector.completion",
+      "messages": {
+        "$starlark": "[{'role': 'user', 'content': [{'type': 'text', 'text': 'Evaluate this post for concrete technical specificity. Does it reference named algorithms, specific methodologies, particular architectural decisions, or research findings? Or does it speak only in generic terms about technology?\\n\\nPost text: ' + input['text']}] + input['images'] + input['videos']}]"
+      },
+      "responses": [
+        [
+          {
+            "type": "text",
+            "text": "No concrete technical references - uses only generic tech terminology without specifics"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "Some named concepts mentioned but largely generic - references exist but lack depth"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "Good concrete specificity - names specific algorithms, methodologies, or architectural decisions"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "Exceptional concrete specificity - precise references to named algorithms, papers, specific technical approaches, or detailed methodologies"
+          }
+        ]
+      ]
+    }
+  ]
+}

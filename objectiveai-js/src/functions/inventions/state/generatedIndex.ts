@@ -6,6 +6,7 @@ export * from "./alphaScalarState";
 export * from "./alphaVectorBranchState";
 export * from "./alphaVectorLeafState";
 export * from "./alphaVectorState";
+export * from "./getFunctionInventionStateResponse";
 export * from "./inputSchema";
 export * from "./params";
 export * from "./paramsState";

@@ -65,7 +65,7 @@ pub async fn handle(args: CreateArgs, cli_config: &crate::Config) -> Result<crat
     };
 
     let fs_client = objectiveai::filesystem::Client::new(cli_config.config_base_dir.as_deref(), None::<String>, None::<String>);
-    let mut log_writer = objectiveai::filesystem::logs::client::write_laboratory_execution(&fs_client);
+    let log_writer = objectiveai::filesystem::logs::client::write_laboratory_execution(&fs_client);
 
     crate::api::run(
         Box::new(move |http_client| Box::pin(async move {
@@ -74,31 +74,15 @@ pub async fn handle(args: CreateArgs, cli_config: &crate::Config) -> Result<crat
                     &http_client, params,
                 )
                 .await?;
-            tokio::pin!(stream);
 
-            let mut accumulated: Option<
-                objectiveai::laboratories::executions::response::streaming::LaboratoryExecutionChunk,
-            > = None;
-            let mut logged_id = false;
-            while let Some(chunk) = stream.next().await {
-                let chunk = chunk?;
-                match &mut accumulated {
-                    Some(agg) => agg.push(&chunk),
-                    None => accumulated = Some(chunk),
-                }
-                if let Some(agg) = &accumulated {
-                    let _ = log_writer.write(agg).await;
-                }
-                if !logged_id {
-                    if let Some(id) = log_writer.primary_id() {
-                        crate::log_line::print_log_id(id);
-                        logged_id = true;
-                    }
-                }
-            }
+            let accumulated = crate::log_stream::consume_with_coalesced_writes(
+                stream.map(|r| r.map_err(crate::error::Error::from)),
+                log_writer,
+                |agg: &mut objectiveai::laboratories::executions::response::streaming::LaboratoryExecutionChunk, c| agg.push(c),
+            ).await?;
 
             let execution: objectiveai::laboratories::executions::response::unary::LaboratoryExecution =
-                accumulated.ok_or(crate::error::Error::EmptyStream)?.into();
+                accumulated.into();
 
             // Collect evaluation outputs indexed by agent_index
             // agent_index -> (output, error)

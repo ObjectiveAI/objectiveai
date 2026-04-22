@@ -66,18 +66,6 @@
       ],
       "omitempty": true
     },
-    "synthetic_reasoning": {
-      "description": "Enable synthetic reasoning for non-reasoning LLMs.\n\n**Vector completions only.** Ignored for agent completions.\n\nWhen enabled, forces the LLM to output a `_think` field before voting,\nsimulating chain-of-thought reasoning. Requires `output_mode` to be\n`ToolCall` (not `Instruction`).",
-      "anyOf": [
-        {
-          "type": "boolean"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
-    },
     "system_prompt": {
       "description": "System prompt for the agent.",
       "anyOf": [

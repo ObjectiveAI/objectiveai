@@ -15,6 +15,7 @@ import (
 type AgentContinuation struct {
 	Openrouter *AgentOpenrouterContinuation 
 	ClaudeAgentSdk *AgentClaudeAgentSdkContinuation 
+	ClaudeCode *AgentClaudeCodeContinuation 
 	Mock *AgentMockContinuation 
 }
 
@@ -24,6 +25,9 @@ func (v AgentContinuation) MarshalJSON() ([]byte, error) {
 	}
 	if v.ClaudeAgentSdk != nil {
 		return json.Marshal(v.ClaudeAgentSdk)
+	}
+	if v.ClaudeCode != nil {
+		return json.Marshal(v.ClaudeCode)
 	}
 	if v.Mock != nil {
 		return json.Marshal(v.Mock)
@@ -55,6 +59,17 @@ func (v *AgentContinuation) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
+		var try AgentClaudeCodeContinuation
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := AgentContinuation{}
+			candidate.ClaudeCode = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
 		var try AgentMockContinuation
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := AgentContinuation{}
@@ -72,6 +87,7 @@ func (v AgentContinuation) Validate() error {
 	count := 0
 	if v.Openrouter != nil { count++ }
 	if v.ClaudeAgentSdk != nil { count++ }
+	if v.ClaudeCode != nil { count++ }
 	if v.Mock != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("AgentContinuation: exactly one variant must be set, got %d", count)

@@ -65,10 +65,10 @@ fn validate_name(name: &str) -> Result<(), super::Error> {
 ///
 /// Orchestrates the multi-step invention flow: essay, input schema,
 /// essay tasks, tasks, description, and readme generation.
-pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM> {
+pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM> {
     pub agent_client: Arc<
         crate::agent::completions::Client<
-            CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG,
+            CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, CUSG,
         >,
     >,
     pub github_client: Arc<crate::github::Client>,
@@ -80,13 +80,13 @@ pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM,
     pub forbid_overwrite: bool,
 }
 
-impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM>
-    Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM>
+impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM>
+    Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM>
 {
     pub fn new(
         agent_client: Arc<
             crate::agent::completions::Client<
-                CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG,
+                CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, CUSG,
             >,
         >,
         github_client: Arc<crate::github::Client>,
@@ -110,7 +110,7 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, 
     }
 }
 
-type Continuation<OPENROUTER, CLAUDEAGENTSDK, MOCK> =
+type Continuation<OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK> =
     crate::agent::completions::Continuation<
         <OPENROUTER as crate::agent::completions::UpstreamClient<
             objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation,
@@ -118,13 +118,16 @@ type Continuation<OPENROUTER, CLAUDEAGENTSDK, MOCK> =
         <CLAUDEAGENTSDK as crate::agent::completions::UpstreamClient<
             objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
         >>::State,
+        <CLAUDECODE as crate::agent::completions::UpstreamClient<
+            objectiveai::agent::claude_code::Agent, objectiveai::agent::claude_code::Continuation,
+        >>::State,
         <MOCK as crate::agent::completions::UpstreamClient<
             objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation,
         >>::State,
     >;
 
-impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM>
-    Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM>
+impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM>
+    Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM>
 where
     CTXEXT: ctx::ContextExt + Send + Sync + 'static,
     OPENROUTER: crate::agent::completions::UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation>
@@ -133,6 +136,11 @@ where
         + 'static,
     CLAUDEAGENTSDK: crate::agent::completions::UpstreamClient<
             objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
+        > + Send
+        + Sync
+        + 'static,
+    CLAUDECODE: crate::agent::completions::UpstreamClient<
+            objectiveai::agent::claude_code::Agent, objectiveai::agent::claude_code::Continuation,
         > + Send
         + Sync
         + 'static,
@@ -479,11 +487,11 @@ struct CompiledPrompts {
     tasks_min: u64,
 }
 
-fn run_all_steps<T, CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG>(
+fn run_all_steps<T, CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, CUSG>(
     state_val: T,
     agent_client: Arc<
         crate::agent::completions::Client<
-            CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG,
+            CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, CUSG,
         >,
     >,
     github_client: Arc<crate::github::Client>,
@@ -504,6 +512,11 @@ where
         + 'static,
     CLAUDEAGENTSDK: crate::agent::completions::UpstreamClient<
             objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
+        > + Send
+        + Sync
+        + 'static,
+    CLAUDECODE: crate::agent::completions::UpstreamClient<
+            objectiveai::agent::claude_code::Agent, objectiveai::agent::claude_code::Continuation,
         > + Send
         + Sync
         + 'static,
@@ -537,7 +550,7 @@ where
 
         // Continuation carried between steps.
         let mut continuation: Option<
-            Continuation<OPENROUTER, CLAUDEAGENTSDK, MOCK>,
+            Continuation<OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK>,
         > = None;
         // Completion index incremented across all steps.
         let mut completion_index: u64 = 0;
@@ -756,15 +769,12 @@ where
         let (path, publish_error) = if function.is_some() {
             if let Some(remote) = &request.remote {
                 let publish_files = final_state.serialize_into_files();
-                let repo_name = &T::params(&state).name;
-                let owner = ctx.commit_author_name().await
-                    .unwrap_or_else(|| std::sync::Arc::new(filesystem_client.commit_author_name.clone()));
-                let name = format!("{}/{}", owner, repo_name);
+                let repo = &T::params(&state).name;
                 let description = extract_description(&final_state);
                 match remote {
                     objectiveai::Remote::Filesystem => {
                         match publish_filesystem(
-                            &filesystem_client, &ctx, &name, &publish_files,
+                            &filesystem_client, &ctx, repo, &publish_files,
                         ).await {
                             Ok(path) => (Some(path), None),
                             Err(e) => (None, Some(e)),
@@ -773,7 +783,7 @@ where
                     objectiveai::Remote::Github => {
                         match publish_github(
                             &github_client, &filesystem_client,
-                            &ctx, &name, &description, &publish_files,
+                            &ctx, repo, &description, &publish_files,
                         ).await {
                             Ok(path) => (Some(path), None),
                             Err(e) => (None, Some(e)),
@@ -825,44 +835,34 @@ pub(crate) fn extract_description(state: &objectiveai::functions::inventions::St
     }
 }
 
-/// Publishes to the local filesystem.
-///
-/// `name` is `"owner/repository"`. Creates/resets the git repo, writes files,
-/// and commits.
+/// Publishes to the local filesystem. Owner is resolved internally by
+/// the filesystem client from the commit-author name in `ctx`.
 pub(crate) async fn publish_filesystem<CTXEXT: crate::ctx::ContextExt>(
     filesystem_client: &crate::filesystem::Client,
     ctx: &crate::ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-    name: &str,
+    repo: &str,
     files: &std::collections::HashMap<&'static str, String>,
 ) -> Result<objectiveai::RemotePath, super::Error> {
-    let (owner, repo) = name.split_once('/')
-        .ok_or_else(|| super::Error::InvalidName(
-            format!("name must be 'owner/repository', got '{}'", name),
-        ))?;
-
     let file_refs: Vec<(&str, &str)> = files.iter()
         .map(|(n, c)| (*n, c.as_str()))
         .collect();
 
-    let commit = filesystem_client
-        .publish(ctx, crate::retrieval::Kind::Functions, owner, repo, &file_refs, &format!("publish {}", name)).await?;
+    let (owner, commit) = filesystem_client
+        .publish(ctx, crate::retrieval::Kind::Functions, repo, &file_refs, &format!("publish {}", repo)).await?;
 
     Ok(objectiveai::RemotePath::Filesystem {
-        owner: owner.to_string(),
+        owner,
         repository: repo.to_string(),
         commit,
     })
 }
 
-/// Publishes to GitHub.
-///
-/// Delegates to [`crate::github::Client::publish`] which handles repo
-/// creation, local git operations (via filesystem client), and push.
+/// Publishes to GitHub. Owner is resolved internally by the GitHub client.
 pub(crate) async fn publish_github<CTXEXT: ctx::ContextExt + Send + Sync>(
     github_client: &crate::github::Client,
     filesystem_client: &crate::filesystem::Client,
     ctx: &ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-    name: &str,
+    repo: &str,
     description: &str,
     files: &std::collections::HashMap<&'static str, String>,
 ) -> Result<objectiveai::RemotePath, super::Error> {
@@ -870,7 +870,7 @@ pub(crate) async fn publish_github<CTXEXT: ctx::ContextExt + Send + Sync>(
         .map(|(n, c)| (*n, c.as_str()))
         .collect();
     Ok(github_client
-        .publish(filesystem_client, ctx, name, description, &file_refs)
+        .publish(filesystem_client, ctx, repo, description, &file_refs)
         .await?)
 }
 
@@ -879,14 +879,15 @@ pub(crate) async fn publish_github<CTXEXT: ctx::ContextExt + Send + Sync>(
 // ---------------------------------------------------------------------------
 
 /// Output from a single step.
-enum StepOutput<OPENROUTER, CLAUDEAGENTSDK, MOCK>
+enum StepOutput<OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK>
 where
     OPENROUTER: crate::agent::completions::UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation>,
     CLAUDEAGENTSDK: crate::agent::completions::UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation>,
+    CLAUDECODE: crate::agent::completions::UpstreamClient<objectiveai::agent::claude_code::Agent, objectiveai::agent::claude_code::Continuation>,
     MOCK: crate::agent::completions::UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation>,
 {
     Chunk(FunctionInventionChunk),
-    Continuation(Continuation<OPENROUTER, CLAUDEAGENTSDK, MOCK>),
+    Continuation(Continuation<OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK>),
     CompletionIndex(u64),
 }
 
@@ -921,10 +922,10 @@ fn user_message(prompt: &str) -> objectiveai::agent::completions::message::UserM
     }
 }
 
-fn run_step<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG>(
+fn run_step<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, CUSG>(
     agent_client: Arc<
         crate::agent::completions::Client<
-            CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG,
+            CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, CUSG,
         >,
     >,
     ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
@@ -935,7 +936,7 @@ fn run_step<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG>
     id: String,
     created: u64,
     object: Object,
-    initial_continuation: Option<Continuation<OPENROUTER, CLAUDEAGENTSDK, MOCK>>,
+    initial_continuation: Option<Continuation<OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK>>,
     initial_completion_index: u64,
     invention_type: objectiveai::functions::inventions::prompts::StepPromptType,
     invention_step: usize,
@@ -943,7 +944,7 @@ fn run_step<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG>
     invention_input_schema: Option<String>,
 ) -> Pin<
     Box<
-        dyn Stream<Item = StepOutput<OPENROUTER, CLAUDEAGENTSDK, MOCK>>
+        dyn Stream<Item = StepOutput<OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK>>
             + Send,
     >,
 >
@@ -955,6 +956,11 @@ where
         + 'static,
     CLAUDEAGENTSDK: crate::agent::completions::UpstreamClient<
             objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
+        > + Send
+        + Sync
+        + 'static,
+    CLAUDECODE: crate::agent::completions::UpstreamClient<
+            objectiveai::agent::claude_code::Agent, objectiveai::agent::claude_code::Continuation,
         > + Send
         + Sync
         + 'static,

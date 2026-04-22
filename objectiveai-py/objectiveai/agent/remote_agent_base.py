@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Union
 from pydantic import ConfigDict, RootModel
 from objectiveai.agent.claude_agent_sdk.agent_base import AgentBase as AgentClaudeAgentSdkAgentBase
+from objectiveai.agent.claude_code.agent_base import AgentBase as AgentClaudeCodeAgentBase
 from objectiveai.agent.inline_agent_base import InlineAgentBase
 from objectiveai.agent.mock.agent_base import AgentBase as AgentMockAgentBase
 from objectiveai.agent.openrouter.agent_base import AgentBase as AgentOpenrouterAgentBase
@@ -17,6 +18,10 @@ class RemoteAgentBaseClaudeAgentSdk(AgentClaudeAgentSdkAgentBase):
     description: str
 
 
+class RemoteAgentBaseClaudeCode(AgentClaudeCodeAgentBase):
+    description: str
+
+
 class RemoteAgentBaseMock(AgentMockAgentBase):
     description: str
 
@@ -27,5 +32,5 @@ class RemoteAgentBase(RootModel):
 Like [`InlineAgentBase`] but includes a description field for remote storage."""
     model_config = ConfigDict(title='agent.RemoteAgentBase', json_schema_extra={'_expanded_ref': 'agent.InlineAgentBase', '_expanded_ref_props': ['description']})
 
-    root: Union[RemoteAgentBaseOpenrouter, RemoteAgentBaseClaudeAgentSdk, RemoteAgentBaseMock]
+    root: Union[RemoteAgentBaseOpenrouter, RemoteAgentBaseClaudeAgentSdk, RemoteAgentBaseClaudeCode, RemoteAgentBaseMock]
 

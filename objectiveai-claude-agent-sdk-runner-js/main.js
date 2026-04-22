@@ -86,6 +86,7 @@ const { values: args } = parseArgs({
     resume: { type: "string" },
     "user-agent": { type: "string" },
     "rate-limit-max-retries": { type: "string" },
+    "rate-limit-max-wait-secs": { type: "string" },
   },
   strict: true,
 });
@@ -96,6 +97,7 @@ if (!args.model || !args.message) {
 }
 
 const rateLimitMaxRetries = parseInt(args["rate-limit-max-retries"] || "10", 10);
+const rateLimitMaxWaitSecs = parseInt(args["rate-limit-max-wait-secs"] || "180", 10);
 
 // ---------------------------------------------------------------------------
 // Main
@@ -218,12 +220,19 @@ async function run() {
         const resetsAt = event.rate_limit_info.resetsAt;
         if (resetsAt && attempt < rateLimitMaxRetries) {
           const wait = Math.max(0, resetsAt - Date.now() / 1000) + 1;
-          process.stderr.write(
-            `Rate limited, retrying in ${Math.round(wait)}s (attempt ${attempt + 1}/${rateLimitMaxRetries})\n`
-          );
-          await new Promise((r) => setTimeout(r, wait * 1000));
-          rateLimited = true;
-          break;
+          if (wait > rateLimitMaxWaitSecs) {
+            process.stderr.write(
+              `Rate limited, but wait ${Math.round(wait)}s exceeds max ${rateLimitMaxWaitSecs}s — giving up\n`
+            );
+            // Fall through to emit the event and exit the outer loop.
+          } else {
+            process.stderr.write(
+              `Rate limited, retrying in ${Math.round(wait)}s (attempt ${attempt + 1}/${rateLimitMaxRetries})\n`
+            );
+            await new Promise((r) => setTimeout(r, wait * 1000));
+            rateLimited = true;
+            break;
+          }
         }
       }
 

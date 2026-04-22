@@ -1,5 +1,6 @@
 {
   "name": "objectiveai-claude-agent-sdk-runner-js",
+  "version": "2.0.0",
   "private": true,
   "main": "main.js",
   "pkg": {

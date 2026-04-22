@@ -19,6 +19,10 @@ type AgentUpstreamClaudeAgentSdk string
 
 func (AgentUpstreamClaudeAgentSdk) SchemaVariantTitle() string { return "ClaudeAgentSdk" }
 
+type AgentUpstreamClaudeCode string
+
+func (AgentUpstreamClaudeCode) SchemaVariantTitle() string { return "ClaudeCode" }
+
 type AgentUpstreamMock string
 
 func (AgentUpstreamMock) SchemaVariantTitle() string { return "Mock" }
@@ -31,6 +35,8 @@ type AgentUpstream struct {
 	Openrouter *AgentUpstreamOpenrouter `validate:"omitempty,oneof=openrouter"`
 	// Claude Agent SDK Upstream.
 	ClaudeAgentSdk *AgentUpstreamClaudeAgentSdk `validate:"omitempty,oneof=claude_agent_sdk"`
+	// Claude Code Upstream.
+	ClaudeCode *AgentUpstreamClaudeCode `validate:"omitempty,oneof=claude_code"`
 	// Mock Upstream.
 	Mock *AgentUpstreamMock `validate:"omitempty,oneof=mock"`
 }
@@ -44,6 +50,9 @@ func (v AgentUpstream) MarshalJSON() ([]byte, error) {
 	}
 	if v.ClaudeAgentSdk != nil {
 		return json.Marshal(v.ClaudeAgentSdk)
+	}
+	if v.ClaudeCode != nil {
+		return json.Marshal(v.ClaudeCode)
 	}
 	if v.Mock != nil {
 		return json.Marshal(v.Mock)
@@ -86,6 +95,17 @@ func (v *AgentUpstream) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
+		var try AgentUpstreamClaudeCode
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := AgentUpstream{}
+			candidate.ClaudeCode = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
 		var try AgentUpstreamMock
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := AgentUpstream{}
@@ -104,6 +124,7 @@ func (v AgentUpstream) Validate() error {
 	if v.Unknown != nil { count++ }
 	if v.Openrouter != nil { count++ }
 	if v.ClaudeAgentSdk != nil { count++ }
+	if v.ClaudeCode != nil { count++ }
 	if v.Mock != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("AgentUpstream: exactly one variant must be set, got %d", count)

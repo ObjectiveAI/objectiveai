@@ -46,7 +46,7 @@ impl ApiConfig {
     }
 
     pub fn jq(&self, filter: &str) -> Result<Vec<serde_json::Value>, super::super::Error> {
-        super::jq::run_jq(self, filter)
+        super::super::run_jq(self, filter)
     }
 }
 
@@ -85,7 +85,7 @@ impl ApiRemoteConfig {
     }
 
     pub fn jq(&self, filter: &str) -> Result<Vec<serde_json::Value>, super::super::Error> {
-        super::jq::run_jq(self, filter)
+        super::super::run_jq(self, filter)
     }
 }
 
@@ -115,7 +115,7 @@ impl ApiLocalConfig {
     }
 
     pub fn jq(&self, filter: &str) -> Result<Vec<serde_json::Value>, super::super::Error> {
-        super::jq::run_jq(self, filter)
+        super::super::run_jq(self, filter)
     }
 }
 
@@ -211,6 +211,6 @@ impl ApiHeadersConfig {
     pub fn set_x_commit_author_email(&mut self, value: impl Into<String>) { self.x_commit_author_email = Some(value.into()); }
 
     pub fn jq(&self, filter: &str) -> Result<Vec<serde_json::Value>, super::super::Error> {
-        super::jq::run_jq(self, filter)
+        super::super::run_jq(self, filter)
     }
 }

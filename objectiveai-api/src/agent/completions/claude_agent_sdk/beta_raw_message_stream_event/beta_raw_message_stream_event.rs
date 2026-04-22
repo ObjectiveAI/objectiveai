@@ -21,6 +21,7 @@ impl BetaRawMessageStreamEvent {
         agent: String,
         assistant_index: u64,
         session_id: String,
+        upstream: objectiveai::agent::Upstream,
     ) -> Option<objectiveai::agent::completions::response::streaming::AgentCompletionChunk> {
         use objectiveai::agent::completions::message;
         use objectiveai::agent::completions::response;
@@ -207,7 +208,7 @@ impl BetaRawMessageStreamEvent {
                 messages: vec![message],
                 object: Default::default(),
                 usage: None,
-                upstream: objectiveai::agent::Upstream::ClaudeAgentSdk,
+                upstream,
                 error: None,
                 continuation: None,
             }

@@ -39,9 +39,9 @@ pub(super) fn invert_and_l1_normalize(mut xs: Vec<Decimal>) -> Vec<Decimal> {
 ///
 /// Orchestrates multiple LLM agent completions to vote on response options,
 /// combining their votes using weights to produce final scores.
-pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, ACUSG, FVVOTE, FCVOTE, VUSG> {
+pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, ACUSG, FVVOTE, FCVOTE, VUSG> {
     /// The underlying agent completion client.
-    pub agent_client: Arc<agent::completions::Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, ACUSG>>,
+    pub agent_client: Arc<agent::completions::Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, ACUSG>>,
     /// Retrieve router for resolving swarms and agents.
     pub retrieve_router: Arc<crate::retrieval::retrieve::Router<RETRG, RETRF, RETRM, CTXEXT>>,
     /// Fetcher for votes from historical completions.
@@ -52,12 +52,12 @@ pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM,
     pub usage_handler: Arc<VUSG>,
 }
 
-impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, ACUSG, FVVOTE, FCVOTE, VUSG>
-    Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, ACUSG, FVVOTE, FCVOTE, VUSG>
+impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, ACUSG, FVVOTE, FCVOTE, VUSG>
+    Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, ACUSG, FVVOTE, FCVOTE, VUSG>
 {
     /// Creates a new vector completion client.
     pub fn new(
-        agent_client: Arc<agent::completions::Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, ACUSG>>,
+        agent_client: Arc<agent::completions::Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, ACUSG>>,
         retrieve_router: Arc<crate::retrieval::retrieve::Router<RETRG, RETRF, RETRM, CTXEXT>>,
         completion_votes_fetcher: Arc<FVVOTE>,
         cache_vote_fetcher: Arc<FCVOTE>,
@@ -73,12 +73,13 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, ACUSG, FVVOT
     }
 }
 
-impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, ACUSG, FVVOTE, FCVOTE, VUSG>
-    Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, ACUSG, FVVOTE, FCVOTE, VUSG>
+impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, ACUSG, FVVOTE, FCVOTE, VUSG>
+    Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, ACUSG, FVVOTE, FCVOTE, VUSG>
 where
     CTXEXT: ctx::ContextExt + Send + Sync + 'static,
     OPENROUTER: agent::completions::UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation> + Send + Sync + 'static,
     CLAUDEAGENTSDK: agent::completions::UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation> + Send + Sync + 'static,
+    CLAUDECODE: agent::completions::UpstreamClient<objectiveai::agent::claude_code::Agent, objectiveai::agent::claude_code::Continuation> + Send + Sync + 'static,
     MOCK: agent::completions::UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation> + Send + Sync + 'static,
     RETRG: crate::retrieval::retrieve::Client<CTXEXT>,
     RETRF: crate::retrieval::retrieve::Client<CTXEXT>,
@@ -180,12 +181,13 @@ where
     }
 }
 
-impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, ACUSG, FVVOTE, FCVOTE, VUSG>
-    Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, ACUSG, FVVOTE, FCVOTE, VUSG>
+impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, ACUSG, FVVOTE, FCVOTE, VUSG>
+    Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, ACUSG, FVVOTE, FCVOTE, VUSG>
 where
     CTXEXT: ctx::ContextExt + Send + Sync + 'static,
     OPENROUTER: agent::completions::UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation> + Send + Sync + 'static,
     CLAUDEAGENTSDK: agent::completions::UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation> + Send + Sync + 'static,
+    CLAUDECODE: agent::completions::UpstreamClient<objectiveai::agent::claude_code::Agent, objectiveai::agent::claude_code::Continuation> + Send + Sync + 'static,
     MOCK: agent::completions::UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation> + Send + Sync + 'static,
     RETRG: crate::retrieval::retrieve::Client<CTXEXT>,
     RETRF: crate::retrieval::retrieve::Client<CTXEXT>,
@@ -655,10 +657,13 @@ where
             map
         };
 
-        // Extract synthetic_reasoning from the primary agent
+        // Extract synthetic_reasoning from the primary agent.
+        // Only Openrouter supports synthetic_reasoning (requires ToolCall output
+        // mode); Claude Agent SDK, Claude Code, and Mock only support Instruction.
         let synthetic_reasoning = match agent.inner.agent() {
             objectiveai::agent::InlineAgent::Openrouter(a) => a.base.synthetic_reasoning.unwrap_or(false),
-            objectiveai::agent::InlineAgent::ClaudeAgentSdk(a) => a.base.synthetic_reasoning.unwrap_or(false),
+            objectiveai::agent::InlineAgent::ClaudeAgentSdk(_) => false,
+            objectiveai::agent::InlineAgent::ClaudeCode(_) => false,
             objectiveai::agent::InlineAgent::Mock(_) => false,
         };
 

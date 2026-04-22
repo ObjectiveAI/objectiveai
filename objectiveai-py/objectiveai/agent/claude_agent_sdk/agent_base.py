@@ -20,7 +20,6 @@ class AgentBase(BaseModel):
     output_mode: OutputMode = Field(..., description='The output mode for vector completions. Ignored for agent completions.')
     prefix_content: Optional[RichContent] = Field(None, description="Rich content prepended to the user's prompt.", json_schema_extra={'omitempty': True})
     suffix_content: Optional[RichContent] = Field(None, description="Rich content appended after the user's prompt.", json_schema_extra={'omitempty': True})
-    synthetic_reasoning: Optional[bool] = Field(None, description='Enable synthetic reasoning for non-reasoning LLMs.\n\n**Vector completions only.** Ignored for agent completions.\n\nWhen enabled, forces the LLM to output a `_think` field before voting,\nsimulating chain-of-thought reasoning. Requires `output_mode` to be\n`ToolCall` (not `Instruction`).', json_schema_extra={'omitempty': True})
     system_prompt: Optional[str] = Field(None, description='System prompt for the agent.', json_schema_extra={'omitempty': True})
     thinking: Optional[bool] = Field(None, description='Whether thinking/extended thinking is enabled.\n\nDefaults to `true`. Set to `false` to disable.', json_schema_extra={'omitempty': True})
     upstream: Upstream = Field(..., description='The upstream provider marker.')

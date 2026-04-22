@@ -54,7 +54,7 @@ impl FunctionsConfig {
     }
 
     pub fn jq(&self, filter: &str) -> Result<Vec<serde_json::Value>, super::super::Error> {
-        super::jq::run_jq(self, filter)
+        super::super::run_jq(self, filter)
     }
 }
 
@@ -97,7 +97,7 @@ impl FunctionsInventionsConfig {
     }
 
     pub fn jq(&self, filter: &str) -> Result<Vec<serde_json::Value>, super::super::Error> {
-        super::jq::run_jq(self, filter)
+        super::super::run_jq(self, filter)
     }
 }
 
@@ -149,7 +149,7 @@ impl FunctionsProfilesConfig {
     }
 
     pub fn jq(&self, filter: &str) -> Result<Vec<serde_json::Value>, super::super::Error> {
-        super::jq::run_jq(self, filter)
+        super::super::run_jq(self, filter)
     }
 }
 
@@ -193,6 +193,6 @@ impl FunctionsProfilesPairsConfig {
     }
 
     pub fn jq(&self, filter: &str) -> Result<Vec<serde_json::Value>, super::super::Error> {
-        super::jq::run_jq(self, filter)
+        super::super::run_jq(self, filter)
     }
 }

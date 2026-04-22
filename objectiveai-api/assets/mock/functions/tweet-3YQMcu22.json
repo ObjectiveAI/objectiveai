@@ -1,0 +1,73 @@
+{
+  "type": "alpha.vector.leaf.function",
+  "description": "The Constructive Discourse Vector ranks AI and technology tweets by intellectual substance, novelty, clarity, and practical value. It identifies which tweets meaningfully advance understanding through genuine engagement, fresh insights, accessible explanation, or concrete resources—elevating substantive voices in crowded discourse.",
+  "input_schema": {
+    "items": {
+      "type": "object",
+      "description": "A tweet with text, images, and videos",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "The text content of the post"
+        },
+        "images": {
+          "type": "array",
+          "description": "Images attached to the post",
+          "items": {
+            "type": "image"
+          }
+        },
+        "videos": {
+          "type": "array",
+          "description": "Videos attached to the post",
+          "items": {
+            "type": "video"
+          }
+        }
+      },
+      "required": [
+        "text",
+        "images",
+        "videos"
+      ]
+    }
+  },
+  "tasks": [
+    {
+      "type": "vector.completion",
+      "messages": {
+        "$starlark": "[{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"When reading AI and technology discourse, what qualities make a tweet stand out as demonstrating genuine intellectual engagement rather than surface commentary? Look for evidence of authentic thinking, probing of assumptions, or honest wrestling with complex problems.\"}]}]"
+      },
+      "responses": {
+        "$starlark": "[[{\"type\": \"text\", \"text\": tweet[\"text\"]}] + tweet[\"images\"] + tweet[\"videos\"] for tweet in input[\"items\"]]"
+      }
+    },
+    {
+      "type": "vector.completion",
+      "messages": {
+        "$starlark": "[{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"In AI discourse, some tweets offer truly fresh perspectives that question assumptions or illuminate overlooked concerns. Which tweets would best help the community avoid premature consensus and discover gaps in their collective thinking? Show me tweets that bring novel angles or connect ideas in unexpected ways.\"}]}]"
+      },
+      "responses": {
+        "$starlark": "[[{\"type\": \"text\", \"text\": tweet[\"text\"]}] + tweet[\"images\"] + tweet[\"videos\"] for tweet in input[\"items\"]]"
+      }
+    },
+    {
+      "type": "vector.completion",
+      "messages": {
+        "$starlark": "[{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"A researcher trying to understand complex AI concepts comes to you for help. Which tweets would you show them? Look for tweets that synthesize sophisticated ideas clearly, bridge understanding gaps, or connect disparate discussion threads in ways that enhance comprehension.\"}]}]"
+      },
+      "responses": {
+        "$starlark": "[[{\"type\": \"text\", \"text\": tweet[\"text\"]}] + tweet[\"images\"] + tweet[\"videos\"] for tweet in input[\"items\"]]"
+      }
+    },
+    {
+      "type": "vector.completion",
+      "messages": {
+        "$starlark": "[{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"What tweets provide the most concrete, actionable value to someone engaged with AI and technology? Look for tweets that share useful resources, clearly identify problems that need solving, suggest tools or datasets, or provide intellectual leverage that readers can actually use or think about.\"}]}]"
+      },
+      "responses": {
+        "$starlark": "[[{\"type\": \"text\", \"text\": tweet[\"text\"]}] + tweet[\"images\"] + tweet[\"videos\"] for tweet in input[\"items\"]]"
+      }
+    }
+  ]
+}

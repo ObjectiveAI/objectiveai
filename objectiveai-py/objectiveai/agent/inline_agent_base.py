@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Union
 from pydantic import ConfigDict, RootModel
 from objectiveai.agent.claude_agent_sdk.agent_base import AgentBase as AgentClaudeAgentSdkAgentBase
+from objectiveai.agent.claude_code.agent_base import AgentBase as AgentClaudeCodeAgentBase
 from objectiveai.agent.mock.agent_base import AgentBase as AgentMockAgentBase
 from objectiveai.agent.openrouter.agent_base import AgentBase as AgentOpenrouterAgentBase
 
@@ -20,6 +21,12 @@ class InlineAgentBaseClaudeAgentSdk(RootModel):
     root: AgentClaudeAgentSdkAgentBase
 
 
+class InlineAgentBaseClaudeCode(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'ClaudeCode'})
+
+    root: AgentClaudeCodeAgentBase
+
+
 class InlineAgentBaseMock(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Mock'})
 
@@ -33,5 +40,5 @@ This is an untagged enum that dispatches to the per-upstream AgentBase.
 Deserialization tries each variant in order until one matches."""
     model_config = ConfigDict(title='agent.InlineAgentBase')
 
-    root: Union[InlineAgentBaseOpenrouter, InlineAgentBaseClaudeAgentSdk, InlineAgentBaseMock]
+    root: Union[InlineAgentBaseOpenrouter, InlineAgentBaseClaudeAgentSdk, InlineAgentBaseClaudeCode, InlineAgentBaseMock]
 

@@ -191,6 +191,7 @@ type TestClient = super::Client<
     ctx::DefaultContextExt,
     UnimplementedUpstreamClient,
     UnimplementedUpstreamClient,
+    UnimplementedUpstreamClient,
     crate::agent::completions::mock::Client,
     StubAgentUsageHandler,
     StubCompletionVotesFetcher,
@@ -226,6 +227,7 @@ fn make_client() -> Arc<TestClient> {
         None, // mcp_authorization
         retrieve_router.clone(),
         Arc::new(StubAgentUsageHandler),
+        Arc::new(UnimplementedUpstreamClient),
         Arc::new(UnimplementedUpstreamClient),
         Arc::new(UnimplementedUpstreamClient),
         Arc::new(crate::agent::completions::mock::Client {
@@ -349,6 +351,178 @@ async fn run_execution(client: &Arc<TestClient>, request: Arc<FunctionExecutionC
         |i, chunk| {
             check_id(&expected_id, i, &chunk.id);
             check_created(&expected_created, i, chunk.created);
+            assert!(chunk.usage.is_some(), "final chunk {i} has no usage, expected Some");
+        },
+    ).await;
+    FunctionExecution::from(agg)
+}
+
+/// Identifies a sub-execution within a parent function execution stream,
+/// used by the indexed helpers to map each distinct "branch" of execution
+/// to the unique inner `response_id` that must stay stable inside it.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+enum IndexKey {
+    Split(u64),
+    Swiss { pool: u64, round: u64 },
+}
+
+impl std::fmt::Display for IndexKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            IndexKey::Split(i) => write!(f, "split_index={i}"),
+            IndexKey::Swiss { pool, round } => write!(f, "(swiss_pool_index={pool}, swiss_round={round})"),
+        }
+    }
+}
+
+/// Asserts a non-terminal chunk from a parallel-strategy stream contains
+/// exactly one `FunctionExecution` task, extracts its `IndexKey`, and
+/// enforces: (a) inner response_id stability within a key, and (b) inner
+/// response_id uniqueness across keys.
+fn check_indexed_task(
+    i: usize,
+    chunk: &objectiveai::functions::executions::response::streaming::FunctionExecutionChunk,
+    key_to_id: &std::cell::RefCell<std::collections::HashMap<IndexKey, String>>,
+    extract_key: impl Fn(&objectiveai::functions::executions::response::streaming::FunctionExecutionTaskChunk) -> IndexKey,
+) {
+    assert_eq!(
+        chunk.tasks.len(),
+        1,
+        "chunk {i} has {} tasks, expected exactly 1",
+        chunk.tasks.len(),
+    );
+    let task = match &chunk.tasks[0] {
+        objectiveai::functions::executions::response::streaming::TaskChunk::FunctionExecution(t) => t,
+        other => panic!("chunk {i} task[0] is not a FunctionExecution task chunk: {other:?}"),
+    };
+    let key = extract_key(task);
+    let inner_id = task.inner.id.clone();
+    let mut map = key_to_id.borrow_mut();
+    match map.get(&key) {
+        Some(existing) => {
+            assert_eq!(
+                existing, &inner_id,
+                "chunk {i} key {key} inner response_id changed from {existing:?} to {inner_id:?}",
+            );
+        }
+        None => {
+            for (other_key, other_id) in map.iter() {
+                assert_ne!(
+                    other_id, &inner_id,
+                    "chunk {i} key {key} uses inner response_id {inner_id:?} already bound to key {other_key}",
+                );
+            }
+            map.insert(key, inner_id);
+        }
+    }
+}
+
+/// Like [`run_execution`] but with the stricter invariants a split-mode
+/// stream is required to satisfy:
+/// - every non-terminal chunk has exactly one `FunctionExecution` task,
+/// - that task has `split_index: Some` and no Swiss indices,
+/// - each distinct `split_index` maps to a unique, stable inner response_id,
+/// - the root `id` and `created` never change,
+/// - non-terminal chunks have no root-level `output` or `usage`,
+/// - the terminal chunk has zero tasks and a populated `usage`.
+async fn run_execution_split(
+    client: &Arc<TestClient>,
+    request: Arc<FunctionExecutionCreateParams>,
+) -> FunctionExecution {
+    let ctx = ctx::Context::new(Arc::new(ctx::DefaultContextExt), Arc::new(ctx::persistent_cache::default::DefaultPersistentCacheClient), Decimal::ONE, false, &axum::http::HeaderMap::new());
+    let stream = client
+        .clone()
+        .create_streaming(ctx, request)
+        .await
+        .expect("create_streaming should succeed");
+    let expected_created = std::cell::Cell::new(None);
+    let expected_id = std::cell::RefCell::new(None);
+    let key_to_id: std::cell::RefCell<std::collections::HashMap<IndexKey, String>> =
+        std::cell::RefCell::new(std::collections::HashMap::new());
+
+    let check_nonterminal = |i: usize, chunk: &objectiveai::functions::executions::response::streaming::FunctionExecutionChunk| {
+        check_id(&expected_id, i, &chunk.id);
+        check_created(&expected_created, i, chunk.created);
+        assert!(chunk.usage.is_none(), "chunk {i} (non-final) has usage, expected None");
+        assert!(chunk.output.is_none(), "chunk {i} (non-final) has output, expected None");
+        check_indexed_task(i, chunk, &key_to_id, |task| {
+            let split = task.split_index.expect("non-terminal split chunk must have split_index set");
+            assert!(task.swiss_pool_index.is_none(), "split task chunk has swiss_pool_index set");
+            assert!(task.swiss_round.is_none(), "split task chunk has swiss_round set");
+            IndexKey::Split(split)
+        });
+    };
+
+    let agg = crate::stream_harness::consume_stream(
+        Box::pin(stream),
+        |agg, c| agg.push(c),
+        &check_nonterminal,
+        &check_nonterminal,
+        |i, chunk| {
+            check_id(&expected_id, i, &chunk.id);
+            check_created(&expected_created, i, chunk.created);
+            assert_eq!(
+                chunk.tasks.len(), 0,
+                "terminal chunk {i} has {} tasks, expected 0",
+                chunk.tasks.len(),
+            );
+            assert!(chunk.usage.is_some(), "final chunk {i} has no usage, expected Some");
+        },
+    ).await;
+    FunctionExecution::from(agg)
+}
+
+/// Like [`run_execution`] but with the stricter invariants a Swiss-strategy
+/// stream is required to satisfy:
+/// - every non-terminal chunk has exactly one `FunctionExecution` task,
+/// - that task has both `swiss_pool_index: Some` and `swiss_round: Some`
+///   (and no `split_index`),
+/// - each `(swiss_pool_index, swiss_round)` tuple maps to a unique, stable
+///   inner response_id,
+/// - the root `id` and `created` never change,
+/// - non-terminal chunks have no root-level `output` or `usage`,
+/// - the terminal chunk has zero tasks and a populated `usage`.
+async fn run_execution_swiss(
+    client: &Arc<TestClient>,
+    request: Arc<FunctionExecutionCreateParams>,
+) -> FunctionExecution {
+    let ctx = ctx::Context::new(Arc::new(ctx::DefaultContextExt), Arc::new(ctx::persistent_cache::default::DefaultPersistentCacheClient), Decimal::ONE, false, &axum::http::HeaderMap::new());
+    let stream = client
+        .clone()
+        .create_streaming(ctx, request)
+        .await
+        .expect("create_streaming should succeed");
+    let expected_created = std::cell::Cell::new(None);
+    let expected_id = std::cell::RefCell::new(None);
+    let key_to_id: std::cell::RefCell<std::collections::HashMap<IndexKey, String>> =
+        std::cell::RefCell::new(std::collections::HashMap::new());
+
+    let check_nonterminal = |i: usize, chunk: &objectiveai::functions::executions::response::streaming::FunctionExecutionChunk| {
+        check_id(&expected_id, i, &chunk.id);
+        check_created(&expected_created, i, chunk.created);
+        assert!(chunk.usage.is_none(), "chunk {i} (non-final) has usage, expected None");
+        assert!(chunk.output.is_none(), "chunk {i} (non-final) has output, expected None");
+        check_indexed_task(i, chunk, &key_to_id, |task| {
+            let pool = task.swiss_pool_index.expect("non-terminal swiss chunk must have swiss_pool_index set");
+            let round = task.swiss_round.expect("non-terminal swiss chunk must have swiss_round set");
+            assert!(task.split_index.is_none(), "swiss task chunk has split_index set");
+            IndexKey::Swiss { pool, round }
+        });
+    };
+
+    let agg = crate::stream_harness::consume_stream(
+        Box::pin(stream),
+        |agg, c| agg.push(c),
+        &check_nonterminal,
+        &check_nonterminal,
+        |i, chunk| {
+            check_id(&expected_id, i, &chunk.id);
+            check_created(&expected_created, i, chunk.created);
+            assert_eq!(
+                chunk.tasks.len(), 0,
+                "terminal chunk {i} has {} tasks, expected 0",
+                chunk.tasks.len(),
+            );
             assert!(chunk.usage.is_some(), "final chunk {i} has no usage, expected Some");
         },
     ).await;
@@ -1225,7 +1399,7 @@ async fn test_mock_4_vector_swiss_default_20_items_seed_7() {
         stream: None,
         continuation: None,
     });
-    let result = normalize(run_execution(&client, request).await);
+    let result = normalize(run_execution_swiss(&client, request).await);
     let json = serde_json::to_string_pretty(&result).unwrap();
     assert_snapshot(
         &json,
@@ -1261,7 +1435,7 @@ async fn test_mock_5_vector_swiss_pool5_rounds3_20_items_seed_7() {
         stream: None,
         continuation: None,
     });
-    let result = normalize(run_execution(&client, request).await);
+    let result = normalize(run_execution_swiss(&client, request).await);
     let json = serde_json::to_string_pretty(&result).unwrap();
     assert_snapshot(
         &json,
@@ -1294,7 +1468,7 @@ async fn test_mock_7_vector_swiss_pool4_rounds3_20_items_seed_7() {
         stream: None,
         continuation: None,
     });
-    let result = normalize(run_execution(&client, request).await);
+    let result = normalize(run_execution_swiss(&client, request).await);
     let json = serde_json::to_string_pretty(&result).unwrap();
     assert_snapshot(
         &json,
@@ -2039,11 +2213,188 @@ async fn test_split_scalar_binary_seed_42() {
         stream: None,
         continuation: None,
     });
-    let result = normalize(run_execution(&client, request).await);
+    let result = normalize(run_execution_split(&client, request).await);
     let json = serde_json::to_string_pretty(&result).unwrap();
     assert_snapshot(
         &json,
         concat!(env!("CARGO_MANIFEST_DIR"), "/assets/functions/executions/client_tests/split_scalar_binary_seed_42.json"),
         include_str!("../../../assets/functions/executions/client_tests/split_scalar_binary_seed_42.json"),
+    );
+}
+
+/// Split: tweet-scorer over 10 real tweets (input loaded from
+/// `inputs/10_tweets.json`), seed 42. Exercises the split-mode
+/// parallelization with a modest fan-out and a nested scalar
+/// branch function wrapping three leaf sub-functions. Uses an inline
+/// profile with two mock agents (one with top_logprobs=6, one plain
+/// instruction) and equal weights.
+#[tokio::test]
+async fn test_split_tweet_scorer_10_tweets_seed_42() {
+    let client = make_client();
+    let input: InputValue = serde_json::from_str(include_str!(
+        "../../../assets/functions/executions/client_tests/inputs/10_tweets.json"
+    )).expect("10_tweets.json must parse as InputValue");
+    let request = Arc::new(FunctionExecutionCreateParams {
+        function: objectiveai::functions::FullInlineFunctionOrRemoteCommitOptional::Remote(
+            objectiveai::RemotePathCommitOptional::Mock {
+                name: "tweet-scorer".to_string(),
+            },
+        ),
+        profile: objectiveai::functions::InlineProfileOrRemoteCommitOptional::Inline(
+            objectiveai::functions::InlineProfile::Auto(
+                objectiveai::swarm::InlineSwarmBase {
+                    agents: vec![
+                        objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteWithCount {
+                            count: 1,
+                            inner: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemote::AgentBase(
+                                objectiveai::agent::InlineAgentBaseWithFallbacks {
+                                    inner: objectiveai::agent::InlineAgentBase::Mock(
+                                        objectiveai::agent::mock::AgentBase {
+                                            upstream: objectiveai::agent::mock::Upstream::Mock,
+                                            output_mode: objectiveai::agent::mock::OutputMode::Instruction,
+                                            top_logprobs: Some(6),
+                                            error: None,
+                                            error_probability: None,
+                                            mode: None,
+                                            mcp_servers: None,
+                                        },
+                                    ),
+                                    fallbacks: None,
+                                },
+                            ),
+                        },
+                        objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteWithCount {
+                            count: 1,
+                            inner: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemote::AgentBase(
+                                objectiveai::agent::InlineAgentBaseWithFallbacks {
+                                    inner: objectiveai::agent::InlineAgentBase::Mock(
+                                        objectiveai::agent::mock::AgentBase {
+                                            upstream: objectiveai::agent::mock::Upstream::Mock,
+                                            output_mode: objectiveai::agent::mock::OutputMode::Instruction,
+                                            top_logprobs: None,
+                                            error: None,
+                                            error_probability: None,
+                                            mode: None,
+                                            mcp_servers: None,
+                                        },
+                                    ),
+                                    fallbacks: None,
+                                },
+                            ),
+                        },
+                    ],
+                    weights: Some(objectiveai::Weights::Weights(vec![Decimal::ONE, Decimal::ONE])),
+                },
+            ),
+        ),
+        retry_token: None,
+        from_cache: None,
+        reasoning: None,
+        strategy: None,
+        input,
+        split: Some(true),
+        provider: None,
+        seed: Some(42),
+        stream: None,
+        continuation: None,
+    });
+    let result = normalize(run_execution_split(&client, request).await);
+    let json = serde_json::to_string_pretty(&result).unwrap();
+    assert_snapshot(
+        &json,
+        concat!(env!("CARGO_MANIFEST_DIR"), "/assets/functions/executions/client_tests/split_tweet_scorer_10_tweets_seed_42.json"),
+        include_str!("../../../assets/functions/executions/client_tests/split_tweet_scorer_10_tweets_seed_42.json"),
+    );
+}
+
+/// Vector: tweet-ranker over 10 real tweets (input loaded from
+/// `inputs/10_tweets.json`), seed 42. Exercises the alpha-vector branch
+/// function with a mapped scalar sub-task — task[1] uses `input['items'][map]`
+/// to pick out the current element, which is the code path that regressed
+/// when the transpiler started unconditionally binding `map`.
+///
+/// Inline profile: two mock agents (tool_call w/o logprobs and json_schema
+/// w/ top_logprobs=3), weights 0.4 / 0.6.
+#[tokio::test]
+async fn test_vector_tweet_ranker_10_tweets_seed_42() {
+    let client = make_client();
+    let items: InputValue = serde_json::from_str(include_str!(
+        "../../../assets/functions/executions/client_tests/inputs/10_tweets.json"
+    )).expect("10_tweets.json must parse as InputValue");
+    let request = Arc::new(FunctionExecutionCreateParams {
+        function: objectiveai::functions::FullInlineFunctionOrRemoteCommitOptional::Remote(
+            objectiveai::RemotePathCommitOptional::Mock {
+                name: "tweet-ranker".to_string(),
+            },
+        ),
+        profile: objectiveai::functions::InlineProfileOrRemoteCommitOptional::Inline(
+            objectiveai::functions::InlineProfile::Auto(
+                objectiveai::swarm::InlineSwarmBase {
+                    agents: vec![
+                        objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteWithCount {
+                            count: 1,
+                            inner: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemote::AgentBase(
+                                objectiveai::agent::InlineAgentBaseWithFallbacks {
+                                    inner: objectiveai::agent::InlineAgentBase::Mock(
+                                        objectiveai::agent::mock::AgentBase {
+                                            upstream: objectiveai::agent::mock::Upstream::Mock,
+                                            output_mode: objectiveai::agent::mock::OutputMode::ToolCall,
+                                            top_logprobs: None,
+                                            error: None,
+                                            error_probability: None,
+                                            mode: None,
+                                            mcp_servers: None,
+                                        },
+                                    ),
+                                    fallbacks: None,
+                                },
+                            ),
+                        },
+                        objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteWithCount {
+                            count: 1,
+                            inner: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemote::AgentBase(
+                                objectiveai::agent::InlineAgentBaseWithFallbacks {
+                                    inner: objectiveai::agent::InlineAgentBase::Mock(
+                                        objectiveai::agent::mock::AgentBase {
+                                            upstream: objectiveai::agent::mock::Upstream::Mock,
+                                            output_mode: objectiveai::agent::mock::OutputMode::JsonSchema,
+                                            top_logprobs: Some(3),
+                                            error: None,
+                                            error_probability: None,
+                                            mode: None,
+                                            mcp_servers: None,
+                                        },
+                                    ),
+                                    fallbacks: None,
+                                },
+                            ),
+                        },
+                    ],
+                    weights: Some(objectiveai::Weights::Weights(vec![
+                        Decimal::new(4, 1),
+                        Decimal::new(6, 1),
+                    ])),
+                },
+            ),
+        ),
+        retry_token: None,
+        from_cache: None,
+        reasoning: None,
+        strategy: None,
+        input: InputValue::Object(indexmap::indexmap! {
+            "items".into() => items,
+        }),
+        split: None,
+        provider: None,
+        seed: Some(42),
+        stream: None,
+        continuation: None,
+    });
+    let result = normalize(run_execution(&client, request).await);
+    let json = serde_json::to_string_pretty(&result).unwrap();
+    assert_snapshot(
+        &json,
+        concat!(env!("CARGO_MANIFEST_DIR"), "/assets/functions/executions/client_tests/vector_tweet_ranker_10_tweets_seed_42.json"),
+        include_str!("../../../assets/functions/executions/client_tests/vector_tweet_ranker_10_tweets_seed_42.json"),
     );
 }

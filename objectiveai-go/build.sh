@@ -16,11 +16,11 @@ LOG_FILE="$LOG_DIR/$MODULE.txt"
 mkdir -p "$LOG_DIR"
 
 run() {
-  # Generate types from JSON schemas
-  go run "$SCRIPT_DIR/scripts/install_go.go"
-
-  # Install CFFI WASM binary
-  go run "$SCRIPT_DIR/scripts/install_cffi.go"
+  # Generate types from JSON schemas, then install CFFI WASM binary.
+  # Chained with && so a failure in the first command aborts the second
+  # (set -e is disabled inside `if` conditions, so rely on exit status).
+  go run "$SCRIPT_DIR/scripts/install_go.go" && \
+    go run "$SCRIPT_DIR/scripts/install_cffi.go"
 }
 
 if run > "$LOG_FILE" 2>&1; then

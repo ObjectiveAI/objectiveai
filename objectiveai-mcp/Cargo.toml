@@ -20,6 +20,11 @@ envconfig = "0.11.1"
 futures = "0.3"
 glob = { version = "0.3", optional = true }
 indexmap = { version = "2", optional = true }
+# Direct dep (no features) so cargo invalidates objectiveai-mcp whenever
+# objectiveai-rs changes, matching what fingerprint.sh already tracks.
+# Disabling default features avoids pulling in `filesystem`'s vendored
+# libgit2, which would require a cross C toolchain for the musl build.
+objectiveai = { path = "../objectiveai-rs", version = "2.0.0", default-features = false }
 objectiveai-cli = { path = "../objectiveai-cli", version = "2.0.0", optional = true, default-features = false }
 pathdiff = { version = "0.2", optional = true }
 regex = { version = "1", optional = true }

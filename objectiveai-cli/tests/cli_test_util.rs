@@ -30,8 +30,15 @@ pub fn cli_binary() -> PathBuf {
     path
 }
 
+/// CONFIG_BASE_DIR for the CLI under test.
+///
+/// Scoped to `tests/.objectiveai` so everything the CLI creates at runtime
+/// (logs, cached function repos, filesystem config) lives under a single
+/// gitignored directory that `test.sh` wipes on exit.
 pub fn tests_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests")
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join(".objectiveai")
 }
 
 pub fn load_snapshot(dir: &Path, name: &str) -> serde_json::Value {

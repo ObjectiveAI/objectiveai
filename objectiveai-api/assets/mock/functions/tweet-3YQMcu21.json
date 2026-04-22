@@ -1,0 +1,119 @@
+{
+  "type": "alpha.scalar.leaf.function",
+  "description": "Evaluates how centrally tweets address AI and technology. Determines if tech is the primary subject or tangential, assesses engagement authenticity, and considers multimodal support. Higher scores reward substantive, focused technology discussion over superficial mentions or secondary references.",
+  "input_schema": {
+    "type": "object",
+    "description": "A tweet with text, images, and videos",
+    "properties": {
+      "text": {
+        "type": "string",
+        "description": "The text content of the post"
+      },
+      "images": {
+        "type": "array",
+        "description": "Images attached to the post",
+        "items": {
+          "type": "image"
+        }
+      },
+      "videos": {
+        "type": "array",
+        "description": "Videos attached to the post",
+        "items": {
+          "type": "video"
+        }
+      }
+    },
+    "required": [
+      "text",
+      "images",
+      "videos"
+    ]
+  },
+  "tasks": [
+    {
+      "type": "vector.completion",
+      "messages": {
+        "$starlark": "[{'role': 'user', 'content': [{'type': 'text', 'text': 'Evaluate whether AI and technology are the primary subject of this tweet, or if they are mentioned only tangentially.\\n\\nTweet: ' + input['text']}]}]"
+      },
+      "responses": [
+        [
+          {
+            "type": "text",
+            "text": "This tweet is entirely about another topic; AI/technology is not mentioned at all"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "AI/technology is mentioned but only tangentially; the main topic is something else"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "AI/technology is clearly a significant subject, though other topics are equally prominent"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "AI/technology is the primary focus and subject of this tweet"
+          }
+        ]
+      ]
+    },
+    {
+      "type": "vector.completion",
+      "messages": {
+        "$starlark": "[{'role': 'user', 'content': [{'type': 'text', 'text': 'Evaluate the authenticity and substantiveness of this tweet\\'s engagement with AI and technology. Does it demonstrate genuine understanding with meaningful insights, or is it superficial name-dropping?\\n\\nTweet: ' + input['text']}]}]"
+      },
+      "responses": [
+        [
+          {
+            "type": "text",
+            "text": "This engagement appears superficial, generic, or opportunistic—using AI/technology language without genuine understanding"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "The tweet shows some awareness of AI/technology but lacks depth, specific examples, or meaningful insights"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "This demonstrates authentic engagement with AI/technology, discussing real tradeoffs, specific use cases, or genuine implications with substantive depth"
+          }
+        ]
+      ]
+    },
+    {
+      "type": "vector.completion",
+      "messages": {
+        "$starlark": "[{'role': 'user', 'content': [{'type': 'text', 'text': 'Looking at this tweet with its text and all attached visual media (images and videos), evaluate whether the multimodal content together represents a focused engagement with AI and technology.\\n\\nTweet text: ' + input['text'] + '\\n\\nPlease consider the visual content provided:'}] + input['images'] + input['videos'] + [{'type': 'text', 'text': 'Does the complete multimodal package focus on AI/technology or on other topics?'}]}]"
+      },
+      "responses": [
+        [
+          {
+            "type": "text",
+            "text": "The visual content primarily focuses on topics other than AI/technology"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "The visual content is mixed or tangential to AI/technology"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "The visual content clearly supports and enhances the AI/technology focus"
+          }
+        ]
+      ]
+    }
+  ]
+}

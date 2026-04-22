@@ -11,6 +11,8 @@ are accepted as CLI arguments instead.
 
 from __future__ import annotations
 
+__version__ = "2.0.0"
+
 import argparse
 import asyncio
 import json
@@ -250,6 +252,12 @@ def parse_args() -> argparse.Namespace:
         required=True,
         help="Maximum number of retries on 429 rate limit (with retry-after backoff)",
     )
+    parser.add_argument(
+        "--rate-limit-max-wait-secs",
+        type=int,
+        default=180,
+        help="Maximum seconds to wait for a rate-limit reset before giving up",
+    )
     return parser.parse_args()
 
 
@@ -349,6 +357,7 @@ async def run(args: argparse.Namespace) -> None:
     # If rate-limited with status "rejected", wait until resets_at and retry.
     # On retry, resume the same session so the agent's memory is preserved.
     max_retries = args.rate_limit_max_retries
+    max_wait_secs = args.rate_limit_max_wait_secs
     current_session_id: str | None = None
     for attempt in range(max_retries + 1):
         rate_limited = False
@@ -379,11 +388,20 @@ async def run(args: argparse.Namespace) -> None:
                     resets_at = msg.rate_limit_info.resets_at
                     if resets_at is not None and attempt < max_retries:
                         wait = max(0, resets_at - time.time()) + 1
-                        sys.stderr.write(f"Rate limited, retrying in {wait:.0f}s (attempt {attempt + 1}/{max_retries})\n")
-                        sys.stderr.flush()
-                        await asyncio.sleep(wait)
-                        rate_limited = True
-                        break
+                        if wait > max_wait_secs:
+                            sys.stderr.write(
+                                f"Rate limited, but wait {wait:.0f}s exceeds max {max_wait_secs}s — giving up\n"
+                            )
+                            sys.stderr.flush()
+                            # Fall through to emit the event and exit the outer loop.
+                        else:
+                            sys.stderr.write(
+                                f"Rate limited, retrying in {wait:.0f}s (attempt {attempt + 1}/{max_retries})\n"
+                            )
+                            sys.stderr.flush()
+                            await asyncio.sleep(wait)
+                            rate_limited = True
+                            break
                 d = serialize_message(msg)
                 if d is not None:
                     sys.stdout.write(json.dumps(d) + "\n")
