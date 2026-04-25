@@ -42,6 +42,9 @@ pub struct CreateArgs {
     /// Seed for deterministic mock responses
     #[arg(long)]
     pub seed: Option<i64>,
+
+    #[command(flatten)]
+    pub instructions: crate::instructions::InstructionsIdArg,
 }
 
 /// Output python script source — file or inline.

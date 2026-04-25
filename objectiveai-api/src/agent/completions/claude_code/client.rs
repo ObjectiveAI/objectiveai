@@ -302,6 +302,14 @@ impl UpstreamClient<
                 let mut msg_index = assistant_index;
                 let mut had_error = false;
                 let mut retries: u64 = 0;
+                // Most-recent assistant index, so the SDK's trailing
+                // ResultMessage (a usage/cost summary, not a real second
+                // turn) can re-use it. Per protocol, assistant messages
+                // never sit back-to-back at distinct indices — they
+                // alternate with tool messages — so the trailer must
+                // merge into the assistant that just finished, not stand
+                // as its own message at the next index.
+                let mut last_assistant_index: Option<u64> = None;
 
                 // Rate-limit retry loop. Each iteration spawns a fresh
                 // `claude` subprocess. If a rate_limit_event with status
@@ -429,21 +437,48 @@ impl UpstreamClient<
                                     }
                                 }
 
+                                // ResultMessage is the SDK's end-of-stream
+                                // usage/cost trailer, not a fresh assistant
+                                // turn — it must merge into the previous
+                                // assistant's message slot, not occupy the
+                                // next one. Use that assistant's index.
+                                let effective_index = match &sdk_msg {
+                                    SDKMessage::ResultMessage(_) => {
+                                        last_assistant_index.unwrap_or(msg_index)
+                                    }
+                                    _ => msg_index,
+                                };
+
                                 match sdk_msg.into_downstream(
                                     id.clone(),
                                     created,
                                     agent_id.clone(),
-                                    msg_index,
+                                    effective_index,
                                     is_byok,
                                     cost_multiplier,
                                     objectiveai::agent::Upstream::ClaudeCode,
                                 ) {
                                     Some(Ok(chunk)) => {
+                                        // Track the index of any assistant in
+                                        // this chunk and decide whether to
+                                        // advance to the next message slot.
+                                        // Tool messages always advance; assistant
+                                        // messages advance only on finish_reason.
                                         use objectiveai::agent::completions::response::streaming::MessageChunk;
-                                        let advances_index = chunk.messages.iter().any(|m| match m {
-                                            MessageChunk::Assistant(a) => a.finish_reason.is_some(),
-                                            MessageChunk::Tool(_) => true,
-                                        });
+                                        let mut advances_index = false;
+                                        for m in &chunk.messages {
+                                            match m {
+                                                MessageChunk::Assistant(a) => {
+                                                    last_assistant_index = Some(a.index);
+                                                    if a.finish_reason.is_some() {
+                                                        advances_index = true;
+                                                    }
+                                                }
+                                                MessageChunk::Tool(_) => {
+                                                    advances_index = true;
+                                                }
+                                            }
+                                        }
                                         yield Ok(StreamItem::Chunk(chunk));
                                         if advances_index {
                                             msg_index += 1;

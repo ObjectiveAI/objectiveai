@@ -6,11 +6,11 @@
 # - Adds ~/.objectiveai to PATH if not already present
 #
 # Usage:
-#   bash objectiveai-cli/install.sh [--no-viewer] [--claude-agent-sdk-python]
+#   bash objectiveai-cli/install.sh [--no-viewer] [--claude-agent-sdk-javascript]
 #
-#   --no-viewer             Build without the embedded Tauri viewer
-#   --claude-agent-sdk-python   Use the Python Claude Agent SDK runner
-#                           (default: JavaScript runner)
+#   --no-viewer                    Build without the embedded Tauri viewer
+#   --claude-agent-sdk-javascript  Use the JavaScript Claude Agent SDK runner
+#                                  (default: Python runner)
 
 set -euo pipefail
 
@@ -20,11 +20,11 @@ INSTALL_DIR="$HOME/.objectiveai"
 
 # Parse args
 NO_VIEWER=0
-CLAUDE_AGENT_SDK_PYTHON=0
+CLAUDE_AGENT_SDK_JAVASCRIPT=0
 for arg in "$@"; do
   case "$arg" in
     --no-viewer) NO_VIEWER=1 ;;
-    --claude-agent-sdk-python) CLAUDE_AGENT_SDK_PYTHON=1 ;;
+    --claude-agent-sdk-javascript) CLAUDE_AGENT_SDK_JAVASCRIPT=1 ;;
   esac
 done
 
@@ -49,11 +49,21 @@ fi
 
 FINGERPRINT_FILE="$INSTALL_DIR/.fingerprint"
 
+# Cross-platform SHA-256 wrapper. macOS runners ship `shasum` (Perl) but
+# not GNU `sha256sum`; Linux/Windows-Git-bash typically ship both — we
+# prefer `sha256sum` when it exists so output format stays identical
+# across the common case, and fall back to `shasum -a 256` otherwise.
+if command -v sha256sum >/dev/null 2>&1; then
+  _sha256() { sha256sum "$@"; }
+else
+  _sha256() { shasum -a 256 "$@"; }
+fi
+
 compute_fingerprint() {
   {
     # Bake build flags into fingerprint so variants don't collide
     echo "NO_VIEWER=$NO_VIEWER"
-    echo "CLAUDE_AGENT_SDK_PYTHON=$CLAUDE_AGENT_SDK_PYTHON"
+    echo "CLAUDE_AGENT_SDK_JAVASCRIPT=$CLAUDE_AGENT_SDK_JAVASCRIPT"
 
     # objectiveai-cli sources
     find "$SCRIPT_DIR/src" -type f -name '*.rs' | sort
@@ -68,12 +78,12 @@ compute_fingerprint() {
     echo "$REPO_ROOT/objectiveai-api/Cargo.toml"
 
     # Claude Agent SDK runner (one of the two, based on flag)
-    if [ "$CLAUDE_AGENT_SDK_PYTHON" = "1" ]; then
-      echo "$REPO_ROOT/objectiveai-claude-agent-sdk-runner-py/main.py"
-      echo "$REPO_ROOT/objectiveai-claude-agent-sdk-runner-py/requirements.txt"
-    else
+    if [ "$CLAUDE_AGENT_SDK_JAVASCRIPT" = "1" ]; then
       echo "$REPO_ROOT/objectiveai-claude-agent-sdk-runner-js/main.js"
       echo "$REPO_ROOT/objectiveai-claude-agent-sdk-runner-js/package.json"
+    else
+      echo "$REPO_ROOT/objectiveai-claude-agent-sdk-runner-py/main.py"
+      echo "$REPO_ROOT/objectiveai-claude-agent-sdk-runner-py/requirements.txt"
     fi
 
     # objectiveai-viewer (embedded binary, unless --no-viewer)
@@ -90,11 +100,15 @@ compute_fingerprint() {
     if [ -f "$file" ]; then
       relpath="${file#"$REPO_ROOT/"}"
       printf '%s\n' "$relpath"
-      sha256sum "$file"
+      # Strip the path from the hash line — sha256sum's default output
+      # `<hash>  <path>` would otherwise embed the runner's absolute path
+      # (different on Linux, macOS, Windows) and break cross-runner
+      # fingerprint matching.
+      _sha256 "$file" | awk '{print $1}'
     else
       printf '%s\n' "$file"
     fi
-  done | sha256sum | awk '{print $1}'
+  done | _sha256 | awk '{print $1}'
 }
 
 CURRENT_FP=$(compute_fingerprint)
@@ -114,14 +128,21 @@ fi
 echo "Building embedded dependencies..."
 
 # claude-agent-sdk-runner (native target) — build the one we're using
-if [ "$CLAUDE_AGENT_SDK_PYTHON" = "1" ]; then
-  bash "$REPO_ROOT/objectiveai-claude-agent-sdk-runner-py/build.sh" --release
-else
+if [ "$CLAUDE_AGENT_SDK_JAVASCRIPT" = "1" ]; then
   bash "$REPO_ROOT/objectiveai-claude-agent-sdk-runner-js/build.sh" --release
+else
+  bash "$REPO_ROOT/objectiveai-claude-agent-sdk-runner-py/build.sh" --release
 fi
 
-# mcp (linux-musl, needed by objectiveai-api with orchestrator-bollard)
-bash "$REPO_ROOT/objectiveai-mcp/build.sh" --target "$(uname -m)-unknown-linux-musl" --release
+# mcp (linux-musl, needed by objectiveai-api with orchestrator-bollard).
+# Match the host architecture (ARM hosts embed aarch64, x86_64 hosts embed
+# x86_64), but always target linux-musl. Normalize macOS's `arm64` to Rust's
+# `aarch64` triple convention.
+MCP_ARCH=$(uname -m)
+case "$MCP_ARCH" in
+  arm64) MCP_ARCH=aarch64 ;;
+esac
+bash "$REPO_ROOT/objectiveai-mcp/build.sh" --target "$MCP_ARCH-unknown-linux-musl" --release
 
 # viewer (native target, unless --no-viewer)
 if [ "$NO_VIEWER" = "0" ]; then
@@ -131,11 +152,11 @@ fi
 # ── Build CLI ──────────────────────────────────────────────────────────
 
 # Assemble feature list
-FEATURES="rustpython,systempython"
-if [ "$CLAUDE_AGENT_SDK_PYTHON" = "1" ]; then
-  FEATURES="$FEATURES,claude-agent-sdk-python"
-else
+FEATURES="rustpython,systempython,updater"
+if [ "$CLAUDE_AGENT_SDK_JAVASCRIPT" = "1" ]; then
   FEATURES="$FEATURES,claude-agent-sdk-javascript"
+else
+  FEATURES="$FEATURES,claude-agent-sdk-python"
 fi
 if [ "$NO_VIEWER" = "0" ]; then
   FEATURES="$FEATURES,viewer"

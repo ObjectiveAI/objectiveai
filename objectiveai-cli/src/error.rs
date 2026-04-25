@@ -38,4 +38,6 @@ pub enum Error {
     ConfigSetForbidden,
     #[error("log writer task panicked or was cancelled")]
     WriterPanic,
+    #[error("unknown --instructions-id: run the matching `instructions` subcommand to get one")]
+    UnknownInstructionsId,
 }

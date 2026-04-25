@@ -262,7 +262,64 @@ async def run(args: argparse.Namespace) -> int:
     return exit_code
 
 
+def _silence_proactor_pipe_warnings() -> None:
+    """Workaround for a long-standing CPython bug on Windows.
+
+    On Windows, asyncio's `_ProactorBasePipeTransport` and
+    `BaseSubprocessTransport` `__del__` methods run during interpreter
+    shutdown and may try to `repr` themselves for a debug log;
+    `__repr__` calls `fileno()` on the underlying pipe; if the pipe is
+    already closed (which is *normal* at shutdown — the OS or the SDK
+    subprocess we drove has gone away) `fileno()` raises
+    `ValueError: I/O operation on closed pipe`. Python prints the trace
+    as `Exception ignored in:` on stderr.
+
+    Two distinct entry points hit this:
+      - `_ProactorBasePipeTransport.__del__` directly.
+      - `BaseSubprocessTransport.__del__` → `__repr__` → child pipe's
+        `_ProactorBasePipeTransport.__repr__` → `fileno()`.
+
+    Both must be wrapped — patching only the pipe-transport's `__del__`
+    leaves the subprocess-transport path open. The exception is
+    harmless (the transport already released everything it owned) but
+    anything downstream that treats stderr as a failure signal (e.g.
+    objectiveai-api wrapping our exit) sees it and reports a 500.
+
+    Refs: bpo-39232, gh-91555.
+    """
+    if sys.platform != "win32":
+        return
+
+    def _wrap_del(cls: Any) -> None:
+        original = cls.__del__
+
+        def _patched(self, *a: Any, **kw: Any) -> None:
+            try:
+                original(self, *a, **kw)
+            except (ValueError, OSError):
+                # Closed-pipe race during shutdown — drop it. Anything
+                # else propagates so real bugs still surface.
+                pass
+
+        cls.__del__ = _patched  # type: ignore[method-assign]
+
+    try:
+        from asyncio.proactor_events import _ProactorBasePipeTransport  # type: ignore[attr-defined]
+        _wrap_del(_ProactorBasePipeTransport)
+    except Exception:
+        pass
+    try:
+        from asyncio.base_subprocess import BaseSubprocessTransport
+        _wrap_del(BaseSubprocessTransport)
+    except Exception:
+        pass
+
+
 def main() -> None:
+    # Suppress the cosmetic Windows asyncio shutdown warning before we
+    # start the loop, so even crashes-during-cleanup don't leak it.
+    _silence_proactor_pipe_warnings()
+
     args = parse_args()
     try:
         code = asyncio.run(run(args))

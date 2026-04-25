@@ -11,6 +11,8 @@ struct ResultItem {
 }
 
 pub async fn handle(args: CreateArgs, cli_config: &crate::Config) -> Result<crate::Output, crate::error::Error> {
+    args.instructions.verify(cli_config, crate::instructions::InstructionsScope::LaboratoryExecutions)?;
+
     let mut builder_agents = Vec::with_capacity(args.builder_agent.len());
     for a in &args.builder_agent {
         builder_agents.push(a.clone().resolve(|| async {

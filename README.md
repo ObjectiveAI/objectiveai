@@ -28,13 +28,31 @@ Agent has a decision
 
 ## Install
 
+### CLI
+
+Install the pre-built binary with one command:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ObjectiveAI/objectiveai/main/install.sh | bash
+```
+
+Leaner, no-viewer build:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ObjectiveAI/objectiveai/main/install.sh | bash -s -- --no-viewer
+```
+
+Supported platforms: Linux x86_64, Linux aarch64 (Raspberry Pi 4+, Graviton), macOS x86_64, macOS aarch64 (Apple Silicon), Windows x86_64. The installer drops the binary at `~/.objectiveai/objectiveai` and adds it to `PATH`; the CLI self-updates on startup from [GitHub Releases](https://github.com/ObjectiveAI/objectiveai/releases).
+
+### SDK
+
 ```bash
 npm install objectiveai
 ```
 
 ```toml
 [dependencies]
-objectiveai = "0.1.1"
+objectiveai = "2.0.0"
 ```
 
 ## Core primitives
@@ -54,6 +72,7 @@ A **Swarm** is a collection of Agents used together for collective judgment. Eac
   "description": "Balanced judgment panel",
   "agents": [
     {
+      "upstream": "openrouter",
       "model": "openai/gpt-4o",
       "output_mode": "json_schema",
       "prefix_messages": [
@@ -62,6 +81,7 @@ A **Swarm** is a collection of Agents used together for collective judgment. Eac
       "count": 2
     },
     {
+      "upstream": "openrouter",
       "model": "anthropic/claude-sonnet-4-20250514",
       "output_mode": "tool_call",
       "suffix_messages": [
@@ -125,14 +145,16 @@ Give it a dataset of inputs with expected outputs. ObjectiveAI executes repeated
 
 ### The resource graph
 
-Every resource can reference every other resource, inline or remote:
+Resources reference each other inline or remote:
 
 ```
-agent.json  <-  swarm.json  <-  profile.json  <-  function.json
-                 (agents)        (swarm+weights)    (profile+tasks)
+agent.json  <-  swarm.json  <-  profile.json      function.json
+                 (agents)        (swarms+weights)   (tasks + input_schema)
+
+At execution: function.json + profile.json  ->  scores
 ```
 
-All remote references use `(owner, repository, commit)` triples. Pin a commit SHA for reproducibility, or omit it to resolve to latest. The retrieval system resolves the entire graph, caching and deduplicating fetches along the way.
+Function and profile are independent files — execution takes both and combines them. All remote references use `(owner, repository, commit)` triples. Pin a commit SHA for reproducibility, or omit it to resolve to latest. The retrieval system resolves the entire graph, caching and deduplicating fetches along the way.
 
 ## Function invention
 
@@ -157,13 +179,18 @@ An agent that can invent its own judgment criteria, train them on data, and depl
 objectiveai/
 ├── objectiveai-rs/             # Rust SDK (core crate: types, validation, compilation)
 ├── objectiveai-api/            # API server (self-hostable)
-├── objectiveai-rs-wasm-js/     # WASM bindings for browser/Node.js
-├── objectiveai-rs-pyo3/        # Python bindings via PyO3
-├── objectiveai-rs-cffi/        # C FFI bindings (Go, .NET, etc.)
-├── objectiveai-js/             # TypeScript SDK (npm: objectiveai)
-├── objectiveai-json-schema/    # Generated JSON Schema files
 ├── objectiveai-cli/            # CLI tool
-├── objectiveai-web/            # Web interface
+├── objectiveai-mcp/            # MCP server (embedded in lab executions)
+├── objectiveai-viewer/         # Local Tauri viewer (optional, embedded in CLI)
+├── objectiveai-web/            # Web interface (production)
+├── objectiveai-js/             # TypeScript SDK (npm: objectiveai)
+├── objectiveai-rs-wasm-js/     # WASM bindings for browser/Node.js
+├── objectiveai-py/             # Python package
+├── objectiveai-rs-pyo3/        # Rust crate behind objectiveai-py
+├── objectiveai-go/             # Go SDK
+├── objectiveai-dotnet/         # .NET SDK (in progress)
+├── objectiveai-rs-cffi/        # C FFI bindings (foundation for other langs)
+├── objectiveai-json-schema/    # Generated JSON Schema files
 └── objectiveai-scripts/        # Utility scripts
 ```
 

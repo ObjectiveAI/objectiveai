@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { AgentCompletionView } from "./AgentCompletionView";
+import { FunctionInventionRecursiveView } from "./FunctionInventionRecursiveView";
+import { FunctionExecutionView } from "./FunctionExecutionView";
 import { z } from "zod";
 import {
   AgentCompletionsRequestAgentCompletionCreateParamsSchema,
@@ -151,6 +153,13 @@ function EntryView({ entry }: { entry: Entry }) {
   if (entry.kind === "agent-completion") {
     return <AgentCompletionView entry={entry} />;
   }
+  if (entry.kind === "invention") {
+    return <FunctionInventionRecursiveView entry={entry} />;
+  }
+  if (entry.kind === "execution") {
+    return <FunctionExecutionView entry={entry} />;
+  }
+  // Laboratory executions keep the raw-JSON fallback for now.
   if (entry.error) {
     return <pre style={{ color: "red" }}>{JSON.stringify(entry.error, null, 2)}</pre>;
   }

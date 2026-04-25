@@ -1,4 +1,5 @@
 pub mod client;
+pub mod db;
 mod config;
 mod api;
 mod functions;

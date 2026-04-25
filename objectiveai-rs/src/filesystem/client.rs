@@ -1,10 +1,18 @@
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone)]
 pub struct Client {
     base_dir: PathBuf,
     pub commit_author_name: String,
     pub commit_author_email: String,
+    /// Lazily-initialised SQLite connection shared across clones of this
+    /// `Client`. Populated on first call to `db()` (see
+    /// `filesystem::config::db`). Wrapped in `Arc<Mutex<Option<…>>>` so
+    /// every clone sees the same connection once one exists, and so
+    /// init failures don't poison the slot — a failed attempt leaves
+    /// the inner `Option::None` intact and later calls can retry.
+    db_conn: Arc<Mutex<Option<Arc<Mutex<rusqlite::Connection>>>>>,
 }
 
 impl Client {
@@ -22,6 +30,7 @@ impl Client {
                         base_dir: PathBuf::from(dir),
                         commit_author_name: resolve_author_name(commit_author_name),
                         commit_author_email: resolve_author_email(commit_author_email),
+                        db_conn: Arc::new(Mutex::new(None)),
                     };
                 }
                 dirs::home_dir()
@@ -33,6 +42,7 @@ impl Client {
             base_dir,
             commit_author_name: resolve_author_name(commit_author_name),
             commit_author_email: resolve_author_email(commit_author_email),
+            db_conn: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -44,8 +54,18 @@ impl Client {
         self.base_dir.join("config.json")
     }
 
+    pub fn db_path(&self) -> PathBuf {
+        self.base_dir.join("config.sqlite")
+    }
+
     pub fn logs_dir(&self) -> PathBuf {
         self.base_dir.join("logs")
+    }
+
+    /// Internal accessor to the lazy-init slot. Used by
+    /// `filesystem::config::db` to open the connection on first use.
+    pub(crate) fn db_conn_slot(&self) -> &Mutex<Option<Arc<Mutex<rusqlite::Connection>>>> {
+        &self.db_conn
     }
 }
 

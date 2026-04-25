@@ -36,4 +36,6 @@ pub enum Error {
     Io(#[from] std::io::Error),
     #[error("git error: {0}")]
     Git(#[from] git2::Error),
+    #[error("db error: {0}")]
+    Db(#[from] rusqlite::Error),
 }

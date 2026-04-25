@@ -13,7 +13,7 @@ keywords = ["llm", "ai", "swarm"]
 publish = true
 
 [features]
-default = ["orchestrator-bollard", "claude-agent-sdk-javascript"]
+default = ["orchestrator-bollard", "claude-agent-sdk-python"]
 sqlite-persistent-cache = ["dep:rusqlite"]
 orchestrator-bollard = ["dep:bollard", "dep:tar"]
 claude-agent-sdk-python = []

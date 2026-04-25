@@ -8,6 +8,20 @@
   font-size: 14px;
 }
 
+/* Optional prominent label (function name or task path) shown above the
+   standard header. Used when the chat is nested inside an invention or
+   execution so the reader can tell which sub-context it belongs to. */
+.ac-label {
+  padding: 8px 16px;
+  background: #e8effa;
+  border-bottom: 1px solid #c8d8f0;
+  font-family: monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: #2c5aa0;
+  word-break: break-word;
+}
+
 .ac-header {
   display: flex;
   align-items: center;
@@ -296,9 +310,24 @@
   margin-top: 4px;
 }
 
+/* Section header for a group of chats (e.g. "Invention X" containing
+   multiple completions, or "Task X.Y.Z" in an execution). */
+.ac-section-header {
+  max-width: 800px;
+  margin: 16px auto 8px;
+  padding: 6px 16px 10px;
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: #333;
+  border-bottom: 2px solid #aaa;
+}
+
 /* Dark mode */
 @media (prefers-color-scheme: dark) {
   .ac-container { border-color: #444; }
+  .ac-label { background: #1e2a3f; border-color: #30446b; color: #8ab4f8; }
+  .ac-section-header { color: #eee; border-color: #666; }
   .ac-header { background: #383838; border-color: #444; color: #aaa; }
   .ac-header-model { color: #ddd; }
   .ac-header-upstream { background: #4a4a4a; color: #ccc; }

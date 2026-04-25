@@ -6,6 +6,7 @@ import type {
   AgentCompletionsMessageMessage,
   AgentCompletionsMessageRichContentPart,
   AgentCompletionsResponseUsage,
+  ErrorResponseError,
 } from "objectiveai";
 
 interface AgentCompletionEntry {
@@ -188,12 +189,33 @@ function UsageFooter({ usage }: { usage: AgentCompletionsResponseUsage }) {
 }
 
 // ---------------------------------------------------------------------------
-// Main component
+// Reusable chat view — one AgentCompletionChunk → one chat UI.
+// Used directly for top-level agent completions, and repeatedly for each
+// agent completion nested inside function inventions / executions.
 // ---------------------------------------------------------------------------
 
-export function AgentCompletionView({ entry }: { entry: AgentCompletionEntry }) {
-  const chunk = entry.chunk;
+export interface AgentCompletionChatProps {
+  /** Optional label shown prominently above the standard header.
+   * Used by function-invention views (function name) and function-execution
+   * views (task path). */
+  label?: string;
+  /** Optional request-side messages to render before the response messages.
+   * Only present for top-level agent completions where we have the original
+   * request. */
+  requestMessages?: AgentCompletionsMessageMessage[];
+  chunk: AgentCompletionsResponseStreamingAgentCompletionChunk | null;
+  error: { code: number; message: unknown } | null;
+  /** Used in the header. Optional; falls back to chunk.id when available. */
+  id?: string;
+}
 
+export function AgentCompletionChat({
+  label,
+  requestMessages,
+  chunk,
+  error,
+  id,
+}: AgentCompletionChatProps) {
   // Extract model/upstream from first assistant message in chunk
   let model = "";
   let upstream = "";
@@ -208,31 +230,29 @@ export function AgentCompletionView({ entry }: { entry: AgentCompletionEntry }) 
     upstream = chunk.upstream ?? "";
   }
 
-  // Determine status
   const hasFinish = chunk?.messages.some(
     (m) => m.role === "assistant" && (m as AssistantResponseChunkLike).finish_reason
   );
-  const status = entry.error ? "error" : hasFinish ? "complete" : "streaming";
+  const status = error ? "error" : hasFinish ? "complete" : "streaming";
 
-  // Format timestamp
   const created = chunk?.created;
   const timeStr = created ? new Date(created * 1000).toLocaleTimeString() : "";
+  const displayId = id ?? chunk?.id ?? "";
 
   return (
     <div className="ac-container">
-      {/* Header */}
+      {label && <div className="ac-label">{label}</div>}
+
       <div className="ac-header">
         <div className={`ac-status ac-status-${status}`} />
         {model && <span className="ac-header-model">{model}</span>}
         {upstream && <span className="ac-header-upstream">{upstream}</span>}
         {timeStr && <span>{timeStr}</span>}
-        <span className="ac-header-id">{entry.id.slice(0, 12)}</span>
+        {displayId && <span className="ac-header-id">{displayId.slice(0, 12)}</span>}
       </div>
 
-      {/* Messages */}
       <div className="ac-messages">
-        {/* Request messages (user/developer/system input) */}
-        {entry.request.messages?.map((msg, i) => {
+        {requestMessages?.map((msg, i) => {
           const role = (msg as { role: string }).role;
           if (role === "developer" || role === "system") {
             return (
@@ -252,7 +272,6 @@ export function AgentCompletionView({ entry }: { entry: AgentCompletionEntry }) 
           return null;
         })}
 
-        {/* Response messages (assistant/tool output) */}
         {chunk?.messages.map((msg, i) => {
           if (msg.role === "assistant") {
             return <AssistantBubble key={`resp-${i}`} msg={msg as AssistantResponseChunkLike} />;
@@ -263,21 +282,41 @@ export function AgentCompletionView({ entry }: { entry: AgentCompletionEntry }) 
           return null;
         })}
 
-        {/* Waiting state */}
-        {!chunk && !entry.error && (
+        {!chunk && !error && (
           <div style={{ color: "#999", fontStyle: "italic" }}>Waiting for response...</div>
         )}
       </div>
 
-      {/* Error banner */}
-      {entry.error && (
+      {error && (
         <div className="ac-error-banner">
-          Error {entry.error.code}: {JSON.stringify(entry.error.message)}
+          Error {error.code}: {JSON.stringify(error.message)}
         </div>
       )}
 
-      {/* Usage footer */}
       {chunk?.usage && <UsageFooter usage={chunk.usage} />}
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Top-level agent-completion entry → chat view with request messages
+// ---------------------------------------------------------------------------
+
+export function AgentCompletionView({ entry }: { entry: AgentCompletionEntry }) {
+  const errorForChat = entry.error
+    ? { code: entry.error.code, message: entry.error.message }
+    : null;
+  return (
+    <AgentCompletionChat
+      requestMessages={entry.request.messages}
+      chunk={entry.chunk}
+      error={errorForChat}
+      id={entry.id}
+    />
+  );
+}
+
+// Re-export the error shape alias used by the invention/execution views.
+export type InlineCompletionError = { code: number; message: unknown } | null;
+export type InlineCompletionChunk = AgentCompletionsResponseStreamingAgentCompletionChunk | null;
+export type { ErrorResponseError };

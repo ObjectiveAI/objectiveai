@@ -40,6 +40,15 @@ run() {
     tauri_args+=("--debug")
   fi
 
+  # Ensure JS dependencies (including @tauri-apps/cli) are installed.
+  # On a fresh checkout — local or in CI — there is no node_modules yet,
+  # so `pnpm exec tauri` would fail with "Command \"tauri\" not found".
+  # We run install from the repo root so pnpm picks up the workspace.
+  echo "Installing $MODULE dependencies via pnpm..."
+  if ! (cd "$REPO_ROOT" && pnpm install --frozen-lockfile); then
+    return 1
+  fi
+
   echo "Building $MODULE ($PROFILE, $TARGET) via tauri build..."
   if ! (cd "$SCRIPT_DIR" && pnpm exec tauri build "${tauri_args[@]}"); then
     return 1

@@ -4028,6 +4028,7 @@ dependencies = [
  "rand 0.9.2",
  "reqwest 0.12.28",
  "reqwest-eventsource",
+ "rusqlite",
  "rust_decimal",
  "schemars 1.2.1",
  "serde",
@@ -4104,6 +4105,7 @@ dependencies = [
 name = "objectiveai-cli"
 version = "2.0.0"
 dependencies = [
+ "base62",
  "base64 0.22.1",
  "clap 4.6.0",
  "dotenv",
@@ -4114,11 +4116,13 @@ dependencies = [
  "ratatui",
  "reqwest 0.12.28",
  "rustpython",
+ "semver",
  "serde",
  "serde_json",
  "serde_path_to_error",
  "thiserror 2.0.18",
  "tokio",
+ "uuid",
 ]
 
 [[package]]

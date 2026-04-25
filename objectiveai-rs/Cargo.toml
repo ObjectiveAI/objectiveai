@@ -15,7 +15,7 @@ publish = true
 [features]
 default = ["http", "filesystem", "env"]
 http = ["dep:reqwest", "dep:reqwest-eventsource", "dep:eventsource-stream", "dep:futures"]
-filesystem = ["dep:dirs", "dep:jaq-core", "dep:jaq-std", "dep:jaq-json", "dep:sha2", "dep:tokio", "dep:futures", "dep:mime_guess", "dep:git2"]
+filesystem = ["dep:dirs", "dep:jaq-core", "dep:jaq-std", "dep:jaq-json", "dep:sha2", "dep:tokio", "dep:futures", "dep:mime_guess", "dep:git2", "dep:rusqlite"]
 env = []
 
 [dependencies]
@@ -51,6 +51,7 @@ mime2ext = { version = "0.1.54" }
 mime_guess = { version = "2.0.5", optional = true }
 tokio = { version = "1.51.1", features = ["fs", "time"], optional = true }
 git2 = { version = "0.20.4", default-features = false, features = ["vendored-libgit2"], optional = true }
+rusqlite = { version = "0.31.0", features = ["bundled"], optional = true }
 
 [dev-dependencies]
 proc-macro2 = { version = "1.0.106", features = ["span-locations"] }

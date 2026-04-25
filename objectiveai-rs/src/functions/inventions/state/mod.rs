@@ -36,12 +36,27 @@ use schemars::JsonSchema;
 /// Splits `parent_name` by `-`, takes the last segment, and tries to decode
 /// it as a base62 path. If successful, pushes `task_index` and re-encodes.
 /// If not, appends a new `-` segment with just the index encoded.
+///
+/// Detection of "is this trailing segment a path?" requires BOTH:
+///   1. `last.len() == super::path::PATH_SUFFIX_LEN`, AND
+///   2. `b62_to_path(last)` succeeds.
+///
+/// The length check is what stops a user-chosen suffix like `-v`,
+/// `-vii`, or `-final` from being mistakenly decoded as a path and
+/// replaced. Both checks are required — see the path module's header
+/// comment for the full invariant.
 fn child_name(parent_name: &str, task_index: usize) -> String {
     if let Some((prefix, last)) = parent_name.rsplit_once('-') {
-        if let Ok(mut path) = super::path::b62_to_path::<u64>(last) {
-            path.push(task_index as u64);
-            if let Ok(b62) = super::path::path_to_b62(&path) {
-                return format!("{}-{}", prefix, b62);
+        // ADDITIONAL length check — the original code only checked
+        // "does it parse?", which lets `-v` (decodes as 57 → path
+        // [56]) sneak through. Real paths are always exactly
+        // PATH_SUFFIX_LEN base62 chars.
+        if last.len() == super::path::PATH_SUFFIX_LEN {
+            if let Ok(mut path) = super::path::b62_to_path::<u64>(last) {
+                path.push(task_index as u64);
+                if let Ok(b62) = super::path::path_to_b62(&path) {
+                    return format!("{}-{}", prefix, b62);
+                }
             }
         }
     }
@@ -56,16 +71,105 @@ fn child_name(parent_name: &str, task_index: usize) -> String {
 /// Tries to parse the last `-` segment as a base62 path. If successful,
 /// pops the last element and pushes `new_index`. If parsing fails, leaves
 /// the name unchanged.
+///
+/// Same length+parse detection rule as [`child_name`] — see its docs.
 fn reindex_name(name: &mut String, new_index: usize) {
     if let Some((prefix, last)) = name.rsplit_once('-') {
-        if let Ok(mut path) = super::path::b62_to_path::<u64>(last) {
-            if !path.is_empty() {
-                path.pop();
-                path.push(new_index as u64);
-                if let Ok(b62) = super::path::path_to_b62(&path) {
-                    *name = format!("{}-{}", prefix, b62);
+        // ADDITIONAL length check — see child_name.
+        if last.len() == super::path::PATH_SUFFIX_LEN {
+            if let Ok(mut path) = super::path::b62_to_path::<u64>(last) {
+                if !path.is_empty() {
+                    path.pop();
+                    path.push(new_index as u64);
+                    if let Ok(b62) = super::path::path_to_b62(&path) {
+                        *name = format!("{}-{}", prefix, b62);
+                    }
                 }
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod child_name_tests {
+    use super::*;
+
+    #[test]
+    fn user_suffix_v_is_preserved() {
+        // Regression: `unsettlingness-ranker-v` had its `-v` decoded
+        // as base62 → integer → path and replaced with the child's
+        // path. Detection now requires the trailing segment to be
+        // exactly PATH_SUFFIX_LEN chars, so `"v"` (1 char) doesn't
+        // qualify and a fresh path segment is appended.
+        let child = child_name("unsettlingness-ranker-v", 0);
+        assert!(
+            child.starts_with("unsettlingness-ranker-v-"),
+            "user suffix `-v` was dropped: {child:?}",
+        );
+    }
+
+    #[test]
+    fn user_suffix_vi_is_preserved() {
+        let child = child_name("unsettlingness-ranker-vi", 0);
+        assert!(
+            child.starts_with("unsettlingness-ranker-vi-"),
+            "user suffix `-vi` was dropped: {child:?}",
+        );
+    }
+
+    #[test]
+    fn user_suffix_vii_is_preserved() {
+        let child = child_name("unsettlingness-ranker-vii", 0);
+        assert!(
+            child.starts_with("unsettlingness-ranker-vii-"),
+            "user suffix `-vii` was dropped: {child:?}",
+        );
+    }
+
+    #[test]
+    fn other_short_user_suffixes_are_preserved() {
+        for parent in ["myfn-final", "scorer-x", "cluster-abc", "thing-abcde"] {
+            let child = child_name(parent, 0);
+            assert!(
+                child.starts_with(&format!("{parent}-")),
+                "{parent:?} → {child:?} dropped the user suffix",
+            );
+        }
+    }
+
+    #[test]
+    fn real_path_suffix_is_extended() {
+        // Parents whose trailing segment IS exactly PATH_SUFFIX_LEN
+        // base62 chars (and decodes as a path) get extended in place.
+        // Construct a parent with such a suffix synthetically.
+        let mut path = vec![3u64];
+        let b62 = super::super::path::path_to_b62(&path).unwrap();
+        // Pad the encoded value with arbitrary base62 chars so the
+        // suffix lands at exactly PATH_SUFFIX_LEN, then re-decode to
+        // discover what path that string represents — that's the
+        // path child_name will see and extend.
+        let padded = format!(
+            "{:0>width$}",
+            b62,
+            width = super::super::path::PATH_SUFFIX_LEN
+        );
+        let parent = format!("myfn-{padded}");
+        let decoded: Vec<u64> = super::super::path::b62_to_path(&padded).unwrap();
+        path = decoded;
+        let child = child_name(&parent, 7);
+        let suffix = child.strip_prefix("myfn-").expect("user half survives");
+        let extended: Vec<u64> = super::super::path::b62_to_path(suffix).unwrap();
+        let mut expected = path.clone();
+        expected.push(7);
+        assert_eq!(extended, expected);
+    }
+
+    #[test]
+    fn reindex_leaves_user_suffix_alone() {
+        for original in ["scorer-v", "ranker-vi", "thing-final"] {
+            let mut name = String::from(original);
+            reindex_name(&mut name, 9);
+            assert_eq!(name, original);
         }
     }
 }

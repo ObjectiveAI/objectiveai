@@ -120,6 +120,8 @@ pub enum Commands {
         input: InputSource,
         #[command(flatten)]
         continuation: crate::continuation::ContinuationArgs,
+        #[command(flatten)]
+        instructions: crate::instructions::InstructionsIdArg,
         /// Retry token from a previous execution
         #[arg(long)]
         retry_token: Option<String>,
@@ -129,6 +131,11 @@ pub enum Commands {
         /// Treat input as an array and execute once per element
         #[arg(long)]
         split: bool,
+        /// Invert every output in the response (scalar: 1-x; vector:
+        /// rank-invert so the highest-scoring position becomes the
+        /// lowest, etc.). Applied after expressions evaluate.
+        #[arg(long)]
+        invert: bool,
         /// Run in the background: print PID and log path, then exit
         #[arg(long)]
         detach: bool,
@@ -143,6 +150,8 @@ pub enum Commands {
         input: InputSource,
         #[command(flatten)]
         continuation: crate::continuation::ContinuationArgs,
+        #[command(flatten)]
+        instructions: crate::instructions::InstructionsIdArg,
         /// Retry token from a previous execution
         #[arg(long)]
         retry_token: Option<String>,
@@ -152,6 +161,11 @@ pub enum Commands {
         /// Treat input as an array and execute once per element
         #[arg(long)]
         split: bool,
+        /// Invert every output in the response (scalar: 1-x; vector:
+        /// rank-invert so the highest-scoring position becomes the
+        /// lowest, etc.). Applied after expressions evaluate.
+        #[arg(long)]
+        invert: bool,
         /// How many vector responses per execution (default 10)
         #[arg(long)]
         pool: Option<usize>,
@@ -176,15 +190,17 @@ async fn profile_favorites(cli_config: &crate::Config) -> Vec<objectiveai::files
 
 impl Commands {
     pub async fn handle(self, cli_config: &crate::Config) -> Result<crate::Output, crate::error::Error> {
-        let (function_source, profile_source, input_source, continuation_args, retry_token, seed, split, strategy, detach) = match self {
-            Commands::Standard { function, profile, input, continuation, retry_token, seed, split, detach } => {
-                (function, profile, input, continuation, retry_token, seed, split, objectiveai::functions::executions::request::Strategy::Default, detach)
+        let (function_source, profile_source, input_source, continuation_args, instructions, retry_token, seed, split, invert, strategy, detach) = match self {
+            Commands::Standard { function, profile, input, continuation, instructions, retry_token, seed, split, invert, detach } => {
+                (function, profile, input, continuation, instructions, retry_token, seed, split, invert, objectiveai::functions::executions::request::Strategy::Default, detach)
             }
-            Commands::SwissSystem { function, profile, input, continuation, retry_token, seed, split, pool, rounds, detach } => {
+            Commands::SwissSystem { function, profile, input, continuation, instructions, retry_token, seed, split, invert, pool, rounds, detach } => {
                 let strategy = objectiveai::functions::executions::request::Strategy::SwissSystem { pool, rounds };
-                (function, profile, input, continuation, retry_token, seed, split, strategy, detach)
+                (function, profile, input, continuation, instructions, retry_token, seed, split, invert, strategy, detach)
             }
         };
+
+        instructions.verify(cli_config, crate::instructions::InstructionsScope::FunctionExecutions)?;
 
         if detach {
             crate::api::detach::detach().await;
@@ -204,6 +220,7 @@ impl Commands {
             strategy: Some(strategy),
             input: input_value,
             split: if split { Some(true) } else { None },
+            invert: if invert { Some(true) } else { None },
             provider: None,
             seed,
             stream: Some(true),

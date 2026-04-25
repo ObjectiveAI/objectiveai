@@ -33,6 +33,14 @@ fi
 EMBED_DIR="$SCRIPT_DIR/embed/$TARGET/$PROFILE"
 FINGERPRINT_FILE="$EMBED_DIR/.fingerprint"
 
+# macOS ships `shasum` (Perl) but not GNU `sha256sum`; prefer the latter
+# when present so hashes match across Linux-based builders exactly.
+if command -v sha256sum >/dev/null 2>&1; then
+  _sha256() { sha256sum "$@"; }
+else
+  _sha256() { shasum -a 256 "$@"; }
+fi
+
 compute_fingerprint() {
   {
     # Include profile in fingerprint so debug != release
@@ -48,11 +56,15 @@ compute_fingerprint() {
     if [ -f "$file" ]; then
       relpath="${file#"$REPO_ROOT/"}"
       printf '%s\n' "$relpath"
-      sha256sum "$file"
+      # Strip the path from the hash line — sha256sum's default output
+      # `<hash>  <path>` would otherwise embed the runner's absolute path
+      # (different on Linux, macOS, Windows) and break cross-runner
+      # fingerprint matching.
+      _sha256 "$file" | awk '{print $1}'
     else
       printf '%s\n' "$file"
     fi
-  done | sha256sum | awk '{print $1}'
+  done | _sha256 | awk '{print $1}'
 }
 
 CURRENT_FP=$(compute_fingerprint)
