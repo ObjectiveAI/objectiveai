@@ -19,19 +19,20 @@ dotenv = "0.15.0"
 envconfig = "0.11.1"
 futures = "0.3"
 glob = { version = "0.3", optional = true }
-indexmap = { version = "2", optional = true }
+indexmap = { version = "2.13.0", features = ["serde"], optional = true }
 # Direct dep (no features) so cargo invalidates objectiveai-mcp whenever
 # objectiveai-rs changes, matching what fingerprint.sh already tracks.
 # Disabling default features avoids pulling in `filesystem`'s vendored
 # libgit2, which would require a cross C toolchain for the musl build.
-objectiveai = { path = "../objectiveai-rs", version = "2.0.0", default-features = false }
+# `mcp` opts in to the in-tree MCP client (Client/Connection/Error etc).
+objectiveai = { path = "../objectiveai-rs", version = "2.0.0", default-features = false, features = ["mcp"] }
 objectiveai-cli = { path = "../objectiveai-cli", version = "2.0.0", optional = true, default-features = false }
 pathdiff = { version = "0.2", optional = true }
 regex = { version = "1", optional = true }
 rmcp = { version = "0.16.0", features = ["server", "transport-streamable-http-server"] }
 schemars = "1.2.1"
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = { version = "1", optional = true }
+serde_json = { version = "1.0.149", features = ["preserve_order"], optional = true }
 tokio = { version = "1.50.0", features = ["full"] }
 tokio-util = "0.7.18"
 tracing = "0.1.44"

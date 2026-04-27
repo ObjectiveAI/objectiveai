@@ -66,3 +66,6 @@ mod http;
 #[cfg(feature = "http")]
 pub use http::*;
 
+#[cfg(feature = "mcp")]
+pub mod mcp;
+

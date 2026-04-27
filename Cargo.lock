@@ -4006,12 +4006,14 @@ version = "2.0.0"
 dependencies = [
  "anyhow",
  "arbitrary",
+ "backoff",
  "base62",
  "base64 0.22.1",
  "chrono",
  "dirs",
  "eventsource-stream",
  "futures",
+ "futures-util",
  "getrandom 0.3.4",
  "git2",
  "indexmap 2.13.0",
@@ -4039,6 +4041,7 @@ dependencies = [
  "syn 2.0.117",
  "thiserror 2.0.18",
  "tokio",
+ "tokio-util",
  "twox-hash",
  "uuid",
  "walkdir",
@@ -4170,6 +4173,92 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "walkdir",
+]
+
+[[package]]
+name = "objectiveai-mcp-cli"
+version = "2.0.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "dotenv",
+ "envconfig",
+ "objectiveai-cli",
+ "rmcp",
+ "schemars 1.2.1",
+ "serde",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "objectiveai-mcp-filesystem"
+version = "2.0.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "base64 0.22.1",
+ "dotenv",
+ "envconfig",
+ "glob",
+ "indexmap 2.13.0",
+ "pathdiff",
+ "regex",
+ "rmcp",
+ "schemars 1.2.1",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "tracing-subscriber",
+ "walkdir",
+]
+
+[[package]]
+name = "objectiveai-mcp-proxy"
+version = "2.0.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "dashmap",
+ "dotenv",
+ "envconfig",
+ "futures",
+ "indexmap 2.13.0",
+ "objectiveai",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
+name = "objectiveai-mcp-test-upstream"
+version = "2.0.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "dashmap",
+ "dotenv",
+ "envconfig",
+ "futures",
+ "indexmap 2.13.0",
+ "objectiveai",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]

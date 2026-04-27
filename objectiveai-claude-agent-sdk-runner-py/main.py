@@ -1,25 +1,62 @@
 #!/usr/bin/env python3
-"""ObjectiveAI Claude Agent SDK Runner.
+"""ObjectiveAI Claude Agent SDK Runner — stdio NDJSON server.
 
-Runs the Claude Agent SDK and streams JSONL events to stdout.
-Designed to be spawned as a subprocess by objectiveai-api, replacing
-the inline-generated Node.js script with a standalone Python program.
+A long-lived process that accepts multiple concurrent Claude Agent SDK
+runs over a single stdin/stdout/stderr pair. The caller multiplexes by
+attaching a string ``id`` to every request; every line emitted on
+stdout and stderr carries that same ``id`` so the caller can
+demultiplex events from N concurrent streams.
 
-All parameters that were previously baked into the generated JS code
-are accepted as CLI arguments instead.
+Spawn with no arguments:
+
+  $ runner
+
+The runner has no built-in concurrency cap. The Rust caller
+(objectiveai-api) enforces a FIFO ``query_limit`` on its side via a
+``tokio::sync::Semaphore``, so surplus requests never reach this
+process — they wait for a slot before the ``run`` line is sent.
+
+Wire protocol — NDJSON, one JSON object per line, UTF-8, terminated by
+``\\n``:
+
+  Inbound (stdin):
+    {"type":"run","id":"<id>","params":{...}}        # start a stream
+    {"type":"cancel","id":"<id>"}                    # abort one stream
+
+  Outbound (stdout):
+    {"type":"event","id":"<id>","event":{...}}       # one SDK message
+    {"type":"end","id":"<id>","status":"ok"}
+    {"type":"end","id":"<id>","status":"cancelled"}
+    {"type":"end","id":"<id>","status":"error","error":"<msg>"}
+
+  Outbound (stderr) during operation:
+    {"type":"diag","id":"<id>","level":"warn","message":"..."}
+
+  Outbound (stderr) before main_loop is up — process-fatal only:
+    {"type":"fatal","message":"..."}                 # untagged carve-out
+
+EOF on stdin = drain every in-flight task, exit 0. There is no
+``shutdown`` message — the runner cannot be told to kill the whole
+process via JSON; the only stop paths are EOF or external signal.
+
+Concurrency: every emit on stdout (and on stderr) is serialized through
+one ``asyncio.Lock`` per stream. This keeps line bytes from
+interleaving across coroutines, but it also means a slow consumer will
+block ALL in-flight runs once the OS pipe buffer fills. The caller
+MUST drain stdout promptly.
 """
 
 from __future__ import annotations
 
-__version__ = "2.0.0"
+__version__ = "3.0.0"
 
-import argparse
 import asyncio
 import json
 import os
 import sys
 import time
-from typing import Any
+from dataclasses import replace
+from typing import Any, BinaryIO, Optional
 
 from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient
 from claude_agent_sdk.types import (
@@ -197,72 +234,64 @@ def serialize_message(msg: Message) -> dict[str, Any] | None:
 
 
 # ---------------------------------------------------------------------------
-# CLI argument parsing
+# Stream writer (atomic, lock-serialized line emission)
 # ---------------------------------------------------------------------------
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Run Claude Agent SDK and stream JSONL events to stdout.",
-    )
-    parser.add_argument(
-        "--model",
-        required=True,
-        help="Model identifier (e.g. claude-sonnet-4-20250514)",
-    )
-    parser.add_argument(
-        "--message",
-        required=True,
-        help="SDK user message as a JSON string",
-    )
-    parser.add_argument(
-        "--system-prompt",
-        default=None,
-        help="System prompt text",
-    )
-    parser.add_argument(
-        "--effort",
-        choices=["low", "medium", "high", "max"],
-        default=None,
-        help="Effort level for thinking depth",
-    )
-    parser.add_argument(
-        "--thinking-disabled",
-        action="store_true",
-        help="Disable extended thinking",
-    )
-    parser.add_argument(
-        "--mcp-servers",
-        default=None,
-        help='MCP servers config as a JSON object (e.g. \'{"name": {"type": "http", "url": "..."}}\')',
-    )
-    parser.add_argument(
-        "--resume",
-        default=None,
-        help="Session ID to resume",
-    )
-    parser.add_argument(
-        "--user-agent",
-        default=None,
-        help="User agent string (sets CLAUDE_AGENT_SDK_CLIENT_APP env var)",
-    )
-    parser.add_argument(
-        "--rate-limit-max-retries",
-        type=int,
-        required=True,
-        help="Maximum number of retries on 429 rate limit (with retry-after backoff)",
-    )
-    parser.add_argument(
-        "--rate-limit-max-wait-secs",
-        type=int,
-        default=180,
-        help="Maximum seconds to wait for a rate-limit reset before giving up",
-    )
-    return parser.parse_args()
+class Writer:
+    """Serializes async writes to one binary stream.
+
+    Every emit is a single UTF-8 line ending in ``\\n``, written-and-flushed
+    under one ``asyncio.Lock`` so concurrent coroutines never interleave
+    bytes mid-line. We go through ``raw.write`` on the binary buffer
+    (``sys.stdout.buffer`` / ``sys.stderr.buffer``) to bypass Python's
+    text-mode ``\\n``→``\\r\\n`` translation on Windows.
+    """
+
+    def __init__(self, raw: BinaryIO) -> None:
+        self._raw = raw
+        self._lock = asyncio.Lock()
+
+    async def emit(self, payload: dict) -> None:
+        line = json.dumps(payload, separators=(",", ":"), ensure_ascii=False) + "\n"
+        data = line.encode("utf-8")
+        async with self._lock:
+            self._raw.write(data)
+            self._raw.flush()
+
+    # --- stdout helpers ---
+
+    async def emit_event(self, request_id: str, event: dict) -> None:
+        await self.emit({"type": "event", "id": request_id, "event": event})
+
+    async def emit_end(
+        self,
+        request_id: str,
+        status: str,
+        error: Optional[str] = None,
+    ) -> None:
+        payload: dict[str, Any] = {
+            "type": "end",
+            "id": request_id,
+            "status": status,
+        }
+        if error is not None:
+            payload["error"] = error
+        await self.emit(payload)
+
+    # --- stderr helper ---
+
+    async def emit_diag(self, request_id: str, level: str, message: str) -> None:
+        await self.emit({
+            "type": "diag",
+            "id": request_id,
+            "level": level,
+            "message": message,
+        })
 
 
 # ---------------------------------------------------------------------------
-# Main
+# MCP readiness
 # ---------------------------------------------------------------------------
 
 
@@ -311,110 +340,302 @@ async def wait_for_mcp_servers(
             delay *= 2
 
 
-async def run(args: argparse.Namespace) -> None:
-    # Parse message JSON.
-    message: dict[str, Any] = json.loads(args.message)
+# ---------------------------------------------------------------------------
+# Per-request handler
+# ---------------------------------------------------------------------------
 
-    # Parse MCP servers config.
-    mcp_servers: dict[str, Any] = {}
-    if args.mcp_servers:
-        mcp_servers = json.loads(args.mcp_servers)
 
-    # Build thinking config.
-    thinking = None
-    if args.thinking_disabled:
-        thinking = {"type": "disabled"}
+def _one_line(msg: str) -> str:
+    """Flatten an error message to a single line for safe NDJSON embedding."""
+    return " ".join(msg.split())
 
-    # Build env overrides.
-    env: dict[str, str] = {}
-    if args.user_agent:
-        env["CLAUDE_AGENT_SDK_CLIENT_APP"] = args.user_agent
 
-    # Build options — mirrors the JS opts from options.rs.
-    opts = ClaudeAgentOptions(
-        model=args.model,
-        system_prompt=args.system_prompt,
-        effort=args.effort,
-        thinking=thinking,
-        mcp_servers=mcp_servers,
-        resume=args.resume,
-        env=env,
-        # Matches JS: tools: []
-        tools=[],
-        # Matches JS: includePartialMessages: true
-        include_partial_messages=True,
-        # Matches JS: permissionMode: "bypassPermissions"
-        permission_mode="bypassPermissions",
-    )
+async def handle_run(
+    request_id: str,
+    params: dict[str, Any],
+    stdout_writer: Writer,
+    stderr_writer: Writer,
+) -> None:
+    """Run one Claude Agent SDK conversation, tagging every emit with
+    ``request_id``. Always emits exactly one terminal ``end`` line via
+    ``asyncio.shield`` even on cancellation.
 
-    # Create an async generator that yields the single SDK user message.
-    async def messages():
-        yield message
+    The Rust caller enforces the FIFO concurrency cap on its side, so
+    every ``run`` that reaches this function already holds a slot —
+    there is nothing to wait for here.
+    """
+    status: str = "ok"
+    error: Optional[str] = None
+    try:
+        message: dict[str, Any] = params["message"]
+        mcp_servers: dict[str, Any] = params.get("mcp_servers") or {}
 
-    our_servers = set(mcp_servers.keys())
+        # Build thinking config.
+        thinking = None
+        if params.get("thinking_disabled"):
+            thinking = {"type": "disabled"}
 
-    # Stream events as JSONL to stdout.
-    # If rate-limited with status "rejected", wait until resets_at and retry.
-    # On retry, resume the same session so the agent's memory is preserved.
-    max_retries = args.rate_limit_max_retries
-    max_wait_secs = args.rate_limit_max_wait_secs
-    current_session_id: str | None = None
-    for attempt in range(max_retries + 1):
-        rate_limited = False
+        # Build env overrides — routed to ClaudeAgentOptions.env, NOT
+        # os.environ. Concurrent runs with different user_agents are
+        # therefore isolated per-subprocess.
+        env: dict[str, str] = {}
+        ua = params.get("user_agent")
+        if ua:
+            env["CLAUDE_AGENT_SDK_CLIENT_APP"] = ua
 
-        # On retry, resume the session captured from the previous attempt.
-        if current_session_id is not None:
-            opts = replace_opts(opts, resume=current_session_id)
+        opts = ClaudeAgentOptions(
+            model=params["model"],
+            system_prompt=params.get("system_prompt"),
+            effort=params.get("effort"),
+            thinking=thinking,
+            mcp_servers=mcp_servers,
+            resume=params.get("resume"),
+            env=env,
+            tools=[],
+            include_partial_messages=True,
+            permission_mode="bypassPermissions",
+        )
 
-        async with ClaudeSDKClient(opts) as client:
-            # Only send the original message on the first attempt. On resume,
-            # the session already has the conversation history.
-            if attempt == 0:
-                await client.connect(prompt=messages())
-            else:
-                await client.connect()
+        # Async generator yielding the single SDK user message.
+        async def messages():
+            yield message
 
-            # Wait for all MCP servers to be connected.
-            await wait_for_mcp_servers(client, our_servers)
+        our_servers = set(mcp_servers.keys())
 
-            # Stream messages.
-            async for msg in client.receive_messages():
-                # Track session_id from any message that has it.
-                msg_session_id = getattr(msg, "session_id", None)
-                if msg_session_id:
-                    current_session_id = msg_session_id
+        max_retries = int(params["rate_limit_max_retries"])
+        max_wait_secs = int(params.get("rate_limit_max_wait_secs", 180))
+        current_session_id: str | None = None
 
-                if isinstance(msg, RateLimitEvent) and msg.rate_limit_info.status == "rejected":
-                    resets_at = msg.rate_limit_info.resets_at
-                    if resets_at is not None and attempt < max_retries:
-                        wait = max(0, resets_at - time.time()) + 1
-                        if wait > max_wait_secs:
-                            sys.stderr.write(
-                                f"Rate limited, but wait {wait:.0f}s exceeds max {max_wait_secs}s — giving up\n"
+        for attempt in range(max_retries + 1):
+            rate_limited = False
+
+            # On retry, resume the session captured from the previous attempt.
+            if current_session_id is not None:
+                opts = replace(opts, resume=current_session_id)
+
+            async with ClaudeSDKClient(opts) as client:
+                # Only send the original message on the first attempt.
+                # On resume, the session already has the conversation
+                # history.
+                if attempt == 0:
+                    await client.connect(prompt=messages())
+                else:
+                    await client.connect()
+
+                await wait_for_mcp_servers(client, our_servers)
+
+                async for msg in client.receive_messages():
+                    # Track session_id from any message that has it.
+                    msg_session_id = getattr(msg, "session_id", None)
+                    if msg_session_id:
+                        current_session_id = msg_session_id
+
+                    if (
+                        isinstance(msg, RateLimitEvent)
+                        and msg.rate_limit_info.status == "rejected"
+                    ):
+                        resets_at = msg.rate_limit_info.resets_at
+                        if resets_at is not None and attempt < max_retries:
+                            wait = max(0, resets_at - time.time()) + 1
+                            if wait > max_wait_secs:
+                                await stderr_writer.emit_diag(
+                                    request_id,
+                                    "warn",
+                                    f"Rate limited, but wait {wait:.0f}s "
+                                    f"exceeds max {max_wait_secs}s — giving up",
+                                )
+                                # Fall through to emit the event and
+                                # exit the outer retry loop on this
+                                # attempt.
+                            else:
+                                await stderr_writer.emit_diag(
+                                    request_id,
+                                    "warn",
+                                    f"Rate limited, retrying in {wait:.0f}s "
+                                    f"(attempt {attempt + 1}/{max_retries})",
+                                )
+                                await asyncio.sleep(wait)
+                                rate_limited = True
+                                break
+                    d = serialize_message(msg)
+                    if d is not None:
+                        await stdout_writer.emit_event(request_id, d)
+
+            if not rate_limited:
+                break
+    except asyncio.CancelledError:
+        status, error = "cancelled", None
+        # Re-raised in the finally after we emit the terminal end line.
+        raise
+    except Exception as e:
+        status = "error"
+        error = _one_line(str(e) or e.__class__.__name__)
+    finally:
+        # Shield the terminal emit so that a second cancel arriving while
+        # the SDK's __aexit__ is unwinding doesn't suppress it.
+        try:
+            await asyncio.shield(stdout_writer.emit_end(request_id, status, error))
+        except Exception:
+            pass
+
+
+# ---------------------------------------------------------------------------
+# Stdin reader
+# ---------------------------------------------------------------------------
+
+
+async def read_one_line_from_stdin() -> Optional[str]:
+    """Read one line from stdin without blocking the event loop.
+
+    Uses a thread-pool executor instead of ``loop.connect_read_pipe`` because
+    ProactorEventLoop on Windows does not handle stdin-as-pipe reliably. The
+    blocking ``readline`` runs on a worker thread; on EOF the thread returns
+    naturally and the next iteration sees ``None``.
+    """
+    loop = asyncio.get_running_loop()
+    raw = await loop.run_in_executor(None, sys.stdin.buffer.readline)
+    if not raw:
+        return None
+    return raw.decode("utf-8", errors="replace")
+
+
+# ---------------------------------------------------------------------------
+# Dispatcher
+# ---------------------------------------------------------------------------
+
+
+_REQUIRED_PARAMS = ("model", "message", "rate_limit_max_retries")
+
+
+def _validate_run_params(params: Any) -> Optional[str]:
+    """Return None if params is acceptable, else a one-line error string."""
+    if not isinstance(params, dict):
+        return "params must be an object"
+    for key in _REQUIRED_PARAMS:
+        if key not in params:
+            return f"missing required field '{key}'"
+    if not isinstance(params["model"], str) or not params["model"]:
+        return "'model' must be a non-empty string"
+    if not isinstance(params["message"], dict):
+        return "'message' must be an object"
+    try:
+        int(params["rate_limit_max_retries"])
+    except (TypeError, ValueError):
+        return "'rate_limit_max_retries' must be an integer"
+    return None
+
+
+async def _dispatch(
+    msg: dict,
+    tasks: dict[str, asyncio.Task],
+    stdout_writer: Writer,
+    stderr_writer: Writer,
+) -> None:
+    msg_type = msg.get("type")
+    request_id = msg.get("id")
+
+    if msg_type == "run":
+        # No id — drop silently (no tag to attach output to).
+        if not isinstance(request_id, str) or not request_id:
+            return
+        if request_id in tasks:
+            await stdout_writer.emit_end(request_id, "error", "duplicate-id")
+            return
+        params = msg.get("params")
+        validation_error = _validate_run_params(params)
+        if validation_error is not None:
+            await stdout_writer.emit_end(
+                request_id, "error", f"invalid-params: {validation_error}"
+            )
+            return
+        task = asyncio.create_task(
+            handle_run(
+                request_id,
+                params,
+                stdout_writer,
+                stderr_writer,
+            )
+        )
+        tasks[request_id] = task
+
+        def _done(t: asyncio.Task, _id: str = request_id) -> None:
+            tasks.pop(_id, None)
+            # Defensive: if the task somehow finished with an uncaught
+            # non-CancelledError, report it. Should be unreachable given
+            # handle_run's try/finally.
+            if not t.cancelled():
+                exc = t.exception()
+                if exc is not None and not isinstance(exc, asyncio.CancelledError):
+                    # Best-effort, fire-and-forget.
+                    try:
+                        loop = asyncio.get_event_loop()
+                        loop.create_task(
+                            stderr_writer.emit_diag(
+                                _id,
+                                "error",
+                                f"internal task error: {_one_line(str(exc))}",
                             )
-                            sys.stderr.flush()
-                            # Fall through to emit the event and exit the outer loop.
-                        else:
-                            sys.stderr.write(
-                                f"Rate limited, retrying in {wait:.0f}s (attempt {attempt + 1}/{max_retries})\n"
-                            )
-                            sys.stderr.flush()
-                            await asyncio.sleep(wait)
-                            rate_limited = True
-                            break
-                d = serialize_message(msg)
-                if d is not None:
-                    sys.stdout.write(json.dumps(d) + "\n")
-                    sys.stdout.flush()
+                        )
+                    except Exception:
+                        pass
 
-        if not rate_limited:
-            break
+        task.add_done_callback(_done)
+        return
+
+    if msg_type == "cancel":
+        if not isinstance(request_id, str) or not request_id:
+            return
+        existing = tasks.get(request_id)
+        if existing is not None:
+            existing.cancel()
+            # The task's finally block emits end(cancelled). Don't echo.
+            return
+        await stdout_writer.emit_end(request_id, "error", "cancel-unknown-id")
+        return
+
+    # Unknown type — emit a tagged error if we have an id; otherwise drop.
+    if isinstance(request_id, str) and request_id:
+        await stdout_writer.emit_end(
+            request_id, "error", f"unknown-type: {msg_type!r}"
+        )
 
 
-def replace_opts(opts: ClaudeAgentOptions, **changes: Any) -> ClaudeAgentOptions:
-    """Return a copy of opts with the given fields replaced."""
-    from dataclasses import replace
-    return replace(opts, **changes)
+# ---------------------------------------------------------------------------
+# Main loop
+# ---------------------------------------------------------------------------
+
+
+async def main_loop() -> None:
+    stdout_writer = Writer(sys.stdout.buffer)
+    stderr_writer = Writer(sys.stderr.buffer)
+    tasks: dict[str, asyncio.Task] = {}
+
+    while True:
+        line = await read_one_line_from_stdin()
+        if line is None:
+            break  # EOF → drain phase
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            msg = json.loads(line)
+        except json.JSONDecodeError:
+            # Process is alive and not dying — silently drop. Untagged
+            # output is forbidden during normal operation.
+            continue
+        if not isinstance(msg, dict):
+            continue
+        await _dispatch(msg, tasks, stdout_writer, stderr_writer)
+
+    # Drain phase: every in-flight task emits its own end line as it
+    # finishes or is cancelled.
+    if tasks:
+        await asyncio.gather(*list(tasks.values()), return_exceptions=True)
+
+
+# ---------------------------------------------------------------------------
+# Windows asyncio shutdown shim
+# ---------------------------------------------------------------------------
 
 
 def _silence_proactor_pipe_warnings() -> None:
@@ -470,21 +691,41 @@ def _silence_proactor_pipe_warnings() -> None:
         pass
 
 
-def main() -> None:
-    # Suppress the cosmetic Windows asyncio shutdown warning before we
-    # start the loop, so even crashes-during-cleanup don't leak it.
-    _silence_proactor_pipe_warnings()
+# ---------------------------------------------------------------------------
+# Process entrypoint
+# ---------------------------------------------------------------------------
 
-    # Remove CLAUDECODE env var to avoid conflicts with the SDK subprocess.
-    # Matches JS: delete process.env.CLAUDECODE;
-    os.environ.pop("CLAUDECODE", None)
 
-    args = parse_args()
+def _emit_pre_startup_fatal(message: str) -> None:
+    """Untagged stderr line — used ONLY when the process is about to exit
+    non-zero before the main loop can come up. The ``"type":"fatal"``
+    discriminator lets the caller distinguish this from per-request
+    diagnostics."""
+    line = json.dumps(
+        {"type": "fatal", "message": _one_line(message)}, ensure_ascii=False
+    ) + "\n"
     try:
-        asyncio.run(run(args))
+        sys.stderr.buffer.write(line.encode("utf-8"))
+        sys.stderr.buffer.flush()
+    except Exception:
+        pass
+
+
+def main() -> None:
+    try:
+        _silence_proactor_pipe_warnings()
+        # Avoid conflicts with the SDK-spawned `claude` CLI.
+        os.environ.pop("CLAUDECODE", None)
     except Exception as e:
-        sys.stderr.write(str(e))
+        _emit_pre_startup_fatal(f"startup: {e}")
         sys.exit(1)
+
+    try:
+        asyncio.run(main_loop())
+    except Exception as e:
+        _emit_pre_startup_fatal(f"main_loop: {e}")
+        sys.exit(1)
+    sys.exit(0)
 
 
 if __name__ == "__main__":

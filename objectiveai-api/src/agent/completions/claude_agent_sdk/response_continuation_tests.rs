@@ -2,7 +2,7 @@ use super::super::{ContinuationItem, UpstreamClient};
 use super::State;
 
 fn make_client() -> super::Client {
-    super::Client::new(String::new(), true, 0, 180)
+    super::Client::new(String::new(), true, 0, 180, 1)
 }
 
 #[test]

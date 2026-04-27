@@ -13,10 +13,11 @@ keywords = ["llm", "ai", "swarm"]
 publish = true
 
 [features]
-default = ["http", "filesystem", "env"]
+default = ["http", "filesystem", "env", "mcp"]
 http = ["dep:reqwest", "dep:reqwest-eventsource", "dep:eventsource-stream", "dep:futures"]
 filesystem = ["dep:dirs", "dep:jaq-core", "dep:jaq-std", "dep:jaq-json", "dep:sha2", "dep:tokio", "dep:futures", "dep:mime_guess", "dep:git2", "dep:rusqlite"]
 env = []
+mcp = ["dep:reqwest", "dep:backoff", "dep:futures-util", "dep:tokio", "dep:tokio-util"]
 
 [dependencies]
 objectiveai-macros = { version = "2.0.0", path = "../objectiveai-rs-macros" }
@@ -32,10 +33,13 @@ base64 = { version = "0.22.1" }
 chrono = { version = "=0.4.39", features = ["serde"] }
 uuid = { version = "1.22.0", features = ["v4", "serde"] }
 json-escape = { version = "0.3.1" }
-reqwest = { version = "0.12.28", default-features = false, features = ["charset", "http2", "rustls-tls", "json"], optional = true }
+reqwest = { version = "0.12.28", default-features = false, features = ["charset", "http2", "rustls-tls", "json", "stream"], optional = true }
 reqwest-eventsource = { version = "0.6.0", optional = true }
 eventsource-stream = { version = "0.2.3", optional = true }
 futures = { version = "0.3.32", optional = true }
+futures-util = { version = "0.3.32", optional = true }
+backoff = { version = "0.4.0", features = ["tokio"], optional = true }
+tokio-util = { version = "0.7.18", features = ["io"], optional = true }
 serde_path_to_error = { version = "0.1.20" }
 starlark = { version = "0.13.0" }
 anyhow = { version = "1.0.102" }
@@ -49,7 +53,7 @@ jaq-json = { version = "1.1.3", features = ["serde_json"], optional = true }
 sha2 = { version = "0.10.9", optional = true }
 mime2ext = { version = "0.1.54" }
 mime_guess = { version = "2.0.5", optional = true }
-tokio = { version = "1.51.1", features = ["fs", "time"], optional = true }
+tokio = { version = "1.51.1", features = ["fs", "time", "sync", "rt", "io-util", "macros"], optional = true }
 git2 = { version = "0.20.4", default-features = false, features = ["vendored-libgit2"], optional = true }
 rusqlite = { version = "0.31.0", features = ["bundled"], optional = true }
 

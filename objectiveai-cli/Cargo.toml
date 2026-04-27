@@ -4,7 +4,7 @@ version = "2.0.0"
 edition = "2024"
 
 [features]
-default = ["viewer", "rustpython", "systempython", "claude-agent-sdk-python", "updater"]
+default = ["viewer", "rustpython", "systempython", "claude-agent-sdk", "updater"]
 viewer = []
 # Auto-update from GitHub releases on startup. Default-on so shipped
 # binaries self-update; test/CI builds that pass
@@ -12,8 +12,7 @@ viewer = []
 updater = ["dep:semver"]
 rustpython = ["dep:rustpython"]
 systempython = []
-claude-agent-sdk-javascript = ["objectiveai-api/claude-agent-sdk-javascript"]
-claude-agent-sdk-python = ["objectiveai-api/claude-agent-sdk-python"]
+claude-agent-sdk = ["objectiveai-api/claude-agent-sdk"]
 
 [dependencies]
 objectiveai = { path = "../objectiveai-rs", version = "2.0.0" }

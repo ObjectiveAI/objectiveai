@@ -83,6 +83,7 @@ impl ConfigBuilder {
     }
 }
 
+#[derive(Debug)]
 pub struct Config {
     pub config_set_forbidden: bool,
     pub config_base_dir: Option<String>,

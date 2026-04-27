@@ -186,7 +186,6 @@ PACKAGE_JSONS=(
 )
 
 PACKAGE_JSONS_OPTIONAL=(
-  objectiveai-claude-agent-sdk-runner-js/package.json
   objectiveai-codex-sdk-runner-js/package.json
 )
 

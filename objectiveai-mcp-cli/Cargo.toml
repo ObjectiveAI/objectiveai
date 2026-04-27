@@ -1,0 +1,24 @@
+[package]
+name = "objectiveai-mcp-cli"
+version = "2.0.0"
+edition = "2024"
+
+[features]
+default = []
+viewer = ["objectiveai-cli/viewer"]
+rustpython = ["objectiveai-cli/rustpython"]
+systempython = ["objectiveai-cli/systempython"]
+
+[dependencies]
+anyhow = "1.0.102"
+axum = "0.8.8"
+dotenv = "0.15.0"
+envconfig = "0.11.1"
+objectiveai-cli = { path = "../objectiveai-cli", version = "2.0.0", default-features = false }
+rmcp = { version = "0.16.0", features = ["server", "transport-streamable-http-server"] }
+schemars = "1.2.1"
+serde = { version = "1.0.228", features = ["derive"] }
+tokio = { version = "1.50.0", features = ["full"] }
+tokio-util = "0.7.18"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
