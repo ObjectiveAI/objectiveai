@@ -3,7 +3,7 @@
 
 .viewer {
   min-height: 100vh;
-  background: #0F0F0F;
+  background: var(--ground);
   display: flex;
   flex-direction: column;
 }
@@ -15,8 +15,8 @@
   align-items: center;
   gap: 6px;
   padding: 10px 16px;
-  background: #161616;
-  border-bottom: 1px solid #252525;
+  background: var(--ground-raised);
+  border-bottom: 1px solid var(--node-border);
   user-select: none;
   -webkit-app-region: drag;
 }
@@ -43,7 +43,7 @@
 .titleBarText {
   font-family: var(--font-mono);
   font-size: 10px;
-  color: #555;
+  color: var(--info-dim);
   letter-spacing: 0.06em;
   margin-left: 8px;
   flex: 1;
@@ -53,7 +53,7 @@
 .connectionStatus {
   font-family: var(--font-mono);
   font-size: 9px;
-  color: #555;
+  color: var(--info-dim);
   display: flex;
   align-items: center;
   gap: 4px;
@@ -64,7 +64,7 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #4ade80;
+  background: var(--copper-hot);
   opacity: 0.6;
 }
 
@@ -96,7 +96,7 @@
 .sectionTitle {
   font-family: var(--font-mono);
   font-size: 10px;
-  color: #555;
+  color: var(--info-dim);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-weight: 400;
@@ -105,9 +105,9 @@
 .actionButton {
   font-family: var(--font-mono);
   font-size: 9px;
-  color: #d97706;
+  color: var(--copper-mid);
   background: transparent;
-  border: 1px solid #92400e;
+  border: 1px solid var(--copper-warm);
   border-radius: 2px;
   padding: 3px 10px;
   cursor: pointer;
@@ -117,7 +117,7 @@
 }
 
 .actionButton:hover {
-  background: rgba(217, 119, 6, 0.08);
+  background: rgba(var(--copper-dim-rgb), 0.08);
 }
 
 .actionButton:disabled {
@@ -128,7 +128,7 @@
 .empty {
   font-family: var(--font-mono);
   font-size: 10px;
-  color: #444;
+  color: var(--info-dim);
   font-style: italic;
   padding: 24px 0;
 }

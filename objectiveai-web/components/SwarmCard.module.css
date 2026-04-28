@@ -55,6 +55,12 @@
   background: var(--ground-surface);
 }
 
+.card:focus-visible {
+  border-color: var(--copper-dim);
+  outline: 1px solid var(--copper-dim);
+  outline-offset: 1px;
+}
+
 .cardBody {
   padding: 16px;
   display: flex;
@@ -238,6 +244,11 @@
   border-radius: 2px;
   padding: 4px 12px;
   cursor: pointer;
+}
+
+.retryBtn:focus-visible {
+  border-color: var(--copper-dim);
+  outline: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

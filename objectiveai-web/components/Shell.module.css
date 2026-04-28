@@ -45,6 +45,12 @@
   color: var(--info-bright);
 }
 
+.navLink:focus-visible {
+  color: var(--info-bright);
+  outline: 1px solid var(--copper-dim);
+  outline-offset: 2px;
+}
+
 .navLinkActive {
   color: var(--copper-mid);
 }

@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import type { FunctionDefinition } from "@/lib/functions/types";
+import type { FunctionDefinition, FunctionMeta } from "@/lib/functions/types";
 import { fetchFunctionList, fetchRecursive } from "@/lib/functions/fetch";
+import { MOCK_FUNCTIONS } from "@/lib/TEMPORARY_mock_explore";
 import { apiFetch } from "@/lib/client";
 import { fetchProfileBySlug } from "@/lib/profiles/fetch";
 import type { ProfileMeta } from "@/lib/profiles/types";
@@ -30,6 +31,7 @@ export function FunctionDetail({ owner, repo }: Props) {
   const [executeOpen, setExecuteOpen] = useState(false);
   const [execution, setExecution] = useState<FunctionExecution | null>(null);
   const [execState, setExecState] = useState<"idle" | "streaming" | "done">("idle");
+  const [retryCount, setRetryCount] = useState(0);
 
   const handleExecute = useCallback((_values: Record<string, unknown>) => {
     // TODO: Replace with useExecution() when API is available
@@ -44,6 +46,20 @@ export function FunctionDetail({ owner, repo }: Props) {
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    // TEMPORARY — try mock data first while API is down
+    const mock = MOCK_FUNCTIONS.find((f) => f.owner === owner && f.repository === repo);
+    if (mock) {
+      setRootDef({
+        type: mock.type,
+        description: mock.description,
+        tasks: Array.from({ length: mock.taskCount }, () => ({ type: "vector.completion" })),
+      } as FunctionDefinition);
+      setLoading(false);
+      return;
+    }
 
     // Fetch paired profile — try pairs endpoint, fall back to profile-standard
     apiFetch<{ data: Array<{ function: { owner: string; repository: string }; profile: { owner: string; repository: string } }> }>("/functions/profiles/pairs")
@@ -97,7 +113,7 @@ export function FunctionDetail({ owner, repo }: Props) {
       });
 
     return () => { cancelled = true; };
-  }, [owner, repo]);
+  }, [owner, repo, retryCount]);
 
   if (loading) {
     return (
@@ -109,7 +125,17 @@ export function FunctionDetail({ owner, repo }: Props) {
   }
 
   if (error) {
-    return <div className={styles.error} role="alert">unable to load function</div>;
+    return (
+      <div className={styles.error} role="alert">
+        <span>unable to load function</span>
+        <button
+          onClick={() => setRetryCount((c) => c + 1)}
+          className={styles.retryBtn}
+        >
+          try again
+        </button>
+      </div>
+    );
   }
 
   if (!rootDef) return null;

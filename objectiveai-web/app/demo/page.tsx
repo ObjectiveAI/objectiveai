@@ -48,7 +48,7 @@ const JS_PROFILE: ProfileMeta = {
   repository: "profile-standard",
   commit: "abc123",
   name: "profile-standard",
-  description: "Standard ensemble with frontier and mid-tier models",
+  description: "Standard swarm with frontier and mid-tier models",
   kind: "auto",
   llms: [
     { model: "openai/gpt-4o", outputMode: "log_probs", topLogprobs: 5, temperature: null, reasoning: null, count: 1, fallbacks: [] },

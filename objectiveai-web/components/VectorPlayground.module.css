@@ -187,6 +187,12 @@
   background: var(--copper-mid);
 }
 
+.runButton:focus-visible {
+  background: var(--copper-mid);
+  outline: 1px solid var(--copper-dim);
+  outline-offset: 1px;
+}
+
 .runButton:disabled {
   opacity: 0.4;
   cursor: not-allowed;

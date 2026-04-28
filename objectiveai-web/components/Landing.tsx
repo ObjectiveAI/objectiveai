@@ -20,6 +20,10 @@ const EXAMPLE_VOTES = [
   { model: "gpt-4o-mini",             vote: [0.55, 0.45], weight: 0.5 },
 ];
 
+const SWARM_TOTAL_WEIGHT = EXAMPLE_VOTES.reduce((s, v) => s + v.weight, 0);
+const SWARM_SCORE_A = EXAMPLE_VOTES.reduce((s, v) => s + v.vote[0] * v.weight, 0) / SWARM_TOTAL_WEIGHT;
+const SWARM_SCORE_B = 1 - SWARM_SCORE_A;
+
 export function Landing() {
   return (
     <div className={styles.landing}>
@@ -129,10 +133,10 @@ export function Landing() {
             <div className={styles.scoresRow}>
               <span className={styles.scoresLabel}>scores</span>
               <div className={styles.scoreBar}>
-                <div className={styles.scoreSegmentA} style={{ flex: 0.62 }} />
-                <div className={styles.scoreSegmentB} style={{ flex: 0.38 }} />
+                <div className={styles.scoreSegmentA} style={{ flex: SWARM_SCORE_A }} />
+                <div className={styles.scoreSegmentB} style={{ flex: SWARM_SCORE_B }} />
               </div>
-              <span className={styles.scoresValue}>[0.62, 0.38]</span>
+              <span className={styles.scoresValue}>[{SWARM_SCORE_A.toFixed(2)}, {SWARM_SCORE_B.toFixed(2)}]</span>
             </div>
           </div>
         </div>
@@ -155,7 +159,7 @@ export function Landing() {
           </div>
           <div className={styles.concept}>
             <h3 className={styles.conceptName}>swarms</h3>
-            <p className={styles.conceptBody}>A named collection of agents used together for collective judgment. Does not contain weights, as weights are external, learnable, and never baked in.</p>
+            <p className={styles.conceptBody}>A named collection of agents. Weights don&apos;t affect the swarm&apos;s identity — the same agents always produce the same swarm, regardless of weighting.</p>
           </div>
           <div className={styles.concept}>
             <h3 className={styles.conceptName}>profiles</h3>

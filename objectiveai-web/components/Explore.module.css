@@ -38,6 +38,12 @@
   color: var(--info-mid);
 }
 
+.tab:focus-visible {
+  color: var(--info-mid);
+  outline: 1px solid var(--copper-dim);
+  outline-offset: -1px;
+}
+
 .tabActive {
   color: var(--info-bright);
   border-bottom-color: var(--copper-mid);
@@ -114,10 +120,9 @@
 .error {
   font-family: var(--font-mono);
   font-size: 10px;
-  color: var(--error, #b91c1c);
+  color: var(--copper-mid);
   padding: 40px 0;
   text-align: center;
-  font-style: italic;
 }
 
 /* ── Responsive ── */

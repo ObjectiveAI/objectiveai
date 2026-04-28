@@ -86,6 +86,12 @@
   border-color: var(--info-dim);
 }
 
+.filterPill:focus-visible {
+  color: var(--info-mid);
+  border-color: var(--copper-dim);
+  outline: none;
+}
+
 .filterPillActive {
   color: var(--info-bright);
   border-color: var(--copper-dim);

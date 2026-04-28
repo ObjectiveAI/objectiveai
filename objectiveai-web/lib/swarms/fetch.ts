@@ -1,11 +1,11 @@
 import { apiFetch } from "../client";
 import type { SwarmMeta, Agent } from "./types";
 
-interface EnsembleListResponse {
+interface SwarmListResponse {
   data: Array<{ id: string }>;
 }
 
-interface EnsembleLlmResponse {
+interface SwarmLlmResponse {
   id: string;
   model: string;
   output_mode: string;
@@ -15,10 +15,10 @@ interface EnsembleLlmResponse {
   fallbacks?: Array<{ id: string; model: string }> | null;
 }
 
-interface EnsembleRetrieveResponse {
+interface SwarmRetrieveResponse {
   id: string;
   created: number;
-  llms: EnsembleLlmResponse[];
+  llms: SwarmLlmResponse[];
 }
 
 /** Cache for the swarm list + details */
@@ -31,7 +31,7 @@ export async function fetchAllSwarms(): Promise<SwarmMeta[]> {
     return swarmCache.data;
   }
 
-  const list = await apiFetch<EnsembleListResponse>("/ensembles");
+  const list = await apiFetch<SwarmListResponse>("/swarms");
 
   const results = await Promise.allSettled(
     list.data.map((item) => resolveSwarm(item.id))
@@ -47,7 +47,7 @@ export async function fetchAllSwarms(): Promise<SwarmMeta[]> {
   return swarms;
 }
 
-function parseAgent(llm: EnsembleLlmResponse): Agent {
+function parseAgent(llm: SwarmLlmResponse): Agent {
   const fallbacks = llm.fallbacks ?? [];
   return {
     id: llm.id,
@@ -63,7 +63,7 @@ function parseAgent(llm: EnsembleLlmResponse): Agent {
 
 /** Resolve a single swarm by ID */
 async function resolveSwarm(id: string): Promise<SwarmMeta> {
-  const detail = await apiFetch<EnsembleRetrieveResponse>(`/ensembles/${id}`);
+  const detail = await apiFetch<SwarmRetrieveResponse>(`/swarms/${id}`);
 
   const agents = detail.llms.map(parseAgent);
   const totalAgentCount = agents.reduce((sum, a) => sum + a.count, 0);

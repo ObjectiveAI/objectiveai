@@ -208,6 +208,11 @@
   cursor: pointer;
 }
 
+.retryBtn:focus-visible {
+  border-color: var(--copper-dim);
+  outline: none;
+}
+
 @media (max-width: 640px) {
   .detail {
     padding: 16px;

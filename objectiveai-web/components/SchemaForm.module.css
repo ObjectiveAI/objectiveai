@@ -131,6 +131,11 @@
   border-color: var(--error);
 }
 
+.arrayRemove:focus-visible {
+  border-color: var(--copper-dim);
+  outline: none;
+}
+
 .arrayAdd {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -147,6 +152,12 @@
 .arrayAdd:hover {
   color: var(--copper-warm);
   border-color: var(--copper-dim);
+}
+
+.arrayAdd:focus-visible {
+  color: var(--copper-warm);
+  border-color: var(--copper-dim);
+  outline: none;
 }
 
 /* ── Actions ── */
@@ -173,6 +184,12 @@
 
 .submit:hover {
   background: var(--copper-mid);
+}
+
+.submit:focus-visible {
+  background: var(--copper-mid);
+  outline: 1px solid var(--copper-dim);
+  outline-offset: 1px;
 }
 
 .submit:disabled {

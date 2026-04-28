@@ -236,7 +236,7 @@ export const MOCK_PROFILES: ProfileMeta[] = [
   },
   {
     remote: "github.com", owner: "objective-ai", repository: "profile-giga", commit: "ddd",
-    name: "giga", description: "High-accuracy ensemble. Wide model diversity with learned weights.",
+    name: "giga", description: "High-accuracy swarm. Wide model diversity with learned weights.",
     kind: "auto",
     llms: [_gpt4o, _claude35, _gemini25p, _gemini25f, _deepseek, _llama70, _mistral],
     weights: [0.22, 0.20, 0.18, 0.12, 0.12, 0.09, 0.07],
