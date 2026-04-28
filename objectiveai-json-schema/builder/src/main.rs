@@ -130,6 +130,29 @@ fn inline_generic_defs(schema: &mut serde_json::Value) {
 fn normalize(value: &mut serde_json::Value, inside_properties: bool, title: &str) {
     match value {
         serde_json::Value::Object(map) => {
+            // JSON Schema spec lets a property's value be a bare boolean
+            // (`true` = "any value allowed", `false` = "no value allowed"),
+            // and schemars 1.0+ emits `true` for `serde_json::Value` fields
+            // with no other constraints (e.g. `JsonRpcRequest::id`).
+            // Normalize to the equivalent object shape (`{}` / `{"not": {}}`)
+            // here so SDK generators downstream only ever have to walk one
+            // shape. Done at this object's `properties` child rather than
+            // mid-recursion because Rust fields literally named "properties"
+            // produce a same-named map one level deeper, which a depth flag
+            // would misclassify.
+            if !inside_properties {
+                if let Some(serde_json::Value::Object(props)) = map.get_mut("properties") {
+                    for (_k, v) in props.iter_mut() {
+                        if let serde_json::Value::Bool(b) = v {
+                            *v = if *b {
+                                serde_json::Value::Object(serde_json::Map::new())
+                            } else {
+                                serde_json::json!({"not": {}})
+                            };
+                        }
+                    }
+                }
+            }
             if !inside_properties {
                 map.remove("$defs");
                 map.remove("$schema");
@@ -252,8 +275,15 @@ fn normalize(value: &mut serde_json::Value, inside_properties: bool, title: &str
                 }
             }
             for (k, v) in map.iter_mut() {
-                // Keys inside "properties" are field names, not JSON Schema keywords
-                normalize(v, k == "properties", title);
+                // Keys inside "properties" are field names, not JSON
+                // Schema keywords. Once we descend into a properties
+                // map, the *children* of that map are field schemas
+                // (not properties maps) — so the (k == "properties")
+                // check below would mis-classify a Rust field literally
+                // named "properties" (e.g. ToolSchemaObject.properties)
+                // as a properties map. Force false at that level.
+                let child_in_properties = if inside_properties { false } else { k == "properties" };
+                normalize(v, child_in_properties, title);
             }
         }
         serde_json::Value::Array(arr) => {
@@ -287,9 +317,12 @@ const KEYWORD_ORDER: &[&str] = &[
 fn order_keys(value: &mut serde_json::Value, inside_properties: bool) {
     match value {
         serde_json::Value::Object(map) => {
-            // Recurse first
+            // Recurse first. Same caveat as `normalize`: a Rust field
+            // literally named "properties" should not be treated as a
+            // properties map when sorting its own children.
             for (k, v) in map.iter_mut() {
-                order_keys(v, k == "properties");
+                let child_in_properties = if inside_properties { false } else { k == "properties" };
+                order_keys(v, child_in_properties);
             }
             // Reorder this object's keys
             let entries: Vec<(String, serde_json::Value)> = map.into_iter()

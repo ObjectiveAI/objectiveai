@@ -2,7 +2,7 @@
 //! connect over the resulting upstream specs.
 
 use axum::http::HeaderMap;
-use futures::future::join_all;
+use futures::future::try_join_all;
 use indexmap::IndexMap;
 use objectiveai::mcp::{Client, Connection};
 
@@ -19,7 +19,8 @@ struct UpstreamSpec {
     extra_headers: IndexMap<String, String>,
 }
 
-/// Why parsing the three custom session-init headers failed.
+/// Why parsing the three custom session-init headers failed, or why an
+/// upstream connect failed.
 #[derive(Debug, thiserror::Error)]
 pub enum BadInit {
     #[error("{header} is not valid UTF-8")]
@@ -29,6 +30,12 @@ pub enum BadInit {
         header: &'static str,
         #[source]
         source: serde_json::Error,
+    },
+    #[error("upstream connect failed for {url}: {source}")]
+    UpstreamConnectFailed {
+        url: String,
+        #[source]
+        source: objectiveai::mcp::Error,
     },
 }
 
@@ -45,10 +52,10 @@ pub enum BadInit {
 ///   value. Overrides whatever `X-MCP-Headers` would have sent for that URL.
 ///
 /// Duplicate URLs in `X-MCP-Servers` are ignored (first-occurrence wins).
-/// Per-upstream connect failures are logged and dropped — best-effort,
-/// matches the rest of the proxy's failure semantics. The returned Vec
-/// contains only the connections that successfully completed `initialize`,
-/// in the order their URLs first appeared.
+/// If any upstream fails to connect, the first such failure is returned
+/// as `BadInit::UpstreamConnectFailed` and the remaining in-flight
+/// attempts are dropped. The returned Vec preserves the order URLs first
+/// appeared in `X-MCP-Servers`.
 pub async fn connect_all(
     client: &Client,
     http_headers: &HeaderMap,
@@ -58,22 +65,14 @@ pub async fn connect_all(
     let attempts = specs.into_iter().map(|spec| {
         let url = spec.url.clone();
         async move {
-            let result = client
+            client
                 .connect(spec.url, spec.authorization, None, spec.extra_headers)
-                .await;
-            (url, result)
+                .await
+                .map_err(|source| BadInit::UpstreamConnectFailed { url, source })
         }
     });
 
-    let results = join_all(attempts).await;
-    let mut connections = Vec::with_capacity(results.len());
-    for (url, result) in results {
-        match result {
-            Ok(conn) => connections.push(conn),
-            Err(e) => tracing::warn!(url = %url, error = %e, "upstream connect failed"),
-        }
-    }
-    Ok(connections)
+    try_join_all(attempts).await
 }
 
 fn parse_init_headers(http_headers: &HeaderMap) -> Result<Vec<UpstreamSpec>, BadInit> {

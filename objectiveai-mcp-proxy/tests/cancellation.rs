@@ -12,7 +12,7 @@ mod common;
 use std::time::{Duration, Instant};
 
 use common::{TestRig, UpstreamSpec};
-use objectiveai_mcp_test_upstream::{TestTool, TestToolBehavior};
+use test_upstream::{TestTool, TestToolBehavior};
 use reqwest::StatusCode;
 use serde_json::Value;
 

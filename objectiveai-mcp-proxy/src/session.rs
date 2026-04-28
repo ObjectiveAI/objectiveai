@@ -12,9 +12,9 @@ use indexmap::IndexMap;
 use objectiveai::mcp::{
     Connection, JsonRpcNotification,
     resource::{ListResourcesResult, ReadResourceResult, Resource},
-    tool::{CallToolRequestParams, CallToolResult, ListToolsResult, Tool},
+    tool::{CallToolRequestParams, CallToolResult, ContentBlock, ListToolsResult, Tool},
 };
-use tokio::sync::broadcast;
+use tokio::sync::{Mutex, broadcast};
 use tokio_util::sync::CancellationToken;
 
 /// Capacity of the per-session outbound notification channel. Sized so
@@ -68,6 +68,11 @@ pub struct Session {
     /// firing via `tokio::select!` and returns a `-32800 request cancelled`
     /// JSON-RPC error. Drops the upstream call's future as a side effect.
     in_flight: DashMap<String, CancellationToken>,
+    /// Content blocks accumulated via `POST /notify` between tool calls.
+    /// Drained and prepended (wrapped in a `<system-reminder>` text
+    /// block pair) on the next `tools/call` response so the model picks
+    /// the message up at its next natural inspection point.
+    pending_notifications: Mutex<Vec<ContentBlock>>,
 }
 
 impl Session {
@@ -104,7 +109,23 @@ impl Session {
             connections,
             outbound,
             in_flight: DashMap::new(),
+            pending_notifications: Mutex::new(Vec::new()),
         }
+    }
+
+    /// Append `blocks` to the pending-notifications queue. The next
+    /// `tools/call` response on this session drains and prepends them.
+    pub async fn enqueue_notifications(&self, blocks: Vec<ContentBlock>) {
+        if blocks.is_empty() {
+            return;
+        }
+        self.pending_notifications.lock().await.extend(blocks);
+    }
+
+    /// Atomically take the queued notifications. Subsequent calls return
+    /// `Vec::new()` until the next enqueue.
+    pub async fn drain_notifications(&self) -> Vec<ContentBlock> {
+        std::mem::take(&mut *self.pending_notifications.lock().await)
     }
 
     /// Mint a [`CancellationToken`] for an inbound request id, store it,

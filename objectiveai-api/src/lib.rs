@@ -29,8 +29,6 @@ pub mod filesystem;
 pub mod functions;
 /// GitHub API client for fetching functions and profiles.
 pub mod github;
-/// MCP (Model Context Protocol) types.
-pub mod mcp;
 /// ObjectiveAI HTTP client wrapper with per-request authorization.
 pub mod objectiveai_http;
 /// Unified retrieval for agents, swarms, functions, and profiles.

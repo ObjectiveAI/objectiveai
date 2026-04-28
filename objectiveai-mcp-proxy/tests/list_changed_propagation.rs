@@ -14,7 +14,7 @@ use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
 use common::{TestRig, UpstreamSpec};
-use objectiveai_mcp_test_upstream::{TestTool, TestToolBehavior};
+use test_upstream::{TestTool, TestToolBehavior};
 use rmcp::ServiceExt;
 use rmcp::handler::client::ClientHandler;
 use rmcp::model::ClientInfo;

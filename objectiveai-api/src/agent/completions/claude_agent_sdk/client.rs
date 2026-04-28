@@ -5,7 +5,6 @@ use indexmap::IndexMap;
 use tokio::sync::OnceCell;
 
 use super::super::{ContinuationItem, StreamItem, UpstreamClient};
-use super::invention_server::InventionServer;
 use super::mcp_server_config::{McpHttpServerConfig, McpServerConfig};
 use super::prompt::Prompt;
 use super::sdk_message::SDKMessage;
@@ -168,41 +167,33 @@ impl Client {
     }
 }
 
-/// Build the typed `mcp_servers` map that goes into [`RunParams`].
-/// Replaces the old `serde_json::Value`-based intermediate
-/// representation with strongly-typed [`McpServerConfig`].
+/// Build the `mcp_servers` map that goes into [`RunParams`]. With the
+/// per-agent proxy connection, this is at most a single entry pointing
+/// the SDK's child at the proxy with the agent's pre-initialized
+/// `Mcp-Session-Id` so it joins the parent's session rather than
+/// re-issuing the `X-MCP-Servers` initialize.
+/// Build the `mcp_servers` map that goes into [`RunParams`]. With the
+/// per-agent proxy connection, this is at most a single entry pointing
+/// the SDK's child at the proxy with the agent's pre-initialized
+/// `Mcp-Session-Id` header. The wire shape stays a name-keyed map (the
+/// Python runner expects one) but the name is sourced from the
+/// connection's `server_info.name` rather than hardcoded here.
 fn build_mcp_servers(
-    mcp_connections: &[Arc<crate::mcp::Connection>],
-    invention_server: Option<&InventionServer>,
+    mcp_connection: Option<&objectiveai::mcp::Connection>,
 ) -> IndexMap<String, McpServerConfig> {
-    use std::collections::HashMap;
-
-    let mut name_counts: HashMap<String, usize> = HashMap::new();
-    for conn in mcp_connections {
-        let name = &conn.initialize_result.server_info.name;
-        *name_counts.entry(name.clone()).or_default() += 1;
-    }
-
-    let mut servers: IndexMap<String, McpServerConfig> = IndexMap::new();
-
-    for conn in mcp_connections {
-        let name = &conn.initialize_result.server_info.name;
-        let key = if name_counts.get(name).copied().unwrap_or(0) > 1 {
-            format!("{name} ({})", conn.url)
-        } else {
-            name.clone()
-        };
-        let config = McpHttpServerConfig::from(conn.as_ref());
-        servers.insert(key, McpServerConfig::Http(config));
-    }
-
-    if let Some(inv) = invention_server {
+    let mut servers = IndexMap::new();
+    if let Some(conn) = mcp_connection {
+        let mut headers = IndexMap::new();
+        headers.insert("Mcp-Session-Id".to_string(), conn.session_id.clone());
         servers.insert(
-            "objectiveai-invention".to_string(),
-            McpServerConfig::Http(inv.mcp_server_config()),
+            conn.initialize_result.server_info.name.clone(),
+            McpServerConfig::Http(McpHttpServerConfig {
+                r#type: super::mcp_server_config::McpHttpServerConfigType::Http,
+                url: conn.url.clone(),
+                headers: Some(headers),
+            }),
         );
     }
-
     servers
 }
 
@@ -245,12 +236,7 @@ impl UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::ag
         request_continuation: Option<&objectiveai::agent::claude_agent_sdk::Continuation>,
         params: &objectiveai::agent::completions::request::AgentCompletionCreateParams,
         messages: &[objectiveai::agent::completions::message::Message],
-        mcp_connections: &[Arc<crate::mcp::Connection>],
-        invention_tools: Option<
-            &[objectiveai::functions::inventions::InventionTool],
-        >,
-        tool_names: &[String],
-        tool_map: &std::collections::HashMap<String, super::super::tool::ResolvedTool>,
+        mcp_connection: Option<objectiveai::mcp::Connection>,
         continuation: Option<&[ContinuationItem<Self::State>]>,
         byok: Option<&str>,
         cost_multiplier: rust_decimal::Decimal,
@@ -268,14 +254,15 @@ impl UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::ag
     + 'static {
         let enabled = self.enabled;
         let tools_enabled = _tools_enabled;
-        let has_tools = !tool_names.is_empty();
+        // TODO(orchestration-rewrite): the SDK upstream no longer
+        // receives a pre-resolved tool list; once implemented, source
+        // this from `mcp_connection.list_tools()` instead.
+        let has_tools = false;
         let is_byok = byok.is_some();
         let id = id.to_string();
         let agent = agent.clone();
         let params = params.clone();
         let messages = messages.to_vec();
-        let mcp_connections = mcp_connections.to_vec();
-        let invention_tools = invention_tools.map(|t| t.to_vec());
         let continuation = continuation.map(|c| c.to_vec());
         let request_continuation = request_continuation.cloned();
         let client = self.clone();
@@ -306,21 +293,7 @@ impl UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::ag
             // Build prompt from messages + continuation (handles continuation validation).
             let prompt = Prompt::new(&messages, continuation.as_deref(), request_continuation.as_ref())?;
 
-            // Spawn invention server if invention tools are provided.
-            let invention_server = if let Some(ref tools) = invention_tools {
-                if !tools.is_empty() {
-                    Some(InventionServer::new(tools.clone()).await)
-                } else {
-                    None
-                }
-            } else {
-                None
-            };
-
-            let mcp_servers = build_mcp_servers(
-                &mcp_connections,
-                invention_server.as_ref(),
-            );
+            let mcp_servers = build_mcp_servers(mcp_connection.as_ref());
 
             // Compute assistant_index from continuation. State items
             // carry a message_count (may be >1 since the SDK handles
@@ -379,10 +352,7 @@ impl UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::ag
             let agent_id = agent.id.clone();
 
             let internal_stream = async_stream::stream! {
-                // Keep invention server alive for the duration of the
-                // stream. RunnerStream's Drop handles cancellation
-                // automatically.
-                let _invention_server_guard = invention_server;
+                // RunnerStream's Drop handles cancellation automatically.
                 let mut rx = rx;
 
                 let mut latest_session_id = String::new();

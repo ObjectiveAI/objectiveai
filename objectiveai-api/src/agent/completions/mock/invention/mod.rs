@@ -12,11 +12,14 @@ pub use route::*;
 /// Pick an invention tool with weighted selection.
 ///
 /// 50% chance: return the key write tool for this step.
-/// 50% chance: pick randomly from the available invention tools.
+/// 50% chance: pick randomly from the available tool names. Invention
+/// tools now flow through the proxy as `ResolvedTool::Mcp`, so callers
+/// must ensure `tool_names` only contains invention-relevant tools for
+/// the test scenario at hand.
 pub(super) fn pick_invention_tool<'a>(
     key_tool: &str,
     tool_names: &'a [String],
-    tool_map: &std::collections::HashMap<String, crate::agent::completions::ResolvedTool>,
+    _tool_map: &std::collections::HashMap<String, crate::agent::completions::ResolvedTool>,
     rng: &mut impl rand::Rng,
 ) -> &'a str {
     // 50% chance: return the key tool
@@ -25,12 +28,9 @@ pub(super) fn pick_invention_tool<'a>(
             return t.as_str();
         }
     }
-    // 50% chance: pick randomly from invention tools only
-    let invention_tools: Vec<&'a str> = tool_names.iter()
-        .filter(|t| matches!(tool_map.get(t.as_str()), Some(crate::agent::completions::ResolvedTool::InventionTool(_))))
-        .map(|t| t.as_str())
-        .collect();
-    invention_tools[rng.random_range(0..invention_tools.len())]
+    // 50% chance: pick randomly from all available tool names.
+    let names: Vec<&'a str> = tool_names.iter().map(|t| t.as_str()).collect();
+    names[rng.random_range(0..names.len())]
 }
 
 /// Generate a mock tool call for the description step (shared across all routes).

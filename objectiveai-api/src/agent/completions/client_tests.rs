@@ -125,7 +125,6 @@ fn make_client() -> super::Client<
     ctx::DefaultContextExt,
     UnimplementedUpstreamClient,
     UnimplementedUpstreamClient,
-    UnimplementedUpstreamClient,
     crate::agent::completions::mock::Client,
     StubRetrieveClient,
     StubRetrieveClient,
@@ -133,7 +132,7 @@ fn make_client() -> super::Client<
     StubUsageHandler,
 > {
     super::Client::new(
-        Arc::new(crate::mcp::Client::new(
+        Arc::new(objectiveai::mcp::Client::new(
             reqwest::Client::new(),
             String::new(),
             String::new(),
@@ -154,7 +153,6 @@ fn make_client() -> super::Client<
             Arc::new(crate::retrieval::retrieve::mock::MockClient),
         )),
         Arc::new(StubUsageHandler),
-        Arc::new(UnimplementedUpstreamClient),
         Arc::new(UnimplementedUpstreamClient),
         Arc::new(UnimplementedUpstreamClient),
         Arc::new(crate::agent::completions::mock::Client {

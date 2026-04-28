@@ -26,5 +26,5 @@ tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 uuid = { version = "1.22.0", features = ["v4"] }
 
 [dev-dependencies]
-objectiveai-mcp-test-upstream = { path = "../objectiveai-mcp-test-upstream", version = "2.0.0" }
+test-upstream = { path = "test-upstream", version = "2.0.0" }
 rmcp = { version = "0.16.0", features = ["client", "transport-streamable-http-client", "transport-streamable-http-client-reqwest"] }

@@ -59,3 +59,27 @@ pub async fn create_agent_completion_streaming(
         .send_streaming(reqwest::Method::POST, "agent/completions", Some(params))
         .await
 }
+
+/// Notifies a running agent completion with a user message.
+///
+/// Pushes a [`super::message::RichContent`] payload at the agent
+/// completion identified by `params.response_id`; the api queues it
+/// and surfaces it to the model on its next natural inspection point.
+/// There is no response body — any 2xx status returns `Ok(())`.
+///
+/// # Arguments
+///
+/// * `client` - The HTTP client to use
+/// * `params` - The notify parameters (`response_id` + `content`)
+pub async fn notify_agent_completion(
+    client: &HttpClient,
+    params: super::request::AgentCompletionNotifyParams,
+) -> Result<(), HttpError> {
+    client
+        .send_unary_no_response(
+            reqwest::Method::POST,
+            "agent/completions/notify",
+            Some(params),
+        )
+        .await
+}

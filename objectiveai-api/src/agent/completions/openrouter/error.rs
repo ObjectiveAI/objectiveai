@@ -12,7 +12,7 @@ pub enum Error {
         /// The URL of the MCP server that errored.
         url: String,
         /// The underlying MCP error.
-        error: Arc<crate::mcp::Error>,
+        error: Arc<objectiveai::mcp::Error>,
     },
 
     /// Error returned by the OpenRouter provider.

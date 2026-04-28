@@ -7,6 +7,7 @@ pub mod error;
 pub mod filesystem;
 pub mod functions;
 pub mod laboratories;
+pub mod mcp;
 pub mod swarm;
 pub mod vector;
 
@@ -54,6 +55,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: laboratories::Commands,
     },
+    #[command(name = "mcp")]
+    Mcp {
+        #[command(subcommand)]
+        command: mcp::Commands,
+    },
     #[command(name = "swarm")]
     Swarm {
         #[command(subcommand)]
@@ -93,13 +99,14 @@ pub enum Commands {
 impl Commands {
     pub fn handle(self) -> Result<crate::Output, crate::error::Error> {
         match self {
-            Commands::List => Ok(crate::Output::Schema("[\"agent\",\"auth\",\"error\",\"filesystem\",\"functions\",\"laboratories\",\"swarm\",\"vector\",\"PrefixedUuid\",\"Remote\",\"RemotePath\",\"RemotePathCommitOptional\",\"Weights\",\"WeightsEntry\"]")),
+            Commands::List => Ok(crate::Output::Schema("[\"agent\",\"auth\",\"error\",\"filesystem\",\"functions\",\"laboratories\",\"mcp\",\"swarm\",\"vector\",\"PrefixedUuid\",\"Remote\",\"RemotePath\",\"RemotePathCommitOptional\",\"Weights\",\"WeightsEntry\"]")),
             Commands::Agent { command } => command.handle(),
             Commands::Auth { command } => command.handle(),
             Commands::Error { command } => command.handle(),
             Commands::Filesystem { command } => command.handle(),
             Commands::Functions { command } => command.handle(),
             Commands::Laboratories { command } => command.handle(),
+            Commands::Mcp { command } => command.handle(),
             Commands::Swarm { command } => command.handle(),
             Commands::Vector { command } => command.handle(),
             Commands::PrefixedUuid { .. } => Ok(crate::Output::Schema(

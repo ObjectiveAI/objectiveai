@@ -1,6 +1,3 @@
-use std::collections::HashMap;
-use std::sync::Arc;
-
 pub trait UpstreamError:
     std::error::Error + objectiveai::error::StatusError + Send + Sync + 'static
 {
@@ -40,18 +37,14 @@ pub trait UpstreamClient<AGENT, CONTINUATION> {
         // contains the full prompt, including from the params and from the agent
         // upstream clients do not handle merging params and agent messages
         messages: &[objectiveai::agent::completions::message::Message],
-        // optionally used by some upstreams to handle MCP internally
-        // but may be safely ignored by others that want to use continuation for that instead
-        mcp_connections: &[Arc<crate::mcp::Connection>],
-        // optionally used by some upstreams to handle invention tools internally
-        // but may be safely ignored by others that want to use continuation for that instead
-        invention_tools: Option<
-            &[objectiveai::functions::inventions::InventionTool],
-        >,
-        // resolved tool names (in order) from tool::resolve_tools
-        tool_names: &[String],
-        // map from resolved tool name to its origin
-        tool_map: &HashMap<String, super::tool::ResolvedTool>,
+        // the single MCP connection for this agent — already initialized
+        // against the in-process mcp-proxy with `X-MCP-Servers` listing
+        // the agent's declared upstreams (and the invention server URL,
+        // when applicable). `None` means the agent has no MCP work to do.
+        // The upstream is responsible for sourcing its tool list from
+        // this connection (e.g. via `list_tools`); the orchestrator no
+        // longer pre-resolves tool names or maps for the upstream.
+        mcp_connection: Option<objectiveai::mcp::Connection>,
         // a continuation from a previous agent completion
         // the upstream client can continue conversations from previous state
         // the agent may change
@@ -75,8 +68,9 @@ pub trait UpstreamClient<AGENT, CONTINUATION> {
     > + Send
     + 'static;
 
-    /// Builds a response continuation from MCP sessions, request continuation,
-    /// messages, and internal continuation items.
+    /// Builds a response continuation from the proxy session info
+    /// (proxy URL → agent's session id, max one entry), the request
+    /// continuation, the messages, and internal continuation items.
     fn response_continuation(
         &self,
         mcp_sessions: indexmap::IndexMap<String, String>,
@@ -100,12 +94,7 @@ impl<AGENT, CONTINUATION> UpstreamClient<AGENT, CONTINUATION> for UnimplementedU
         _request_continuation: Option<&CONTINUATION>,
         _params: &objectiveai::agent::completions::request::AgentCompletionCreateParams,
         _messages: &[objectiveai::agent::completions::message::Message],
-        _mcp_connections: &[Arc<crate::mcp::Connection>],
-        _invention_tools: Option<
-            &[objectiveai::functions::inventions::InventionTool],
-        >,
-        _tool_names: &[String],
-        _tool_map: &HashMap<String, super::tool::ResolvedTool>,
+        _mcp_connection: Option<objectiveai::mcp::Connection>,
         _continuation: Option<&[super::ContinuationItem<Self::State>]>,
         _byok: Option<&str>,
         _cost_multiplier: rust_decimal::Decimal,

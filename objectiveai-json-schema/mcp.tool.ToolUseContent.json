@@ -1,0 +1,33 @@
+{
+  "title": "mcp.tool.ToolUseContent",
+  "description": "A tool call request from an assistant.",
+  "type": "object",
+  "properties": {
+    "_meta": {
+      "description": "Extension metadata.",
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": true
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "id": {
+      "description": "Unique identifier for this tool call.",
+      "type": "string"
+    },
+    "input": {
+      "description": "Arguments to pass to the tool.",
+      "type": "object",
+      "additionalProperties": true
+    },
+    "name": {
+      "description": "The name of the tool to invoke.",
+      "type": "string"
+    }
+  }
+}

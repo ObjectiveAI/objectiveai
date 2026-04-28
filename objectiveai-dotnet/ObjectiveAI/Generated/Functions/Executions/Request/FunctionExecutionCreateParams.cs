@@ -41,6 +41,31 @@ public partial class FunctionExecutionCreateParams
     public InputValue Input { get; set; } = default!;
 
     /// <summary>
+    /// If `true`, invert every output in the streamed response *after* the
+    /// inner function has finished computing — scalar outputs become
+    /// `1 - x`, vector outputs are reversed in place. The expression
+    /// evaluator inside the function still sees the original scores; only
+    /// the chunks delivered to the client (and the aggregated response
+    /// passed to the usage handler) are inverted. Useful when a function
+    /// is naturally written to score "lower is better" but the consumer
+    /// wants "higher is better", or vice versa.
+    /// </summary>
+    [Description(""""
+If `true`, invert every output in the streamed response *after* the
+inner function has finished computing — scalar outputs become
+`1 - x`, vector outputs are reversed in place. The expression
+evaluator inside the function still sees the original scores; only
+the chunks delivered to the client (and the aggregated response
+passed to the usage handler) are inverted. Useful when a function
+is naturally written to score "lower is better" but the consumer
+wants "higher is better", or vice versa.
+"""")]
+    [JsonPropertyName("invert")]
+    [JsonSchemaOmitEmpty]
+    [JsonSchemaNullable]
+    public bool? Invert { get; set; } = null;
+
+    /// <summary>
     /// The profile to use (inline definition or remote path).
     /// </summary>
     [Description("The profile to use (inline definition or remote path).")]

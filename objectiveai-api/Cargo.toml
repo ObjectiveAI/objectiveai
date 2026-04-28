@@ -19,7 +19,8 @@ orchestrator-bollard = ["dep:bollard", "dep:tar"]
 claude-agent-sdk = []
 
 [dependencies]
-objectiveai = { path = "../objectiveai-rs", version = "2.0.0", default-features = false, features = ["http"] }
+objectiveai = { path = "../objectiveai-rs", version = "2.0.0", default-features = false, features = ["http", "mcp"] }
+objectiveai-mcp-proxy = { path = "../objectiveai-mcp-proxy", version = "2.0.0" }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
 serde = { version = "1.0.228", features = ["derive"] }
 indexmap = { version = "2.13.0", features = ["serde"] }

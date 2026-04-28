@@ -5,7 +5,7 @@ mod common;
 use std::collections::{HashMap, HashSet};
 
 use common::{TestRig, UpstreamSpec};
-use objectiveai_mcp_test_upstream::{TestTool, TestToolBehavior};
+use test_upstream::{TestTool, TestToolBehavior};
 
 #[tokio::test]
 async fn single_upstream_tools_are_prefixed() {

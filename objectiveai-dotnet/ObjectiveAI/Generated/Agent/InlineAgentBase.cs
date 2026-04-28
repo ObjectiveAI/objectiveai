@@ -30,9 +30,6 @@ public partial class InlineAgentBase
     [JsonSchemaVariant("ClaudeAgentSdk", Ref = "agent.claude_agent_sdk.AgentBase")]
     public ObjectiveAI.Agent.ClaudeAgentSdk.AgentBase? ClaudeAgentSdk { get; set; }
 
-    [JsonSchemaVariant("ClaudeCode", Ref = "agent.claude_code.AgentBase")]
-    public ObjectiveAI.Agent.ClaudeCode.AgentBase? ClaudeCode { get; set; }
-
     [JsonSchemaVariant("Mock", Ref = "agent.mock.AgentBase")]
     public ObjectiveAI.Agent.Mock.AgentBase? Mock { get; set; }
 }
@@ -72,21 +69,9 @@ public class InlineAgentBaseConverter : JsonConverter<InlineAgentBase>
             }
             {
                 bool match2 = true;
-                if (!(el.TryGetProperty("output_mode", out var c2_output_mode) && c2_output_mode.GetString() == "instruction"))
-                    match2 = false;
-                if (!(el.TryGetProperty("upstream", out var c2_upstream) && c2_upstream.GetString() == "claude_code"))
+                if (!(el.TryGetProperty("upstream", out var c2_upstream) && c2_upstream.GetString() == "mock"))
                     match2 = false;
                 if (match2)
-                {
-                    try { var val = JsonSerializer.Deserialize<ObjectiveAI.Agent.ClaudeCode.AgentBase>(raw, options); if (val != null) return new InlineAgentBase { ClaudeCode = val }; }
-                    catch (JsonException) { }
-                }
-            }
-            {
-                bool match3 = true;
-                if (!(el.TryGetProperty("upstream", out var c3_upstream) && c3_upstream.GetString() == "mock"))
-                    match3 = false;
-                if (match3)
                 {
                     try { var val = JsonSerializer.Deserialize<ObjectiveAI.Agent.Mock.AgentBase>(raw, options); if (val != null) return new InlineAgentBase { Mock = val }; }
                     catch (JsonException) { }
@@ -108,11 +93,6 @@ public class InlineAgentBaseConverter : JsonConverter<InlineAgentBase>
         if (value.ClaudeAgentSdk != null)
         {
             JsonSerializer.Serialize(writer, value.ClaudeAgentSdk, options);
-            return;
-        }
-        if (value.ClaudeCode != null)
-        {
-            JsonSerializer.Serialize(writer, value.ClaudeCode, options);
             return;
         }
         if (value.Mock != null)

@@ -8,7 +8,7 @@ mod common;
 use std::collections::HashMap;
 
 use common::{TestRig, UpstreamSpec};
-use objectiveai_mcp_test_upstream::{TestTool, TestToolBehavior};
+use test_upstream::{TestTool, TestToolBehavior};
 use rmcp::model::CallToolRequestParams;
 
 #[tokio::test]

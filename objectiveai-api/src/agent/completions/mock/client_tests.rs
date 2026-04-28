@@ -73,7 +73,7 @@ async fn run_mock(
 ) -> AgentCompletion {
     let client = default_client();
     let messages = vec![];
-    let mcp_connections: Vec<Arc<crate::mcp::Connection>> = vec![];
+    let mcp_connections: Vec<Arc<objectiveai::mcp::Connection>> = vec![];
 
     let stream = match client
         .create(
@@ -332,17 +332,17 @@ async fn test_text_response_format() {
 
 #[tokio::test]
 async fn test_with_mcp_tools() {
-    let conn = crate::mcp::Connection::new_for_test(
+    let conn = objectiveai::mcp::Connection::new_for_test(
         "test-server".into(),
         "https://test.com/mcp".into(),
     );
-    let tools = Arc::new(vec![crate::mcp::tool::Tool {
+    let tools = Arc::new(vec![objectiveai::mcp::tool::Tool {
         name: "search".into(),
         title: None,
         description: Some("Search tool".into()),
         icons: None,
-        input_schema: crate::mcp::tool::ToolSchema {
-            r#type: crate::mcp::tool::ToolSchemaType::Object,
+        input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+            r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
             properties: Some(indexmap::indexmap! {
                 "query".into() => serde_json::json!({"type": "string"}),
             }),
@@ -412,14 +412,14 @@ fn make_invention_tool(
     }
 }
 
-fn make_mcp_tool(name: &str, properties: Option<indexmap::IndexMap<String, serde_json::Value>>) -> crate::mcp::tool::Tool {
-    crate::mcp::tool::Tool {
+fn make_mcp_tool(name: &str, properties: Option<indexmap::IndexMap<String, serde_json::Value>>) -> objectiveai::mcp::tool::Tool {
+    objectiveai::mcp::tool::Tool {
         name: name.into(),
         title: None,
         description: Some(format!("{name} tool")),
         icons: None,
-        input_schema: crate::mcp::tool::ToolSchema {
-            r#type: crate::mcp::tool::ToolSchemaType::Object,
+        input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+            r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
             properties,
             required: None,
             extra: indexmap::IndexMap::new(),
@@ -435,8 +435,8 @@ fn make_mcp_tool(name: &str, properties: Option<indexmap::IndexMap<String, serde
 
 #[tokio::test]
 async fn test_multiple_mcp_tools() {
-    let conn1 = crate::mcp::Connection::new_for_test("weather".into(), "https://weather.com/mcp".into());
-    let conn2 = crate::mcp::Connection::new_for_test("maps".into(), "https://maps.com/mcp".into());
+    let conn1 = objectiveai::mcp::Connection::new_for_test("weather".into(), "https://weather.com/mcp".into());
+    let conn2 = objectiveai::mcp::Connection::new_for_test("maps".into(), "https://maps.com/mcp".into());
     let tools1 = Arc::new(vec![
         make_mcp_tool("get_forecast", Some(indexmap::indexmap! {
             "city".into() => serde_json::json!({"type": "string"}),
@@ -496,7 +496,7 @@ async fn test_invention_tools_only() {
 
 #[tokio::test]
 async fn test_mcp_and_invention_no_response_format() {
-    let conn = crate::mcp::Connection::new_for_test("db".into(), "https://db.com/mcp".into());
+    let conn = objectiveai::mcp::Connection::new_for_test("db".into(), "https://db.com/mcp".into());
     let tools = Arc::new(vec![
         make_mcp_tool("query_db", Some(indexmap::indexmap! {
             "sql".into() => serde_json::json!({"type": "string"}),
@@ -526,7 +526,7 @@ async fn test_mcp_and_invention_no_response_format() {
 
 #[tokio::test]
 async fn test_mcp_invention_and_response_format() {
-    let conn = crate::mcp::Connection::new_for_test("search-api".into(), "https://search.com/mcp".into());
+    let conn = objectiveai::mcp::Connection::new_for_test("search-api".into(), "https://search.com/mcp".into());
     let tools = Arc::new(vec![
         make_mcp_tool("web_search", Some(indexmap::indexmap! {
             "query".into() => serde_json::json!({"type": "string"}),
@@ -580,7 +580,7 @@ async fn collect_assistant_chunks(
 ) -> Vec<AssistantResponseChunk> {
     let client = default_client();
     let messages = vec![];
-    let mcp_connections: Vec<Arc<crate::mcp::Connection>> = vec![];
+    let mcp_connections: Vec<Arc<objectiveai::mcp::Connection>> = vec![];
 
     let stream = client
         .create(
@@ -838,7 +838,7 @@ async fn test_logprobs_top_5_mcp_tools_seed_99() {
     let agent = agent_with_top_logprobs(5);
     let params = default_params_with_seed(99);
 
-    let conn = crate::mcp::Connection::new_for_test("api".into(), "https://api.com/mcp".into());
+    let conn = objectiveai::mcp::Connection::new_for_test("api".into(), "https://api.com/mcp".into());
     let tools = Arc::new(vec![
         make_mcp_tool("fetch_data", Some(indexmap::indexmap! {
             "url".into() => serde_json::json!({"type": "string"}),
@@ -959,7 +959,7 @@ async fn test_logprobs_top_15_text_seed_33() {
 async fn test_logprobs_top_4_invention_mcp_response_format() {
     let agent = agent_with_top_logprobs(4);
 
-    let conn = crate::mcp::Connection::new_for_test("store".into(), "https://store.com/mcp".into());
+    let conn = objectiveai::mcp::Connection::new_for_test("store".into(), "https://store.com/mcp".into());
     let mcp_tools = Arc::new(vec![
         make_mcp_tool("lookup_item", Some(indexmap::indexmap! {
             "id".into() => serde_json::json!({"type": "integer"}),

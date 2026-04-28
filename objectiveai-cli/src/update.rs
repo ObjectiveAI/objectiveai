@@ -284,7 +284,12 @@ mod imp {
     fn looks_like_dev_tree(current_exe: &Path) -> bool {
         current_exe
             .components()
-            .any(|c| c.as_os_str() == "target" || c.as_os_str() == "target-objectiveai-mcp")
+            .any(|c| {
+                let s = c.as_os_str();
+                s == "target"
+                    || s == "target-objectiveai-mcp-filesystem"
+                    || s == "target-objectiveai-mcp-proxy"
+            })
     }
 
     fn user_agent() -> String {

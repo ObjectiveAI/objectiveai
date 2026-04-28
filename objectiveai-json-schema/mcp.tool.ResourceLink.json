@@ -1,0 +1,91 @@
+{
+  "title": "mcp.tool.ResourceLink",
+  "description": "A resource link included in a prompt or tool call result.",
+  "type": "object",
+  "properties": {
+    "_meta": {
+      "description": "Extension metadata.",
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": true
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "annotations": {
+      "description": "Optional annotations for the client.",
+      "anyOf": [
+        {
+          "$ref": "mcp.shared.Annotations"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "description": {
+      "description": "A description of what this resource represents.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "icons": {
+      "description": "Icons for the resource link.",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "mcp.shared.Icon"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "mimeType": {
+      "description": "The MIME type of this resource, if known.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "name": {
+      "description": "The programmatic name of the resource.",
+      "type": "string"
+    },
+    "title": {
+      "description": "A human-readable display name.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "uri": {
+      "description": "The URI of this resource.",
+      "type": "string"
+    }
+  }
+}

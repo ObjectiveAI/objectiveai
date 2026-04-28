@@ -500,8 +500,21 @@ func generateStruct(typeName string, schema Schema, selfTitle string, allTitles 
 
 	propNames := sortedKeys(properties)
 	for _, propName := range propNames {
-		propSchema, ok := properties[propName].(map[string]any)
-		if !ok {
+		// A property schema of `true` means "any value allowed" — emit
+		// the field as JsonValue. (Schemars produces this for fields
+		// whose Rust type is `serde_json::Value` with no other
+		// constraints, e.g. JsonRpcRequest::id.) `false` means "no
+		// value allowed", so skip the field entirely.
+		var propSchema map[string]any
+		switch v := properties[propName].(type) {
+		case map[string]any:
+			propSchema = v
+		case bool:
+			if !v {
+				continue
+			}
+			propSchema = map[string]any{}
+		default:
 			continue
 		}
 		fieldName := goFieldName(propName)
@@ -522,6 +535,15 @@ func generateStruct(typeName string, schema Schema, selfTitle string, allTitles 
 		b.WriteString(fmt.Sprintf("\t%s %s %s\n", fieldName, fieldType, tags))
 	}
 	b.WriteString("}\n")
+
+	// additionalProperties method (only when explicitly set in schema)
+	if ap, ok := schema["additionalProperties"]; ok {
+		if ap == false {
+			b.WriteString(fmt.Sprintf("\nfunc (%s) AdditionalProperties() bool { return false }\n", typeName))
+		} else if ap == true {
+			b.WriteString(fmt.Sprintf("\nfunc (%s) AdditionalProperties() bool { return true }\n", typeName))
+		}
+	}
 
 	// Prepend any inline types before the struct
 	return auxiliary.String() + b.String()
@@ -1294,7 +1316,21 @@ func generateTypeCode(title string, schema Schema, allTitles map[string]bool) st
 		return b.String()
 	}
 
-	// Case 4b: Non-anyOf, non-struct, non-enum, non-ref (primitive, array, map)
+	// Case 4b: Object with no properties and additionalProperties: false →
+	// closed empty struct (rather than the open OrderedMap that the
+	// generic object-with-no-properties path would emit).
+	if schema["type"] == "object" {
+		if ap, ok := schema["additionalProperties"]; ok && ap == false {
+			desc, _ := schema["description"].(string)
+			b.WriteString(goDocComment(desc, ""))
+			b.WriteString(fmt.Sprintf("type %s struct{}\n\n", typeName))
+			b.WriteString(fmt.Sprintf("func (%s) SchemaTitle() string { return %q }\n", typeName, title))
+			b.WriteString(fmt.Sprintf("\nfunc (%s) AdditionalProperties() bool { return false }\n", typeName))
+			return b.String()
+		}
+	}
+
+	// Case 4c: Non-anyOf, non-struct, non-enum, non-ref (primitive, array, map)
 	goT := determinePrimitiveGoType(schema, title, allTitles)
 	desc, _ := schema["description"].(string)
 	b.WriteString(goDocComment(desc, ""))

@@ -6,6 +6,7 @@ export * from "./error/index";
 export * from "./filesystem/index";
 export * from "./functions/index";
 export * from "./laboratories/index";
+export * from "./mcp/index";
 export * from "./swarm/index";
 export * from "./vector/index";
 export * from "./prefixedUuid";

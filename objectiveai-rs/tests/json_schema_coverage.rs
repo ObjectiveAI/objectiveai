@@ -98,10 +98,14 @@ fn get_schemars_rename(attrs: &[syn::Attribute]) -> Option<String> {
         if attr.path().is_ident("schemars") {
             let list = attr.meta.require_list().ok()?;
             let tokens = list.tokens.to_string();
+            // The schemars attribute may contain additional meta items after
+            // `rename = "..."` (e.g. `extend(...)`, `bound = "..."`), so we
+            // can't rely on the closing `"` being the final character.
             let rest = tokens.strip_prefix("rename")?;
             let rest = rest.trim().strip_prefix('=')?;
             let rest = rest.trim().strip_prefix('"')?;
-            rest.strip_suffix('"').map(|s| s.to_string())
+            let end = rest.find('"')?;
+            Some(rest[..end].to_string())
         } else {
             None
         }

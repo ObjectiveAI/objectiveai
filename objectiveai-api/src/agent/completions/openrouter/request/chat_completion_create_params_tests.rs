@@ -9,8 +9,8 @@ fn build_params(
     params: &objectiveai::agent::completions::request::AgentCompletionCreateParams,
     messages: &[objectiveai::agent::completions::message::Message],
     continuation: Option<&[crate::agent::completions::ContinuationItem<objectiveai::agent::completions::message::AssistantMessage>]>,
-    mcp_connections: &[Arc<crate::mcp::Connection>],
-    mcp_tools: &[Arc<Vec<crate::mcp::tool::Tool>>],
+    mcp_connections: &[Arc<objectiveai::mcp::Connection>],
+    mcp_tools: &[Arc<Vec<objectiveai::mcp::tool::Tool>>],
     invention_tools: Option<&[objectiveai::functions::inventions::InventionTool]>,
 ) -> ChatCompletionCreateParams {
     let resolved_rf = params.response_format.as_ref().and_then(|rfp| {
@@ -37,8 +37,8 @@ fn build_params_with_tools_enabled(
     params: &objectiveai::agent::completions::request::AgentCompletionCreateParams,
     messages: &[objectiveai::agent::completions::message::Message],
     continuation: Option<&[crate::agent::completions::ContinuationItem<objectiveai::agent::completions::message::AssistantMessage>]>,
-    mcp_connections: &[Arc<crate::mcp::Connection>],
-    mcp_tools: &[Arc<Vec<crate::mcp::tool::Tool>>],
+    mcp_connections: &[Arc<objectiveai::mcp::Connection>],
+    mcp_tools: &[Arc<Vec<objectiveai::mcp::tool::Tool>>],
     invention_tools: Option<&[objectiveai::functions::inventions::InventionTool]>,
     tools_enabled: bool,
 ) -> ChatCompletionCreateParams {
@@ -96,8 +96,8 @@ fn test_no_tools_empty_params() {
         continuation: None,
     };
 
-    let mcp_connections: Vec<Arc<crate::mcp::Connection>> = vec![];
-    let mcp_tools: Vec<Arc<Vec<crate::mcp::tool::Tool>>> = vec![];
+    let mcp_connections: Vec<Arc<objectiveai::mcp::Connection>> = vec![];
+    let mcp_tools: Vec<Arc<Vec<objectiveai::mcp::tool::Tool>>> = vec![];
 
     let result = build_params(
         &agent,
@@ -215,8 +215,8 @@ fn test_invention_response_format_name_conflict() {
         },
     ];
 
-    let mcp_connections: Vec<Arc<crate::mcp::Connection>> = vec![];
-    let mcp_tools: Vec<Arc<Vec<crate::mcp::tool::Tool>>> = vec![];
+    let mcp_connections: Vec<Arc<objectiveai::mcp::Connection>> = vec![];
+    let mcp_tools: Vec<Arc<Vec<objectiveai::mcp::tool::Tool>>> = vec![];
 
     let mut result = build_params(
         &agent,
@@ -316,8 +316,8 @@ fn test_top_logprobs_zero_omits_logprobs() {
     };
 
     let messages: Vec<objectiveai::agent::completions::message::Message> = vec![];
-    let mcp_connections: Vec<Arc<crate::mcp::Connection>> = vec![];
-    let mcp_tools: Vec<Arc<Vec<crate::mcp::tool::Tool>>> = vec![];
+    let mcp_connections: Vec<Arc<objectiveai::mcp::Connection>> = vec![];
+    let mcp_tools: Vec<Arc<Vec<objectiveai::mcp::tool::Tool>>> = vec![];
 
     let result = build_params(
         &agent,
@@ -575,8 +575,8 @@ fn test_toolcall_not_required_uses_auto_choice() {
     };
 
     let messages: Vec<objectiveai::agent::completions::message::Message> = vec![];
-    let mcp_connections: Vec<Arc<crate::mcp::Connection>> = vec![];
-    let mcp_tools: Vec<Arc<Vec<crate::mcp::tool::Tool>>> = vec![];
+    let mcp_connections: Vec<Arc<objectiveai::mcp::Connection>> = vec![];
+    let mcp_tools: Vec<Arc<Vec<objectiveai::mcp::tool::Tool>>> = vec![];
 
     let result = build_params(
         &agent,
@@ -706,8 +706,8 @@ fn test_invention_tool_parameters_preserved() {
         },
     ];
 
-    let mcp_connections: Vec<Arc<crate::mcp::Connection>> = vec![];
-    let mcp_tools: Vec<Arc<Vec<crate::mcp::tool::Tool>>> = vec![];
+    let mcp_connections: Vec<Arc<objectiveai::mcp::Connection>> = vec![];
+    let mcp_tools: Vec<Arc<Vec<objectiveai::mcp::tool::Tool>>> = vec![];
 
     let result = build_params(
         &agent,
@@ -918,8 +918,8 @@ fn test_provider_merging_both_sides() {
             };
 
     let messages: Vec<objectiveai::agent::completions::message::Message> = vec![];
-    let mcp_connections: Vec<Arc<crate::mcp::Connection>> = vec![];
-    let mcp_tools: Vec<Arc<Vec<crate::mcp::tool::Tool>>> = vec![];
+    let mcp_connections: Vec<Arc<objectiveai::mcp::Connection>> = vec![];
+    let mcp_tools: Vec<Arc<Vec<objectiveai::mcp::tool::Tool>>> = vec![];
 
     let result = build_params(
         &agent,
@@ -1022,8 +1022,8 @@ fn test_per_agent_response_format_miss() {
     };
 
     let messages: Vec<objectiveai::agent::completions::message::Message> = vec![];
-    let mcp_connections: Vec<Arc<crate::mcp::Connection>> = vec![];
-    let mcp_tools: Vec<Arc<Vec<crate::mcp::tool::Tool>>> = vec![];
+    let mcp_connections: Vec<Arc<objectiveai::mcp::Connection>> = vec![];
+    let mcp_tools: Vec<Arc<Vec<objectiveai::mcp::tool::Tool>>> = vec![];
 
     let result = build_params(
         &agent,
@@ -1125,8 +1125,8 @@ fn test_json_schema_response_format_extracts_title() {
     };
 
     let messages: Vec<objectiveai::agent::completions::message::Message> = vec![];
-    let mcp_connections: Vec<Arc<crate::mcp::Connection>> = vec![];
-    let mcp_tools: Vec<Arc<Vec<crate::mcp::tool::Tool>>> = vec![];
+    let mcp_connections: Vec<Arc<objectiveai::mcp::Connection>> = vec![];
+    let mcp_tools: Vec<Arc<Vec<objectiveai::mcp::tool::Tool>>> = vec![];
 
     let result = build_params(
         &agent,
@@ -1370,8 +1370,8 @@ fn test_toolcall_required_forces_function_choice() {
         continuation: None,
     };
 
-    let mcp_connections: Vec<Arc<crate::mcp::Connection>> = vec![];
-    let mcp_tools: Vec<Arc<Vec<crate::mcp::tool::Tool>>> = vec![];
+    let mcp_connections: Vec<Arc<objectiveai::mcp::Connection>> = vec![];
+    let mcp_tools: Vec<Arc<Vec<objectiveai::mcp::tool::Tool>>> = vec![];
 
     let result = build_params(
         &agent,
@@ -1470,18 +1470,18 @@ fn test_three_mcp_servers_fifteen_tools_all_unique() {
     };
 
     // Server 1: file operations
-    let conn1 = crate::mcp::Connection::new_for_test(
+    let conn1 = objectiveai::mcp::Connection::new_for_test(
         "test".into(),
         "https://files.example.com/mcp".into(),
     );
     let tools1 = Arc::new(vec![
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "read_file".into(),
             title: None,
             description: Some("Read a file from disk".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "path".into() => serde_json::json!({"type": "string"}),
                 }),
@@ -1493,13 +1493,13 @@ fn test_three_mcp_servers_fifteen_tools_all_unique() {
             execution: None,
             _meta: None,
         },
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "write_file".into(),
             title: None,
             description: Some("Write content to a file".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "path".into() => serde_json::json!({"type": "string"}),
                     "content".into() => serde_json::json!({"type": "string"}),
@@ -1512,13 +1512,13 @@ fn test_three_mcp_servers_fifteen_tools_all_unique() {
             execution: None,
             _meta: None,
         },
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "list_dir".into(),
             title: Some("List Directory".into()),
             description: Some("List files in a directory".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "path".into() => serde_json::json!({"type": "string"}),
                     "recursive".into() => serde_json::json!({"type": "boolean", "default": false}),
@@ -1531,13 +1531,13 @@ fn test_three_mcp_servers_fifteen_tools_all_unique() {
             execution: None,
             _meta: None,
         },
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "delete_file".into(),
             title: None,
             description: None,
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "path".into() => serde_json::json!({"type": "string"}),
                 }),
@@ -1549,13 +1549,13 @@ fn test_three_mcp_servers_fifteen_tools_all_unique() {
             execution: None,
             _meta: None,
         },
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "file_info".into(),
             title: None,
             description: Some("Get file metadata".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "path".into() => serde_json::json!({"type": "string"}),
                 }),
@@ -1570,18 +1570,18 @@ fn test_three_mcp_servers_fifteen_tools_all_unique() {
     ]);
 
     // Server 2: database operations
-    let conn2 = crate::mcp::Connection::new_for_test(
+    let conn2 = objectiveai::mcp::Connection::new_for_test(
         "test".into(),
         "https://db.example.com/mcp".into(),
     );
     let tools2 = Arc::new(vec![
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "query".into(),
             title: None,
             description: Some("Run a SQL query".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "sql".into() => serde_json::json!({"type": "string"}),
                     "database".into() => serde_json::json!({"type": "string", "enum": ["prod", "staging"]}),
@@ -1596,13 +1596,13 @@ fn test_three_mcp_servers_fifteen_tools_all_unique() {
             execution: None,
             _meta: None,
         },
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "insert".into(),
             title: None,
             description: Some("Insert a row".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "table".into() => serde_json::json!({"type": "string"}),
                     "data".into() => serde_json::json!({"type": "object"}),
@@ -1615,13 +1615,13 @@ fn test_three_mcp_servers_fifteen_tools_all_unique() {
             execution: None,
             _meta: None,
         },
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "update".into(),
             title: None,
             description: Some("Update rows".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "table".into() => serde_json::json!({"type": "string"}),
                     "set".into() => serde_json::json!({"type": "object"}),
@@ -1635,13 +1635,13 @@ fn test_three_mcp_servers_fifteen_tools_all_unique() {
             execution: None,
             _meta: None,
         },
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "delete".into(),
             title: None,
             description: Some("Delete rows".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "table".into() => serde_json::json!({"type": "string"}),
                     "where".into() => serde_json::json!({"type": "string"}),
@@ -1654,13 +1654,13 @@ fn test_three_mcp_servers_fifteen_tools_all_unique() {
             execution: None,
             _meta: None,
         },
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "list_tables".into(),
             title: None,
             description: Some("List all tables".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: None,
                 required: None,
                 extra: indexmap::IndexMap::new(),
@@ -1673,18 +1673,18 @@ fn test_three_mcp_servers_fifteen_tools_all_unique() {
     ]);
 
     // Server 3: web/HTTP operations
-    let conn3 = crate::mcp::Connection::new_for_test(
+    let conn3 = objectiveai::mcp::Connection::new_for_test(
         "test".into(),
         "https://web.example.com/mcp".into(),
     );
     let tools3 = Arc::new(vec![
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "fetch_url".into(),
             title: None,
             description: Some("Fetch a URL".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "url".into() => serde_json::json!({"type": "string", "format": "uri"}),
                     "method".into() => serde_json::json!({"type": "string", "enum": ["GET", "POST", "PUT", "DELETE"]}),
@@ -1698,13 +1698,13 @@ fn test_three_mcp_servers_fifteen_tools_all_unique() {
             execution: None,
             _meta: None,
         },
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "parse_html".into(),
             title: None,
             description: Some("Parse HTML and extract text".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "html".into() => serde_json::json!({"type": "string"}),
                     "selector".into() => serde_json::json!({"type": "string"}),
@@ -1717,13 +1717,13 @@ fn test_three_mcp_servers_fifteen_tools_all_unique() {
             execution: None,
             _meta: None,
         },
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "screenshot".into(),
             title: None,
             description: Some("Take a screenshot of a webpage".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "url".into() => serde_json::json!({"type": "string"}),
                     "width".into() => serde_json::json!({"type": "integer", "default": 1280}),
@@ -1737,13 +1737,13 @@ fn test_three_mcp_servers_fifteen_tools_all_unique() {
             execution: None,
             _meta: None,
         },
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "dns_lookup".into(),
             title: None,
             description: Some("DNS lookup".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "hostname".into() => serde_json::json!({"type": "string"}),
                 }),
@@ -1755,13 +1755,13 @@ fn test_three_mcp_servers_fifteen_tools_all_unique() {
             execution: None,
             _meta: None,
         },
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "whois".into(),
             title: None,
             description: None,
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "domain".into() => serde_json::json!({"type": "string"}),
                 }),
@@ -2066,18 +2066,18 @@ fn test_mcp_duplicate_name_across_servers_gets_url_suffix() {
     };
 
     // Server 1: knowledge base — has "search" (the duplicate)
-    let conn1 = crate::mcp::Connection::new_for_test(
+    let conn1 = objectiveai::mcp::Connection::new_for_test(
         "test".into(),
         "https://kb.example.com/mcp".into(),
     );
     let tools1 = Arc::new(vec![
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "search".into(),
             title: None,
             description: Some("Search the knowledge base".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "query".into() => serde_json::json!({"type": "string"}),
                     "top_k".into() => serde_json::json!({"type": "integer", "default": 10}),
@@ -2090,13 +2090,13 @@ fn test_mcp_duplicate_name_across_servers_gets_url_suffix() {
             execution: None,
             _meta: None,
         },
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "index_document".into(),
             title: None,
             description: Some("Index a document".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "title".into() => serde_json::json!({"type": "string"}),
                     "body".into() => serde_json::json!({"type": "string"}),
@@ -2110,13 +2110,13 @@ fn test_mcp_duplicate_name_across_servers_gets_url_suffix() {
             execution: None,
             _meta: None,
         },
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "get_document".into(),
             title: None,
             description: Some("Retrieve a document by ID".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "id".into() => serde_json::json!({"type": "string"}),
                 }),
@@ -2128,13 +2128,13 @@ fn test_mcp_duplicate_name_across_servers_gets_url_suffix() {
             execution: None,
             _meta: None,
         },
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "delete_document".into(),
             title: None,
             description: Some("Delete a document".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "id".into() => serde_json::json!({"type": "string"}),
                 }),
@@ -2146,13 +2146,13 @@ fn test_mcp_duplicate_name_across_servers_gets_url_suffix() {
             execution: None,
             _meta: None,
         },
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "list_collections".into(),
             title: None,
             description: Some("List all collections".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: None,
                 required: None,
                 extra: indexmap::IndexMap::new(),
@@ -2165,18 +2165,18 @@ fn test_mcp_duplicate_name_across_servers_gets_url_suffix() {
     ]);
 
     // Server 2: code search — also has "search" (the duplicate!)
-    let conn2 = crate::mcp::Connection::new_for_test(
+    let conn2 = objectiveai::mcp::Connection::new_for_test(
         "test".into(),
         "https://code.example.com/mcp".into(),
     );
     let tools2 = Arc::new(vec![
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "search".into(),
             title: None,
             description: Some("Search code repositories".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "query".into() => serde_json::json!({"type": "string"}),
                     "language".into() => serde_json::json!({"type": "string"}),
@@ -2190,13 +2190,13 @@ fn test_mcp_duplicate_name_across_servers_gets_url_suffix() {
             execution: None,
             _meta: None,
         },
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "get_file".into(),
             title: None,
             description: Some("Get file contents from repo".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "repo".into() => serde_json::json!({"type": "string"}),
                     "path".into() => serde_json::json!({"type": "string"}),
@@ -2210,13 +2210,13 @@ fn test_mcp_duplicate_name_across_servers_gets_url_suffix() {
             execution: None,
             _meta: None,
         },
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "list_repos".into(),
             title: None,
             description: Some("List repositories".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "org".into() => serde_json::json!({"type": "string"}),
                 }),
@@ -2228,13 +2228,13 @@ fn test_mcp_duplicate_name_across_servers_gets_url_suffix() {
             execution: None,
             _meta: None,
         },
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "blame".into(),
             title: None,
             description: Some("Git blame for a file".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "repo".into() => serde_json::json!({"type": "string"}),
                     "path".into() => serde_json::json!({"type": "string"}),
@@ -2247,13 +2247,13 @@ fn test_mcp_duplicate_name_across_servers_gets_url_suffix() {
             execution: None,
             _meta: None,
         },
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "diff".into(),
             title: None,
             description: Some("Diff between commits".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "repo".into() => serde_json::json!({"type": "string"}),
                     "base".into() => serde_json::json!({"type": "string"}),
@@ -2270,18 +2270,18 @@ fn test_mcp_duplicate_name_across_servers_gets_url_suffix() {
     ]);
 
     // Server 3: email — no duplicates
-    let conn3 = crate::mcp::Connection::new_for_test(
+    let conn3 = objectiveai::mcp::Connection::new_for_test(
         "test".into(),
         "https://mail.example.com/mcp".into(),
     );
     let tools3 = Arc::new(vec![
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "send_email".into(),
             title: None,
             description: Some("Send an email".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "to".into() => serde_json::json!({"type": "string"}),
                     "subject".into() => serde_json::json!({"type": "string"}),
@@ -2296,13 +2296,13 @@ fn test_mcp_duplicate_name_across_servers_gets_url_suffix() {
             execution: None,
             _meta: None,
         },
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "read_inbox".into(),
             title: None,
             description: Some("Read inbox messages".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "limit".into() => serde_json::json!({"type": "integer", "default": 20}),
                     "unread_only".into() => serde_json::json!({"type": "boolean", "default": false}),
@@ -2315,13 +2315,13 @@ fn test_mcp_duplicate_name_across_servers_gets_url_suffix() {
             execution: None,
             _meta: None,
         },
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "archive".into(),
             title: None,
             description: Some("Archive a message".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "message_id".into() => serde_json::json!({"type": "string"}),
                 }),
@@ -2333,13 +2333,13 @@ fn test_mcp_duplicate_name_across_servers_gets_url_suffix() {
             execution: None,
             _meta: None,
         },
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "create_draft".into(),
             title: None,
             description: Some("Create a draft email".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "to".into() => serde_json::json!({"type": "string"}),
                     "subject".into() => serde_json::json!({"type": "string"}),
@@ -2353,13 +2353,13 @@ fn test_mcp_duplicate_name_across_servers_gets_url_suffix() {
             execution: None,
             _meta: None,
         },
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "list_labels".into(),
             title: None,
             description: Some("List email labels".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: None,
                 required: None,
                 extra: indexmap::IndexMap::new(),
@@ -2652,18 +2652,18 @@ fn test_mcp_tool_conflicts_with_invention_tool() {
     };
 
     // MCP server has a tool named "analyze"
-    let conn = crate::mcp::Connection::new_for_test(
+    let conn = objectiveai::mcp::Connection::new_for_test(
         "test".into(),
         "https://analytics.example.com/mcp".into(),
     );
     let mcp_tools_list = Arc::new(vec![
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "analyze".into(),
             title: None,
             description: Some("Run analytics query".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "dataset".into() => serde_json::json!({"type": "string"}),
                     "metric".into() => serde_json::json!({"type": "string"}),
@@ -2676,13 +2676,13 @@ fn test_mcp_tool_conflicts_with_invention_tool() {
             execution: None,
             _meta: None,
         },
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "list_datasets".into(),
             title: None,
             description: Some("List available datasets".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: None,
                 required: None,
                 extra: indexmap::IndexMap::new(),
@@ -2858,18 +2858,18 @@ fn test_mcp_tool_conflicts_with_response_format_tool() {
     };
 
     // MCP server also has a tool named "evaluate"
-    let conn = crate::mcp::Connection::new_for_test(
+    let conn = objectiveai::mcp::Connection::new_for_test(
         "test".into(),
         "https://grading.example.com/mcp".into(),
     );
     let mcp_tools_list = Arc::new(vec![
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "evaluate".into(),
             title: None,
             description: Some("Grade a student submission".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "submission_id".into() => serde_json::json!({"type": "string"}),
                     "rubric".into() => serde_json::json!({"type": "string"}),
@@ -2882,13 +2882,13 @@ fn test_mcp_tool_conflicts_with_response_format_tool() {
             execution: None,
             _meta: None,
         },
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "list_submissions".into(),
             title: None,
             description: Some("List student submissions".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "course_id".into() => serde_json::json!({"type": "string"}),
                 }),
@@ -3068,18 +3068,18 @@ fn test_four_way_name_conflict_mcp_x2_invention_response_format() {
     };
 
     // MCP server 1 has "output"
-    let conn1 = crate::mcp::Connection::new_for_test(
+    let conn1 = objectiveai::mcp::Connection::new_for_test(
         "test".into(),
         "https://renderer.example.com/mcp".into(),
     );
     let mcp_tools1 = Arc::new(vec![
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "output".into(),
             title: None,
             description: Some("Render output to display".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "format".into() => serde_json::json!({"type": "string", "enum": ["html", "pdf", "png"]}),
                     "content".into() => serde_json::json!({"type": "string"}),
@@ -3092,13 +3092,13 @@ fn test_four_way_name_conflict_mcp_x2_invention_response_format() {
             execution: None,
             _meta: None,
         },
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "preview".into(),
             title: None,
             description: Some("Preview rendered output".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "render_id".into() => serde_json::json!({"type": "string"}),
                 }),
@@ -3113,18 +3113,18 @@ fn test_four_way_name_conflict_mcp_x2_invention_response_format() {
     ]);
 
     // MCP server 2 also has "output"
-    let conn2 = crate::mcp::Connection::new_for_test(
+    let conn2 = objectiveai::mcp::Connection::new_for_test(
         "test".into(),
         "https://logger.example.com/mcp".into(),
     );
     let mcp_tools2 = Arc::new(vec![
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "output".into(),
             title: None,
             description: Some("Write to log output".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "level".into() => serde_json::json!({"type": "string", "enum": ["debug", "info", "warn", "error"]}),
                     "message".into() => serde_json::json!({"type": "string"}),
@@ -3137,13 +3137,13 @@ fn test_four_way_name_conflict_mcp_x2_invention_response_format() {
             execution: None,
             _meta: None,
         },
-        crate::mcp::tool::Tool {
+        objectiveai::mcp::tool::Tool {
             name: "tail_logs".into(),
             title: None,
             description: Some("Tail recent log entries".into()),
             icons: None,
-            input_schema: crate::mcp::tool::ToolSchema {
-                r#type: crate::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "n".into() => serde_json::json!({"type": "integer", "default": 50}),
                 }),
@@ -3371,8 +3371,8 @@ fn test_continuation_assistant_message_appended() {
         ),
     ];
 
-    let mcp_connections: Vec<std::sync::Arc<crate::mcp::Connection>> = vec![];
-    let mcp_tools: Vec<std::sync::Arc<Vec<crate::mcp::tool::Tool>>> = vec![];
+    let mcp_connections: Vec<std::sync::Arc<objectiveai::mcp::Connection>> = vec![];
+    let mcp_tools: Vec<std::sync::Arc<Vec<objectiveai::mcp::tool::Tool>>> = vec![];
 
     let result = build_params(
         &agent,
@@ -3516,8 +3516,8 @@ fn test_continuation_mixed_items() {
         ),
     ];
 
-    let mcp_connections: Vec<std::sync::Arc<crate::mcp::Connection>> = vec![];
-    let mcp_tools: Vec<std::sync::Arc<Vec<crate::mcp::tool::Tool>>> = vec![];
+    let mcp_connections: Vec<std::sync::Arc<objectiveai::mcp::Connection>> = vec![];
+    let mcp_tools: Vec<std::sync::Arc<Vec<objectiveai::mcp::tool::Tool>>> = vec![];
 
     let result = build_params(
         &agent,

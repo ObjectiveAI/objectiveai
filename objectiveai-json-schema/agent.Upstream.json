@@ -27,14 +27,6 @@
       ]
     },
     {
-      "title": "ClaudeCode",
-      "description": "Claude Code Upstream.",
-      "type": "string",
-      "enum": [
-        "claude_code"
-      ]
-    },
-    {
       "title": "Mock",
       "description": "Mock Upstream.",
       "type": "string",

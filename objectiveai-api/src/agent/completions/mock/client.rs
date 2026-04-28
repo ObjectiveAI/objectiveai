@@ -64,12 +64,7 @@ impl UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::C
         request_continuation: Option<&objectiveai::agent::mock::Continuation>,
         params: &objectiveai::agent::completions::request::AgentCompletionCreateParams,
         messages: &[objectiveai::agent::completions::message::Message],
-        _mcp_connections: &[std::sync::Arc<crate::mcp::Connection>],
-        _invention_tools: Option<
-            &[objectiveai::functions::inventions::InventionTool],
-        >,
-        tool_names: &[String],
-        tool_map: &HashMap<String, ResolvedTool>,
+        mcp_connection: Option<objectiveai::mcp::Connection>,
         continuation: Option<&[ContinuationItem<Self::State>]>,
         byok: Option<&str>,
         _cost_multiplier: rust_decimal::Decimal,
@@ -93,8 +88,7 @@ impl UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::C
         let error_probability = agent.base.error_probability;
         let top_logprobs = agent.base.top_logprobs;
         let response_format = resolve_response_format(&agent.id, params);
-        let tool_names = tool_names.to_vec();
-        let tool_map = tool_map.clone();
+        let params_seed = params.seed;
         let delay = self.delay;
         // Build the full message list: request_continuation -> messages -> continuation.
         let rc_len = request_continuation.map_or(0, |rc| rc.messages.len());
@@ -127,22 +121,6 @@ impl UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::C
                     .count() as u64
             })
             .unwrap_or(0);
-        let seed = params.seed.map(|s| {
-            use std::hash::Hasher;
-            let mut hasher = twox_hash::XxHash3_64::with_seed(s as u64);
-            // Hash full prompt (request_continuation + messages + continuation)
-            {
-                let mut prompt = all_messages.clone();
-                objectiveai::agent::completions::message::prompt::prepare(&mut prompt);
-                let pid = objectiveai::agent::completions::message::prompt::id(&prompt);
-                hasher.write(pid.as_bytes());
-            }
-            // Hash tool names for differentiation across tool configurations
-            for tn in &tool_names {
-                hasher.write(tn.as_bytes());
-            }
-            hasher.finish()
-        });
         let prior_tool_call_count: u32 = continuation
             .map(|items| {
                 items.iter().filter_map(|item| match item {
@@ -205,6 +183,39 @@ impl UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::C
                     return Err(super::Error::ToolsNotAllowedWithRequiredToolCall);
                 }
             }
+
+            // Source MCP tools from the per-agent proxy connection (if any)
+            // and merge with the response-format ToolCall name. The proxy
+            // fans out to the agent's declared upstream MCP servers and
+            // the invention server, so a single list_tools() (inside
+            // resolve_tools) returns the union — no separate invention_tools
+            // path.
+            let (tool_names, tool_map) = super::super::resolved_tool::resolve_tools(
+                mcp_connection.as_ref(),
+                response_format.as_ref(),
+            )
+            .await
+            .map_err(|e| super::Error::McpListTools {
+                url: e.url,
+                error: e.error,
+            })?;
+
+            // Hash full prompt + tool names so that adding/removing tools
+            // produces a different deterministic output.
+            let seed = params_seed.map(|s| {
+                use std::hash::Hasher;
+                let mut hasher = twox_hash::XxHash3_64::with_seed(s as u64);
+                {
+                    let mut prompt = all_messages.clone();
+                    objectiveai::agent::completions::message::prompt::prepare(&mut prompt);
+                    let pid = objectiveai::agent::completions::message::prompt::id(&prompt);
+                    hasher.write(pid.as_bytes());
+                }
+                for tn in &tool_names {
+                    hasher.write(tn.as_bytes());
+                }
+                hasher.finish()
+            });
 
             let mut rng = match seed {
                 Some(s) => rand::rngs::StdRng::seed_from_u64(s),
@@ -717,11 +728,6 @@ pub(super) fn generate_tool_arguments(
                 );
             }
             Some(serde_json::Value::Object(map))
-        }
-        Some(ResolvedTool::InventionTool(inv)) => {
-            Some(serde_json::Value::Object(
-                inv.parameters.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
-            ))
         }
         Some(ResolvedTool::ResponseFormat { schema, .. }) => {
             Some(serde_json::Value::Object(

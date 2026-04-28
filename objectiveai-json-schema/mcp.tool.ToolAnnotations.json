@@ -1,0 +1,67 @@
+{
+  "title": "mcp.tool.ToolAnnotations",
+  "description": "Additional metadata about a tool to help clients decide how to display\nor control its use.",
+  "type": "object",
+  "properties": {
+    "destructiveHint": {
+      "description": "If true, the tool may perform destructive updates.",
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "idempotentHint": {
+      "description": "If true, calling the tool repeatedly with the same arguments\nhas no additional effect.",
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "openWorldHint": {
+      "description": "If true, the tool interacts with the external world.",
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "readOnlyHint": {
+      "description": "If true, the tool does not modify its environment.",
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "title": {
+      "description": "A human-readable title for the tool.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

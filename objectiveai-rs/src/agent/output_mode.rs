@@ -63,16 +63,6 @@ impl From<super::claude_agent_sdk::OutputMode> for OutputMode {
     }
 }
 
-impl From<super::claude_code::OutputMode> for OutputMode {
-    fn from(mode: super::claude_code::OutputMode) -> Self {
-        match mode {
-            super::claude_code::OutputMode::Instruction => {
-                OutputMode::Instruction
-            }
-        }
-    }
-}
-
 impl From<super::mock::OutputMode> for OutputMode {
     fn from(mode: super::mock::OutputMode) -> Self {
         match mode {

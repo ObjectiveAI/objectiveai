@@ -45,8 +45,8 @@ pub struct McpHttpServerConfig {
     pub headers: Option<indexmap::IndexMap<String, String>>,
 }
 
-impl From<&crate::mcp::Connection> for McpHttpServerConfig {
-    fn from(conn: &crate::mcp::Connection) -> Self {
+impl From<&objectiveai::mcp::Connection> for McpHttpServerConfig {
+    fn from(conn: &objectiveai::mcp::Connection) -> Self {
         let mut headers = indexmap::IndexMap::new();
 
         if !conn.session_id.is_empty() {

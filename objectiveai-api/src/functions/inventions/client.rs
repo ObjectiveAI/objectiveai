@@ -65,10 +65,10 @@ fn validate_name(name: &str) -> Result<(), super::Error> {
 ///
 /// Orchestrates the multi-step invention flow: essay, input schema,
 /// essay tasks, tasks, description, and readme generation.
-pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM> {
+pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM> {
     pub agent_client: Arc<
         crate::agent::completions::Client<
-            CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, CUSG,
+            CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG,
         >,
     >,
     pub github_client: Arc<crate::github::Client>,
@@ -80,13 +80,13 @@ pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, R
     pub forbid_overwrite: bool,
 }
 
-impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM>
-    Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM>
+impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM>
+    Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM>
 {
     pub fn new(
         agent_client: Arc<
             crate::agent::completions::Client<
-                CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, CUSG,
+                CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG,
             >,
         >,
         github_client: Arc<crate::github::Client>,
@@ -110,7 +110,7 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, 
     }
 }
 
-type Continuation<OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK> =
+type Continuation<OPENROUTER, CLAUDEAGENTSDK, MOCK> =
     crate::agent::completions::Continuation<
         <OPENROUTER as crate::agent::completions::UpstreamClient<
             objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation,
@@ -118,16 +118,13 @@ type Continuation<OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK> =
         <CLAUDEAGENTSDK as crate::agent::completions::UpstreamClient<
             objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
         >>::State,
-        <CLAUDECODE as crate::agent::completions::UpstreamClient<
-            objectiveai::agent::claude_code::Agent, objectiveai::agent::claude_code::Continuation,
-        >>::State,
         <MOCK as crate::agent::completions::UpstreamClient<
             objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation,
         >>::State,
     >;
 
-impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM>
-    Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM>
+impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM>
+    Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM>
 where
     CTXEXT: ctx::ContextExt + Send + Sync + 'static,
     OPENROUTER: crate::agent::completions::UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation>
@@ -136,11 +133,6 @@ where
         + 'static,
     CLAUDEAGENTSDK: crate::agent::completions::UpstreamClient<
             objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
-        > + Send
-        + Sync
-        + 'static,
-    CLAUDECODE: crate::agent::completions::UpstreamClient<
-            objectiveai::agent::claude_code::Agent, objectiveai::agent::claude_code::Continuation,
         > + Send
         + Sync
         + 'static,
@@ -487,11 +479,11 @@ struct CompiledPrompts {
     tasks_min: u64,
 }
 
-fn run_all_steps<T, CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, CUSG>(
+fn run_all_steps<T, CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG>(
     state_val: T,
     agent_client: Arc<
         crate::agent::completions::Client<
-            CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, CUSG,
+            CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG,
         >,
     >,
     github_client: Arc<crate::github::Client>,
@@ -512,11 +504,6 @@ where
         + 'static,
     CLAUDEAGENTSDK: crate::agent::completions::UpstreamClient<
             objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
-        > + Send
-        + Sync
-        + 'static,
-    CLAUDECODE: crate::agent::completions::UpstreamClient<
-            objectiveai::agent::claude_code::Agent, objectiveai::agent::claude_code::Continuation,
         > + Send
         + Sync
         + 'static,
@@ -550,7 +537,7 @@ where
 
         // Continuation carried between steps.
         let mut continuation: Option<
-            Continuation<OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK>,
+            Continuation<OPENROUTER, CLAUDEAGENTSDK, MOCK>,
         > = None;
         // Completion index incremented across all steps.
         let mut completion_index: u64 = 0;
@@ -879,15 +866,14 @@ pub(crate) async fn publish_github<CTXEXT: ctx::ContextExt + Send + Sync>(
 // ---------------------------------------------------------------------------
 
 /// Output from a single step.
-enum StepOutput<OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK>
+enum StepOutput<OPENROUTER, CLAUDEAGENTSDK, MOCK>
 where
     OPENROUTER: crate::agent::completions::UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation>,
     CLAUDEAGENTSDK: crate::agent::completions::UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation>,
-    CLAUDECODE: crate::agent::completions::UpstreamClient<objectiveai::agent::claude_code::Agent, objectiveai::agent::claude_code::Continuation>,
     MOCK: crate::agent::completions::UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation>,
 {
     Chunk(FunctionInventionChunk),
-    Continuation(Continuation<OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK>),
+    Continuation(Continuation<OPENROUTER, CLAUDEAGENTSDK, MOCK>),
     CompletionIndex(u64),
 }
 
@@ -922,10 +908,10 @@ fn user_message(prompt: &str) -> objectiveai::agent::completions::message::UserM
     }
 }
 
-fn run_step<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, CUSG>(
+fn run_step<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG>(
     agent_client: Arc<
         crate::agent::completions::Client<
-            CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, RETRM, CUSG,
+            CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG,
         >,
     >,
     ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
@@ -936,7 +922,7 @@ fn run_step<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, 
     id: String,
     created: u64,
     object: Object,
-    initial_continuation: Option<Continuation<OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK>>,
+    initial_continuation: Option<Continuation<OPENROUTER, CLAUDEAGENTSDK, MOCK>>,
     initial_completion_index: u64,
     invention_type: objectiveai::functions::inventions::prompts::StepPromptType,
     invention_step: usize,
@@ -944,7 +930,7 @@ fn run_step<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK, RETRG, RETRF, 
     invention_input_schema: Option<String>,
 ) -> Pin<
     Box<
-        dyn Stream<Item = StepOutput<OPENROUTER, CLAUDEAGENTSDK, CLAUDECODE, MOCK>>
+        dyn Stream<Item = StepOutput<OPENROUTER, CLAUDEAGENTSDK, MOCK>>
             + Send,
     >,
 >
@@ -956,11 +942,6 @@ where
         + 'static,
     CLAUDEAGENTSDK: crate::agent::completions::UpstreamClient<
             objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
-        > + Send
-        + Sync
-        + 'static,
-    CLAUDECODE: crate::agent::completions::UpstreamClient<
-            objectiveai::agent::claude_code::Agent, objectiveai::agent::claude_code::Continuation,
         > + Send
         + Sync
         + 'static,

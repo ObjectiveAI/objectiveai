@@ -19,6 +19,7 @@ class FunctionExecutionCreateParams(BaseModel):
     from_cache: Optional[bool] = Field(None, json_schema_extra={'omitempty': True})
     function: FullInlineFunctionOrRemoteCommitOptional = Field(..., description='The function to execute (inline definition or remote path).')
     input: InputValue
+    invert: Optional[bool] = Field(None, description='If `true`, invert every output in the streamed response *after* the\ninner function has finished computing — scalar outputs become\n`1 - x`, vector outputs are reversed in place. The expression\nevaluator inside the function still sees the original scores; only\nthe chunks delivered to the client (and the aggregated response\npassed to the usage handler) are inverted. Useful when a function\nis naturally written to score "lower is better" but the consumer\nwants "higher is better", or vice versa.', json_schema_extra={'omitempty': True})
     profile: InlineProfileOrRemoteCommitOptional = Field(..., description='The profile to use (inline definition or remote path).')
     provider: Optional[Provider] = Field(None, json_schema_extra={'omitempty': True})
     reasoning: Optional[Reasoning] = Field(None, json_schema_extra={'omitempty': True})

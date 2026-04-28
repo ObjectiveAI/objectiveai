@@ -1,0 +1,44 @@
+{
+  "title": "mcp.InitializeResult",
+  "description": "The server's response to an `initialize` request.",
+  "type": "object",
+  "properties": {
+    "_meta": {
+      "description": "Extension metadata.",
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": true
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "capabilities": {
+      "description": "The server's supported capabilities.",
+      "$ref": "mcp.ServerCapabilities"
+    },
+    "instructions": {
+      "description": "Optional instructions for LLM integration.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "protocolVersion": {
+      "description": "The MCP protocol version the server wants to use.",
+      "type": "string"
+    },
+    "serverInfo": {
+      "description": "Information about the server implementation.",
+      "$ref": "mcp.Implementation"
+    }
+  }
+}

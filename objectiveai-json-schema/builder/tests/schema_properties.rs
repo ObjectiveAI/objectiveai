@@ -92,17 +92,30 @@ fn check_keyword_order(value: &serde_json::Value, inside_properties: bool, error
     }
 }
 
-fn check_properties_sorted(value: &serde_json::Value, errors: &mut Vec<String>, path: &str) {
+fn check_properties_sorted(
+    value: &serde_json::Value,
+    inside_properties: bool,
+    errors: &mut Vec<String>,
+    path: &str,
+) {
     match value {
         serde_json::Value::Object(map) => {
-            if let Some(serde_json::Value::Object(props)) = map.get("properties") {
-                let keys: Vec<&String> = props.keys().collect();
-                for w in keys.windows(2) {
-                    if w[0] > w[1] {
-                        errors.push(format!(
-                            "{path}.properties: \"{0}\" comes before \"{1}\" but should come after",
-                            w[0], w[1]
-                        ));
+            // Only treat `properties` as the JSON-Schema keyword (whose
+            // keys are user field names that must be alphabetical) when
+            // we're at a schema level. When `inside_properties` is true,
+            // the current map's keys ARE user field names — so a key
+            // literally named "properties" here is a user field whose
+            // value is itself a sub-schema (not a property map).
+            if !inside_properties {
+                if let Some(serde_json::Value::Object(props)) = map.get("properties") {
+                    let keys: Vec<&String> = props.keys().collect();
+                    for w in keys.windows(2) {
+                        if w[0] > w[1] {
+                            errors.push(format!(
+                                "{path}.properties: \"{0}\" comes before \"{1}\" but should come after",
+                                w[0], w[1]
+                            ));
+                        }
                     }
                 }
             }
@@ -112,12 +125,17 @@ fn check_properties_sorted(value: &serde_json::Value, errors: &mut Vec<String>, 
                 } else {
                     format!("{path}.{k}")
                 };
-                check_properties_sorted(v, errors, &child_path);
+                let child_inside = if inside_properties {
+                    false
+                } else {
+                    k == "properties"
+                };
+                check_properties_sorted(v, child_inside, errors, &child_path);
             }
         }
         serde_json::Value::Array(arr) => {
             for (i, v) in arr.iter().enumerate() {
-                check_properties_sorted(v, errors, &format!("{path}[{i}]"));
+                check_properties_sorted(v, false, errors, &format!("{path}[{i}]"));
             }
         }
         _ => {}
@@ -188,7 +206,7 @@ fn keywords_in_canonical_order() {
 fn properties_keys_sorted_alphabetically() {
     for (name, schema) in load_schemas() {
         let mut errors = Vec::new();
-        check_properties_sorted(&schema, &mut errors, &name);
+        check_properties_sorted(&schema, false, &mut errors, &name);
         assert!(errors.is_empty(), "properties sorting violations:\n{}", errors.join("\n"));
     }
 }

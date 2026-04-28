@@ -46,8 +46,10 @@ fn run_bash(script: &std::path::Path, args: &[&str]) -> std::process::Output {
 
 #[cfg(feature = "orchestrator-bollard")]
 fn laboratories_local() {
-    // The MCP binary is always linux-musl (for Docker container injection),
-    // regardless of the platform the API is built on.
+    // The filesystem MCP binary is always linux-musl (for Docker container
+    // injection), regardless of the platform the API is built on. The
+    // mcp-proxy is consumed as a regular cargo dep (in-process), not
+    // embedded.
     let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
     let musl_target = format!("{arch}-unknown-linux-musl");
     let profile = std::env::var("PROFILE").unwrap();
@@ -55,7 +57,8 @@ fn laboratories_local() {
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
     let workspace_dir = std::path::Path::new(&manifest_dir).parent().unwrap();
 
-    let validate_script = workspace_dir.join("objectiveai-mcp").join("validate.sh");
+    let module = "objectiveai-mcp-filesystem";
+    let validate_script = workspace_dir.join(module).join("validate.sh");
     let mut args: Vec<&str> = vec!["--target", &musl_target];
     if profile == "release" {
         args.push("--release");
@@ -64,24 +67,24 @@ fn laboratories_local() {
 
     assert!(
         output.status.success(),
-        "objectiveai-mcp/validate.sh failed:\n{}\n{}Run: bash objectiveai-mcp/build.sh --target {musl_target}{}",
+        "{module}/validate.sh failed:\n{}\n{}Run: bash {module}/build.sh --target {musl_target}{}",
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr),
         if profile == "release" { " --release" } else { "" }
     );
 
     let binary_path = workspace_dir
-        .join("objectiveai-mcp")
+        .join(module)
         .join("embed")
         .join(&musl_target)
         .join(&profile)
-        .join("objectiveai-mcp");
+        .join(module);
 
     println!(
-        "cargo:rustc-env=OBJECTIVEAI_MCP_BINARY_PATH={}",
+        "cargo:rustc-env=OBJECTIVEAI_MCP_FILESYSTEM_BINARY_PATH={}",
         binary_path.display()
     );
-    println!("cargo:rerun-if-changed=../objectiveai-mcp/embed/");
+    println!("cargo:rerun-if-changed=../{module}/embed/");
 }
 
 fn claude_agent_sdk_runner() {

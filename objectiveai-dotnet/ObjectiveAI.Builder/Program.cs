@@ -1502,7 +1502,7 @@ string ConvertDefaultValue(JsonElement defaultEl, string csType)
         JsonValueKind.True => "true",
         JsonValueKind.False => "false",
         JsonValueKind.Number => defaultEl.GetRawText(),
-        JsonValueKind.Null => "null!",
+        JsonValueKind.Null => "default!",
         _ => "default!"
     };
 }

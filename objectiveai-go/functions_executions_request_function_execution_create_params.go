@@ -15,6 +15,15 @@ type FunctionsExecutionsRequestFunctionExecutionCreateParams struct {
 	// The function to execute (inline definition or remote path).
 	Function FunctionsFullInlineFunctionOrRemoteCommitOptional `json:"function"`
 	Input FunctionsExpressionInputValue `json:"input"`
+	// If `true`, invert every output in the streamed response *after* the
+	// inner function has finished computing — scalar outputs become
+	// `1 - x`, vector outputs are reversed in place. The expression
+	// evaluator inside the function still sees the original scores; only
+	// the chunks delivered to the client (and the aggregated response
+	// passed to the usage handler) are inverted. Useful when a function
+	// is naturally written to score "lower is better" but the consumer
+	// wants "higher is better", or vice versa.
+	Invert *bool `json:"invert,omitempty"`
 	// The profile to use (inline definition or remote path).
 	Profile FunctionsInlineProfileOrRemoteCommitOptional `json:"profile"`
 	Provider *AgentCompletionsRequestProvider `json:"provider,omitempty"`

@@ -1,22 +1,25 @@
 //! Upstream requires `Authorization: Bearer secret`. Without
-//! `X-MCP-Authorization`, the proxy can't connect (upstream rejects);
-//! the upstream is logged + dropped, and the client sees no tools from
-//! it. With the right `X-MCP-Authorization`, the upstream connects
-//! cleanly and tools appear.
+//! `X-MCP-Authorization`, the proxy fails the entire `initialize` with
+//! a JSON-RPC `-32603` (`connect_all` fans out via `try_join_all` and
+//! surfaces the first failure). With the right `X-MCP-Authorization`,
+//! the upstream connects cleanly and its tools appear.
 
 mod common;
 
 use std::collections::HashMap;
 
 use common::{TestRig, UpstreamSpec};
-use objectiveai_mcp_test_upstream::{TestTool, TestToolBehavior};
+use rmcp::ServiceExt;
+use rmcp::transport::StreamableHttpClientTransport;
+use rmcp::transport::streamable_http_client::StreamableHttpClientTransportConfig;
+use test_upstream::{TestTool, TestToolBehavior};
 
 fn echo(name: &str) -> TestTool {
     TestTool { name: name.into(), description: None, behavior: TestToolBehavior::Echo }
 }
 
 #[tokio::test]
-async fn missing_authorization_drops_the_upstream() {
+async fn missing_authorization_fails_initialize() {
     let rig = TestRig::new(vec![
         UpstreamSpec::new("private")
             .with_tools(vec![echo("hidden")])
@@ -24,19 +27,36 @@ async fn missing_authorization_drops_the_upstream() {
     ])
     .await;
 
-    let mut headers = HashMap::new();
-    headers.insert("X-MCP-Servers", rig.x_mcp_servers());
+    use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        HeaderName::from_static("x-mcp-servers"),
+        HeaderValue::from_str(&rig.x_mcp_servers()).unwrap(),
+    );
     // Deliberately omit X-MCP-Authorization.
-    let client = rig.connect_client(headers).await;
 
-    let tools = client.peer().list_all_tools().await.expect("list_all_tools");
-    assert!(
-        tools.is_empty(),
-        "upstream that rejected our auth should not contribute tools, got {:?}",
-        tools.iter().map(|t| &t.name).collect::<Vec<_>>(),
+    let transport = StreamableHttpClientTransport::from_config(
+        StreamableHttpClientTransportConfig::with_uri(rig.proxy.url.clone())
+            .custom_headers(headers.into_iter().filter_map(|(n, v)| Some((n?, v))).collect()),
     );
 
-    client.cancel().await.ok();
+    // initialize is what fans out per-upstream connects; it should fail.
+    let result = client_info_for_test().serve(transport).await;
+    let err = result.err().expect("initialize should fail with -32603");
+    let msg = format!("{err:?}");
+    assert!(
+        msg.contains("-32603") && msg.contains("upstream connect failed"),
+        "unexpected error: {msg}",
+    );
+}
+
+fn client_info_for_test() -> rmcp::model::ClientInfo {
+    let value = serde_json::json!({
+        "protocolVersion": "2025-11-25",
+        "capabilities": {},
+        "clientInfo": { "name": "auth-test", "version": "0.1.0" },
+    });
+    serde_json::from_value(value).expect("ClientInfo deserialize")
 }
 
 #[tokio::test]

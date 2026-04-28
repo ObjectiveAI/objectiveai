@@ -383,9 +383,8 @@ fn test_user_message_without_tool_result_ignored() {
 }
 
 /// 9. RateLimitEvent is ignored by into_downstream. Rate-limit handling is
-/// the caller's responsibility — the claude_code client intercepts these
-/// explicitly for rejected/terminal variants, and the claude_agent_sdk
-/// runners handle them entirely inside the subprocess.
+/// the caller's responsibility — the claude_agent_sdk runners handle them
+/// entirely inside the subprocess.
 #[test]
 fn test_rate_limit_event_is_ignored() {
     let msg = SDKMessage::RateLimitEvent(SDKRateLimitEvent {

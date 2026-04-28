@@ -20,6 +20,12 @@ pub enum Error {
 
     #[error("mock invention WriteInputSchema returned unexpected result: {0}")]
     WriteInputSchemaFailed(String),
+
+    #[error("MCP list_tools error ({url}): {error}")]
+    McpListTools {
+        url: String,
+        error: std::sync::Arc<objectiveai::mcp::Error>,
+    },
 }
 
 impl objectiveai::error::StatusError for Error {
@@ -32,6 +38,7 @@ impl objectiveai::error::StatusError for Error {
             Self::MaxToolCallsExceeded(_) => 429,
             Self::AppendTaskFailed(_) => 500,
             Self::WriteInputSchemaFailed(_) => 500,
+            Self::McpListTools { .. } => 502,
         }
     }
 

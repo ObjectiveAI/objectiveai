@@ -7,7 +7,6 @@ pub mod claude_agent_sdk_binary;
 mod client;
 pub mod content_block_param;
 mod error;
-pub mod invention_server;
 pub mod mcp_server_config;
 pub mod prompt;
 pub mod sdk_message;

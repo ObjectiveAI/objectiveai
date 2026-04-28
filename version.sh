@@ -166,7 +166,10 @@ CARGO_TOMLS=(
   objectiveai-cli/Cargo.toml
   objectiveai-cli/builder/Cargo.toml
   objectiveai-json-schema/builder/Cargo.toml
-  objectiveai-mcp/Cargo.toml
+  objectiveai-mcp-cli/Cargo.toml
+  objectiveai-mcp-filesystem/Cargo.toml
+  objectiveai-mcp-proxy/Cargo.toml
+  objectiveai-mcp-proxy/test-upstream/Cargo.toml
   objectiveai-rs/Cargo.toml
   objectiveai-rs-cffi/Cargo.toml
   objectiveai-rs-macros/Cargo.toml
@@ -183,10 +186,6 @@ PACKAGE_JSONS=(
   objectiveai-js/package.json
   objectiveai-function-tree/package.json
   objectiveai-viewer/package.json
-)
-
-PACKAGE_JSONS_OPTIONAL=(
-  objectiveai-codex-sdk-runner-js/package.json
 )
 
 CSPROJS=(
@@ -239,7 +238,6 @@ echo "Setting version to $NEW_VERSION"
 for rel in "${CARGO_TOMLS[@]}";           do update cargo  "$rel"; done
 for rel in "${PYPROJECT_TOMLS[@]}";        do update pypro  "$rel"; done
 for rel in "${PACKAGE_JSONS[@]}";          do update pkg    "$rel"; done
-for rel in "${PACKAGE_JSONS_OPTIONAL[@]}"; do update pkg+   "$rel"; done
 for rel in "${CSPROJS[@]}";                do update csproj "$rel"; done
 for rel in "${PY_RUNNER_MAINS[@]}";        do update pyrun  "$rel"; done
 

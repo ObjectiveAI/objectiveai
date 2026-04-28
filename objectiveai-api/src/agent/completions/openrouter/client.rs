@@ -237,12 +237,7 @@ impl UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::o
         request_continuation: Option<&objectiveai::agent::openrouter::Continuation>,
         params: &objectiveai::agent::completions::request::AgentCompletionCreateParams,
         messages: &[objectiveai::agent::completions::message::Message],
-        _mcp_connections: &[Arc<crate::mcp::Connection>],
-        _invention_tools: Option<
-            &[objectiveai::functions::inventions::InventionTool],
-        >,
-        tool_names: &[String],
-        tool_map: &std::collections::HashMap<String, super::super::tool::ResolvedTool>,
+        mcp_connection: Option<objectiveai::mcp::Connection>,
         continuation: Option<&[ContinuationItem<Self::State>]>,
         byok: Option<&str>,
         cost_multiplier: rust_decimal::Decimal,
@@ -263,8 +258,6 @@ impl UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::o
         let agent = agent.clone();
         let params = params.clone();
         let messages = messages.to_vec();
-        let tool_names = tool_names.to_vec();
-        let tool_map = tool_map.clone();
         let continuation = continuation.map(|c| c.to_vec());
         let request_continuation = request_continuation.cloned();
         let client = self.clone();
@@ -284,6 +277,27 @@ impl UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::o
                     return Err(super::Error::ToolsNotAllowedWithRequiredToolCall);
                 }
             }
+
+            use objectiveai::agent::completions::request::ResponseFormatParam;
+            let response_format = match params.response_format.as_ref() {
+                Some(ResponseFormatParam::Single(rf)) => Some(rf.clone()),
+                Some(ResponseFormatParam::PerAgent(map)) => map.get(&agent.id).cloned(),
+                None => None,
+            };
+            // Source MCP tools from the per-agent proxy connection (if any).
+            // The proxy fans out to the agent's declared upstream MCP
+            // servers and the invention server, so a single list_tools()
+            // (inside resolve_tools) returns the union — no separate
+            // invention_tools path.
+            let (tool_names, tool_map) = super::super::resolved_tool::resolve_tools(
+                mcp_connection.as_ref(),
+                response_format.as_ref(),
+            )
+            .await
+            .map_err(|e| super::Error::Mcp {
+                url: e.url,
+                error: e.error,
+            })?;
 
             let request =
                 super::request::ChatCompletionCreateParams::new(

@@ -1,0 +1,16 @@
+{
+  "title": "mcp.JsonRpcNotification",
+  "description": "JSON-RPC 2.0 notification (no `id` field).",
+  "type": "object",
+  "properties": {
+    "jsonrpc": {
+      "type": "string"
+    },
+    "method": {
+      "type": "string"
+    },
+    "params": {
+      "omitempty": true
+    }
+  }
+}

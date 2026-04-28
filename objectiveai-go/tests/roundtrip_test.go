@@ -293,6 +293,10 @@ func reconstructStructSchema(
 		result["properties"] = properties
 	}
 
+	if ap, ok := ti.methods["AdditionalProperties"]; ok {
+		result["additionalProperties"] = ap == "true"
+	}
+
 	return result
 }
 
@@ -481,6 +485,16 @@ func parseDefaultValue(s string) any {
 	var n json.Number
 	if err := json.Unmarshal([]byte(s), &n); err == nil {
 		return n
+	}
+	// Try to decode as a JSON array or object so an empty Vec default
+	// (`default:"[]"`) round-trips as an actual JSON array, not the
+	// string "[]".
+	if (strings.HasPrefix(s, "[") && strings.HasSuffix(s, "]")) ||
+		(strings.HasPrefix(s, "{") && strings.HasSuffix(s, "}")) {
+		var v any
+		if err := json.Unmarshal([]byte(s), &v); err == nil {
+			return v
+		}
 	}
 	return s
 }

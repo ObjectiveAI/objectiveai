@@ -16,9 +16,7 @@ objectiveai/
 ├── objectiveai-js/                 # TypeScript SDK (npm: objectiveai)
 ├── objectiveai-json-schema/        # Generated JSON Schema files (built from Rust SDK)
 ├── objectiveai-cli/                # ObjectiveAI CLI
-├── objectiveai-web/                # Next.js web interface (production)
-├── objectiveai-scripts/            # Utility scripts (see objectiveai-scripts/README.md)
-└── coding-agent-scratch/           # Scratch folder for testing SDK calls
+└── objectiveai-web/                # Next.js web interface (production)
 ```
 
 ## Core Concepts
@@ -178,10 +176,6 @@ After declaring work "complete" on multi-page tasks, enumerate all affected page
 ### Package Manager
 
 This repo uses **pnpm** (not npm). Run all commands with `pnpm`. Workspace filtering uses `pnpm --filter <package-name> run <script>`.
-
-### SDK Testing
-
-Use `coding-agent-scratch/` folder for testing SDK calls and exploring API behavior. Create test scripts to verify CORS, client-side SDK usage, and API responses.
 
 ### Merging from Main
 

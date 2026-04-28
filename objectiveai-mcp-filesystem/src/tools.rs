@@ -2,7 +2,10 @@ use rmcp::{
     ServerHandler,
     handler::server::router::tool::ToolRouter,
     handler::server::wrapper::Parameters,
-    model::{CallToolResult, Content, ServerCapabilities, ServerInfo},
+    model::{
+        CallToolResult, Content, Implementation, ProtocolVersion, ServerCapabilities,
+        ServerInfo,
+    },
     schemars, tool, tool_handler, tool_router,
 };
 
@@ -229,16 +232,17 @@ impl FilesystemMcp {
 impl ServerHandler for FilesystemMcp {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
-            instructions: Some(
-                "ObjectiveAI filesystem MCP server. Provides Read, Write, Edit, Bash, \
-                 Glob, and Grep tools scoped to the working directory the server was \
-                 started in. Prefer Glob for path patterns and Grep for content; only \
-                 fall back to Bash for things the dedicated tools can't express. Edit \
-                 requires unique old_string matches — use Read first to confirm."
-                    .into(),
-            ),
+            protocol_version: ProtocolVersion::V_2025_06_18,
             capabilities: ServerCapabilities::builder().enable_tools().build(),
-            ..Default::default()
+            server_info: Implementation {
+                name: "objectiveai-filesystem".into(),
+                title: None,
+                version: env!("CARGO_PKG_VERSION").into(),
+                description: None,
+                icons: None,
+                website_url: None,
+            },
+            instructions: None,
         }
     }
 }

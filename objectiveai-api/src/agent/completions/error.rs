@@ -10,19 +10,22 @@ pub enum Error {
     AgentNotFound(String),
 
     #[error("MCP connection error: {0}")]
-    McpConnection(crate::mcp::Error),
+    McpConnection(objectiveai::mcp::Error),
 
     #[error("MCP connection error: {0}")]
-    McpConnectionArc(std::sync::Arc<crate::mcp::Error>),
+    McpConnectionArc(std::sync::Arc<objectiveai::mcp::Error>),
 
     #[error("MCP list_tools error ({url}): {error}")]
     McpListTools {
         url: String,
-        error: std::sync::Arc<crate::mcp::Error>,
+        error: std::sync::Arc<objectiveai::mcp::Error>,
     },
 
     #[error("MCP call_tool error: {0}")]
-    McpCallTool(crate::mcp::Error),
+    McpCallTool(objectiveai::mcp::Error),
+
+    #[error("MCP proxy bootstrap failed: {0}")]
+    McpProxyBootstrap(String),
 
     #[error("{0}")]
     Fetch(objectiveai::error::ResponseError),
@@ -32,9 +35,6 @@ pub enum Error {
 
     #[error("upstream claude agent sdk error: {0}")]
     UpstreamClaudeAgentSdk(Box<dyn super::UpstreamError>),
-
-    #[error("upstream claude code error: {0}")]
-    UpstreamClaudeCode(Box<dyn super::UpstreamError>),
 
     #[error("upstream mock error: {0}")]
     UpstreamMock(Box<dyn super::UpstreamError>),
@@ -65,10 +65,10 @@ impl objectiveai::error::StatusError for Error {
             Self::McpConnection(_) | Self::McpConnectionArc(_) => 502,
             Self::McpListTools { .. } => 502,
             Self::McpCallTool(_) => 502,
+            Self::McpProxyBootstrap(_) => 500,
             Self::Fetch(e) => e.code,
             Self::UpstreamOpenrouter(e)
             | Self::UpstreamClaudeAgentSdk(e)
-            | Self::UpstreamClaudeCode(e)
             | Self::UpstreamMock(e) => e.status(),
             Self::NoAgentsResolved => 400,
             Self::MultipleErrors(errors) => {
@@ -86,7 +86,6 @@ impl objectiveai::error::StatusError for Error {
             Self::Fetch(e) => Some(e.message.clone()),
             Self::UpstreamOpenrouter(e)
             | Self::UpstreamClaudeAgentSdk(e)
-            | Self::UpstreamClaudeCode(e)
             | Self::UpstreamMock(e) => e.message(),
             _ => Some(serde_json::Value::String(self.to_string())),
         }

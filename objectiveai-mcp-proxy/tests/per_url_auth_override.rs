@@ -8,7 +8,7 @@ mod common;
 use std::collections::{HashMap, HashSet};
 
 use common::{TestRig, UpstreamSpec};
-use objectiveai_mcp_test_upstream::{TestTool, TestToolBehavior};
+use test_upstream::{TestTool, TestToolBehavior};
 
 fn echo(name: &str) -> TestTool {
     TestTool { name: name.into(), description: None, behavior: TestToolBehavior::Echo }

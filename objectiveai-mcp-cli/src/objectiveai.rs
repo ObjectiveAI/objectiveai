@@ -3,7 +3,7 @@ use rmcp::{
     ServerHandler,
     handler::server::router::tool::ToolRouter,
     handler::server::wrapper::Parameters,
-    model::{ServerCapabilities, ServerInfo},
+    model::{Implementation, ProtocolVersion, ServerCapabilities, ServerInfo},
     schemars, tool, tool_handler, tool_router,
 };
 
@@ -51,9 +51,17 @@ impl ObjectiveAiMcpCli {
 impl ServerHandler for ObjectiveAiMcpCli {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
-            instructions: Some("Run an ObjectiveAI CLI command.".into()),
+            protocol_version: ProtocolVersion::V_2025_06_18,
             capabilities: ServerCapabilities::builder().enable_tools().build(),
-            ..Default::default()
+            server_info: Implementation {
+                name: "objectiveai-cli".into(),
+                title: None,
+                version: env!("CARGO_PKG_VERSION").into(),
+                description: None,
+                icons: None,
+                website_url: None,
+            },
+            instructions: None,
         }
     }
 }

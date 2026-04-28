@@ -5,7 +5,6 @@ from typing import Optional, Union
 from pydantic import ConfigDict, Field, RootModel
 from objectiveai.agent.agent_with_fallbacks import AgentWithFallbacks
 from objectiveai.agent.claude_agent_sdk.agent import Agent as AgentClaudeAgentSdkAgent
-from objectiveai.agent.claude_code.agent import Agent as AgentClaudeCodeAgent
 from objectiveai.agent.inline_agent import InlineAgent
 from objectiveai.agent.mock.agent import Agent as AgentMockAgent
 from objectiveai.agent.openrouter.agent import Agent as AgentOpenrouterAgent
@@ -18,12 +17,6 @@ class AgentWithFallbacksWithCountRemoteOpenrouter(AgentOpenrouterAgent):
 
 
 class AgentWithFallbacksWithCountRemoteClaudeAgentSdk(AgentClaudeAgentSdkAgent):
-    description: str
-    count: int = Field(1, description='Number of instances of this agent in the swarm. Defaults to 1.', ge=0, le=18446744073709551615)
-    fallbacks: Optional[list[InlineAgent]] = Field(None, description='Fallback agents to try if the primary fails.', json_schema_extra={'omitempty': True})
-
-
-class AgentWithFallbacksWithCountRemoteClaudeCode(AgentClaudeCodeAgent):
     description: str
     count: int = Field(1, description='Number of instances of this agent in the swarm. Defaults to 1.', ge=0, le=18446744073709551615)
     fallbacks: Optional[list[InlineAgent]] = Field(None, description='Fallback agents to try if the primary fails.', json_schema_extra={'omitempty': True})
@@ -45,11 +38,6 @@ class AgentWithFallbacksWithCountInlineClaudeAgentSdk(AgentClaudeAgentSdkAgent):
     count: int = Field(1, description='Number of instances of this agent in the swarm. Defaults to 1.', ge=0, le=18446744073709551615)
 
 
-class AgentWithFallbacksWithCountInlineClaudeCode(AgentClaudeCodeAgent):
-    fallbacks: Optional[list[InlineAgent]] = Field(None, description='Fallback agents to try if the primary fails.', json_schema_extra={'omitempty': True})
-    count: int = Field(1, description='Number of instances of this agent in the swarm. Defaults to 1.', ge=0, le=18446744073709551615)
-
-
 class AgentWithFallbacksWithCountInlineMock(AgentMockAgent):
     fallbacks: Optional[list[InlineAgent]] = Field(None, description='Fallback agents to try if the primary fails.', json_schema_extra={'omitempty': True})
     count: int = Field(1, description='Number of instances of this agent in the swarm. Defaults to 1.', ge=0, le=18446744073709551615)
@@ -59,5 +47,5 @@ class AgentWithFallbacksWithCount(RootModel):
     """An [`AgentWithFallbacks`] with a count (post-validation swarm agent slot)."""
     model_config = ConfigDict(title='agent.AgentWithFallbacksWithCount', json_schema_extra={'_expanded_ref': 'agent.AgentWithFallbacks', '_expanded_ref_props': ['count']})
 
-    root: Union[AgentWithFallbacksWithCountRemoteOpenrouter, AgentWithFallbacksWithCountRemoteClaudeAgentSdk, AgentWithFallbacksWithCountRemoteClaudeCode, AgentWithFallbacksWithCountRemoteMock, AgentWithFallbacksWithCountInlineOpenrouter, AgentWithFallbacksWithCountInlineClaudeAgentSdk, AgentWithFallbacksWithCountInlineClaudeCode, AgentWithFallbacksWithCountInlineMock]
+    root: Union[AgentWithFallbacksWithCountRemoteOpenrouter, AgentWithFallbacksWithCountRemoteClaudeAgentSdk, AgentWithFallbacksWithCountRemoteMock, AgentWithFallbacksWithCountInlineOpenrouter, AgentWithFallbacksWithCountInlineClaudeAgentSdk, AgentWithFallbacksWithCountInlineMock]
 

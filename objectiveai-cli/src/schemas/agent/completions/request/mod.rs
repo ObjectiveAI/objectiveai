@@ -19,6 +19,10 @@ pub enum Commands {
         #[command(subcommand)]
         command: GetCommand,
     },
+    AgentCompletionNotifyParams {
+        #[command(subcommand)]
+        command: GetCommand,
+    },
     Provider {
         #[command(subcommand)]
         command: GetCommand,
@@ -48,9 +52,12 @@ pub enum Commands {
 impl Commands {
     pub fn handle(self) -> Result<crate::Output, crate::error::Error> {
         match self {
-            Commands::List => Ok(crate::Output::Schema("[\"AgentCompletionCreateParams\",\"Provider\",\"ProviderDataCollection\",\"ProviderMaxPrice\",\"ProviderSort\",\"ResponseFormat\",\"ResponseFormatParam\"]")),
+            Commands::List => Ok(crate::Output::Schema("[\"AgentCompletionCreateParams\",\"AgentCompletionNotifyParams\",\"Provider\",\"ProviderDataCollection\",\"ProviderMaxPrice\",\"ProviderSort\",\"ResponseFormat\",\"ResponseFormatParam\"]")),
             Commands::AgentCompletionCreateParams { .. } => Ok(crate::Output::Schema(
                 include_str!("../../../../../../objectiveai-json-schema/agent.completions.request.AgentCompletionCreateParams.json"),
+            )),
+            Commands::AgentCompletionNotifyParams { .. } => Ok(crate::Output::Schema(
+                include_str!("../../../../../../objectiveai-json-schema/agent.completions.request.AgentCompletionNotifyParams.json"),
             )),
             Commands::Provider { .. } => Ok(crate::Output::Schema(
                 include_str!("../../../../../../objectiveai-json-schema/agent.completions.request.Provider.json"),

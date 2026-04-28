@@ -70,6 +70,19 @@ impl Client {
         }
     }
 
+    /// Returns the innate headers this client stamps on every request
+    /// (`User-Agent`, `X-Title`, `Referer`, `HTTP-Referer`). Useful for
+    /// callers that need to forward the same identity through a proxy
+    /// without hardcoding which fields the proxy expects.
+    pub fn headers(&self) -> IndexMap<String, String> {
+        let mut headers = IndexMap::new();
+        headers.insert("User-Agent".to_string(), self.user_agent.clone());
+        headers.insert("X-Title".to_string(), self.x_title.clone());
+        headers.insert("Referer".to_string(), self.http_referer.clone());
+        headers.insert("HTTP-Referer".to_string(), self.http_referer.clone());
+        headers
+    }
+
     /// Connects to an MCP server using the Streamable HTTP transport.
     ///
     /// Sends an `initialize` JSON-RPC request to the server and extracts
@@ -97,7 +110,7 @@ impl Client {
             "id": 1,
             "method": "initialize",
             "params": {
-                "protocolVersion": "2025-11-25",
+                "protocolVersion": "2025-06-18",
                 "capabilities": {},
                 "clientInfo": {
                     "name": "objectiveai",

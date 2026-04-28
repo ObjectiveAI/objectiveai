@@ -176,6 +176,27 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any, e
 	return c.HTTPClient.Do(req)
 }
 
+// PostNoResponse sends a POST request and discards the response body.
+// Returns nil error on any 2xx status; otherwise returns a structured
+// error built from the response status + body.
+func PostNoResponse(ctx context.Context, c *Client, path string, body any) error {
+	resp, err := c.doRequest(ctx, "POST", path, body, nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("objectiveai: read response: %w", err)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return newResponseError(resp.StatusCode, respBody)
+	}
+	return nil
+}
+
 // PostUnary sends a POST request and deserializes the JSON response into T.
 func PostUnary[T any](ctx context.Context, c *Client, path string, body any) (*T, error) {
 	resp, err := c.doRequest(ctx, "POST", path, body, nil)

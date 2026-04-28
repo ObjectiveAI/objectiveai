@@ -16,11 +16,11 @@
       "omitempty": true
     },
     "properties": {
+      "description": "Schema for each property in the object.",
+      "type": "object",
       "additionalProperties": {
         "$ref": "functions.expression.InputSchema"
-      },
-      "description": "Schema for each property in the object.",
-      "type": "object"
+      }
     },
     "required": {
       "description": "List of property names that must be present.",

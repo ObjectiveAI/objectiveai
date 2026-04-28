@@ -14,7 +14,6 @@ import (
 type AgentInlineAgentBase struct {
 	Openrouter *AgentOpenrouterAgentBase 
 	ClaudeAgentSdk *AgentClaudeAgentSdkAgentBase 
-	ClaudeCode *AgentClaudeCodeAgentBase 
 	Mock *AgentMockAgentBase 
 }
 
@@ -24,9 +23,6 @@ func (v AgentInlineAgentBase) MarshalJSON() ([]byte, error) {
 	}
 	if v.ClaudeAgentSdk != nil {
 		return json.Marshal(v.ClaudeAgentSdk)
-	}
-	if v.ClaudeCode != nil {
-		return json.Marshal(v.ClaudeCode)
 	}
 	if v.Mock != nil {
 		return json.Marshal(v.Mock)
@@ -58,17 +54,6 @@ func (v *AgentInlineAgentBase) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try AgentClaudeCodeAgentBase
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := AgentInlineAgentBase{}
-			candidate.ClaudeCode = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
 		var try AgentMockAgentBase
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := AgentInlineAgentBase{}
@@ -86,7 +71,6 @@ func (v AgentInlineAgentBase) Validate() error {
 	count := 0
 	if v.Openrouter != nil { count++ }
 	if v.ClaudeAgentSdk != nil { count++ }
-	if v.ClaudeCode != nil { count++ }
 	if v.Mock != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("AgentInlineAgentBase: exactly one variant must be set, got %d", count)

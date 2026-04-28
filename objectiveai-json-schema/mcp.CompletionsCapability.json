@@ -1,0 +1,6 @@
+{
+  "title": "mcp.CompletionsCapability",
+  "description": "Marker capability for completions support. Presence indicates the server\nsupports argument value completions.",
+  "type": "object",
+  "additionalProperties": false
+}

@@ -120,15 +120,18 @@ echo "Building embedded dependencies..."
 # claude-agent-sdk-runner (native target, Python)
 bash "$REPO_ROOT/objectiveai-claude-agent-sdk-runner-py/build.sh" --release
 
-# mcp (linux-musl, needed by objectiveai-api with orchestrator-bollard).
-# Match the host architecture (ARM hosts embed aarch64, x86_64 hosts embed
-# x86_64), but always target linux-musl. Normalize macOS's `arm64` to Rust's
-# `aarch64` triple convention.
+# mcp-filesystem (linux-musl, Docker container injection) — embedded by
+# objectiveai-api with orchestrator-bollard. Match the host architecture
+# (ARM hosts embed aarch64, x86_64 hosts embed x86_64) and always target
+# linux-musl. Normalize macOS's `arm64` to Rust's `aarch64` triple.
+# mcp-proxy is NOT built here — objectiveai-api consumes it in-process
+# as a regular cargo path dep, so its build is folded into the api's
+# cargo build that runs as part of the CLI compile below.
 MCP_ARCH=$(uname -m)
 case "$MCP_ARCH" in
   arm64) MCP_ARCH=aarch64 ;;
 esac
-bash "$REPO_ROOT/objectiveai-mcp/build.sh" --target "$MCP_ARCH-unknown-linux-musl" --release
+bash "$REPO_ROOT/objectiveai-mcp-filesystem/build.sh" --target "$MCP_ARCH-unknown-linux-musl" --release
 
 # viewer (native target, unless --no-viewer)
 if [ "$NO_VIEWER" = "0" ]; then

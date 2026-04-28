@@ -8,7 +8,7 @@
 
 Your agent doesn't have to decide alone. ObjectiveAI lets any agent call out to a **swarm** of models for collective judgment — routing decisions through recursive scoring trees that map arbitrary input into a vector of scores across every option. Functions are invented by agents, trained on data, and deployed as reusable decision infrastructure that gets better over time.
 
-[Website](https://objectiveai.dev) | [API](https://api.objectiveai.dev) | [Discord](https://discord.gg/gbNFHensby) | [npm](https://www.npmjs.com/package/objectiveai) | [crates.io](https://crates.io/crates/objectiveai)
+[Website](https://objectiveai.dev) | [API](https://api.objectiveai.dev) | [Discord](https://discord.gg/gbNFHensby) | [npm](https://www.npmjs.com/package/objectiveai) | [crates.io](https://crates.io/crates/objectiveai) | [Built with ObjectiveAI](examples/README.md)
 
 ## What this is
 
@@ -180,7 +180,9 @@ objectiveai/
 ├── objectiveai-rs/             # Rust SDK (core crate: types, validation, compilation)
 ├── objectiveai-api/            # API server (self-hostable)
 ├── objectiveai-cli/            # CLI tool
-├── objectiveai-mcp/            # MCP server (embedded in lab executions)
+├── objectiveai-mcp-cli/        # MCP server exposing the CLI as an MCP tool
+├── objectiveai-mcp-filesystem/ # MCP filesystem server (Docker-injected into lab executions)
+├── objectiveai-mcp-proxy/      # MCP multiplexing proxy (sidecar of objectiveai-api)
 ├── objectiveai-viewer/         # Local Tauri viewer (optional, embedded in CLI)
 ├── objectiveai-web/            # Web interface (production)
 ├── objectiveai-js/             # TypeScript SDK (npm: objectiveai)
@@ -190,8 +192,7 @@ objectiveai/
 ├── objectiveai-go/             # Go SDK
 ├── objectiveai-dotnet/         # .NET SDK (in progress)
 ├── objectiveai-rs-cffi/        # C FFI bindings (foundation for other langs)
-├── objectiveai-json-schema/    # Generated JSON Schema files
-└── objectiveai-scripts/        # Utility scripts
+└── objectiveai-json-schema/    # Generated JSON Schema files
 ```
 
 ## Related

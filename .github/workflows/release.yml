@@ -33,8 +33,8 @@ jobs:
             echo "should-release=true" >> "$GITHUB_OUTPUT"
           fi
 
-  build-mcp:
-    name: Build objectiveai-mcp (${{ matrix.target }})
+  build-mcp-filesystem:
+    name: Build objectiveai-mcp-filesystem (${{ matrix.target }})
     needs: check-version
     if: needs.check-version.outputs.should-release == 'true'
     strategy:
@@ -53,23 +53,23 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: cross
-      - name: Build mcp
+      - name: Build mcp-filesystem
         run: |
-          cross build -p objectiveai-mcp --target ${{ matrix.target }} --release
+          cross build -p objectiveai-mcp-filesystem --target ${{ matrix.target }} --release
       - name: Stage embed directory with fingerprint
         run: |
-          EMBED_DIR="objectiveai-mcp/embed/${{ matrix.target }}/release"
+          EMBED_DIR="objectiveai-mcp-filesystem/embed/${{ matrix.target }}/release"
           mkdir -p "$EMBED_DIR"
-          cp "target/${{ matrix.target }}/release/objectiveai-mcp" "$EMBED_DIR/"
+          cp "target/${{ matrix.target }}/release/objectiveai-mcp-filesystem" "$EMBED_DIR/"
           # Compute the same fingerprint that build.sh would write, so the
           # downstream install.sh invocation on the CLI build jobs skips the
-          # mcp rebuild step (fingerprint match → no-op).
-          source objectiveai-mcp/fingerprint.sh --target ${{ matrix.target }} --release
+          # mcp-filesystem rebuild step (fingerprint match → no-op).
+          source objectiveai-mcp-filesystem/fingerprint.sh --target ${{ matrix.target }} --release
           echo "$CURRENT_FP" > "$EMBED_DIR/.fingerprint"
       - uses: actions/upload-artifact@v4
         with:
-          name: mcp-${{ matrix.target }}
-          path: objectiveai-mcp/embed/${{ matrix.target }}/release/
+          name: mcp-filesystem-${{ matrix.target }}
+          path: objectiveai-mcp-filesystem/embed/${{ matrix.target }}/release/
           if-no-files-found: error
           # `.fingerprint` is a hidden dotfile and is required for the
           # downstream build-cli jobs to short-circuit the rebuild step.
@@ -77,7 +77,7 @@ jobs:
 
   build-cli:
     name: Build CLI (${{ matrix.asset }})
-    needs: [check-version, build-mcp]
+    needs: [check-version, build-mcp-filesystem]
     if: needs.check-version.outputs.should-release == 'true'
     strategy:
       fail-fast: false
@@ -175,11 +175,11 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev \
             libssl-dev
-      - name: Download pre-built objectiveai-mcp
+      - name: Download pre-built objectiveai-mcp-filesystem
         uses: actions/download-artifact@v4
         with:
-          name: mcp-${{ matrix.mcp_target }}
-          path: objectiveai-mcp/embed/${{ matrix.mcp_target }}/release/
+          name: mcp-filesystem-${{ matrix.mcp_target }}
+          path: objectiveai-mcp-filesystem/embed/${{ matrix.mcp_target }}/release/
       - name: Build CLI
         shell: bash
         run: bash objectiveai-cli/install.sh ${{ matrix.install_args }}

@@ -1,0 +1,57 @@
+{
+  "title": "mcp.tool.ToolResultContent",
+  "description": "The result of a tool invocation.",
+  "type": "object",
+  "properties": {
+    "_meta": {
+      "description": "Extension metadata.",
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": true
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "content": {
+      "description": "Content blocks from the tool result.",
+      "type": "array",
+      "items": {
+        "$ref": "mcp.tool.ContentBlock"
+      },
+      "default": []
+    },
+    "isError": {
+      "description": "Whether this result represents an error.",
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "structuredContent": {
+      "description": "Structured content from the tool result.",
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": true
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "toolUseId": {
+      "description": "The unique identifier for the corresponding tool call.",
+      "type": "string"
+    }
+  }
+}

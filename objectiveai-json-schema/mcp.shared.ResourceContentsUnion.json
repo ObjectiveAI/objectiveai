@@ -1,0 +1,14 @@
+{
+  "title": "mcp.shared.ResourceContentsUnion",
+  "description": "Either text or blob resource contents.",
+  "anyOf": [
+    {
+      "title": "Text",
+      "$ref": "mcp.shared.TextResourceContents"
+    },
+    {
+      "title": "Blob",
+      "$ref": "mcp.shared.BlobResourceContents"
+    }
+  ]
+}

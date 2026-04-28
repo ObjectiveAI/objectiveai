@@ -50,9 +50,15 @@ impl FunctionExecution {
         for task in &mut self.tasks {
             match task {
                 super::Task::VectorCompletion(vt) => {
+                    // `index` reflects arrival order from concurrent
+                    // sub-task streams, which is non-deterministic;
+                    // pin it to the local sibling position (the last
+                    // element of `task_path`) for snapshot stability.
+                    vt.index = vt.task_path.last().copied().unwrap_or(0);
                     vt.inner.normalize_for_tests();
                 }
                 super::Task::FunctionExecution(ft) => {
+                    ft.index = ft.task_path.last().copied().unwrap_or(0);
                     ft.inner.normalize_for_tests();
                 }
             }

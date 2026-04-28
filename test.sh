@@ -38,6 +38,7 @@ for suite in \
   objectiveai-api \
   objectiveai-json-schema \
   objectiveai-cli \
+  objectiveai-mcp-proxy \
   objectiveai-js \
   objectiveai-py \
   objectiveai-go \

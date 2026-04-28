@@ -4,7 +4,6 @@ from __future__ import annotations
 from typing import Optional, Union
 from pydantic import ConfigDict, Field, RootModel
 from objectiveai.agent.claude_agent_sdk.agent_base import AgentBase as AgentClaudeAgentSdkAgentBase
-from objectiveai.agent.claude_code.agent_base import AgentBase as AgentClaudeCodeAgentBase
 from objectiveai.agent.inline_agent_base import InlineAgentBase
 from objectiveai.agent.mock.agent_base import AgentBase as AgentMockAgentBase
 from objectiveai.agent.openrouter.agent_base import AgentBase as AgentOpenrouterAgentBase
@@ -18,10 +17,6 @@ class InlineAgentBaseWithFallbacksClaudeAgentSdk(AgentClaudeAgentSdkAgentBase):
     fallbacks: Optional[list[InlineAgentBase]] = Field(None, description='Fallback agents to try if the primary fails.', json_schema_extra={'omitempty': True})
 
 
-class InlineAgentBaseWithFallbacksClaudeCode(AgentClaudeCodeAgentBase):
-    fallbacks: Optional[list[InlineAgentBase]] = Field(None, description='Fallback agents to try if the primary fails.', json_schema_extra={'omitempty': True})
-
-
 class InlineAgentBaseWithFallbacksMock(AgentMockAgentBase):
     fallbacks: Optional[list[InlineAgentBase]] = Field(None, description='Fallback agents to try if the primary fails.', json_schema_extra={'omitempty': True})
 
@@ -30,5 +25,5 @@ class InlineAgentBaseWithFallbacks(RootModel):
     """An [`InlineAgentBase`] with optional fallbacks (no description)."""
     model_config = ConfigDict(title='agent.InlineAgentBaseWithFallbacks', json_schema_extra={'_expanded_ref': 'agent.InlineAgentBase', '_expanded_ref_props': ['fallbacks']})
 
-    root: Union[InlineAgentBaseWithFallbacksOpenrouter, InlineAgentBaseWithFallbacksClaudeAgentSdk, InlineAgentBaseWithFallbacksClaudeCode, InlineAgentBaseWithFallbacksMock]
+    root: Union[InlineAgentBaseWithFallbacksOpenrouter, InlineAgentBaseWithFallbacksClaudeAgentSdk, InlineAgentBaseWithFallbacksMock]
 

@@ -103,7 +103,7 @@ impl ChatCompletionCreateParams {
         continuation: Option<&[crate::agent::completions::ContinuationItem<objectiveai::agent::completions::message::AssistantMessage>]>,
         request_continuation: Option<&objectiveai::agent::openrouter::Continuation>,
         tool_names: &[String],
-        tool_map: &HashMap<String, crate::agent::completions::tool::ResolvedTool>,
+        tool_map: &HashMap<String, crate::agent::completions::resolved_tool::ResolvedTool>,
         tools_enabled: bool,
     ) -> Self {
         use crate::agent::completions::ContinuationItem;
@@ -151,13 +151,10 @@ impl ChatCompletionCreateParams {
             .filter_map(|resolved_name| {
                 let resolved = tool_map.get(resolved_name)?;
                 Some(match resolved {
-                    crate::agent::completions::tool::ResolvedTool::Mcp { tool, .. } => {
+                    crate::agent::completions::resolved_tool::ResolvedTool::Mcp { tool, .. } => {
                         super::Tool::new_from_mcp(resolved_name.clone(), tool)
                     }
-                    crate::agent::completions::tool::ResolvedTool::InventionTool(inv) => {
-                        super::Tool::new_from_invention(resolved_name.clone(), inv)
-                    }
-                    crate::agent::completions::tool::ResolvedTool::ResponseFormat {
+                    crate::agent::completions::resolved_tool::ResolvedTool::ResponseFormat {
                         description, schema,
                     } => {
                         super::Tool::new_from_response_format(

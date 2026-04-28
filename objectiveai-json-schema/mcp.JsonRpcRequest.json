@@ -1,0 +1,17 @@
+{
+  "title": "mcp.JsonRpcRequest",
+  "description": "JSON-RPC 2.0 inbound request.",
+  "type": "object",
+  "properties": {
+    "id": {},
+    "jsonrpc": {
+      "type": "string"
+    },
+    "method": {
+      "type": "string"
+    },
+    "params": {
+      "default": null
+    }
+  }
+}

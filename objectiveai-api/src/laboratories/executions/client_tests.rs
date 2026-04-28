@@ -93,7 +93,6 @@ type TestClient = super::Client<
     ctx::DefaultContextExt,
     UnimplementedUpstreamClient,
     UnimplementedUpstreamClient,
-    UnimplementedUpstreamClient,
     crate::agent::completions::mock::Client,
     StubRetrieveClient,
     StubRetrieveClient,
@@ -110,7 +109,7 @@ fn make_client() -> Arc<TestClient> {
         Arc::new(crate::retrieval::retrieve::mock::MockClient),
     ));
     let agent_client = Arc::new(crate::agent::completions::Client::new(
-        Arc::new(crate::mcp::Client::new(
+        Arc::new(objectiveai::mcp::Client::new(
             reqwest::Client::new(),
             String::new(), String::new(), String::new(),
             Duration::from_millis(1), Duration::ZERO, Duration::ZERO,
@@ -119,7 +118,6 @@ fn make_client() -> Arc<TestClient> {
         None,
         retrieve_router.clone(),
         Arc::new(StubAgentUsageHandler),
-        Arc::new(UnimplementedUpstreamClient),
         Arc::new(UnimplementedUpstreamClient),
         Arc::new(UnimplementedUpstreamClient),
         Arc::new(crate::agent::completions::mock::Client {
