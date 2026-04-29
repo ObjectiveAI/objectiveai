@@ -1,60 +1,318 @@
+/* ── ObjectiveAI Design System ── */
+
 :root {
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 400;
-  color: #0f0f0f;
-  background-color: #f6f6f6;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  -webkit-text-size-adjust: 100%;
+  /* Ground layer — near-black, warm */
+  --ground: #0c0a09;
+  --ground-raised: #141210;
+  --ground-surface: #1c1917;
+
+  /* Information layer — warm grays */
+  --info-dim: #8a8580;
+  --info-mid: #a8a29e;
+  --info-bright: #d6d3d1;
+  --info-full: #e7e5e4;
+
+  /* Life layer — copper spectrum (cold → hot) */
+  --copper-dim: #78716c;
+  --copper-dim-rgb: 120, 113, 108;
+  --copper-warm: #b45309;
+  --copper-mid: #d97706;
+  --copper-hot: #f59e0b;
+  --copper-hot-rgb: 245, 158, 11;
+  --copper-bright: #fbbf24;
+
+  /* Semantic */
+  --node-border: #292524;
+  --node-bg: var(--ground-raised);
+  --connector: #292524;
+  --error: #b91c1c;
+
+  /* Type */
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-sans: 'Geist', system-ui, sans-serif;
+
+  /* Spacing */
+  --radius: 4px;
 }
 
-.container {
-  margin: 0;
-  padding-top: 10vh;
+html {
+  height: 100%;
+  color-scheme: dark;
+}
+
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  min-height: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  text-align: center;
+  color: var(--info-bright);
+  background: var(--ground);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-.row {
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ── Viewer Layout ── */
+
+.viewer-header {
   display: flex;
-  justify-content: center;
+  align-items: center;
+  padding: 16px 24px;
+  font-family: var(--font-mono);
 }
 
-input {
-  margin-right: 8px;
-  padding: 8px 12px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+.viewer-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-button {
+.viewer-logo-mark {
+  height: 20px;
+  width: auto;
+  color: var(--info-bright);
+  flex-shrink: 0;
+}
+
+.viewer-wordmark {
+  width: 110px;
+  height: auto;
+  color: var(--info-bright);
+}
+
+.viewer-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 24px 24px;
+  max-width: 848px;
+}
+
+.viewer-empty {
+  color: var(--info-dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-align: center;
+  padding: 48px 0;
+}
+
+/* ── Entry type badges ── */
+
+.entry-wrap {
+  position: relative;
+}
+
+.entry-badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: 2px;
+  display: inline-block;
+  margin-bottom: 6px;
+}
+
+.entry-badge-agent-completion {
+  color: var(--info-mid);
+  background: var(--ground-surface);
+}
+
+.entry-badge-execution {
+  color: var(--copper-mid);
+  background: rgba(var(--copper-hot-rgb), 0.08);
+}
+
+.entry-badge-invention {
+  color: var(--copper-warm);
+  background: rgba(var(--copper-hot-rgb), 0.06);
+}
+
+.entry-badge-laboratory {
+  color: var(--info-dim);
+  background: var(--ground-surface);
+}
+
+/* ── Execution View ── */
+
+.exec-container {
+  text-align: left;
+  border: 1px solid var(--node-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  font-size: 13px;
+  font-family: var(--font-mono);
+  background: var(--ground-raised);
+}
+
+.exec-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--ground-surface);
+  border-bottom: 1px solid var(--node-border);
+  font-size: 11px;
+}
+
+.exec-status {
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
+.exec-title {
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: -0.02em;
+  color: var(--info-bright);
+}
+
+.exec-output {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--copper-hot);
+}
+
+.exec-header-id {
+  font-size: 10px;
+  opacity: 0.5;
+  margin-left: auto;
+}
+
+.exec-output-bar {
+  display: flex;
+  height: 4px;
+  gap: 1px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--node-border);
+}
+
+.exec-output-seg {
+  min-width: 2px;
+  transition: flex 0.4s ease;
+}
+
+.exec-body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Task card ── */
+
+.exec-task {
+  border-bottom: 1px solid var(--node-border);
+}
+
+.exec-task:last-child {
+  border-bottom: none;
+}
+
+.exec-task-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  background-color: #0366d6;
-  color: white;
   cursor: pointer;
+  user-select: none;
+  font-size: 11px;
 }
 
-button:hover {
-  background-color: #0256b9;
+.exec-task-header:hover {
+  background: var(--ground-surface);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #f6f6f6;
-    background-color: #2f2f2f;
+.exec-arrow {
+  font-size: 8px;
+  color: var(--info-dim);
+  transition: transform 150ms;
+  flex-shrink: 0;
+  width: 10px;
+}
+
+.exec-arrow-open {
+  transform: rotate(90deg);
+}
+
+.exec-task-path {
+  font-size: 10px;
+  color: var(--copper-dim);
+  flex-shrink: 0;
+}
+
+.exec-task-scores {
+  display: flex;
+  gap: 6px;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.exec-score {
+  color: var(--copper-dim);
+}
+
+.exec-score-winner {
+  color: var(--copper-hot);
+  font-weight: 700;
+}
+
+.exec-task-agents {
+  font-size: 9px;
+  color: var(--info-dim);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.exec-task-votes {
+  padding: 0 16px 12px;
+}
+
+.exec-task-score-bar {
+  display: flex;
+  height: 3px;
+  gap: 1px;
+  margin: 0 16px 8px;
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.exec-score-seg {
+  min-width: 2px;
+  transition: flex 0.4s ease;
+}
+
+.exec-task-detail {
+  padding: 0 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .viewer-header {
+    padding: 12px 16px;
   }
-
-  input {
-    background-color: #3f3f3f;
-    color: #f6f6f6;
-    border-color: #555;
+  .viewer-main {
+    padding: 0 16px 16px;
   }
 }

@@ -283,7 +283,7 @@ export function AgentCompletionChat({
         })}
 
         {!chunk && !error && (
-          <div style={{ color: "#999", fontStyle: "italic" }}>Waiting for response...</div>
+          <div className="viewer-empty">Waiting for response...</div>
         )}
       </div>
 

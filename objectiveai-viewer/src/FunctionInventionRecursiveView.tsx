@@ -46,7 +46,7 @@ export function FunctionInventionRecursiveView({
             <div className="ac-section-header">
               {name}
               {inv.path && (
-                <span style={{ color: "#888", fontWeight: 400, marginLeft: 8 }}>
+                <span style={{ color: "var(--info-dim)", fontWeight: 400, marginLeft: 8 }}>
                   {inv.path.remote === "filesystem"
                     ? `filesystem:${inv.path.owner}/${inv.path.repository}`
                     : JSON.stringify(inv.path)}
@@ -56,7 +56,7 @@ export function FunctionInventionRecursiveView({
 
             {/* One chat per agent completion inside this invention. */}
             {inv.completions.length === 0 && !invError && (
-              <div style={{ maxWidth: 800, margin: "0 auto 12px", color: "#999", fontStyle: "italic", padding: "0 16px" }}>
+              <div style={{ margin: "0 0 12px", color: "var(--info-dim)", fontFamily: "var(--font-mono)", fontSize: 11, padding: "0 16px" }}>
                 No completions yet…
               </div>
             )}
@@ -80,12 +80,7 @@ export function FunctionInventionRecursiveView({
             {invError && (
               <div
                 className="ac-error-banner"
-                style={{
-                  maxWidth: 800,
-                  margin: "0 auto 16px",
-                  border: "1px solid #f5c6cb",
-                  borderRadius: 8,
-                }}
+                style={{ margin: "0 0 16px" }}
               >
                 Invention error {invError.code}: {JSON.stringify(invError.message)}
               </div>
@@ -96,17 +91,8 @@ export function FunctionInventionRecursiveView({
 
       {/* Placeholder when nothing has arrived yet. */}
       {!chunk && !topError && (
-        <div
-          style={{
-            maxWidth: 800,
-            margin: "0 auto 24px",
-            padding: 16,
-            color: "#999",
-            fontStyle: "italic",
-            textAlign: "center",
-          }}
-        >
-          Waiting for invention…
+        <div className="viewer-empty">
+          Waiting for invention...
         </div>
       )}
 
@@ -114,12 +100,7 @@ export function FunctionInventionRecursiveView({
       {topError && (
         <div
           className="ac-error-banner"
-          style={{
-            maxWidth: 800,
-            margin: "0 auto 24px",
-            border: "1px solid #f5c6cb",
-            borderRadius: 8,
-          }}
+          style={{ margin: "0 0 24px" }}
         >
           Error {topError.code}: {JSON.stringify(topError.message)}
         </div>

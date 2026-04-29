@@ -1,0 +1,201 @@
+/* ── Vote Matrix ── */
+
+.vm-wrap {
+  overflow-x: auto;
+}
+
+.vm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.vm-table thead th {
+  padding: 4px 8px 6px;
+  font-size: 9px;
+  font-weight: 400;
+  color: var(--info-dim);
+  text-align: center;
+  vertical-align: bottom;
+}
+
+.vm-table thead th.vm-winner {
+  color: var(--info-mid);
+  font-weight: 600;
+  border-bottom: 2px solid var(--copper-hot);
+}
+
+.vm-col-weight {
+  width: 52px;
+  text-align: right !important;
+  padding-right: 6px !important;
+}
+
+.vm-col-agent {
+  width: 140px;
+  text-align: left !important;
+}
+
+.vm-col-response {
+  min-width: 70px;
+}
+
+.vm-col-flags {
+  width: 20px;
+}
+
+/* ── Agent row ── */
+
+.vm-agent-row {
+  border-top: 1px solid var(--ground);
+  background: rgba(var(--copper-hot-rgb), var(--row-alpha, 0));
+  animation: vm-fadeIn 0.25s ease;
+}
+
+@keyframes vm-fadeIn {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.vm-weight-cell {
+  padding: 2px 6px 2px 0;
+  text-align: right;
+  vertical-align: middle;
+}
+
+.vm-weight-inner {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.vm-weight-bar {
+  width: 4px;
+  height: 20px;
+  background: var(--ground-surface);
+  border-radius: 1px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.vm-weight-fill {
+  width: 100%;
+  border-radius: 1px;
+  background: rgba(var(--copper-hot-rgb), var(--fill-alpha, 0.5));
+  transition: height 0.3s ease;
+}
+
+.vm-weight-num {
+  font-size: 9px;
+  color: var(--copper-dim);
+  width: 24px;
+  text-align: right;
+}
+
+.vm-agent-cell {
+  padding: 4px 8px;
+  vertical-align: middle;
+}
+
+.vm-agent-name {
+  font-size: 10px;
+  color: var(--info-mid);
+}
+
+.vm-vote-cell {
+  padding: 4px 8px 2px;
+  text-align: center;
+  border-left: 1px solid var(--ground);
+  vertical-align: middle;
+  background: rgba(var(--copper-hot-rgb), var(--heat-alpha, 0));
+}
+
+.vm-vote-num {
+  font-size: 10px;
+  margin-bottom: 2px;
+}
+
+.vm-vote-max {
+  color: var(--info-bright);
+  font-weight: 600;
+}
+
+.vm-vote-mid {
+  color: var(--info-mid);
+  font-weight: 400;
+}
+
+.vm-vote-dim {
+  color: var(--info-dim);
+  font-weight: 400;
+}
+
+.vm-contribution-track {
+  width: 100%;
+  height: 4px;
+  background: var(--ground);
+  border-radius: 1px;
+  margin-top: 1px;
+}
+
+.vm-contribution-fill {
+  height: 100%;
+  border-radius: 1px;
+  background: rgba(var(--copper-dim-rgb), 0.35);
+  transition: width 0.3s ease;
+}
+
+.vm-contribution-winner {
+  background: rgba(var(--copper-hot-rgb), 0.6);
+}
+
+.vm-flag-cell {
+  padding: 4px 4px;
+  text-align: center;
+  font-size: 8px;
+  color: var(--info-dim);
+}
+
+.vm-flag-rng {
+  color: var(--copper-mid);
+}
+
+/* ── Convergence row ── */
+
+.vm-convergence-row {
+  border-top: 2px solid var(--node-border);
+}
+
+.vm-convergence-row td {
+  padding: 6px 8px;
+}
+
+.vm-convergence-label {
+  font-size: 9px;
+  color: var(--copper-dim);
+  font-weight: 600;
+}
+
+.vm-convergence-score {
+  text-align: center;
+  border-left: 1px solid var(--ground);
+}
+
+.vm-convergence-winner {
+  background: rgba(var(--copper-hot-rgb), 0.1);
+}
+
+.vm-convergence-value {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--copper-dim);
+}
+
+.vm-convergence-value-winner {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--info-bright);
+}
