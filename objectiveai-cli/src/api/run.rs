@@ -74,7 +74,7 @@ where
     }
 
     // Spawn viewer subprocess and wait for it to report its bound address
-    let (mut viewer_child, viewer_addr_str) = spawn_viewer(secret.as_deref()).await?;
+    let (mut viewer_child, viewer_addr_str) = spawn_viewer(secret.as_deref(), &mut config).await?;
 
     // Setup API with viewer address + signature so its viewer client can POST events
     let api_config = build_api_config(&mut config, Some(viewer_addr_str.clone()), config_signature.clone());
@@ -147,7 +147,7 @@ where
     let (secret, _, config_signature) = resolve_viewer_secret(&mut config)?;
 
     // Spawn viewer subprocess and wait for it to report its bound address
-    let (mut viewer_child, viewer_addr_str) = spawn_viewer(secret.as_deref()).await?;
+    let (mut viewer_child, viewer_addr_str) = spawn_viewer(secret.as_deref(), &mut config).await?;
 
     // HttpClient points at the remote API, with local viewer address + signature
     let http_client = build_http_client(
@@ -216,9 +216,15 @@ fn extract_viewer_binary() -> Result<std::path::PathBuf, crate::error::Error> {
 ///
 /// The viewer prints `listening on <addr>` to stderr after binding its HTTP server.
 /// Returns the child process handle and the viewer's HTTP address.
+///
+/// The viewer ends up with the same effective HttpClient configuration as the
+/// in-process API server: parent ENV passes through automatically, and any
+/// fields backed only by the config-file headers are forwarded explicitly via
+/// `cmd.env(...)`.
 #[cfg(feature = "viewer")]
 async fn spawn_viewer(
     secret: Option<&str>,
+    config: &mut objectiveai::filesystem::config::Config,
 ) -> Result<(tokio::process::Child, String), crate::error::Error> {
     let viewer_path = extract_viewer_binary()?;
 
@@ -228,6 +234,23 @@ async fn spawn_viewer(
     if let Some(s) = secret {
         cmd.env("VIEWER_SECRET", s);
     }
+
+    // Forward HttpClient config from the config-file headers when ENV doesn't
+    // already provide it. ENV vars set in the parent process inherit into the
+    // child automatically, so we only need to set those backed solely by the
+    // config file. This mirrors `build_api_config`'s overlay logic.
+    let headers = config.api().headers();
+    apply_env_overlay(&mut cmd, "OBJECTIVEAI_AUTHORIZATION", headers.get_x_objectiveai_authorization().map(String::from));
+    apply_env_overlay(&mut cmd, "OPENROUTER_AUTHORIZATION", headers.get_x_openrouter_authorization().map(String::from));
+    apply_env_overlay(&mut cmd, "GITHUB_AUTHORIZATION", headers.get_x_github_authorization().map(String::from));
+    apply_env_overlay(&mut cmd, "MCP_AUTHORIZATION", headers.get_x_mcp_authorization().and_then(|m| serde_json::to_string(m).ok()));
+    apply_env_overlay(&mut cmd, "USER_AGENT", headers.get_user_agent().map(String::from));
+    apply_env_overlay(&mut cmd, "HTTP_REFERER", headers.get_http_referer().map(String::from));
+    apply_env_overlay(&mut cmd, "X_TITLE", headers.get_x_title().map(String::from));
+    apply_env_overlay(&mut cmd, "COMMIT_AUTHOR_NAME", headers.get_x_commit_author_name().map(String::from));
+    apply_env_overlay(&mut cmd, "COMMIT_AUTHOR_EMAIL", headers.get_x_commit_author_email().map(String::from));
+    apply_env_overlay(&mut cmd, "VIEWER_SIGNATURE", headers.get_x_viewer_signature().map(String::from));
+
     cmd.stdout(std::process::Stdio::null());
     cmd.stderr(std::process::Stdio::piped());
 
@@ -250,6 +273,18 @@ async fn spawn_viewer(
     let viewer_addr = format!("http://{addr}");
 
     Ok((child, viewer_addr))
+}
+
+/// Sets `cmd.env(name, value)` only when `name` is unset in the parent
+/// process and `fallback` is `Some`. Lets parent ENV win (it inherits to the
+/// child anyway) while still propagating config-file-only values.
+#[cfg(feature = "viewer")]
+fn apply_env_overlay(cmd: &mut tokio::process::Command, name: &str, fallback: Option<String>) {
+    if std::env::var_os(name).is_none() {
+        if let Some(v) = fallback {
+            cmd.env(name, v);
+        }
+    }
 }
 
 /// Resolves the viewer secret/signature pair from config.

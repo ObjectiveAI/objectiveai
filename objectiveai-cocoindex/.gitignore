@@ -1,0 +1,13 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+.pytest_cache/
+
+# Staged at build/publish time — copied from repo root, not tracked here.
+/LICENSE
+/README.md

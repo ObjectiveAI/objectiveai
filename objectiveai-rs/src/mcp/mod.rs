@@ -6,8 +6,10 @@ mod json_rpc;
 pub mod resource;
 pub mod shared;
 pub mod tool;
+mod transport;
 
 pub use client::*;
 pub use connection::*;
 pub use error::*;
 pub use json_rpc::*;
+pub(crate) use transport::*;

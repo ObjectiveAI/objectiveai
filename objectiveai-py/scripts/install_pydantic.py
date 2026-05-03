@@ -608,6 +608,34 @@ def _generate_variant_class(
             code = _make_root_model(class_name, safe_desc, root_type, variant_title=variant_title)
             return code, class_name, refs
 
+    # Empty `{"type": "object"}` schema → empty BaseModel (matches Rust
+    # `Variant {}` empty struct, which schemars emits as `{"type":
+    # "object"}` with no `additionalProperties`). RootModel[dict[str,
+    # JsonValue]] would round-trip with `additionalProperties: true`,
+    # which differs from the source schema.
+    if (
+        variant_schema.get("type") == "object"
+        and not has_properties
+        and not has_any_of
+        and not has_ref
+        and "additionalProperties" not in variant_schema
+        and "enum" not in variant_schema
+    ):
+        lines = [f"class {class_name}(BaseModel):"]
+        if safe_desc:
+            lines.append(f'    """{safe_desc}"""')
+        config_parts = []
+        extra: dict = {}
+        if variant_title:
+            extra["_variant_title"] = variant_title
+        if extra:
+            config_parts.append(f"json_schema_extra={extra!r}")
+        if config_parts:
+            lines.append(f"    model_config = ConfigDict({', '.join(config_parts)})")
+        else:
+            lines.append("    pass")
+        return "\n".join(lines) + "\n", class_name, refs
+
     # Pure $ref
     if has_ref:
         ref_type = _convert_inner_type(variant_schema, self_title, all_titles)
@@ -720,9 +748,17 @@ def _generate_field_line(
     # Strip leading characters that are invalid in Python identifiers
     if field_name and not field_name[0].isalpha() and field_name[0] != "_":
         field_name = field_name.lstrip("$")
+    # Pydantic forbids leading-underscore field names — those are reserved for
+    # private attributes. Strip the underscore and re-route serialization via
+    # an alias so the wire format keeps the original name (e.g. `_meta`).
+    needs_underscore_alias = field_name.startswith("_")
+    if needs_underscore_alias:
+        field_name = field_name.lstrip("_") or "field"
     if field_name in ("from", "type", "class", "import", "in", "is", "not", "and", "or"):
         alias = prop_name
         field_name = field_name + "_"
+    elif needs_underscore_alias:
+        alias = prop_name
     else:
         alias = prop_name if prop_name != field_name else None
 
@@ -745,8 +781,9 @@ def _generate_field_line(
         if "default" in prop_schema:
             default = prop_schema["default"]
             if default is None:
-                # default: null → need Optional wrapper + None default
-                if not prop_type.startswith("Optional["):
+                # default: null → need Optional wrapper + None default,
+                # except when the type already accepts null (e.g. JsonValue).
+                if not prop_type.startswith("Optional[") and prop_type != "JsonValue":
                     prop_type = f"Optional[{prop_type}]"
                 default_repr = "None"
             else:
@@ -807,6 +844,8 @@ def _generate_object_model(
         config_parts.append(f"json_schema_extra={{'_variant_title': {variant_title!r}}}")
     if schema.get("additionalProperties") is False:
         config_parts.append("extra='forbid'")
+    elif schema.get("additionalProperties") is True:
+        config_parts.append("extra='allow'")
 
     if not properties:
         if config_parts:

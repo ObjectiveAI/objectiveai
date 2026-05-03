@@ -495,7 +495,12 @@ function convertObject(schema, refs, lazyRefs, selfTitle, cyclicTitles) {
   // Handle additionalProperties
   if (schema.additionalProperties === false) {
     obj += ".strict()";
-  } else if (schema.additionalProperties && schema.additionalProperties !== true) {
+  } else if (schema.additionalProperties === true) {
+    // Zod v4 strips unknown keys by default; `.loose()` round-trips to
+    // `additionalProperties: true` so the JSON-Schema → Zod → JSON-Schema
+    // identity holds.
+    obj += ".loose()";
+  } else if (schema.additionalProperties) {
     obj += `.catchall(${convert(schema.additionalProperties, refs, lazyRefs, selfTitle, cyclicTitles)})`;
   }
 

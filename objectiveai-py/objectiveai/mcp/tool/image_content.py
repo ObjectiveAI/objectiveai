@@ -11,7 +11,7 @@ class ImageContent(BaseModel):
     """Image content (base64-encoded)."""
     model_config = ConfigDict(title='mcp.tool.ImageContent')
 
-    _meta: Optional[dict[str, JsonValue]] = Field(None, description='Extension metadata.', json_schema_extra={'omitempty': True})
+    meta: Optional[dict[str, JsonValue]] = Field(None, alias='_meta', description='Extension metadata.', json_schema_extra={'omitempty': True})
     annotations: Optional[Annotations] = Field(None, description='Optional annotations for the client.', json_schema_extra={'omitempty': True})
     data: str = Field(..., description='The base64-encoded image data.')
     mime_type: str = Field(..., alias='mimeType', description='The MIME type of the image.')

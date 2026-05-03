@@ -1,6 +1,6 @@
 """PyO3 bindings for function profile computation chunk operations."""
 
-import objectiveai_pyo3
+import objectiveai._pyo3 as objectiveai_pyo3
 
 
 def pyo3_function_profile_computation_chunk_merged(a, b):

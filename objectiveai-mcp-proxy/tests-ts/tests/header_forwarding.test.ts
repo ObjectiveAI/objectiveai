@@ -16,9 +16,10 @@ test('correct X-MCP-Headers value lets upstream through', async () => {
       headerGate: { name: 'X-Trace-Id', value: 'abc' },
     },
   ]);
+  const url = rig.upstreams[0]!.url;
   const client = await rig.connectClient({
     'X-MCP-Servers': rig.xMcpServers(),
-    'X-MCP-Headers': JSON.stringify({ 'X-Trace-Id': 'abc' }),
+    'X-MCP-Headers': JSON.stringify({ [url]: { 'X-Trace-Id': 'abc' } }),
   });
   const tools = (await client.listTools()).tools.map(t => t.name);
   expect(tools).toEqual(['gated_ok']);
@@ -37,10 +38,11 @@ test('wrong X-MCP-Headers value fails initialize with -32603', async () => {
       headerGate: { name: 'X-Trace-Id', value: 'abc' },
     },
   ]);
+  const url = rig.upstreams[0]!.url;
   await expect(
     rig.connectClient({
       'X-MCP-Servers': rig.xMcpServers(),
-      'X-MCP-Headers': JSON.stringify({ 'X-Trace-Id': 'wrong' }),
+      'X-MCP-Headers': JSON.stringify({ [url]: { 'X-Trace-Id': 'wrong' } }),
     }),
   ).rejects.toThrow(/-32603.*upstream connect failed/);
 });

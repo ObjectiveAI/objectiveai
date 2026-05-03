@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 /// Additional metadata about a tool to help clients decide how to display
 /// or control its use.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "mcp.tool.ToolAnnotations")]
 pub struct ToolAnnotations {
     /// A human-readable title for the tool.

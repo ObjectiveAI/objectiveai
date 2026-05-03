@@ -195,6 +195,24 @@ class ObjectiveAI:
             raise await self._handle_error_response(response)
         return response.json()
 
+    async def post_unary_no_response(
+        self,
+        path: str,
+        body: Any = None,
+        *,
+        headers: dict[str, str] | None = None,
+    ) -> None:
+        """POST that returns no body. Any 2xx is success; non-2xx raises."""
+        async with httpx.AsyncClient(timeout=self.timeout) as http:
+            response = await http.request(
+                "POST",
+                self._build_url(path),
+                headers=self._build_headers(headers),
+                content=_json_body(body),
+            )
+        if not response.is_success:
+            raise await self._handle_error_response(response)
+
     async def delete_unary(
         self,
         path: str,

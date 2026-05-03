@@ -280,6 +280,27 @@ export class ObjectiveAI {
   }
 
   /**
+   * Perform a POST request that returns no body. Any 2xx status is
+   * treated as success; non-2xx throws.
+   */
+  async post_unary_no_response(
+    path: string,
+    body?: unknown,
+    options?: RequestOptions | null,
+  ): Promise<void> {
+    const response = await fetch(this.buildUrl(path), {
+      method: "POST",
+      headers: this.buildHeaders(options),
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal: options?.signal ?? undefined,
+    });
+
+    if (!response.ok) {
+      throw await this.handleErrorResponse(response);
+    }
+  }
+
+  /**
    * Perform a DELETE request and return the parsed JSON response.
    */
   async delete_unary<T>(

@@ -135,7 +135,9 @@ fn main() {
     writeln!(out, "pub fn tool_name(name: &str) -> Option<&'static str> {{").unwrap();
     writeln!(out, "    match name {{").unwrap();
     for name in schemas.keys() {
-        let tool_name = format!("Read{}Schema", name.replace('.', "_"));
+        // Dotted form here is fine — `InventionTool::new_sync` normalises
+        // `.` → `_` once, on construction.
+        let tool_name = format!("Read{name}Schema");
         writeln!(out, "        {name:?} => Some({tool_name:?}),").unwrap();
     }
     writeln!(out, "        _ => None,").unwrap();

@@ -24,9 +24,9 @@ pub fn tasks_tool_call(
     tool_map: &HashMap<String, ResolvedTool>,
     rng: &mut impl Rng,
 ) -> MockToolCall {
-    let tool_name = super::pick_invention_tool("AppendTask", tool_names, tool_map, rng);
+    let tool_name = super::pick_invention_tool("objectiveai-function-invention_AppendTask", tool_names, tool_map, rng);
     let arguments = match tool_name {
-        "AppendTask" => {
+        "objectiveai-function-invention_AppendTask" => {
             // Parse the full input schema to extract items and context sub-schemas
             let parsed = serde_json::from_str::<serde_json::Value>(input_schema_json)
                 .unwrap_or_else(|_| serde_json::json!({}));
@@ -47,10 +47,10 @@ pub fn tasks_tool_call(
             };
             serde_json::json!({"task": task.to_string()}).to_string()
         }
-        "EditPredictedTasksLength" => {
+        "objectiveai-function-invention_EditPredictedTasksLength" => {
             serde_json::json!({"tasks_length": tasks_min}).to_string()
         }
-        "DeleteTask" | "ReadTask" => {
+        "objectiveai-function-invention_DeleteTask" | "objectiveai-function-invention_ReadTask" => {
             serde_json::json!({ "index": rng.random_range(0u32..5) }).to_string()
         }
         _ => "{}".to_string(),

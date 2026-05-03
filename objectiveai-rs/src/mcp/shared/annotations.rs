@@ -15,7 +15,7 @@ pub enum Role {
 }
 
 /// Optional annotations providing clients additional context about content.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "mcp.shared.Annotations")]
 pub struct Annotations {
     /// Intended audience(s) for the content.

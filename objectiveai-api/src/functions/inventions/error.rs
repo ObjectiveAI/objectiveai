@@ -39,6 +39,21 @@ pub enum Error {
     /// Error fetching the prompt.
     #[error("prompt fetch error: {0}")]
     PromptFetch(objectiveai::error::ResponseError),
+    /// Listing tools through the agent's MCP connection failed while
+    /// waiting for the InventionServer's tool swap to propagate.
+    #[error("mcp list_tools error during tool subscription: {0}")]
+    McpListTools(String),
+    /// The agent's MCP connection did not show every expected tool
+    /// after the InventionServer's `set_tools` call within
+    /// `subscribe_tools_timeout`.
+    #[error(
+        "timed out waiting for invention tools to become visible: \
+         expected {expected:?}, observed {observed:?}"
+    )]
+    ToolSubscriptionTimeout {
+        expected: Vec<String>,
+        observed: Vec<String>,
+    },
 }
 
 impl StatusError for Error {
@@ -56,6 +71,8 @@ impl StatusError for Error {
             Error::FunctionFetch(e) => e.code,
             Error::PromptUnsupportedType(_) => 400,
             Error::PromptFetch(e) => e.code,
+            Error::McpListTools(_) => 502,
+            Error::ToolSubscriptionTimeout { .. } => 504,
         }
     }
 
@@ -108,6 +125,15 @@ impl StatusError for Error {
             Error::PromptFetch(e) => serde_json::json!({
                 "kind": "prompt_fetch",
                 "error": e.message,
+            }),
+            Error::McpListTools(msg) => serde_json::json!({
+                "kind": "mcp_list_tools",
+                "error": msg,
+            }),
+            Error::ToolSubscriptionTimeout { expected, observed } => serde_json::json!({
+                "kind": "tool_subscription_timeout",
+                "expected": expected,
+                "observed": observed,
             }),
         };
         Some(serde_json::json!({

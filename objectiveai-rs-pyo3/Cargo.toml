@@ -1,24 +1,25 @@
 [package]
-name = "objectiveai-pyo3"
+name = "objectiveai-rs-pyo3"
 version = "2.0.0"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
-description = "Python bindings for ObjectiveAI"
+description = "PyO3 bindings for ObjectiveAI"
 license = "MIT"
 repository = "https://github.com/ObjectiveAI/objectiveai"
 homepage = "https://objectiveai.dev"
-readme = "README.md"
 keywords = ["llm", "ai", "swarm", "python"]
-publish = true
+publish = false
 
 [lib]
-name = "objectiveai_pyo3"
+name = "_pyo3"
 crate-type = ["cdylib"]
 
 [dependencies]
 arbitrary = "1.4.2"
 objectiveai = { path = "../objectiveai-rs", version = "2.0.0", default-features = false }
-pyo3 = { version = "0.28", features = ["extension-module"] }
+# abi3-py310: one wheel per platform supports CPython 3.10+ via the stable ABI.
+# Eliminates the per-Python-version build matrix on PyPI publish.
+pyo3 = { version = "0.28", features = ["abi3-py310"] }
 pythonize = "0.28"
 rand = "0.9.2"
 rust_decimal = { version = "1.40.0", features = ["serde-float"] }

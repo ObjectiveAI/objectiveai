@@ -12,7 +12,7 @@ class ResourceLink(BaseModel):
     """A resource link included in a prompt or tool call result."""
     model_config = ConfigDict(title='mcp.tool.ResourceLink')
 
-    _meta: Optional[dict[str, JsonValue]] = Field(None, description='Extension metadata.', json_schema_extra={'omitempty': True})
+    meta: Optional[dict[str, JsonValue]] = Field(None, alias='_meta', description='Extension metadata.', json_schema_extra={'omitempty': True})
     annotations: Optional[Annotations] = Field(None, description='Optional annotations for the client.', json_schema_extra={'omitempty': True})
     description: Optional[str] = Field(None, description='A description of what this resource represents.', json_schema_extra={'omitempty': True})
     icons: Optional[list[Icon]] = Field(None, description='Icons for the resource link.', json_schema_extra={'omitempty': True})

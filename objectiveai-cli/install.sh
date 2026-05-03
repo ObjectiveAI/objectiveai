@@ -73,8 +73,8 @@ compute_fingerprint() {
     echo "$REPO_ROOT/objectiveai-api/Cargo.toml"
 
     # Claude Agent SDK runner (Python — only variant)
-    echo "$REPO_ROOT/objectiveai-claude-agent-sdk-runner-py/main.py"
-    echo "$REPO_ROOT/objectiveai-claude-agent-sdk-runner-py/requirements.txt"
+    echo "$REPO_ROOT/objectiveai-claude-agent-sdk-runner/main.py"
+    echo "$REPO_ROOT/objectiveai-claude-agent-sdk-runner/requirements.txt"
 
     # objectiveai-viewer (embedded binary, unless --no-viewer)
     if [ "$NO_VIEWER" = "0" ]; then
@@ -113,12 +113,12 @@ fi
 
 # ── Build embedded binaries ────────────────────────────────────────────
 # The CLI embeds viewer (via build.rs), and objectiveai-api embeds
-# mcp (linux-musl) and the claude-agent-sdk-runner-py.
+# mcp (linux-musl) and the claude-agent-sdk-runner.
 
 echo "Building embedded dependencies..."
 
 # claude-agent-sdk-runner (native target, Python)
-bash "$REPO_ROOT/objectiveai-claude-agent-sdk-runner-py/build.sh" --release
+bash "$REPO_ROOT/objectiveai-claude-agent-sdk-runner/build.sh" --release
 
 # mcp-filesystem (linux-musl, Docker container injection) — embedded by
 # objectiveai-api with orchestrator-bollard. Match the host architecture

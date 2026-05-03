@@ -10,7 +10,7 @@ class BlobResourceContents(BaseModel):
     """Binary resource contents (base64-encoded)."""
     model_config = ConfigDict(title='mcp.shared.BlobResourceContents')
 
-    _meta: Optional[dict[str, JsonValue]] = Field(None, description='Extension metadata.', json_schema_extra={'omitempty': True})
+    meta: Optional[dict[str, JsonValue]] = Field(None, alias='_meta', description='Extension metadata.', json_schema_extra={'omitempty': True})
     blob: str = Field(..., description='A base64-encoded string representing the binary data.')
     mime_type: Optional[str] = Field(None, alias='mimeType', description='The MIME type of this resource, if known.', json_schema_extra={'omitempty': True})
     uri: str = Field(..., description='The URI of this resource.')

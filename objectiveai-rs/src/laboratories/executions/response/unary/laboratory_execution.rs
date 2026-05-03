@@ -39,6 +39,18 @@ impl LaboratoryExecution {
             evaluation.inner.normalize_for_tests();
             normalize_error(&mut evaluation.inner.error);
         }
+        // Sort by agent_index so two parallel builder/evaluation streams
+        // settle into a stable order regardless of which chunk arrives
+        // first off the wire. The chunk-level `index` field reflects
+        // arrival order and is renumbered to match the sorted position.
+        self.builders.sort_by_key(|b| b.agent_index);
+        for (i, b) in self.builders.iter_mut().enumerate() {
+            b.index = i as u64;
+        }
+        self.evaluations.sort_by_key(|e| e.agent_index);
+        for (i, e) in self.evaluations.iter_mut().enumerate() {
+            e.index = i as u64;
+        }
     }
 }
 

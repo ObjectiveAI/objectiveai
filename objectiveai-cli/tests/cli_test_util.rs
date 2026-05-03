@@ -1,8 +1,77 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::Once;
+use std::sync::{Once, OnceLock};
 
 static BUILD_ONCE: Once = Once::new();
+
+/// Issue an Instructions ID for the given scope (e.g. "agents", "functions",
+/// "functions-inventions-recursive") via the corresponding `instructions get`
+/// command. The CLI now requires `--instructions-id <ID>` on every `create`
+/// streaming command; tests run that subcommand once per scope and cache the
+/// returned id.
+pub fn instructions_id(scope: InstructionsScope) -> &'static String {
+    let cell = scope.cell();
+    cell.get_or_init(|| {
+        let mut cmd = Command::new(cli_binary());
+        cmd.env("CONFIG_BASE_DIR", tests_dir());
+        cmd.args(scope.get_args());
+
+        let output = cmd.output().expect("failed to execute CLI binary");
+        if !output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            panic!(
+                "CLI {:?} exited with {}\nstdout: {stdout}\nstderr: {stderr}",
+                scope.get_args(), output.status,
+            );
+        }
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        // The output ends with `\n\n Instructions ID: <id>`. Pluck the id off
+        // the last non-empty line.
+        let line = stdout.lines().rev().find(|l| !l.trim().is_empty())
+            .unwrap_or_else(|| panic!("instructions get produced no output: {stdout}"));
+        line.trim()
+            .strip_prefix("Instructions ID: ")
+            .unwrap_or_else(|| panic!("expected `Instructions ID: <id>` line, got: {line:?}"))
+            .to_string()
+    })
+}
+
+#[derive(Clone, Copy)]
+pub enum InstructionsScope {
+    AgentCompletions,
+    FunctionExecutions,
+    FunctionInventionsRecursive,
+}
+
+impl InstructionsScope {
+    fn cell(self) -> &'static OnceLock<String> {
+        match self {
+            Self::AgentCompletions => {
+                static CELL: OnceLock<String> = OnceLock::new();
+                &CELL
+            }
+            Self::FunctionExecutions => {
+                static CELL: OnceLock<String> = OnceLock::new();
+                &CELL
+            }
+            Self::FunctionInventionsRecursive => {
+                static CELL: OnceLock<String> = OnceLock::new();
+                &CELL
+            }
+        }
+    }
+
+    fn get_args(self) -> &'static [&'static str] {
+        match self {
+            Self::AgentCompletions => &["agents", "completions", "instructions", "get"],
+            Self::FunctionExecutions => &["functions", "executions", "instructions", "get"],
+            Self::FunctionInventionsRecursive => &[
+                "functions", "inventions", "recursive", "instructions", "get",
+            ],
+        }
+    }
+}
 
 pub fn test_target_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../target/test-cli")

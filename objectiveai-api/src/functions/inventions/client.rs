@@ -58,6 +58,93 @@ fn validate_name(name: &str) -> Result<(), super::Error> {
 }
 
 // ---------------------------------------------------------------------------
+// Tool subscription helpers
+// ---------------------------------------------------------------------------
+
+/// Prefix the proxy stamps onto every tool name from the InventionServer
+/// upstream. Either `objectiveai-function-invention_<name>` (single upstream)
+/// or `objectiveai-function-invention_<digits>_<name>` (proxy collision-
+/// disambiguated when the same prefix would otherwise collide with another
+/// upstream). The prefix string itself is the InventionServer's rmcp
+/// `server_info.name` — see `invention_server.rs::InventionMcp::get_info`.
+const PROXY_INVENTION_PREFIX: &str = "objectiveai-function-invention_";
+
+/// Wait until every name in `expected` is present in the agent's MCP
+/// view of available tools, observing through the agent's existing MCP
+/// connection from the previous step's continuation.
+///
+/// First reads `list_tools` once with no clock running (the user's
+/// "free read" semantics). If the expected set is already covered,
+/// returns immediately. Otherwise enters a `subscribe_tools` loop under
+/// a single shared clock that starts on the first subscribe call. The
+/// loop exits with `Error::ToolSubscriptionTimeout` when the budget is
+/// exhausted without coverage.
+async fn wait_for_tools_visible(
+    observer: &objectiveai::mcp::Connection,
+    expected: &[String],
+    overall_timeout: time::Duration,
+) -> Result<(), super::Error> {
+    let mut current = observer
+        .list_tools()
+        .await
+        .map_err(|e| super::Error::McpListTools(format!("{e}")))?;
+    if all_present(&current, expected) {
+        return Ok(());
+    }
+
+    let started = time::Instant::now();
+    loop {
+        let elapsed = started.elapsed();
+        let remaining = match overall_timeout.checked_sub(elapsed) {
+            Some(r) if !r.is_zero() => r,
+            _ => {
+                let observed: Vec<String> =
+                    current.iter().map(|t| t.name.clone()).collect();
+                return Err(super::Error::ToolSubscriptionTimeout {
+                    expected: expected.to_vec(),
+                    observed,
+                });
+            }
+        };
+        let next = observer
+            .subscribe_tools(&current, remaining)
+            .await
+            .map_err(|e| super::Error::McpListTools(format!("{e}")))?;
+        if all_present(&next, expected) {
+            return Ok(());
+        }
+        current = next;
+    }
+}
+
+fn all_present(
+    returned: &[objectiveai::mcp::tool::Tool],
+    expected: &[String],
+) -> bool {
+    expected
+        .iter()
+        .all(|exp| returned.iter().any(|t| matches_expected(&t.name, exp)))
+}
+
+/// Match either:
+///   `objectiveai-invention_<expected>`            — single upstream
+///   `objectiveai-invention_<digits>_<expected>`   — collision-disambiguated
+fn matches_expected(returned_name: &str, expected: &str) -> bool {
+    let Some(rest) = returned_name.strip_prefix(PROXY_INVENTION_PREFIX) else {
+        return false;
+    };
+    if rest == expected {
+        return true;
+    }
+    if let Some((idx, name)) = rest.split_once('_') {
+        return !idx.is_empty()
+            && idx.bytes().all(|b| b.is_ascii_digit())
+            && name == expected;
+    }
+    false
+}
+
+// ---------------------------------------------------------------------------
 // Client
 // ---------------------------------------------------------------------------
 
@@ -65,10 +152,10 @@ fn validate_name(name: &str) -> Result<(), super::Error> {
 ///
 /// Orchestrates the multi-step invention flow: essay, input schema,
 /// essay tasks, tasks, description, and readme generation.
-pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM> {
+pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM> {
     pub agent_client: Arc<
         crate::agent::completions::Client<
-            CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG,
+            CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG,
         >,
     >,
     pub github_client: Arc<crate::github::Client>,
@@ -76,17 +163,24 @@ pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM,
     pub retrieve_router:
         Arc<crate::retrieval::retrieve::Router<FFNG, FFNF, FFNM, CTXEXT>>,
     pub usage_handler: Arc<IUSG>,
+    pub invention_server_spawner: Arc<super::InventionServerSpawner>,
     pub persist: bool,
     pub forbid_overwrite: bool,
+    /// Maximum total time we'll wait — across the initial `list_tools`
+    /// and all subsequent `subscribe_tools` iterations — for the
+    /// agent's MCP view to show every expected tool after a between-step
+    /// `set_tools` swap on the InventionServer. Exceeding this surfaces
+    /// `Error::ToolSubscriptionTimeout`.
+    pub subscribe_tools_timeout: time::Duration,
 }
 
-impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM>
-    Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM>
+impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM>
+    Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM>
 {
     pub fn new(
         agent_client: Arc<
             crate::agent::completions::Client<
-                CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG,
+                CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG,
             >,
         >,
         github_client: Arc<crate::github::Client>,
@@ -95,8 +189,10 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, 
             crate::retrieval::retrieve::Router<FFNG, FFNF, FFNM, CTXEXT>,
         >,
         usage_handler: Arc<IUSG>,
+        invention_server_spawner: Arc<super::InventionServerSpawner>,
         persist: bool,
         forbid_overwrite: bool,
+        subscribe_tools_timeout: time::Duration,
     ) -> Self {
         Self {
             agent_client,
@@ -104,13 +200,15 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, 
             filesystem_client,
             retrieve_router,
             usage_handler,
+            invention_server_spawner,
             persist,
             forbid_overwrite,
+            subscribe_tools_timeout,
         }
     }
 }
 
-type Continuation<OPENROUTER, CLAUDEAGENTSDK, MOCK> =
+type Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK> =
     crate::agent::completions::Continuation<
         <OPENROUTER as crate::agent::completions::UpstreamClient<
             objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation,
@@ -118,13 +216,16 @@ type Continuation<OPENROUTER, CLAUDEAGENTSDK, MOCK> =
         <CLAUDEAGENTSDK as crate::agent::completions::UpstreamClient<
             objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
         >>::State,
+        <CODEXSDK as crate::agent::completions::UpstreamClient<
+            objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation,
+        >>::State,
         <MOCK as crate::agent::completions::UpstreamClient<
             objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation,
         >>::State,
     >;
 
-impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM>
-    Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM>
+impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM>
+    Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM>
 where
     CTXEXT: ctx::ContextExt + Send + Sync + 'static,
     OPENROUTER: crate::agent::completions::UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation>
@@ -133,6 +234,11 @@ where
         + 'static,
     CLAUDEAGENTSDK: crate::agent::completions::UpstreamClient<
             objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
+        > + Send
+        + Sync
+        + 'static,
+    CODEXSDK: crate::agent::completions::UpstreamClient<
+            objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation,
         > + Send
         + Sync
         + 'static,
@@ -367,21 +473,23 @@ where
         let agent_client = self.agent_client.clone();
         let github_client = self.github_client.clone();
         let filesystem_client = self.filesystem_client.clone();
+        let invention_server_spawner = self.invention_server_spawner.clone();
         let persist = self.persist;
+        let subscribe_tools_timeout = self.subscribe_tools_timeout;
 
         let stream: Pin<Box<dyn Stream<Item = FunctionInventionChunk> + Send>> =
             match state {
                 State::AlphaScalarBranch(s) => {
-                    run_all_steps(s, agent_client, github_client, filesystem_client, ctx, request, id, created, persist, compiled_prompts)
+                    run_all_steps(s, agent_client, github_client, filesystem_client, invention_server_spawner, ctx, request, id, created, persist, compiled_prompts, subscribe_tools_timeout)
                 }
                 State::AlphaScalarLeaf(s) => {
-                    run_all_steps(s, agent_client, github_client, filesystem_client, ctx, request, id, created, persist, compiled_prompts)
+                    run_all_steps(s, agent_client, github_client, filesystem_client, invention_server_spawner, ctx, request, id, created, persist, compiled_prompts, subscribe_tools_timeout)
                 }
                 State::AlphaVectorBranch(s) => {
-                    run_all_steps(s, agent_client, github_client, filesystem_client, ctx, request, id, created, persist, compiled_prompts)
+                    run_all_steps(s, agent_client, github_client, filesystem_client, invention_server_spawner, ctx, request, id, created, persist, compiled_prompts, subscribe_tools_timeout)
                 }
                 State::AlphaVectorLeaf(s) => {
-                    run_all_steps(s, agent_client, github_client, filesystem_client, ctx, request, id, created, persist, compiled_prompts)
+                    run_all_steps(s, agent_client, github_client, filesystem_client, invention_server_spawner, ctx, request, id, created, persist, compiled_prompts, subscribe_tools_timeout)
                 }
             };
 
@@ -479,21 +587,23 @@ struct CompiledPrompts {
     tasks_min: u64,
 }
 
-fn run_all_steps<T, CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG>(
+fn run_all_steps<T, CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG>(
     state_val: T,
     agent_client: Arc<
         crate::agent::completions::Client<
-            CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG,
+            CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG,
         >,
     >,
     github_client: Arc<crate::github::Client>,
     filesystem_client: Arc<crate::filesystem::Client>,
+    invention_server_spawner: Arc<super::InventionServerSpawner>,
     ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
     request: Arc<objectiveai::functions::inventions::request::FunctionInventionCreateParams>,
     id: String,
     created: u64,
     persist: bool,
     prompts: CompiledPrompts,
+    subscribe_tools_timeout: time::Duration,
 ) -> Pin<Box<dyn Stream<Item = FunctionInventionChunk> + Send>>
 where
     T: InventionState,
@@ -504,6 +614,11 @@ where
         + 'static,
     CLAUDEAGENTSDK: crate::agent::completions::UpstreamClient<
             objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
+        > + Send
+        + Sync
+        + 'static,
+    CODEXSDK: crate::agent::completions::UpstreamClient<
+            objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation,
         > + Send
         + Sync
         + 'static,
@@ -521,6 +636,47 @@ where
         let params = T::params(&state);
         let object = T::object();
 
+        // Register a tenant on the process-wide shared InventionServer.
+        // The tool set for this invention is swapped between steps via
+        // `set_tools`, which broadcasts a `tools/list_changed`
+        // notification only to this tenant's peers.
+        let invention_handle = match invention_server_spawner.get().await {
+            Ok(h) => h,
+            Err(e) => {
+                yield FunctionInventionChunk {
+                    id: id.to_string(),
+                    completions: vec![],
+                    state: None,
+                    path: None,
+                    function: None,
+                    created,
+                    object,
+                    usage: None,
+                    error: Some(objectiveai::error::ResponseError {
+                        code: 500,
+                        message: serde_json::Value::String(format!(
+                            "InventionServer bootstrap failed: {e}"
+                        )),
+                    }),
+                };
+                return;
+            }
+        };
+        let invention_session = Arc::new(
+            invention_handle.register(T::essay_tools(&state)).await,
+        );
+        let invention_url = invention_session.url();
+        // The orchestrator stamps the InventionServer's pre-minted
+        // rmcp session id as `Mcp-Session-Id` on every proxy → upstream
+        // request to that URL. The InventionServer's tower then finds
+        // an alive session and dispatches into the per-session
+        // `serve_server` task, where `InventionMcp` looks up its tool
+        // router by the same id.
+        let invention_server_headers: indexmap::IndexMap<String, String> =
+            indexmap::indexmap! {
+                "Mcp-Session-Id".to_string() => invention_session.id().to_string(),
+            };
+
         let state_chunk = |state: &Arc<Mutex<T>>, id: &str, created, object| {
             FunctionInventionChunk {
                 id: id.to_string(),
@@ -537,7 +693,7 @@ where
 
         // Continuation carried between steps.
         let mut continuation: Option<
-            Continuation<OPENROUTER, CLAUDEAGENTSDK, MOCK>,
+            Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>,
         > = None;
         // Completion index incremented across all steps.
         let mut completion_index: u64 = 0;
@@ -553,9 +709,12 @@ where
         let essay_validate = Arc::new({ let s = state.clone(); move || T::validate_essay(&s) });
         if essay_validate().is_err() {
         errored = false;
+        // Server was already constructed with `essay_tools` above — no swap
+        // needed before step 0.
         let mut step = run_step(
             agent_client.clone(), ctx.clone(), request.clone(),
-            prompts.essay.clone(), T::essay_tools(&state),
+            prompts.essay.clone(), invention_url.clone(),
+            invention_server_headers.clone(),
             essay_validate,
             id.clone(), created, object, continuation.take(), completion_index,
             T::prompt_type(), 0, prompts.tasks_min, None,
@@ -590,9 +749,32 @@ where
         let input_schema_validate = Arc::new({ let s = state.clone(); move || T::validate_input_schema(&s) });
         if input_schema_validate().is_err() {
         errored = false;
+        invention_session.set_tools(T::input_schema_tools(&state)).await;
+        if let Some(observer) = continuation
+            .as_ref()
+            .and_then(|c| c.mcp_connection())
+        {
+            if let Err(e) = wait_for_tools_visible(
+                observer,
+                &T::input_schema_tool_names(&state),
+                subscribe_tools_timeout,
+            ).await {
+                yield FunctionInventionChunk {
+                    id: id.to_string(), completions: vec![], state: None,
+                    path: None, function: None, created, object,
+                    usage: Some(accumulated_usage),
+                    error: Some(objectiveai::error::ResponseError {
+                        code: e.status(),
+                        message: e.message().unwrap_or(serde_json::Value::String(e.to_string())),
+                    }),
+                };
+                return;
+            }
+        }
         let mut step = run_step(
             agent_client.clone(), ctx.clone(), request.clone(),
-            prompts.input_schema.clone(), T::input_schema_tools(&state),
+            prompts.input_schema.clone(), invention_url.clone(),
+            invention_server_headers.clone(),
             input_schema_validate,
             id.clone(), created, object, continuation.take(), completion_index,
             T::prompt_type(), 1, prompts.tasks_min, None,
@@ -627,9 +809,32 @@ where
         let essay_tasks_validate = Arc::new({ let s = state.clone(); move || T::validate_essay_tasks(&s) });
         if essay_tasks_validate().is_err() {
         errored = false;
+        invention_session.set_tools(T::essay_tasks_tools(&state)).await;
+        if let Some(observer) = continuation
+            .as_ref()
+            .and_then(|c| c.mcp_connection())
+        {
+            if let Err(e) = wait_for_tools_visible(
+                observer,
+                &T::essay_tasks_tool_names(&state),
+                subscribe_tools_timeout,
+            ).await {
+                yield FunctionInventionChunk {
+                    id: id.to_string(), completions: vec![], state: None,
+                    path: None, function: None, created, object,
+                    usage: Some(accumulated_usage),
+                    error: Some(objectiveai::error::ResponseError {
+                        code: e.status(),
+                        message: e.message().unwrap_or(serde_json::Value::String(e.to_string())),
+                    }),
+                };
+                return;
+            }
+        }
         let mut step = run_step(
             agent_client.clone(), ctx.clone(), request.clone(),
-            prompts.essay_tasks.clone(), T::essay_tasks_tools(&state),
+            prompts.essay_tasks.clone(), invention_url.clone(),
+            invention_server_headers.clone(),
             essay_tasks_validate,
             id.clone(), created, object, continuation.take(), completion_index,
             T::prompt_type(), 2, prompts.tasks_min, None,
@@ -667,9 +872,32 @@ where
         let tasks_validate = Arc::new({ let s = state.clone(); move || T::validate_function(&s) });
         if tasks_validate().is_err() {
         errored = false;
+        invention_session.set_tools(T::tasks_tools(&state)).await;
+        if let Some(observer) = continuation
+            .as_ref()
+            .and_then(|c| c.mcp_connection())
+        {
+            if let Err(e) = wait_for_tools_visible(
+                observer,
+                &T::tasks_tool_names(&state),
+                subscribe_tools_timeout,
+            ).await {
+                yield FunctionInventionChunk {
+                    id: id.to_string(), completions: vec![], state: None,
+                    path: None, function: None, created, object,
+                    usage: Some(accumulated_usage),
+                    error: Some(objectiveai::error::ResponseError {
+                        code: e.status(),
+                        message: e.message().unwrap_or(serde_json::Value::String(e.to_string())),
+                    }),
+                };
+                return;
+            }
+        }
         let mut step = run_step(
             agent_client.clone(), ctx.clone(), request.clone(),
-            prompts.tasks.clone(), T::tasks_tools(&state),
+            prompts.tasks.clone(), invention_url.clone(),
+            invention_server_headers.clone(),
             tasks_validate,
             id.clone(), created, object, continuation.take(), completion_index,
             T::prompt_type(), 3, prompts.tasks_min, T::input_schema_json(&state),
@@ -704,9 +932,32 @@ where
         let description_validate = Arc::new({ let s = state.clone(); move || T::validate_description(&s) });
         if description_validate().is_err() {
         errored = false;
+        invention_session.set_tools(T::description_tools(&state)).await;
+        if let Some(observer) = continuation
+            .as_ref()
+            .and_then(|c| c.mcp_connection())
+        {
+            if let Err(e) = wait_for_tools_visible(
+                observer,
+                &T::description_tool_names(&state),
+                subscribe_tools_timeout,
+            ).await {
+                yield FunctionInventionChunk {
+                    id: id.to_string(), completions: vec![], state: None,
+                    path: None, function: None, created, object,
+                    usage: Some(accumulated_usage),
+                    error: Some(objectiveai::error::ResponseError {
+                        code: e.status(),
+                        message: e.message().unwrap_or(serde_json::Value::String(e.to_string())),
+                    }),
+                };
+                return;
+            }
+        }
         let mut step = run_step(
             agent_client.clone(), ctx.clone(), request.clone(),
-            prompts.description.clone(), T::description_tools(&state),
+            prompts.description.clone(), invention_url.clone(),
+            invention_server_headers.clone(),
             description_validate,
             id.clone(), created, object, continuation.take(), completion_index,
             T::prompt_type(), 4, prompts.tasks_min, None,
@@ -866,14 +1117,15 @@ pub(crate) async fn publish_github<CTXEXT: ctx::ContextExt + Send + Sync>(
 // ---------------------------------------------------------------------------
 
 /// Output from a single step.
-enum StepOutput<OPENROUTER, CLAUDEAGENTSDK, MOCK>
+enum StepOutput<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>
 where
     OPENROUTER: crate::agent::completions::UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation>,
     CLAUDEAGENTSDK: crate::agent::completions::UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation>,
+    CODEXSDK: crate::agent::completions::UpstreamClient<objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation>,
     MOCK: crate::agent::completions::UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation>,
 {
     Chunk(FunctionInventionChunk),
-    Continuation(Continuation<OPENROUTER, CLAUDEAGENTSDK, MOCK>),
+    Continuation(Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>),
     CompletionIndex(u64),
 }
 
@@ -898,6 +1150,7 @@ fn build_agent_params(
     }
 }
 
+
 /// Creates a user message from a prompt string.
 fn user_message(prompt: &str) -> objectiveai::agent::completions::message::UserMessage {
     objectiveai::agent::completions::message::UserMessage {
@@ -908,21 +1161,22 @@ fn user_message(prompt: &str) -> objectiveai::agent::completions::message::UserM
     }
 }
 
-fn run_step<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG>(
+fn run_step<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG>(
     agent_client: Arc<
         crate::agent::completions::Client<
-            CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG,
+            CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG,
         >,
     >,
     ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
     request: Arc<objectiveai::functions::inventions::request::FunctionInventionCreateParams>,
     prompt: String,
-    tools: Vec<objectiveai::functions::inventions::InventionTool>,
+    invention_url: String,
+    invention_server_headers: indexmap::IndexMap<String, String>,
     validate: Arc<dyn Fn() -> Result<(), String> + Send + Sync>,
     id: String,
     created: u64,
     object: Object,
-    initial_continuation: Option<Continuation<OPENROUTER, CLAUDEAGENTSDK, MOCK>>,
+    initial_continuation: Option<Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>>,
     initial_completion_index: u64,
     invention_type: objectiveai::functions::inventions::prompts::StepPromptType,
     invention_step: usize,
@@ -930,7 +1184,7 @@ fn run_step<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG>
     invention_input_schema: Option<String>,
 ) -> Pin<
     Box<
-        dyn Stream<Item = StepOutput<OPENROUTER, CLAUDEAGENTSDK, MOCK>>
+        dyn Stream<Item = StepOutput<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>>
             + Send,
     >,
 >
@@ -942,6 +1196,11 @@ where
         + 'static,
     CLAUDEAGENTSDK: crate::agent::completions::UpstreamClient<
             objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
+        > + Send
+        + Sync
+        + 'static,
+    CODEXSDK: crate::agent::completions::UpstreamClient<
+            objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation,
         > + Send
         + Sync
         + 'static,
@@ -960,36 +1219,47 @@ where
         let validate_for_done = validate.clone();
         let max_step_retries = request.max_step_retries.unwrap_or(3);
 
+        // The InventionServer is owned by the parent `run_all_steps` and
+        // shared across every step of this invention. The parent has already
+        // swapped in this step's tool set and broadcast a
+        // `tools/list_changed` notification before we get here, so the proxy
+        // refetches `tools/list` on the next agent request and the agent
+        // sees the right tools.
+
         // The messages array on the request is fixed after the very first
         // step. If we have a continuation (i.e. this is not the first step),
         // the prompt goes as a user message on the continuation and the
         // request messages are empty. If no continuation exists (first step),
         // the prompt goes into the request messages.
-        let agent_params = if let Some(ref mut cont) = continuation {
+        let agent_params = Arc::new(if let Some(ref mut cont) = continuation {
             cont.push_user_message(user_message(&prompt));
-            Arc::new(build_agent_params(&request, vec![]))
+            build_agent_params(&request, vec![])
         } else {
-            Arc::new(build_agent_params(
+            build_agent_params(
                 &request,
                 vec![objectiveai::agent::completions::message::Message::User(
                     user_message(&prompt),
                 )],
-            ))
-        };
+            )
+        });
 
-        // The agent completions loop handles tool calling internally via
-        // invention_done. When validate returns Ok, invention_done fires,
-        // tools_enabled becomes false, and the model produces a final
-        // content-only response that ends the loop naturally.
-        let invention_done = Arc::new(move || validate_for_done().is_ok());
+        // `disable_tools` is the orchestrator's signal that the model has
+        // produced what we needed — once `validate()` succeeds, the next
+        // continuation runs with tools off and the model closes out with
+        // a content-only response.
+        let disable_tools = Arc::new(move || validate_for_done().is_ok());
 
         let stream_result = agent_client
             .create_streaming(
                 ctx.clone(),
                 agent_params.clone(),
                 continuation.take(),
-                Some(tools.clone()),
-                Some(invention_done),
+                Some(disable_tools),
+                vec![crate::agent::completions::ExtraMcpServer {
+                    url: invention_url.clone(),
+                    headers: Some(invention_server_headers.clone()),
+                }],
+                indexmap::IndexMap::new(),
                 None,
                 false,
                 Some(invention_type),
@@ -1078,15 +1348,16 @@ where
             completion_index += 1;
 
             let validate_for_done = validate.clone();
-            let invention_done = Arc::new(move || validate_for_done().is_ok());
+            let disable_tools = Arc::new(move || validate_for_done().is_ok());
 
             let stream_result = agent_client
                 .create_streaming(
                     ctx.clone(),
                     agent_params.clone(),
                     continuation.take(),
-                    Some(tools.clone()),
-                    Some(invention_done),
+                    Some(disable_tools),
+                    vec![crate::agent::completions::ExtraMcpServer::new(invention_url.clone())],
+                    invention_server_headers.clone(),
                     None,
                     false,
                     Some(invention_type),

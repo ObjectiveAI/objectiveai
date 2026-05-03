@@ -6,6 +6,9 @@ from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from objectiveai.agent.completions.request import AgentCompletionCreateParams
+    from objectiveai.agent.completions.request.agent_completion_notify_params import (
+        AgentCompletionNotifyParams,
+    )
     from objectiveai.agent.completions.response.streaming import AgentCompletionChunk
     from objectiveai.agent.completions.response.unary import AgentCompletion
     from objectiveai.client import ObjectiveAI
@@ -24,3 +27,17 @@ async def create_agent_completion(
     if getattr(params, "stream", None):
         return await client.post_streaming("agent/completions", params)
     return await client.post_unary("agent/completions", params)
+
+
+async def notify_agent_completion(
+    client: ObjectiveAI,
+    params: AgentCompletionNotifyParams,
+) -> None:
+    """Notify a running agent completion with a user message.
+
+    Pushes a ``RichContent`` payload at the agent completion identified
+    by ``params.response_id``; the api queues it and surfaces it to
+    the model on its next natural inspection point. There is no
+    response body — any 2xx status is the success signal.
+    """
+    await client.post_unary_no_response("agent/completions/notify", params)

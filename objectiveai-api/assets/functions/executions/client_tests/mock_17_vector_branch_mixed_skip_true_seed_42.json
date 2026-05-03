@@ -5,6 +5,7 @@
       "index": 0,
       "task_index": 0,
       "task_path": [
+        0,
         0
       ],
       "id": "",
@@ -13,6 +14,7 @@
           "index": 0,
           "task_index": 0,
           "task_path": [
+            0,
             0,
             0
           ],
@@ -276,19 +278,19 @@
                 "6wPKXoi9PH5rK1FIsE75qA"
               ],
               "vote": [
-                0.5079856240341288,
-                0.4920143759658712
+                0.507985624034129,
+                0.492014375965871
               ],
               "weight": 0.5
             }
           ],
           "scores": [
             0.2539928120170644,
-            0.7460071879829356
+            0.746007187982936
           ],
           "weights": [
             0.2539928120170644,
-            0.7460071879829356
+            0.746007187982936
           ],
           "created": 0,
           "swarm": "5KOhyQka0ZUBJzJ8l2OgKf",
@@ -306,7 +308,7 @@
       "tasks_errors": false,
       "reasoning": null,
       "output": {
-        "output": 0.7460071879829356
+        "output": 0.746007187982936
       },
       "error": null,
       "retry_token": null,
@@ -329,6 +331,7 @@
       "index": 1,
       "task_index": 1,
       "task_path": [
+        0,
         1
       ],
       "id": "",
@@ -336,6 +339,331 @@
         {
           "index": 0,
           "task_index": 1,
+          "task_path": [
+            0,
+            1,
+            0
+          ],
+          "id": "",
+          "completions": [
+            {
+              "index": 0,
+              "id": "",
+              "created": 0,
+              "messages": [
+                {
+                  "role": "assistant",
+                  "index": 0,
+                  "created": 0,
+                  "agent": "05ks38oNx3bEwpO4K3WxWL",
+                  "model": "mock",
+                  "upstream_id": "",
+                  "reasoning": "2kIiGL6LV0k8QfpI4NVu0EJo7Sovk36L6Z6eX8jqi01K8ejw7Bl2UkCUfiPzVKe9025L6MzCQfbkuVV8RyVT7Rqyxf",
+                  "tool_calls": [
+                    {
+                      "type": "function",
+                      "id": "call_mock_18127723226375610996",
+                      "function": {
+                        "name": "response_key",
+                        "arguments": "{\"response_key\":\"`M`\"}"
+                      }
+                    }
+                  ],
+                  "content": null,
+                  "refusal": null,
+                  "finish_reason": "tool_calls",
+                  "logprobs": null,
+                  "usage": {
+                    "completion_tokens": 0,
+                    "prompt_tokens": 0,
+                    "total_tokens": 0,
+                    "cost": 0.0,
+                    "total_cost": 0.0,
+                    "cost_multiplier": 0.0,
+                    "is_byok": false
+                  }
+                }
+              ],
+              "object": "agent.completion",
+              "usage": {
+                "completion_tokens": 0,
+                "prompt_tokens": 0,
+                "total_tokens": 0,
+                "cost": 0.0,
+                "total_cost": 0.0
+              },
+              "upstream": "mock",
+              "error": null,
+              "continuation": "eyJ1cHN0cmVhbSI6Im1vY2siLCJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiJjb21wYXJlIHRoZXNlIn0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJcblxuU2VsZWN0IHRoZSByZXNwb25zZTpcblxuIn0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJ7XG4gICAgXCJgTGBcIjogXCIifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IlllcyJ9LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiXCIsXG4gICAgXCJgTWBcIjogXCIifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6Ik5vIn0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJcIlxufSJ9XX1dLCJtY3Bfc2Vzc2lvbnMiOnt9fQ=="
+            },
+            {
+              "index": 1,
+              "id": "",
+              "created": 0,
+              "messages": [
+                {
+                  "role": "assistant",
+                  "index": 0,
+                  "created": 0,
+                  "agent": "1jqrIFnVR3nUi9d7fkmcQD",
+                  "model": "mock",
+                  "upstream_id": "",
+                  "reasoning": "UomIKegmoaWoF cweeBtmDsWP3XhmDj3kZiFafGOtuZs0dWpUJY7w WeQia8mDUXceXlnyqB6UbdW5tBwDSl3vNwLCdkVxe2dnnQkqLSvy3TeaOilT1MceSvAOcDVZQ76wym 1spUyLExIrYlIdTlPWi AX4DYKeqkQjawkjH lnGH3Ao2D0 FS9gfL3mywkmfDQOWVQbnkcW8HbwOzGaz5BTs W3xcbWom7q8SwIsHk1iM8VNmOiQnWDc4x1fm25VVQe5nuMRyUx DpxAAUCUyvRI7UBkbfO697boUJ652hFOcbBO0z6S dQWD0iM5uYfbH5R3G4vtC2C4UpuzCoddJ37xkJMadL9LJmsg4aA5",
+                  "tool_calls": null,
+                  "content": "{\"response_key\":\"`E`\"}",
+                  "refusal": null,
+                  "finish_reason": "stop",
+                  "logprobs": {
+                    "content": [
+                      {
+                        "token": "{",
+                        "bytes": [
+                          123
+                        ],
+                        "logprob": 0.0,
+                        "top_logprobs": [
+                          {
+                            "token": "{",
+                            "bytes": [
+                              123
+                            ],
+                            "logprob": 0.0
+                          }
+                        ]
+                      },
+                      {
+                        "token": "\"response_key\":",
+                        "bytes": [
+                          34,
+                          114,
+                          101,
+                          115,
+                          112,
+                          111,
+                          110,
+                          115,
+                          101,
+                          95,
+                          107,
+                          101,
+                          121,
+                          34,
+                          58
+                        ],
+                        "logprob": 0.0,
+                        "top_logprobs": [
+                          {
+                            "token": "\"response_key\":",
+                            "bytes": [
+                              34,
+                              114,
+                              101,
+                              115,
+                              112,
+                              111,
+                              110,
+                              115,
+                              101,
+                              95,
+                              107,
+                              101,
+                              121,
+                              34,
+                              58
+                            ],
+                            "logprob": 0.0
+                          }
+                        ]
+                      },
+                      {
+                        "token": "\"`",
+                        "bytes": [
+                          34,
+                          96
+                        ],
+                        "logprob": 2.22044604925e-16,
+                        "top_logprobs": [
+                          {
+                            "token": "\"`",
+                            "bytes": [
+                              34,
+                              96
+                            ],
+                            "logprob": 2.22044604925e-16
+                          }
+                        ]
+                      },
+                      {
+                        "token": "E`",
+                        "bytes": [
+                          69,
+                          96
+                        ],
+                        "logprob": -0.677302130144149,
+                        "top_logprobs": [
+                          {
+                            "token": "E`",
+                            "bytes": [
+                              69,
+                              96
+                            ],
+                            "logprob": -0.677302130144149
+                          },
+                          {
+                            "token": "B`",
+                            "bytes": [
+                              66,
+                              96
+                            ],
+                            "logprob": -0.709247344305373
+                          }
+                        ]
+                      },
+                      {
+                        "token": "\"",
+                        "bytes": [
+                          34
+                        ],
+                        "logprob": 0.0,
+                        "top_logprobs": [
+                          {
+                            "token": "\"",
+                            "bytes": [
+                              34
+                            ],
+                            "logprob": 0.0
+                          }
+                        ]
+                      },
+                      {
+                        "token": "}",
+                        "bytes": [
+                          125
+                        ],
+                        "logprob": 0.0,
+                        "top_logprobs": [
+                          {
+                            "token": "}",
+                            "bytes": [
+                              125
+                            ],
+                            "logprob": 0.0
+                          }
+                        ]
+                      }
+                    ],
+                    "refusal": null
+                  },
+                  "usage": {
+                    "completion_tokens": 0,
+                    "prompt_tokens": 0,
+                    "total_tokens": 0,
+                    "cost": 0.0,
+                    "total_cost": 0.0,
+                    "cost_multiplier": 0.0,
+                    "is_byok": false
+                  }
+                }
+              ],
+              "object": "agent.completion",
+              "usage": {
+                "completion_tokens": 0,
+                "prompt_tokens": 0,
+                "total_tokens": 0,
+                "cost": 0.0,
+                "total_cost": 0.0
+              },
+              "upstream": "mock",
+              "error": null,
+              "continuation": "eyJ1cHN0cmVhbSI6Im1vY2siLCJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiJjb21wYXJlIHRoZXNlIn0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJcblxuU2VsZWN0IHRoZSByZXNwb25zZTpcblxuIn0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJ7XG4gICAgXCJgQmBcIjogXCIifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6Ik5vIn0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJcIixcbiAgICBcImBFYFwiOiBcIiJ9LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiWWVzIn0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJcIlxufSJ9XX1dLCJtY3Bfc2Vzc2lvbnMiOnt9fQ=="
+            }
+          ],
+          "votes": [
+            {
+              "agent": "05ks38oNx3bEwpO4K3WxWL",
+              "swarm_index": 0,
+              "flat_swarm_index": 0,
+              "prompt_id": "4ZANJ0XyEfni8ua5GGCWHS",
+              "responses_ids": [
+                "4S0m6MRNeM4oHw0s1dDjV7",
+                "6wPKXoi9PH5rK1FIsE75qA"
+              ],
+              "vote": [
+                0.0,
+                1.0
+              ],
+              "weight": 0.5
+            },
+            {
+              "agent": "1jqrIFnVR3nUi9d7fkmcQD",
+              "swarm_index": 1,
+              "flat_swarm_index": 1,
+              "prompt_id": "4ZANJ0XyEfni8ua5GGCWHS",
+              "responses_ids": [
+                "4S0m6MRNeM4oHw0s1dDjV7",
+                "6wPKXoi9PH5rK1FIsE75qA"
+              ],
+              "vote": [
+                0.507985624034129,
+                0.492014375965871
+              ],
+              "weight": 0.5
+            }
+          ],
+          "scores": [
+            0.2539928120170644,
+            0.746007187982936
+          ],
+          "weights": [
+            0.2539928120170644,
+            0.746007187982936
+          ],
+          "created": 0,
+          "swarm": "5KOhyQka0ZUBJzJ8l2OgKf",
+          "object": "vector.completion",
+          "usage": {
+            "completion_tokens": 0,
+            "prompt_tokens": 0,
+            "total_tokens": 0,
+            "cost": 0.0,
+            "total_cost": 0.0
+          },
+          "error": null
+        }
+      ],
+      "tasks_errors": false,
+      "reasoning": null,
+      "output": {
+        "output": 0.746007187982936
+      },
+      "error": null,
+      "retry_token": null,
+      "created": 0,
+      "function": {
+        "remote": "mock",
+        "name": "binary-classifier"
+      },
+      "profile": null,
+      "object": "scalar.function.execution",
+      "usage": {
+        "completion_tokens": 0,
+        "prompt_tokens": 0,
+        "total_tokens": 0,
+        "cost": 0.0,
+        "total_cost": 0.0
+      }
+    },
+    {
+      "index": 1,
+      "task_index": 2,
+      "task_path": [
+        1
+      ],
+      "id": "",
+      "tasks": [
+        {
+          "index": 0,
+          "task_index": 2,
           "task_path": [
             1,
             0
@@ -623,19 +951,19 @@
                 "4ApJ5lgy8uYGtCZBqHh44m"
               ],
               "vote": [
-                0.5443215965984908,
-                0.4556784034015092
+                0.544321596598491,
+                0.455678403401509
               ],
               "weight": 0.5
             }
           ],
           "scores": [
             0.2721607982992454,
-            0.7278392017007547
+            0.727839201700755
           ],
           "weights": [
             0.2721607982992454,
-            0.7278392017007547
+            0.727839201700755
           ],
           "created": 0,
           "swarm": "5KOhyQka0ZUBJzJ8l2OgKf",
@@ -655,7 +983,7 @@
       "output": {
         "output": [
           0.2721607982992454,
-          0.7278392017007547
+          0.727839201700755
         ]
       },
       "error": null,
@@ -676,18 +1004,20 @@
       }
     },
     {
-      "index": 2,
-      "task_index": 2,
+      "index": 0,
+      "task_index": 3,
       "task_path": [
-        2
+        2,
+        0
       ],
       "id": "",
       "tasks": [
         {
           "index": 0,
-          "task_index": 2,
+          "task_index": 3,
           "task_path": [
             2,
+            0,
             0
           ],
           "id": "",
@@ -950,19 +1280,19 @@
                 "2KpxKp0ntAQ3KFxia4Gbc2"
               ],
               "vote": [
-                0.6804452565418491,
-                0.31955474345815105
+                0.680445256541849,
+                0.3195547434581511
               ],
               "weight": 0.5
             }
           ],
           "scores": [
-            0.8402226282709245,
-            0.15977737172907552
+            0.840222628270925,
+            0.1597773717290755
           ],
           "weights": [
-            0.8402226282709245,
-            0.15977737172907552
+            0.840222628270925,
+            0.1597773717290755
           ],
           "created": 0,
           "swarm": "5KOhyQka0ZUBJzJ8l2OgKf",
@@ -980,7 +1310,333 @@
       "tasks_errors": false,
       "reasoning": null,
       "output": {
-        "output": 0.15977737172907552
+        "output": 0.1597773717290755
+      },
+      "error": null,
+      "retry_token": null,
+      "created": 0,
+      "function": {
+        "remote": "mock",
+        "name": "email-importance"
+      },
+      "profile": null,
+      "object": "scalar.function.execution",
+      "usage": {
+        "completion_tokens": 0,
+        "prompt_tokens": 0,
+        "total_tokens": 0,
+        "cost": 0.0,
+        "total_cost": 0.0
+      }
+    },
+    {
+      "index": 1,
+      "task_index": 4,
+      "task_path": [
+        2,
+        1
+      ],
+      "id": "",
+      "tasks": [
+        {
+          "index": 0,
+          "task_index": 4,
+          "task_path": [
+            2,
+            1,
+            0
+          ],
+          "id": "",
+          "completions": [
+            {
+              "index": 0,
+              "id": "",
+              "created": 0,
+              "messages": [
+                {
+                  "role": "assistant",
+                  "index": 0,
+                  "created": 0,
+                  "agent": "05ks38oNx3bEwpO4K3WxWL",
+                  "model": "mock",
+                  "upstream_id": "",
+                  "reasoning": "IGG80FGUlgihgKi4zoRGhUPjc6Vv6dMY1Ebb3SJQw0h6ZnfmX14zkD6gQW77TXvz7Ytshv4NV2Q9uT2UxxA8a6DuqwJDebQC2Gs7axCv2OGoPaZRxF66RmY0OTJYOphVefem8xroRtXUMMqEygRAsbbKVV95Kx1kORW1QjZ3VbntWHPhyqcxgL6a8y10l98sgHvy0K2l4XFWkA VRqEPX0n539hw9wVU5oJgowzeTl5uWHQ0wcv4y6XOAnrVQkXm0HUSI35XddKaJmJsEOjrvpCR1JCC6l5gzGeorQHkvUOvMqKzYbFsWUDO2mnsiQUWPRPp6OH 7mtCA0WKt8A36hXOnl6LXhmmdzQLEhjTEVCJVozZbV7oDibPPlgc1eDCkS9x9H5ZfsX3dny1tS8vj",
+                  "tool_calls": [
+                    {
+                      "type": "function",
+                      "id": "call_mock_16756640483019747649",
+                      "function": {
+                        "name": "response_key",
+                        "arguments": "{\"response_key\":\"`O`\"}"
+                      }
+                    }
+                  ],
+                  "content": null,
+                  "refusal": null,
+                  "finish_reason": "tool_calls",
+                  "logprobs": null,
+                  "usage": {
+                    "completion_tokens": 0,
+                    "prompt_tokens": 0,
+                    "total_tokens": 0,
+                    "cost": 0.0,
+                    "total_cost": 0.0,
+                    "cost_multiplier": 0.0,
+                    "is_byok": false
+                  }
+                }
+              ],
+              "object": "agent.completion",
+              "usage": {
+                "completion_tokens": 0,
+                "prompt_tokens": 0,
+                "total_tokens": 0,
+                "cost": 0.0,
+                "total_cost": 0.0
+              },
+              "upstream": "mock",
+              "error": null,
+              "continuation": "eyJ1cHN0cmVhbSI6Im1vY2siLCJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJZb3UgYXJlIGFuIGVtYWlsIGNsYXNzaWZpZXIuIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IlN1YmplY3Q6IGNvbXBhcmUgdGhlc2VCb2R5OiBjb21wYXJlIHRoZXNlIn0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJcblxuU2VsZWN0IHRoZSByZXNwb25zZTpcblxuIn0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJ7XG4gICAgXCJgSmBcIjogXCIifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6Ik5vdCBpbXBvcnRhbnQifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IlwiLFxuICAgIFwiYE9gXCI6IFwiIn0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJJbXBvcnRhbnQifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IlwiXG59In1dfV0sIm1jcF9zZXNzaW9ucyI6e319"
+            },
+            {
+              "index": 1,
+              "id": "",
+              "created": 0,
+              "messages": [
+                {
+                  "role": "assistant",
+                  "index": 0,
+                  "created": 0,
+                  "agent": "1jqrIFnVR3nUi9d7fkmcQD",
+                  "model": "mock",
+                  "upstream_id": "",
+                  "reasoning": "uKqEblpzVOV7nf2kRBIJaeSyN0PX7bzHI",
+                  "tool_calls": null,
+                  "content": "{\"response_key\":\"`F`\"}",
+                  "refusal": null,
+                  "finish_reason": "stop",
+                  "logprobs": {
+                    "content": [
+                      {
+                        "token": "{",
+                        "bytes": [
+                          123
+                        ],
+                        "logprob": 0.0,
+                        "top_logprobs": [
+                          {
+                            "token": "{",
+                            "bytes": [
+                              123
+                            ],
+                            "logprob": 0.0
+                          }
+                        ]
+                      },
+                      {
+                        "token": "\"response_key\":",
+                        "bytes": [
+                          34,
+                          114,
+                          101,
+                          115,
+                          112,
+                          111,
+                          110,
+                          115,
+                          101,
+                          95,
+                          107,
+                          101,
+                          121,
+                          34,
+                          58
+                        ],
+                        "logprob": 0.0,
+                        "top_logprobs": [
+                          {
+                            "token": "\"response_key\":",
+                            "bytes": [
+                              34,
+                              114,
+                              101,
+                              115,
+                              112,
+                              111,
+                              110,
+                              115,
+                              101,
+                              95,
+                              107,
+                              101,
+                              121,
+                              34,
+                              58
+                            ],
+                            "logprob": 0.0
+                          }
+                        ]
+                      },
+                      {
+                        "token": "\"`",
+                        "bytes": [
+                          34,
+                          96
+                        ],
+                        "logprob": 2.22044604925e-16,
+                        "top_logprobs": [
+                          {
+                            "token": "\"`",
+                            "bytes": [
+                              34,
+                              96
+                            ],
+                            "logprob": 2.22044604925e-16
+                          }
+                        ]
+                      },
+                      {
+                        "token": "F`",
+                        "bytes": [
+                          70,
+                          96
+                        ],
+                        "logprob": -0.3850079050414715,
+                        "top_logprobs": [
+                          {
+                            "token": "F`",
+                            "bytes": [
+                              70,
+                              96
+                            ],
+                            "logprob": -0.3850079050414715
+                          },
+                          {
+                            "token": "D`",
+                            "bytes": [
+                              68,
+                              96
+                            ],
+                            "logprob": -1.140826680984876
+                          }
+                        ]
+                      },
+                      {
+                        "token": "\"",
+                        "bytes": [
+                          34
+                        ],
+                        "logprob": 2.22044604925e-16,
+                        "top_logprobs": [
+                          {
+                            "token": "\"",
+                            "bytes": [
+                              34
+                            ],
+                            "logprob": 2.22044604925e-16
+                          }
+                        ]
+                      },
+                      {
+                        "token": "}",
+                        "bytes": [
+                          125
+                        ],
+                        "logprob": 0.0,
+                        "top_logprobs": [
+                          {
+                            "token": "}",
+                            "bytes": [
+                              125
+                            ],
+                            "logprob": 0.0
+                          }
+                        ]
+                      }
+                    ],
+                    "refusal": null
+                  },
+                  "usage": {
+                    "completion_tokens": 0,
+                    "prompt_tokens": 0,
+                    "total_tokens": 0,
+                    "cost": 0.0,
+                    "total_cost": 0.0,
+                    "cost_multiplier": 0.0,
+                    "is_byok": false
+                  }
+                }
+              ],
+              "object": "agent.completion",
+              "usage": {
+                "completion_tokens": 0,
+                "prompt_tokens": 0,
+                "total_tokens": 0,
+                "cost": 0.0,
+                "total_cost": 0.0
+              },
+              "upstream": "mock",
+              "error": null,
+              "continuation": "eyJ1cHN0cmVhbSI6Im1vY2siLCJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJZb3UgYXJlIGFuIGVtYWlsIGNsYXNzaWZpZXIuIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IlN1YmplY3Q6IGNvbXBhcmUgdGhlc2VCb2R5OiBjb21wYXJlIHRoZXNlIn0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJcblxuU2VsZWN0IHRoZSByZXNwb25zZTpcblxuIn0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJ7XG4gICAgXCJgRGBcIjogXCIifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6Ik5vdCBpbXBvcnRhbnQifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IlwiLFxuICAgIFwiYEZgXCI6IFwiIn0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJJbXBvcnRhbnQifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IlwiXG59In1dfV0sIm1jcF9zZXNzaW9ucyI6e319"
+            }
+          ],
+          "votes": [
+            {
+              "agent": "05ks38oNx3bEwpO4K3WxWL",
+              "swarm_index": 0,
+              "flat_swarm_index": 0,
+              "prompt_id": "6wtF2GvKiXJp2ffKSfIVxN",
+              "responses_ids": [
+                "4wDQIM1j8s6zO7BMSsVpLb",
+                "2KpxKp0ntAQ3KFxia4Gbc2"
+              ],
+              "vote": [
+                1.0,
+                0.0
+              ],
+              "weight": 0.5
+            },
+            {
+              "agent": "1jqrIFnVR3nUi9d7fkmcQD",
+              "swarm_index": 1,
+              "flat_swarm_index": 1,
+              "prompt_id": "6wtF2GvKiXJp2ffKSfIVxN",
+              "responses_ids": [
+                "4wDQIM1j8s6zO7BMSsVpLb",
+                "2KpxKp0ntAQ3KFxia4Gbc2"
+              ],
+              "vote": [
+                0.680445256541849,
+                0.3195547434581511
+              ],
+              "weight": 0.5
+            }
+          ],
+          "scores": [
+            0.840222628270925,
+            0.1597773717290755
+          ],
+          "weights": [
+            0.840222628270925,
+            0.1597773717290755
+          ],
+          "created": 0,
+          "swarm": "5KOhyQka0ZUBJzJ8l2OgKf",
+          "object": "vector.completion",
+          "usage": {
+            "completion_tokens": 0,
+            "prompt_tokens": 0,
+            "total_tokens": 0,
+            "cost": 0.0,
+            "total_cost": 0.0
+          },
+          "error": null
+        }
+      ],
+      "tasks_errors": false,
+      "reasoning": null,
+      "output": {
+        "output": 0.1597773717290755
       },
       "error": null,
       "retry_token": null,
@@ -1001,7 +1657,7 @@
     },
     {
       "index": 3,
-      "task_index": 3,
+      "task_index": 5,
       "task_path": [
         3
       ],
@@ -1009,7 +1665,7 @@
       "tasks": [
         {
           "index": 0,
-          "task_index": 3,
+          "task_index": 5,
           "task_path": [
             3,
             0
@@ -1467,15 +2123,15 @@
                 "4ApJ5lgy8uYGtCZBqHh44m"
               ],
               "vote": [
-                0.7045054850637662,
+                0.704505485063766,
                 0.2954945149362338
               ],
               "weight": 0.5
             }
           ],
           "scores": [
-            0.35225274253188305,
-            0.6477472574681169
+            0.3522527425318831,
+            0.647747257468117
           ],
           "weights": [
             0.3522527425318831,
@@ -1495,7 +2151,7 @@
         },
         {
           "index": 1,
-          "task_index": 4,
+          "task_index": 6,
           "task_path": [
             3,
             1
@@ -1786,19 +2442,19 @@
                 "4ApJ5lgy8uYGtCZBqHh44m"
               ],
               "vote": [
-                0.5428649291138935,
-                0.4571350708861064
+                0.542864929113894,
+                0.457135070886106
               ],
               "weight": 0.5
             }
           ],
           "scores": [
             0.2714324645569468,
-            0.7285675354430532
+            0.728567535443053
           ],
           "weights": [
             0.2714324645569468,
-            0.7285675354430532
+            0.728567535443053
           ],
           "created": 0,
           "swarm": "5KOhyQka0ZUBJzJ8l2OgKf",
@@ -1817,8 +2473,8 @@
       "reasoning": null,
       "output": {
         "output": [
-          0.31184260354441495,
-          0.6881573964555852
+          0.311842603544415,
+          0.688157396455585
         ]
       },
       "error": null,
@@ -1839,33 +2495,15 @@
       }
     }
   ],
-  "tasks_errors": true,
+  "tasks_errors": false,
   "reasoning": null,
   "output": {
     "output": [
-      0.29200170092183014,
-      0.7079982990781698
+      0.3960008504609151,
+      0.603999149539085
     ]
   },
-  "error": {
-    "code": 400,
-    "message": {
-      "kind": "vector",
-      "error": {
-        "kind": "task_output_expression_errors",
-        "errors": [
-          {
-            "task_index": 0,
-            "message": "{\"kind\":\"vector\",\"error\":{\"kind\":\"invalid_vector_output\",\"error\":\"invalid vector output, expected vector of numbers summing to 1 of length 2\"}}"
-          },
-          {
-            "task_index": 2,
-            "message": "{\"kind\":\"vector\",\"error\":{\"kind\":\"invalid_vector_output\",\"error\":\"invalid vector output, expected vector of numbers summing to 1 of length 2\"}}"
-          }
-        ]
-      }
-    }
-  },
+  "error": null,
   "retry_token": null,
   "created": 0,
   "function": {

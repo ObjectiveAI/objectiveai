@@ -65,10 +65,15 @@ impl InventionStep {
     ///
     /// `prompt` is the user-facing prompt text (from messages or continuation).
     pub fn discover(tool_names: &[String], prompt: &str) -> Option<Self> {
+        // Tool names arrive proxy-prefixed with the InventionServer's
+        // server name (`objectiveai-function-invention`), so every literal
+        // below matches against the full prefixed string.
         let has = |name: &str| tool_names.iter().any(|t| t == name);
 
         // Step 1: Essay — WriteEssay present, WriteInputSchema absent
-        if has("WriteEssay") && !has("WriteInputSchema") {
+        if has("objectiveai-function-invention_WriteEssay")
+            && !has("objectiveai-function-invention_WriteInputSchema")
+        {
             return Some(if prompt.contains("Scalar Function") {
                 Self::EssayScalar
             } else {
@@ -77,9 +82,9 @@ impl InventionStep {
         }
 
         // Step 2: InputSchema — WriteInputSchema present
-        if has("WriteInputSchema") {
+        if has("objectiveai-function-invention_WriteInputSchema") {
             return Some(
-                if has("Readfunctions_alpha_vector_expression_VectorFunctionInputSchemaSchema") {
+                if has("objectiveai-function-invention_Readfunctions_alpha_vector_expression_VectorFunctionInputSchemaSchema") {
                     Self::InputSchemaVector
                 } else {
                     Self::InputSchemaScalar
@@ -88,22 +93,24 @@ impl InventionStep {
         }
 
         // Step 3: EssayTasks — WriteEssayTasks present, AppendTask absent
-        if has("WriteEssayTasks") && !has("AppendTask") {
+        if has("objectiveai-function-invention_WriteEssayTasks")
+            && !has("objectiveai-function-invention_AppendTask")
+        {
             // Scalar vs vector requires calling ReadInputSchema (layer 3).
             // Return scalar as default — caller refines via `refine_with_input_schema`.
             return Some(Self::EssayTasksScalar);
         }
 
         // Step 4: Tasks — AppendTask present
-        if has("AppendTask") {
-            return Some(if has("Readagent_completions_message_MessageExpressionSchema") {
+        if has("objectiveai-function-invention_AppendTask") {
+            return Some(if has("objectiveai-function-invention_Readagent_completions_message_MessageExpressionSchema") {
                 // Leaf
                 if tool_names.iter().any(|t| t.contains("alpha_scalar")) {
                     Self::TasksScalarLeaf
                 } else {
                     Self::TasksVectorLeaf
                 }
-            } else if has("Readfunctions_expression_InputValueSchema") {
+            } else if has("objectiveai-function-invention_Readfunctions_expression_InputValueSchema") {
                 // Branch
                 if tool_names.iter().any(|t| t.contains("alpha_scalar_Placeholder")) {
                     Self::TasksScalarBranch
@@ -116,7 +123,7 @@ impl InventionStep {
         }
 
         // Step 5: Description — WriteDescription present
-        if has("WriteDescription") {
+        if has("objectiveai-function-invention_WriteDescription") {
             // Requires layer-3 discovery. Return scalar leaf as default.
             return Some(Self::DescriptionScalarLeaf);
         }

@@ -15,6 +15,8 @@ pub enum Continuation {
     Openrouter(super::openrouter::Continuation),
     #[schemars(title = "ClaudeAgentSdk")]
     ClaudeAgentSdk(super::claude_agent_sdk::Continuation),
+    #[schemars(title = "CodexSdk")]
+    CodexSdk(super::codex_sdk::Continuation),
     #[schemars(title = "Mock")]
     Mock(super::mock::Continuation),
 }
@@ -31,6 +33,12 @@ impl From<super::claude_agent_sdk::Continuation> for Continuation {
     }
 }
 
+impl From<super::codex_sdk::Continuation> for Continuation {
+    fn from(inner: super::codex_sdk::Continuation) -> Self {
+        Self::CodexSdk(inner)
+    }
+}
+
 impl From<super::mock::Continuation> for Continuation {
     fn from(inner: super::mock::Continuation) -> Self {
         Self::Mock(inner)
@@ -43,6 +51,7 @@ impl Continuation {
         match self {
             Self::Openrouter(c) => &c.mcp_sessions,
             Self::ClaudeAgentSdk(c) => &c.mcp_sessions,
+            Self::CodexSdk(c) => &c.mcp_sessions,
             Self::Mock(c) => &c.mcp_sessions,
         }
     }
@@ -52,6 +61,7 @@ impl Continuation {
         match self {
             Self::Openrouter(_) => super::Upstream::Openrouter,
             Self::ClaudeAgentSdk(_) => super::Upstream::ClaudeAgentSdk,
+            Self::CodexSdk(_) => super::Upstream::CodexSdk,
             Self::Mock(_) => super::Upstream::Mock,
         }
     }

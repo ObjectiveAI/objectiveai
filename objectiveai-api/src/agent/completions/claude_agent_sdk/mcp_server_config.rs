@@ -47,23 +47,14 @@ pub struct McpHttpServerConfig {
 
 impl From<&objectiveai::mcp::Connection> for McpHttpServerConfig {
     fn from(conn: &objectiveai::mcp::Connection) -> Self {
-        let mut headers = indexmap::IndexMap::new();
-
+        // The connection's `headers` field is the same merged map the
+        // proxy stamps on every request — User-Agent / X-Title /
+        // Referer / HTTP-Referer / Authorization / any custom X-*.
+        // Add `Mcp-Session-Id` on top so the SDK reuses the same
+        // session.
+        let mut headers = conn.headers.clone();
         if !conn.session_id.is_empty() {
             headers.insert("Mcp-Session-Id".to_string(), conn.session_id.clone());
-        }
-        if let Some(auth) = &conn.authorization {
-            headers.insert("Authorization".to_string(), auth.clone());
-        }
-        if !conn.user_agent.is_empty() {
-            headers.insert("User-Agent".to_string(), conn.user_agent.clone());
-        }
-        if !conn.x_title.is_empty() {
-            headers.insert("X-Title".to_string(), conn.x_title.clone());
-        }
-        if !conn.http_referer.is_empty() {
-            headers.insert("Referer".to_string(), conn.http_referer.clone());
-            headers.insert("HTTP-Referer".to_string(), conn.http_referer.clone());
         }
 
         McpHttpServerConfig {

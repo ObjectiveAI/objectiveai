@@ -1,0 +1,86 @@
+{
+  "title": "agent.codex_sdk.Agent",
+  "description": "A validated Codex SDK Agent with its computed content-addressed ID.",
+  "type": "object",
+  "properties": {
+    "effort": {
+      "description": "Reasoning effort — maps to Codex's `model_reasoning_effort`.",
+      "anyOf": [
+        {
+          "$ref": "agent.codex_sdk.Effort"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "id": {
+      "description": "The deterministic content-addressed ID (22-character base62 string).",
+      "type": "string"
+    },
+    "mcp_servers": {
+      "description": "MCP servers the agent can connect to.",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "agent.McpServer"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "model": {
+      "description": "The upstream language model identifier (e.g. `gpt-5`).",
+      "type": "string"
+    },
+    "output_mode": {
+      "description": "The output mode for vector completions. Ignored for agent completions.",
+      "$ref": "agent.codex_sdk.OutputMode"
+    },
+    "prefix_content": {
+      "description": "Rich content prepended to the user's prompt.",
+      "anyOf": [
+        {
+          "$ref": "agent.completions.message.RichContent"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "suffix_content": {
+      "description": "Rich content appended after the user's prompt.",
+      "anyOf": [
+        {
+          "$ref": "agent.completions.message.RichContent"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "upstream": {
+      "description": "The upstream provider marker.",
+      "$ref": "agent.codex_sdk.Upstream"
+    },
+    "web_search_enabled": {
+      "description": "Whether this agent may use the codex binary's web-search tool.",
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

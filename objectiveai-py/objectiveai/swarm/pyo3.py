@@ -1,6 +1,6 @@
 """PyO3 bindings for swarm operations."""
 
-import objectiveai_pyo3
+import objectiveai._pyo3 as objectiveai_pyo3
 
 
 def pyo3_validate_swarm(swarm, remote_agents=None):

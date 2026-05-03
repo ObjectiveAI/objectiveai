@@ -1,6 +1,6 @@
 """HTTP integration tests for vector completions."""
 
-import objectiveai_pyo3
+import objectiveai._pyo3 as objectiveai_pyo3
 
 from objectiveai.vector.completions.http import create_vector_completion
 from objectiveai.vector.completions.response.streaming import VectorCompletionChunk

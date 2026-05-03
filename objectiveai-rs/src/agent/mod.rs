@@ -28,6 +28,7 @@
 
 mod agent;
 pub mod claude_agent_sdk;
+pub mod codex_sdk;
 pub mod completions;
 mod continuation;
 mod mcp;

@@ -1,7 +1,7 @@
 # Normalize text files to LF on every platform so that Git for Windows
 # does not silently convert source files to CRLF on checkout. Cross-runner
 # build fingerprints (objectiveai-mcp-filesystem, objectiveai-viewer,
-# objectiveai-claude-agent-sdk-runner-py, objectiveai-cli's install.sh)
+# objectiveai-claude-agent-sdk-runner, objectiveai-cli's install.sh)
 # hash file contents — CRLF↔LF differences would invalidate fingerprints
 # stamped on Linux when re-validated on a Windows runner.
 * text=auto eol=lf
@@ -9,8 +9,8 @@
 # Embedded build artifacts must remain byte-identical to what the build
 # scripts wrote — never normalize, never autocrlf, treat as binary.
 objectiveai-mcp-filesystem/embed/**                                 -text
-objectiveai-claude-agent-sdk-runner-py/embed/**                     -text
+objectiveai-claude-agent-sdk-runner/embed/**                        -text
 objectiveai-claude-agent-sdk-runner-js/embed/**                     -text
-objectiveai-codex-sdk-runner-py/embed/**                            -text
+objectiveai-codex-sdk-runner/embed/**                               -text
 objectiveai-codex-sdk-runner-js/embed/**                            -text
 objectiveai-viewer/embed/**                                         -text

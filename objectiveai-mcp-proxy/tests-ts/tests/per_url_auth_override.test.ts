@@ -21,13 +21,13 @@ test('per-URL X-MCP-Authorization map lets each upstream see its own bearer', as
       requireAuth: 'Bearer B',
     },
   ]);
-  const authMap = {
-    [rig.upstreams[0]!.url]: 'Bearer A',
-    [rig.upstreams[1]!.url]: 'Bearer B',
+  const headersMap = {
+    [rig.upstreams[0]!.url]: { 'Authorization': 'Bearer A' },
+    [rig.upstreams[1]!.url]: { 'Authorization': 'Bearer B' },
   };
   const client = await rig.connectClient({
     'X-MCP-Servers': rig.xMcpServers(),
-    'X-MCP-Authorization': JSON.stringify(authMap),
+    'X-MCP-Headers': JSON.stringify(headersMap),
   });
   const names = new Set((await client.listTools()).tools.map(t => t.name));
   expect(names).toEqual(new Set(['alpha_aTool', 'beta_bTool']));

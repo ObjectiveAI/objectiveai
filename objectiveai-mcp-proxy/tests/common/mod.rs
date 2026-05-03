@@ -278,14 +278,14 @@ async fn wait_for_listening(addr: SocketAddr) {
 }
 
 /// Build a [`ClientInfo`](rmcp::model::ClientInfo) whose `protocol_version`
-/// is `"2025-11-25"` — the version the proxy is pinned to. rmcp 0.16's
+/// is `"2025-06-18"` — the version the proxy is pinned to. rmcp 0.16's
 /// `ProtocolVersion::LATEST` is `"2025-03-26"`, which the proxy rejects.
 /// We round-trip through serde because `ProtocolVersion`'s inner field is
 /// private — the deserializer falls through to `Cow::Owned(s)` for any
 /// unknown string.
 fn client_info_for_proxy() -> rmcp::model::ClientInfo {
     let value = serde_json::json!({
-        "protocolVersion": "2025-11-25",
+        "protocolVersion": "2025-06-18",
         "capabilities": {},
         "clientInfo": {
             "name": "objectiveai-mcp-proxy-test",

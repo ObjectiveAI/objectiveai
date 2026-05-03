@@ -54,7 +54,7 @@ fn filter_agents(
 
 // ---------------------------------------------------------------------------
 
-pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG> {
+pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG> {
     /// MCP Client
     pub mcp_client: Arc<objectiveai::mcp::Client>,
     /// Lazy in-process mcp-proxy used for every per-agent MCP connection.
@@ -69,6 +69,8 @@ pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM,
     pub openrouter: Arc<OPENROUTER>,
     /// Upstream client for Claude Agent SDK agents.
     pub claude_agent_sdk: Arc<CLAUDEAGENTSDK>,
+    /// Upstream client for Codex SDK agents.
+    pub codex_sdk: Arc<CODEXSDK>,
     /// Upstream client for Mock agents.
     pub mock: Arc<MOCK>,
     /// Viewer client for streaming telemetry.
@@ -93,7 +95,7 @@ pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM,
     _marker: std::marker::PhantomData<CTXEXT>,
 }
 
-impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG> Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG> {
+impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG> Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG> {
     pub fn new(
         mcp_client: Arc<objectiveai::mcp::Client>,
         proxy_spawner: Arc<super::ProxySpawner>,
@@ -102,6 +104,7 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG> Client
         usage_handler: Arc<CUSG>,
         openrouter: Arc<OPENROUTER>,
         claude_agent_sdk: Arc<CLAUDEAGENTSDK>,
+        codex_sdk: Arc<CODEXSDK>,
         mock: Arc<MOCK>,
         viewer_client: Arc<crate::viewer::Client<CTXEXT>>,
         backoff_current_interval: Duration,
@@ -121,6 +124,7 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG> Client
             usage_handler,
             openrouter,
             claude_agent_sdk,
+            codex_sdk,
             mock,
             viewer_client,
             backoff_current_interval,
@@ -136,8 +140,8 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG> Client
     }
 }
 
-impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG> Clone
-    for Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG>
+impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG> Clone
+    for Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG>
 {
     fn clone(&self) -> Self {
         Self {
@@ -148,6 +152,7 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG> Clone
             usage_handler: self.usage_handler.clone(),
             openrouter: self.openrouter.clone(),
             claude_agent_sdk: self.claude_agent_sdk.clone(),
+            codex_sdk: self.codex_sdk.clone(),
             mock: self.mock.clone(),
             viewer_client: self.viewer_client.clone(),
             backoff_current_interval: self.backoff_current_interval,
@@ -163,11 +168,12 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG> Clone
     }
 }
 
-impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG> Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG>
+impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG> Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG>
 where
     CTXEXT: ctx::ContextExt + Send + Sync + 'static,
     OPENROUTER: super::UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation> + Send + Sync + 'static,
     CLAUDEAGENTSDK: super::UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation> + Send + Sync + 'static,
+    CODEXSDK: super::UpstreamClient<objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation> + Send + Sync + 'static,
     MOCK: super::UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation> + Send + Sync + 'static,
     RETRG: crate::retrieval::retrieve::Client<CTXEXT>,
     RETRF: crate::retrieval::retrieve::Client<CTXEXT>,
@@ -185,11 +191,13 @@ where
             super::Continuation<
                 OPENROUTER::State,
                 CLAUDEAGENTSDK::State,
+                CODEXSDK::State,
                 MOCK::State,
             >,
         >,
-        invention_tools: Option<Vec<objectiveai::functions::inventions::InventionTool>>,
-        invention_done: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
+        disable_tools: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
+        extra_mcp_servers: Vec<super::ExtraMcpServer>,
+        extra_mcp_headers: indexmap::IndexMap<String, String>,
         transform_messages: Option<Arc<TransformMessages>>,
         viewer: bool,
         invention_type: Option<objectiveai::functions::inventions::prompts::StepPromptType>,
@@ -204,7 +212,7 @@ where
             objectiveai::agent::completions::response::streaming::AgentCompletionChunk,
         > = None;
         let mut stream = self
-            .create_streaming_handle_usage(ctx, params, continuation, invention_tools, invention_done, transform_messages, viewer, invention_type, invention_step, invention_tasks_min, invention_input_schema)
+            .create_streaming_handle_usage(ctx, params, continuation, disable_tools, extra_mcp_servers, extra_mcp_headers, transform_messages, viewer, invention_type, invention_step, invention_tasks_min, invention_input_schema)
             .await?;
         while let Some(item) = stream.next().await {
             match item {
@@ -227,11 +235,13 @@ where
             super::Continuation<
                 OPENROUTER::State,
                 CLAUDEAGENTSDK::State,
+                CODEXSDK::State,
                 MOCK::State,
             >,
         >,
-        invention_tools: Option<Vec<objectiveai::functions::inventions::InventionTool>>,
-        invention_done: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
+        disable_tools: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
+        extra_mcp_servers: Vec<super::ExtraMcpServer>,
+        extra_mcp_headers: indexmap::IndexMap<String, String>,
         transform_messages: Option<Arc<TransformMessages>>,
         viewer: bool,
         invention_type: Option<objectiveai::functions::inventions::prompts::StepPromptType>,
@@ -244,6 +254,7 @@ where
                 super::Continuation<
                     OPENROUTER::State,
                     CLAUDEAGENTSDK::State,
+                    CODEXSDK::State,
                     MOCK::State,
                 >,
             >,
@@ -255,7 +266,7 @@ where
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
         let _ = tokio::spawn(async move {
             let stream = match self
-                .create_streaming(ctx.clone(), params.clone(), continuation, invention_tools, invention_done, transform_messages, viewer, invention_type, invention_step, invention_tasks_min, invention_input_schema)
+                .create_streaming(ctx.clone(), params.clone(), continuation, disable_tools, extra_mcp_servers, extra_mcp_headers, transform_messages, viewer, invention_type, invention_step, invention_tasks_min, invention_input_schema)
                 .await
             {
                 Ok(stream) => stream,
@@ -312,11 +323,23 @@ where
             super::Continuation<
                 OPENROUTER::State,
                 CLAUDEAGENTSDK::State,
+                CODEXSDK::State,
                 MOCK::State,
             >,
         >,
-        invention_tools: Option<Vec<objectiveai::functions::inventions::InventionTool>>,
-        invention_done: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
+        disable_tools: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
+        // URLs to fold into every per-agent `X-MCP-Servers` header
+        // *without* mutating the agent's own `mcp_servers` config — used
+        // by the function-inventions orchestrator to plumb the shared
+        // InventionServer URL through the proxy without affecting the
+        // agent's content-derived ID.
+        extra_mcp_servers: Vec<super::ExtraMcpServer>,
+        // Headers to merge into the per-agent `X-MCP-Headers` map. The
+        // proxy forwards these verbatim to every upstream it fans out
+        // to. Used by the function-inventions orchestrator to send its
+        // tenant id (`X-Invention-Session-Id`) to the shared
+        // InventionServer.
+        extra_mcp_headers: indexmap::IndexMap<String, String>,
         transform_messages: Option<Arc<TransformMessages>>,
         viewer: bool,
         invention_type: Option<objectiveai::functions::inventions::prompts::StepPromptType>,
@@ -329,6 +352,7 @@ where
                 super::Continuation<
                     OPENROUTER::State,
                     CLAUDEAGENTSDK::State,
+                    CODEXSDK::State,
                     MOCK::State,
                 >,
             >,
@@ -389,19 +413,23 @@ where
         let (
             mut cont_items_or,
             mut cont_items_cas,
+            mut cont_items_cdx,
             mut cont_items_mock,
             internal_conn,
         ) = match continuation {
             Some(super::Continuation::Openrouter { items, mcp_connection }) => {
-                (items, vec![], vec![], mcp_connection)
+                (items, vec![], vec![], vec![], mcp_connection)
             }
             Some(super::Continuation::ClaudeAgentSdk { items, mcp_connection }) => {
-                (vec![], items, vec![], mcp_connection)
+                (vec![], items, vec![], vec![], mcp_connection)
+            }
+            Some(super::Continuation::CodexSdk { items, mcp_connection }) => {
+                (vec![], vec![], items, vec![], mcp_connection)
             }
             Some(super::Continuation::Mock { items, mcp_connection }) => {
-                (vec![], vec![], items, mcp_connection)
+                (vec![], vec![], vec![], items, mcp_connection)
             }
-            None => (vec![], vec![], vec![], None),
+            None => (vec![], vec![], vec![], vec![], None),
         };
 
         // 3. Always resolve agents from params.agent.
@@ -429,19 +457,7 @@ where
             self.mcp_authorization.as_deref(),
         );
 
-        // 5. Spawn the invention server (if applicable) so its URL can
-        //    be added to every per-agent proxy `X-MCP-Servers` list.
-        //    Held on the stack for the rest of `create_streaming`'s
-        //    lifetime; its `Drop` aborts the in-process server task.
-        let invention_server = match invention_tools.as_ref() {
-            Some(tools) if !tools.is_empty() => {
-                Some(super::InventionServer::new(tools.clone()).await)
-            }
-            _ => None,
-        };
-        let invention_url = invention_server.as_ref().map(|s| s.url());
-
-        // 6. Boot the in-process proxy (idempotent — first call wins,
+        // 5. Boot the in-process proxy (idempotent — first call wins,
         //    subsequent calls reuse the same handle) and kick off one
         //    connect per agent in parallel. Awaiting each `JoinHandle`
         //    inside the per-agent branch later means the round-trips
@@ -466,17 +482,20 @@ where
         > = filtered_agents
             .iter()
             .map(|agent| {
-                // Build the per-agent X-MCP-* header set.
+                // Build the per-agent X-MCP-* header set: the agent's
+                // declared `mcp_servers` plus any caller-supplied
+                // `extra_mcp_servers` (e.g. the function-inventions
+                // orchestrator's per-step InventionServer URL — kept
+                // out of the agent's own config so its content-hashed
+                // ID stays stable across runs).
                 let mut urls: Vec<String> = agent
                     .base()
                     .mcp_servers()
                     .map(|s| s.iter().map(|s| s.url.clone()).collect())
                     .unwrap_or_default();
-                if let Some(u) = &invention_url {
-                    urls.push(u.clone());
-                }
+                urls.extend(extra_mcp_servers.iter().map(|s| s.url.clone()));
 
-                // No MCP servers and no invention server → no proxy
+                // No MCP servers → no proxy
                 // connection needed for this agent. Skipping the spawn
                 // also keeps the per-agent proxy session out of the
                 // response continuation's `mcp_sessions` map for
@@ -485,10 +504,23 @@ where
                     return None;
                 }
 
-                let mut auth_map: indexmap::IndexMap<String, String> =
-                    indexmap::IndexMap::new();
+                // Build the per-URL header map sent as `X-MCP-Headers`
+                // to the proxy. For each agent-declared server URL,
+                // start from the orchestrator-supplied `extra_mcp_headers`
+                // (e.g. the function-inventions tenant id) and layer on
+                // any configured `Authorization` for that URL. For each
+                // entry in `extra_mcp_servers`, start from
+                // `extra_mcp_headers` and layer on its own per-server
+                // headers (which win on conflict). The proxy stamps
+                // each per-URL header set on every outbound request
+                // to that upstream.
+                let mut per_url_headers: indexmap::IndexMap<
+                    String,
+                    indexmap::IndexMap<String, String>,
+                > = indexmap::IndexMap::new();
                 if let Some(servers) = agent.base().mcp_servers() {
                     for s in servers {
+                        let mut h = extra_mcp_headers.clone();
                         if let Some(v) = request_mcp_auth_owned
                             .as_deref()
                             .and_then(|m| m.get(&s.url))
@@ -498,23 +530,26 @@ where
                                     .and_then(|m| m.get(&s.url))
                             })
                         {
-                            auth_map.insert(s.url.clone(), v.clone());
+                            h.insert("Authorization".to_string(), v.clone());
+                        }
+                        per_url_headers.insert(s.url.clone(), h);
+                    }
+                }
+                for s in &extra_mcp_servers {
+                    let entry = per_url_headers
+                        .entry(s.url.clone())
+                        .or_insert_with(|| extra_mcp_headers.clone());
+                    if let Some(server_headers) = &s.headers {
+                        for (k, v) in server_headers {
+                            entry.insert(k.clone(), v.clone());
                         }
                     }
                 }
 
-                // Forward the same innate identity headers
-                // (User-Agent / X-Title / Referer / HTTP-Referer) the
-                // mcp client stamps locally — the proxy re-emits them
-                // on its outbound upstream calls so the upstreams see
-                // the api server, not the proxy, as the originator.
-                let mcp_inner_headers = self.mcp_client.headers();
-
-                let extra_headers: indexmap::IndexMap<String, String> =
+                let proxy_request_headers: indexmap::IndexMap<String, String> =
                     indexmap::indexmap! {
                         "X-MCP-Servers".to_string() => serde_json::to_string(&urls).unwrap(),
-                        "X-MCP-Authorization".to_string() => serde_json::to_string(&auth_map).unwrap(),
-                        "X-MCP-Headers".to_string() => serde_json::to_string(&mcp_inner_headers).unwrap(),
+                        "X-MCP-Headers".to_string() => serde_json::to_string(&per_url_headers).unwrap(),
                     };
 
                 let mcp_client = self.mcp_client.clone();
@@ -526,7 +561,7 @@ where
                     .map(|c| c.session_id.clone());
                 Some(tokio::spawn(async move {
                     mcp_client
-                        .connect(proxy_url, None, session_id, extra_headers)
+                        .connect(proxy_url, session_id, Some(proxy_request_headers))
                         .await
                 }))
             })
@@ -590,7 +625,7 @@ where
                 // session needed); only skip when the agent declared
                 // servers and the connect failed.
                 let agent_needs_mcp = attempt.agent.base().mcp_servers().is_some()
-                    || invention_url.is_some();
+                    || !extra_mcp_servers.is_empty();
                 let mcp_connection: Option<objectiveai::mcp::Connection> =
                     attempt_connections[idx].clone();
                 if agent_needs_mcp && mcp_connection.is_none() {
@@ -627,7 +662,7 @@ where
                                 },
                                 |e| super::Error::UpstreamOpenrouter(Box::new(e)),
                                 objectiveai::agent::InlineAgentRef::Openrouter(&or_agent.base),
-                                invention_done.clone(),
+                                disable_tools.clone(),
                                 agent_transform,
                                 make_is_cancelled(),
                                 invention_type,
@@ -663,7 +698,43 @@ where
                                 },
                                 |e| super::Error::UpstreamClaudeAgentSdk(Box::new(e)),
                                 objectiveai::agent::InlineAgentRef::ClaudeAgentSdk(&cas_agent.base),
-                                invention_done.clone(),
+                                disable_tools.clone(),
+                                agent_transform,
+                                make_is_cancelled(),
+                                invention_type,
+                                invention_step,
+                                invention_tasks_min,
+                                invention_input_schema.clone(),
+                            ).await {
+                                Ok(stream) => {
+                                    if !viewer { return Ok(stream); }
+                                    let vc = self.viewer_client.clone();
+                                    let vctx = ctx.clone();
+                                    return Ok(Box::pin(futures::StreamExt::inspect(stream, move |item| {
+                                        if let super::StreamItem::Chunk(chunk) = item {
+                                            vc.send_agent_completion_continue(vctx.clone(), chunk.clone());
+                                        }
+                                    })));
+                                }
+                                Err(e) => e,
+                            }
+                        }
+                        objectiveai::agent::InlineAgent::CodexSdk(cdx_agent) => {
+                            let c = mcp_connection.clone();
+                            let rc = match &request_continuation {
+                                Some(objectiveai::agent::Continuation::CodexSdk(c)) => Some(c),
+                                _ => None,
+                            };
+                            match self.run_agent_loop(
+                                self.codex_sdk.clone(), cdx_agent, rc, &params, mcp_connection.clone(),
+                                &mut cont_items_cdx, &id, created,
+                                *byok_attempt, ctx.cost_multiplier,
+                                move |items| super::Continuation::CodexSdk {
+                                    items, mcp_connection: c,
+                                },
+                                |e| super::Error::UpstreamCodexSdk(Box::new(e)),
+                                objectiveai::agent::InlineAgentRef::CodexSdk(&cdx_agent.base),
+                                disable_tools.clone(),
                                 agent_transform,
                                 make_is_cancelled(),
                                 invention_type,
@@ -699,7 +770,7 @@ where
                                 },
                                 |e| super::Error::UpstreamMock(Box::new(e)),
                                 objectiveai::agent::InlineAgentRef::Mock(&mock_agent.base),
-                                invention_done.clone(),
+                                disable_tools.clone(),
                                 agent_transform,
                                 make_is_cancelled(),
                                 invention_type,
@@ -768,7 +839,7 @@ where
         wrap_continuation: impl FnOnce(Vec<super::ContinuationItem<U::State>>) -> CONT + Send + 'static,
         map_upstream_err: impl Fn(U::Error) -> super::Error + Send + 'static,
         agent_base: objectiveai::agent::InlineAgentRef<'_>,
-        invention_done: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
+        disable_tools: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
         transform_messages: Option<&(dyn Fn(Vec<objectiveai::agent::completions::message::Message>) -> Vec<objectiveai::agent::completions::message::Message> + Send + Sync)>,
         is_cancelled: impl Fn() -> bool + Send + Sync + 'static,
         invention_type: Option<objectiveai::functions::inventions::prompts::StepPromptType>,
@@ -930,42 +1001,48 @@ where
                     continuation_items.push(super::ContinuationItem::State(state));
                 }
 
-                // Fan all tool calls in this turn out to the proxy in
-                // parallel; the proxy itself multiplexes onto its
-                // upstreams. Sequential `.await` per call would stack
-                // RPC latencies. `join_all` keeps the order so we yield
-                // tool messages in the same order the assistant called
-                // them — the proxy's per-call latency dominates the
-                // turn rather than the sum.
+                // TODO: return to concurrent dispatch (`join_all`) once
+                // we have a way to keep the per-call response order
+                // deterministic. The blocker is invention tools that
+                // mutate shared state and return order-sensitive values
+                // (`AppendTask` returns the new tasks length, etc.):
+                // when those run in parallel, the tokio scheduler
+                // decides which acquires the state mutex first,
+                // shuffling each call's return value and propagating
+                // through to the next step's prompt-id-derived mock
+                // seed. Possible avenues — server-side ordering by
+                // call_id, idempotent-only tools, agent-side
+                // parallel-then-canonicalize — all need design.
+                //
+                // Dispatch tool calls in this turn SEQUENTIALLY in the
+                // meantime. We used to `join_all` for latency, but
+                // serialising fixes the race by construction. The
+                // proxy's per-call latency dominates anyway (the
+                // InventionServer's session worker is a single-event
+                // loop, so it would have serialised them server-side
+                // regardless).
                 let conn = mcp_connection
                     .as_ref()
                     .expect("callable extraction returns empty without a connection")
                     .clone();
-                let dispatch_futs = callable
-                    .iter()
-                    .map(|(call_id, name, args)| {
-                        let conn = conn.clone();
-                        let call_id = call_id.clone();
-                        let name = name.clone();
-                        let args_json = args.clone();
-                        async move {
-                            let arguments: Option<
-                                indexmap::IndexMap<String, serde_json::Value>,
-                            > = serde_json::from_str(&args_json).ok();
-                            conn.call_tool_as_message(
-                                &objectiveai::mcp::tool::CallToolRequestParams {
-                                    name,
-                                    arguments,
-                                    _meta: None,
-                                    task: None,
-                                },
-                                call_id,
-                            )
-                            .await
-                        }
-                    })
-                    .collect::<Vec<_>>();
-                let results = futures::future::join_all(dispatch_futs).await;
+                let mut results = Vec::with_capacity(callable.len());
+                for (call_id, name, args) in &callable {
+                    let arguments: Option<
+                        indexmap::IndexMap<String, serde_json::Value>,
+                    > = serde_json::from_str(args).ok();
+                    let res = conn
+                        .call_tool_as_message(
+                            &objectiveai::mcp::tool::CallToolRequestParams {
+                                name: name.clone(),
+                                arguments,
+                                _meta: None,
+                                task: None,
+                            },
+                            call_id.clone(),
+                        )
+                        .await;
+                    results.push(res);
+                }
 
                 let mut any_invention_tool_called = false;
                 for result in results {
@@ -987,14 +1064,15 @@ where
                     }
                 }
 
-                // `invention_done` is the sentinel the invention client
-                // hands us to signal "the model produced enough invention
-                // tasks; let it close out with a free-form response next
-                // turn". We can't tell from here whether any of the tools
-                // we just dispatched were invention tools (the proxy
-                // hides that), so we let the sentinel decide on its own.
+                // `disable_tools` is the sentinel the orchestrator hands
+                // us to signal "the model has produced what we needed;
+                // run the next continuation with tools off so it closes
+                // out with a free-form response". We can't tell from
+                // here whether any of the tools we just dispatched were
+                // invention tools (the proxy hides that), so we let the
+                // sentinel decide on its own.
                 let _ = &any_invention_tool_called;
-                let tools_enabled = !invention_done.as_ref().is_some_and(|f| f());
+                let tools_enabled = !disable_tools.as_ref().is_some_and(|f| f());
 
                 if had_error {
                     break;

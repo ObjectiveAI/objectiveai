@@ -39,7 +39,7 @@ func TestFunctionsInventionsRecursiveHTTP(t *testing.T) {
 					AlphaScalarLeaf: &FunctionsInventionsStateParamsStateAlphaScalarLeaf{
 						FunctionsInventionsStateAlphaScalarLeafState: FunctionsInventionsStateAlphaScalarLeafState{
 							Depth: 0, MinBranchWidth: 1, MaxBranchWidth: 1, MinLeafWidth: 2, MaxLeafWidth: 4,
-							Name: "inv-good-sl", Spec: "Test function spec for mock recursive invention.",
+							Name: "inv-good-sl", Spec: "Test function spec for mock invention.",
 							InputSchema: sentimentSchema,
 							EssayTasks:  ptr("Good tasks incoming."),
 							Tasks: &[]FunctionsAlphaScalarLeafTaskExpression{
@@ -76,7 +76,7 @@ func TestFunctionsInventionsRecursiveHTTP(t *testing.T) {
 					AlphaVectorLeaf: &FunctionsInventionsStateParamsStateAlphaVectorLeaf{
 						FunctionsInventionsStateAlphaVectorLeafState: FunctionsInventionsStateAlphaVectorLeafState{
 							Depth: 0, MinBranchWidth: 1, MaxBranchWidth: 1, MinLeafWidth: 2, MaxLeafWidth: 4,
-							Name: "inv-good-vl", Spec: "Test function spec for mock recursive invention.",
+							Name: "inv-good-vl", Spec: "Test function spec for mock invention.",
 							Essay: ptr("Ranking things."),
 							InputSchema: &FunctionsAlphaVectorExpressionVectorFunctionInputSchema{
 								Items: FunctionsExpressionInputSchema{String: &FunctionsExpressionStringInputSchema{Type: FunctionsExpressionStringInputSchemaType{String: "string"}, Enum: &[]string{"apple", "banana"}}},
@@ -114,7 +114,7 @@ func TestFunctionsInventionsRecursiveHTTP(t *testing.T) {
 					AlphaScalarLeaf: &FunctionsInventionsStateParamsStateAlphaScalarLeaf{
 						FunctionsInventionsStateAlphaScalarLeafState: FunctionsInventionsStateAlphaScalarLeafState{
 							Depth: 0, MinBranchWidth: 1, MaxBranchWidth: 1, MinLeafWidth: 2, MaxLeafWidth: 4,
-							Name: "inv-schema-only", Spec: "Test function spec for mock recursive invention.",
+							Name: "inv-schema-only", Spec: "Test function spec for mock invention.",
 							Essay:       ptr("A great essay about things."),
 							InputSchema: sentimentSchema,
 						},

@@ -175,7 +175,7 @@
       }
     },
     {
-      "index": 1,
+      "index": 0,
       "task_index": 1,
       "task_path": [],
       "swiss_pool_index": 1,
@@ -348,7 +348,7 @@
       }
     },
     {
-      "index": 2,
+      "index": 0,
       "task_index": 2,
       "task_path": [],
       "swiss_pool_index": 0,
@@ -521,7 +521,7 @@
       }
     },
     {
-      "index": 3,
+      "index": 0,
       "task_index": 3,
       "task_path": [],
       "swiss_pool_index": 1,
@@ -694,7 +694,7 @@
       }
     },
     {
-      "index": 4,
+      "index": 0,
       "task_index": 4,
       "task_path": [],
       "swiss_pool_index": 0,
@@ -867,7 +867,7 @@
       }
     },
     {
-      "index": 5,
+      "index": 0,
       "task_index": 5,
       "task_path": [],
       "swiss_pool_index": 1,

@@ -27,6 +27,14 @@
       ]
     },
     {
+      "title": "CodexSdk",
+      "description": "Codex SDK Upstream.",
+      "type": "string",
+      "enum": [
+        "codex_sdk"
+      ]
+    },
+    {
       "title": "Mock",
       "description": "Mock Upstream.",
       "type": "string",

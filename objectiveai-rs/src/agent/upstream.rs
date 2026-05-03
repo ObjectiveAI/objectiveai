@@ -20,6 +20,9 @@ pub enum Upstream {
     /// Claude Agent SDK Upstream.
     #[schemars(title = "ClaudeAgentSdk")]
     ClaudeAgentSdk,
+    /// Codex SDK Upstream.
+    #[schemars(title = "CodexSdk")]
+    CodexSdk,
     /// Mock Upstream.
     #[schemars(title = "Mock")]
     Mock,

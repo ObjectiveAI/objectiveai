@@ -11,7 +11,7 @@ class CallToolResult(BaseModel):
     """The server's response to a `tools/call` request."""
     model_config = ConfigDict(title='mcp.tool.CallToolResult')
 
-    _meta: Optional[dict[str, JsonValue]] = Field(None, description='Extension metadata.', json_schema_extra={'omitempty': True})
+    meta: Optional[dict[str, JsonValue]] = Field(None, alias='_meta', description='Extension metadata.', json_schema_extra={'omitempty': True})
     content: list[ContentBlock] = Field([], description='Content blocks representing the result of the tool call.')
     is_error: Optional[bool] = Field(None, alias='isError', description='Whether the tool call ended in an error.', json_schema_extra={'omitempty': True})
     structured_content: Optional[dict[str, JsonValue]] = Field(None, alias='structuredContent', description="Structured tool output matching the tool's `outputSchema`.", json_schema_extra={'omitempty': True})

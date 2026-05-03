@@ -55,7 +55,7 @@ async fn upstream_tools_change_reaches_downstream_client() {
 
     let (tools_changed_tx, mut tools_changed_rx) = mpsc::unbounded_channel();
     let info: ClientInfo = serde_json::from_value(serde_json::json!({
-        "protocolVersion": "2025-11-25",
+        "protocolVersion": "2025-06-18",
         "capabilities": {},
         "clientInfo": { "name": "test", "version": "0" },
     }))

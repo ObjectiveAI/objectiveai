@@ -265,7 +265,7 @@ def _convert_type_inner(tp: Any, root_title: str) -> dict:
         if args and len(args) == 2:
             val_type = args[1]
             if val_type is object or val_type is JsonValue:
-                return {"type": "object"}
+                return {"type": "object", "additionalProperties": True}
             val_schema = convert_type(val_type, root_title)
             return {"type": "object", "additionalProperties": val_schema}
         return {"type": "object"}
@@ -491,10 +491,12 @@ def _convert_base_model(cls: type, root_title: str) -> dict:
     if properties:
         result["properties"] = properties
 
-    # additionalProperties: false
+    # additionalProperties: extra='forbid' → false, extra='allow' → true
     extra_setting = _get_extra_setting(cls)
     if extra_setting == "forbid":
         result["additionalProperties"] = False
+    elif extra_setting == "allow":
+        result["additionalProperties"] = True
 
     return result
 

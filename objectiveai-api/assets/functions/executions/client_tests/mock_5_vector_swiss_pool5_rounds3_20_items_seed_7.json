@@ -404,7 +404,7 @@
       }
     },
     {
-      "index": 1,
+      "index": 0,
       "task_index": 1,
       "task_path": [],
       "swiss_pool_index": 1,
@@ -805,7 +805,7 @@
       }
     },
     {
-      "index": 2,
+      "index": 0,
       "task_index": 2,
       "task_path": [],
       "swiss_pool_index": 2,
@@ -1206,7 +1206,7 @@
       }
     },
     {
-      "index": 3,
+      "index": 0,
       "task_index": 3,
       "task_path": [],
       "swiss_pool_index": 3,
@@ -1608,7 +1608,7 @@
       }
     },
     {
-      "index": 4,
+      "index": 0,
       "task_index": 4,
       "task_path": [],
       "swiss_pool_index": 0,
@@ -2010,7 +2010,7 @@
       }
     },
     {
-      "index": 5,
+      "index": 0,
       "task_index": 5,
       "task_path": [],
       "swiss_pool_index": 1,
@@ -2412,7 +2412,7 @@
       }
     },
     {
-      "index": 6,
+      "index": 0,
       "task_index": 6,
       "task_path": [],
       "swiss_pool_index": 2,
@@ -2814,7 +2814,7 @@
       }
     },
     {
-      "index": 7,
+      "index": 0,
       "task_index": 7,
       "task_path": [],
       "swiss_pool_index": 3,
@@ -3215,7 +3215,7 @@
       }
     },
     {
-      "index": 8,
+      "index": 0,
       "task_index": 8,
       "task_path": [],
       "swiss_pool_index": 0,
@@ -3615,7 +3615,7 @@
       }
     },
     {
-      "index": 9,
+      "index": 0,
       "task_index": 9,
       "task_path": [],
       "swiss_pool_index": 1,
@@ -4017,7 +4017,7 @@
       }
     },
     {
-      "index": 10,
+      "index": 0,
       "task_index": 10,
       "task_path": [],
       "swiss_pool_index": 2,
@@ -4418,7 +4418,7 @@
       }
     },
     {
-      "index": 11,
+      "index": 0,
       "task_index": 11,
       "task_path": [],
       "swiss_pool_index": 3,
@@ -4824,22 +4824,22 @@
   "output": {
     "output": [
       0.04166666666666667,
-      0.08333333333333334,
+      0.0833333333333333,
       0.0,
       0.0,
-      0.08333333333333334,
+      0.0833333333333333,
       0.0,
       0.04166666666666667,
       0.04166666666666667,
-      0.08333333333333334,
+      0.0833333333333333,
       0.125,
       0.04166666666666667,
-      0.08333333333333334,
+      0.0833333333333333,
       0.0,
       0.0,
-      0.08333333333333334,
+      0.0833333333333333,
       0.04166666666666667,
-      0.08333333333333334,
+      0.0833333333333333,
       0.04166666666666667,
       0.0,
       0.125

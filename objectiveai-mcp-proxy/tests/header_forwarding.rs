@@ -28,10 +28,12 @@ async fn correct_header_lets_upstream_through() {
     ])
     .await;
 
-    let mcp_headers = serde_json::json!({ "X-Trace-Id": "abc" });
+    let per_url_headers = serde_json::json!({
+        rig.upstreams[0].url.clone(): { "X-Trace-Id": "abc" },
+    });
     let mut headers = HashMap::new();
     headers.insert("X-MCP-Servers", rig.x_mcp_servers());
-    headers.insert("X-MCP-Headers", mcp_headers.to_string());
+    headers.insert("X-MCP-Headers", per_url_headers.to_string());
     let client = rig.connect_client(headers).await;
 
     let names: Vec<String> = client
@@ -64,6 +66,9 @@ async fn wrong_header_fails_initialize() {
     .await;
 
     use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+    let per_url_headers = serde_json::json!({
+        rig.upstreams[0].url.clone(): { "X-Trace-Id": "wrong" },
+    });
     let mut headers = HeaderMap::new();
     headers.insert(
         HeaderName::from_static("x-mcp-servers"),
@@ -71,7 +76,7 @@ async fn wrong_header_fails_initialize() {
     );
     headers.insert(
         HeaderName::from_static("x-mcp-headers"),
-        HeaderValue::from_str(&serde_json::json!({ "X-Trace-Id": "wrong" }).to_string()).unwrap(),
+        HeaderValue::from_str(&per_url_headers.to_string()).unwrap(),
     );
 
     let transport = StreamableHttpClientTransport::from_config(
@@ -90,7 +95,7 @@ async fn wrong_header_fails_initialize() {
 
 fn client_info_for_test() -> rmcp::model::ClientInfo {
     let value = serde_json::json!({
-        "protocolVersion": "2025-11-25",
+        "protocolVersion": "2025-06-18",
         "capabilities": {},
         "clientInfo": { "name": "header-test", "version": "0.1.0" },
     });

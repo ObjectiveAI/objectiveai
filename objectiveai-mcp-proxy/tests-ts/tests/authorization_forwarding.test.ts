@@ -32,7 +32,7 @@ test('correct X-MCP-Authorization → upstream connects, tools appear', async ()
   const url = rig.upstreams[0]!.url;
   const client = await rig.connectClient({
     'X-MCP-Servers': rig.xMcpServers(),
-    'X-MCP-Authorization': JSON.stringify({ [url]: 'Bearer secret' }),
+    'X-MCP-Headers': JSON.stringify({ [url]: { 'Authorization': 'Bearer secret' } }),
   });
   const tools = (await client.listTools()).tools.map(t => t.name);
   expect(tools).toEqual(['private_hidden']);

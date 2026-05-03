@@ -49,4 +49,6 @@ mod run;
 pub use run::*;
 
 #[cfg(test)]
-pub(crate) mod stream_harness;
+pub(crate) mod test_clients;
+#[cfg(test)]
+pub(crate) mod test_mcp_server;

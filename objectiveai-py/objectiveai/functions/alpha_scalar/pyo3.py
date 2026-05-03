@@ -1,6 +1,6 @@
 """PyO3 bindings for alpha scalar function validation."""
 
-import objectiveai_pyo3
+import objectiveai._pyo3 as objectiveai_pyo3
 
 
 def pyo3_alpha_check_leaf_scalar_function(function):

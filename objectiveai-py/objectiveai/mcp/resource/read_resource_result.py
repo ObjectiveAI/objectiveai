@@ -11,6 +11,6 @@ class ReadResourceResult(BaseModel):
     """The server's response to a `resources/read` request."""
     model_config = ConfigDict(title='mcp.resource.ReadResourceResult')
 
-    _meta: Optional[dict[str, JsonValue]] = Field(None, description='Extension metadata.', json_schema_extra={'omitempty': True})
+    meta: Optional[dict[str, JsonValue]] = Field(None, alias='_meta', description='Extension metadata.', json_schema_extra={'omitempty': True})
     contents: list[ResourceContentsUnion] = Field(..., description='The contents of the resource.')
 

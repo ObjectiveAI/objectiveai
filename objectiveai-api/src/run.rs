@@ -79,6 +79,14 @@ struct EnvConfigBuilder {
     claude_agent_sdk_rate_limit_max_wait_secs: Option<u64>,
     #[envconfig(from = "CLAUDE_AGENT_SDK_QUERY_LIMIT")]
     claude_agent_sdk_query_limit: Option<u64>,
+    #[envconfig(from = "CODEX_SDK_ENABLED")]
+    codex_sdk_enabled: Option<String>,
+    #[envconfig(from = "CODEX_SDK_RATE_LIMIT_MAX_RETRIES")]
+    codex_sdk_rate_limit_max_retries: Option<u64>,
+    #[envconfig(from = "CODEX_SDK_RATE_LIMIT_MAX_WAIT_SECS")]
+    codex_sdk_rate_limit_max_wait_secs: Option<u64>,
+    #[envconfig(from = "CODEX_SDK_QUERY_LIMIT")]
+    codex_sdk_query_limit: Option<u64>,
     #[envconfig(from = "AGENT_COMPLETIONS_BACKOFF_CURRENT_INTERVAL")]
     agent_completions_backoff_current_interval: Option<u64>,
     #[envconfig(from = "AGENT_COMPLETIONS_BACKOFF_INITIAL_INTERVAL")]
@@ -135,6 +143,8 @@ struct EnvConfigBuilder {
     mcp_connect_timeout: Option<u64>,
     #[envconfig(from = "MCP_CALL_TIMEOUT")]
     mcp_call_timeout: Option<u64>,
+    #[envconfig(from = "MCP_ENCRYPTION_KEY")]
+    mcp_encryption_key: Option<String>,
     #[envconfig(from = "CONFIG_BASE_DIR")]
     config_base_dir: Option<String>,
     #[envconfig(from = "MOCK_DELAY_MS")]
@@ -145,6 +155,8 @@ struct EnvConfigBuilder {
     docker_timeout: Option<u64>,
     #[envconfig(from = "FUNCTION_INVENTION_FORBID_OVERWRITE")]
     function_invention_forbid_overwrite: Option<String>,
+    #[envconfig(from = "FUNCTIONS_INVENTIONS_SUBSCRIBE_TOOLS_TIMEOUT")]
+    functions_inventions_subscribe_tools_timeout: Option<u64>,
     #[envconfig(from = "ADDRESS")]
     address: Option<String>,
     #[envconfig(from = "PORT")]
@@ -177,6 +189,10 @@ impl EnvConfigBuilder {
             claude_agent_sdk_rate_limit_max_retries: self.claude_agent_sdk_rate_limit_max_retries,
             claude_agent_sdk_rate_limit_max_wait_secs: self.claude_agent_sdk_rate_limit_max_wait_secs,
             claude_agent_sdk_query_limit: self.claude_agent_sdk_query_limit,
+            codex_sdk_enabled: self.codex_sdk_enabled.map(|s| parse_bool(&s)),
+            codex_sdk_rate_limit_max_retries: self.codex_sdk_rate_limit_max_retries,
+            codex_sdk_rate_limit_max_wait_secs: self.codex_sdk_rate_limit_max_wait_secs,
+            codex_sdk_query_limit: self.codex_sdk_query_limit,
             agent_completions_backoff_current_interval: self.agent_completions_backoff_current_interval,
             agent_completions_backoff_initial_interval: self.agent_completions_backoff_initial_interval,
             agent_completions_backoff_randomization_factor: self.agent_completions_backoff_randomization_factor,
@@ -205,11 +221,13 @@ impl EnvConfigBuilder {
             agent_completions_other_chunk_timeout: self.agent_completions_other_chunk_timeout,
             mcp_connect_timeout: self.mcp_connect_timeout,
             mcp_call_timeout: self.mcp_call_timeout,
+            mcp_encryption_key: self.mcp_encryption_key,
             config_base_dir: self.config_base_dir,
             mock_delay_ms: self.mock_delay_ms,
             mock_max_tool_calls: self.mock_max_tool_calls,
             docker_timeout: self.docker_timeout,
             function_invention_forbid_overwrite: self.function_invention_forbid_overwrite.map(|s| parse_bool(&s)),
+            functions_inventions_subscribe_tools_timeout: self.functions_inventions_subscribe_tools_timeout,
             address: self.address,
             port: self.port,
             suppress_output: None,
@@ -238,6 +256,10 @@ pub struct ConfigBuilder {
     pub claude_agent_sdk_rate_limit_max_retries: Option<u64>,
     pub claude_agent_sdk_rate_limit_max_wait_secs: Option<u64>,
     pub claude_agent_sdk_query_limit: Option<u64>,
+    pub codex_sdk_enabled: Option<bool>,
+    pub codex_sdk_rate_limit_max_retries: Option<u64>,
+    pub codex_sdk_rate_limit_max_wait_secs: Option<u64>,
+    pub codex_sdk_query_limit: Option<u64>,
     pub agent_completions_backoff_current_interval: Option<u64>,
     pub agent_completions_backoff_initial_interval: Option<u64>,
     pub agent_completions_backoff_randomization_factor: Option<f64>,
@@ -266,11 +288,13 @@ pub struct ConfigBuilder {
     pub agent_completions_other_chunk_timeout: Option<u64>,
     pub mcp_connect_timeout: Option<u64>,
     pub mcp_call_timeout: Option<u64>,
+    pub mcp_encryption_key: Option<String>,
     pub config_base_dir: Option<String>,
     pub mock_delay_ms: Option<u64>,
     pub mock_max_tool_calls: Option<u32>,
     pub docker_timeout: Option<u64>,
     pub function_invention_forbid_overwrite: Option<bool>,
+    pub functions_inventions_subscribe_tools_timeout: Option<u64>,
     pub address: Option<String>,
     pub port: Option<u16>,
     pub suppress_output: Option<bool>,
@@ -313,6 +337,10 @@ impl ConfigBuilder {
             claude_agent_sdk_rate_limit_max_retries: self.claude_agent_sdk_rate_limit_max_retries.unwrap_or(10),
             claude_agent_sdk_rate_limit_max_wait_secs: self.claude_agent_sdk_rate_limit_max_wait_secs.unwrap_or(180),
             claude_agent_sdk_query_limit: self.claude_agent_sdk_query_limit.unwrap_or(10),
+            codex_sdk_enabled: self.codex_sdk_enabled.unwrap_or(true),
+            codex_sdk_rate_limit_max_retries: self.codex_sdk_rate_limit_max_retries.unwrap_or(10),
+            codex_sdk_rate_limit_max_wait_secs: self.codex_sdk_rate_limit_max_wait_secs.unwrap_or(180),
+            codex_sdk_query_limit: self.codex_sdk_query_limit.unwrap_or(10),
             agent_completions_backoff_current_interval: self.agent_completions_backoff_current_interval.unwrap_or(100),
             agent_completions_backoff_initial_interval: self.agent_completions_backoff_initial_interval.unwrap_or(100),
             agent_completions_backoff_randomization_factor: self.agent_completions_backoff_randomization_factor.unwrap_or(0.5),
@@ -341,6 +369,7 @@ impl ConfigBuilder {
             agent_completions_other_chunk_timeout: self.agent_completions_other_chunk_timeout.unwrap_or(30000),
             mcp_connect_timeout: self.mcp_connect_timeout.unwrap_or(30000),
             mcp_call_timeout: self.mcp_call_timeout.unwrap_or(30000),
+            mcp_encryption_key: self.mcp_encryption_key,
             config_base_dir: match self.config_base_dir {
                 Some(dir) => std::path::PathBuf::from(dir),
                 None => dirs::home_dir()
@@ -351,6 +380,7 @@ impl ConfigBuilder {
             mock_max_tool_calls: self.mock_max_tool_calls.unwrap_or(1000),
             docker_timeout: self.docker_timeout.unwrap_or(30),
             function_invention_forbid_overwrite: self.function_invention_forbid_overwrite.unwrap_or(false),
+            functions_inventions_subscribe_tools_timeout: self.functions_inventions_subscribe_tools_timeout.unwrap_or(30_000),
             address: self.address.unwrap_or_else(|| "0.0.0.0".to_string()),
             port: self.port.unwrap_or(5000),
             suppress_output: self.suppress_output.unwrap_or(false),
@@ -378,6 +408,10 @@ pub struct Config {
     pub claude_agent_sdk_rate_limit_max_retries: u64,
     pub claude_agent_sdk_rate_limit_max_wait_secs: u64,
     pub claude_agent_sdk_query_limit: u64,
+    pub codex_sdk_enabled: bool,
+    pub codex_sdk_rate_limit_max_retries: u64,
+    pub codex_sdk_rate_limit_max_wait_secs: u64,
+    pub codex_sdk_query_limit: u64,
     pub agent_completions_backoff_current_interval: u64,
     pub agent_completions_backoff_initial_interval: u64,
     pub agent_completions_backoff_randomization_factor: f64,
@@ -406,11 +440,16 @@ pub struct Config {
     pub agent_completions_other_chunk_timeout: u64,
     pub mcp_connect_timeout: u64,
     pub mcp_call_timeout: u64,
+    /// Base64-encoded 32-byte key. Forwarded to the spawned proxy as
+    /// `MCP_ENCRYPTION_KEY`. Unset → proxy generates an ephemeral key
+    /// per process.
+    pub mcp_encryption_key: Option<String>,
     pub config_base_dir: std::path::PathBuf,
     pub mock_delay_ms: u64,
     pub mock_max_tool_calls: u32,
     pub docker_timeout: u64,
     pub function_invention_forbid_overwrite: bool,
+    pub functions_inventions_subscribe_tools_timeout: u64,
     pub address: String,
     pub port: u16,
     pub suppress_output: bool,
@@ -437,6 +476,10 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
         claude_agent_sdk_rate_limit_max_retries,
         claude_agent_sdk_rate_limit_max_wait_secs,
         claude_agent_sdk_query_limit,
+        codex_sdk_enabled,
+        codex_sdk_rate_limit_max_retries,
+        codex_sdk_rate_limit_max_wait_secs,
+        codex_sdk_query_limit,
         agent_completions_backoff_current_interval,
         agent_completions_backoff_initial_interval,
         agent_completions_backoff_randomization_factor,
@@ -465,11 +508,13 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
         agent_completions_other_chunk_timeout,
         mcp_connect_timeout,
         mcp_call_timeout,
+        mcp_encryption_key,
         config_base_dir,
         mock_delay_ms,
         mock_max_tool_calls,
         docker_timeout,
         function_invention_forbid_overwrite,
+        functions_inventions_subscribe_tools_timeout,
         address,
         port,
         suppress_output,
@@ -586,9 +631,35 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
     // Lazy in-process mcp-proxy. Each per-agent MCP connection goes
     // through this; it boots on the first request that needs it and
     // lives for the rest of the program.
-    let proxy_spawner = Arc::new(agent::completions::ProxySpawner::new(
-        objectiveai_mcp_proxy::ConfigBuilder::default,
-    ));
+    //
+    // Propagate the api's loaded MCP config into the in-process proxy's
+    // ConfigBuilder so the proxy honours the same env vars
+    // (`MCP_CONNECT_TIMEOUT`, `MCP_CALL_TIMEOUT`, `MCP_BACKOFF_*`) the
+    // api itself reads — without this the proxy would fall back to its
+    // own crate-internal defaults.
+    let proxy_encryption_key: Option<[u8; 32]> = mcp_encryption_key
+        .as_deref()
+        .and_then(|s| match objectiveai_mcp_proxy::parse_key_env(s) {
+            Ok(opt) => opt,
+            Err(e) => {
+                eprintln!("MCP_ENCRYPTION_KEY parse failed; falling back to ephemeral key in proxy: {e}");
+                None
+            }
+        });
+    let proxy_spawner = Arc::new(agent::completions::ProxySpawner::new(move || {
+        objectiveai_mcp_proxy::ConfigBuilder {
+            mcp_connect_timeout: Some(mcp_connect_timeout),
+            mcp_call_timeout: Some(mcp_call_timeout),
+            mcp_backoff_current_interval: Some(mcp_backoff_current_interval),
+            mcp_backoff_initial_interval: Some(mcp_backoff_initial_interval),
+            mcp_backoff_randomization_factor: Some(mcp_backoff_randomization_factor),
+            mcp_backoff_multiplier: Some(mcp_backoff_multiplier),
+            mcp_backoff_max_interval: Some(mcp_backoff_max_interval),
+            mcp_backoff_max_elapsed_time: Some(mcp_backoff_max_elapsed_time),
+            mcp_encryption_key: proxy_encryption_key,
+            ..Default::default()
+        }
+    }));
 
     // Agent Completions Client
     let agent_completions_client = Arc::new(agent::completions::Client::new(
@@ -598,14 +669,15 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
         retrieve_router.clone(),
         Arc::new(agent::completions::usage_handler::LogUsageHandler),
         Arc::new(agent::completions::openrouter::Client::new(
-            http_client,
+            http_client.clone(),
             openrouter_address,
             openrouter_authorization,
             user_agent.clone(),
             x_title.clone(),
             http_referer.clone(),
         )),
-        Arc::new(agent::completions::claude_agent_sdk::Client::new(user_agent, claude_agent_sdk_enabled, claude_agent_sdk_rate_limit_max_retries, claude_agent_sdk_rate_limit_max_wait_secs, claude_agent_sdk_query_limit)),
+        Arc::new(agent::completions::claude_agent_sdk::Client::new(user_agent.clone(), claude_agent_sdk_enabled, claude_agent_sdk_rate_limit_max_retries, claude_agent_sdk_rate_limit_max_wait_secs, claude_agent_sdk_query_limit)),
+        Arc::new(agent::completions::codex_sdk::Client::new(user_agent, codex_sdk_enabled, codex_sdk_rate_limit_max_retries, codex_sdk_rate_limit_max_wait_secs, codex_sdk_query_limit, http_client)),
         Arc::new(agent::completions::mock::Client {
             delay: std::time::Duration::from_millis(mock_delay_ms),
             max_tool_calls: mock_max_tool_calls,
@@ -669,8 +741,10 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
             filesystem_client.clone(),
             retrieve_router.clone(),
             Arc::new(functions::inventions::usage_handler::LogUsageHandler),
+            Arc::new(functions::inventions::InventionServerSpawner::new()),
             true, // persist
             function_invention_forbid_overwrite,
+            std::time::Duration::from_millis(functions_inventions_subscribe_tools_timeout),
         ));
 
     // Function Inventions Recursive Client
@@ -694,16 +768,31 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
         ));
 
     // Laboratory Executions Client
-    #[cfg(feature = "orchestrator-bollard")]
-    let laboratory_orchestrator = Arc::new(
-        crate::laboratories::orchestrator::bollard::Orchestrator {
-            docker_timeout,
-        },
-    );
-    #[cfg(not(feature = "orchestrator-bollard"))]
-    let laboratory_orchestrator = Arc::new(
-        crate::laboratories::orchestrator::unimplemented::Orchestrator,
-    );
+    //
+    // Wrapped in `DispatchedOrchestrator` so the
+    // `LABORATORY_USE_MOCK_ORCHESTRATOR=1` env var (set by integration
+    // tests) can swap in the mock orchestrator at startup without
+    // talking to a real Docker daemon.
+    let use_mock_orchestrator =
+        std::env::var("LABORATORY_USE_MOCK_ORCHESTRATOR").as_deref() == Ok("1");
+    let laboratory_orchestrator = Arc::new(if use_mock_orchestrator {
+        crate::laboratories::orchestrator::dispatch::DispatchedOrchestrator::Mock(
+            crate::laboratories::orchestrator::mock::Orchestrator,
+        )
+    } else {
+        #[cfg(feature = "orchestrator-bollard")]
+        {
+            crate::laboratories::orchestrator::dispatch::DispatchedOrchestrator::Bollard(
+                crate::laboratories::orchestrator::bollard::Orchestrator { docker_timeout },
+            )
+        }
+        #[cfg(not(feature = "orchestrator-bollard"))]
+        {
+            crate::laboratories::orchestrator::dispatch::DispatchedOrchestrator::Unimplemented(
+                crate::laboratories::orchestrator::unimplemented::Orchestrator,
+            )
+        }
+    });
     let laboratory_executions_client = Arc::new(crate::laboratories::executions::Client {
         agent_client: agent_completions_client.clone(),
         retrieve_router: retrieve_router.clone(),
@@ -1276,6 +1365,11 @@ async fn create_agent_completion(
             + Sync
             + 'static,
             impl agent::completions::UpstreamClient<
+                objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation,
+            > + Send
+            + Sync
+            + 'static,
+            impl agent::completions::UpstreamClient<
                 objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation,
             > + Send
             + Sync
@@ -1311,8 +1405,9 @@ async fn create_agent_completion(
                 ctx,
                 Arc::new(body),
                 None,
-                None,
-                None,
+                None, // disable_tools
+                vec![], // extra_mcp_servers
+                indexmap::IndexMap::new(), // extra_mcp_headers
                 None,
                 true,
                 None,
@@ -1348,8 +1443,9 @@ async fn create_agent_completion(
                 ctx,
                 Arc::new(body),
                 None,
-                None,
-                None,
+                None, // disable_tools
+                vec![], // extra_mcp_servers
+                indexmap::IndexMap::new(), // extra_mcp_headers
                 None,
                 true,
                 None,
@@ -1378,6 +1474,11 @@ async fn create_vector_completion(
             + 'static,
             impl agent::completions::UpstreamClient<
                 objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
+            > + Send
+            + Sync
+            + 'static,
+            impl agent::completions::UpstreamClient<
+                objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation,
             > + Send
             + Sync
             + 'static,
@@ -1501,6 +1602,11 @@ async fn execute_function(
             + 'static,
             impl agent::completions::UpstreamClient<
                 objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
+            > + Send
+            + Sync
+            + 'static,
+            impl agent::completions::UpstreamClient<
+                objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation,
             > + Send
             + Sync
             + 'static,
@@ -2087,6 +2193,11 @@ async fn create_function_invention(
             + Sync
             + 'static,
             impl agent::completions::UpstreamClient<
+                objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation,
+            > + Send
+            + Sync
+            + 'static,
+            impl agent::completions::UpstreamClient<
                 objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation,
             > + Send
             + Sync
@@ -2177,6 +2288,11 @@ async fn create_function_invention_recursive(
             + 'static,
             impl agent::completions::UpstreamClient<
                 objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
+            > + Send
+            + Sync
+            + 'static,
+            impl agent::completions::UpstreamClient<
+                objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation,
             > + Send
             + Sync
             + 'static,
@@ -2314,6 +2430,9 @@ async fn execute_laboratory(
             > + Send + Sync + 'static,
             impl agent::completions::UpstreamClient<
                 objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
+            > + Send + Sync + 'static,
+            impl agent::completions::UpstreamClient<
+                objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation,
             > + Send + Sync + 'static,
             impl agent::completions::UpstreamClient<
                 objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation,

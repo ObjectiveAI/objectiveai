@@ -24,12 +24,16 @@ macro_rules! snapshot_test {
 
             let function_str = format!("remote=mock,name={}", $function);
             let profile_str = format!("remote=mock,name={}", $profile);
+            let instructions_id = cli_test_util::instructions_id(
+                cli_test_util::InstructionsScope::FunctionExecutions,
+            );
             let cli_result = cli_test_util::run_cli(&[
                 "functions", "executions", "create", "standard",
                 "--function", &function_str,
                 "--profile", &profile_str,
                 "--input-inline", &input,
                 "--seed", &seed_str,
+                "--instructions-id", instructions_id.as_str(),
             ]);
 
             let snapshot = cli_test_util::load_snapshot(&snapshots_dir(), $snapshot);
@@ -102,6 +106,9 @@ fn split_tweet_scorer_10_tweets_seed_42() {
         "weights": [1.0, 1.0]
     }"#;
 
+    let id = cli_test_util::instructions_id(
+        cli_test_util::InstructionsScope::FunctionExecutions,
+    );
     let cli_result = cli_test_util::run_cli(&[
         "functions", "executions", "create", "standard",
         "--function", "remote=mock,name=tweet-scorer",
@@ -109,6 +116,7 @@ fn split_tweet_scorer_10_tweets_seed_42() {
         "--input-inline", &input,
         "--split",
         "--seed", "42",
+        "--instructions-id", id.as_str(),
     ]);
 
     let snapshot = cli_test_util::load_snapshot(&snapshots, "split_tweet_scorer_10_tweets_seed_42");

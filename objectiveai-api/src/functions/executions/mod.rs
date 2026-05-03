@@ -8,8 +8,5 @@ mod client;
 mod error;
 pub mod usage_handler;
 
-#[cfg(test)]
-mod client_tests;
-
 pub use client::*;
 pub use error::*;

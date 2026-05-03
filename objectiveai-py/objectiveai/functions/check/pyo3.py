@@ -1,6 +1,6 @@
 """PyO3 bindings for function field validation."""
 
-import objectiveai_pyo3
+import objectiveai._pyo3 as objectiveai_pyo3
 
 
 def pyo3_check_vector_fields(fields):

@@ -31,7 +31,7 @@ test('notifications/cancelled aborts an in-flight tools/call with -32800', async
       id: 1,
       method: 'initialize',
       params: {
-        protocolVersion: '2025-11-25',
+        protocolVersion: '2025-06-18',
         capabilities: {},
         clientInfo: { name: 't', version: '0' },
       },

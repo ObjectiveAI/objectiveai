@@ -1,6 +1,6 @@
 """HTTP integration tests for agent completions."""
 
-import objectiveai_pyo3
+import objectiveai._pyo3 as objectiveai_pyo3
 
 from objectiveai.agent.completions.http import create_agent_completion
 from objectiveai.agent.completions.response.streaming import AgentCompletionChunk

@@ -71,7 +71,7 @@ mod imp {
     /// Asset filename that matches THIS build, selected at compile time
     /// from target triple + `viewer` feature. Unsupported platforms
     /// resolve to `None` and the updater is a no-op for them.
-    const ASSET_NAME: Option<&str> = asset_name();
+    pub(super) const ASSET_NAME: Option<&str> = asset_name();
 
     const fn asset_name() -> Option<&'static str> {
         #[cfg(all(target_os = "linux", target_arch = "x86_64", feature = "viewer"))]

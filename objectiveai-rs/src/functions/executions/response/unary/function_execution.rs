@@ -63,7 +63,7 @@ impl FunctionExecution {
                 }
             }
         }
-        self.tasks.sort_by_cached_key(|t| t.task_path().clone());
+        self.tasks.sort_by_cached_key(|t| t.snapshot_sort_key());
     }
 }
 

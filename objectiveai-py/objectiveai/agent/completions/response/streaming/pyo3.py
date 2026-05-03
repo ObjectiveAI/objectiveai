@@ -1,6 +1,6 @@
 """PyO3 bindings for agent completion chunk operations."""
 
-import objectiveai_pyo3
+import objectiveai._pyo3 as objectiveai_pyo3
 
 
 def pyo3_agent_completion_chunk_merged(a, b):

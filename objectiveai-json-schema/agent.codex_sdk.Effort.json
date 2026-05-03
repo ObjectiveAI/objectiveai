@@ -1,0 +1,38 @@
+{
+  "title": "agent.codex_sdk.Effort",
+  "description": "Reasoning-effort level for the Codex model. Maps to Codex's\n`model_reasoning_effort` (see `openai_codex_sdk` `ModelReasoningEffort`).\n\n`Medium` is the default and is normalized to `None` during preparation\nfor content-addressing stability.",
+  "anyOf": [
+    {
+      "title": "Minimal",
+      "description": "Minimal reasoning, fastest responses.",
+      "type": "string",
+      "enum": [
+        "minimal"
+      ]
+    },
+    {
+      "title": "Low",
+      "description": "Low reasoning effort.",
+      "type": "string",
+      "enum": [
+        "low"
+      ]
+    },
+    {
+      "title": "Medium",
+      "description": "Balanced reasoning (default, normalized away during preparation).",
+      "type": "string",
+      "enum": [
+        "medium"
+      ]
+    },
+    {
+      "title": "High",
+      "description": "High reasoning effort.",
+      "type": "string",
+      "enum": [
+        "high"
+      ]
+    }
+  ]
+}

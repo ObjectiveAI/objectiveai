@@ -1,7 +1,7 @@
 use objectiveai::mcp;
 
 #[derive(Debug, Clone)]
-pub enum Continuation<OPENROUTER, CLAUDEAGENTSDK, MOCK> {
+pub enum Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK> {
     Openrouter {
         items: Vec<ContinuationItem<OPENROUTER>>,
         mcp_connection: Option<mcp::Connection>,
@@ -10,17 +10,24 @@ pub enum Continuation<OPENROUTER, CLAUDEAGENTSDK, MOCK> {
         items: Vec<ContinuationItem<CLAUDEAGENTSDK>>,
         mcp_connection: Option<mcp::Connection>,
     },
+    CodexSdk {
+        items: Vec<ContinuationItem<CODEXSDK>>,
+        mcp_connection: Option<mcp::Connection>,
+    },
     Mock {
         items: Vec<ContinuationItem<MOCK>>,
         mcp_connection: Option<mcp::Connection>,
     },
 }
 
-impl<OPENROUTER, CLAUDEAGENTSDK, MOCK> Continuation<OPENROUTER, CLAUDEAGENTSDK, MOCK> {
+impl<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>
+    Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>
+{
     pub fn push_user_message(&mut self, message: objectiveai::agent::completions::message::UserMessage) {
         match self {
             Self::Openrouter { items, .. } => items.push(ContinuationItem::UserMessage(message)),
             Self::ClaudeAgentSdk { items, .. } => items.push(ContinuationItem::UserMessage(message)),
+            Self::CodexSdk { items, .. } => items.push(ContinuationItem::UserMessage(message)),
             Self::Mock { items, .. } => items.push(ContinuationItem::UserMessage(message)),
         }
     }
@@ -29,6 +36,7 @@ impl<OPENROUTER, CLAUDEAGENTSDK, MOCK> Continuation<OPENROUTER, CLAUDEAGENTSDK, 
         match self {
             Self::Openrouter { items, .. } => items.push(ContinuationItem::ToolMessage(message)),
             Self::ClaudeAgentSdk { items, .. } => items.push(ContinuationItem::ToolMessage(message)),
+            Self::CodexSdk { items, .. } => items.push(ContinuationItem::ToolMessage(message)),
             Self::Mock { items, .. } => items.push(ContinuationItem::ToolMessage(message)),
         }
     }
@@ -37,6 +45,7 @@ impl<OPENROUTER, CLAUDEAGENTSDK, MOCK> Continuation<OPENROUTER, CLAUDEAGENTSDK, 
         match self {
             Self::Openrouter { .. } => objectiveai::agent::Upstream::Openrouter,
             Self::ClaudeAgentSdk { .. } => objectiveai::agent::Upstream::ClaudeAgentSdk,
+            Self::CodexSdk { .. } => objectiveai::agent::Upstream::CodexSdk,
             Self::Mock { .. } => objectiveai::agent::Upstream::Mock,
         }
     }
@@ -47,6 +56,7 @@ impl<OPENROUTER, CLAUDEAGENTSDK, MOCK> Continuation<OPENROUTER, CLAUDEAGENTSDK, 
         match self {
             Self::Openrouter { mcp_connection, .. }
             | Self::ClaudeAgentSdk { mcp_connection, .. }
+            | Self::CodexSdk { mcp_connection, .. }
             | Self::Mock { mcp_connection, .. } => mcp_connection.as_ref(),
         }
     }

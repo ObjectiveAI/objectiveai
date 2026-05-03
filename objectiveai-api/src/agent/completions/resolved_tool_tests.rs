@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use super::*;
+use crate::test_mcp_server::{self, TestTool};
 
 fn mcp_tool(name: &str) -> objectiveai::mcp::tool::Tool {
     objectiveai::mcp::tool::Tool {
@@ -20,14 +20,6 @@ fn mcp_tool(name: &str) -> objectiveai::mcp::tool::Tool {
     }
 }
 
-fn invention_tool(name: &'static str) -> objectiveai::functions::inventions::InventionTool {
-    objectiveai::functions::inventions::InventionTool::new_sync::<objectiveai::functions::inventions::EmptyObjectJsonSchema>(
-        name,
-        "test tool",
-        |_| Ok("ok".into()),
-    )
-}
-
 fn response_format_tool(name: &str) -> objectiveai::agent::completions::request::ResponseFormat {
     objectiveai::agent::completions::request::ResponseFormat::ToolCall {
         name: name.into(),
@@ -37,200 +29,82 @@ fn response_format_tool(name: &str) -> objectiveai::agent::completions::request:
     }
 }
 
-#[test]
-fn test_no_tools() {
-    let (names, map) = resolve_tools(&[], &[], None, None);
+#[tokio::test]
+async fn test_no_tools() {
+    let _permit = crate::test_clients::acquire_test_permit().await;
+    let (names, map) = resolve_tools(None, None).await.unwrap();
     assert!(names.is_empty());
     assert!(map.is_empty());
 }
 
-#[test]
-fn test_single_mcp_tool() {
-    let conn = objectiveai::mcp::Connection::new_for_test("server-a".into(), "https://a.com/mcp".into());
-    let tools = Arc::new(vec![mcp_tool("search")]);
-    let (names, map) = resolve_tools(&[conn], &[tools], None, None);
-    assert_eq!(names, vec!["search"]);
-    assert!(matches!(map.get("search"), Some(ResolvedTool::Mcp { tool, .. }) if tool.name == "search"));
+#[tokio::test]
+async fn test_single_mcp_tool() {
+    let _permit = crate::test_clients::acquire_test_permit().await;
+    let server = test_mcp_server::spawn("alpha", vec![TestTool::noop(mcp_tool("search"))]).await;
+    let conn = test_mcp_server::connect_through_proxy(&[&server]).await;
+
+    // The proxy fans out tools/list across upstreams and prefixes every
+    // tool name with `<upstream-server-name>_`. Our server identifies as
+    // `alpha`, so the only tool comes back as `alpha_search`. The
+    // original tool name is preserved on the resolved tool itself.
+    let (names, map) = resolve_tools(Some(&conn), None).await.unwrap();
+    assert_eq!(names, vec!["alpha_search"]);
+    assert!(matches!(map.get("alpha_search"), Some(ResolvedTool::Mcp { tool, .. }) if tool.name == "alpha_search"));
 }
 
-#[test]
-fn test_single_invention_tool() {
-    let inv = invention_tool("execute");
-    let (names, map) = resolve_tools(&[], &[], Some(&[inv]), None);
-    assert_eq!(names, vec!["execute"]);
-    assert!(matches!(map.get("execute"), Some(ResolvedTool::InventionTool(_))));
-}
-
-#[test]
-fn test_single_response_format_tool() {
+#[tokio::test]
+async fn test_single_response_format_tool() {
+    let _permit = crate::test_clients::acquire_test_permit().await;
     let rf = response_format_tool("submit");
-    let (names, map) = resolve_tools(&[], &[], None, Some(&rf));
+    let (names, map) = resolve_tools(None, Some(&rf)).await.unwrap();
     assert_eq!(names, vec!["submit"]);
     assert!(matches!(map.get("submit"), Some(ResolvedTool::ResponseFormat { .. })));
 }
 
-#[test]
-fn test_response_format_text_yields_no_tool() {
+#[tokio::test]
+async fn test_response_format_text_yields_no_tool() {
+    let _permit = crate::test_clients::acquire_test_permit().await;
     let rf = objectiveai::agent::completions::request::ResponseFormat::Text;
-    let (names, map) = resolve_tools(&[], &[], None, Some(&rf));
+    let (names, map) = resolve_tools(None, Some(&rf)).await.unwrap();
     assert!(names.is_empty());
     assert!(map.is_empty());
 }
 
-#[test]
-fn test_multiple_mcp_no_conflicts() {
-    let conn1 = objectiveai::mcp::Connection::new_for_test("alpha".into(), "https://a.com/mcp".into());
-    let conn2 = objectiveai::mcp::Connection::new_for_test("beta".into(), "https://b.com/mcp".into());
-    let tools1 = Arc::new(vec![mcp_tool("search"), mcp_tool("list")]);
-    let tools2 = Arc::new(vec![mcp_tool("compile"), mcp_tool("run")]);
-    let (names, map) = resolve_tools(&[conn1, conn2], &[tools1, tools2], None, None);
-    assert_eq!(names.len(), 4);
-    for name in &["search", "list", "compile", "run"] {
-        assert!(map.contains_key(*name), "missing {name}");
-    }
-}
+#[tokio::test]
+async fn test_mcp_and_response_format() {
+    let _permit = crate::test_clients::acquire_test_permit().await;
+    let server = test_mcp_server::spawn("alpha", vec![
+        TestTool::noop(mcp_tool("search")),
+        TestTool::noop(mcp_tool("list")),
+    ])
+    .await;
+    let conn = test_mcp_server::connect_through_proxy(&[&server]).await;
+    let rf = response_format_tool("submit");
 
-#[test]
-fn test_mcp_conflict_different_server_names() {
-    let conn1 = objectiveai::mcp::Connection::new_for_test("alpha".into(), "https://a.com/mcp".into());
-    let conn2 = objectiveai::mcp::Connection::new_for_test("beta".into(), "https://b.com/mcp".into());
-    let tools1 = Arc::new(vec![mcp_tool("search")]);
-    let tools2 = Arc::new(vec![mcp_tool("search")]);
-    let (names, map) = resolve_tools(&[conn1, conn2], &[tools1, tools2], None, None);
-    assert_eq!(names.len(), 2);
-    assert!(map.contains_key("search (alpha)"));
-    assert!(map.contains_key("search (beta)"));
-}
-
-#[test]
-fn test_mcp_conflict_same_server_name_different_urls() {
-    let conn1 = objectiveai::mcp::Connection::new_for_test("myserver".into(), "https://a.com/mcp".into());
-    let conn2 = objectiveai::mcp::Connection::new_for_test("myserver".into(), "https://b.com/mcp".into());
-    let tools1 = Arc::new(vec![mcp_tool("search")]);
-    let tools2 = Arc::new(vec![mcp_tool("search")]);
-    let (names, map) = resolve_tools(&[conn1, conn2], &[tools1, tools2], None, None);
-    assert_eq!(names.len(), 2);
-    assert!(map.contains_key("search (myserver(https://a.com/mcp))"));
-    assert!(map.contains_key("search (myserver(https://b.com/mcp))"));
-}
-
-#[test]
-fn test_mcp_conflict_same_server_name_unique_tool_not_suffixed() {
-    // Two servers with the same name, conflicting on "search" but "list" is unique
-    let conn1 = objectiveai::mcp::Connection::new_for_test("myserver".into(), "https://a.com/mcp".into());
-    let conn2 = objectiveai::mcp::Connection::new_for_test("myserver".into(), "https://b.com/mcp".into());
-    let tools1 = Arc::new(vec![mcp_tool("search"), mcp_tool("list")]);
-    let tools2 = Arc::new(vec![mcp_tool("search")]);
-    let (names, map) = resolve_tools(&[conn1, conn2], &[tools1, tools2], None, None);
+    // Single upstream → tools prefixed with `alpha_`. The response-format
+    // tool keeps its bare name (it's local, not an MCP tool).
+    let (names, map) = resolve_tools(Some(&conn), Some(&rf)).await.unwrap();
     assert_eq!(names.len(), 3);
-    assert!(map.contains_key("list"), "unique tool should not be suffixed");
-    assert!(map.contains_key("search (myserver(https://a.com/mcp))"));
-    assert!(map.contains_key("search (myserver(https://b.com/mcp))"));
-}
-
-#[test]
-fn test_invention_conflicts_with_mcp() {
-    let conn = objectiveai::mcp::Connection::new_for_test("alpha".into(), "https://a.com/mcp".into());
-    let tools = Arc::new(vec![mcp_tool("execute")]);
-    let inv = invention_tool("execute");
-    let (names, map) = resolve_tools(&[conn], &[tools], Some(&[inv]), None);
-    assert_eq!(names.len(), 2);
-    assert!(map.contains_key("execute (alpha)"));
-    assert!(map.contains_key("execute (objectiveai-invention)"));
-}
-
-#[test]
-fn test_invention_conflicts_with_response_format() {
-    let inv = invention_tool("submit");
-    let rf = response_format_tool("submit");
-    let (names, map) = resolve_tools(&[], &[], Some(&[inv]), Some(&rf));
-    assert_eq!(names.len(), 2);
-    assert!(map.contains_key("submit"), "response format keeps original name");
-    assert!(matches!(map.get("submit"), Some(ResolvedTool::ResponseFormat { .. })));
-    assert!(map.contains_key("submit (objectiveai-invention)"));
-}
-
-#[test]
-fn test_mcp_conflicts_with_response_format() {
-    let conn = objectiveai::mcp::Connection::new_for_test("alpha".into(), "https://a.com/mcp".into());
-    let tools = Arc::new(vec![mcp_tool("submit")]);
-    let rf = response_format_tool("submit");
-    let (names, map) = resolve_tools(&[conn], &[tools], None, Some(&rf));
-    assert_eq!(names.len(), 2);
-    assert!(map.contains_key("submit"), "response format keeps original name");
-    assert!(matches!(map.get("submit"), Some(ResolvedTool::ResponseFormat { .. })));
-    assert!(map.contains_key("submit (alpha)"));
-}
-
-#[test]
-fn test_four_way_conflict_mcp_x2_invention_response_format() {
-    let conn1 = objectiveai::mcp::Connection::new_for_test("alpha".into(), "https://a.com/mcp".into());
-    let conn2 = objectiveai::mcp::Connection::new_for_test("beta".into(), "https://b.com/mcp".into());
-    let tools1 = Arc::new(vec![mcp_tool("render")]);
-    let tools2 = Arc::new(vec![mcp_tool("render")]);
-    let inv = invention_tool("render");
-    let rf = response_format_tool("render");
-    let (names, map) = resolve_tools(&[conn1, conn2], &[tools1, tools2], Some(&[inv]), Some(&rf));
-    assert_eq!(names.len(), 4);
-    assert!(map.contains_key("render"), "response format keeps original name");
-    assert!(matches!(map.get("render"), Some(ResolvedTool::ResponseFormat { .. })));
-    assert!(map.contains_key("render (alpha)"));
-    assert!(map.contains_key("render (beta)"));
-    assert!(map.contains_key("render (objectiveai-invention)"));
-}
-
-#[test]
-fn test_four_way_conflict_same_server_name() {
-    let conn1 = objectiveai::mcp::Connection::new_for_test("myserver".into(), "https://a.com/mcp".into());
-    let conn2 = objectiveai::mcp::Connection::new_for_test("myserver".into(), "https://b.com/mcp".into());
-    let tools1 = Arc::new(vec![mcp_tool("render")]);
-    let tools2 = Arc::new(vec![mcp_tool("render")]);
-    let inv = invention_tool("render");
-    let rf = response_format_tool("render");
-    let (names, map) = resolve_tools(&[conn1, conn2], &[tools1, tools2], Some(&[inv]), Some(&rf));
-    assert_eq!(names.len(), 4);
-    assert!(map.contains_key("render"), "response format keeps original name");
-    assert!(map.contains_key("render (myserver(https://a.com/mcp))"));
-    assert!(map.contains_key("render (myserver(https://b.com/mcp))"));
-    assert!(map.contains_key("render (objectiveai-invention)"));
-}
-
-#[test]
-fn test_multiple_invention_tools_no_conflicts() {
-    let inv1 = invention_tool("execute");
-    let inv2 = invention_tool("validate");
-    let (names, map) = resolve_tools(&[], &[], Some(&[inv1, inv2]), None);
-    assert_eq!(names.len(), 2);
-    assert!(map.contains_key("execute"));
-    assert!(map.contains_key("validate"));
-}
-
-#[test]
-fn test_mcp_tool_name_preserved_in_resolved() {
-    let conn = objectiveai::mcp::Connection::new_for_test("alpha".into(), "https://a.com/mcp".into());
-    let conn2 = objectiveai::mcp::Connection::new_for_test("beta".into(), "https://b.com/mcp".into());
-    let tools = Arc::new(vec![mcp_tool("search")]);
-    let tools2 = Arc::new(vec![mcp_tool("search")]);
-    let (_, map) = resolve_tools(&[conn, conn2], &[tools, tools2], None, None);
-    // Even though the resolved name has a suffix, the original tool_name is preserved
-    if let Some(ResolvedTool::Mcp { tool, .. }) = map.get("search (alpha)") {
-        assert_eq!(tool.name, "search");
-    } else {
-        panic!("expected Mcp variant for 'search (alpha)'");
-    }
-}
-
-#[test]
-fn test_mixed_no_conflicts() {
-    let conn = objectiveai::mcp::Connection::new_for_test("server".into(), "https://s.com/mcp".into());
-    let tools = Arc::new(vec![mcp_tool("search"), mcp_tool("list")]);
-    let inv = invention_tool("execute");
-    let rf = response_format_tool("submit");
-    let (names, map) = resolve_tools(&[conn], &[tools], Some(&[inv]), Some(&rf));
-    assert_eq!(names.len(), 4);
-    // All names should be unsuffixed since no conflicts
-    assert!(map.contains_key("search"));
-    assert!(map.contains_key("list"));
-    assert!(map.contains_key("execute"));
+    assert!(map.contains_key("alpha_search"));
+    assert!(map.contains_key("alpha_list"));
     assert!(map.contains_key("submit"));
+    assert!(matches!(map.get("submit"), Some(ResolvedTool::ResponseFormat { .. })));
+    assert!(matches!(map.get("alpha_search"), Some(ResolvedTool::Mcp { .. })));
+}
+
+#[tokio::test]
+async fn test_multi_upstream_via_proxy_returns_union() {
+    let _permit = crate::test_clients::acquire_test_permit().await;
+    // The proxy fans out across multiple upstream MCP servers and prefixes
+    // each tool with the upstream's server name. With distinct names we
+    // get the bare-prefix form `<name>_<tool>` (no `_<index>` suffix —
+    // suffixing only kicks in when two upstreams share a name).
+    let server_a = test_mcp_server::spawn("alpha", vec![TestTool::noop(mcp_tool("search"))]).await;
+    let server_b = test_mcp_server::spawn("beta", vec![TestTool::noop(mcp_tool("compile"))]).await;
+    let conn = test_mcp_server::connect_through_proxy(&[&server_a, &server_b]).await;
+
+    let (names, map) = resolve_tools(Some(&conn), None).await.unwrap();
+    assert!(map.contains_key("alpha_search"), "missing 'search' from server_a; got {names:?}");
+    assert!(map.contains_key("beta_compile"), "missing 'compile' from server_b; got {names:?}");
+    assert_eq!(names.len(), 2);
 }

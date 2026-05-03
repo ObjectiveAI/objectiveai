@@ -488,19 +488,19 @@
                     "2KpxKp0ntAQ3KFxia4Gbc2"
                   ],
                   "vote": [
-                    0.5163353652694648,
-                    0.4836646347305352
+                    0.516335365269465,
+                    0.483664634730535
                   ],
                   "weight": 1.0
                 }
               ],
               "scores": [
-                0.5163353652694648,
-                0.4836646347305352
+                0.516335365269465,
+                0.483664634730535
               ],
               "weights": [
-                0.5163353652694648,
-                0.4836646347305352
+                0.516335365269465,
+                0.483664634730535
               ],
               "created": 0,
               "swarm": "0AYcgicUgrCdsTzzOdz4xD",
@@ -518,7 +518,7 @@
           "tasks_errors": false,
           "reasoning": null,
           "output": {
-            "output": 0.4836646347305352
+            "output": 0.483664634730535
           },
           "error": null,
           "retry_token": null,
@@ -541,7 +541,7 @@
       "tasks_errors": false,
       "reasoning": null,
       "output": {
-        "output": 0.7418323173652677
+        "output": 0.741832317365268
       },
       "error": null,
       "retry_token": null,
@@ -564,7 +564,7 @@
       }
     },
     {
-      "index": 1,
+      "index": 2,
       "task_index": 3,
       "task_path": [
         2
@@ -1091,7 +1091,7 @@
   "tasks_errors": false,
   "reasoning": null,
   "output": {
-    "output": 0.5149756099230102
+    "output": 0.51497560992301
   },
   "error": null,
   "retry_token": null,

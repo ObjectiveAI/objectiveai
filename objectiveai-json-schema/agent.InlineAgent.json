@@ -11,6 +11,10 @@
       "$ref": "agent.claude_agent_sdk.Agent"
     },
     {
+      "title": "CodexSdk",
+      "$ref": "agent.codex_sdk.Agent"
+    },
+    {
       "title": "Mock",
       "$ref": "agent.mock.Agent"
     }

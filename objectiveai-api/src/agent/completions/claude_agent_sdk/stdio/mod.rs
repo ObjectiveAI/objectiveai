@@ -1,4 +1,4 @@
-//! Wire types for the `objectiveai-claude-agent-sdk-runner-py` stdio
+//! Wire types for the `objectiveai-claude-agent-sdk-runner` stdio
 //! NDJSON protocol.
 //!
 //! The runner is a long-lived stdio server that handles many concurrent

@@ -190,6 +190,48 @@ impl RichContent {
         hasher.write(serde_json::to_string(self).unwrap().as_bytes());
         format!("{:0>22}", base62::encode(hasher.finish_128()))
     }
+
+    /// Validates that this content contains only text or image parts.
+    ///
+    /// Used by upstream agent definitions whose prefix/suffix content
+    /// rendering can only express text and image media (audio, video, and
+    /// file parts have no representation in those upstreams' prompts).
+    /// Returns `Err` naming the offending part variant if any non-text /
+    /// non-image part is present.
+    pub fn validate_text_or_image_only(&self) -> Result<(), String> {
+        match self {
+            RichContent::Text(_) => Ok(()),
+            RichContent::Parts(parts) => {
+                for (idx, part) in parts.iter().enumerate() {
+                    match part {
+                        RichContentPart::Text { .. }
+                        | RichContentPart::ImageUrl { .. } => {}
+                        RichContentPart::InputAudio { .. } => {
+                            return Err(format!(
+                                "part[{idx}] has unsupported media type `input_audio`; only text and image parts are allowed"
+                            ));
+                        }
+                        RichContentPart::InputVideo { .. } => {
+                            return Err(format!(
+                                "part[{idx}] has unsupported media type `input_video`; only text and image parts are allowed"
+                            ));
+                        }
+                        RichContentPart::VideoUrl { .. } => {
+                            return Err(format!(
+                                "part[{idx}] has unsupported media type `video_url`; only text and image parts are allowed"
+                            ));
+                        }
+                        RichContentPart::File { .. } => {
+                            return Err(format!(
+                                "part[{idx}] has unsupported media type `file`; only text and image parts are allowed"
+                            ));
+                        }
+                    }
+                }
+                Ok(())
+            }
+        }
+    }
 }
 
 impl FromStarlarkValue for RichContent {

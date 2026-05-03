@@ -5,7 +5,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// A tool that an MCP server exposes for invocation.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "mcp.tool.Tool")]
 pub struct Tool {
     /// The programmatic name of the tool.
@@ -62,7 +62,7 @@ pub enum ToolSchemaType {
 }
 
 /// JSON Schema for tool input/output. Must have `type: "object"`.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "mcp.tool.ToolSchemaObject")]
 pub struct ToolSchemaObject {
     /// Always "object".

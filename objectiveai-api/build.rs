@@ -1,6 +1,7 @@
 fn main() {
     set_stack_size();
     claude_agent_sdk_runner();
+    codex_sdk_runner();
 
     #[cfg(feature = "orchestrator-bollard")]
     laboratories_local();
@@ -87,6 +88,48 @@ fn laboratories_local() {
     println!("cargo:rerun-if-changed=../{module}/embed/");
 }
 
+fn codex_sdk_runner() {
+    let target = std::env::var("TARGET").unwrap();
+    let profile = std::env::var("PROFILE").unwrap();
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+    let workspace_dir = std::path::Path::new(&manifest_dir).parent().unwrap();
+
+    #[cfg(feature = "codex-sdk")]
+    {
+        let validate_script = workspace_dir
+            .join("objectiveai-codex-sdk-runner")
+            .join("validate.sh");
+        let mut args: Vec<&str> = vec!["--target", &target];
+        if profile == "release" {
+            args.push("--release");
+        }
+        let output = run_bash(&validate_script, &args);
+        assert!(
+            output.status.success(),
+            "objectiveai-codex-sdk-runner/validate.sh failed:\n{}\n{}Run: bash objectiveai-codex-sdk-runner/build.sh --target {target}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr),
+            if profile == "release" { " --release" } else { "" }
+        );
+        let binary_name = if target.contains("windows") {
+            "objectiveai-codex-sdk-runner.exe"
+        } else {
+            "objectiveai-codex-sdk-runner"
+        };
+        let binary_path = workspace_dir
+            .join("objectiveai-codex-sdk-runner")
+            .join("embed")
+            .join(&target)
+            .join(&profile)
+            .join(binary_name);
+        println!(
+            "cargo:rustc-env=OBJECTIVEAI_CODEX_SDK_RUNNER_PATH={}",
+            binary_path.display()
+        );
+        println!("cargo:rerun-if-changed=../objectiveai-codex-sdk-runner/embed/");
+    }
+}
+
 fn claude_agent_sdk_runner() {
     let target = std::env::var("TARGET").unwrap();
     let profile = std::env::var("PROFILE").unwrap();
@@ -96,7 +139,7 @@ fn claude_agent_sdk_runner() {
     #[cfg(feature = "claude-agent-sdk")]
     {
         let validate_script = workspace_dir
-            .join("objectiveai-claude-agent-sdk-runner-py")
+            .join("objectiveai-claude-agent-sdk-runner")
             .join("validate.sh");
         let mut args: Vec<&str> = vec!["--target", &target];
         if profile == "release" {
@@ -105,18 +148,18 @@ fn claude_agent_sdk_runner() {
         let output = run_bash(&validate_script, &args);
         assert!(
             output.status.success(),
-            "objectiveai-claude-agent-sdk-runner-py/validate.sh failed:\n{}\n{}Run: bash objectiveai-claude-agent-sdk-runner-py/build.sh --target {target}{}",
+            "objectiveai-claude-agent-sdk-runner/validate.sh failed:\n{}\n{}Run: bash objectiveai-claude-agent-sdk-runner/build.sh --target {target}{}",
             String::from_utf8_lossy(&output.stdout),
             String::from_utf8_lossy(&output.stderr),
             if profile == "release" { " --release" } else { "" }
         );
         let binary_name = if target.contains("windows") {
-            "objectiveai-claude-agent-sdk-runner-py.exe"
+            "objectiveai-claude-agent-sdk-runner.exe"
         } else {
-            "objectiveai-claude-agent-sdk-runner-py"
+            "objectiveai-claude-agent-sdk-runner"
         };
         let binary_path = workspace_dir
-            .join("objectiveai-claude-agent-sdk-runner-py")
+            .join("objectiveai-claude-agent-sdk-runner")
             .join("embed")
             .join(&target)
             .join(&profile)
@@ -125,6 +168,6 @@ fn claude_agent_sdk_runner() {
             "cargo:rustc-env=OBJECTIVEAI_CLAUDE_AGENT_SDK_RUNNER_PATH={}",
             binary_path.display()
         );
-        println!("cargo:rerun-if-changed=../objectiveai-claude-agent-sdk-runner-py/embed/");
+        println!("cargo:rerun-if-changed=../objectiveai-claude-agent-sdk-runner/embed/");
     }
 }

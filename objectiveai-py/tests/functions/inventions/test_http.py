@@ -1,6 +1,6 @@
 """HTTP integration tests for function inventions."""
 
-import objectiveai_pyo3
+import objectiveai._pyo3 as objectiveai_pyo3
 
 from objectiveai.functions.inventions.http import create_function_invention
 from objectiveai.functions.inventions.response.streaming import FunctionInventionChunk

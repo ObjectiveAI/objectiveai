@@ -1,6 +1,6 @@
 """HTTP integration tests for function executions."""
 
-import objectiveai_pyo3
+import objectiveai._pyo3 as objectiveai_pyo3
 
 from objectiveai.functions.executions.http import create_function_execution
 from objectiveai.functions.executions.response.streaming import FunctionExecutionChunk

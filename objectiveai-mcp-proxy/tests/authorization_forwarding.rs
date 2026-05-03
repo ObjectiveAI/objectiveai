@@ -1,8 +1,9 @@
-//! Upstream requires `Authorization: Bearer secret`. Without
-//! `X-MCP-Authorization`, the proxy fails the entire `initialize` with
-//! a JSON-RPC `-32603` (`connect_all` fans out via `try_join_all` and
-//! surfaces the first failure). With the right `X-MCP-Authorization`,
-//! the upstream connects cleanly and its tools appear.
+//! Upstream requires `Authorization: Bearer secret`. Without an
+//! `Authorization` entry inside `X-MCP-Headers` for that URL, the
+//! proxy fails the entire `initialize` with a JSON-RPC `-32603`
+//! (`connect_all` fans out via `try_join_all` and surfaces the first
+//! failure). With the right per-URL `Authorization`, the upstream
+//! connects cleanly and its tools appear.
 
 mod common;
 
@@ -33,7 +34,8 @@ async fn missing_authorization_fails_initialize() {
         HeaderName::from_static("x-mcp-servers"),
         HeaderValue::from_str(&rig.x_mcp_servers()).unwrap(),
     );
-    // Deliberately omit X-MCP-Authorization.
+    // Deliberately omit X-MCP-Headers (so no Authorization for the
+    // private upstream).
 
     let transport = StreamableHttpClientTransport::from_config(
         StreamableHttpClientTransportConfig::with_uri(rig.proxy.url.clone())
@@ -52,7 +54,7 @@ async fn missing_authorization_fails_initialize() {
 
 fn client_info_for_test() -> rmcp::model::ClientInfo {
     let value = serde_json::json!({
-        "protocolVersion": "2025-11-25",
+        "protocolVersion": "2025-06-18",
         "capabilities": {},
         "clientInfo": { "name": "auth-test", "version": "0.1.0" },
     });
@@ -68,13 +70,13 @@ async fn correct_authorization_lets_the_upstream_in() {
     ])
     .await;
 
-    let auth_map = serde_json::json!({
-        rig.upstreams[0].url.clone(): "Bearer secret",
+    let per_url_headers = serde_json::json!({
+        rig.upstreams[0].url.clone(): { "Authorization": "Bearer secret" },
     });
 
     let mut headers = HashMap::new();
     headers.insert("X-MCP-Servers", rig.x_mcp_servers());
-    headers.insert("X-MCP-Authorization", auth_map.to_string());
+    headers.insert("X-MCP-Headers", per_url_headers.to_string());
     let client = rig.connect_client(headers).await;
 
     let tools = client.peer().list_all_tools().await.expect("list_all_tools");

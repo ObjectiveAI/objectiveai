@@ -695,7 +695,7 @@ fn generate_laboratory_execution_chunk(py: Python<'_>, seed: Option<i64>) -> PyR
 // ---------------------------------------------------------------------------
 
 #[pymodule]
-fn objectiveai_pyo3(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn _pyo3(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Validation & ID
     m.add_function(wrap_pyfunction!(validate_agent, m)?)?;
     m.add_function(wrap_pyfunction!(validate_swarm, m)?)?;

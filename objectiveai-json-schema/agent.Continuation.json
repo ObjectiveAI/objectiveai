@@ -11,6 +11,10 @@
       "$ref": "agent.claude_agent_sdk.Continuation"
     },
     {
+      "title": "CodexSdk",
+      "$ref": "agent.codex_sdk.Continuation"
+    },
+    {
       "title": "Mock",
       "$ref": "agent.mock.Continuation"
     }

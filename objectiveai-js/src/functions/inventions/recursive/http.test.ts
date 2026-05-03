@@ -27,7 +27,7 @@ httpTestSuite<FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecu
         state: {
           type: "alpha.scalar.leaf.function",
           depth: 0, min_branch_width: 1, max_branch_width: 1, min_leaf_width: 2, max_leaf_width: 4,
-          name: "inv-good-sl", spec: "Test function spec for mock recursive invention.",
+          name: "inv-good-sl", spec: "Test function spec for mock invention.",
           input_schema: {
             type: "object",
             properties: {
@@ -65,7 +65,7 @@ httpTestSuite<FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecu
         state: {
           type: "alpha.vector.leaf.function",
           depth: 0, min_branch_width: 1, max_branch_width: 1, min_leaf_width: 2, max_leaf_width: 4,
-          name: "inv-good-vl", spec: "Test function spec for mock recursive invention.",
+          name: "inv-good-vl", spec: "Test function spec for mock invention.",
           essay: "Ranking things.",
           input_schema: {
             items: { type: "string", enum: ["apple", "banana"] },
@@ -98,7 +98,7 @@ httpTestSuite<FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecu
         state: {
           type: "alpha.scalar.leaf.function",
           depth: 0, min_branch_width: 1, max_branch_width: 1, min_leaf_width: 2, max_leaf_width: 4,
-          name: "inv-schema-only", spec: "Test function spec for mock recursive invention.",
+          name: "inv-schema-only", spec: "Test function spec for mock invention.",
           essay: "A great essay about things.",
           input_schema: {
             type: "object",

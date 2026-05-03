@@ -1,0 +1,8 @@
+{
+  "title": "agent.codex_sdk.Upstream",
+  "description": "Codex SDK upstream marker.",
+  "type": "string",
+  "enum": [
+    "codex_sdk"
+  ]
+}

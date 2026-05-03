@@ -95,6 +95,16 @@ impl AgentBase {
         if let Some(effort) = &self.effort {
             effort.validate()?;
         }
+        if let Some(prefix_content) = &self.prefix_content {
+            prefix_content
+                .validate_text_or_image_only()
+                .map_err(|e| format!("`prefix_content`: {e}"))?;
+        }
+        if let Some(suffix_content) = &self.suffix_content {
+            suffix_content
+                .validate_text_or_image_only()
+                .map_err(|e| format!("`suffix_content`: {e}"))?;
+        }
         if let Some(mcp_servers) = &self.mcp_servers {
             super::super::mcp::mcp_servers::validate(mcp_servers)?;
         }

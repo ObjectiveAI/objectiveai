@@ -36,7 +36,7 @@ async fn notifications_cancelled_aborts_in_flight_tool_call() {
         .header("X-MCP-Servers", rig.x_mcp_servers())
         .body(
             r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{
-                "protocolVersion":"2025-11-25",
+                "protocolVersion":"2025-06-18",
                 "capabilities":{},
                 "clientInfo":{"name":"t","version":"0"}
             }}"#,

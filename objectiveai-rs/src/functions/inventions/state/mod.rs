@@ -186,19 +186,49 @@ pub trait InventionState: Clone + Send + 'static {
     fn input_schema_json(this: &Arc<Mutex<Self>>) -> Option<String>;
 
     fn essay_tools(this: &Arc<Mutex<Self>>) -> Vec<super::InventionTool>;
+    fn essay_tool_names(this: &Arc<Mutex<Self>>) -> Vec<String> {
+        Self::essay_tools(this)
+            .into_iter()
+            .map(|t| t.name)
+            .collect()
+    }
     fn validate_essay(this: &Arc<Mutex<Self>>) -> Result<(), String>;
 
     fn input_schema_tools(this: &Arc<Mutex<Self>>) -> Vec<super::InventionTool>;
+    fn input_schema_tool_names(this: &Arc<Mutex<Self>>) -> Vec<String> {
+        Self::input_schema_tools(this)
+            .into_iter()
+            .map(|t| t.name)
+            .collect()
+    }
     fn validate_input_schema(this: &Arc<Mutex<Self>>) -> Result<(), String>;
 
     fn essay_tasks_tools(this: &Arc<Mutex<Self>>) -> Vec<super::InventionTool>;
+    fn essay_tasks_tool_names(this: &Arc<Mutex<Self>>) -> Vec<String> {
+        Self::essay_tasks_tools(this)
+            .into_iter()
+            .map(|t| t.name)
+            .collect()
+    }
     fn validate_essay_tasks(this: &Arc<Mutex<Self>>) -> Result<(), String>;
 
     fn tasks_tools(this: &Arc<Mutex<Self>>) -> Vec<super::InventionTool>;
+    fn tasks_tool_names(this: &Arc<Mutex<Self>>) -> Vec<String> {
+        Self::tasks_tools(this)
+            .into_iter()
+            .map(|t| t.name)
+            .collect()
+    }
     fn validate_function(this: &Arc<Mutex<Self>>) -> Result<(), String>;
     fn build_function(this: &Arc<Mutex<Self>>) -> Option<crate::functions::FullRemoteFunction>;
 
     fn description_tools(this: &Arc<Mutex<Self>>) -> Vec<super::InventionTool>;
+    fn description_tool_names(this: &Arc<Mutex<Self>>) -> Vec<String> {
+        Self::description_tools(this)
+            .into_iter()
+            .map(|t| t.name)
+            .collect()
+    }
     fn validate_description(this: &Arc<Mutex<Self>>) -> Result<(), String>;
 
     fn write_readme(this: &Arc<Mutex<Self>>);

@@ -1,6 +1,6 @@
 """PyO3 bindings for vector completion chunk operations."""
 
-import objectiveai_pyo3
+import objectiveai._pyo3 as objectiveai_pyo3
 
 
 def pyo3_vector_completion_chunk_merged(a, b):

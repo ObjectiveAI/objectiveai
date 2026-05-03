@@ -11,7 +11,7 @@ class TextContent(BaseModel):
     """Text content."""
     model_config = ConfigDict(title='mcp.tool.TextContent')
 
-    _meta: Optional[dict[str, JsonValue]] = Field(None, description='Extension metadata.', json_schema_extra={'omitempty': True})
+    meta: Optional[dict[str, JsonValue]] = Field(None, alias='_meta', description='Extension metadata.', json_schema_extra={'omitempty': True})
     annotations: Optional[Annotations] = Field(None, description='Optional annotations for the client.', json_schema_extra={'omitempty': True})
     text: str = Field(..., description='The text content of the message.')
 

@@ -1,7 +1,7 @@
 //! Two upstreams, each requiring a *different* `Authorization` value.
-//! `X-MCP-Authorization: {<urlA>:"Bearer A", <urlB>:"Bearer B"}` lets
-//! both connect — the proxy applies the per-URL override before reaching
-//! each upstream.
+//! `X-MCP-Headers: {<urlA>: {"Authorization": "Bearer A"}, <urlB>: {"Authorization": "Bearer B"}}`
+//! lets both connect — the proxy applies each per-URL header set on
+//! every request to that upstream.
 
 mod common;
 
@@ -26,13 +26,13 @@ async fn per_url_authorization_overrides_apply() {
     ])
     .await;
 
-    let auth_map = serde_json::json!({
-        rig.upstreams[0].url.clone(): "Bearer A",
-        rig.upstreams[1].url.clone(): "Bearer B",
+    let per_url_headers = serde_json::json!({
+        rig.upstreams[0].url.clone(): { "Authorization": "Bearer A" },
+        rig.upstreams[1].url.clone(): { "Authorization": "Bearer B" },
     });
     let mut headers = HashMap::new();
     headers.insert("X-MCP-Servers", rig.x_mcp_servers());
-    headers.insert("X-MCP-Authorization", auth_map.to_string());
+    headers.insert("X-MCP-Headers", per_url_headers.to_string());
     let client = rig.connect_client(headers).await;
 
     let names: HashSet<String> = client

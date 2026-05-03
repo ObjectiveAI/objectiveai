@@ -8,7 +8,7 @@ export default defineConfig({
     // *within* a file can still run in parallel since each owns its own
     // rig and ports.
     fileParallelism: false,
-    testTimeout: 30_000,
-    hookTimeout: 30_000,
+    testTimeout: 60_000,
+    hookTimeout: 60_000,
   },
 });

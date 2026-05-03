@@ -11,7 +11,7 @@ class CallToolRequestParams(BaseModel):
     """Parameters for a `tools/call` request."""
     model_config = ConfigDict(title='mcp.tool.CallToolRequestParams')
 
-    _meta: Optional[dict[str, JsonValue]] = Field(None, description='Extension metadata.', json_schema_extra={'omitempty': True})
+    meta: Optional[dict[str, JsonValue]] = Field(None, alias='_meta', description='Extension metadata.', json_schema_extra={'omitempty': True})
     arguments: Optional[dict[str, JsonValue]] = Field(None, description='Arguments to pass to the tool.', json_schema_extra={'omitempty': True})
     name: str = Field(..., description='The name of the tool to call.')
     task: Optional[TaskMetadata] = Field(None, description='If specified, the caller is requesting task-augmented execution.', json_schema_extra={'omitempty': True})

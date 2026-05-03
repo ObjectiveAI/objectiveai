@@ -133,6 +133,30 @@ set_csproj_version() {
     "<Version>$NEW_VERSION</Version>"
 }
 
+# `objectiveai==X.Y.Z` lines in a pip requirements.txt. Other entries in the
+# file (including non-pinned ones, comments, and unrelated packages) pass
+# through untouched. Spec stays `==NEW_VERSION`.
+set_requirements_objectiveai_pin() {
+  local file="$1"
+  inline_substitute "$file" \
+    '^objectiveai[[:space:]]*==' \
+    '==[0-9][^[:space:]]*' \
+    "==$NEW_VERSION"
+}
+
+# `"objectiveai==X.Y.Z"` entries inside a pyproject.toml [project.dependencies]
+# array (or any line that quotes an objectiveai pin). The token regex stops at
+# the closing quote/comma so trailing TOML punctuation isn't consumed. Lines
+# without an objectiveai pin pass through untouched, including unrelated deps
+# like `objectiveai-foo==X` (the `-foo` breaks the `objectiveai==` boundary).
+set_pyproject_objectiveai_dep_pin() {
+  local file="$1"
+  inline_substitute "$file" \
+    'objectiveai[[:space:]]*==' \
+    '==[0-9][^",[:space:]]*' \
+    "==$NEW_VERSION"
+}
+
 # __version__ = "..." in a Python file. If absent, insert one right after
 # `from __future__ import annotations` (every runner has that line) with a
 # blank line before it for PEP 8 readability.
@@ -179,7 +203,8 @@ CARGO_TOMLS=(
 )
 
 PYPROJECT_TOMLS=(
-  objectiveai-rs-pyo3/pyproject.toml
+  objectiveai-py/pyproject.toml
+  objectiveai-cocoindex/pyproject.toml
 )
 
 PACKAGE_JSONS=(
@@ -193,8 +218,13 @@ CSPROJS=(
 )
 
 PY_RUNNER_MAINS=(
-  objectiveai-claude-agent-sdk-runner-py/main.py
-  objectiveai-codex-sdk-runner-py/main.py
+  objectiveai-claude-agent-sdk-runner/main.py
+  objectiveai-codex-sdk-runner/main.py
+)
+
+# pip requirements.txt files that pin `objectiveai==X.Y.Z`.
+REQUIREMENTS_TXTS=(
+  objectiveai-cocoindex/requirements.txt
 )
 
 # ---------------------------------------------------------------------------
@@ -217,6 +247,7 @@ update() {
       ;;
     pypro)
       set_toml_package_version "$file"
+      set_pyproject_objectiveai_dep_pin "$file"
       ;;
     pkg)
       set_package_json_version "$file"
@@ -230,6 +261,9 @@ update() {
     pyrun)
       ensure_py_module_version "$file"
       ;;
+    reqs)
+      set_requirements_objectiveai_pin "$file"
+      ;;
   esac
 }
 
@@ -240,6 +274,7 @@ for rel in "${PYPROJECT_TOMLS[@]}";        do update pypro  "$rel"; done
 for rel in "${PACKAGE_JSONS[@]}";          do update pkg    "$rel"; done
 for rel in "${CSPROJS[@]}";                do update csproj "$rel"; done
 for rel in "${PY_RUNNER_MAINS[@]}";        do update pyrun  "$rel"; done
+for rel in "${REQUIREMENTS_TXTS[@]}";       do update reqs   "$rel"; done
 
 echo
 echo "Done. Cargo.lock and pnpm-lock.yaml will refresh on next build."

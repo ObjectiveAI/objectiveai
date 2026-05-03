@@ -17,7 +17,7 @@
 //!   Client::create_streaming  ──┐
 //!                                │  register(id) → Receiver<Update>
 //!                                │
-//!                                │  send Run / Cancel ─→ stdin
+//!                                │  send Run ─→ stdin
 //!                                ▼
 //!   ┌──────────────  Arc<Runner>  ──────────────┐
 //!   │  Mutex<ChildStdin>                         │
@@ -59,8 +59,8 @@ type Registry = Arc<Mutex<HashMap<String, mpsc::UnboundedSender<RunnerUpdate>>>>
 /// One long-lived Claude Agent SDK runner subprocess. Created lazily
 /// by `super::super::Client` via `tokio::sync::OnceCell`.
 pub struct Runner {
-    /// stdin write half. Held under a mutex so concurrent
-    /// `send_run`/`send_cancel` calls can't interleave bytes mid-line.
+    /// stdin write half. Held under a mutex so concurrent `send_run`
+    /// calls can't interleave bytes mid-line.
     stdin: Mutex<ChildStdin>,
 
     /// id → sender for the per-request channel. Cleared when a
@@ -185,9 +185,10 @@ impl Runner {
     /// concurrency cap), register an id, send the `run`, and return a
     /// [`RunnerStream`] of updates for it. The returned stream holds
     /// the permit for its lifetime, so the cap is released on drop /
-    /// terminal update. Dropping the stream sends a `cancel` and
-    /// unregisters the id unless it already saw a terminal update —
-    /// see [`RunnerStream`].
+    /// terminal update. Dropping the stream unregisters the id but
+    /// does **not** cancel the in-flight SDK work — the runner runs
+    /// the request to natural completion regardless. See
+    /// [`RunnerStream`] for the rationale.
     ///
     /// `create_stream` borrows `self` through an `Arc` so the stream
     /// can keep the runner alive for its drop handler. The expected
@@ -255,17 +256,6 @@ impl Runner {
         self.write_line(&request).await
     }
 
-    /// Send a `cancel` request to the runner's stdin. Best-effort —
-    /// the runner emits a single `end` line for the request whether
-    /// it was in flight, queued, or already done. Internal — called
-    /// by `RunnerStream::drop`.
-    pub(super) async fn send_cancel(&self, id: &str) -> Result<(), RunnerError> {
-        if self.closed.load(std::sync::atomic::Ordering::Acquire) {
-            return Err(RunnerError::Closed);
-        }
-        let request = StdioInput::Cancel { id };
-        self.write_line(&request).await
-    }
 
     /// Serialize one inbound message and write it to stdin under the
     /// stdin lock so concurrent senders can't interleave bytes.

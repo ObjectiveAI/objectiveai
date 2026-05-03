@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Optional, Union
 from pydantic import ConfigDict, Field, RootModel
 from objectiveai.agent.claude_agent_sdk.agent import Agent as AgentClaudeAgentSdkAgent
+from objectiveai.agent.codex_sdk.agent import Agent as AgentCodexSdkAgent
 from objectiveai.agent.inline_agent import InlineAgent
 from objectiveai.agent.inline_agent_with_fallbacks import InlineAgentWithFallbacks
 from objectiveai.agent.mock.agent import Agent as AgentMockAgent
@@ -20,6 +21,11 @@ class RemoteAgentWithFallbacksClaudeAgentSdk(AgentClaudeAgentSdkAgent):
     description: str
 
 
+class RemoteAgentWithFallbacksCodexSdk(AgentCodexSdkAgent):
+    fallbacks: Optional[list[InlineAgent]] = Field(None, description='Fallback agents to try if the primary fails.', json_schema_extra={'omitempty': True})
+    description: str
+
+
 class RemoteAgentWithFallbacksMock(AgentMockAgent):
     fallbacks: Optional[list[InlineAgent]] = Field(None, description='Fallback agents to try if the primary fails.', json_schema_extra={'omitempty': True})
     description: str
@@ -29,5 +35,5 @@ class RemoteAgentWithFallbacks(RootModel):
     """A validated remote agent with description and optional fallbacks."""
     model_config = ConfigDict(title='agent.RemoteAgentWithFallbacks', json_schema_extra={'_expanded_ref': 'agent.InlineAgentWithFallbacks', '_expanded_ref_props': ['description']})
 
-    root: Union[RemoteAgentWithFallbacksOpenrouter, RemoteAgentWithFallbacksClaudeAgentSdk, RemoteAgentWithFallbacksMock]
+    root: Union[RemoteAgentWithFallbacksOpenrouter, RemoteAgentWithFallbacksClaudeAgentSdk, RemoteAgentWithFallbacksCodexSdk, RemoteAgentWithFallbacksMock]
 

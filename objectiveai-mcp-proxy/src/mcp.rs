@@ -29,11 +29,19 @@ use tokio::sync::broadcast;
 use crate::AppState;
 use crate::session::{CallToolError, ReadResourceError, Session};
 use crate::session_manager::SessionManager;
-use crate::upstream::{BadInit, connect_all};
+use crate::upstream::BadInit;
 
-/// MCP protocol version this proxy speaks. Pinned — there is only one
-/// supported version, and we reject any other.
+/// MCP protocol version the proxy advertises in its `initialize`
+/// response. Pinned — the proxy implements 2025-06-18 semantics.
 const PROTOCOL_VERSION: &str = "2025-06-18";
+
+/// Versions the proxy is willing to accept on incoming `initialize`
+/// requests. Per the MCP spec, the server picks one of these (the
+/// proxy's pinned [`PROTOCOL_VERSION`]) and the client downgrades. The
+/// `@modelcontextprotocol/sdk` TypeScript client defaults to
+/// `2025-11-25`; including it here lets that client connect without
+/// needing the SDK to pre-negotiate.
+const ACCEPTED_PROTOCOL_VERSIONS: &[&str] = &["2025-06-18", "2025-11-25"];
 
 /// JSON-RPC error codes we use.
 const PARSE_ERROR: i64 = -32700;
@@ -229,12 +237,15 @@ async fn handle_initialize(
     // don't change our routing or our advertised feature set.
     match request.params.as_ref().and_then(|p| p.get("protocolVersion")) {
         Some(v) => match v.as_str() {
-            Some(version) if version == PROTOCOL_VERSION => {}
+            Some(version) if ACCEPTED_PROTOCOL_VERSIONS.contains(&version) => {
+                // Accepted; the response will downgrade to PROTOCOL_VERSION
+                // and a spec-compliant client adopts it.
+            }
             Some(other) => {
                 return invalid_request_response(
                     request.id,
                     format!(
-                        "unsupported protocolVersion {other:?}; this proxy only speaks {PROTOCOL_VERSION}",
+                        "unsupported protocolVersion {other:?}; this proxy accepts {ACCEPTED_PROTOCOL_VERSIONS:?}",
                     ),
                 );
             }
@@ -253,18 +264,90 @@ async fn handle_initialize(
         }
     }
 
-    let connections = match connect_all(&state.client, headers).await {
-        Ok(c) => c,
-        Err(e @ (BadInit::NotUtf8 { .. } | BadInit::NotJson { .. })) => {
-            return invalid_request_response(request.id, e.to_string());
+    // Proxy session ids are AEAD-encrypted, base62-encoded envelopes
+    // wrapping a `URL → header_map` payload. The header map is the
+    // full set of HTTP headers needed to reconnect that upstream —
+    // `Mcp-Session-Id`, `Authorization`, plus any custom `X-*`. The
+    // upstream session id is uniform with every other header, no
+    // dedicated field. See `session_manager::SessionPayload`.
+    //
+    // Three branches:
+    //   1. id provided + alive in `state.sessions` → cheap-path: reuse
+    //      the live in-memory `Session`, re-mint its id from its
+    //      stored payload. The new request's `X-MCP-Servers` /
+    //      `X-MCP-Headers` are IGNORED — the encoded id is the sole
+    //      source of truth for what's connected and how. This is the
+    //      "one id = one connection state" guarantee.
+    //   2. id provided but not in memory → decrypt-and-decode it. If
+    //      decryption fails, or decoding fails → 401. Otherwise
+    //      reconnect to every URL in the decoded payload using its
+    //      stored headers (same ignore-the-request semantics as
+    //      branch 1). The `Mcp-Session-Id` and `Authorization`
+    //      headers come ONLY from the encoded id; anything the
+    //      request snuck into `X-MCP-Headers` is ignored.
+    //   3. no id → fresh init. `X-MCP-Servers` / `X-MCP-Headers`
+    //      build the spec list, every URL connects from scratch, the
+    //      resulting `(Connection, headers)` set encodes into a
+    //      brand-new id.
+    let provided_session_id = headers
+        .get(SESSION_ID_HEADER)
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_owned);
+
+    let connections_with_headers = if let Some(sid) = &provided_session_id {
+        if let Some(session) = state.sessions.get(sid) {
+            // Branch 1 — alive in-memory. Re-mint and return without
+            // re-running connect_all. With deterministic
+            // (BLAKE3-keyed-hash) nonce derivation in
+            // `session_manager::encrypt_and_encode`, the re-mint is
+            // byte-identical to the id the caller already holds, so
+            // it stays a key in `state.sessions`.
+            let new_id = state.sessions.mint_id(&session.payload);
+            return ok_response_with_id(request.id, new_id);
         }
-        Err(e @ BadInit::UpstreamConnectFailed { .. }) => {
-            return internal_error_response(request.id, e.to_string());
+        // Branch 2 — decrypt and reconnect strictly from the payload.
+        match state.sessions.decode_session_id(sid) {
+            Some(payload) => {
+                match crate::upstream::reconnect_from_payload(&state.client, &payload).await {
+                    Ok(pairs) => pairs,
+                    Err(e @ BadInit::UpstreamConnectFailed { .. }) => {
+                        return internal_error_response(request.id, e.to_string());
+                    }
+                    Err(e) => {
+                        // NotUtf8 / NotJson can't fire on this path
+                        // (no header parsing) but exhaustively handled.
+                        return internal_error_response(request.id, e.to_string());
+                    }
+                }
+            }
+            None => {
+                return (
+                    StatusCode::UNAUTHORIZED,
+                    format!("Unauthorized: Session not found ({sid:?})"),
+                )
+                    .into_response();
+            }
+        }
+    } else {
+        // Branch 3 — fresh init.
+        match crate::upstream::connect_all_fresh(&state.client, headers).await {
+            Ok(pairs) => pairs,
+            Err(e @ (BadInit::NotUtf8 { .. } | BadInit::NotJson { .. })) => {
+                return invalid_request_response(request.id, e.to_string());
+            }
+            Err(e @ BadInit::UpstreamConnectFailed { .. }) => {
+                return internal_error_response(request.id, e.to_string());
+            }
         }
     };
 
-    let session_id = state.sessions.add(connections);
+    let session_id = state.sessions.add(connections_with_headers);
+    ok_response_with_id(request.id, session_id)
+}
 
+/// Build the standard `initialize` 200 response with the proxy's
+/// declared protocol version + capabilities + `Mcp-Session-Id` header.
+fn ok_response_with_id(request_id: serde_json::Value, session_id: String) -> Response {
     let result = InitializeResult {
         protocol_version: PROTOCOL_VERSION.into(),
         capabilities: server_capabilities(),
@@ -272,13 +355,11 @@ async fn handle_initialize(
         instructions: None,
         _meta: None,
     };
-
     let body: JsonRpcResponse<InitializeResult> = JsonRpcResponse::Success {
         jsonrpc: "2.0".into(),
-        id: request.id,
+        id: request_id,
         result,
     };
-
     let mut headers = HeaderMap::new();
     let header_value = match HeaderValue::from_str(&session_id) {
         Ok(v) => v,
@@ -290,7 +371,6 @@ async fn handle_initialize(
         }
     };
     headers.insert(SESSION_ID_HEADER, header_value);
-
     (StatusCode::OK, headers, Json(body)).into_response()
 }
 
@@ -318,13 +398,17 @@ async fn handle_tools_list(
         None => return unknown_session_response(),
     };
 
-    let result = session.list_tools().await;
-    let body = JsonRpcResponse::Success {
-        jsonrpc: "2.0".into(),
-        id: request.id,
-        result,
-    };
-    (StatusCode::OK, Json(body)).into_response()
+    match session.list_tools().await {
+        Ok(result) => {
+            let body = JsonRpcResponse::Success {
+                jsonrpc: "2.0".into(),
+                id: request.id,
+                result,
+            };
+            (StatusCode::OK, Json(body)).into_response()
+        }
+        Err(e) => internal_error_response(request.id, format!("list_tools: {e}")),
+    }
 }
 
 async fn handle_tools_call(
@@ -459,13 +543,17 @@ async fn handle_resources_list(
         None => return unknown_session_response(),
     };
 
-    let result = session.list_resources().await;
-    let body = JsonRpcResponse::Success {
-        jsonrpc: "2.0".into(),
-        id: request.id,
-        result,
-    };
-    (StatusCode::OK, Json(body)).into_response()
+    match session.list_resources().await {
+        Ok(result) => {
+            let body = JsonRpcResponse::Success {
+                jsonrpc: "2.0".into(),
+                id: request.id,
+                result,
+            };
+            (StatusCode::OK, Json(body)).into_response()
+        }
+        Err(e) => internal_error_response(request.id, format!("list_resources: {e}")),
+    }
 }
 
 async fn handle_resources_read(
@@ -661,6 +749,7 @@ fn json_rpc_error_response(
     };
     (status, Json(body)).into_response()
 }
+
 
 fn parse_error_response(message: String) -> Response {
     json_rpc_error_response(

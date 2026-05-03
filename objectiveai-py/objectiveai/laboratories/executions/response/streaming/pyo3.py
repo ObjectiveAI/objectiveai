@@ -1,6 +1,6 @@
 """PyO3 bindings for LaboratoryExecutionChunk operations."""
 
-import objectiveai_pyo3
+import objectiveai._pyo3 as objectiveai_pyo3
 
 
 def pyo3_laboratory_execution_chunk_merged(a, b):

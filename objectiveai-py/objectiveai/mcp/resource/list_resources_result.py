@@ -11,7 +11,7 @@ class ListResourcesResult(BaseModel):
     """The server's response to a `resources/list` request."""
     model_config = ConfigDict(title='mcp.resource.ListResourcesResult')
 
-    _meta: Optional[dict[str, JsonValue]] = Field(None, description='Extension metadata.', json_schema_extra={'omitempty': True})
+    meta: Optional[dict[str, JsonValue]] = Field(None, alias='_meta', description='Extension metadata.', json_schema_extra={'omitempty': True})
     next_cursor: Optional[str] = Field(None, alias='nextCursor', description='An opaque cursor for fetching the next page.', json_schema_extra={'omitempty': True})
     resources: list[Resource] = Field(..., description='The list of resources available on the server.')
 

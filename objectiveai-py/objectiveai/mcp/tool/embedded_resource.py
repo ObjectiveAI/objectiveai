@@ -12,7 +12,7 @@ class EmbeddedResource(BaseModel):
     """The contents of a resource, embedded into a prompt or tool call result."""
     model_config = ConfigDict(title='mcp.tool.EmbeddedResource')
 
-    _meta: Optional[dict[str, JsonValue]] = Field(None, description='Extension metadata.', json_schema_extra={'omitempty': True})
+    meta: Optional[dict[str, JsonValue]] = Field(None, alias='_meta', description='Extension metadata.', json_schema_extra={'omitempty': True})
     annotations: Optional[Annotations] = Field(None, description='Optional annotations for the client.', json_schema_extra={'omitempty': True})
     resource: ResourceContentsUnion = Field(..., description='The embedded resource contents.')
 

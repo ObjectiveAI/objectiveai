@@ -15,7 +15,11 @@ pub type CallInventionTool = Arc<
 
 #[derive(Clone)]
 pub struct InventionTool {
-    pub name: &'static str,
+    /// Tool name with `.` normalised to `_` (done once in the
+    /// constructor, so every downstream consumer — the rmcp `Tool`
+    /// shown to the agent, the orchestrator's expected-tool-name list,
+    /// the `tool_key` hash — sees a single canonical form).
+    pub name: String,
     pub description: &'static str,
     pub parameters: IndexMap<String, serde_json::Value>,
     pub call: CallInventionTool,
@@ -35,7 +39,7 @@ impl InventionTool {
     }
 
     pub fn new_sync<T: super::JsonSchema>(
-        name: &'static str,
+        name: impl Into<String>,
         description: &'static str,
         f: impl Fn(serde_json::Value) -> Result<String, String>
         + Send
@@ -43,7 +47,7 @@ impl InventionTool {
         + 'static,
     ) -> Self {
         Self {
-            name,
+            name: name.into().replace('.', "_"),
             description,
             parameters: T::indexmap_json_schema(),
             call: Arc::new(move |args| {
@@ -54,7 +58,7 @@ impl InventionTool {
     }
 
     pub fn new_async<T: super::JsonSchema>(
-        name: &'static str,
+        name: impl Into<String>,
         description: &'static str,
         f: impl Fn(
             serde_json::Value,
@@ -65,7 +69,7 @@ impl InventionTool {
         + 'static,
     ) -> Self {
         Self {
-            name,
+            name: name.into().replace('.', "_"),
             description,
             parameters: T::indexmap_json_schema(),
             call: Arc::new(move |args| f(args)),

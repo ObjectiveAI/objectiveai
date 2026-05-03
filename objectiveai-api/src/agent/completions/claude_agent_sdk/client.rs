@@ -254,10 +254,7 @@ impl UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::ag
     + 'static {
         let enabled = self.enabled;
         let tools_enabled = _tools_enabled;
-        // TODO(orchestration-rewrite): the SDK upstream no longer
-        // receives a pre-resolved tool list; once implemented, source
-        // this from `mcp_connection.list_tools()` instead.
-        let has_tools = false;
+        let mcp_connection_for_check = mcp_connection.clone();
         let is_byok = byok.is_some();
         let id = id.to_string();
         let agent = agent.clone();
@@ -283,6 +280,25 @@ impl UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::ag
             if is_byok {
                 return Err(super::Error::InvalidByok);
             }
+
+            // The agent's tool surface is the union of (a) the MCP
+            // connection's tool list (if any) and (b) a response_format
+            // tool. If tools aren't enabled for this iteration but the
+            // surface is non-empty, surface a `ToolsNotAllowed` error
+            // up front — the SDK runner cannot run with tools off and
+            // tools defined.
+            let has_tools = match &mcp_connection_for_check {
+                Some(conn) => match conn.list_tools().await {
+                    Ok(tools) => !tools.is_empty(),
+                    Err(_) => false,
+                },
+                None => false,
+            } || matches!(
+                params.response_format,
+                Some(objectiveai::agent::completions::request::ResponseFormatParam::Single(
+                    objectiveai::agent::completions::request::ResponseFormat::ToolCall { .. }
+                )) | Some(objectiveai::agent::completions::request::ResponseFormatParam::PerAgent(_)),
+            );
 
             if !tools_enabled && has_tools {
                 return Err(super::Error::ToolsNotAllowed);
@@ -440,10 +456,8 @@ impl UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::ag
                             }
                         }
                         // Terminal updates: RunnerStream marks itself
-                        // complete on these, so dropping `rx` after we
-                        // break won't trigger a (no-op) cancel.
+                        // complete on these.
                         RunnerUpdate::End(StdioEndStatus::Ok) => break,
-                        RunnerUpdate::End(StdioEndStatus::Cancelled) => break,
                         RunnerUpdate::End(StdioEndStatus::Error { error }) => {
                             yield Err(super::Error::Stderr(error));
                             had_error = true;

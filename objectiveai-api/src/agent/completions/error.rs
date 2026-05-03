@@ -36,6 +36,9 @@ pub enum Error {
     #[error("upstream claude agent sdk error: {0}")]
     UpstreamClaudeAgentSdk(Box<dyn super::UpstreamError>),
 
+    #[error("upstream codex sdk error: {0}")]
+    UpstreamCodexSdk(Box<dyn super::UpstreamError>),
+
     #[error("upstream mock error: {0}")]
     UpstreamMock(Box<dyn super::UpstreamError>),
 
@@ -69,6 +72,7 @@ impl objectiveai::error::StatusError for Error {
             Self::Fetch(e) => e.code,
             Self::UpstreamOpenrouter(e)
             | Self::UpstreamClaudeAgentSdk(e)
+            | Self::UpstreamCodexSdk(e)
             | Self::UpstreamMock(e) => e.status(),
             Self::NoAgentsResolved => 400,
             Self::MultipleErrors(errors) => {
@@ -86,6 +90,7 @@ impl objectiveai::error::StatusError for Error {
             Self::Fetch(e) => Some(e.message.clone()),
             Self::UpstreamOpenrouter(e)
             | Self::UpstreamClaudeAgentSdk(e)
+            | Self::UpstreamCodexSdk(e)
             | Self::UpstreamMock(e) => e.message(),
             _ => Some(serde_json::Value::String(self.to_string())),
         }

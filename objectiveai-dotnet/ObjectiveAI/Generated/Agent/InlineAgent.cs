@@ -28,6 +28,9 @@ public partial class InlineAgent
     [JsonSchemaVariant("ClaudeAgentSdk", Ref = "agent.claude_agent_sdk.Agent")]
     public ObjectiveAI.Agent.ClaudeAgentSdk.Agent? ClaudeAgentSdk { get; set; }
 
+    [JsonSchemaVariant("CodexSdk", Ref = "agent.codex_sdk.Agent")]
+    public ObjectiveAI.Agent.CodexSdk.Agent? CodexSdk { get; set; }
+
     [JsonSchemaVariant("Mock", Ref = "agent.mock.Agent")]
     public ObjectiveAI.Agent.Mock.Agent? Mock { get; set; }
 }
@@ -67,9 +70,21 @@ public class InlineAgentConverter : JsonConverter<InlineAgent>
             }
             {
                 bool match2 = true;
-                if (!(el.TryGetProperty("upstream", out var c2_upstream) && c2_upstream.GetString() == "mock"))
+                if (!(el.TryGetProperty("output_mode", out var c2_output_mode) && c2_output_mode.GetString() == "instruction"))
+                    match2 = false;
+                if (!(el.TryGetProperty("upstream", out var c2_upstream) && c2_upstream.GetString() == "codex_sdk"))
                     match2 = false;
                 if (match2)
+                {
+                    try { var val = JsonSerializer.Deserialize<ObjectiveAI.Agent.CodexSdk.Agent>(raw, options); if (val != null) return new InlineAgent { CodexSdk = val }; }
+                    catch (JsonException) { }
+                }
+            }
+            {
+                bool match3 = true;
+                if (!(el.TryGetProperty("upstream", out var c3_upstream) && c3_upstream.GetString() == "mock"))
+                    match3 = false;
+                if (match3)
                 {
                     try { var val = JsonSerializer.Deserialize<ObjectiveAI.Agent.Mock.Agent>(raw, options); if (val != null) return new InlineAgent { Mock = val }; }
                     catch (JsonException) { }
@@ -91,6 +106,11 @@ public class InlineAgentConverter : JsonConverter<InlineAgent>
         if (value.ClaudeAgentSdk != null)
         {
             JsonSerializer.Serialize(writer, value.ClaudeAgentSdk, options);
+            return;
+        }
+        if (value.CodexSdk != null)
+        {
+            JsonSerializer.Serialize(writer, value.CodexSdk, options);
             return;
         }
         if (value.Mock != null)

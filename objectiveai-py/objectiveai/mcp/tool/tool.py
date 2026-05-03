@@ -14,7 +14,7 @@ class Tool(BaseModel):
     """A tool that an MCP server exposes for invocation."""
     model_config = ConfigDict(title='mcp.tool.Tool')
 
-    _meta: Optional[dict[str, JsonValue]] = Field(None, description='Extension metadata.', json_schema_extra={'omitempty': True})
+    meta: Optional[dict[str, JsonValue]] = Field(None, alias='_meta', description='Extension metadata.', json_schema_extra={'omitempty': True})
     annotations: Optional[ToolAnnotations] = Field(None, description='Additional tool metadata.', json_schema_extra={'omitempty': True})
     description: Optional[str] = Field(None, description='A human-readable description of the tool.', json_schema_extra={'omitempty': True})
     execution: Optional[ToolExecution] = Field(None, description='Execution-related properties.', json_schema_extra={'omitempty': True})

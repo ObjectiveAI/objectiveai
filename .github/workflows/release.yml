@@ -161,7 +161,7 @@ jobs:
         with:
           # Pin Python to avoid macOS runners flipping the default to a
           # version PyInstaller doesn't yet support, and to keep the
-          # sdk-runner-py fingerprint stable across runner OS versions.
+          # sdk-runner fingerprint stable across runner OS versions.
           python-version: '3.13'
       - name: Install Linux Tauri deps
         if: runner.os == 'Linux' && matrix.viewer

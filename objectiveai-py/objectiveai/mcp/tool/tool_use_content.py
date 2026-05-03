@@ -10,7 +10,7 @@ class ToolUseContent(BaseModel):
     """A tool call request from an assistant."""
     model_config = ConfigDict(title='mcp.tool.ToolUseContent')
 
-    _meta: Optional[dict[str, JsonValue]] = Field(None, description='Extension metadata.', json_schema_extra={'omitempty': True})
+    meta: Optional[dict[str, JsonValue]] = Field(None, alias='_meta', description='Extension metadata.', json_schema_extra={'omitempty': True})
     id: str = Field(..., description='Unique identifier for this tool call.')
     input: dict[str, JsonValue] = Field(..., description='Arguments to pass to the tool.', json_schema_extra={'additionalProperties': True})
     name: str = Field(..., description='The name of the tool to invoke.')

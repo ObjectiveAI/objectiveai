@@ -322,6 +322,11 @@ function convertObject(
   if (catchall) {
     if (catchall._zod.def.type === "never") {
       result.additionalProperties = false;
+    } else if (catchall._zod.def.type === "unknown") {
+      // `.loose()` sets catchall to z.unknown(), which represents the
+      // "any value" position; emit it as `additionalProperties: true`
+      // so the round-trip matches the source JSON Schema.
+      result.additionalProperties = true;
     } else {
       result.additionalProperties = convert(catchall, allTitles, rootTitle, seen);
     }

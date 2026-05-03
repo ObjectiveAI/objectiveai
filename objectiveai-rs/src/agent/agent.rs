@@ -17,6 +17,8 @@ pub enum InlineAgentBase {
     Openrouter(super::openrouter::AgentBase),
     #[schemars(title = "ClaudeAgentSdk")]
     ClaudeAgentSdk(super::claude_agent_sdk::AgentBase),
+    #[schemars(title = "CodexSdk")]
+    CodexSdk(super::codex_sdk::AgentBase),
     #[schemars(title = "Mock")]
     Mock(super::mock::AgentBase),
 }
@@ -26,6 +28,7 @@ impl InlineAgentBase {
         match self {
             InlineAgentBase::Openrouter(b) => InlineAgentRef::Openrouter(b),
             InlineAgentBase::ClaudeAgentSdk(b) => InlineAgentRef::ClaudeAgentSdk(b),
+            InlineAgentBase::CodexSdk(b) => InlineAgentRef::CodexSdk(b),
             InlineAgentBase::Mock(b) => InlineAgentRef::Mock(b),
         }
     }
@@ -50,6 +53,7 @@ impl InlineAgentBase {
         match self {
             InlineAgentBase::Openrouter(b) => b.prepare(),
             InlineAgentBase::ClaudeAgentSdk(b) => b.prepare(),
+            InlineAgentBase::CodexSdk(b) => b.prepare(),
             InlineAgentBase::Mock(b) => b.prepare(),
         }
     }
@@ -58,6 +62,7 @@ impl InlineAgentBase {
         match self {
             InlineAgentBase::Openrouter(b) => b.validate(),
             InlineAgentBase::ClaudeAgentSdk(b) => b.validate(),
+            InlineAgentBase::CodexSdk(b) => b.validate(),
             InlineAgentBase::Mock(b) => b.validate(),
         }
     }
@@ -66,6 +71,7 @@ impl InlineAgentBase {
         match self {
             InlineAgentBase::Openrouter(b) => b.id(),
             InlineAgentBase::ClaudeAgentSdk(b) => b.id(),
+            InlineAgentBase::CodexSdk(b) => b.id(),
             InlineAgentBase::Mock(b) => b.id(),
         }
     }
@@ -76,6 +82,9 @@ impl InlineAgentBase {
             InlineAgentBase::Openrouter(b) => Ok(InlineAgent::Openrouter(b.try_into()?)),
             InlineAgentBase::ClaudeAgentSdk(b) => {
                 Ok(InlineAgent::ClaudeAgentSdk(b.try_into()?))
+            }
+            InlineAgentBase::CodexSdk(b) => {
+                Ok(InlineAgent::CodexSdk(b.try_into()?))
             }
             InlineAgentBase::Mock(b) => Ok(InlineAgent::Mock(b.try_into()?)),
         }
@@ -220,6 +229,7 @@ impl AgentBase {
 pub enum InlineAgentRef<'a> {
     Openrouter(&'a super::openrouter::AgentBase),
     ClaudeAgentSdk(&'a super::claude_agent_sdk::AgentBase),
+    CodexSdk(&'a super::codex_sdk::AgentBase),
     Mock(&'a super::mock::AgentBase),
 }
 
@@ -230,6 +240,7 @@ impl<'a> InlineAgentRef<'a> {
             InlineAgentRef::ClaudeAgentSdk(b) => {
                 InlineAgentBase::ClaudeAgentSdk(b.clone())
             }
+            InlineAgentRef::CodexSdk(b) => InlineAgentBase::CodexSdk(b.clone()),
             InlineAgentRef::Mock(b) => InlineAgentBase::Mock(b.clone()),
         }
     }
@@ -238,6 +249,7 @@ impl<'a> InlineAgentRef<'a> {
         match self {
             InlineAgentRef::Openrouter(b) => &b.model,
             InlineAgentRef::ClaudeAgentSdk(b) => &b.model,
+            InlineAgentRef::CodexSdk(b) => &b.model,
             InlineAgentRef::Mock(_) => super::mock::AgentBase::model(),
         }
     }
@@ -246,6 +258,7 @@ impl<'a> InlineAgentRef<'a> {
         match self {
             InlineAgentRef::Openrouter(_) => super::Upstream::Openrouter,
             InlineAgentRef::ClaudeAgentSdk(_) => super::Upstream::ClaudeAgentSdk,
+            InlineAgentRef::CodexSdk(_) => super::Upstream::CodexSdk,
             InlineAgentRef::Mock(_) => super::Upstream::Mock,
         }
     }
@@ -254,6 +267,7 @@ impl<'a> InlineAgentRef<'a> {
         match self {
             InlineAgentRef::Openrouter(b) => b.output_mode.into(),
             InlineAgentRef::ClaudeAgentSdk(b) => b.output_mode.into(),
+            InlineAgentRef::CodexSdk(b) => b.output_mode.into(),
             InlineAgentRef::Mock(b) => b.output_mode.into(),
         }
     }
@@ -262,6 +276,7 @@ impl<'a> InlineAgentRef<'a> {
         match self {
             InlineAgentRef::Openrouter(b) => b.mcp_servers.as_ref(),
             InlineAgentRef::ClaudeAgentSdk(b) => b.mcp_servers.as_ref(),
+            InlineAgentRef::CodexSdk(b) => b.mcp_servers.as_ref(),
             InlineAgentRef::Mock(b) => b.mcp_servers.as_ref(),
         }
     }
@@ -270,6 +285,7 @@ impl<'a> InlineAgentRef<'a> {
         match self {
             InlineAgentRef::Openrouter(b) => b.top_logprobs,
             InlineAgentRef::ClaudeAgentSdk(_) => None,
+            InlineAgentRef::CodexSdk(_) => None,
             InlineAgentRef::Mock(b) => b.top_logprobs,
         }
     }
@@ -281,6 +297,7 @@ impl<'a> InlineAgentRef<'a> {
         match self {
             InlineAgentRef::Openrouter(b) => b.merged_messages(messages),
             InlineAgentRef::ClaudeAgentSdk(b) => b.merged_messages(messages),
+            InlineAgentRef::CodexSdk(b) => b.merged_messages(messages),
             InlineAgentRef::Mock(b) => b.merged_messages(messages),
         }
     }
@@ -299,6 +316,8 @@ pub enum InlineAgent {
     Openrouter(super::openrouter::Agent),
     #[schemars(title = "ClaudeAgentSdk")]
     ClaudeAgentSdk(super::claude_agent_sdk::Agent),
+    #[schemars(title = "CodexSdk")]
+    CodexSdk(super::codex_sdk::Agent),
     #[schemars(title = "Mock")]
     Mock(super::mock::Agent),
 }
@@ -308,6 +327,7 @@ impl InlineAgent {
         match self {
             InlineAgent::Openrouter(a) => &a.id,
             InlineAgent::ClaudeAgentSdk(a) => &a.id,
+            InlineAgent::CodexSdk(a) => &a.id,
             InlineAgent::Mock(a) => &a.id,
         }
     }
@@ -316,6 +336,7 @@ impl InlineAgent {
         match self {
             InlineAgent::Openrouter(a) => InlineAgentRef::Openrouter(&a.base),
             InlineAgent::ClaudeAgentSdk(a) => InlineAgentRef::ClaudeAgentSdk(&a.base),
+            InlineAgent::CodexSdk(a) => InlineAgentRef::CodexSdk(&a.base),
             InlineAgent::Mock(a) => InlineAgentRef::Mock(&a.base),
         }
     }
@@ -324,6 +345,7 @@ impl InlineAgent {
         match self {
             InlineAgent::Openrouter(a) => InlineAgentBase::Openrouter(a.base),
             InlineAgent::ClaudeAgentSdk(a) => InlineAgentBase::ClaudeAgentSdk(a.base),
+            InlineAgent::CodexSdk(a) => InlineAgentBase::CodexSdk(a.base),
             InlineAgent::Mock(a) => InlineAgentBase::Mock(a.base),
         }
     }

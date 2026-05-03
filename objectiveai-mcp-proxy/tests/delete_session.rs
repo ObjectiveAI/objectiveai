@@ -22,7 +22,7 @@ async fn delete_then_post_returns_404() {
         .header("Accept", "application/json, text/event-stream")
         .body(
             r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{
-                "protocolVersion":"2025-11-25",
+                "protocolVersion":"2025-06-18",
                 "capabilities":{},
                 "clientInfo":{"name":"t","version":"0"}
             }}"#,

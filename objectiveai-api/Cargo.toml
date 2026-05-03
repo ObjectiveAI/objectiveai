@@ -17,6 +17,7 @@ default = ["orchestrator-bollard", "claude-agent-sdk"]
 sqlite-persistent-cache = ["dep:rusqlite"]
 orchestrator-bollard = ["dep:bollard", "dep:tar"]
 claude-agent-sdk = []
+codex-sdk = []
 
 [dependencies]
 objectiveai = { path = "../objectiveai-rs", version = "2.0.0", default-features = false, features = ["http", "mcp"] }
@@ -57,8 +58,13 @@ futures-util = { version = "0.3.32" }
 rusqlite = { version = "0.31.0", features = ["bundled"], optional = true }
 bollard = { version = "0.20.2", optional = true }
 tar = { version = "0.4.45", optional = true }
+base64 = { version = "0.22.1" }
+tempfile = { version = "3.27.0" }
 
 [dev-dependencies]
 dunce = "1.0.5"
 regex = "1.12.3"
 walkdir = "2.5.0"
+
+[target.'cfg(windows)'.dev-dependencies]
+windows-sys = { version = "0.59", features = ["Win32_System_JobObjects", "Win32_System_Threading", "Win32_Foundation", "Win32_Security"] }

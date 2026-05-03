@@ -12,31 +12,34 @@ pub use route::*;
 /// Pick an invention tool with weighted selection.
 ///
 /// 50% chance: return the key write tool for this step.
-/// 50% chance: pick randomly from the available tool names. Invention
-/// tools now flow through the proxy as `ResolvedTool::Mcp`, so callers
-/// must ensure `tool_names` only contains invention-relevant tools for
-/// the test scenario at hand.
+/// 50% chance: pick randomly from the available tool names.
+///
+/// Tool names in `tool_names` are the strings the proxy actually emits
+/// to the agent — i.e. proxy-prefixed (`<server-name>_<bare-name>`).
+/// `InventionServer::get_info` reports `server_info.name =
+/// "objectiveai-function-invention"`, so invention tools surface as
+/// `objectiveai-function-invention_WriteEssay`,
+/// `objectiveai-function-invention_ReadSpec`, etc. Callers pass and match
+/// on these final, prefixed names directly.
 pub(super) fn pick_invention_tool<'a>(
     key_tool: &str,
     tool_names: &'a [String],
     _tool_map: &std::collections::HashMap<String, crate::agent::completions::ResolvedTool>,
     rng: &mut impl rand::Rng,
 ) -> &'a str {
-    // 50% chance: return the key tool
     if rng.random_range(0u32..2) == 0 {
         if let Some(t) = tool_names.iter().find(|t| t.as_str() == key_tool) {
             return t.as_str();
         }
     }
-    // 50% chance: pick randomly from all available tool names.
-    let names: Vec<&'a str> = tool_names.iter().map(|t| t.as_str()).collect();
-    names[rng.random_range(0..names.len())]
+    tool_names[rng.random_range(0..tool_names.len())].as_str()
 }
 
 /// Generate a mock tool call for the description step (shared across all routes).
 ///
 /// Tools: `[ReadSpec, ReadEssay, ReadInputSchema, ReadEssayTasks, ReadTask,
-/// ReadTasksLength, WriteDescription]`.
+/// ReadTasksLength, WriteDescription]` — all served by the InventionServer,
+/// so they appear as `objectiveai-function-invention_<ToolName>` to the agent.
 pub fn description_tool_call(
     tool_names: &[String],
     tool_map: &std::collections::HashMap<String, crate::agent::completions::ResolvedTool>,
@@ -44,15 +47,15 @@ pub fn description_tool_call(
 ) -> super::client::MockToolCall {
     use super::client::{MockToolCall, random_string};
 
-    let tool_name = pick_invention_tool("WriteDescription", tool_names, tool_map, rng);
+    let tool_name = pick_invention_tool("objectiveai-function-invention_WriteDescription", tool_names, tool_map, rng);
     let arguments = match tool_name {
-        "WriteDescription" => {
+        "objectiveai-function-invention_WriteDescription" => {
             let description = random_string(rng, 50, 350);
             serde_json::json!({ "description": description }).to_string()
         }
-        "ReadSpec" | "ReadEssay" | "ReadInputSchema" | "ReadEssayTasks"
-        | "ReadTasksLength" => "{}".to_string(),
-        "ReadTask" => {
+        "objectiveai-function-invention_ReadSpec" | "objectiveai-function-invention_ReadEssay" | "objectiveai-function-invention_ReadInputSchema"
+        | "objectiveai-function-invention_ReadEssayTasks" | "objectiveai-function-invention_ReadTasksLength" => "{}".to_string(),
+        "objectiveai-function-invention_ReadTask" => {
             serde_json::json!({ "index": rng.random_range(0u32..5) }).to_string()
         }
         _ => "{}".to_string(),

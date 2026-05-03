@@ -9,7 +9,7 @@ from objectiveai.mcp.tool.tool_schema_type import ToolSchemaType
 
 class ToolSchemaObject(BaseModel):
     """JSON Schema for tool input/output. Must have `type: "object"`."""
-    model_config = ConfigDict(title='mcp.tool.ToolSchemaObject')
+    model_config = ConfigDict(title='mcp.tool.ToolSchemaObject', extra='allow')
 
     properties: Optional[dict[str, JsonValue]] = Field(None, description='Property definitions.', json_schema_extra={'omitempty': True})
     required: Optional[list[str]] = Field(None, description='Required property names.', json_schema_extra={'omitempty': True})

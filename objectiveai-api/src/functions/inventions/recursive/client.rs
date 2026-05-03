@@ -32,23 +32,23 @@ pub fn recursive_invention_response_id(created: u64) -> String {
 /// then spawns child inventions for each placeholder task, recursing
 /// based on depth. All child streams are merged concurrently — no waiting,
 /// no collecting.
-pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM, RIUSG> {
+pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM, RIUSG> {
     pub invention_client: Arc<
         crate::functions::inventions::Client<
-            CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM,
+            CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM,
         >,
     >,
     pub viewer_client: Arc<crate::viewer::Client<CTXEXT>>,
     pub usage_handler: Arc<RIUSG>,
 }
 
-impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM, RIUSG>
-    Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM, RIUSG>
+impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM, RIUSG>
+    Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM, RIUSG>
 {
     pub fn new(
         invention_client: Arc<
             crate::functions::inventions::Client<
-                CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM,
+                CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM,
             >,
         >,
         viewer_client: Arc<crate::viewer::Client<CTXEXT>>,
@@ -62,8 +62,8 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, 
     }
 }
 
-impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM, RIUSG>
-    Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM, RIUSG>
+impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM, RIUSG>
+    Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM, RIUSG>
 where
     CTXEXT: ctx::ContextExt + Send + Sync + 'static,
     OPENROUTER: crate::agent::completions::UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation>
@@ -72,6 +72,11 @@ where
         + 'static,
     CLAUDEAGENTSDK: crate::agent::completions::UpstreamClient<
             objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
+        > + Send
+        + Sync
+        + 'static,
+    CODEXSDK: crate::agent::completions::UpstreamClient<
+            objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation,
         > + Send
         + Sync
         + 'static,
@@ -291,10 +296,10 @@ where
 /// 5. Merges all child streams via `select_all` and yields their chunks.
 /// 6. After all children complete, replaces placeholders with the invented
 ///    function paths.
-fn run_recursive<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM>(
+fn run_recursive<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM>(
     invention_client: Arc<
         crate::functions::inventions::Client<
-            CTXEXT, OPENROUTER, CLAUDEAGENTSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM,
+            CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM,
         >,
     >,
     ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
@@ -314,6 +319,11 @@ where
         + 'static,
     CLAUDEAGENTSDK: crate::agent::completions::UpstreamClient<
             objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
+        > + Send
+        + Sync
+        + 'static,
+    CODEXSDK: crate::agent::completions::UpstreamClient<
+            objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation,
         > + Send
         + Sync
         + 'static,
@@ -444,6 +454,23 @@ where
 
         for (i, child_state) in children.into_iter().enumerate() {
             let child_native = base_native + i;
+            // Each sub-invention gets a deterministic seed that is
+            // distinct from its siblings, derived from the parent
+            // seed XOR `child_native`. Without this, every child
+            // would inherit `request.seed` verbatim and the only
+            // axis differentiating one sibling from another in the
+            // mock RNG seed would be `tool_names` — which is read
+            // from the agent's connection cache at the moment
+            // `resolve_tools` is called and is therefore vulnerable
+            // to listener-driven cache-refresh timing under load.
+            // Mixing in `child_native` makes each sibling's RNG
+            // input independent of cache snapshot timing, so a
+            // load-induced perturbation that happens to flip one
+            // sibling's `tool_names` snapshot does not propagate
+            // into a different mock seed and a different output.
+            let child_seed = request
+                .seed
+                .map(|s| s ^ (child_native as i64));
 
             // Build the child's recursive request with the child's state wrapped in Inline.
             let child_request = Arc::new(
@@ -454,7 +481,7 @@ where
                     provider: request.provider.clone(),
                     agent: request.agent.clone(),
                     prompt: request.prompt.clone(),
-                    seed: request.seed,
+                    seed: child_seed,
                     stream: request.stream,
                     max_step_retries: request.max_step_retries,
                     continuation: request.continuation.clone(),

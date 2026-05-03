@@ -9,6 +9,10 @@ use super::RunParams;
 ///
 /// Borrowed-everywhere shape — we never need to clone large inputs
 /// (notably the SDK user message body) just to ship a request.
+///
+/// In-flight cancellation is intentionally absent: the Claude Agent SDK
+/// can't guarantee that a stop signal arrives between billing events,
+/// so once a `Run` is sent the SDK is allowed to finish naturally.
 #[derive(Debug, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum StdioInput<'a> {
@@ -17,6 +21,4 @@ pub enum StdioInput<'a> {
         id: &'a str,
         params: RunParams<'a>,
     },
-    /// Best-effort abort of one in-flight stream.
-    Cancel { id: &'a str },
 }

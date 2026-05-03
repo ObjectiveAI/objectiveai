@@ -10,13 +10,13 @@ pub fn essay_tool_call(
     tool_map: &HashMap<String, ResolvedTool>,
     rng: &mut impl Rng,
 ) -> MockToolCall {
-    let tool_name = super::pick_invention_tool("WriteEssay", tool_names, tool_map, rng);
+    let tool_name = super::pick_invention_tool("objectiveai-function-invention_WriteEssay", tool_names, tool_map, rng);
     let arguments = match tool_name {
-        "WriteEssay" => {
+        "objectiveai-function-invention_WriteEssay" => {
             let essay = random_string(rng, 200, 800);
             serde_json::json!({ "essay": essay }).to_string()
         }
-        "ReadSpec" => "{}".to_string(),
+        "objectiveai-function-invention_ReadSpec" => "{}".to_string(),
         _ => "{}".to_string(),
     };
     MockToolCall {
@@ -36,13 +36,13 @@ pub fn input_schema_tool_call(
     tool_map: &HashMap<String, ResolvedTool>,
     rng: &mut impl Rng,
 ) -> MockToolCall {
-    let tool_name = super::pick_invention_tool("WriteInputSchema", tool_names, tool_map, rng);
+    let tool_name = super::pick_invention_tool("objectiveai-function-invention_WriteInputSchema", tool_names, tool_map, rng);
     let arguments = match tool_name {
-        "WriteInputSchema" => {
+        "objectiveai-function-invention_WriteInputSchema" => {
             let schema_json = super::schema_gen::random_vector_input_schema(rng);
             serde_json::json!({"schema": schema_json}).to_string()
         }
-        "ReadSpec" | "ReadEssay" | "ReadInputSchema" => "{}".to_string(),
+        "objectiveai-function-invention_ReadSpec" | "objectiveai-function-invention_ReadEssay" | "objectiveai-function-invention_ReadInputSchema" => "{}".to_string(),
         _ => "{}".to_string(),
     };
     MockToolCall {
@@ -59,13 +59,13 @@ pub fn essay_tasks_tool_call(
     tool_map: &HashMap<String, ResolvedTool>,
     rng: &mut impl Rng,
 ) -> MockToolCall {
-    let tool_name = super::pick_invention_tool("WriteEssayTasks", tool_names, tool_map, rng);
+    let tool_name = super::pick_invention_tool("objectiveai-function-invention_WriteEssayTasks", tool_names, tool_map, rng);
     let arguments = match tool_name {
-        "WriteEssayTasks" => {
+        "objectiveai-function-invention_WriteEssayTasks" => {
             let essay_tasks = random_string(rng, 100, 500);
             serde_json::json!({ "essay_tasks": essay_tasks }).to_string()
         }
-        "ReadSpec" | "ReadEssay" | "ReadInputSchema" => "{}".to_string(),
+        "objectiveai-function-invention_ReadSpec" | "objectiveai-function-invention_ReadEssay" | "objectiveai-function-invention_ReadInputSchema" => "{}".to_string(),
         _ => "{}".to_string(),
     };
     MockToolCall {

@@ -198,19 +198,19 @@
                 "6wPKXoi9PH5rK1FIsE75qA"
               ],
               "vote": [
-                0.9300209663431982,
-                0.06997903365680185
+                0.930020966343198,
+                0.0699790336568019
               ],
               "weight": 1.0
             }
           ],
           "scores": [
-            0.9300209663431982,
-            0.06997903365680185
+            0.930020966343198,
+            0.0699790336568019
           ],
           "weights": [
-            0.9300209663431982,
-            0.06997903365680185
+            0.930020966343198,
+            0.0699790336568019
           ],
           "created": 0,
           "swarm": "0AYcgicUgrCdsTzzOdz4xD",
@@ -228,7 +228,7 @@
       "tasks_errors": false,
       "reasoning": null,
       "output": {
-        "output": 0.06997903365680185
+        "output": 0.0699790336568019
       },
       "error": null,
       "retry_token": null,
@@ -487,7 +487,7 @@
   "tasks_errors": false,
   "reasoning": null,
   "output": {
-    "output": 0.03498951682840092
+    "output": 0.03498951682840093
   },
   "error": null,
   "retry_token": null,

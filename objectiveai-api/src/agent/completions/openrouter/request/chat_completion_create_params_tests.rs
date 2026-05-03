@@ -3,15 +3,14 @@
 use super::*;
 use std::sync::Arc;
 
-/// Helper to resolve tools and build params, replacing the old `new_with_tools`.
-fn build_params(
+/// Helper to resolve tools and build params via the per-agent proxy
+/// connection. Pass `None` when the test needs no tools.
+async fn build_params(
     agent: &objectiveai::agent::openrouter::Agent,
     params: &objectiveai::agent::completions::request::AgentCompletionCreateParams,
     messages: &[objectiveai::agent::completions::message::Message],
     continuation: Option<&[crate::agent::completions::ContinuationItem<objectiveai::agent::completions::message::AssistantMessage>]>,
-    mcp_connections: &[Arc<objectiveai::mcp::Connection>],
-    mcp_tools: &[Arc<Vec<objectiveai::mcp::tool::Tool>>],
-    invention_tools: Option<&[objectiveai::functions::inventions::InventionTool]>,
+    mcp_connection: Option<&objectiveai::mcp::Connection>,
 ) -> ChatCompletionCreateParams {
     let resolved_rf = params.response_format.as_ref().and_then(|rfp| {
         match rfp {
@@ -19,12 +18,12 @@ fn build_params(
             objectiveai::agent::completions::request::ResponseFormatParam::PerAgent(map) => map.get(&agent.id).cloned(),
         }
     });
-    let (tool_names, tool_map) = crate::agent::completions::tool::resolve_tools(
-        mcp_connections,
-        mcp_tools,
-        invention_tools,
+    let (tool_names, tool_map) = crate::agent::completions::resolved_tool::resolve_tools(
+        mcp_connection,
         resolved_rf.as_ref(),
-    );
+    )
+    .await
+    .expect("resolve_tools");
     ChatCompletionCreateParams::new(
         agent, params, messages, continuation, None,
         &tool_names, &tool_map, true,
@@ -32,14 +31,12 @@ fn build_params(
 }
 
 /// Like `build_params` but with explicit `tools_enabled` control.
-fn build_params_with_tools_enabled(
+async fn build_params_with_tools_enabled(
     agent: &objectiveai::agent::openrouter::Agent,
     params: &objectiveai::agent::completions::request::AgentCompletionCreateParams,
     messages: &[objectiveai::agent::completions::message::Message],
     continuation: Option<&[crate::agent::completions::ContinuationItem<objectiveai::agent::completions::message::AssistantMessage>]>,
-    mcp_connections: &[Arc<objectiveai::mcp::Connection>],
-    mcp_tools: &[Arc<Vec<objectiveai::mcp::tool::Tool>>],
-    invention_tools: Option<&[objectiveai::functions::inventions::InventionTool]>,
+    mcp_connection: Option<&objectiveai::mcp::Connection>,
     tools_enabled: bool,
 ) -> ChatCompletionCreateParams {
     let resolved_rf = params.response_format.as_ref().and_then(|rfp| {
@@ -48,20 +45,21 @@ fn build_params_with_tools_enabled(
             objectiveai::agent::completions::request::ResponseFormatParam::PerAgent(map) => map.get(&agent.id).cloned(),
         }
     });
-    let (tool_names, tool_map) = crate::agent::completions::tool::resolve_tools(
-        mcp_connections,
-        mcp_tools,
-        invention_tools,
+    let (tool_names, tool_map) = crate::agent::completions::resolved_tool::resolve_tools(
+        mcp_connection,
         resolved_rf.as_ref(),
-    );
+    )
+    .await
+    .expect("resolve_tools");
     ChatCompletionCreateParams::new(
         agent, params, messages, continuation, None,
         &tool_names, &tool_map, tools_enabled,
     )
 }
 
-#[test]
-fn test_no_tools_empty_params() {
+#[tokio::test]
+async fn test_no_tools_empty_params() {
+    let _permit = crate::test_clients::acquire_test_permit().await;
     let agent = objectiveai::agent::openrouter::Agent::try_from(
         objectiveai::agent::openrouter::AgentBase {
             model: "test-model".into(),
@@ -96,18 +94,13 @@ fn test_no_tools_empty_params() {
         continuation: None,
     };
 
-    let mcp_connections: Vec<Arc<objectiveai::mcp::Connection>> = vec![];
-    let mcp_tools: Vec<Arc<Vec<objectiveai::mcp::tool::Tool>>> = vec![];
-
     let result = build_params(
         &agent,
         &params,
         &messages,
         None,
-        &mcp_connections,
-        &mcp_tools,
         None,
-    );
+    ).await;
 
     let expected = ChatCompletionCreateParams {
         messages: messages.clone(),
@@ -145,152 +138,10 @@ fn test_no_tools_empty_params() {
     assert_eq!(result, expected);
 }
 
-#[test]
-fn test_invention_response_format_name_conflict() {
-    let agent = objectiveai::agent::openrouter::Agent::try_from(
-        objectiveai::agent::openrouter::AgentBase {
-            model: "test-model".into(),
-            ..Default::default()
-        },
-    )
-    .unwrap();
 
-    let messages = vec![
-        objectiveai::agent::completions::message::Message::User(
-            objectiveai::agent::completions::message::UserMessage {
-                content: objectiveai::agent::completions::message::RichContent::Text(
-                    "Hello".into(),
-                ),
-                name: None,
-            },
-        ),
-    ];
-
-    let mut rf_schema = indexmap::IndexMap::new();
-    rf_schema.insert(
-        "type".to_string(),
-        serde_json::Value::String("object".to_string()),
-    );
-    rf_schema.insert(
-        "properties".to_string(),
-        serde_json::json!({"result": {"type": "string"}}),
-    );
-
-    let params = objectiveai::agent::completions::request::AgentCompletionCreateParams {
-        messages: messages.clone(),
-        agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-            objectiveai::agent::InlineAgentBaseWithFallbacks {
-                inner: objectiveai::agent::InlineAgentBase::Mock(objectiveai::agent::mock::AgentBase::default()),
-                fallbacks: None,
-            },
-        ),
-        provider: None,
-        response_format: Some(
-            objectiveai::agent::completions::request::ResponseFormatParam::Single(
-                objectiveai::agent::completions::request::ResponseFormat::ToolCall {
-                    name: "output".to_string(),
-                    description: "Format output".to_string(),
-                    schema: rf_schema.clone(),
-                    required: Some(false),
-                },
-            ),
-        ),
-        seed: None,
-        stream: None,
-        continuation: None,
-    };
-
-    let mut inv_params = indexmap::IndexMap::new();
-    inv_params.insert(
-        "type".to_string(),
-        serde_json::Value::String("object".to_string()),
-    );
-
-    let invention_tools = vec![
-        objectiveai::functions::inventions::InventionTool {
-            name: "output",
-            description: "Invention output",
-            parameters: inv_params.clone(),
-            call: Arc::new(|_| Box::pin(async { Ok("".into()) })),
-        },
-    ];
-
-    let mcp_connections: Vec<Arc<objectiveai::mcp::Connection>> = vec![];
-    let mcp_tools: Vec<Arc<Vec<objectiveai::mcp::tool::Tool>>> = vec![];
-
-    let mut result = build_params(
-        &agent,
-        &params,
-        &messages,
-        None,
-        &mcp_connections,
-        &mcp_tools,
-        Some(&invention_tools),
-    );
-
-    if let Some(tools) = result.tools.as_mut() {
-        tools.sort_by(|a, b| {
-            let name_a = match a { Tool::Function { function } => &function.name };
-            let name_b = match b { Tool::Function { function } => &function.name };
-            name_a.cmp(name_b)
-        });
-    }
-
-    let expected = ChatCompletionCreateParams {
-        messages: messages.clone(),
-        provider: None,
-        model: "test-model".into(),
-        frequency_penalty: None,
-        logit_bias: None,
-        max_completion_tokens: None,
-        presence_penalty: None,
-        stop: None,
-        temperature: None,
-        top_p: None,
-        max_tokens: None,
-        min_p: None,
-        reasoning: None,
-        repetition_penalty: None,
-        top_a: None,
-        top_k: None,
-        verbosity: None,
-        logprobs: None,
-        top_logprobs: None,
-        response_format: None,
-        seed: None,
-        tool_choice: Some(super::tool_choice::ToolChoice::Auto),
-        tools: Some(vec![
-            super::Tool::Function {
-                function: super::FunctionTool {
-                    name: "output".to_string(),
-                    description: Some("Format output".to_string()),
-                    parameters: Some(rf_schema),
-                    strict: None,
-                },
-            },
-            super::Tool::Function {
-                function: super::FunctionTool {
-                    name: "output (objectiveai-invention)".to_string(),
-                    description: Some("Invention output".to_string()),
-                    parameters: Some(inv_params),
-                    strict: None,
-                },
-            },
-        ]),
-        parallel_tool_calls: None,
-        prediction: None,
-        stream: true,
-        stream_options: super::StreamOptions {
-            include_usage: Some(true),
-        },
-        usage: super::Usage { include: true },
-    };
-
-    assert_eq!(result, expected);
-}
-
-#[test]
-fn test_top_logprobs_zero_omits_logprobs() {
+#[tokio::test]
+async fn test_top_logprobs_zero_omits_logprobs() {
+    let _permit = crate::test_clients::acquire_test_permit().await;
     let agent = objectiveai::agent::openrouter::Agent {
         id: String::new(),
         base: objectiveai::agent::openrouter::AgentBase {
@@ -316,18 +167,13 @@ fn test_top_logprobs_zero_omits_logprobs() {
     };
 
     let messages: Vec<objectiveai::agent::completions::message::Message> = vec![];
-    let mcp_connections: Vec<Arc<objectiveai::mcp::Connection>> = vec![];
-    let mcp_tools: Vec<Arc<Vec<objectiveai::mcp::tool::Tool>>> = vec![];
-
     let result = build_params(
         &agent,
         &params,
         &messages,
         None,
-        &mcp_connections,
-        &mcp_tools,
         None,
-    );
+    ).await;
 
     assert_eq!(
         result,
@@ -366,8 +212,9 @@ fn test_top_logprobs_zero_omits_logprobs() {
     );
 }
 
-#[test]
-fn test_multiple_invention_tools_no_conflicts() {
+#[tokio::test]
+async fn test_multiple_invention_tools_no_conflicts() {
+    let _permit = crate::test_clients::acquire_test_permit().await;
     let agent = objectiveai::agent::openrouter::Agent::try_from(
         objectiveai::agent::openrouter::AgentBase {
             model: "openai/gpt-4o".into(),
@@ -430,34 +277,39 @@ fn test_multiple_invention_tools_no_conflicts() {
 
     let invention_tools = vec![
         objectiveai::functions::inventions::InventionTool {
-            name: "search",
+            name: "search".to_string(),
             description: "Search the web",
             parameters: search_params.clone(),
             call: Arc::new(|_| Box::pin(async { Ok("".into()) })),
         },
         objectiveai::functions::inventions::InventionTool {
-            name: "calculate",
+            name: "calculate".to_string(),
             description: "Evaluate a math expression",
             parameters: calculate_params.clone(),
             call: Arc::new(|_| Box::pin(async { Ok("".into()) })),
         },
         objectiveai::functions::inventions::InventionTool {
-            name: "translate",
+            name: "translate".to_string(),
             description: "Translate text to another language",
             parameters: translate_params.clone(),
             call: Arc::new(|_| Box::pin(async { Ok("".into()) })),
         },
     ];
 
+    let inv_server = crate::test_mcp_server::spawn(
+        "test",
+        invention_tools.into_iter()
+            .map(crate::test_mcp_server::TestTool::from_invention)
+            .collect(),
+    ).await;
+    let conn = crate::test_mcp_server::connect_through_proxy(&[&inv_server]).await;
     let mut result = build_params(
         &agent,
         &params,
         &messages,
         None,
-        &[],
-        &[],
-        Some(&invention_tools),
-    );
+        Some(&conn),
+    ).await;
 
     // Sort tools by name for deterministic comparison.
     if let Some(tools) = result.tools.as_mut() {
@@ -498,7 +350,7 @@ fn test_multiple_invention_tools_no_conflicts() {
         tools: Some(vec![
             Tool::Function {
                 function: FunctionTool {
-                    name: "calculate".into(),
+                    name: "test_calculate".into(),
                     description: Some("Evaluate a math expression".into()),
                     parameters: Some(calculate_params),
                     strict: None,
@@ -506,7 +358,7 @@ fn test_multiple_invention_tools_no_conflicts() {
             },
             Tool::Function {
                 function: FunctionTool {
-                    name: "search".into(),
+                    name: "test_search".into(),
                     description: Some("Search the web".into()),
                     parameters: Some(search_params),
                     strict: None,
@@ -514,7 +366,7 @@ fn test_multiple_invention_tools_no_conflicts() {
             },
             Tool::Function {
                 function: FunctionTool {
-                    name: "translate".into(),
+                    name: "test_translate".into(),
                     description: Some("Translate text to another language".into()),
                     parameters: Some(translate_params),
                     strict: None,
@@ -533,8 +385,9 @@ fn test_multiple_invention_tools_no_conflicts() {
     assert_eq!(result, expected);
 }
 
-#[test]
-fn test_toolcall_not_required_uses_auto_choice() {
+#[tokio::test]
+async fn test_toolcall_not_required_uses_auto_choice() {
+    let _permit = crate::test_clients::acquire_test_permit().await;
     let agent = objectiveai::agent::openrouter::Agent::try_from(
         objectiveai::agent::openrouter::AgentBase {
             model: "openai/gpt-4o".into(),
@@ -575,18 +428,13 @@ fn test_toolcall_not_required_uses_auto_choice() {
     };
 
     let messages: Vec<objectiveai::agent::completions::message::Message> = vec![];
-    let mcp_connections: Vec<Arc<objectiveai::mcp::Connection>> = vec![];
-    let mcp_tools: Vec<Arc<Vec<objectiveai::mcp::tool::Tool>>> = vec![];
-
     let result = build_params(
         &agent,
         &params,
         &messages,
         None,
-        &mcp_connections,
-        &mcp_tools,
         None,
-    );
+    ).await;
 
     let expected = ChatCompletionCreateParams {
         messages: vec![],
@@ -638,8 +486,9 @@ fn test_toolcall_not_required_uses_auto_choice() {
     assert_eq!(result, expected);
 }
 
-#[test]
-fn test_invention_tool_parameters_preserved() {
+#[tokio::test]
+async fn test_invention_tool_parameters_preserved() {
+    let _permit = crate::test_clients::acquire_test_permit().await;
     let agent = objectiveai::agent::openrouter::Agent::try_from(
         objectiveai::agent::openrouter::AgentBase {
             model: "test-model".into(),
@@ -699,25 +548,27 @@ fn test_invention_tool_parameters_preserved() {
 
     let invention_tools = vec![
         objectiveai::functions::inventions::InventionTool {
-            name: "analyze",
+            name: "analyze".to_string(),
             description: "Analyze data",
             parameters: inv_params.clone(),
             call: Arc::new(|_| Box::pin(async { Ok("ok".into()) })),
         },
     ];
 
-    let mcp_connections: Vec<Arc<objectiveai::mcp::Connection>> = vec![];
-    let mcp_tools: Vec<Arc<Vec<objectiveai::mcp::tool::Tool>>> = vec![];
-
+    let inv_server = crate::test_mcp_server::spawn(
+        "test",
+        invention_tools.into_iter()
+            .map(crate::test_mcp_server::TestTool::from_invention)
+            .collect(),
+    ).await;
+    let conn = crate::test_mcp_server::connect_through_proxy(&[&inv_server]).await;
     let result = build_params(
         &agent,
         &params,
         &messages,
         None,
-        &mcp_connections,
-        &mcp_tools,
-        Some(&invention_tools),
-    );
+        Some(&conn),
+    ).await;
 
     let expected = ChatCompletionCreateParams {
         messages: messages.clone(),
@@ -745,7 +596,7 @@ fn test_invention_tool_parameters_preserved() {
         tools: Some(vec![
             super::Tool::Function {
                 function: super::FunctionTool {
-                    name: "analyze".to_string(),
+                    name: "test_analyze".to_string(),
                     description: Some("Analyze data".to_string()),
                     parameters: Some(inv_params),
                     strict: None,
@@ -764,8 +615,9 @@ fn test_invention_tool_parameters_preserved() {
     assert_eq!(result, expected);
 }
 
-#[test]
-fn test_agent_base_fields_passthrough() {
+#[tokio::test]
+async fn test_agent_base_fields_passthrough() {
+    let _permit = crate::test_clients::acquire_test_permit().await;
     let agent = objectiveai::agent::openrouter::Agent::try_from(
         objectiveai::agent::openrouter::AgentBase {
             model: "openai/gpt-4o".to_string(),
@@ -823,10 +675,8 @@ fn test_agent_base_fields_passthrough() {
         &params,
         &messages,
         None,
-        &[],
-        &[],
         None,
-    );
+    ).await;
 
     assert_eq!(
         result,
@@ -868,8 +718,9 @@ fn test_agent_base_fields_passthrough() {
     );
 }
 
-#[test]
-fn test_provider_merging_both_sides() {
+#[tokio::test]
+async fn test_provider_merging_both_sides() {
+    let _permit = crate::test_clients::acquire_test_permit().await;
     let agent = objectiveai::agent::openrouter::Agent::try_from(
         objectiveai::agent::openrouter::AgentBase {
             model: "openai/gpt-4o".into(),
@@ -918,18 +769,13 @@ fn test_provider_merging_both_sides() {
             };
 
     let messages: Vec<objectiveai::agent::completions::message::Message> = vec![];
-    let mcp_connections: Vec<Arc<objectiveai::mcp::Connection>> = vec![];
-    let mcp_tools: Vec<Arc<Vec<objectiveai::mcp::tool::Tool>>> = vec![];
-
     let result = build_params(
         &agent,
         &params,
         &messages,
         None,
-        &mcp_connections,
-        &mcp_tools,
         None,
-    );
+    ).await;
 
     let expected = ChatCompletionCreateParams {
         messages: vec![],
@@ -986,8 +832,9 @@ fn test_provider_merging_both_sides() {
     assert_eq!(result, expected);
 }
 
-#[test]
-fn test_per_agent_response_format_miss() {
+#[tokio::test]
+async fn test_per_agent_response_format_miss() {
+    let _permit = crate::test_clients::acquire_test_permit().await;
     let agent = objectiveai::agent::openrouter::Agent::try_from(
         objectiveai::agent::openrouter::AgentBase {
             model: "gpt-4o".into(),
@@ -1022,18 +869,13 @@ fn test_per_agent_response_format_miss() {
     };
 
     let messages: Vec<objectiveai::agent::completions::message::Message> = vec![];
-    let mcp_connections: Vec<Arc<objectiveai::mcp::Connection>> = vec![];
-    let mcp_tools: Vec<Arc<Vec<objectiveai::mcp::tool::Tool>>> = vec![];
-
     let result = build_params(
         &agent,
         &params,
         &messages,
         None,
-        &mcp_connections,
-        &mcp_tools,
         None,
-    );
+    ).await;
 
     assert_eq!(
         result,
@@ -1072,8 +914,9 @@ fn test_per_agent_response_format_miss() {
     );
 }
 
-#[test]
-fn test_json_schema_response_format_extracts_title() {
+#[tokio::test]
+async fn test_json_schema_response_format_extracts_title() {
+    let _permit = crate::test_clients::acquire_test_permit().await;
     let agent = objectiveai::agent::openrouter::Agent::try_from(
         objectiveai::agent::openrouter::AgentBase {
             model: "openai/gpt-4o".into(),
@@ -1125,18 +968,13 @@ fn test_json_schema_response_format_extracts_title() {
     };
 
     let messages: Vec<objectiveai::agent::completions::message::Message> = vec![];
-    let mcp_connections: Vec<Arc<objectiveai::mcp::Connection>> = vec![];
-    let mcp_tools: Vec<Arc<Vec<objectiveai::mcp::tool::Tool>>> = vec![];
-
     let result = build_params(
         &agent,
         &params,
         &messages,
         None,
-        &mcp_connections,
-        &mcp_tools,
         None,
-    );
+    ).await;
 
     let mut expected_schema_map = serde_json::Map::new();
     expected_schema_map.insert(
@@ -1203,8 +1041,9 @@ fn test_json_schema_response_format_extracts_title() {
     );
 }
 
-#[test]
-fn test_seed_passthrough() {
+#[tokio::test]
+async fn test_seed_passthrough() {
+    let _permit = crate::test_clients::acquire_test_permit().await;
     let agent = objectiveai::agent::openrouter::Agent::try_from(
         objectiveai::agent::openrouter::AgentBase {
             model: "openai/gpt-4o".into(),
@@ -1277,10 +1116,8 @@ fn test_seed_passthrough() {
         &params,
         &messages,
         None,
-        &[],
-        &[],
         None,
-    );
+    ).await;
 
     assert_eq!(
         result,
@@ -1319,8 +1156,9 @@ fn test_seed_passthrough() {
     );
 }
 
-#[test]
-fn test_toolcall_required_forces_function_choice() {
+#[tokio::test]
+async fn test_toolcall_required_forces_function_choice() {
+    let _permit = crate::test_clients::acquire_test_permit().await;
     let agent = objectiveai::agent::openrouter::Agent::try_from(
         objectiveai::agent::openrouter::AgentBase {
             model: "openai/gpt-4o".into(),
@@ -1370,18 +1208,13 @@ fn test_toolcall_required_forces_function_choice() {
         continuation: None,
     };
 
-    let mcp_connections: Vec<Arc<objectiveai::mcp::Connection>> = vec![];
-    let mcp_tools: Vec<Arc<Vec<objectiveai::mcp::tool::Tool>>> = vec![];
-
     let result = build_params(
         &agent,
         &params,
         &[],
         None,
-        &mcp_connections,
-        &mcp_tools,
         None,
-    );
+    ).await;
 
     let expected = ChatCompletionCreateParams {
         messages: vec![],
@@ -1432,8 +1265,9 @@ fn test_toolcall_required_forces_function_choice() {
     assert_eq!(result, expected);
 }
 
-#[test]
-fn test_three_mcp_servers_fifteen_tools_all_unique() {
+#[tokio::test]
+async fn test_three_mcp_servers_fifteen_tools_all_unique() {
+    let _permit = crate::test_clients::acquire_test_permit().await;
     let agent = objectiveai::agent::openrouter::Agent::try_from(
         objectiveai::agent::openrouter::AgentBase {
             model: "anthropic/claude-sonnet-4".into(),
@@ -1470,11 +1304,7 @@ fn test_three_mcp_servers_fifteen_tools_all_unique() {
     };
 
     // Server 1: file operations
-    let conn1 = objectiveai::mcp::Connection::new_for_test(
-        "test".into(),
-        "https://files.example.com/mcp".into(),
-    );
-    let tools1 = Arc::new(vec![
+    let tools1 = vec![
         objectiveai::mcp::tool::Tool {
             name: "read_file".into(),
             title: None,
@@ -1567,14 +1397,10 @@ fn test_three_mcp_servers_fifteen_tools_all_unique() {
             execution: None,
             _meta: None,
         },
-    ]);
+    ];
 
     // Server 2: database operations
-    let conn2 = objectiveai::mcp::Connection::new_for_test(
-        "test".into(),
-        "https://db.example.com/mcp".into(),
-    );
-    let tools2 = Arc::new(vec![
+    let tools2 = vec![
         objectiveai::mcp::tool::Tool {
             name: "query".into(),
             title: None,
@@ -1670,14 +1496,10 @@ fn test_three_mcp_servers_fifteen_tools_all_unique() {
             execution: None,
             _meta: None,
         },
-    ]);
+    ];
 
     // Server 3: web/HTTP operations
-    let conn3 = objectiveai::mcp::Connection::new_for_test(
-        "test".into(),
-        "https://web.example.com/mcp".into(),
-    );
-    let tools3 = Arc::new(vec![
+    let tools3 = vec![
         objectiveai::mcp::tool::Tool {
             name: "fetch_url".into(),
             title: None,
@@ -1773,20 +1595,28 @@ fn test_three_mcp_servers_fifteen_tools_all_unique() {
             execution: None,
             _meta: None,
         },
-    ]);
+    ];
 
-    let mcp_connections = vec![conn1, conn2, conn3];
-    let mcp_tools = vec![tools1, tools2, tools3];
-
+    let server1 = crate::test_mcp_server::spawn(
+        "fs",
+        tools1.into_iter().map(crate::test_mcp_server::TestTool::noop).collect(),
+    ).await;
+    let server2 = crate::test_mcp_server::spawn(
+        "db",
+        tools2.into_iter().map(crate::test_mcp_server::TestTool::noop).collect(),
+    ).await;
+    let server3 = crate::test_mcp_server::spawn(
+        "web",
+        tools3.into_iter().map(crate::test_mcp_server::TestTool::noop).collect(),
+    ).await;
+    let conn = crate::test_mcp_server::connect_through_proxy(&[&server1, &server2, &server3]).await;
     let mut result = build_params(
         &agent,
         &params,
         &messages,
         None,
-        &mcp_connections,
-        &mcp_tools,
-        None,
-    );
+        Some(&conn),
+    ).await;
 
     if let Some(tools) = result.tools.as_mut() {
         tools.sort_by(|a, b| {
@@ -1821,7 +1651,7 @@ fn test_three_mcp_servers_fifteen_tools_all_unique() {
         tool_choice: Some(super::tool_choice::ToolChoice::Auto),
         tools: Some(vec![
             super::Tool::Function { function: super::FunctionTool {
-                name: "delete".into(),
+                name: "db_delete".into(),
                 description: Some("Delete rows".into()),
                 parameters: Some(indexmap::indexmap! {
                     "type".into() => serde_json::json!("object"),
@@ -1834,56 +1664,7 @@ fn test_three_mcp_servers_fifteen_tools_all_unique() {
                 strict: None,
             }},
             super::Tool::Function { function: super::FunctionTool {
-                name: "delete_file".into(),
-                description: None,
-                parameters: Some(indexmap::indexmap! {
-                    "type".into() => serde_json::json!("object"),
-                    "properties".into() => serde_json::Value::Object(vec![
-                        ("path".into(), serde_json::json!({"type": "string"})),
-                    ].into_iter().collect()),
-                    "required".into() => serde_json::json!(["path"]),
-                }),
-                strict: None,
-            }},
-            super::Tool::Function { function: super::FunctionTool {
-                name: "dns_lookup".into(),
-                description: Some("DNS lookup".into()),
-                parameters: Some(indexmap::indexmap! {
-                    "type".into() => serde_json::json!("object"),
-                    "properties".into() => serde_json::Value::Object(vec![
-                        ("hostname".into(), serde_json::json!({"type": "string"})),
-                    ].into_iter().collect()),
-                    "required".into() => serde_json::json!(["hostname"]),
-                }),
-                strict: None,
-            }},
-            super::Tool::Function { function: super::FunctionTool {
-                name: "fetch_url".into(),
-                description: Some("Fetch a URL".into()),
-                parameters: Some(indexmap::indexmap! {
-                    "type".into() => serde_json::json!("object"),
-                    "properties".into() => serde_json::Value::Object(vec![
-                        ("url".into(), serde_json::json!({"type": "string", "format": "uri"})),
-                        ("method".into(), serde_json::json!({"type": "string", "enum": ["GET", "POST", "PUT", "DELETE"]})),
-                        ("headers".into(), serde_json::json!({"type": "object"})),
-                    ].into_iter().collect()),
-                    "required".into() => serde_json::json!(["url"]),
-                }),
-                strict: None,
-            }},
-            super::Tool::Function { function: super::FunctionTool {
-                name: "file_info".into(),
-                description: Some("Get file metadata".into()),
-                parameters: Some(indexmap::indexmap! {
-                    "type".into() => serde_json::json!("object"),
-                    "properties".into() => serde_json::Value::Object(vec![
-                        ("path".into(), serde_json::json!({"type": "string"})),
-                    ].into_iter().collect()),
-                }),
-                strict: None,
-            }},
-            super::Tool::Function { function: super::FunctionTool {
-                name: "insert".into(),
+                name: "db_insert".into(),
                 description: Some("Insert a row".into()),
                 parameters: Some(indexmap::indexmap! {
                     "type".into() => serde_json::json!("object"),
@@ -1896,20 +1677,7 @@ fn test_three_mcp_servers_fifteen_tools_all_unique() {
                 strict: None,
             }},
             super::Tool::Function { function: super::FunctionTool {
-                name: "list_dir".into(),
-                description: Some("List files in a directory".into()),
-                parameters: Some(indexmap::indexmap! {
-                    "type".into() => serde_json::json!("object"),
-                    "properties".into() => serde_json::Value::Object(vec![
-                        ("path".into(), serde_json::json!({"type": "string"})),
-                        ("recursive".into(), serde_json::json!({"type": "boolean", "default": false})),
-                    ].into_iter().collect()),
-                    "required".into() => serde_json::json!(["path"]),
-                }),
-                strict: None,
-            }},
-            super::Tool::Function { function: super::FunctionTool {
-                name: "list_tables".into(),
+                name: "db_list_tables".into(),
                 description: Some("List all tables".into()),
                 parameters: Some(indexmap::indexmap! {
                     "type".into() => serde_json::json!("object"),
@@ -1917,20 +1685,7 @@ fn test_three_mcp_servers_fifteen_tools_all_unique() {
                 strict: None,
             }},
             super::Tool::Function { function: super::FunctionTool {
-                name: "parse_html".into(),
-                description: Some("Parse HTML and extract text".into()),
-                parameters: Some(indexmap::indexmap! {
-                    "type".into() => serde_json::json!("object"),
-                    "properties".into() => serde_json::Value::Object(vec![
-                        ("html".into(), serde_json::json!({"type": "string"})),
-                        ("selector".into(), serde_json::json!({"type": "string"})),
-                    ].into_iter().collect()),
-                    "required".into() => serde_json::json!(["html"]),
-                }),
-                strict: None,
-            }},
-            super::Tool::Function { function: super::FunctionTool {
-                name: "query".into(),
+                name: "db_query".into(),
                 description: Some("Run a SQL query".into()),
                 parameters: Some(indexmap::indexmap! {
                     "type".into() => serde_json::json!("object"),
@@ -1944,33 +1699,7 @@ fn test_three_mcp_servers_fifteen_tools_all_unique() {
                 strict: None,
             }},
             super::Tool::Function { function: super::FunctionTool {
-                name: "read_file".into(),
-                description: Some("Read a file from disk".into()),
-                parameters: Some(indexmap::indexmap! {
-                    "type".into() => serde_json::json!("object"),
-                    "properties".into() => serde_json::Value::Object(vec![
-                        ("path".into(), serde_json::json!({"type": "string"})),
-                    ].into_iter().collect()),
-                    "required".into() => serde_json::json!(["path"]),
-                }),
-                strict: None,
-            }},
-            super::Tool::Function { function: super::FunctionTool {
-                name: "screenshot".into(),
-                description: Some("Take a screenshot of a webpage".into()),
-                parameters: Some(indexmap::indexmap! {
-                    "type".into() => serde_json::json!("object"),
-                    "properties".into() => serde_json::Value::Object(vec![
-                        ("url".into(), serde_json::json!({"type": "string"})),
-                        ("width".into(), serde_json::json!({"type": "integer", "default": 1280})),
-                        ("height".into(), serde_json::json!({"type": "integer", "default": 720})),
-                    ].into_iter().collect()),
-                    "required".into() => serde_json::json!(["url"]),
-                }),
-                strict: None,
-            }},
-            super::Tool::Function { function: super::FunctionTool {
-                name: "update".into(),
+                name: "db_update".into(),
                 description: Some("Update rows".into()),
                 parameters: Some(indexmap::indexmap! {
                     "type".into() => serde_json::json!("object"),
@@ -1984,19 +1713,55 @@ fn test_three_mcp_servers_fifteen_tools_all_unique() {
                 strict: None,
             }},
             super::Tool::Function { function: super::FunctionTool {
-                name: "whois".into(),
+                name: "fs_delete_file".into(),
                 description: None,
                 parameters: Some(indexmap::indexmap! {
                     "type".into() => serde_json::json!("object"),
                     "properties".into() => serde_json::Value::Object(vec![
-                        ("domain".into(), serde_json::json!({"type": "string"})),
+                        ("path".into(), serde_json::json!({"type": "string"})),
                     ].into_iter().collect()),
-                    "required".into() => serde_json::json!(["domain"]),
+                    "required".into() => serde_json::json!(["path"]),
                 }),
                 strict: None,
             }},
             super::Tool::Function { function: super::FunctionTool {
-                name: "write_file".into(),
+                name: "fs_file_info".into(),
+                description: Some("Get file metadata".into()),
+                parameters: Some(indexmap::indexmap! {
+                    "type".into() => serde_json::json!("object"),
+                    "properties".into() => serde_json::Value::Object(vec![
+                        ("path".into(), serde_json::json!({"type": "string"})),
+                    ].into_iter().collect()),
+                }),
+                strict: None,
+            }},
+            super::Tool::Function { function: super::FunctionTool {
+                name: "fs_list_dir".into(),
+                description: Some("List files in a directory".into()),
+                parameters: Some(indexmap::indexmap! {
+                    "type".into() => serde_json::json!("object"),
+                    "properties".into() => serde_json::Value::Object(vec![
+                        ("path".into(), serde_json::json!({"type": "string"})),
+                        ("recursive".into(), serde_json::json!({"type": "boolean", "default": false})),
+                    ].into_iter().collect()),
+                    "required".into() => serde_json::json!(["path"]),
+                }),
+                strict: None,
+            }},
+            super::Tool::Function { function: super::FunctionTool {
+                name: "fs_read_file".into(),
+                description: Some("Read a file from disk".into()),
+                parameters: Some(indexmap::indexmap! {
+                    "type".into() => serde_json::json!("object"),
+                    "properties".into() => serde_json::Value::Object(vec![
+                        ("path".into(), serde_json::json!({"type": "string"})),
+                    ].into_iter().collect()),
+                    "required".into() => serde_json::json!(["path"]),
+                }),
+                strict: None,
+            }},
+            super::Tool::Function { function: super::FunctionTool {
+                name: "fs_write_file".into(),
                 description: Some("Write content to a file".into()),
                 parameters: Some(indexmap::indexmap! {
                     "type".into() => serde_json::json!("object"),
@@ -2008,597 +1773,68 @@ fn test_three_mcp_servers_fifteen_tools_all_unique() {
                 }),
                 strict: None,
             }},
-        ]),
-        parallel_tool_calls: None,
-        prediction: None,
-        stream: true,
-        stream_options: super::StreamOptions {
-            include_usage: Some(true),
-        },
-        usage: super::Usage { include: true },
-    };
-
-    assert_eq!(result, expected);
-}
-
-#[test]
-fn test_mcp_duplicate_name_across_servers_gets_url_suffix() {
-    let agent = objectiveai::agent::openrouter::Agent::try_from(
-        objectiveai::agent::openrouter::AgentBase {
-            model: "google/gemini-2.5-pro".into(),
-            ..Default::default()
-        },
-    )
-    .unwrap();
-
-    let messages = vec![
-        objectiveai::agent::completions::message::Message::System(
-            objectiveai::agent::completions::message::SystemMessage {
-                content: objectiveai::agent::completions::message::SimpleContent::Text(
-                    "You have access to multiple tool servers.".into(),
-                ),
-                name: None,
-            },
-        ),
-        objectiveai::agent::completions::message::Message::User(
-            objectiveai::agent::completions::message::UserMessage {
-                content: objectiveai::agent::completions::message::RichContent::Text(
-                    "Search for something".into(),
-                ),
-                name: None,
-            },
-        ),
-    ];
-
-    let params = objectiveai::agent::completions::request::AgentCompletionCreateParams {
-        messages: messages.clone(),
-        agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-            objectiveai::agent::InlineAgentBaseWithFallbacks {
-                inner: objectiveai::agent::InlineAgentBase::Mock(objectiveai::agent::mock::AgentBase::default()),
-                fallbacks: None,
-            },
-        ),
-        provider: None,
-        response_format: None,
-        seed: Some(7),
-        stream: None,
-        continuation: None,
-    };
-
-    // Server 1: knowledge base — has "search" (the duplicate)
-    let conn1 = objectiveai::mcp::Connection::new_for_test(
-        "test".into(),
-        "https://kb.example.com/mcp".into(),
-    );
-    let tools1 = Arc::new(vec![
-        objectiveai::mcp::tool::Tool {
-            name: "search".into(),
-            title: None,
-            description: Some("Search the knowledge base".into()),
-            icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
-                properties: Some(indexmap::indexmap! {
-                    "query".into() => serde_json::json!({"type": "string"}),
-                    "top_k".into() => serde_json::json!({"type": "integer", "default": 10}),
-                }),
-                required: Some(vec!["query".into()]),
-                extra: indexmap::IndexMap::new(),
-            },
-            output_schema: None,
-            annotations: None,
-            execution: None,
-            _meta: None,
-        },
-        objectiveai::mcp::tool::Tool {
-            name: "index_document".into(),
-            title: None,
-            description: Some("Index a document".into()),
-            icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
-                properties: Some(indexmap::indexmap! {
-                    "title".into() => serde_json::json!({"type": "string"}),
-                    "body".into() => serde_json::json!({"type": "string"}),
-                    "tags".into() => serde_json::json!({"type": "array", "items": {"type": "string"}}),
-                }),
-                required: Some(vec!["title".into(), "body".into()]),
-                extra: indexmap::IndexMap::new(),
-            },
-            output_schema: None,
-            annotations: None,
-            execution: None,
-            _meta: None,
-        },
-        objectiveai::mcp::tool::Tool {
-            name: "get_document".into(),
-            title: None,
-            description: Some("Retrieve a document by ID".into()),
-            icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
-                properties: Some(indexmap::indexmap! {
-                    "id".into() => serde_json::json!({"type": "string"}),
-                }),
-                required: Some(vec!["id".into()]),
-                extra: indexmap::IndexMap::new(),
-            },
-            output_schema: None,
-            annotations: None,
-            execution: None,
-            _meta: None,
-        },
-        objectiveai::mcp::tool::Tool {
-            name: "delete_document".into(),
-            title: None,
-            description: Some("Delete a document".into()),
-            icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
-                properties: Some(indexmap::indexmap! {
-                    "id".into() => serde_json::json!({"type": "string"}),
-                }),
-                required: Some(vec!["id".into()]),
-                extra: indexmap::IndexMap::new(),
-            },
-            output_schema: None,
-            annotations: None,
-            execution: None,
-            _meta: None,
-        },
-        objectiveai::mcp::tool::Tool {
-            name: "list_collections".into(),
-            title: None,
-            description: Some("List all collections".into()),
-            icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
-                properties: None,
-                required: None,
-                extra: indexmap::IndexMap::new(),
-            },
-            output_schema: None,
-            annotations: None,
-            execution: None,
-            _meta: None,
-        },
-    ]);
-
-    // Server 2: code search — also has "search" (the duplicate!)
-    let conn2 = objectiveai::mcp::Connection::new_for_test(
-        "test".into(),
-        "https://code.example.com/mcp".into(),
-    );
-    let tools2 = Arc::new(vec![
-        objectiveai::mcp::tool::Tool {
-            name: "search".into(),
-            title: None,
-            description: Some("Search code repositories".into()),
-            icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
-                properties: Some(indexmap::indexmap! {
-                    "query".into() => serde_json::json!({"type": "string"}),
-                    "language".into() => serde_json::json!({"type": "string"}),
-                    "repo".into() => serde_json::json!({"type": "string"}),
-                }),
-                required: Some(vec!["query".into()]),
-                extra: indexmap::IndexMap::new(),
-            },
-            output_schema: None,
-            annotations: None,
-            execution: None,
-            _meta: None,
-        },
-        objectiveai::mcp::tool::Tool {
-            name: "get_file".into(),
-            title: None,
-            description: Some("Get file contents from repo".into()),
-            icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
-                properties: Some(indexmap::indexmap! {
-                    "repo".into() => serde_json::json!({"type": "string"}),
-                    "path".into() => serde_json::json!({"type": "string"}),
-                    "ref".into() => serde_json::json!({"type": "string", "default": "main"}),
-                }),
-                required: Some(vec!["repo".into(), "path".into()]),
-                extra: indexmap::IndexMap::new(),
-            },
-            output_schema: None,
-            annotations: None,
-            execution: None,
-            _meta: None,
-        },
-        objectiveai::mcp::tool::Tool {
-            name: "list_repos".into(),
-            title: None,
-            description: Some("List repositories".into()),
-            icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
-                properties: Some(indexmap::indexmap! {
-                    "org".into() => serde_json::json!({"type": "string"}),
-                }),
-                required: None,
-                extra: indexmap::IndexMap::new(),
-            },
-            output_schema: None,
-            annotations: None,
-            execution: None,
-            _meta: None,
-        },
-        objectiveai::mcp::tool::Tool {
-            name: "blame".into(),
-            title: None,
-            description: Some("Git blame for a file".into()),
-            icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
-                properties: Some(indexmap::indexmap! {
-                    "repo".into() => serde_json::json!({"type": "string"}),
-                    "path".into() => serde_json::json!({"type": "string"}),
-                }),
-                required: Some(vec!["repo".into(), "path".into()]),
-                extra: indexmap::IndexMap::new(),
-            },
-            output_schema: None,
-            annotations: None,
-            execution: None,
-            _meta: None,
-        },
-        objectiveai::mcp::tool::Tool {
-            name: "diff".into(),
-            title: None,
-            description: Some("Diff between commits".into()),
-            icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
-                properties: Some(indexmap::indexmap! {
-                    "repo".into() => serde_json::json!({"type": "string"}),
-                    "base".into() => serde_json::json!({"type": "string"}),
-                    "head".into() => serde_json::json!({"type": "string"}),
-                }),
-                required: Some(vec!["repo".into(), "base".into(), "head".into()]),
-                extra: indexmap::IndexMap::new(),
-            },
-            output_schema: None,
-            annotations: None,
-            execution: None,
-            _meta: None,
-        },
-    ]);
-
-    // Server 3: email — no duplicates
-    let conn3 = objectiveai::mcp::Connection::new_for_test(
-        "test".into(),
-        "https://mail.example.com/mcp".into(),
-    );
-    let tools3 = Arc::new(vec![
-        objectiveai::mcp::tool::Tool {
-            name: "send_email".into(),
-            title: None,
-            description: Some("Send an email".into()),
-            icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
-                properties: Some(indexmap::indexmap! {
-                    "to".into() => serde_json::json!({"type": "string"}),
-                    "subject".into() => serde_json::json!({"type": "string"}),
-                    "body".into() => serde_json::json!({"type": "string"}),
-                    "cc".into() => serde_json::json!({"type": "array", "items": {"type": "string"}}),
-                }),
-                required: Some(vec!["to".into(), "subject".into(), "body".into()]),
-                extra: indexmap::IndexMap::new(),
-            },
-            output_schema: None,
-            annotations: None,
-            execution: None,
-            _meta: None,
-        },
-        objectiveai::mcp::tool::Tool {
-            name: "read_inbox".into(),
-            title: None,
-            description: Some("Read inbox messages".into()),
-            icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
-                properties: Some(indexmap::indexmap! {
-                    "limit".into() => serde_json::json!({"type": "integer", "default": 20}),
-                    "unread_only".into() => serde_json::json!({"type": "boolean", "default": false}),
-                }),
-                required: None,
-                extra: indexmap::IndexMap::new(),
-            },
-            output_schema: None,
-            annotations: None,
-            execution: None,
-            _meta: None,
-        },
-        objectiveai::mcp::tool::Tool {
-            name: "archive".into(),
-            title: None,
-            description: Some("Archive a message".into()),
-            icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
-                properties: Some(indexmap::indexmap! {
-                    "message_id".into() => serde_json::json!({"type": "string"}),
-                }),
-                required: Some(vec!["message_id".into()]),
-                extra: indexmap::IndexMap::new(),
-            },
-            output_schema: None,
-            annotations: None,
-            execution: None,
-            _meta: None,
-        },
-        objectiveai::mcp::tool::Tool {
-            name: "create_draft".into(),
-            title: None,
-            description: Some("Create a draft email".into()),
-            icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
-                properties: Some(indexmap::indexmap! {
-                    "to".into() => serde_json::json!({"type": "string"}),
-                    "subject".into() => serde_json::json!({"type": "string"}),
-                    "body".into() => serde_json::json!({"type": "string"}),
-                }),
-                required: Some(vec!["to".into(), "subject".into()]),
-                extra: indexmap::IndexMap::new(),
-            },
-            output_schema: None,
-            annotations: None,
-            execution: None,
-            _meta: None,
-        },
-        objectiveai::mcp::tool::Tool {
-            name: "list_labels".into(),
-            title: None,
-            description: Some("List email labels".into()),
-            icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
-                properties: None,
-                required: None,
-                extra: indexmap::IndexMap::new(),
-            },
-            output_schema: None,
-            annotations: None,
-            execution: None,
-            _meta: None,
-        },
-    ]);
-
-    let mcp_connections = vec![conn1, conn2, conn3];
-    let mcp_tools = vec![tools1, tools2, tools3];
-
-    let mut result = build_params(
-        &agent,
-        &params,
-        &messages,
-        None,
-        &mcp_connections,
-        &mcp_tools,
-        None,
-    );
-
-    if let Some(tools) = result.tools.as_mut() {
-        tools.sort_by(|a, b| {
-            let name_a = match a { Tool::Function { function } => &function.name };
-            let name_b = match b { Tool::Function { function } => &function.name };
-            name_a.cmp(name_b)
-        });
-    }
-
-    let expected = ChatCompletionCreateParams {
-        messages: messages.clone(),
-        provider: None,
-        model: "google/gemini-2.5-pro".into(),
-        frequency_penalty: None,
-        logit_bias: None,
-        max_completion_tokens: None,
-        presence_penalty: None,
-        stop: None,
-        temperature: None,
-        top_p: None,
-        max_tokens: None,
-        min_p: None,
-        reasoning: None,
-        repetition_penalty: None,
-        top_a: None,
-        top_k: None,
-        verbosity: None,
-        logprobs: None,
-        top_logprobs: None,
-        response_format: None,
-        seed: Some(7),
-        tool_choice: Some(super::tool_choice::ToolChoice::Auto),
-        tools: Some(vec![
             super::Tool::Function { function: super::FunctionTool {
-                name: "archive".into(),
-                description: Some("Archive a message".into()),
+                name: "web_dns_lookup".into(),
+                description: Some("DNS lookup".into()),
                 parameters: Some(indexmap::indexmap! {
                     "type".into() => serde_json::json!("object"),
                     "properties".into() => serde_json::Value::Object(vec![
-                        ("message_id".into(), serde_json::json!({"type": "string"})),
+                        ("hostname".into(), serde_json::json!({"type": "string"})),
                     ].into_iter().collect()),
-                    "required".into() => serde_json::json!(["message_id"]),
+                    "required".into() => serde_json::json!(["hostname"]),
                 }),
                 strict: None,
             }},
             super::Tool::Function { function: super::FunctionTool {
-                name: "blame".into(),
-                description: Some("Git blame for a file".into()),
+                name: "web_fetch_url".into(),
+                description: Some("Fetch a URL".into()),
                 parameters: Some(indexmap::indexmap! {
                     "type".into() => serde_json::json!("object"),
                     "properties".into() => serde_json::Value::Object(vec![
-                        ("repo".into(), serde_json::json!({"type": "string"})),
-                        ("path".into(), serde_json::json!({"type": "string"})),
+                        ("url".into(), serde_json::json!({"type": "string", "format": "uri"})),
+                        ("method".into(), serde_json::json!({"type": "string", "enum": ["GET", "POST", "PUT", "DELETE"]})),
+                        ("headers".into(), serde_json::json!({"type": "object"})),
                     ].into_iter().collect()),
-                    "required".into() => serde_json::json!(["repo", "path"]),
+                    "required".into() => serde_json::json!(["url"]),
                 }),
                 strict: None,
             }},
             super::Tool::Function { function: super::FunctionTool {
-                name: "create_draft".into(),
-                description: Some("Create a draft email".into()),
+                name: "web_parse_html".into(),
+                description: Some("Parse HTML and extract text".into()),
                 parameters: Some(indexmap::indexmap! {
                     "type".into() => serde_json::json!("object"),
                     "properties".into() => serde_json::Value::Object(vec![
-                        ("to".into(), serde_json::json!({"type": "string"})),
-                        ("subject".into(), serde_json::json!({"type": "string"})),
-                        ("body".into(), serde_json::json!({"type": "string"})),
+                        ("html".into(), serde_json::json!({"type": "string"})),
+                        ("selector".into(), serde_json::json!({"type": "string"})),
                     ].into_iter().collect()),
-                    "required".into() => serde_json::json!(["to", "subject"]),
+                    "required".into() => serde_json::json!(["html"]),
                 }),
                 strict: None,
             }},
             super::Tool::Function { function: super::FunctionTool {
-                name: "delete_document".into(),
-                description: Some("Delete a document".into()),
+                name: "web_screenshot".into(),
+                description: Some("Take a screenshot of a webpage".into()),
                 parameters: Some(indexmap::indexmap! {
                     "type".into() => serde_json::json!("object"),
                     "properties".into() => serde_json::Value::Object(vec![
-                        ("id".into(), serde_json::json!({"type": "string"})),
+                        ("url".into(), serde_json::json!({"type": "string"})),
+                        ("width".into(), serde_json::json!({"type": "integer", "default": 1280})),
+                        ("height".into(), serde_json::json!({"type": "integer", "default": 720})),
                     ].into_iter().collect()),
-                    "required".into() => serde_json::json!(["id"]),
+                    "required".into() => serde_json::json!(["url"]),
                 }),
                 strict: None,
             }},
             super::Tool::Function { function: super::FunctionTool {
-                name: "diff".into(),
-                description: Some("Diff between commits".into()),
+                name: "web_whois".into(),
+                description: None,
                 parameters: Some(indexmap::indexmap! {
                     "type".into() => serde_json::json!("object"),
                     "properties".into() => serde_json::Value::Object(vec![
-                        ("repo".into(), serde_json::json!({"type": "string"})),
-                        ("base".into(), serde_json::json!({"type": "string"})),
-                        ("head".into(), serde_json::json!({"type": "string"})),
+                        ("domain".into(), serde_json::json!({"type": "string"})),
                     ].into_iter().collect()),
-                    "required".into() => serde_json::json!(["repo", "base", "head"]),
-                }),
-                strict: None,
-            }},
-            super::Tool::Function { function: super::FunctionTool {
-                name: "get_document".into(),
-                description: Some("Retrieve a document by ID".into()),
-                parameters: Some(indexmap::indexmap! {
-                    "type".into() => serde_json::json!("object"),
-                    "properties".into() => serde_json::Value::Object(vec![
-                        ("id".into(), serde_json::json!({"type": "string"})),
-                    ].into_iter().collect()),
-                    "required".into() => serde_json::json!(["id"]),
-                }),
-                strict: None,
-            }},
-            super::Tool::Function { function: super::FunctionTool {
-                name: "get_file".into(),
-                description: Some("Get file contents from repo".into()),
-                parameters: Some(indexmap::indexmap! {
-                    "type".into() => serde_json::json!("object"),
-                    "properties".into() => serde_json::Value::Object(vec![
-                        ("repo".into(), serde_json::json!({"type": "string"})),
-                        ("path".into(), serde_json::json!({"type": "string"})),
-                        ("ref".into(), serde_json::json!({"type": "string", "default": "main"})),
-                    ].into_iter().collect()),
-                    "required".into() => serde_json::json!(["repo", "path"]),
-                }),
-                strict: None,
-            }},
-            super::Tool::Function { function: super::FunctionTool {
-                name: "index_document".into(),
-                description: Some("Index a document".into()),
-                parameters: Some(indexmap::indexmap! {
-                    "type".into() => serde_json::json!("object"),
-                    "properties".into() => serde_json::Value::Object(vec![
-                        ("title".into(), serde_json::json!({"type": "string"})),
-                        ("body".into(), serde_json::json!({"type": "string"})),
-                        ("tags".into(), serde_json::json!({"type": "array", "items": {"type": "string"}})),
-                    ].into_iter().collect()),
-                    "required".into() => serde_json::json!(["title", "body"]),
-                }),
-                strict: None,
-            }},
-            super::Tool::Function { function: super::FunctionTool {
-                name: "list_collections".into(),
-                description: Some("List all collections".into()),
-                parameters: Some(indexmap::indexmap! {
-                    "type".into() => serde_json::json!("object"),
-                }),
-                strict: None,
-            }},
-            super::Tool::Function { function: super::FunctionTool {
-                name: "list_labels".into(),
-                description: Some("List email labels".into()),
-                parameters: Some(indexmap::indexmap! {
-                    "type".into() => serde_json::json!("object"),
-                }),
-                strict: None,
-            }},
-            super::Tool::Function { function: super::FunctionTool {
-                name: "list_repos".into(),
-                description: Some("List repositories".into()),
-                parameters: Some(indexmap::indexmap! {
-                    "type".into() => serde_json::json!("object"),
-                    "properties".into() => serde_json::Value::Object(vec![
-                        ("org".into(), serde_json::json!({"type": "string"})),
-                    ].into_iter().collect()),
-                }),
-                strict: None,
-            }},
-            super::Tool::Function { function: super::FunctionTool {
-                name: "read_inbox".into(),
-                description: Some("Read inbox messages".into()),
-                parameters: Some(indexmap::indexmap! {
-                    "type".into() => serde_json::json!("object"),
-                    "properties".into() => serde_json::Value::Object(vec![
-                        ("limit".into(), serde_json::json!({"type": "integer", "default": 20})),
-                        ("unread_only".into(), serde_json::json!({"type": "boolean", "default": false})),
-                    ].into_iter().collect()),
-                }),
-                strict: None,
-            }},
-            super::Tool::Function { function: super::FunctionTool {
-                name: "search (test(https://code.example.com/mcp))".into(),
-                description: Some("Search code repositories".into()),
-                parameters: Some(indexmap::indexmap! {
-                    "type".into() => serde_json::json!("object"),
-                    "properties".into() => serde_json::Value::Object(vec![
-                        ("query".into(), serde_json::json!({"type": "string"})),
-                        ("language".into(), serde_json::json!({"type": "string"})),
-                        ("repo".into(), serde_json::json!({"type": "string"})),
-                    ].into_iter().collect()),
-                    "required".into() => serde_json::json!(["query"]),
-                }),
-                strict: None,
-            }},
-            super::Tool::Function { function: super::FunctionTool {
-                name: "search (test(https://kb.example.com/mcp))".into(),
-                description: Some("Search the knowledge base".into()),
-                parameters: Some(indexmap::indexmap! {
-                    "type".into() => serde_json::json!("object"),
-                    "properties".into() => serde_json::Value::Object(vec![
-                        ("query".into(), serde_json::json!({"type": "string"})),
-                        ("top_k".into(), serde_json::json!({"type": "integer", "default": 10})),
-                    ].into_iter().collect()),
-                    "required".into() => serde_json::json!(["query"]),
-                }),
-                strict: None,
-            }},
-            super::Tool::Function { function: super::FunctionTool {
-                name: "send_email".into(),
-                description: Some("Send an email".into()),
-                parameters: Some(indexmap::indexmap! {
-                    "type".into() => serde_json::json!("object"),
-                    "properties".into() => serde_json::Value::Object(vec![
-                        ("to".into(), serde_json::json!({"type": "string"})),
-                        ("subject".into(), serde_json::json!({"type": "string"})),
-                        ("body".into(), serde_json::json!({"type": "string"})),
-                        ("cc".into(), serde_json::json!({"type": "array", "items": {"type": "string"}})),
-                    ].into_iter().collect()),
-                    "required".into() => serde_json::json!(["to", "subject", "body"]),
+                    "required".into() => serde_json::json!(["domain"]),
                 }),
                 strict: None,
             }},
@@ -2615,716 +1851,13 @@ fn test_mcp_duplicate_name_across_servers_gets_url_suffix() {
     assert_eq!(result, expected);
 }
 
-#[test]
-fn test_mcp_tool_conflicts_with_invention_tool() {
-    let agent = objectiveai::agent::openrouter::Agent::try_from(
-        objectiveai::agent::openrouter::AgentBase {
-            model: "openai/gpt-4o".into(),
-            ..Default::default()
-        },
-    )
-    .unwrap();
 
-    let messages = vec![
-        objectiveai::agent::completions::message::Message::User(
-            objectiveai::agent::completions::message::UserMessage {
-                content: objectiveai::agent::completions::message::RichContent::Text(
-                    "Analyze this data".into(),
-                ),
-                name: None,
-            },
-        ),
-    ];
 
-    let params = objectiveai::agent::completions::request::AgentCompletionCreateParams {
-        messages: messages.clone(),
-        agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-            objectiveai::agent::InlineAgentBaseWithFallbacks {
-                inner: objectiveai::agent::InlineAgentBase::Mock(objectiveai::agent::mock::AgentBase::default()),
-                fallbacks: None,
-            },
-        ),
-        provider: None,
-        response_format: None,
-        seed: None,
-        stream: None,
-        continuation: None,
-    };
 
-    // MCP server has a tool named "analyze"
-    let conn = objectiveai::mcp::Connection::new_for_test(
-        "test".into(),
-        "https://analytics.example.com/mcp".into(),
-    );
-    let mcp_tools_list = Arc::new(vec![
-        objectiveai::mcp::tool::Tool {
-            name: "analyze".into(),
-            title: None,
-            description: Some("Run analytics query".into()),
-            icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
-                properties: Some(indexmap::indexmap! {
-                    "dataset".into() => serde_json::json!({"type": "string"}),
-                    "metric".into() => serde_json::json!({"type": "string"}),
-                }),
-                required: Some(vec!["dataset".into(), "metric".into()]),
-                extra: indexmap::IndexMap::new(),
-            },
-            output_schema: None,
-            annotations: None,
-            execution: None,
-            _meta: None,
-        },
-        objectiveai::mcp::tool::Tool {
-            name: "list_datasets".into(),
-            title: None,
-            description: Some("List available datasets".into()),
-            icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
-                properties: None,
-                required: None,
-                extra: indexmap::IndexMap::new(),
-            },
-            output_schema: None,
-            annotations: None,
-            execution: None,
-            _meta: None,
-        },
-    ]);
 
-    // Invention tool also named "analyze"
-    let invention_tools = vec![
-        objectiveai::functions::inventions::InventionTool {
-            name: "analyze",
-            description: "Analyze with custom logic",
-            parameters: indexmap::indexmap! {
-                "type".into() => serde_json::json!("object"),
-                "properties".into() => serde_json::json!({
-                    "text": {"type": "string"},
-                    "depth": {"type": "integer"}
-                }),
-                "required".into() => serde_json::json!(["text"]),
-            },
-            call: Arc::new(|_| Box::pin(async { Ok("done".into()) })),
-        },
-    ];
-
-    let mcp_connections = vec![conn];
-    let mcp_tools = vec![mcp_tools_list];
-
-    let result = build_params(
-        &agent,
-        &params,
-        &messages,
-        None,
-        &mcp_connections,
-        &mcp_tools,
-        Some(&invention_tools),
-    );
-
-    let expected = ChatCompletionCreateParams {
-        messages: messages.clone(),
-        provider: None,
-        model: "openai/gpt-4o".into(),
-        frequency_penalty: None,
-        logit_bias: None,
-        max_completion_tokens: None,
-        presence_penalty: None,
-        stop: None,
-        temperature: None,
-        top_p: None,
-        max_tokens: None,
-        min_p: None,
-        reasoning: None,
-        repetition_penalty: None,
-        top_a: None,
-        top_k: None,
-        verbosity: None,
-        logprobs: None,
-        top_logprobs: None,
-        response_format: None,
-        seed: None,
-        tool_choice: Some(super::tool_choice::ToolChoice::Auto),
-        tools: Some(vec![
-            // MCP "analyze" gets server name suffix (MCP tools come first).
-            super::Tool::Function {
-                function: super::FunctionTool {
-                    name: "analyze (test)".into(),
-                    description: Some("Run analytics query".into()),
-                    parameters: Some(indexmap::indexmap! {
-                        "type".into() => serde_json::json!("object"),
-                        "properties".into() => serde_json::Value::Object(
-                            vec![
-                                ("dataset".into(), serde_json::json!({"type": "string"})),
-                                ("metric".into(), serde_json::json!({"type": "string"})),
-                            ].into_iter().collect(),
-                        ),
-                        "required".into() => serde_json::json!(["dataset", "metric"]),
-                    }),
-                    strict: None,
-                },
-            },
-            super::Tool::Function {
-                function: super::FunctionTool {
-                    name: "list_datasets".into(),
-                    description: Some("List available datasets".into()),
-                    parameters: Some(indexmap::indexmap! {
-                        "type".into() => serde_json::json!("object"),
-                    }),
-                    strict: None,
-                },
-            },
-            // Invention "analyze" gets "(objectiveai-invention)" suffix (after MCP).
-            super::Tool::Function {
-                function: super::FunctionTool {
-                    name: "analyze (objectiveai-invention)".into(),
-                    description: Some("Analyze with custom logic".into()),
-                    parameters: Some(indexmap::indexmap! {
-                        "type".into() => serde_json::json!("object"),
-                        "properties".into() => serde_json::json!({
-                            "text": {"type": "string"},
-                            "depth": {"type": "integer"}
-                        }),
-                        "required".into() => serde_json::json!(["text"]),
-                    }),
-                    strict: None,
-                },
-            },
-        ]),
-        parallel_tool_calls: None,
-        prediction: None,
-        stream: true,
-        stream_options: super::StreamOptions {
-            include_usage: Some(true),
-        },
-        usage: super::Usage { include: true },
-    };
-
-    assert_eq!(result, expected);
-}
-
-#[test]
-fn test_mcp_tool_conflicts_with_response_format_tool() {
-    let agent = objectiveai::agent::openrouter::Agent::try_from(
-        objectiveai::agent::openrouter::AgentBase {
-            model: "openai/gpt-4o".into(),
-            ..Default::default()
-        },
-    )
-    .unwrap();
-
-    let messages = vec![
-        objectiveai::agent::completions::message::Message::User(
-            objectiveai::agent::completions::message::UserMessage {
-                content: objectiveai::agent::completions::message::RichContent::Text(
-                    "Evaluate this".into(),
-                ),
-                name: None,
-            },
-        ),
-    ];
-
-    // Response format ToolCall named "evaluate"
-    let params = objectiveai::agent::completions::request::AgentCompletionCreateParams {
-        messages: messages.clone(),
-        agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-            objectiveai::agent::InlineAgentBaseWithFallbacks {
-                inner: objectiveai::agent::InlineAgentBase::Mock(objectiveai::agent::mock::AgentBase::default()),
-                fallbacks: None,
-            },
-        ),
-        provider: None,
-        response_format: Some(
-            objectiveai::agent::completions::request::ResponseFormatParam::Single(
-                objectiveai::agent::completions::request::ResponseFormat::ToolCall {
-                    name: "evaluate".into(),
-                    description: "Return evaluation scores".into(),
-                    schema: indexmap::indexmap! {
-                        "type".into() => serde_json::json!("object"),
-                        "properties".into() => serde_json::json!({
-                            "score": {"type": "number"},
-                            "confidence": {"type": "number"}
-                        }),
-                    },
-                    required: Some(true),
-                },
-            ),
-        ),
-        seed: None,
-        stream: None,
-        continuation: None,
-    };
-
-    // MCP server also has a tool named "evaluate"
-    let conn = objectiveai::mcp::Connection::new_for_test(
-        "test".into(),
-        "https://grading.example.com/mcp".into(),
-    );
-    let mcp_tools_list = Arc::new(vec![
-        objectiveai::mcp::tool::Tool {
-            name: "evaluate".into(),
-            title: None,
-            description: Some("Grade a student submission".into()),
-            icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
-                properties: Some(indexmap::indexmap! {
-                    "submission_id".into() => serde_json::json!({"type": "string"}),
-                    "rubric".into() => serde_json::json!({"type": "string"}),
-                }),
-                required: Some(vec!["submission_id".into()]),
-                extra: indexmap::IndexMap::new(),
-            },
-            output_schema: None,
-            annotations: None,
-            execution: None,
-            _meta: None,
-        },
-        objectiveai::mcp::tool::Tool {
-            name: "list_submissions".into(),
-            title: None,
-            description: Some("List student submissions".into()),
-            icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
-                properties: Some(indexmap::indexmap! {
-                    "course_id".into() => serde_json::json!({"type": "string"}),
-                }),
-                required: Some(vec!["course_id".into()]),
-                extra: indexmap::IndexMap::new(),
-            },
-            output_schema: None,
-            annotations: None,
-            execution: None,
-            _meta: None,
-        },
-    ]);
-
-    let mcp_connections = vec![conn];
-    let mcp_tools = vec![mcp_tools_list];
-
-    let mut result = build_params(
-        &agent,
-        &params,
-        &messages,
-        None,
-        &mcp_connections,
-        &mcp_tools,
-        None,
-    );
-
-    if let Some(tools) = result.tools.as_mut() {
-        tools.sort_by(|a, b| {
-            let name_a = match a { Tool::Function { function } => &function.name };
-            let name_b = match b { Tool::Function { function } => &function.name };
-            name_a.cmp(name_b)
-        });
-    }
-
-    let expected = ChatCompletionCreateParams {
-        messages: messages.clone(),
-        provider: None,
-        model: "openai/gpt-4o".into(),
-        frequency_penalty: None,
-        logit_bias: None,
-        max_completion_tokens: None,
-        presence_penalty: None,
-        stop: None,
-        temperature: None,
-        top_p: None,
-        max_tokens: None,
-        min_p: None,
-        reasoning: None,
-        repetition_penalty: None,
-        top_a: None,
-        top_k: None,
-        verbosity: None,
-        logprobs: None,
-        top_logprobs: None,
-        response_format: None,
-        seed: None,
-        tool_choice: Some(super::tool_choice::ToolChoice::Function(
-            super::tool_choice::ToolChoiceFunction::Function {
-                function: super::tool_choice::ToolChoiceFunctionFunction {
-                    name: "evaluate".into(),
-                },
-            },
-        )),
-        tools: Some(vec![
-            // RF "evaluate" keeps plain name.
-            super::Tool::Function {
-                function: super::FunctionTool {
-                    name: "evaluate".into(),
-                    description: Some("Return evaluation scores".into()),
-                    parameters: Some(indexmap::indexmap! {
-                        "type".into() => serde_json::json!("object"),
-                        "properties".into() => serde_json::json!({
-                            "score": {"type": "number"},
-                            "confidence": {"type": "number"}
-                        }),
-                    }),
-                    strict: None,
-                },
-            },
-            // MCP "evaluate" gets URL suffix.
-            super::Tool::Function {
-                function: super::FunctionTool {
-                    name: "evaluate (test)".into(),
-                    description: Some("Grade a student submission".into()),
-                    parameters: Some(indexmap::indexmap! {
-                        "type".into() => serde_json::json!("object"),
-                        "properties".into() => serde_json::Value::Object(
-                            vec![
-                                ("submission_id".into(), serde_json::json!({"type": "string"})),
-                                ("rubric".into(), serde_json::json!({"type": "string"})),
-                            ].into_iter().collect(),
-                        ),
-                        "required".into() => serde_json::json!(["submission_id"]),
-                    }),
-                    strict: None,
-                },
-            },
-            super::Tool::Function {
-                function: super::FunctionTool {
-                    name: "list_submissions".into(),
-                    description: Some("List student submissions".into()),
-                    parameters: Some(indexmap::indexmap! {
-                        "type".into() => serde_json::json!("object"),
-                        "properties".into() => serde_json::Value::Object(
-                            vec![
-                                ("course_id".into(), serde_json::json!({"type": "string"})),
-                            ].into_iter().collect(),
-                        ),
-                        "required".into() => serde_json::json!(["course_id"]),
-                    }),
-                    strict: None,
-                },
-            },
-        ]),
-        parallel_tool_calls: None,
-        prediction: None,
-        stream: true,
-        stream_options: super::StreamOptions {
-            include_usage: Some(true),
-        },
-        usage: super::Usage { include: true },
-    };
-
-    assert_eq!(result, expected);
-}
-
-#[test]
-fn test_four_way_name_conflict_mcp_x2_invention_response_format() {
-    let agent = objectiveai::agent::openrouter::Agent::try_from(
-        objectiveai::agent::openrouter::AgentBase {
-            model: "anthropic/claude-sonnet-4".into(),
-            temperature: Some(0.5),
-            ..Default::default()
-        },
-    )
-    .unwrap();
-
-    let messages = vec![
-        objectiveai::agent::completions::message::Message::User(
-            objectiveai::agent::completions::message::UserMessage {
-                content: objectiveai::agent::completions::message::RichContent::Text(
-                    "Generate output".into(),
-                ),
-                name: None,
-            },
-        ),
-    ];
-
-    // Response format ToolCall named "output" (required=false → Auto)
-    let params = objectiveai::agent::completions::request::AgentCompletionCreateParams {
-        messages: messages.clone(),
-        agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-            objectiveai::agent::InlineAgentBaseWithFallbacks {
-                inner: objectiveai::agent::InlineAgentBase::Mock(objectiveai::agent::mock::AgentBase::default()),
-                fallbacks: None,
-            },
-        ),
-        provider: None,
-        response_format: Some(
-            objectiveai::agent::completions::request::ResponseFormatParam::Single(
-                objectiveai::agent::completions::request::ResponseFormat::ToolCall {
-                    name: "output".into(),
-                    description: "Structured output from RF".into(),
-                    schema: indexmap::indexmap! {
-                        "type".into() => serde_json::json!("object"),
-                        "properties".into() => serde_json::json!({
-                            "result": {"type": "string"}
-                        }),
-                    },
-                    required: None,
-                },
-            ),
-        ),
-        seed: None,
-        stream: None,
-        continuation: None,
-    };
-
-    // MCP server 1 has "output"
-    let conn1 = objectiveai::mcp::Connection::new_for_test(
-        "test".into(),
-        "https://renderer.example.com/mcp".into(),
-    );
-    let mcp_tools1 = Arc::new(vec![
-        objectiveai::mcp::tool::Tool {
-            name: "output".into(),
-            title: None,
-            description: Some("Render output to display".into()),
-            icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
-                properties: Some(indexmap::indexmap! {
-                    "format".into() => serde_json::json!({"type": "string", "enum": ["html", "pdf", "png"]}),
-                    "content".into() => serde_json::json!({"type": "string"}),
-                }),
-                required: Some(vec!["format".into(), "content".into()]),
-                extra: indexmap::IndexMap::new(),
-            },
-            output_schema: None,
-            annotations: None,
-            execution: None,
-            _meta: None,
-        },
-        objectiveai::mcp::tool::Tool {
-            name: "preview".into(),
-            title: None,
-            description: Some("Preview rendered output".into()),
-            icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
-                properties: Some(indexmap::indexmap! {
-                    "render_id".into() => serde_json::json!({"type": "string"}),
-                }),
-                required: Some(vec!["render_id".into()]),
-                extra: indexmap::IndexMap::new(),
-            },
-            output_schema: None,
-            annotations: None,
-            execution: None,
-            _meta: None,
-        },
-    ]);
-
-    // MCP server 2 also has "output"
-    let conn2 = objectiveai::mcp::Connection::new_for_test(
-        "test".into(),
-        "https://logger.example.com/mcp".into(),
-    );
-    let mcp_tools2 = Arc::new(vec![
-        objectiveai::mcp::tool::Tool {
-            name: "output".into(),
-            title: None,
-            description: Some("Write to log output".into()),
-            icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
-                properties: Some(indexmap::indexmap! {
-                    "level".into() => serde_json::json!({"type": "string", "enum": ["debug", "info", "warn", "error"]}),
-                    "message".into() => serde_json::json!({"type": "string"}),
-                }),
-                required: Some(vec!["level".into(), "message".into()]),
-                extra: indexmap::IndexMap::new(),
-            },
-            output_schema: None,
-            annotations: None,
-            execution: None,
-            _meta: None,
-        },
-        objectiveai::mcp::tool::Tool {
-            name: "tail_logs".into(),
-            title: None,
-            description: Some("Tail recent log entries".into()),
-            icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
-                properties: Some(indexmap::indexmap! {
-                    "n".into() => serde_json::json!({"type": "integer", "default": 50}),
-                }),
-                required: None,
-                extra: indexmap::IndexMap::new(),
-            },
-            output_schema: None,
-            annotations: None,
-            execution: None,
-            _meta: None,
-        },
-    ]);
-
-    // Invention tool also named "output"
-    let invention_tools = vec![
-        objectiveai::functions::inventions::InventionTool {
-            name: "output",
-            description: "Invention output formatter",
-            parameters: indexmap::indexmap! {
-                "type".into() => serde_json::json!("object"),
-                "properties".into() => serde_json::json!({
-                    "data": {"type": "object"},
-                    "template": {"type": "string"}
-                }),
-                "required".into() => serde_json::json!(["data"]),
-            },
-            call: Arc::new(|_| Box::pin(async { Ok("formatted".into()) })),
-        },
-    ];
-
-    let mcp_connections = vec![conn1, conn2];
-    let mcp_tools = vec![mcp_tools1, mcp_tools2];
-
-    let result = build_params(
-        &agent,
-        &params,
-        &messages,
-        None,
-        &mcp_connections,
-        &mcp_tools,
-        Some(&invention_tools),
-    );
-
-    let expected = ChatCompletionCreateParams {
-        messages: messages.clone(),
-        provider: None,
-        model: "anthropic/claude-sonnet-4".into(),
-        frequency_penalty: None,
-        logit_bias: None,
-        max_completion_tokens: None,
-        presence_penalty: None,
-        stop: None,
-        temperature: Some(0.5),
-        top_p: None,
-        max_tokens: None,
-        min_p: None,
-        reasoning: None,
-        repetition_penalty: None,
-        top_a: None,
-        top_k: None,
-        verbosity: None,
-        logprobs: None,
-        top_logprobs: None,
-        response_format: None,
-        seed: None,
-        tool_choice: Some(super::tool_choice::ToolChoice::Auto),
-        tools: Some(vec![
-            // MCP1 renderer "output" gets (server_name(url)) suffix (same server name).
-            super::Tool::Function {
-                function: super::FunctionTool {
-                    name: "output (test(https://renderer.example.com/mcp))".into(),
-                    description: Some("Render output to display".into()),
-                    parameters: Some(indexmap::indexmap! {
-                        "type".into() => serde_json::json!("object"),
-                        "properties".into() => serde_json::Value::Object(
-                            vec![
-                                ("format".into(), serde_json::json!({"type": "string", "enum": ["html", "pdf", "png"]})),
-                                ("content".into(), serde_json::json!({"type": "string"})),
-                            ].into_iter().collect(),
-                        ),
-                        "required".into() => serde_json::json!(["format", "content"]),
-                    }),
-                    strict: None,
-                },
-            },
-            // MCP1 "preview" (unique, no suffix).
-            super::Tool::Function {
-                function: super::FunctionTool {
-                    name: "preview".into(),
-                    description: Some("Preview rendered output".into()),
-                    parameters: Some(indexmap::indexmap! {
-                        "type".into() => serde_json::json!("object"),
-                        "properties".into() => serde_json::Value::Object(
-                            vec![
-                                ("render_id".into(), serde_json::json!({"type": "string"})),
-                            ].into_iter().collect(),
-                        ),
-                        "required".into() => serde_json::json!(["render_id"]),
-                    }),
-                    strict: None,
-                },
-            },
-            // MCP2 logger "output" gets (server_name(url)) suffix (same server name).
-            super::Tool::Function {
-                function: super::FunctionTool {
-                    name: "output (test(https://logger.example.com/mcp))".into(),
-                    description: Some("Write to log output".into()),
-                    parameters: Some(indexmap::indexmap! {
-                        "type".into() => serde_json::json!("object"),
-                        "properties".into() => serde_json::Value::Object(
-                            vec![
-                                ("level".into(), serde_json::json!({"type": "string", "enum": ["debug", "info", "warn", "error"]})),
-                                ("message".into(), serde_json::json!({"type": "string"})),
-                            ].into_iter().collect(),
-                        ),
-                        "required".into() => serde_json::json!(["level", "message"]),
-                    }),
-                    strict: None,
-                },
-            },
-            // MCP2 "tail_logs" (unique, no suffix).
-            super::Tool::Function {
-                function: super::FunctionTool {
-                    name: "tail_logs".into(),
-                    description: Some("Tail recent log entries".into()),
-                    parameters: Some(indexmap::indexmap! {
-                        "type".into() => serde_json::json!("object"),
-                        "properties".into() => serde_json::Value::Object(
-                            vec![
-                                ("n".into(), serde_json::json!({"type": "integer", "default": 50})),
-                            ].into_iter().collect(),
-                        ),
-                    }),
-                    strict: None,
-                },
-            },
-            // Invention "output" gets "(objectiveai-invention)" suffix.
-            super::Tool::Function {
-                function: super::FunctionTool {
-                    name: "output (objectiveai-invention)".into(),
-                    description: Some("Invention output formatter".into()),
-                    parameters: Some(indexmap::indexmap! {
-                        "type".into() => serde_json::json!("object"),
-                        "properties".into() => serde_json::json!({
-                            "data": {"type": "object"},
-                            "template": {"type": "string"}
-                        }),
-                        "required".into() => serde_json::json!(["data"]),
-                    }),
-                    strict: None,
-                },
-            },
-            // RF "output" keeps plain name (last, response format never gets suffix).
-            super::Tool::Function {
-                function: super::FunctionTool {
-                    name: "output".into(),
-                    description: Some("Structured output from RF".into()),
-                    parameters: Some(indexmap::indexmap! {
-                        "type".into() => serde_json::json!("object"),
-                        "properties".into() => serde_json::json!({
-                            "result": {"type": "string"}
-                        }),
-                    }),
-                    strict: None,
-                },
-            },
-        ]),
-        parallel_tool_calls: None,
-        prediction: None,
-        stream: true,
-        stream_options: super::StreamOptions {
-            include_usage: Some(true),
-        },
-        usage: super::Usage { include: true },
-    };
-
-    assert_eq!(result, expected);
-}
-
-#[test]
-fn test_continuation_assistant_message_appended() {
+#[tokio::test]
+async fn test_continuation_assistant_message_appended() {
+    let _permit = crate::test_clients::acquire_test_permit().await;
     let agent = objectiveai::agent::openrouter::Agent {
         id: String::new(),
         base: objectiveai::agent::openrouter::AgentBase {
@@ -3371,18 +1904,13 @@ fn test_continuation_assistant_message_appended() {
         ),
     ];
 
-    let mcp_connections: Vec<std::sync::Arc<objectiveai::mcp::Connection>> = vec![];
-    let mcp_tools: Vec<std::sync::Arc<Vec<objectiveai::mcp::tool::Tool>>> = vec![];
-
     let result = build_params(
         &agent,
         &params,
         &messages,
         Some(&continuation),
-        &mcp_connections,
-        &mcp_tools,
         None,
-    );
+    ).await;
 
     let expected = ChatCompletionCreateParams {
         messages: vec![
@@ -3442,8 +1970,9 @@ fn test_continuation_assistant_message_appended() {
     assert_eq!(result, expected);
 }
 
-#[test]
-fn test_continuation_mixed_items() {
+#[tokio::test]
+async fn test_continuation_mixed_items() {
+    let _permit = crate::test_clients::acquire_test_permit().await;
     let agent = objectiveai::agent::openrouter::Agent {
         id: String::new(),
         base: objectiveai::agent::openrouter::AgentBase {
@@ -3516,18 +2045,13 @@ fn test_continuation_mixed_items() {
         ),
     ];
 
-    let mcp_connections: Vec<std::sync::Arc<objectiveai::mcp::Connection>> = vec![];
-    let mcp_tools: Vec<std::sync::Arc<Vec<objectiveai::mcp::tool::Tool>>> = vec![];
-
     let result = build_params(
         &agent,
         &params,
         &messages,
         Some(&continuation),
-        &mcp_connections,
-        &mcp_tools,
         None,
-    );
+    ).await;
 
     let expected = ChatCompletionCreateParams {
         messages: vec![
@@ -3608,8 +2132,9 @@ fn test_continuation_mixed_items() {
     assert_eq!(result, expected);
 }
 
-#[test]
-fn test_tools_disabled_sets_tool_choice_none() {
+#[tokio::test]
+async fn test_tools_disabled_sets_tool_choice_none() {
+    let _permit = crate::test_clients::acquire_test_permit().await;
     let agent = objectiveai::agent::openrouter::Agent::try_from(
         objectiveai::agent::openrouter::AgentBase {
             model: "test-model".into(),
@@ -3645,8 +2170,8 @@ fn test_tools_disabled_sets_tool_choice_none() {
     };
 
     let result = build_params_with_tools_enabled(
-        &agent, &params, &[], None, &[], &[], None, false,
-    );
+        &agent, &params, &[], None, None, false,
+    ).await;
 
     // tool_choice should be None (the enum variant meaning "none"),
     // not Auto or Function.
@@ -3662,8 +2187,9 @@ fn test_tools_disabled_sets_tool_choice_none() {
     );
 }
 
-#[test]
-fn test_tools_disabled_no_tools_no_tool_choice() {
+#[tokio::test]
+async fn test_tools_disabled_no_tools_no_tool_choice() {
+    let _permit = crate::test_clients::acquire_test_permit().await;
     let agent = objectiveai::agent::openrouter::Agent::try_from(
         objectiveai::agent::openrouter::AgentBase {
             model: "test-model".into(),
@@ -3688,16 +2214,17 @@ fn test_tools_disabled_no_tools_no_tool_choice() {
     };
 
     let result = build_params_with_tools_enabled(
-        &agent, &params, &[], None, &[], &[], None, false,
-    );
+        &agent, &params, &[], None, None, false,
+    ).await;
 
     // No tools means no tool_choice at all.
     assert_eq!(result.tool_choice, None);
     assert!(result.tools.is_none());
 }
 
-#[test]
-fn test_request_continuation_messages_come_first() {
+#[tokio::test]
+async fn test_request_continuation_messages_come_first() {
+    let _permit = crate::test_clients::acquire_test_permit().await;
     use objectiveai::agent::completions::message::*;
 
     let agent = objectiveai::agent::openrouter::Agent::try_from(

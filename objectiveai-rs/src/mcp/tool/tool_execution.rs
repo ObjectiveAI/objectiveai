@@ -4,7 +4,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// The tool's preference for task-augmented execution.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 #[schemars(rename = "mcp.tool.TaskSupport")]
 pub enum TaskSupport {
@@ -20,7 +20,7 @@ pub enum TaskSupport {
 }
 
 /// Execution-related properties for a tool.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "mcp.tool.ToolExecution")]
 pub struct ToolExecution {
     /// Indicates the tool's preference for task-augmented execution.

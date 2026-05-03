@@ -4,7 +4,7 @@
   "messages": [
     {
       "role": "assistant",
-      "index": 1,
+      "index": 0,
       "created": 0,
       "agent": "65rKbOiFKuz0XhJ3tVXeN4",
       "model": "mock",
@@ -1423,7 +1423,7 @@
                   72,
                   66
                 ],
-                "logprob": -4.378902141839396
+                "logprob": -4.378902141839397
               }
             ]
           },

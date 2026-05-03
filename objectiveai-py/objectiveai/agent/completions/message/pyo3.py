@@ -1,6 +1,6 @@
 """PyO3 bindings for message ID computation."""
 
-import objectiveai_pyo3
+import objectiveai._pyo3 as objectiveai_pyo3
 
 
 def pyo3_prompt_id(prompt):

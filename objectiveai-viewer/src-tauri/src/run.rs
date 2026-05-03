@@ -4,6 +4,8 @@ use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode};
 use axum::middleware::{self, Next};
 use envconfig::Envconfig;
+use objectiveai::HttpClient;
+use objectiveai::agent::completions::request::AgentCompletionNotifyParams;
 use serde::Serialize;
 use subtle::ConstantTimeEq;
 use std::sync::Arc;
@@ -18,8 +20,47 @@ fn viewer_ready(state: tauri::State<'_, Arc<Notify>>) {
     state.notify_one();
 }
 
+#[tauri::command]
+async fn notify_agent_completion(
+    state: tauri::State<'_, HttpClient>,
+    params: AgentCompletionNotifyParams,
+) -> Result<(), String> {
+    objectiveai::agent::completions::notify_agent_completion(
+        state.inner(),
+        params,
+    )
+    .await
+    .map_err(|e| e.to_string())
+}
+
 #[derive(Envconfig)]
 struct EnvConfigBuilder {
+    // -- HttpClient fields (identical order across all 3 structs) --
+    #[envconfig(from = "OBJECTIVEAI_ADDRESS")]
+    objectiveai_address: Option<String>,
+    #[envconfig(from = "OBJECTIVEAI_AUTHORIZATION")]
+    objectiveai_authorization: Option<String>,
+    #[envconfig(from = "OPENROUTER_ADDRESS")]
+    openrouter_address: Option<String>,
+    #[envconfig(from = "OPENROUTER_AUTHORIZATION")]
+    openrouter_authorization: Option<String>,
+    #[envconfig(from = "GITHUB_AUTHORIZATION")]
+    github_authorization: Option<String>,
+    #[envconfig(from = "MCP_AUTHORIZATION")]
+    mcp_authorization: Option<String>,
+    #[envconfig(from = "VIEWER_SIGNATURE")]
+    viewer_signature: Option<String>,
+    #[envconfig(from = "USER_AGENT")]
+    user_agent: Option<String>,
+    #[envconfig(from = "HTTP_REFERER")]
+    http_referer: Option<String>,
+    #[envconfig(from = "X_TITLE")]
+    x_title: Option<String>,
+    #[envconfig(from = "COMMIT_AUTHOR_NAME")]
+    commit_author_name: Option<String>,
+    #[envconfig(from = "COMMIT_AUTHOR_EMAIL")]
+    commit_author_email: Option<String>,
+    // -- Other fields --
     #[envconfig(from = "ADDRESS")]
     address: Option<String>,
     #[envconfig(from = "PORT")]
@@ -31,6 +72,20 @@ struct EnvConfigBuilder {
 impl EnvConfigBuilder {
     pub fn build(self) -> ConfigBuilder {
         ConfigBuilder {
+            // -- HttpClient fields --
+            objectiveai_address: self.objectiveai_address,
+            objectiveai_authorization: self.objectiveai_authorization,
+            openrouter_address: self.openrouter_address,
+            openrouter_authorization: self.openrouter_authorization,
+            github_authorization: self.github_authorization,
+            mcp_authorization: self.mcp_authorization,
+            viewer_signature: self.viewer_signature,
+            user_agent: self.user_agent,
+            http_referer: self.http_referer,
+            x_title: self.x_title,
+            commit_author_name: self.commit_author_name,
+            commit_author_email: self.commit_author_email,
+            // -- Other fields --
             address: self.address,
             port: self.port,
             suppress_output: None,
@@ -41,6 +96,20 @@ impl EnvConfigBuilder {
 
 #[derive(Default)]
 pub struct ConfigBuilder {
+    // -- HttpClient fields (identical order across all 3 structs) --
+    pub objectiveai_address: Option<String>,
+    pub objectiveai_authorization: Option<String>,
+    pub openrouter_address: Option<String>,
+    pub openrouter_authorization: Option<String>,
+    pub github_authorization: Option<String>,
+    pub mcp_authorization: Option<String>,
+    pub viewer_signature: Option<String>,
+    pub user_agent: Option<String>,
+    pub http_referer: Option<String>,
+    pub x_title: Option<String>,
+    pub commit_author_name: Option<String>,
+    pub commit_author_email: Option<String>,
+    // -- Other fields --
     pub address: Option<String>,
     pub port: Option<u16>,
     pub suppress_output: Option<bool>,
@@ -65,6 +134,20 @@ impl Envconfig for ConfigBuilder {
 impl ConfigBuilder {
     pub fn build(self) -> Config {
         Config {
+            // -- HttpClient fields --
+            objectiveai_address: self.objectiveai_address,
+            objectiveai_authorization: self.objectiveai_authorization,
+            openrouter_address: self.openrouter_address,
+            openrouter_authorization: self.openrouter_authorization,
+            github_authorization: self.github_authorization,
+            mcp_authorization: self.mcp_authorization,
+            viewer_signature: self.viewer_signature,
+            user_agent: self.user_agent,
+            http_referer: self.http_referer,
+            x_title: self.x_title,
+            commit_author_name: self.commit_author_name,
+            commit_author_email: self.commit_author_email,
+            // -- Other fields --
             address: self.address.unwrap_or_else(|| "0.0.0.0".to_string()),
             port: self.port.unwrap_or(5001),
             suppress_output: self.suppress_output.unwrap_or(false),
@@ -74,15 +157,51 @@ impl ConfigBuilder {
 }
 
 pub struct Config {
+    // -- HttpClient fields (identical order across all 3 structs) --
+    pub objectiveai_address: Option<String>,
+    pub objectiveai_authorization: Option<String>,
+    pub openrouter_address: Option<String>,
+    pub openrouter_authorization: Option<String>,
+    pub github_authorization: Option<String>,
+    pub mcp_authorization: Option<String>,
+    pub viewer_signature: Option<String>,
+    pub user_agent: Option<String>,
+    pub http_referer: Option<String>,
+    pub x_title: Option<String>,
+    pub commit_author_name: Option<String>,
+    pub commit_author_email: Option<String>,
+    // -- Other fields --
     pub address: String,
     pub port: u16,
     pub suppress_output: bool,
     pub secret: Option<String>,
 }
 
-pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, axum::Router, EventReceiver)> {
+pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, axum::Router, EventReceiver, HttpClient)> {
     let (tx, rx) = mpsc::unbounded_channel::<Event>();
     let secret = config.secret.map(Arc::new);
+
+    let mcp_authorization: Option<std::collections::HashMap<String, String>> =
+        config.mcp_authorization.and_then(|s| serde_json::from_str(&s).ok());
+
+    let listener = tokio::net::TcpListener::bind(format!("{}:{}", config.address, config.port)).await?;
+    let viewer_address = format!("http://{}", listener.local_addr()?);
+
+    let http_client = HttpClient::new(
+        reqwest::Client::new(),
+        config.objectiveai_address,
+        config.objectiveai_authorization,
+        config.user_agent,
+        config.x_title,
+        config.http_referer,
+        config.github_authorization,
+        config.openrouter_authorization,
+        mcp_authorization,
+        config.viewer_signature,
+        Some(viewer_address),
+        config.commit_author_name,
+        config.commit_author_email,
+    );
 
     let app = axum::Router::new()
         .route(
@@ -127,9 +246,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
         )
         .layer(middleware::from_fn_with_state(secret, signature_middleware));
 
-    let listener = tokio::net::TcpListener::bind(format!("{}:{}", config.address, config.port)).await?;
-
-    Ok((listener, app, rx))
+    Ok((listener, app, rx, http_client))
 }
 
 /// A function that exits the viewer's event loop with the given exit code.
@@ -147,6 +264,7 @@ pub fn serve(
     listener: tokio::net::TcpListener,
     app: axum::Router,
     mut rx: EventReceiver,
+    http_client: HttpClient,
     exiter_tx: Option<tokio::sync::oneshot::Sender<Exiter>>,
 ) -> i32 {
     tokio::spawn(async move {
@@ -158,7 +276,8 @@ pub fn serve(
 
     tauri::Builder::default()
         .manage(ready)
-        .invoke_handler(tauri::generate_handler![viewer_ready])
+        .manage(http_client)
+        .invoke_handler(tauri::generate_handler![viewer_ready, notify_agent_completion])
         .setup(move |tauri_app| {
             let handle = tauri_app.handle().clone();
             if let Some(tx) = exiter_tx {
@@ -200,12 +319,12 @@ pub fn serve(
 /// The caller should use `std::process::exit(code)` with the returned value.
 pub async fn run(config: Config) -> std::io::Result<i32> {
     let suppress_output = config.suppress_output;
-    let (listener, app, rx) = setup(config).await?;
+    let (listener, app, rx, http_client) = setup(config).await?;
     if !suppress_output {
         let addr = listener.local_addr()?;
         eprintln!("listening on {addr}");
     }
-    Ok(serve(listener, app, rx, None))
+    Ok(serve(listener, app, rx, http_client, None))
 }
 
 async fn signature_middleware(

@@ -4,6 +4,8 @@ pub mod unimplemented;
 #[cfg(feature = "orchestrator-bollard")]
 pub mod bollard;
 
+pub mod dispatch;
+
 use crate::ctx;
 
 /// Abstracts the container lifecycle for laboratory executions.

@@ -17,20 +17,23 @@ LOG_FILE="$LOG_DIR/$MODULE.txt"
 mkdir -p "$LOG_DIR"
 
 run() {
-  # Platform-independent venv paths
+  # ── venv setup ──────────────────────────────────────────────────────────────────
+
+  if [ ! -d "$VENV_DIR" ]; then
+    echo "Creating virtual environment..."
+    python3 -m venv "$VENV_DIR"
+  fi
+
+  # Detect venv layout AFTER the venv exists. On a fresh checkout the
+  # directory doesn't exist yet, so detection-by-existence-of-Scripts
+  # picks the Linux paths on Windows and the build crashes later with
+  # "No such file or directory".
   if [ -d "$VENV_DIR/Scripts" ]; then
     PYTHON="$VENV_DIR/Scripts/python.exe"
     PIP="$VENV_DIR/Scripts/pip.exe"
   else
     PYTHON="$VENV_DIR/bin/python"
     PIP="$VENV_DIR/bin/pip"
-  fi
-
-  # ── venv setup ──────────────────────────────────────────────────────────────────
-
-  if [ ! -d "$VENV_DIR" ]; then
-    echo "Creating virtual environment..."
-    python3 -m venv "$VENV_DIR"
   fi
 
   # ── install requirements if missing ─────────────────────────────────────────────
@@ -56,7 +59,7 @@ run() {
 
   install_if_missing "$SCRIPT_DIR/requirements.txt"
 
-  if ! "$PYTHON" -c "import pytest" 2>/dev/null; then
+  if ! "$PYTHON" -c "import pytest" 2>/dev/null || ! "$PYTHON" -c "import maturin" 2>/dev/null; then
     echo "Installing dev requirements..."
     "$PIP" install -r "$SCRIPT_DIR/requirements-dev.txt" --quiet
   fi
@@ -65,9 +68,23 @@ run() {
 
   "$PYTHON" "$SCRIPT_DIR/scripts/install_pydantic.py"
 
-  # ── pyo3 build + install ────────────────────────────────────────────────────────
+  # ── stage README + LICENSE (pyproject.toml references them; sdists can't
+  # include `../`, so we copy the canonical files from repo root). Matches
+  # publish.sh — gitignored, never committed.
+  cp "$REPO_ROOT/README.md" "$SCRIPT_DIR/README.md"
+  cp "$REPO_ROOT/LICENSE" "$SCRIPT_DIR/LICENSE"
 
-  "$PYTHON" "$SCRIPT_DIR/scripts/install_pyo3.py"
+  # ── maturin build + editable install (compiles _pyo3 into the venv) ─────────────
+  # maturin auto-discovers a virtualenv named .venv, but ours is named venv,
+  # so we point it explicitly via VIRTUAL_ENV.
+
+  # The Rust crate lives in sibling objectiveai-rs-pyo3/. maturin reads its
+  # location from `[tool.maturin] manifest-path` in pyproject.toml. Run from
+  # this directory so maturin picks up *our* pyproject.toml (which provides
+  # the `objectiveai` package name + manifest-path); passing --manifest-path
+  # to the sibling crate would make maturin think it's building that crate
+  # standalone (no pyproject.toml → wrong package name).
+  ( cd "$SCRIPT_DIR" && VIRTUAL_ENV="$VENV_DIR" "$PYTHON" -m maturin develop --release )
 }
 
 if run > "$LOG_FILE" 2>&1; then

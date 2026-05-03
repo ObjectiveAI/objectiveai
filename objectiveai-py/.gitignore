@@ -2,8 +2,15 @@ venv/
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
+*.pdb
 *.egg-info/
 dist/
 build/
 .eggs/
 .pytest_cache/
+target/
+
+# Staged at publish time by publish.sh — copied from repo root, not tracked here.
+/LICENSE
+/README.md

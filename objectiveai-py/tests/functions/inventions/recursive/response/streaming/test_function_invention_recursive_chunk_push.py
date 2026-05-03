@@ -3,7 +3,7 @@ import copy
 
 import pytest
 
-objectiveai_pyo3 = pytest.importorskip("objectiveai_pyo3")
+objectiveai_pyo3 = pytest.importorskip("objectiveai._pyo3")
 
 from objectiveai.functions.inventions.recursive.response.streaming import (
     FunctionInventionRecursiveChunk,

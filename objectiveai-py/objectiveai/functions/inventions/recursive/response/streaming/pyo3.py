@@ -1,6 +1,6 @@
 """PyO3 bindings for recursive function invention chunk operations."""
 
-import objectiveai_pyo3
+import objectiveai._pyo3 as objectiveai_pyo3
 
 
 def pyo3_function_invention_recursive_chunk_merged(a, b):

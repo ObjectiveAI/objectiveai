@@ -54,11 +54,15 @@ macro_rules! snapshot_test {
         fn $name() {
             let seed_str = $seed.to_string();
             let agent_str = format!("remote=mock,name={}", $agent_name);
+            let instructions_id = cli_test_util::instructions_id(
+                cli_test_util::InstructionsScope::AgentCompletions,
+            );
             let mut args = vec![
                 "agents", "completions", "create", "standard",
                 "--agent", &agent_str,
                 "--messages-inline", $messages_json,
                 "--seed", &seed_str,
+                "--instructions-id", instructions_id.as_str(),
             ];
             $(
                 for arg in $extra_args {
