@@ -259,6 +259,53 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ── Agent deliberation ── */
+
+.deliberation {
+  margin-top: 8px;
+  border: 1px solid var(--ground-surface);
+  border-radius: 2px;
+}
+
+.deliberationHeader {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--ground-surface);
+  overflow-x: auto;
+}
+
+.deliberationTab {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--info-dim);
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--ground-surface);
+  padding: 5px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.deliberationTab:hover {
+  color: var(--info-mid);
+  background: var(--ground-raised);
+}
+
+.deliberationTabActive {
+  color: var(--copper-mid);
+  background: var(--ground-raised);
+}
+
+.deliberationText {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--info-mid);
+  padding: 10px 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* ── States ── */
 
 .streaming {

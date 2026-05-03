@@ -39,7 +39,13 @@ export const DEMO_EXECUTION_COMPLETE: FunctionExecution = {
         { model: "llm-004", vote: [0.8, 0.2], weight: 1.1, from_cache: false, from_rng: true },
         { model: "llm-005", vote: [0.5, 0.5], weight: 0.6, from_cache: false, from_rng: false },
       ],
-      completions: [],
+      completions: [
+        { model: "llm-001", text: "The input contains clear syntactic markers of source code: function declarations, variable assignments, and control flow structures. The indentation pattern and use of curly braces are consistent with a C-family language. `A`" },
+        { model: "llm-002", text: "This appears to be source code. I can identify import statements, type annotations, and a module export pattern typical of TypeScript. The naming conventions follow camelCase for variables and PascalCase for types. `A`" },
+        { model: "llm-003", text: "The input has structural elements of code — semicolons, parentheses grouping, and keyword-like tokens. However, some fragments could be pseudocode or documentation examples. Leaning toward source code but with moderate confidence. `A`" },
+        { model: "llm-004", text: "Definite source code. The presence of async/await patterns, error handling blocks, and specific API calls indicates this is production-grade application code, not pseudocode. `A`" },
+        { model: "llm-005", text: "This could be either source code or formatted pseudocode. The structure resembles code but lacks some typical markers like complete error handling. Uncertain between the two options. `A`" },
+      ],
     },
     {
       task_path: [1],
@@ -49,7 +55,11 @@ export const DEMO_EXECUTION_COMPLETE: FunctionExecution = {
         { model: "llm-002", vote: [0.4, 0.4, 0.2], weight: 1.0, from_cache: false, from_rng: false },
         { model: "llm-003", vote: [0.3, 0.3, 0.4], weight: 0.8, from_cache: true, from_rng: false },
       ],
-      completions: [],
+      completions: [
+        { model: "llm-001", text: "The code demonstrates good structure with clear separation of concerns. Variable names are descriptive and the control flow is straightforward. Some minor style inconsistencies but overall quality is above average. `A`" },
+        { model: "llm-002", text: "Acceptable quality. The code works but could benefit from better error handling and more consistent formatting. The logic is sound but readability suffers from dense expressions. `B`" },
+        { model: "llm-003", text: "The code quality is mixed. While the core logic is correct, there are issues with error handling, inconsistent naming, and missing edge case coverage. Falls below what I'd consider production-ready. `C`" },
+      ],
     },
   ],
 };

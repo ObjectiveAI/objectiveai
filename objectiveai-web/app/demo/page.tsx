@@ -5,7 +5,7 @@ import { JudgmentStack } from "@/components/JudgmentStack";
 import type { FunctionExecution } from "@/components/JudgmentStack";
 import { InventionStream } from "@/components/InventionStream";
 import { VectorPlayground } from "@/components/VectorPlayground";
-import { DEMO_INVENTION, DEMO_VECTOR_COMPLETION, DEMO_MODEL_NAMES } from "@/lib/demo-data";
+import { DEMO_EXECUTION_COMPLETE, DEMO_INVENTION, DEMO_VECTOR_COMPLETION, DEMO_MODEL_NAMES } from "@/lib/demo-data";
 import type { FunctionDefinition } from "@/lib/functions/types";
 import type { ProfileMeta } from "@/lib/profiles/types";
 
@@ -235,12 +235,12 @@ export default function Demo() {
         />
       </div>
 
-      {/* JudgmentStack — execution (static) */}
+      {/* JudgmentStack — execution (static, with agent deliberation text) */}
       <div style={{ marginBottom: 48 }}>
-        <p style={sectionLabel}>judgment stack — execution (static, all data)</p>
+        <p style={sectionLabel}>judgment stack — execution (static, with deliberation)</p>
         <JudgmentStack
           definition={JS_DEFINITION}
-          execution={JS_EXECUTION}
+          execution={DEMO_EXECUTION_COMPLETE}
           profile={JS_PROFILE}
           modelNames={DEMO_MODEL_NAMES}
         />

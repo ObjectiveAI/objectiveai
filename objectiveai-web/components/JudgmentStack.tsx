@@ -20,6 +20,7 @@ import {
 } from "@/lib/judgment-stack-utils";
 import { VoteMatrix } from "./VoteMatrix";
 import { StructuralVc } from "./StructuralVc";
+import { ConvergenceTimeline } from "./ConvergenceTimeline";
 import styles from "./JudgmentStack.module.css";
 
 export type { FunctionExecution } from "@/lib/judgment-stack-utils";
@@ -183,6 +184,9 @@ function TaskBand({
   const responses = (taskDef.responses ?? []) as unknown[];
   const scores = taskExec?.scores ?? [];
   const votes = taskExec?.votes ?? [];
+  const completions = (taskExec?.completions ?? []) as Array<Record<string, unknown>>;
+
+  const [expandedAgent, setExpandedAgent] = useState<number | null>(null);
 
   const subFnKey =
     taskDef.owner && (taskDef.repository ?? taskDef.name)
@@ -206,6 +210,8 @@ function TaskBand({
   tryExpr("output", taskDef.output);
 
   const agentCount = agents ? agents.llms.reduce((s, l) => s + l.count, 0) : 0;
+
+  const hasCompletionText = completions.some((c) => typeof c.text === "string" && c.text);
 
   return (
     <div className={styles.task}>
@@ -252,15 +258,49 @@ function TaskBand({
           {/* Prompt */}
           {prompt && <div className={styles.prompt}>{prompt}</div>}
 
-          {/* VC with execution data → vote matrix */}
+          {/* VC with execution data → convergence + vote matrix + agent text */}
           {isVc && votes.length > 0 ? (
-            <VoteMatrix
-              votes={votes}
-              scores={scores}
-              responses={responses}
-              agents={agents}
-              modelNames={modelNames}
-            />
+            <>
+              {votes.length >= 2 && (
+                <ConvergenceTimeline
+                  votes={votes}
+                  responses={responses}
+                  modelNames={modelNames}
+                  compact
+                />
+              )}
+              <VoteMatrix
+                votes={votes}
+                scores={scores}
+                responses={responses}
+                agents={agents}
+                modelNames={modelNames}
+              />
+              {hasCompletionText && (
+                <div className={styles.deliberation}>
+                  <div className={styles.deliberationHeader}>
+                    {votes.map((v, vi) => {
+                      const name = modelNames?.[v.model] ?? v.model;
+                      const short = name.includes("/") ? name.split("/").pop()! : name;
+                      return (
+                        <button
+                          key={vi}
+                          className={`${styles.deliberationTab}${expandedAgent === vi ? ` ${styles.deliberationTabActive}` : ""}`}
+                          onClick={() => setExpandedAgent(expandedAgent === vi ? null : vi)}
+                        >
+                          {short}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {expandedAgent != null && completions[expandedAgent] && (
+                    <div className={styles.deliberationText}>
+                      {String(completions[expandedAgent].text ?? "")}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           ) : isVc ? (
             /* VC structural → response tags + agent weight bars */
             <StructuralVc responses={responses} agents={agents} />
