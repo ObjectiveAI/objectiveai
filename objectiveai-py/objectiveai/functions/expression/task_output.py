@@ -3,7 +3,7 @@
 from __future__ import annotations
 from typing import Annotated, Union
 from objectiveai.json_value import JsonValue
-from pydantic import ConfigDict, Field, RootModel
+from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 
 class TaskOutputScalar(RootModel):
@@ -27,11 +27,11 @@ class TaskOutputVectors(RootModel):
     root: list[list[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]]]
 
 
-class TaskOutputErr(RootModel):
+class TaskOutputErr(BaseModel):
     """An error occurred during execution."""
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Err'})
 
-    root: JsonValue
+    error: JsonValue
 
 
 class TaskOutput(RootModel):

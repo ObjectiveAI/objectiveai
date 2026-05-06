@@ -245,10 +245,12 @@ impl Commands {
             let mut errors = Vec::new();
             collect_errors(&chunk, &mut errors);
 
-            // Extract output (default to Err(null) if missing)
+            // Extract output (default to Err { error: null } if missing)
             let output = chunk.output
                 .map(|o| o.unwrap())
-                .unwrap_or(objectiveai::functions::expression::TaskOutputOwned::Err(serde_json::Value::Null));
+                .unwrap_or(objectiveai::functions::expression::TaskOutputOwned::Err {
+                    error: serde_json::Value::Null,
+                });
 
             let result = ExecutionResult { output, errors };
             Ok(serde_json::to_string(&result).unwrap())

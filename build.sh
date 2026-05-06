@@ -6,7 +6,13 @@
 # Phase 2 (parallel): objectiveai-rs-wasm-js + objectiveai-rs-cffi
 # Phase 3 (parallel): objectiveai-js + objectiveai-py + objectiveai-go + objectiveai-dotnet
 #                     (objectiveai-py builds its bundled Rust extension via maturin)
-# Phase 4 (after all): objectiveai-viewer (depends on objectiveai-js being built)
+# Phase 4 (sequential): objectiveai-viewer release (cross-platform)
+#                       then host-target debug. Sequential because both invoke
+#                       `tauri build`, which holds the workspace cargo target/
+#                       lock — running them in parallel deadlocks. Both
+#                       artifacts are required: cargo test / cargo build of
+#                       objectiveai-cli compiles in debug and its build.rs
+#                       validates the viewer's host-target debug embed.
 #
 # Usage:
 #   bash build.sh
@@ -71,5 +77,13 @@ if $FAILED; then
   exit 1
 fi
 
-# Phase 4: viewer (depends on objectiveai-js package being built in phase 3)
+# Phase 4: viewer (depends on objectiveai-js package being built in phase 3).
+# Two artifacts are produced: a cross-platform release embed (consumed by
+# published CLI binaries) and a host-target debug embed (consumed by
+# `cargo test`/`cargo build` of objectiveai-cli during local development).
+# Run sequentially — both invoke `tauri build` which holds the workspace
+# cargo target/ lock; parallel invocations deadlock.
 bash "$REPO_ROOT/objectiveai-viewer/build.sh" --release
+
+HOST_TARGET="$(rustc -vV | awk '/^host:/ {print $2}')"
+bash "$REPO_ROOT/objectiveai-viewer/build.sh" --target "$HOST_TARGET"

@@ -23,7 +23,7 @@ pub fn response_id(created: u64) -> String {
 ///   the highest, and so on. e.g. `[0.5, 0.2, 0.3]` → `[0.2, 0.5, 0.3]`.
 ///   Total sum is preserved (still a valid probability distribution).
 /// - `Vectors(vv)` → each inner vector rank-inverted.
-/// - `Err(_)` is left untouched — there is no meaningful inverse of an error.
+/// - `Err { .. }` is left untouched — there is no meaningful inverse of an error.
 fn invert_task_output(output: &mut objectiveai::functions::expression::TaskOutputOwned) {
     use objectiveai::functions::expression::TaskOutputOwned;
     match output {
@@ -36,7 +36,7 @@ fn invert_task_output(output: &mut objectiveai::functions::expression::TaskOutpu
                 invert_vector_in_place(v);
             }
         }
-        TaskOutputOwned::Err(_) => {}
+        TaskOutputOwned::Err { .. } => {}
     }
 }
 
@@ -115,7 +115,7 @@ fn compute_weighted_function_output(
         };
 
         // Skip error outputs (these shouldn't be here, but just in case)
-        if matches!(fn_output, TaskOutputOwned::Err(_)) {
+        if matches!(fn_output, TaskOutputOwned::Err { .. }) {
             continue;
         }
 
@@ -125,7 +125,9 @@ fn compute_weighted_function_output(
 
     // If no valid outputs, return error (shouldn't happen if caller filters properly)
     if weighted_outputs.is_empty() || total_weight == Decimal::ZERO {
-        return TaskOutputOwned::Err(serde_json::Value::Null);
+        return TaskOutputOwned::Err {
+            error: serde_json::Value::Null,
+        };
     }
 
     // Compute weighted average with L1-normalized weights
@@ -249,7 +251,7 @@ fn apply_task_output_expression(
                         .collect(),
                 )
             }
-            TaskOutputOwned::Err(e) => TaskOutputOwned::Err(e),
+            TaskOutputOwned::Err { error } => TaskOutputOwned::Err { error },
         }
     }
 
@@ -271,7 +273,9 @@ fn apply_task_output_expression(
         Ok(result) => result,
         Err(e) => {
             return (
-                TaskOutputOwned::Err(serde_json::Value::Null),
+                TaskOutputOwned::Err {
+                    error: serde_json::Value::Null,
+                },
                 Some(objectiveai::error::ResponseError::from(
                     &super::Error::InvalidAppExpression(e),
                 )),
@@ -345,8 +349,10 @@ fn apply_task_output_expression(
             )),
         ),
         // Error output passes through - this means the expression itself produced an error value
-        (_, TaskOutputOwned::Err(err_val)) => (
-            TaskOutputOwned::Err(err_val.clone()),
+        (_, TaskOutputOwned::Err { error: err_val }) => (
+            TaskOutputOwned::Err {
+                error: err_val.clone(),
+            },
             Some(objectiveai::error::ResponseError {
                 code: 400,
                 message: serde_json::json!({
@@ -806,9 +812,9 @@ where
                 // task chunk preserves per-element attribution.
                 let mut all_outputs: Vec<objectiveai::functions::expression::TaskOutputOwned> =
                     (0..n)
-                        .map(|_| objectiveai::functions::expression::TaskOutputOwned::Err(
-                            serde_json::json!({"error": "no output produced"})
-                        ))
+                        .map(|_| objectiveai::functions::expression::TaskOutputOwned::Err {
+                            error: serde_json::Value::String("no output produced".to_string()),
+                        })
                         .collect();
                 let mut tasks_errors = false;
                 let mut function_path = None;
@@ -894,12 +900,12 @@ where
                 // combine outputs — find the first non-error to determine the variant
                 let first_ok = all_outputs
                     .iter()
-                    .find(|o| !matches!(o, objectiveai::functions::expression::TaskOutputOwned::Err(_)));
+                    .find(|o| !matches!(o, objectiveai::functions::expression::TaskOutputOwned::Err { .. }));
                 let combined = match first_ok {
                     None => {
-                        objectiveai::functions::expression::TaskOutputOwned::Err(
-                            serde_json::json!({"error": "no split outputs"})
-                        )
+                        objectiveai::functions::expression::TaskOutputOwned::Err {
+                            error: serde_json::Value::String("no split outputs".to_string()),
+                        }
                     }
                     Some(objectiveai::functions::expression::TaskOutputOwned::Scalar(_)) => {
                         objectiveai::functions::expression::TaskOutputOwned::Vector(
@@ -918,9 +924,9 @@ where
                         )
                     }
                     _ => {
-                        objectiveai::functions::expression::TaskOutputOwned::Err(
-                            serde_json::json!({"error": "unexpected output type in split"})
-                        )
+                        objectiveai::functions::expression::TaskOutputOwned::Err {
+                            error: serde_json::Value::String("unexpected output type in split".to_string()),
+                        }
                     }
                 };
 
@@ -2230,9 +2236,9 @@ where
             current_task_index += ftp.task_index_len() as u64;
             // safety: these should all be replaced without exception
             output.push(
-                objectiveai::functions::expression::TaskOutputOwned::Err(
-                    serde_json::Value::Null,
-                ),
+                objectiveai::functions::expression::TaskOutputOwned::Err {
+                    error: serde_json::Value::Null,
+                },
             );
         }
 
@@ -2306,14 +2312,14 @@ where
             let collected_output = {
                 use objectiveai::functions::expression::TaskOutputOwned;
                 // Determine the type from the first non-error output
-                let first_ok = output.iter().find(|o| !matches!(o, TaskOutputOwned::Err(_)));
+                let first_ok = output.iter().find(|o| !matches!(o, TaskOutputOwned::Err { .. }));
                 match first_ok {
                     Some(TaskOutputOwned::Scalar(_)) => {
                         // All scalars → Vector
                         TaskOutputOwned::Vector(
                             output.into_iter().map(|o| match o {
                                 TaskOutputOwned::Scalar(s) => s,
-                                TaskOutputOwned::Err(_) => rust_decimal::Decimal::ZERO,
+                                TaskOutputOwned::Err { .. } => rust_decimal::Decimal::ZERO,
                                 _ => rust_decimal::Decimal::ZERO,
                             }).collect()
                         )
@@ -2323,14 +2329,14 @@ where
                         TaskOutputOwned::Vectors(
                             output.into_iter().map(|o| match o {
                                 TaskOutputOwned::Vector(v) => v,
-                                TaskOutputOwned::Err(_) => Vec::new(),
+                                TaskOutputOwned::Err { .. } => Vec::new(),
                                 _ => Vec::new(),
                             }).collect()
                         )
                     }
                     _ => {
                         // All errors or empty
-                        TaskOutputOwned::Err(serde_json::Value::Null)
+                        TaskOutputOwned::Err { error: serde_json::Value::Null }
                     }
                 }
             };
@@ -2964,7 +2970,9 @@ where
                         formatted.join(", ")
                     )
                 },
-                objectiveai::functions::expression::TaskOutputOwned::Err(serde_json::Value::Number(n)) if {
+                objectiveai::functions::expression::TaskOutputOwned::Err {
+                    error: serde_json::Value::Number(n),
+                } if {
                     n.as_f64().is_some()
                         && n.as_f64().unwrap() >= 0.0
                         && n.as_f64().unwrap() <= 1.0
@@ -2972,7 +2980,9 @@ where
                     "\n\nThe ObjectiveAI Function erroneously produced the following score: {:.2}%\n\n",
                     n.as_f64().unwrap() * 100.0,
                 ),
-                objectiveai::functions::expression::TaskOutputOwned::Err(serde_json::Value::Array(arr)) if {
+                objectiveai::functions::expression::TaskOutputOwned::Err {
+                    error: serde_json::Value::Array(arr),
+                } if {
                     arr
                         .iter()
                         .all(|v| v.as_f64().is_some())
@@ -2990,9 +3000,9 @@ where
                         .collect::<Vec<String>>()
                         .join(", ")
                 ),
-                objectiveai::functions::expression::TaskOutputOwned::Err(err) => format!(
+                objectiveai::functions::expression::TaskOutputOwned::Err { error } => format!(
                     "\n\nThe ObjectiveAI Function erroneously produced the following output:\n{}\n\n",
-                    serde_json::to_string_pretty(&err).unwrap(),
+                    serde_json::to_string_pretty(&error).unwrap(),
                 ),
             }
         });

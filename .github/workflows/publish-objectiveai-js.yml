@@ -1,0 +1,55 @@
+name: Publish objectiveai-js
+
+# Builds and publishes the `objectiveai` npm package. Triggered manually via
+# workflow_dispatch.
+#
+# The build pipeline (`pnpm --filter objectiveai run build`) regenerates Zod
+# schemas from objectiveai-json-schema/, embeds the WASM loader, and bundles
+# via tsup. We need to run a full repo build first because the JS package's
+# build depends on objectiveai-rs-wasm-js/dist/ (built by build-bin + the
+# wasm-js build script).
+#
+# Setup required (one-time):
+#   - NPM_TOKEN: npm automation token. Save as a repo secret.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: pnpm publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: pnpm install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build wasm + js
+        run: |
+          bash build-bin.sh
+          bash objectiveai-rs-wasm-js/build.sh
+          bash objectiveai-js/build.sh
+
+      - name: pnpm publish
+        working-directory: objectiveai-js
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: pnpm publish --access public --no-git-checks

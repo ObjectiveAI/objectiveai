@@ -90,9 +90,9 @@ impl From<response::streaming::FunctionExecutionChunk> for FunctionExecution {
             tasks_errors: tasks_errors.unwrap_or(false),
             reasoning: reasoning.map(super::ReasoningSummary::from),
             output: output.unwrap_or(response::Output {
-                output: functions::expression::TaskOutputOwned::Err(
-                    serde_json::Value::Null,
-                ),
+                output: functions::expression::TaskOutputOwned::Err {
+                    error: serde_json::Value::Null,
+                },
             }),
             error,
             retry_token,

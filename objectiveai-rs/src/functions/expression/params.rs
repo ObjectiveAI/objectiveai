@@ -157,7 +157,10 @@ pub enum TaskOutputOwned {
     Vectors(#[serde(deserialize_with = "crate::serde_util::vec_vec_decimal")] #[schemars(with = "Vec<Vec<f64>>")] #[arbitrary(with = crate::arbitrary_util::arbitrary_vec_vec_rust_decimal)] Vec<Vec<rust_decimal::Decimal>>),
     /// An error occurred during execution.
     #[schemars(title = "Err")]
-    Err(#[arbitrary(with = crate::arbitrary_util::arbitrary_json_value)] serde_json::Value),
+    Err {
+        #[arbitrary(with = crate::arbitrary_util::arbitrary_json_value)]
+        error: serde_json::Value,
+    },
 }
 
 impl ToStarlarkValue for TaskOutputOwned {
@@ -169,7 +172,7 @@ impl ToStarlarkValue for TaskOutputOwned {
             TaskOutputOwned::Scalar(d) => d.to_starlark_value(heap),
             TaskOutputOwned::Vector(ds) => ds.to_starlark_value(heap),
             TaskOutputOwned::Vectors(vecs) => vecs.to_starlark_value(heap),
-            TaskOutputOwned::Err(json) => json.to_starlark_value(heap),
+            TaskOutputOwned::Err { error } => error.to_starlark_value(heap),
         }
     }
 }
@@ -180,7 +183,9 @@ impl FromStarlarkValue for TaskOutputOwned {
     ) -> Result<Self, ExpressionError> {
         use starlark::values::float::UnpackFloat;
         if value.is_none() {
-            return Ok(TaskOutputOwned::Err(serde_json::Value::Null));
+            return Ok(TaskOutputOwned::Err {
+                error: serde_json::Value::Null,
+            });
         }
         if let Some(list) = starlark::values::list::ListRef::from_value(*value)
         {
@@ -270,7 +275,7 @@ impl FromStarlarkValue for TaskOutputOwned {
             }
         }
         let v = serde_json::Value::from_starlark_value(value)?;
-        Ok(TaskOutputOwned::Err(v))
+        Ok(TaskOutputOwned::Err { error: v })
     }
 }
 
@@ -296,7 +301,7 @@ impl super::FromSpecial for TaskOutputOwned {
                             vecs.iter().map(|v| l1_normalize(v)).collect(),
                         ))
                     }
-                    TaskOutputOwned::Err(_) => Ok(output.clone()),
+                    TaskOutputOwned::Err { .. } => Ok(output.clone()),
                 }
             }
             super::Special::TaskOutputWeightedSum => {
@@ -324,16 +329,16 @@ impl TaskOutputOwned {
     /// Converts the output into an error variant (wrapping the value as JSON).
     pub fn into_err(self) -> Self {
         match self {
-            Self::Scalar(scalar) => {
-                Self::Err(serde_json::to_value(scalar).unwrap())
-            }
-            Self::Vector(vector) => {
-                Self::Err(serde_json::to_value(vector).unwrap())
-            }
-            Self::Vectors(vectors) => {
-                Self::Err(serde_json::to_value(vectors).unwrap())
-            }
-            Self::Err(err) => Self::Err(err),
+            Self::Scalar(scalar) => Self::Err {
+                error: serde_json::to_value(scalar).unwrap(),
+            },
+            Self::Vector(vector) => Self::Err {
+                error: serde_json::to_value(vector).unwrap(),
+            },
+            Self::Vectors(vectors) => Self::Err {
+                error: serde_json::to_value(vectors).unwrap(),
+            },
+            Self::Err { error } => Self::Err { error },
         }
     }
 }
@@ -350,7 +355,7 @@ pub enum TaskOutputRef<'a> {
     /// Multiple vectors of scores (from mapped tasks).
     Vectors(&'a [Vec<rust_decimal::Decimal>]),
     /// An error occurred during execution.
-    Err(&'a serde_json::Value),
+    Err { error: &'a serde_json::Value },
 }
 
 impl<'a> ToStarlarkValue for TaskOutputRef<'a> {
@@ -362,7 +367,7 @@ impl<'a> ToStarlarkValue for TaskOutputRef<'a> {
             TaskOutputRef::Scalar(d) => d.to_starlark_value(heap),
             TaskOutputRef::Vector(ds) => ds.to_starlark_value(heap),
             TaskOutputRef::Vectors(vecs) => vecs.to_starlark_value(heap),
-            TaskOutputRef::Err(json) => json.to_starlark_value(heap),
+            TaskOutputRef::Err { error } => error.to_starlark_value(heap),
         }
     }
 }
@@ -392,14 +397,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_task_output_deserialize_number_vs_string() {
+    fn test_task_output_deserialize_strict_err_wire_format() {
         // JSON number → Scalar
         let parsed: TaskOutputOwned = serde_json::from_str("94").unwrap();
         assert!(matches!(parsed, TaskOutputOwned::Scalar(_)));
-
-        // JSON string containing a number → Err (NOT Scalar)
-        let parsed: TaskOutputOwned = serde_json::from_str(r#""94""#).unwrap();
-        assert!(matches!(parsed, TaskOutputOwned::Err(serde_json::Value::String(_))));
 
         // JSON array of numbers → Vector
         let parsed: TaskOutputOwned = serde_json::from_str("[1, 2, 3]").unwrap();
@@ -409,27 +410,46 @@ mod tests {
         let parsed: TaskOutputOwned = serde_json::from_str("[[1, 2], [3, 4]]").unwrap();
         assert!(matches!(parsed, TaskOutputOwned::Vectors(_)));
 
-        // JSON null → Err
-        let parsed: TaskOutputOwned = serde_json::from_str("null").unwrap();
-        assert!(matches!(parsed, TaskOutputOwned::Err(serde_json::Value::Null)));
+        // Bare values that previously fell through to Err must now FAIL,
+        // since Err is wire-formatted as `{"error": ...}`.
+        assert!(serde_json::from_str::<TaskOutputOwned>("null").is_err());
+        assert!(serde_json::from_str::<TaskOutputOwned>("true").is_err());
+        assert!(serde_json::from_str::<TaskOutputOwned>(r#""94""#).is_err());
 
-        // JSON bool → Err
-        let parsed: TaskOutputOwned = serde_json::from_str("true").unwrap();
-        assert!(matches!(parsed, TaskOutputOwned::Err(serde_json::Value::Bool(true))));
+        // `{"error": ...}` is now the canonical Err wire form. The inner value
+        // unwraps by exactly one level.
+        let parsed: TaskOutputOwned =
+            serde_json::from_str(r#"{"error": "something"}"#).unwrap();
+        assert!(matches!(
+            parsed,
+            TaskOutputOwned::Err { error: serde_json::Value::String(ref s) } if s == "something"
+        ));
 
-        // JSON object → Err
-        let parsed: TaskOutputOwned = serde_json::from_str(r#"{"error": "something"}"#).unwrap();
-        assert!(matches!(parsed, TaskOutputOwned::Err(serde_json::Value::Object(_))));
+        let parsed: TaskOutputOwned =
+            serde_json::from_str(r#"{"error": null}"#).unwrap();
+        assert!(matches!(
+            parsed,
+            TaskOutputOwned::Err { error: serde_json::Value::Null }
+        ));
 
-        // Err(String("94")) round-trips correctly (preserves string type)
-        let original = TaskOutputOwned::Err(serde_json::Value::String("94".to_string()));
+        // Round-trip: Err { error: String("94") } ↔ {"error":"94"}.
+        let original = TaskOutputOwned::Err {
+            error: serde_json::Value::String("94".to_string()),
+        };
         let json = serde_json::to_string(&original).unwrap();
+        assert_eq!(json, r#"{"error":"94"}"#);
         let roundtripped: TaskOutputOwned = serde_json::from_str(&json).unwrap();
-        assert!(matches!(roundtripped, TaskOutputOwned::Err(serde_json::Value::String(_))));
+        assert!(matches!(
+            roundtripped,
+            TaskOutputOwned::Err { error: serde_json::Value::String(ref s) } if s == "94"
+        ));
 
         // Empty array → Vector (not Vectors, since no inner arrays)
         let parsed: TaskOutputOwned = serde_json::from_str("[]").unwrap();
-        assert!(matches!(parsed, TaskOutputOwned::Vector(_)) || matches!(parsed, TaskOutputOwned::Vectors(_)));
+        assert!(
+            matches!(parsed, TaskOutputOwned::Vector(_))
+                || matches!(parsed, TaskOutputOwned::Vectors(_))
+        );
     }
 }
 

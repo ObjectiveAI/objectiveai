@@ -17,8 +17,8 @@
 # Output is captured to .logs/publish/objectiveai-py.txt.
 #
 # Setup (one-time):
-#   - Trusted Publishing must be configured on PyPI for this workflow.
-#     See .github/workflows/publish-objectiveai-py.yml for details.
+#   - PYPI_API_TOKEN must be set as a repo secret (and TEST_PYPI_API_TOKEN
+#     for --test). See .github/workflows/publish-objectiveai-py.yml.
 #   - `gh` CLI must be authenticated (gh auth login).
 
 set -euo pipefail

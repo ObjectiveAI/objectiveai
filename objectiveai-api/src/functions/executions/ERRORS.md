@@ -200,9 +200,9 @@ These are accumulated and reported in the final chunk.
 **Strategy:** Unclear how to trigger — `Vectors` comes from mapped tasks but `apply_task_output_expression` is called per-task. The expression would need to construct a nested list from a non-mapped context. Possibly `{"$starlark": "[[0.5, 0.5]]"}` — a list containing a list.
 
 ### 4.7 Task output expression error — expression returns Err value (400)
-**Trigger:** Output expression evaluates successfully but produces `TaskOutputOwned::Err(...)`.
+**Trigger:** Output expression evaluates successfully but produces `TaskOutputOwned::Err { error: ... }`.
 **Location:** `client.rs:282-291`
-**Strategy:** Create an output expression that returns `None` in Starlark (maps to `TaskOutputOwned::Err(null)`). E.g. `{"$starlark": "None"}`.
+**Strategy:** Create an output expression that returns `None` in Starlark (maps to `TaskOutputOwned::Err { error: null }`). E.g. `{"$starlark": "None"}`.
 
 ### 4.8 `TaskOutputExpressionErrors` aggregation (400)
 **Trigger:** One or more tasks produced output expression errors (any of 4.1-4.7). These are collected in `task_output_errors` and reported together.
@@ -243,7 +243,7 @@ These are non-fatal — execution completes and the error is reported in the fin
 
 ## 7. `NoValidTaskOutputs` (400)
 
-**Trigger:** Defined in `error.rs` but NEVER GENERATED in `client.rs`. The `compute_weighted_function_output` function handles this case by returning `TaskOutputOwned::Err(null)` instead, which becomes the function's output. This error variant appears to be dead code.
+**Trigger:** Defined in `error.rs` but NEVER GENERATED in `client.rs`. The `compute_weighted_function_output` function handles this case by returning `TaskOutputOwned::Err { error: null }` instead, which becomes the function's output. This error variant appears to be dead code.
 **Strategy:** N/A — cannot be triggered.
 
 ---

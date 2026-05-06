@@ -4,11 +4,9 @@ name: Publish objectiveai-py
 # to PyPI (or TestPyPI). Triggered manually via workflow_dispatch.
 #
 # Setup required (one-time):
-#   1. Configure trusted publishing on PyPI:
-#        https://pypi.org/manage/project/objectiveai/settings/publishing/
-#      Add a "GitHub Actions" publisher pointing at this workflow with
-#      environment name "pypi" (and "testpypi" for the test path).
-#   2. Create matching environments in this repo's settings → environments.
+#   1. Generate a PyPI API token at https://pypi.org/manage/account/token/
+#      (scope: project = objectiveai). Save as repo secret PYPI_API_TOKEN.
+#   2. (Optional) Same for TestPyPI → secret TEST_PYPI_API_TOKEN.
 #
 # Wheel coverage (5 wheels + 1 sdist):
 #   - manylinux x86_64
@@ -133,11 +131,6 @@ jobs:
     name: Publish to ${{ inputs.target }}
     needs: [build-wheels, build-sdist]
     runs-on: ubuntu-latest
-    environment:
-      name: ${{ inputs.target }}
-      url: ${{ inputs.target == 'testpypi' && 'https://test.pypi.org/project/objectiveai/' || 'https://pypi.org/project/objectiveai/' }}
-    permissions:
-      id-token: write  # required for PyPI Trusted Publishing
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -155,9 +148,11 @@ jobs:
         with:
           packages-dir: dist
           repository-url: https://test.pypi.org/legacy/
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
 
       - name: Publish to PyPI
         if: inputs.target == 'pypi'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist
+          password: ${{ secrets.PYPI_API_TOKEN }}

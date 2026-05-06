@@ -1533,7 +1533,7 @@ async fn test_error_4_1_output_expression_fails() {
     let result = run_execution_allow_error(request).await;
     assert!(result.error.is_some(), "expected error on response");
     assert!(
-        matches!(result.output.output, objectiveai::functions::expression::TaskOutputOwned::Err(_)),
+        matches!(result.output.output, objectiveai::functions::expression::TaskOutputOwned::Err { .. }),
         "expected Err output, got: {:?}",
         result.output,
     );
@@ -1552,7 +1552,7 @@ async fn test_error_4_2_scalar_output_out_of_range() {
     let result = run_execution_allow_error(request).await;
     assert!(result.error.is_some(), "expected error on response");
     assert!(
-        matches!(result.output.output, objectiveai::functions::expression::TaskOutputOwned::Err(_)),
+        matches!(result.output.output, objectiveai::functions::expression::TaskOutputOwned::Err { .. }),
         "expected Err output, got: {:?}",
         result.output,
     );
@@ -1571,7 +1571,7 @@ async fn test_error_4_3_scalar_got_vector() {
     let result = run_execution_allow_error(request).await;
     assert!(result.error.is_some(), "expected error on response");
     assert!(
-        matches!(result.output.output, objectiveai::functions::expression::TaskOutputOwned::Err(_)),
+        matches!(result.output.output, objectiveai::functions::expression::TaskOutputOwned::Err { .. }),
         "expected Err output, got: {:?}",
         result.output,
     );
@@ -1593,7 +1593,7 @@ async fn test_error_4_4_vector_output_bad_sum() {
     let result = run_execution_allow_error(request).await;
     assert!(result.error.is_some(), "expected error on response");
     assert!(
-        matches!(result.output.output, objectiveai::functions::expression::TaskOutputOwned::Err(_)),
+        matches!(result.output.output, objectiveai::functions::expression::TaskOutputOwned::Err { .. }),
         "expected Err output, got: {:?}",
         result.output,
     );
@@ -1615,7 +1615,7 @@ async fn test_error_4_5_vector_got_scalar() {
     let result = run_execution_allow_error(request).await;
     assert!(result.error.is_some(), "expected error on response");
     assert!(
-        matches!(result.output.output, objectiveai::functions::expression::TaskOutputOwned::Err(_)),
+        matches!(result.output.output, objectiveai::functions::expression::TaskOutputOwned::Err { .. }),
         "expected Err output, got: {:?}",
         result.output,
     );
@@ -1634,7 +1634,7 @@ async fn test_error_4_6_output_vectors_variant() {
     let result = run_execution_allow_error(request).await;
     assert!(result.error.is_some(), "expected error on response");
     assert!(
-        matches!(result.output.output, objectiveai::functions::expression::TaskOutputOwned::Err(_)),
+        matches!(result.output.output, objectiveai::functions::expression::TaskOutputOwned::Err { .. }),
         "expected Err output, got: {:?}",
         result.output,
     );
@@ -1653,7 +1653,7 @@ async fn test_error_4_7_output_returns_none() {
     let result = run_execution_allow_error(request).await;
     assert!(result.error.is_some(), "expected error on response");
     assert!(
-        matches!(result.output.output, objectiveai::functions::expression::TaskOutputOwned::Err(_)),
+        matches!(result.output.output, objectiveai::functions::expression::TaskOutputOwned::Err { .. }),
         "expected Err output, got: {:?}",
         result.output,
     );

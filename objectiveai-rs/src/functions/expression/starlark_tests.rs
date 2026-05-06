@@ -875,12 +875,15 @@ fn test_starlark_task_output_vector() {
 
 #[test]
 fn test_starlark_task_output_err() {
+    // The Err variant exposes its inner `error` value to Starlark expressions
+    // (the `{"error": ...}` wrapping is only on the JSON wire; expression
+    // authors see the bare payload).
     let params = make_params(empty_input());
-    let err_val = serde_json::json!({"error": "bad"});
+    let err_val = serde_json::Value::String("bad".to_string());
     assert_starlark_deep_eq(
-        "{\"error\": \"bad\"}",
+        "\"bad\"",
         &params,
-        &TaskOutputOwned::Err(err_val),
+        &TaskOutputOwned::Err { error: err_val },
     );
 }
 

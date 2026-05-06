@@ -322,11 +322,11 @@ fn validate_function_output(
                 location, s
             ));
         }
-        (_, TaskOutputOwned::Err(e)) => {
+        (_, TaskOutputOwned::Err { error }) => {
             return Err(format!(
                 "CV17: {}: output expression produced an error: {}",
                 location,
-                serde_json::to_string(e).unwrap_or_default()
+                serde_json::to_string(error).unwrap_or_default()
             ));
         }
         (_, TaskOutputOwned::Vectors(vecs)) => {

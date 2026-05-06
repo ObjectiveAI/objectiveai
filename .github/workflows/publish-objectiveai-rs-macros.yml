@@ -1,0 +1,31 @@
+name: Publish objectiveai-rs-macros
+
+# Publishes the `objectiveai-macros` crate to crates.io. Triggered manually
+# via workflow_dispatch.
+#
+# This proc-macro crate is a regular versioned dependency of `objectiveai`,
+# so it must be on crates.io before `objectiveai` can publish successfully.
+#
+# Setup required (one-time):
+#   - CARGO_REGISTRY_TOKEN: crates.io API token with `publish-update` scope.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: cargo publish -p objectiveai-macros
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: cargo publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish -p objectiveai-macros

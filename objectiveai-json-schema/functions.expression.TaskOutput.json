@@ -34,7 +34,11 @@
     },
     {
       "title": "Err",
-      "description": "An error occurred during execution."
+      "description": "An error occurred during execution.",
+      "type": "object",
+      "properties": {
+        "error": {}
+      }
     }
   ]
 }

@@ -19,12 +19,30 @@ type FunctionsExpressionTaskOutputVectors [][]float64
 
 func (FunctionsExpressionTaskOutputVectors) SchemaVariantTitle() string { return "Vectors" }
 
-type FunctionsExpressionTaskOutputErr JsonValue
+// An error occurred during execution.
+type FunctionsExpressionTaskOutputErr struct {
+	Error JsonValue `json:"error"`
+}
 
+func (v *FunctionsExpressionTaskOutputErr) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"error"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("FunctionsExpressionTaskOutputErr: missing required field %q", key)
+		}
+	}
+	type Alias FunctionsExpressionTaskOutputErr
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = FunctionsExpressionTaskOutputErr(alias)
+	return nil
+}
 func (FunctionsExpressionTaskOutputErr) SchemaVariantTitle() string { return "Err" }
-
-func (v FunctionsExpressionTaskOutputErr) MarshalJSON() ([]byte, error) { return json.Marshal(JsonValue(v)) }
-func (v *FunctionsExpressionTaskOutputErr) UnmarshalJSON(data []byte) error { return json.Unmarshal(data, (*JsonValue)(v)) }
 
 // Owned task output variants.
 type FunctionsExpressionTaskOutput struct {

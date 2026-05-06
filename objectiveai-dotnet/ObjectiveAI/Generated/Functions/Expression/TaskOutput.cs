@@ -9,6 +9,17 @@ using System.Text.Json.Serialization;
 namespace ObjectiveAI.Functions.Expression;
 
 /// <summary>
+/// An error occurred during execution.
+/// </summary>
+[Description("An error occurred during execution.")]
+public partial class TaskOutputErr
+{
+    [JsonPropertyName("error")]
+    public JsonElement Error { get; set; } = default!;
+}
+
+
+/// <summary>
 /// Owned task output variants.
 /// </summary>
 [Description("Owned task output variants.")]
@@ -44,8 +55,8 @@ public partial class TaskOutput
     /// An error occurred during execution.
     /// </summary>
     [Description("An error occurred during execution.")]
-    [JsonSchemaVariant("Err")]
-    public JsonElement? Err { get; set; }
+    [JsonSchemaVariant("Err", Type = "object")]
+    public TaskOutputErr? Err { get; set; }
 }
 
 public class TaskOutputConverter : JsonConverter<TaskOutput>
@@ -70,7 +81,13 @@ public class TaskOutputConverter : JsonConverter<TaskOutput>
             catch (JsonException) { }
         }
 
-        return new TaskOutput { Err = el.Clone() };
+        if (el.ValueKind == JsonValueKind.Object)
+        {
+            try { var val0 = JsonSerializer.Deserialize<TaskOutputErr>(raw, options); if (val0 != null) return new TaskOutput { Err = val0 }; }
+            catch (JsonException) { }
+        }
+
+        throw new JsonException($"Data did not match any variant of TaskOutput");
     }
 
     public override void Write(Utf8JsonWriter writer, TaskOutput value, JsonSerializerOptions options)
@@ -93,7 +110,7 @@ public class TaskOutputConverter : JsonConverter<TaskOutput>
         }
         if (value.Err != null)
         {
-            value.Err.Value.WriteTo(writer);
+            JsonSerializer.Serialize(writer, value.Err, options);
             return;
         }
         writer.WriteNullValue();
