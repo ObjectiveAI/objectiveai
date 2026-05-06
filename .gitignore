@@ -38,6 +38,3 @@ bin/
 # ignore embedded binaries
 **/embed/
 target-*/
-
-# Audit reports
-audit/

@@ -1,22 +1,24 @@
-/* ── Agent Completion View ── */
-
 .ac-container {
   text-align: left;
-  border: 1px solid var(--node-border);
-  border-radius: var(--radius);
+  max-width: 800px;
+  margin: 0 auto 24px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
   overflow: hidden;
-  font-size: 13px;
-  background: var(--ground-raised);
+  font-size: 14px;
 }
 
+/* Optional prominent label (function name or task path) shown above the
+   standard header. Used when the chat is nested inside an invention or
+   execution so the reader can tell which sub-context it belongs to. */
 .ac-label {
   padding: 8px 16px;
-  background: var(--ground-surface);
-  border-bottom: 1px solid var(--node-border);
-  font-family: var(--font-mono);
-  font-size: 11px;
+  background: #e8effa;
+  border-bottom: 1px solid #c8d8f0;
+  font-family: monospace;
+  font-size: 12px;
   font-weight: 600;
-  color: var(--copper-mid);
+  color: #2c5aa0;
   word-break: break-word;
 }
 
@@ -25,43 +27,42 @@
   align-items: center;
   gap: 10px;
   padding: 10px 16px;
-  background: var(--ground-surface);
-  border-bottom: 1px solid var(--node-border);
-  font-size: 11px;
-  font-family: var(--font-mono);
-  color: var(--info-dim);
+  background: #f0f0f0;
+  border-bottom: 1px solid #ddd;
+  font-size: 12px;
+  color: #666;
 }
 
 .ac-header-model {
   font-weight: 600;
-  color: var(--info-bright);
+  color: #333;
 }
 
 .ac-header-upstream {
-  background: var(--ground);
+  background: #e0e0e0;
   padding: 1px 6px;
   border-radius: 3px;
-  font-size: 10px;
-  color: var(--info-mid);
+  font-size: 11px;
+  text-transform: lowercase;
 }
 
 .ac-header-id {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  opacity: 0.5;
+  font-family: monospace;
+  font-size: 11px;
+  opacity: 0.6;
   margin-left: auto;
 }
 
 .ac-status {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
-.ac-status-streaming { background: var(--copper-mid); }
-.ac-status-complete { background: var(--copper-hot); }
-.ac-status-error { background: var(--error); }
+.ac-status-streaming { background: #f0ad4e; }
+.ac-status-complete { background: #5cb85c; }
+.ac-status-error { background: #d9534f; }
 
 .ac-messages {
   padding: 16px;
@@ -72,51 +73,47 @@
 
 /* System/Developer banner */
 .ac-system-banner {
-  background: var(--ground);
-  border: 1px solid var(--node-border);
-  border-radius: var(--radius);
+  background: #f8f8f8;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
   padding: 8px 12px;
   font-size: 12px;
-  color: var(--info-dim);
+  color: #888;
 }
 
 .ac-system-label {
-  font-family: var(--font-mono);
   font-weight: 600;
   text-transform: uppercase;
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.5px;
   margin-bottom: 4px;
-  color: var(--copper-dim);
+  color: #aaa;
 }
 
 .ac-system-content {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: monospace;
+  font-size: 12px;
   white-space: pre-wrap;
   word-break: break-word;
   max-height: 100px;
   overflow-y: auto;
-  color: var(--info-mid);
 }
 
 /* User bubble */
 .ac-user-bubble {
   align-self: flex-end;
   max-width: 75%;
-  background: var(--ground-surface);
-  border: 1px solid var(--node-border);
-  border-radius: var(--radius);
+  background: #dcf0ff;
+  border-radius: 12px 12px 2px 12px;
   padding: 10px 14px;
 }
 
 .ac-bubble-role {
-  font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--copper-dim);
+  color: #999;
   margin-bottom: 4px;
 }
 
@@ -130,16 +127,15 @@
 .ac-assistant-bubble {
   align-self: flex-start;
   max-width: 85%;
-  background: var(--ground);
-  border: 1px solid var(--node-border);
-  border-radius: var(--radius);
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 12px 12px 12px 2px;
   padding: 10px 14px;
 }
 
 .ac-assistant-meta {
-  font-family: var(--font-mono);
   font-size: 10px;
-  color: var(--info-dim);
+  color: #aaa;
   margin-bottom: 6px;
   display: flex;
   gap: 8px;
@@ -147,34 +143,32 @@
 }
 
 .ac-assistant-agent {
-  font-family: var(--font-mono);
+  font-family: monospace;
   font-size: 10px;
-  color: var(--copper-mid);
 }
 
 /* Reasoning */
 .ac-reasoning {
-  background: rgba(var(--copper-hot-rgb), 0.06);
-  border: 1px solid rgba(var(--copper-dim-rgb), 0.25);
-  border-radius: var(--radius);
+  background: #faf8f0;
+  border: 1px solid #ece8d8;
+  border-radius: 4px;
   padding: 8px 10px;
   margin-bottom: 8px;
   font-size: 12px;
-  color: var(--info-mid);
+  color: #998;
   font-style: italic;
   max-height: 200px;
   overflow-y: auto;
 }
 
 .ac-reasoning-label {
-  font-family: var(--font-mono);
   font-weight: 600;
   font-style: normal;
-  font-size: 9px;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 4px;
-  color: var(--copper-dim);
+  color: #bba;
 }
 
 .ac-reasoning-text {
@@ -184,11 +178,11 @@
 
 /* Refusal */
 .ac-refusal {
-  color: #f0a0a0;
-  background: rgba(185, 28, 28, 0.15);
-  border-radius: var(--radius);
+  color: #c0392b;
+  background: #fdf0ef;
+  border-radius: 4px;
   padding: 8px 10px;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 /* Tool calls */
@@ -200,27 +194,26 @@
 }
 
 .ac-tool-call {
-  background: var(--ground-surface);
-  border: 1px solid var(--node-border);
-  border-radius: var(--radius);
+  background: #f4f8fc;
+  border: 1px solid #d8e8f4;
+  border-radius: 6px;
   padding: 8px 10px;
   font-size: 12px;
 }
 
 .ac-tool-call-name {
   font-weight: 600;
-  font-family: var(--font-mono);
-  color: var(--copper-mid);
+  font-family: monospace;
+  color: #2c6fbb;
   margin-bottom: 4px;
-  font-size: 11px;
 }
 
 .ac-tool-call-args {
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: monospace;
+  font-size: 11px;
   white-space: pre-wrap;
   word-break: break-word;
-  color: var(--info-mid);
+  color: #555;
   max-height: 150px;
   overflow-y: auto;
 }
@@ -230,53 +223,51 @@
   align-self: flex-start;
   max-width: 80%;
   margin-left: 24px;
-  background: var(--ground-surface);
-  border: 1px solid var(--node-border);
-  border-radius: var(--radius);
+  background: #f4f8fc;
+  border: 1px solid #d8e8f4;
+  border-radius: 8px;
   padding: 8px 12px;
   font-size: 12px;
 }
 
 .ac-tool-result-id {
-  font-family: var(--font-mono);
+  font-family: monospace;
   font-size: 10px;
-  color: var(--copper-dim);
+  color: #2c6fbb;
   margin-bottom: 4px;
 }
 
 .ac-tool-result-content {
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: monospace;
+  font-size: 11px;
   white-space: pre-wrap;
   word-break: break-word;
   max-height: 200px;
   overflow-y: auto;
-  color: var(--info-mid);
 }
 
 /* Finish reason badge */
 .ac-finish-badge {
   display: inline-block;
-  font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10px;
   padding: 1px 6px;
   border-radius: 3px;
   font-weight: 600;
+  text-transform: lowercase;
 }
 
-.ac-finish-stop { background: rgba(var(--copper-hot-rgb), 0.15); color: var(--copper-hot); }
-.ac-finish-length { background: rgba(var(--copper-hot-rgb), 0.10); color: var(--copper-mid); }
-.ac-finish-tool_calls { background: var(--ground-surface); color: var(--copper-mid); }
-.ac-finish-content_filter { background: rgba(185, 28, 28, 0.15); color: #f0a0a0; }
-.ac-finish-error { background: rgba(185, 28, 28, 0.15); color: #f0a0a0; }
+.ac-finish-stop { background: #e8f5e9; color: #2e7d32; }
+.ac-finish-length { background: #fff3e0; color: #e65100; }
+.ac-finish-tool_calls { background: #e3f2fd; color: #1565c0; }
+.ac-finish-content_filter { background: #fce4ec; color: #c62828; }
+.ac-finish-error { background: #fce4ec; color: #c62828; }
 
 /* Footer */
 .ac-footer {
   padding: 8px 16px;
-  border-top: 1px solid var(--node-border);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--info-dim);
+  border-top: 1px solid #eee;
+  font-size: 11px;
+  color: #999;
   display: flex;
   gap: 16px;
   flex-wrap: wrap;
@@ -288,23 +279,22 @@
 }
 
 .ac-footer-label {
-  color: var(--copper-dim);
+  color: #bbb;
 }
 
 .ac-error-banner {
-  background: rgba(185, 28, 28, 0.12);
-  border-top: 1px solid rgba(185, 28, 28, 0.3);
+  background: #fdf0ef;
+  border-top: 1px solid #f5c6cb;
   padding: 8px 16px;
-  color: #f0a0a0;
+  color: #c0392b;
   font-size: 12px;
-  font-family: var(--font-mono);
 }
 
 /* Rich content */
 .ac-image-thumb {
   max-width: 300px;
   max-height: 200px;
-  border-radius: var(--radius);
+  border-radius: 4px;
   margin-top: 4px;
 }
 
@@ -312,23 +302,47 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: var(--ground-surface);
+  background: #eee;
   padding: 2px 8px;
   border-radius: 3px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--info-dim);
+  font-size: 11px;
+  color: #666;
   margin-top: 4px;
 }
 
-/* Section header */
+/* Section header for a group of chats (e.g. "Invention X" containing
+   multiple completions, or "Task X.Y.Z" in an execution). */
 .ac-section-header {
-  padding: 10px 0 6px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--copper-mid);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  margin-top: 8px;
+  max-width: 800px;
+  margin: 16px auto 8px;
+  padding: 6px 16px 10px;
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: #333;
+  border-bottom: 2px solid #aaa;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .ac-container { border-color: #444; }
+  .ac-label { background: #1e2a3f; border-color: #30446b; color: #8ab4f8; }
+  .ac-section-header { color: #eee; border-color: #666; }
+  .ac-header { background: #383838; border-color: #444; color: #aaa; }
+  .ac-header-model { color: #ddd; }
+  .ac-header-upstream { background: #4a4a4a; color: #ccc; }
+  .ac-system-banner { background: #333; border-color: #444; color: #999; }
+  .ac-system-content { color: #bbb; }
+  .ac-user-bubble { background: #1a3a5c; color: #dde8f4; }
+  .ac-assistant-bubble { background: #363636; border-color: #4a4a4a; color: #ddd; }
+  .ac-reasoning { background: #3a3828; border-color: #4a4838; color: #bba; }
+  .ac-refusal { background: #4a2020; color: #f0a0a0; }
+  .ac-tool-call { background: #2a3444; border-color: #3a4a5a; }
+  .ac-tool-call-name { color: #6aafee; }
+  .ac-tool-call-args { color: #bbb; }
+  .ac-tool-result-bubble { background: #2a3444; border-color: #3a4a5a; }
+  .ac-tool-result-id { color: #6aafee; }
+  .ac-tool-result-content { color: #bbb; }
+  .ac-footer { border-color: #444; }
+  .ac-error-banner { background: #4a2020; border-color: #5a3030; color: #f0a0a0; }
 }

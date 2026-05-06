@@ -1,4 +1,3 @@
-import { useState } from "react";
 import type {
   FunctionsExecutionsResponseStreamingFunctionExecutionChunk,
   FunctionsExecutionsResponseStreamingTaskChunk,
@@ -8,8 +7,6 @@ import type {
   VectorCompletionsResponseStreamingAgentCompletionChunk,
 } from "objectiveai";
 import { AgentCompletionChat } from "./AgentCompletionView";
-import { VoteMatrix } from "./VoteMatrix";
-import { scoreColor, pct, stateColor } from "./judgment-utils";
 
 interface FunctionExecutionEntry {
   kind: "execution";
@@ -20,44 +17,46 @@ interface FunctionExecutionEntry {
 }
 
 // ---------------------------------------------------------------------------
-// Tree types
+// Tree walk
 // ---------------------------------------------------------------------------
+//
+// A function execution is a tree:
+//
+//   FunctionExecutionChunk (root)
+//   ├── reasoning?  ← one agent completion (its own response id)
+//   └── tasks[]
+//       ├── FunctionExecutionTaskChunk  (a wrapped sub-execution)
+//       │   ├── reasoning?
+//       │   └── tasks[]   ← recurses, possibly many levels deep
+//       │       (split mode wraps an entire execution per array element;
+//       │        swiss strategy wraps an execution per pool per round;
+//       │        nested branch functions wrap their sub-functions; etc.)
+//       └── VectorCompletionTaskChunk   (a leaf)
+//           └── completions[]   ← one or more agent completions, each with a
+//                                 unique response id
+//
+// We exhaustively walk every nested wrapper, picking up every reasoning
+// summary and every vector-completion's agent completions as we go.
 
-interface VoteData {
-  agent: string;
-  vote: number[];
-  weight: number;
-  from_cache?: boolean | null;
-  swarm_index?: number;
-  flat_swarm_index?: number;
-}
-
-interface TaskLeaf {
+/// One renderable chat entry: a single agent-completion chunk plus the
+/// path / modifiers that locate it within the execution tree.
+interface ChatLeaf {
+  /// React key — the inner completion's unique response_id. The execution
+  /// tree assigns a fresh response_id to each individual agent completion,
+  /// so this is sufficient.
   key: string;
+  /// Human-readable label shown above the chat.
   label: string;
-  taskPath: number[];
-  votes: VoteData[];
-  scores: number[];
-  weights: number[];
-  completions: Array<{
-    chunk: VectorCompletionsResponseStreamingAgentCompletionChunk;
-    error: { code: number; message: unknown } | null;
-  }>;
-}
-
-interface ReasoningLeaf {
-  key: string;
-  label: string;
+  /// The actual agent-completion chunk (vector-completion variant has the
+  /// same flat shape as the regular agent-completion chunk).
   chunk: VectorCompletionsResponseStreamingAgentCompletionChunk;
+  /// Optional per-completion error.
   error: { code: number; message: unknown } | null;
 }
 
-type Leaf = { type: "task"; data: TaskLeaf } | { type: "reasoning"; data: ReasoningLeaf };
-
-// ---------------------------------------------------------------------------
-// Tree walk
-// ---------------------------------------------------------------------------
-
+// `TaskChunk` is `#[serde(untagged)]` in Rust, so the JSON variants are
+// distinguished only by structure. The single most reliable discriminator
+// is the `object` marker every inner chunk carries.
 function isVectorCompletionTask(t: unknown): boolean {
   return (
     typeof t === "object" &&
@@ -76,6 +75,12 @@ function isFunctionExecutionTask(t: unknown): boolean {
   );
 }
 
+function formatLabel(path: number[], modifiers: string[], suffix: string): string {
+  const p = path.length === 0 ? "(root)" : path.join(".");
+  const base = modifiers.length === 0 ? p : `${p}  [${modifiers.join(", ")}]`;
+  return suffix ? `${base} — ${suffix}` : base;
+}
+
 function modifiersFor(
   fe: FunctionsExecutionsResponseStreamingFunctionExecutionTaskChunk,
 ): string[] {
@@ -92,18 +97,15 @@ function modifiersFor(
   return mods;
 }
 
-function formatLabel(path: number[], modifiers: string[]): string {
-  const p = path.length === 0 ? "root" : `task ${path.join(".")}`;
-  return modifiers.length === 0 ? p : `${p}  [${modifiers.join(", ")}]`;
-}
-
 function emitReasoning(
   reasoning: FunctionsExecutionsResponseStreamingReasoningSummaryChunk | null | undefined,
   path: number[],
   modifiers: string[],
-  out: Leaf[],
+  out: ChatLeaf[],
 ): void {
   if (!reasoning) return;
+  // ReasoningSummaryChunk = AgentCompletionChunk fields (flattened) + error.
+  // The chunk itself satisfies the AgentCompletionChat shape directly.
   const r = reasoning as unknown as VectorCompletionsResponseStreamingAgentCompletionChunk & {
     error?: { code: number; message: unknown } | null;
   };
@@ -111,131 +113,62 @@ function emitReasoning(
     ? { code: reasoning.error.code, message: reasoning.error.message }
     : null;
   out.push({
-    type: "reasoning",
-    data: {
-      key: `reasoning-${r.id || `${path.join(".")}-${modifiers.join(",")}`}`,
-      label: `${formatLabel(path, modifiers)} — reasoning`,
-      chunk: r,
-      error: compError,
-    },
+    key: `reasoning-${r.id || `${path.join(".")}-${modifiers.join(",")}`}`,
+    label: formatLabel(path, modifiers, "reasoning"),
+    chunk: r,
+    error: compError,
   });
 }
 
 function walkTasks(
   tasks: FunctionsExecutionsResponseStreamingTaskChunk[] | undefined,
   inheritedModifiers: string[],
-  out: Leaf[],
+  out: ChatLeaf[],
 ): void {
   if (!tasks) return;
   for (const t of tasks) {
     if (isVectorCompletionTask(t)) {
       const v = t as unknown as FunctionsExecutionsResponseStreamingVectorCompletionTaskChunk;
       const path = v.task_path ?? [];
-      const completions = (v.completions ?? []).map((comp) => ({
-        chunk: comp,
-        error: comp.error
+      const completions = v.completions ?? [];
+      for (let ci = 0; ci < completions.length; ci++) {
+        const comp = completions[ci];
+        const compError = comp.error
           ? { code: comp.error.code, message: comp.error.message }
-          : null,
-      }));
-      const votes = (v.votes ?? []) as VoteData[];
-      out.push({
-        type: "task",
-        data: {
-          key: `task-${path.join(".")}-${v.id}`,
-          label: formatLabel(path, inheritedModifiers),
-          taskPath: path,
-          votes,
-          scores: v.scores ?? [],
-          weights: v.weights ?? [],
-          completions,
-        },
-      });
+          : null;
+        out.push({
+          key: `comp-${comp.id || `${path.join(".")}-${comp.index ?? ci}`}`,
+          label: formatLabel(path, inheritedModifiers, `completion #${comp.index ?? ci}`),
+          chunk: comp,
+          error: compError,
+        });
+      }
       continue;
     }
     if (isFunctionExecutionTask(t)) {
       const fe = t as unknown as FunctionsExecutionsResponseStreamingFunctionExecutionTaskChunk;
       const mods = [...inheritedModifiers, ...modifiersFor(fe)];
+      // Reasoning at THIS nesting level (its own agent completion).
       emitReasoning(fe.reasoning, fe.task_path ?? [], mods, out);
+      // Recurse into the wrapper's own tasks (which may themselves contain
+      // more wrappers, indefinitely deep).
       walkTasks(fe.tasks, mods, out);
       continue;
     }
+    // Unknown task variant — silently skip rather than crash. Surfaces as
+    // a missing entry, which is preferable to a blank screen.
   }
 }
 
-function collectLeaves(
+function collectChats(
   chunk: FunctionsExecutionsResponseStreamingFunctionExecutionChunk,
-): Leaf[] {
-  const out: Leaf[] = [];
+): ChatLeaf[] {
+  const out: ChatLeaf[] = [];
+  // Root reasoning summary, if any.
   emitReasoning(chunk.reasoning, [], [], out);
+  // Walk the whole tree.
   walkTasks(chunk.tasks, [], out);
   return out;
-}
-
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
-function TaskCard({ leaf }: { leaf: TaskLeaf }) {
-  const [showDetail, setShowDetail] = useState(false);
-  const hasVotes = leaf.votes.length > 0;
-  const hasScores = leaf.scores.length > 0;
-  const maxScore = hasScores ? Math.max(...leaf.scores) : 0;
-  const winnerIdx = hasScores ? leaf.scores.indexOf(maxScore) : -1;
-
-  return (
-    <div className="exec-task">
-      <div className="exec-task-header" onClick={() => setShowDetail(!showDetail)}>
-        <span className={`exec-arrow${showDetail ? " exec-arrow-open" : ""}`}>
-          &#x25B8;
-        </span>
-        <span className="exec-task-path">{leaf.label}</span>
-        {hasScores && (
-          <span className="exec-task-scores">
-            {leaf.scores.map((s, i) => (
-              <span
-                key={i}
-                className={i === winnerIdx ? "exec-score-winner" : "exec-score"}
-              >
-                {pct(s)}
-              </span>
-            ))}
-          </span>
-        )}
-        <span className="exec-task-agents">{leaf.completions.length} agents</span>
-      </div>
-
-      {hasVotes && (
-        <div className="exec-task-votes">
-          <VoteMatrix votes={leaf.votes} scores={leaf.scores} />
-        </div>
-      )}
-
-      {!hasVotes && hasScores && (
-        <div className="exec-task-score-bar">
-          {leaf.scores.map((s, i) => (
-            <div
-              key={i}
-              className="exec-score-seg"
-              style={{ flex: s, background: scoreColor(s), minWidth: s > 0 ? 2 : 0 }}
-            />
-          ))}
-        </div>
-      )}
-
-      {showDetail && (
-        <div className="exec-task-detail">
-          {leaf.completions.map((comp, ci) => (
-            <AgentCompletionChat
-              key={comp.chunk.id || ci}
-              chunk={comp.chunk}
-              error={comp.error}
-              id={comp.chunk.id}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -248,94 +181,46 @@ export function FunctionExecutionView({ entry }: { entry: FunctionExecutionEntry
     ? { code: entry.error.code, message: entry.error.message }
     : null;
 
-  const leaves = chunk ? collectLeaves(chunk) : [];
-  const rawOutput = chunk?.output ?? null;
-  const isVector = Array.isArray(rawOutput);
-  const output = rawOutput as number | number[] | null;
-  const hasOutput = output != null;
-
-  const state = topError
-    ? "error"
-    : hasOutput
-      ? "complete"
-      : leaves.length > 0
-        ? "streaming"
-        : "pending";
+  const chats = chunk ? collectChats(chunk) : [];
 
   return (
-    <div className="exec-container">
-      <div className="exec-header">
-        <span className="exec-status" style={{ background: stateColor(state) }} />
-        <span className="exec-title">Function Execution</span>
-        {hasOutput && (
-          <span className="exec-output">
-            {isVector
-              ? `#${(output as number[]).indexOf(Math.max(...(output as number[]))) + 1} · ${pct(Math.max(...(output as number[])))}`
-              : pct(output as number)}
-          </span>
-        )}
-        <span className="exec-header-id">{entry.id.slice(0, 12)}</span>
-      </div>
+    <div>
+      {chats.map((leaf) => (
+        <AgentCompletionChat
+          key={leaf.key}
+          label={leaf.label}
+          chunk={leaf.chunk}
+          error={leaf.error}
+          id={leaf.chunk.id}
+        />
+      ))}
 
-      {isVector && (
-        <div className="exec-output-bar">
-          {(output as number[]).map((s, i) => (
-            <div
-              key={i}
-              className="exec-output-seg"
-              style={{ flex: s, background: scoreColor(s), minWidth: s > 0 ? 2 : 0 }}
-            />
-          ))}
+      {chats.length === 0 && !topError && (
+        <div
+          style={{
+            maxWidth: 800,
+            margin: "0 auto 24px",
+            padding: 16,
+            color: "#999",
+            fontStyle: "italic",
+            textAlign: "center",
+          }}
+        >
+          Waiting for execution…
         </div>
       )}
-
-      <div className="exec-body">
-        {leaves.map((leaf) => {
-          if (leaf.type === "reasoning") {
-            return (
-              <AgentCompletionChat
-                key={leaf.data.key}
-                label={leaf.data.label}
-                chunk={leaf.data.chunk}
-                error={leaf.data.error}
-                id={leaf.data.chunk.id}
-              />
-            );
-          }
-          return <TaskCard key={leaf.data.key} leaf={leaf.data} />;
-        })}
-
-        {leaves.length === 0 && !topError && (
-          <div className="viewer-empty">Waiting for execution...</div>
-        )}
-      </div>
 
       {topError && (
-        <div className="ac-error-banner">
+        <div
+          className="ac-error-banner"
+          style={{
+            maxWidth: 800,
+            margin: "0 auto 24px",
+            border: "1px solid #f5c6cb",
+            borderRadius: 8,
+          }}
+        >
           Error {topError.code}: {JSON.stringify(topError.message)}
-        </div>
-      )}
-
-      {chunk?.usage && (
-        <div className="ac-footer">
-          <div className="ac-footer-item">
-            <span className="ac-footer-label">Prompt:</span>
-            <span>{chunk.usage.prompt_tokens}</span>
-          </div>
-          <div className="ac-footer-item">
-            <span className="ac-footer-label">Completion:</span>
-            <span>{chunk.usage.completion_tokens}</span>
-          </div>
-          <div className="ac-footer-item">
-            <span className="ac-footer-label">Total:</span>
-            <span>{chunk.usage.total_tokens}</span>
-          </div>
-          {chunk.usage.cost !== undefined && chunk.usage.cost !== 0 && (
-            <div className="ac-footer-item">
-              <span className="ac-footer-label">Cost:</span>
-              <span>${typeof chunk.usage.cost === "number" ? chunk.usage.cost.toFixed(6) : chunk.usage.cost}</span>
-            </div>
-          )}
         </div>
       )}
     </div>
