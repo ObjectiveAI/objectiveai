@@ -39,11 +39,10 @@ export function Shell({ children }: { children: ReactNode }) {
   const isHome = pathname === "/";
   const isDemo = pathname === "/demo";
   const isViewerPreview = pathname === "/viewer-preview";
-  const isViewer = pathname === "/viewer";
 
   return (
     <>
-      {!isHome && !isDemo && !isViewerPreview && !isViewer && (
+      {!isHome && !isDemo && !isViewerPreview && (
         <header className={styles.header}>
           <Link href="/" className={styles.logo}>
             <LogoMark className={styles.logoMark} />
