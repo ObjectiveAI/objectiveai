@@ -1,0 +1,271 @@
+/* ── AgentChat ── */
+/* Chat view for agent completions — matches ObjectiveAI design system. */
+
+.container {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--info-bright);
+  background: var(--ground);
+  border: 1px solid var(--ground-surface);
+  border-radius: var(--radius);
+  overflow: hidden;
+  max-width: 720px;
+}
+
+.label {
+  padding: 6px 16px;
+  background: var(--ground-surface);
+  border-bottom: 1px solid var(--node-border);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--copper-mid);
+  word-break: break-word;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--ground-surface);
+  font-size: 10px;
+  color: var(--info-dim);
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
+.model {
+  font-weight: 600;
+  color: var(--info-bright);
+}
+
+.status {
+  margin-left: auto;
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+}
+
+.messages {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* System/Developer banner */
+
+.systemBanner {
+  background: var(--ground-surface);
+  border: 1px solid var(--node-border);
+  border-radius: 2px;
+  padding: 6px 10px;
+  font-size: 10px;
+  color: var(--info-dim);
+}
+
+.systemRole {
+  display: block;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--copper-dim);
+  margin-bottom: 3px;
+}
+
+.systemContent {
+  display: block;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 80px;
+  overflow-y: auto;
+}
+
+/* User bubble */
+
+.userBubble {
+  align-self: flex-end;
+  max-width: 75%;
+  background: rgba(var(--copper-hot-rgb), 0.06);
+  border: 1px solid var(--ground-surface);
+  border-radius: 2px;
+  padding: 8px 12px;
+}
+
+.bubbleRole {
+  display: block;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--copper-dim);
+  margin-bottom: 3px;
+}
+
+.bubbleText {
+  display: block;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+}
+
+/* Assistant bubble */
+
+.assistantBubble {
+  align-self: flex-start;
+  max-width: 85%;
+  background: var(--ground-raised);
+  border: 1px solid var(--ground-surface);
+  border-radius: 2px;
+  padding: 8px 12px;
+}
+
+.assistantMeta {
+  font-size: 9px;
+  color: var(--info-dim);
+  margin-bottom: 4px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.finishBadge {
+  font-size: 8px;
+  padding: 0 4px;
+  border-radius: 1px;
+  border: 1px solid var(--node-border);
+}
+
+.finish_stop {
+  color: var(--copper-hot);
+  border-color: var(--copper-warm);
+}
+
+.finish_length {
+  color: var(--copper-mid);
+}
+
+.finish_tool_calls {
+  color: var(--info-mid);
+}
+
+.finish_error {
+  color: var(--error);
+  border-color: var(--error);
+}
+
+/* Reasoning */
+
+.reasoning {
+  background: var(--ground-surface);
+  border: 1px solid var(--node-border);
+  border-radius: 2px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  font-size: 10px;
+  font-style: italic;
+  color: var(--info-dim);
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.reasoningLabel {
+  display: block;
+  font-size: 8px;
+  font-style: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--copper-dim);
+  margin-bottom: 2px;
+}
+
+.reasoningText {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Tool call */
+
+.toolCall {
+  background: var(--ground-surface);
+  border: 1px solid var(--node-border);
+  border-radius: 2px;
+  padding: 6px 8px;
+  margin-top: 6px;
+}
+
+.toolName {
+  display: block;
+  font-weight: 600;
+  color: var(--copper-mid);
+  margin-bottom: 3px;
+}
+
+.toolArgs {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--info-dim);
+  max-height: 120px;
+  overflow-y: auto;
+  margin: 0;
+}
+
+/* Tool result */
+
+.toolResult {
+  align-self: flex-start;
+  max-width: 80%;
+  margin-left: 16px;
+  background: var(--ground-surface);
+  border: 1px solid var(--node-border);
+  border-radius: 2px;
+  padding: 6px 10px;
+}
+
+.toolResultId {
+  display: block;
+  font-size: 8px;
+  color: var(--copper-dim);
+  margin-bottom: 2px;
+}
+
+.toolResultContent {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 150px;
+  overflow-y: auto;
+  color: var(--info-mid);
+  margin: 0;
+}
+
+/* Error banner */
+
+.errorBanner {
+  padding: 6px 16px;
+  border-top: 1px solid var(--error);
+  background: rgba(185, 28, 28, 0.1);
+  color: var(--error);
+  font-size: 10px;
+}
+
+/* Streaming cursor */
+
+.cursor {
+  display: inline-block;
+  width: 6px;
+  height: 12px;
+  background: var(--copper-mid);
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
