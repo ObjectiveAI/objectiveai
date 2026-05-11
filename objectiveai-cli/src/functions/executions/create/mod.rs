@@ -189,7 +189,7 @@ async fn profile_favorites(cli_config: &crate::Config) -> Vec<objectiveai::files
 }
 
 impl Commands {
-    pub async fn handle(self, cli_config: &crate::Config) -> Result<crate::Output, crate::error::Error> {
+    pub async fn handle(self, cli_config: &crate::Config) -> Result<(), crate::error::Error> {
         let (function_source, profile_source, input_source, continuation_args, instructions, retry_token, seed, split, invert, strategy, detach) = match self {
             Commands::Standard { function, profile, input, continuation, instructions, retry_token, seed, split, invert, detach } => {
                 (function, profile, input, continuation, instructions, retry_token, seed, split, invert, objectiveai::functions::executions::request::Strategy::Default, detach)
@@ -253,7 +253,15 @@ impl Commands {
                 });
 
             let result = ExecutionResult { output, errors };
-            Ok(serde_json::to_string(&result).unwrap())
+            #[derive(serde::Serialize)]
+            struct ExecutionEmit {
+                execution: ExecutionResult,
+            }
+            objectiveai_cli_lib::output::Output::<ExecutionEmit>::Notification(
+                ExecutionEmit { execution: result },
+            )
+            .emit();
+            Ok(())
         })), true).await
     }
 }

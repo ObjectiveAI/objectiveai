@@ -146,105 +146,311 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<crate::Output, crate::error::Error> {
+    pub fn handle(self) -> Result<(), crate::error::Error> {
+        #[derive(serde::Serialize)]
+        struct SchemaList {
+            schemas: &'static [&'static str],
+        }
+        #[derive(serde::Serialize)]
+        struct Schema {
+            schema: serde_json::Value,
+        }
         match self {
-            Commands::List => Ok(crate::Output::Schema("[\"AssistantMessage\",\"AssistantMessageExpression\",\"AssistantToolCall\",\"AssistantToolCallDelta\",\"AssistantToolCallExpression\",\"AssistantToolCallFunction\",\"AssistantToolCallFunctionDelta\",\"AssistantToolCallFunctionExpression\",\"AssistantToolCallType\",\"DeveloperMessage\",\"DeveloperMessageExpression\",\"File\",\"ImageUrl\",\"ImageUrlDetail\",\"InputAudio\",\"Message\",\"MessageExpression\",\"RichContent\",\"RichContentExpression\",\"RichContentPart\",\"RichContentPartExpression\",\"SimpleContent\",\"SimpleContentExpression\",\"SimpleContentPart\",\"SimpleContentPartExpression\",\"SystemMessage\",\"SystemMessageExpression\",\"ToolMessage\",\"ToolMessageExpression\",\"UserMessage\",\"UserMessageExpression\",\"VideoUrl\"]")),
-            Commands::AssistantMessage { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.AssistantMessage.json"),
-            )),
-            Commands::AssistantMessageExpression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.AssistantMessageExpression.json"),
-            )),
-            Commands::AssistantToolCall { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.AssistantToolCall.json"),
-            )),
-            Commands::AssistantToolCallDelta { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.AssistantToolCallDelta.json"),
-            )),
-            Commands::AssistantToolCallExpression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.AssistantToolCallExpression.json"),
-            )),
-            Commands::AssistantToolCallFunction { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.AssistantToolCallFunction.json"),
-            )),
-            Commands::AssistantToolCallFunctionDelta { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.AssistantToolCallFunctionDelta.json"),
-            )),
-            Commands::AssistantToolCallFunctionExpression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.AssistantToolCallFunctionExpression.json"),
-            )),
-            Commands::AssistantToolCallType { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.AssistantToolCallType.json"),
-            )),
-            Commands::DeveloperMessage { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.DeveloperMessage.json"),
-            )),
-            Commands::DeveloperMessageExpression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.DeveloperMessageExpression.json"),
-            )),
-            Commands::File { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.File.json"),
-            )),
-            Commands::ImageUrl { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.ImageUrl.json"),
-            )),
-            Commands::ImageUrlDetail { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.ImageUrlDetail.json"),
-            )),
-            Commands::InputAudio { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.InputAudio.json"),
-            )),
-            Commands::Message { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.Message.json"),
-            )),
-            Commands::MessageExpression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.MessageExpression.json"),
-            )),
-            Commands::RichContent { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.RichContent.json"),
-            )),
-            Commands::RichContentExpression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.RichContentExpression.json"),
-            )),
-            Commands::RichContentPart { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.RichContentPart.json"),
-            )),
-            Commands::RichContentPartExpression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.RichContentPartExpression.json"),
-            )),
-            Commands::SimpleContent { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.SimpleContent.json"),
-            )),
-            Commands::SimpleContentExpression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.SimpleContentExpression.json"),
-            )),
-            Commands::SimpleContentPart { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.SimpleContentPart.json"),
-            )),
-            Commands::SimpleContentPartExpression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.SimpleContentPartExpression.json"),
-            )),
-            Commands::SystemMessage { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.SystemMessage.json"),
-            )),
-            Commands::SystemMessageExpression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.SystemMessageExpression.json"),
-            )),
-            Commands::ToolMessage { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.ToolMessage.json"),
-            )),
-            Commands::ToolMessageExpression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.ToolMessageExpression.json"),
-            )),
-            Commands::UserMessage { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.UserMessage.json"),
-            )),
-            Commands::UserMessageExpression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.UserMessageExpression.json"),
-            )),
-            Commands::VideoUrl { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.VideoUrl.json"),
-            )),
+            Commands::List => {
+                const NAMES: &[&str] = &["AssistantMessage", "AssistantMessageExpression", "AssistantToolCall", "AssistantToolCallDelta", "AssistantToolCallExpression", "AssistantToolCallFunction", "AssistantToolCallFunctionDelta", "AssistantToolCallFunctionExpression", "AssistantToolCallType", "DeveloperMessage", "DeveloperMessageExpression", "File", "ImageUrl", "ImageUrlDetail", "InputAudio", "Message", "MessageExpression", "RichContent", "RichContentExpression", "RichContentPart", "RichContentPartExpression", "SimpleContent", "SimpleContentExpression", "SimpleContentPart", "SimpleContentPartExpression", "SystemMessage", "SystemMessageExpression", "ToolMessage", "ToolMessageExpression", "UserMessage", "UserMessageExpression", "VideoUrl"];
+                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
+                    SchemaList { schemas: NAMES },
+                ).emit();
+                Ok(())
+            }
+            Commands::AssistantMessage { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.AssistantMessage.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::AssistantMessageExpression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.AssistantMessageExpression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::AssistantToolCall { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.AssistantToolCall.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::AssistantToolCallDelta { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.AssistantToolCallDelta.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::AssistantToolCallExpression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.AssistantToolCallExpression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::AssistantToolCallFunction { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.AssistantToolCallFunction.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::AssistantToolCallFunctionDelta { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.AssistantToolCallFunctionDelta.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::AssistantToolCallFunctionExpression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.AssistantToolCallFunctionExpression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::AssistantToolCallType { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.AssistantToolCallType.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::DeveloperMessage { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.DeveloperMessage.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::DeveloperMessageExpression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.DeveloperMessageExpression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::File { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.File.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ImageUrl { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.ImageUrl.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ImageUrlDetail { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.ImageUrlDetail.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::InputAudio { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.InputAudio.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Message { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.Message.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::MessageExpression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.MessageExpression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::RichContent { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.RichContent.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::RichContentExpression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.RichContentExpression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::RichContentPart { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.RichContentPart.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::RichContentPartExpression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.RichContentPartExpression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::SimpleContent { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.SimpleContent.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::SimpleContentExpression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.SimpleContentExpression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::SimpleContentPart { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.SimpleContentPart.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::SimpleContentPartExpression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.SimpleContentPartExpression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::SystemMessage { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.SystemMessage.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::SystemMessageExpression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.SystemMessageExpression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ToolMessage { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.ToolMessage.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ToolMessageExpression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.ToolMessageExpression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::UserMessage { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.UserMessage.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::UserMessageExpression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.UserMessageExpression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::VideoUrl { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.message.VideoUrl.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
         }
     }
 }

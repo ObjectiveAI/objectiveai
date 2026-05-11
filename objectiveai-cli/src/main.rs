@@ -12,11 +12,8 @@ async fn main() {
     // may never return because the replacement has been spawned with
     // the same argv. Any error inside is logged to stderr and swallowed.
     objectiveai_cli::update::maybe_auto_update(args.clone(), &cli_config).await;
-    match objectiveai_cli::run(args, &cli_config).await {
-        Ok(output) => println!("{output}"),
-        Err(e) => {
-            println!("error: {e}");
-            std::process::exit(1);
-        }
+    if let Err(err) = objectiveai_cli::run(args, &cli_config).await {
+        objectiveai_cli_lib::output::Output::<serde_json::Value>::Error(err).emit();
+        std::process::exit(1);
     }
 }

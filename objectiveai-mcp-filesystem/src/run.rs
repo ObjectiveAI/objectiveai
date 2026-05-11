@@ -99,7 +99,11 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
             },
         );
 
-    let router = axum::Router::new().nest_service("/", service);
+    // axum 0.8 removed nest_service at "/"; fallback_service mounts the
+    // service at the root catch-all without the path-prefix-stripping
+    // semantics nest_service had (which we never needed since the rmcp
+    // service handles every path it cares about itself).
+    let router = axum::Router::new().fallback_service(service);
     let listener = tokio::net::TcpListener::bind(format!("{address}:{port}")).await?;
 
     Ok((listener, router))

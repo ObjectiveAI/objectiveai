@@ -115,7 +115,7 @@ where
         }
         if !logged_id {
             if let Some(id) = log_writer.primary_id() {
-                crate::log_line::print_log_id(id);
+                crate::log_line::emit_log_stream_ready(id);
                 logged_id = true;
             }
         }

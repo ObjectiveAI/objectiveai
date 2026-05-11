@@ -23,15 +23,31 @@ pub async fn write(client: &Client, config: &Config, cli_config: &super::Config)
     Ok(())
 }
 
-pub fn format_jq(results: Result<Vec<serde_json::Value>, objectiveai::filesystem::Error>) -> Result<crate::Output, crate::error::Error> {
-    let results = results?;
-    Ok(crate::Output::ConfigGet(match results.len() {
-        0 => serde_json::to_string(&serde_json::Value::Null).unwrap(),
-        1 => serde_json::to_string(&results[0]).unwrap(),
-        _ => serde_json::to_string(&results).unwrap(),
-    }))
+/// Wire shape for a user-supplied jq filter's results. Documented escape
+/// hatch — jq produces arbitrary JSON that cannot be typed in advance.
+#[derive(serde::Serialize)]
+pub struct JqResults {
+    pub jq: serde_json::Value,
 }
 
-pub fn format_value(v: &impl serde::Serialize) -> String {
-    serde_json::to_string(v).unwrap()
+pub fn emit_jq(
+    results: Result<Vec<serde_json::Value>, objectiveai::filesystem::Error>,
+) -> Result<(), crate::error::Error> {
+    let results = results?;
+    let jq = match results.len() {
+        0 => serde_json::Value::Null,
+        1 => results.into_iter().next().unwrap(),
+        _ => serde_json::Value::Array(results),
+    };
+    objectiveai_cli_lib::output::Output::<JqResults>::Notification(JqResults { jq }).emit();
+    Ok(())
+}
+
+/// Emits a typed config value as `{"type":"notification","value":<v>}`.
+pub fn emit_value<V: serde::Serialize>(v: V) {
+    #[derive(serde::Serialize)]
+    struct Value<V: serde::Serialize> {
+        value: V,
+    }
+    objectiveai_cli_lib::output::Output::<Value<V>>::Notification(Value { value: v }).emit();
 }

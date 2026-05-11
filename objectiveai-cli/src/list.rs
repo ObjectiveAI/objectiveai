@@ -22,8 +22,14 @@ pub enum ListItem {
     Item(objectiveai::RemotePath),
 }
 
-fn format_items(items: Vec<ListItem>) -> String {
-    serde_json::to_string(&items).unwrap()
+/// Wire wrapper for a non-pair listing: `{"type":"notification","items":[...]}`.
+#[derive(Serialize)]
+struct Items {
+    items: Vec<ListItem>,
+}
+
+fn emit_items(items: Vec<ListItem>) {
+    objectiveai_cli_lib::output::Output::<Items>::Notification(Items { items }).emit();
 }
 
 /// Returns true if a favorite matches a remote path.
@@ -34,7 +40,7 @@ fn favorite_matches(fav: &objectiveai::filesystem::config::Favorite, path: &obje
 /// Returns favorites only. No API call.
 pub async fn favorites<F, Fut>(
     get_favorites: F,
-) -> Result<crate::Output, crate::error::Error>
+) -> Result<(), crate::error::Error>
 where
     F: FnOnce() -> Fut,
     Fut: std::future::Future<Output = Vec<objectiveai::filesystem::config::Favorite>>,
@@ -43,13 +49,14 @@ where
         .into_iter()
         .map(ListItem::Favorite)
         .collect();
-    Ok(crate::Output::Api(format_items(items)))
+    emit_items(items);
+    Ok(())
 }
 
 /// Fetches from a single remote source via api::run.
 pub async fn single<F>(
     list_remote: F,
-) -> Result<crate::Output, crate::error::Error>
+) -> Result<(), crate::error::Error>
 where
     F: FnOnce(objectiveai::HttpClient) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<objectiveai::RemotePath>, crate::error::Error>> + Send>> + Send + 'static,
 {
@@ -58,7 +65,8 @@ where
             .into_iter()
             .map(ListItem::Item)
             .collect();
-        Ok(format_items(items))
+        emit_items(items);
+        Ok(())
     }, false).await
 }
 
@@ -71,7 +79,7 @@ pub async fn all<F, Fut, FsF, OaiF>(
     get_favorites: F,
     list_filesystem: FsF,
     list_objectiveai: OaiF,
-) -> Result<crate::Output, crate::error::Error>
+) -> Result<(), crate::error::Error>
 where
     F: FnOnce() -> Fut,
     Fut: std::future::Future<Output = Vec<objectiveai::filesystem::config::Favorite>>,
@@ -115,7 +123,8 @@ where
             }
         }
 
-        Ok(format_items(items))
+        emit_items(items);
+        Ok(())
     }, false).await
 }
 
@@ -128,8 +137,13 @@ pub enum PairListItem {
     Item(objectiveai::functions::response::ListFunctionProfilePairItem),
 }
 
-fn format_pair_items(items: Vec<PairListItem>) -> String {
-    serde_json::to_string(&items).unwrap()
+#[derive(Serialize)]
+struct PairItems {
+    items: Vec<PairListItem>,
+}
+
+fn emit_pair_items(items: Vec<PairListItem>) {
+    objectiveai_cli_lib::output::Output::<PairItems>::Notification(PairItems { items }).emit();
 }
 
 /// Compares a RemotePathCommitOptional against a RemotePath.
@@ -166,7 +180,7 @@ fn pair_favorite_matches(
 /// Returns pair favorites only. No API call.
 pub async fn pair_favorites<F, Fut>(
     get_favorites: F,
-) -> Result<crate::Output, crate::error::Error>
+) -> Result<(), crate::error::Error>
 where
     F: FnOnce() -> Fut,
     Fut: std::future::Future<Output = Vec<objectiveai::filesystem::config::PairFavorite>>,
@@ -175,13 +189,14 @@ where
         .into_iter()
         .map(PairListItem::Favorite)
         .collect();
-    Ok(crate::Output::Api(format_pair_items(items)))
+    emit_pair_items(items);
+    Ok(())
 }
 
 /// Fetches pairs from ObjectiveAI via api::run.
 pub async fn pair_single<F>(
     list_remote: F,
-) -> Result<crate::Output, crate::error::Error>
+) -> Result<(), crate::error::Error>
 where
     F: FnOnce(objectiveai::HttpClient) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<objectiveai::functions::response::ListFunctionProfilePairItem>, crate::error::Error>> + Send>> + Send + 'static,
 {
@@ -190,7 +205,8 @@ where
             .into_iter()
             .map(PairListItem::Item)
             .collect();
-        Ok(format_pair_items(items))
+        emit_pair_items(items);
+        Ok(())
     }, false).await
 }
 
@@ -200,7 +216,7 @@ where
 pub async fn pair_all<GF, GFut, F>(
     get_favorites: GF,
     list_objectiveai: F,
-) -> Result<crate::Output, crate::error::Error>
+) -> Result<(), crate::error::Error>
 where
     GF: FnOnce() -> GFut,
     GFut: std::future::Future<Output = Vec<objectiveai::filesystem::config::PairFavorite>>,
@@ -223,6 +239,7 @@ where
             }
         }
 
-        Ok(format_pair_items(items))
+        emit_pair_items(items);
+        Ok(())
     }, false).await
 }

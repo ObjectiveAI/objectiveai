@@ -60,7 +60,7 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub async fn handle(self, cli_config: &crate::Config) -> Result<crate::Output, crate::error::Error> {
+    pub async fn handle(self, cli_config: &crate::Config) -> Result<(), crate::error::Error> {
         let (message_source, agent_arg, continuation_args, response_format_args, instructions, seed, detach) = match self {
             Commands::Standard { messages, agent, continuation, response_format, instructions, seed, detach } => {
                 (messages, agent, continuation, response_format, instructions, seed, detach)
@@ -127,7 +127,15 @@ impl Commands {
                 })
                 .unwrap_or_default();
 
-            Ok(content)
+            #[derive(serde::Serialize)]
+            struct CompletionEmit {
+                content: String,
+            }
+            objectiveai_cli_lib::output::Output::<CompletionEmit>::Notification(
+                CompletionEmit { content },
+            )
+            .emit();
+            Ok(())
         })), true).await
     }
 }

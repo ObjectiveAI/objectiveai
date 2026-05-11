@@ -63,13 +63,21 @@ async fn list_source(
 }
 
 impl Commands {
-    pub async fn handle(self, cli_config: &crate::Config) -> Result<crate::Output, crate::error::Error> {
+    pub async fn handle(self, cli_config: &crate::Config) -> Result<(), crate::error::Error> {
         match self {
             Commands::Get { args } => {
                 let path = args.resolve(|| get_favorites(cli_config)).await?;
                 crate::api::run(|http_client| async move {
                     let response = objectiveai::agent::get_agent(&http_client, path).await?;
-                    Ok(serde_json::to_string(&response).unwrap())
+                    #[derive(serde::Serialize)]
+                    struct AgentResponse {
+                        agent: objectiveai::agent::response::GetAgentResponse,
+                    }
+                    objectiveai_cli_lib::output::Output::<AgentResponse>::Notification(
+                        AgentResponse { agent: response },
+                    )
+                    .emit();
+                    Ok(())
                 }, false).await
             }
             Commands::List { source } => {
@@ -100,7 +108,15 @@ impl Commands {
                 let sha = objectiveai::filesystem::publish::publish_agent(
                     &fs_client, &repository, &agent, &msg, overwrite,
                 ).await?;
-                Ok(crate::Output::Api(sha))
+                #[derive(serde::Serialize)]
+                struct Published {
+                    sha: String,
+                }
+                objectiveai_cli_lib::output::Output::<Published>::Notification(
+                    Published { sha },
+                )
+                .emit();
+                Ok(())
             }
         }
     }

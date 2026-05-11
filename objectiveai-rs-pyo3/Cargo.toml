@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-rs-pyo3"
-version = "2.0.0"
+version = "2.0.3"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
 description = "PyO3 bindings for ObjectiveAI"
@@ -16,7 +16,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 arbitrary = "1.4.2"
-objectiveai = { path = "../objectiveai-rs", version = "2.0.0", default-features = false }
+objectiveai = { path = "../objectiveai-rs", version = "2.0.3", default-features = false }
 # abi3-py310: one wheel per platform supports CPython 3.10+ via the stable ABI.
 # Eliminates the per-Python-version build matrix on PyPI publish.
 pyo3 = { version = "0.28", features = ["abi3-py310"] }

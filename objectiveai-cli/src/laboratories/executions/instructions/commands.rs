@@ -8,15 +8,20 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self, cli_config: &crate::Config) -> Result<crate::Output, crate::error::Error> {
+    pub fn handle(self, cli_config: &crate::Config) -> Result<(), crate::error::Error> {
         match self {
-            Commands::Get => Ok(crate::Output::Instructions(
+            Commands::Get => {
+                #[derive(serde::Serialize)]
+                struct Instructions { instructions: String }
+                let instructions = 
                 crate::instructions::issue(
                     cli_config,
                     crate::instructions::InstructionsScope::LaboratoryExecutions,
                     include_str!("../../../../assets/laboratories/executions/instructions/get/INSTRUCTIONS.md"),
-                )?,
-            )),
+                )?;
+                objectiveai_cli_lib::output::Output::<Instructions>::Notification(Instructions { instructions }).emit();
+                Ok(())
+            },
         }
     }
 }

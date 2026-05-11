@@ -12,6 +12,7 @@ members = [
     "objectiveai-rs-macros",
     "objectiveai-rs-pyo3",
     "objectiveai-rs-cffi", "objectiveai-cli", "objectiveai-cli/builder",
+    "objectiveai-cli-lib",
     "objectiveai-viewer/src-tauri",
 ]
 

@@ -54,6 +54,15 @@ pub enum Error {
         expected: Vec<String>,
         observed: Vec<String>,
     },
+    /// Validation kept failing after `max_step_retries + 1` attempts at
+    /// the same step (initial run plus all retries). The agent could
+    /// not produce content that satisfies the step's validator.
+    #[error("step `{step}` failed validation after {attempts} attempts: {last_error}")]
+    ValidationFailedAfterRetries {
+        step: &'static str,
+        attempts: u32,
+        last_error: String,
+    },
 }
 
 impl StatusError for Error {
@@ -73,6 +82,7 @@ impl StatusError for Error {
             Error::PromptFetch(e) => e.code,
             Error::McpListTools(_) => 502,
             Error::ToolSubscriptionTimeout { .. } => 504,
+            Error::ValidationFailedAfterRetries { .. } => 422,
         }
     }
 
@@ -134,6 +144,12 @@ impl StatusError for Error {
                 "kind": "tool_subscription_timeout",
                 "expected": expected,
                 "observed": observed,
+            }),
+            Error::ValidationFailedAfterRetries { step, attempts, last_error } => serde_json::json!({
+                "kind": "validation_failed_after_retries",
+                "step": step,
+                "attempts": attempts,
+                "last_error": last_error,
             }),
         };
         Some(serde_json::json!({

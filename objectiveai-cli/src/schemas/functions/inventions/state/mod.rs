@@ -66,45 +66,131 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<crate::Output, crate::error::Error> {
+    pub fn handle(self) -> Result<(), crate::error::Error> {
+        #[derive(serde::Serialize)]
+        struct SchemaList {
+            schemas: &'static [&'static str],
+        }
+        #[derive(serde::Serialize)]
+        struct Schema {
+            schema: serde_json::Value,
+        }
         match self {
-            Commands::List => Ok(crate::Output::Schema("[\"AlphaScalarBranchState\",\"AlphaScalarLeafState\",\"AlphaScalarState\",\"AlphaVectorBranchState\",\"AlphaVectorLeafState\",\"AlphaVectorState\",\"GetFunctionInventionStateResponse\",\"InputSchema\",\"Params\",\"ParamsState\",\"ParamsStateOrRemoteCommitOptional\",\"State\"]")),
-            Commands::AlphaScalarBranchState { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.inventions.state.AlphaScalarBranchState.json"),
-            )),
-            Commands::AlphaScalarLeafState { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.inventions.state.AlphaScalarLeafState.json"),
-            )),
-            Commands::AlphaScalarState { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.inventions.state.AlphaScalarState.json"),
-            )),
-            Commands::AlphaVectorBranchState { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.inventions.state.AlphaVectorBranchState.json"),
-            )),
-            Commands::AlphaVectorLeafState { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.inventions.state.AlphaVectorLeafState.json"),
-            )),
-            Commands::AlphaVectorState { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.inventions.state.AlphaVectorState.json"),
-            )),
-            Commands::GetFunctionInventionStateResponse { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.inventions.state.GetFunctionInventionStateResponse.json"),
-            )),
-            Commands::InputSchema { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.inventions.state.InputSchema.json"),
-            )),
-            Commands::Params { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.inventions.state.Params.json"),
-            )),
-            Commands::ParamsState { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.inventions.state.ParamsState.json"),
-            )),
-            Commands::ParamsStateOrRemoteCommitOptional { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.inventions.state.ParamsStateOrRemoteCommitOptional.json"),
-            )),
-            Commands::State { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.inventions.state.State.json"),
-            )),
+            Commands::List => {
+                const NAMES: &[&str] = &["AlphaScalarBranchState", "AlphaScalarLeafState", "AlphaScalarState", "AlphaVectorBranchState", "AlphaVectorLeafState", "AlphaVectorState", "GetFunctionInventionStateResponse", "InputSchema", "Params", "ParamsState", "ParamsStateOrRemoteCommitOptional", "State"];
+                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
+                    SchemaList { schemas: NAMES },
+                ).emit();
+                Ok(())
+            }
+            Commands::AlphaScalarBranchState { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.inventions.state.AlphaScalarBranchState.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::AlphaScalarLeafState { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.inventions.state.AlphaScalarLeafState.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::AlphaScalarState { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.inventions.state.AlphaScalarState.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::AlphaVectorBranchState { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.inventions.state.AlphaVectorBranchState.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::AlphaVectorLeafState { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.inventions.state.AlphaVectorLeafState.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::AlphaVectorState { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.inventions.state.AlphaVectorState.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::GetFunctionInventionStateResponse { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.inventions.state.GetFunctionInventionStateResponse.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::InputSchema { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.inventions.state.InputSchema.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Params { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.inventions.state.Params.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ParamsState { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.inventions.state.ParamsState.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ParamsStateOrRemoteCommitOptional { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.inventions.state.ParamsStateOrRemoteCommitOptional.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::State { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.inventions.state.State.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
         }
     }
 }

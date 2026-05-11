@@ -30,18 +30,50 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<crate::Output, crate::error::Error> {
+    pub fn handle(self) -> Result<(), crate::error::Error> {
+        #[derive(serde::Serialize)]
+        struct SchemaList {
+            schemas: &'static [&'static str],
+        }
+        #[derive(serde::Serialize)]
+        struct Schema {
+            schema: serde_json::Value,
+        }
         match self {
-            Commands::List => Ok(crate::Output::Schema("[\"AgentCompletion\",\"FunctionInvention\",\"Object\"]")),
-            Commands::AgentCompletion { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../../objectiveai-json-schema/functions.inventions.response.unary.AgentCompletion.json"),
-            )),
-            Commands::FunctionInvention { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../../objectiveai-json-schema/functions.inventions.response.unary.FunctionInvention.json"),
-            )),
-            Commands::Object { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../../objectiveai-json-schema/functions.inventions.response.unary.Object.json"),
-            )),
+            Commands::List => {
+                const NAMES: &[&str] = &["AgentCompletion", "FunctionInvention", "Object"];
+                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
+                    SchemaList { schemas: NAMES },
+                ).emit();
+                Ok(())
+            }
+            Commands::AgentCompletion { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../../objectiveai-json-schema/functions.inventions.response.unary.AgentCompletion.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::FunctionInvention { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../../objectiveai-json-schema/functions.inventions.response.unary.FunctionInvention.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Object { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../../objectiveai-json-schema/functions.inventions.response.unary.Object.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
         }
     }
 }

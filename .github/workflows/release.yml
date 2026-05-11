@@ -8,6 +8,20 @@ on:
 permissions:
   contents: write
 
+# Per-leg flat structure:
+#
+# check-version
+# ├─→ create-release
+# │
+# ├─→ mcp-fs-<leg> ──→ cli-<leg>   (× 10 platforms, all chains independent)
+#
+# Every CLI platform has its own dedicated `mcp-fs-<leg>` upstream so a
+# slow runner allocation, slow build, or transient failure on one
+# platform's mcp-filesystem can't gate any other platform's CLI build.
+# The 6 x86_64-musl mcp-fs jobs and 4 aarch64-musl mcp-fs jobs build
+# identical binaries — duplicated work, but parallel, in exchange for
+# total per-leg isolation.
+
 jobs:
   check-version:
     name: Check CLI version
@@ -33,215 +47,350 @@ jobs:
             echo "should-release=true" >> "$GITHUB_OUTPUT"
           fi
 
-  build-mcp-filesystem:
-    name: Build objectiveai-mcp-filesystem (${{ matrix.target }})
+  create-release:
+    name: Create release
     needs: check-version
-    if: needs.check-version.outputs.should-release == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        target:
-          - x86_64-unknown-linux-musl
-          - aarch64-unknown-linux-musl
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-      - name: Install cross
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cross
-      - name: Build mcp-filesystem
-        run: |
-          cross build -p objectiveai-mcp-filesystem --target ${{ matrix.target }} --release
-      - name: Stage embed directory with fingerprint
-        run: |
-          EMBED_DIR="objectiveai-mcp-filesystem/embed/${{ matrix.target }}/release"
-          mkdir -p "$EMBED_DIR"
-          cp "target/${{ matrix.target }}/release/objectiveai-mcp-filesystem" "$EMBED_DIR/"
-          # Compute the same fingerprint that build.sh would write, so the
-          # downstream install.sh invocation on the CLI build jobs skips the
-          # mcp-filesystem rebuild step (fingerprint match → no-op).
-          source objectiveai-mcp-filesystem/fingerprint.sh --target ${{ matrix.target }} --release
-          echo "$CURRENT_FP" > "$EMBED_DIR/.fingerprint"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: mcp-filesystem-${{ matrix.target }}
-          path: objectiveai-mcp-filesystem/embed/${{ matrix.target }}/release/
-          if-no-files-found: error
-          # `.fingerprint` is a hidden dotfile and is required for the
-          # downstream build-cli jobs to short-circuit the rebuild step.
-          include-hidden-files: true
-
-  build-cli:
-    name: Build CLI (${{ matrix.asset }})
-    needs: [check-version, build-mcp-filesystem]
-    if: needs.check-version.outputs.should-release == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # With viewer (default)
-          - os: ubuntu-22.04
-            mcp_target: x86_64-unknown-linux-musl
-            asset: objectiveai-linux-x86_64
-            src_name: objectiveai
-            install_args: ""
-            viewer: true
-          - os: ubuntu-24.04-arm
-            mcp_target: aarch64-unknown-linux-musl
-            asset: objectiveai-linux-aarch64
-            src_name: objectiveai
-            install_args: ""
-            viewer: true
-          - os: macos-13
-            mcp_target: x86_64-unknown-linux-musl
-            asset: objectiveai-macos-x86_64
-            src_name: objectiveai
-            install_args: ""
-            viewer: true
-          - os: macos-14
-            mcp_target: aarch64-unknown-linux-musl
-            asset: objectiveai-macos-aarch64
-            src_name: objectiveai
-            install_args: ""
-            viewer: true
-          - os: windows-latest
-            mcp_target: x86_64-unknown-linux-musl
-            asset: objectiveai-windows-x86_64.exe
-            src_name: objectiveai.exe
-            install_args: ""
-            viewer: true
-          # Without viewer
-          - os: ubuntu-22.04
-            mcp_target: x86_64-unknown-linux-musl
-            asset: objectiveai-linux-x86_64-no-viewer
-            src_name: objectiveai
-            install_args: "--no-viewer"
-            viewer: false
-          - os: ubuntu-24.04-arm
-            mcp_target: aarch64-unknown-linux-musl
-            asset: objectiveai-linux-aarch64-no-viewer
-            src_name: objectiveai
-            install_args: "--no-viewer"
-            viewer: false
-          - os: macos-13
-            mcp_target: x86_64-unknown-linux-musl
-            asset: objectiveai-macos-x86_64-no-viewer
-            src_name: objectiveai
-            install_args: "--no-viewer"
-            viewer: false
-          - os: macos-14
-            mcp_target: aarch64-unknown-linux-musl
-            asset: objectiveai-macos-aarch64-no-viewer
-            src_name: objectiveai
-            install_args: "--no-viewer"
-            viewer: false
-          - os: windows-latest
-            mcp_target: x86_64-unknown-linux-musl
-            asset: objectiveai-windows-x86_64-no-viewer.exe
-            src_name: objectiveai.exe
-            install_args: "--no-viewer"
-            viewer: false
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: pnpm/action-setup@v4
-        with:
-          # Match `packageManager` in the root package.json so workspace
-          # resolution stays consistent with local installs.
-          version: 10.25.0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - uses: actions/setup-python@v5
-        with:
-          # Pin Python to avoid macOS runners flipping the default to a
-          # version PyInstaller doesn't yet support, and to keep the
-          # sdk-runner fingerprint stable across runner OS versions.
-          python-version: '3.13'
-      - name: Install Linux Tauri deps
-        if: runner.os == 'Linux' && matrix.viewer
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libjavascriptcoregtk-4.1-dev \
-            libsoup-3.0-dev \
-            libgtk-3-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev \
-            libssl-dev
-      - name: Download pre-built objectiveai-mcp-filesystem
-        uses: actions/download-artifact@v4
-        with:
-          name: mcp-filesystem-${{ matrix.mcp_target }}
-          path: objectiveai-mcp-filesystem/embed/${{ matrix.mcp_target }}/release/
-      - name: Build CLI
-        shell: bash
-        run: bash objectiveai-cli/install.sh ${{ matrix.install_args }}
-      - name: Dump build logs on failure
-        if: failure()
-        shell: bash
-        run: |
-          shopt -s nullglob
-          for log in .logs/build/*.txt; do
-            echo "::group::$log"
-            cat "$log"
-            echo "::endgroup::"
-          done
-      - name: Stage release binary
-        shell: bash
-        run: cp "$HOME/.objectiveai/${{ matrix.src_name }}" "${{ matrix.asset }}"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.asset }}
-          path: ${{ matrix.asset }}
-          if-no-files-found: error
-
-  release:
-    name: Create draft release
-    needs: [check-version, build-cli]
     if: needs.check-version.outputs.should-release == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-          pattern: objectiveai-*
-          merge-multiple: true
       - name: Generate release notes
-        id: notes
+        # Write notes to a file rather than capturing into a step output —
+        # commit messages routinely contain backticks (`like this`) and
+        # other shell metacharacters, which GHA's `${{ }}` interpolator
+        # would inline literally into the next step's bash script and
+        # cause bash to try evaluating them as command substitutions.
+        # `--notes-file` reads the bytes directly with zero shell
+        # interpolation involved.
         run: |
           PREV_TAG=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
           if [ -n "$PREV_TAG" ]; then
             echo "Previous tag: $PREV_TAG"
-            NOTES=$(git log --pretty=format:"- %s" "$PREV_TAG"..HEAD)
+            git log --pretty=format:"- %s" "$PREV_TAG"..HEAD > release-notes.md
           else
             echo "No previous tags — using full history"
-            NOTES=$(git log --pretty=format:"- %s")
+            git log --pretty=format:"- %s" > release-notes.md
           fi
-          {
-            echo 'notes<<RELEASE_NOTES_EOF'
-            echo "$NOTES"
-            echo 'RELEASE_NOTES_EOF'
-          } >> "$GITHUB_OUTPUT"
-      - name: Create draft release
+      - name: Create release if missing
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ needs.check-version.outputs.version }}"
-          ls -la artifacts/
+          if gh release view "v$VERSION" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Release v$VERSION already exists — leaving as-is."
+            exit 0
+          fi
+          # Created without --draft so per-asset uploads are user-visible
+          # the moment each cli-<leg> job finishes uploading. CLI legs
+          # append assets in parallel via `gh release upload --clobber`.
           gh release create "v$VERSION" \
             --repo "${{ github.repository }}" \
             --target "${{ github.sha }}" \
-            --draft \
             --title "v$VERSION" \
-            --notes "${{ steps.notes.outputs.notes }}" \
-            artifacts/*
+            --notes-file release-notes.md
+
+  # ── mcp-filesystem builders (10 dedicated jobs, all on Linux runners) ─────
+
+  mcp-fs-linux-x86_64:
+    needs: check-version
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-mcp-filesystem
+        with:
+          target: x86_64-unknown-linux-musl
+          artifact-name: mcp-filesystem-linux-x86_64
+
+  mcp-fs-linux-x86_64-no-viewer:
+    needs: check-version
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-mcp-filesystem
+        with:
+          target: x86_64-unknown-linux-musl
+          artifact-name: mcp-filesystem-linux-x86_64-no-viewer
+
+  mcp-fs-linux-aarch64:
+    needs: check-version
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-mcp-filesystem
+        with:
+          target: aarch64-unknown-linux-musl
+          artifact-name: mcp-filesystem-linux-aarch64
+
+  mcp-fs-linux-aarch64-no-viewer:
+    needs: check-version
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-mcp-filesystem
+        with:
+          target: aarch64-unknown-linux-musl
+          artifact-name: mcp-filesystem-linux-aarch64-no-viewer
+
+  mcp-fs-macos-x86_64:
+    needs: check-version
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-mcp-filesystem
+        with:
+          target: x86_64-unknown-linux-musl
+          artifact-name: mcp-filesystem-macos-x86_64
+
+  mcp-fs-macos-x86_64-no-viewer:
+    needs: check-version
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-mcp-filesystem
+        with:
+          target: x86_64-unknown-linux-musl
+          artifact-name: mcp-filesystem-macos-x86_64-no-viewer
+
+  mcp-fs-macos-aarch64:
+    needs: check-version
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-mcp-filesystem
+        with:
+          target: aarch64-unknown-linux-musl
+          artifact-name: mcp-filesystem-macos-aarch64
+
+  mcp-fs-macos-aarch64-no-viewer:
+    needs: check-version
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-mcp-filesystem
+        with:
+          target: aarch64-unknown-linux-musl
+          artifact-name: mcp-filesystem-macos-aarch64-no-viewer
+
+  mcp-fs-windows-x86_64:
+    needs: check-version
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-mcp-filesystem
+        with:
+          target: x86_64-unknown-linux-musl
+          artifact-name: mcp-filesystem-windows-x86_64
+
+  mcp-fs-windows-x86_64-no-viewer:
+    needs: check-version
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-mcp-filesystem
+        with:
+          target: x86_64-unknown-linux-musl
+          artifact-name: mcp-filesystem-windows-x86_64-no-viewer
+
+  # ── CLI builders (10 dedicated jobs, each pinned to its mcp-fs upstream) ──
+
+  cli-linux-x86_64:
+    needs: [check-version, create-release, mcp-fs-linux-x86_64]
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ubuntu-22.04
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-cli-leg
+        with:
+          mcp_target: x86_64-unknown-linux-musl
+          mcp_artifact_name: mcp-filesystem-linux-x86_64
+          asset: objectiveai-linux-x86_64
+          src_name: objectiveai
+          install_args: ""
+          viewer: "true"
+          version: ${{ needs.check-version.outputs.version }}
+          repository: ${{ github.repository }}
+
+  cli-linux-x86_64-no-viewer:
+    needs: [check-version, create-release, mcp-fs-linux-x86_64-no-viewer]
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ubuntu-22.04
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-cli-leg
+        with:
+          mcp_target: x86_64-unknown-linux-musl
+          mcp_artifact_name: mcp-filesystem-linux-x86_64-no-viewer
+          asset: objectiveai-linux-x86_64-no-viewer
+          src_name: objectiveai
+          install_args: "--no-viewer"
+          viewer: "false"
+          version: ${{ needs.check-version.outputs.version }}
+          repository: ${{ github.repository }}
+
+  cli-linux-aarch64:
+    needs: [check-version, create-release, mcp-fs-linux-aarch64]
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ubuntu-24.04-arm
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-cli-leg
+        with:
+          mcp_target: aarch64-unknown-linux-musl
+          mcp_artifact_name: mcp-filesystem-linux-aarch64
+          asset: objectiveai-linux-aarch64
+          src_name: objectiveai
+          install_args: ""
+          viewer: "true"
+          version: ${{ needs.check-version.outputs.version }}
+          repository: ${{ github.repository }}
+
+  cli-linux-aarch64-no-viewer:
+    needs: [check-version, create-release, mcp-fs-linux-aarch64-no-viewer]
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ubuntu-24.04-arm
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-cli-leg
+        with:
+          mcp_target: aarch64-unknown-linux-musl
+          mcp_artifact_name: mcp-filesystem-linux-aarch64-no-viewer
+          asset: objectiveai-linux-aarch64-no-viewer
+          src_name: objectiveai
+          install_args: "--no-viewer"
+          viewer: "false"
+          version: ${{ needs.check-version.outputs.version }}
+          repository: ${{ github.repository }}
+
+  cli-macos-x86_64:
+    needs: [check-version, create-release, mcp-fs-macos-x86_64]
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: macos-13
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-cli-leg
+        with:
+          mcp_target: x86_64-unknown-linux-musl
+          mcp_artifact_name: mcp-filesystem-macos-x86_64
+          asset: objectiveai-macos-x86_64
+          src_name: objectiveai
+          install_args: ""
+          viewer: "true"
+          version: ${{ needs.check-version.outputs.version }}
+          repository: ${{ github.repository }}
+
+  cli-macos-x86_64-no-viewer:
+    needs: [check-version, create-release, mcp-fs-macos-x86_64-no-viewer]
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: macos-13
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-cli-leg
+        with:
+          mcp_target: x86_64-unknown-linux-musl
+          mcp_artifact_name: mcp-filesystem-macos-x86_64-no-viewer
+          asset: objectiveai-macos-x86_64-no-viewer
+          src_name: objectiveai
+          install_args: "--no-viewer"
+          viewer: "false"
+          version: ${{ needs.check-version.outputs.version }}
+          repository: ${{ github.repository }}
+
+  cli-macos-aarch64:
+    needs: [check-version, create-release, mcp-fs-macos-aarch64]
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: macos-14
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-cli-leg
+        with:
+          mcp_target: aarch64-unknown-linux-musl
+          mcp_artifact_name: mcp-filesystem-macos-aarch64
+          asset: objectiveai-macos-aarch64
+          src_name: objectiveai
+          install_args: ""
+          viewer: "true"
+          version: ${{ needs.check-version.outputs.version }}
+          repository: ${{ github.repository }}
+
+  cli-macos-aarch64-no-viewer:
+    needs: [check-version, create-release, mcp-fs-macos-aarch64-no-viewer]
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: macos-14
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-cli-leg
+        with:
+          mcp_target: aarch64-unknown-linux-musl
+          mcp_artifact_name: mcp-filesystem-macos-aarch64-no-viewer
+          asset: objectiveai-macos-aarch64-no-viewer
+          src_name: objectiveai
+          install_args: "--no-viewer"
+          viewer: "false"
+          version: ${{ needs.check-version.outputs.version }}
+          repository: ${{ github.repository }}
+
+  cli-windows-x86_64:
+    needs: [check-version, create-release, mcp-fs-windows-x86_64]
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-cli-leg
+        with:
+          mcp_target: x86_64-unknown-linux-musl
+          mcp_artifact_name: mcp-filesystem-windows-x86_64
+          asset: objectiveai-windows-x86_64.exe
+          src_name: objectiveai.exe
+          install_args: ""
+          viewer: "true"
+          version: ${{ needs.check-version.outputs.version }}
+          repository: ${{ github.repository }}
+
+  cli-windows-x86_64-no-viewer:
+    needs: [check-version, create-release, mcp-fs-windows-x86_64-no-viewer]
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-cli-leg
+        with:
+          mcp_target: x86_64-unknown-linux-musl
+          mcp_artifact_name: mcp-filesystem-windows-x86_64-no-viewer
+          asset: objectiveai-windows-x86_64-no-viewer.exe
+          src_name: objectiveai.exe
+          install_args: "--no-viewer"
+          viewer: "false"
+          version: ${{ needs.check-version.outputs.version }}
+          repository: ${{ github.repository }}

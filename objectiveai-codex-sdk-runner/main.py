@@ -50,11 +50,14 @@ pipe buffer fills and ALL in-flight runs block.
 
 from __future__ import annotations
 
-__version__ = "2.0.0"
+__version__ = "2.0.4"
 
 import asyncio
 import json
+import os
+import shutil
 import sys
+from pathlib import Path
 from typing import Any, BinaryIO, Optional
 
 from openai_codex_sdk import (
@@ -62,6 +65,7 @@ from openai_codex_sdk import (
     LocalImageInput,
     TextInput,
 )
+from openai_codex_sdk.types import CodexOptions
 
 
 # ---------------------------------------------------------------------------
@@ -201,6 +205,180 @@ def _serialize_event(event: Any) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# MCP config materialization
+# ---------------------------------------------------------------------------
+# Codex's Python SDK (openai-codex-sdk 0.1.x) has no typed MCP knob on
+# `ThreadOptions`; both `CodexOptions` and `ThreadOptions` are pydantic
+# models with `extra="forbid"`. The underlying `codex` binary, however,
+# reads MCP config from `$CODEX_HOME/config.toml`, and `CodexOptions`
+# does expose a public `env` knob. So we point CODEX_HOME at a
+# per-request directory whose `config.toml` we write ourselves.
+#
+# Concurrency is safe because each request gets its own `<cwd>/.codex/`
+# (the Rust client owns `cwd` and recursively deletes it when the
+# stream ends), and `CodexExec` re-spawns a fresh `codex exec`
+# subprocess per `Thread.run_streamed()` call, picking up the per-
+# request CODEX_HOME every time.
+
+_AUTH_LINK_LOCK = asyncio.Lock()
+
+
+async def _link_auth_into(codex_home: Path) -> None:
+    """Copy the user's `auth.json` into a per-request CODEX_HOME.
+
+    Codex looks for auth in `$CODEX_HOME/auth.json`. When we point
+    CODEX_HOME at a temp dir, the user's real auth file isn't visible
+    unless we copy it in. Copy (not symlink) for Windows compatibility.
+
+    No-op when the user has no auth.json on disk (e.g. they're on
+    `CODEX_API_KEY`); codex falls back to env-based auth from the
+    inherited `os.environ`.
+    """
+    real_codex_home = Path(
+        os.environ.get("CODEX_HOME") or (Path.home() / ".codex")
+    )
+    src = real_codex_home / "auth.json"
+    if not src.is_file():
+        return
+    dst = codex_home / "auth.json"
+    if dst.exists():
+        return
+    async with _AUTH_LINK_LOCK:
+        if dst.exists():
+            return
+        await asyncio.get_running_loop().run_in_executor(
+            None, lambda: shutil.copy2(src, dst)
+        )
+
+
+def _toml_escape_basic_string(s: str) -> str:
+    """Render `s` as a TOML basic string (double-quoted with escapes)."""
+    out: list[str] = []
+    for ch in s:
+        c = ord(ch)
+        if ch == "\\":
+            out.append("\\\\")
+        elif ch == '"':
+            out.append('\\"')
+        elif ch == "\b":
+            out.append("\\b")
+        elif ch == "\t":
+            out.append("\\t")
+        elif ch == "\n":
+            out.append("\\n")
+        elif ch == "\f":
+            out.append("\\f")
+        elif ch == "\r":
+            out.append("\\r")
+        elif c < 0x20 or c == 0x7F:
+            out.append(f"\\u{c:04X}")
+        else:
+            out.append(ch)
+    return '"' + "".join(out) + '"'
+
+
+def _toml_quoted_key(s: str) -> str:
+    """A TOML quoted key (for non-bare characters like '-' in 'Mcp-Session-Id')."""
+    return _toml_escape_basic_string(s)
+
+
+def _build_config_toml(mcp_servers: dict[str, Any]) -> str:
+    """Serialize an mcp_servers map to a `[mcp_servers.<name>]` TOML
+    fragment.
+
+    Wire shape (from objectiveai-api Rust side):
+      { "<name>": { "url": "...", "http_headers": { "<h>": "<v>" } } }
+
+    Codex TOML schema:
+      [mcp_servers.<name>]
+      url = "..."
+      required = true
+      [mcp_servers.<name>.http_headers]
+      "<h>" = "<v>"
+      ...
+
+    `required = true` is set on every entry — the user's agent
+    definition explicitly opted into this MCP server, so silent
+    degradation (the run starts without the tools) would be a
+    correctness bug. Init failures should be loud.
+
+    Raises:
+        ValueError: when `mcp_servers` is malformed.
+    """
+    if not isinstance(mcp_servers, dict):
+        raise ValueError("mcp_servers must be an object")
+
+    lines: list[str] = []
+    for name, cfg in mcp_servers.items():
+        if not isinstance(name, str) or not name:
+            raise ValueError("mcp_servers keys must be non-empty strings")
+        if not isinstance(cfg, dict):
+            raise ValueError(f"mcp_servers[{name!r}] must be an object")
+        url = cfg.get("url")
+        if not isinstance(url, str) or not url:
+            raise ValueError(
+                f"mcp_servers[{name!r}].url must be a non-empty string"
+            )
+        name_key = _toml_quoted_key(name)
+        lines.append(f"[mcp_servers.{name_key}]")
+        lines.append(f"url = {_toml_escape_basic_string(url)}")
+        lines.append("required = true")
+        http_headers = cfg.get("http_headers")
+        if http_headers:
+            if not isinstance(http_headers, dict):
+                raise ValueError(
+                    f"mcp_servers[{name!r}].http_headers must be an object"
+                )
+            lines.append(f"[mcp_servers.{name_key}.http_headers]")
+            for hname, hval in http_headers.items():
+                if not isinstance(hname, str) or not hname:
+                    raise ValueError(
+                        f"mcp_servers[{name!r}].http_headers keys must be non-empty strings"
+                    )
+                if not isinstance(hval, str):
+                    raise ValueError(
+                        f"mcp_servers[{name!r}].http_headers[{hname!r}] must be a string"
+                    )
+                lines.append(
+                    f"{_toml_quoted_key(hname)} = {_toml_escape_basic_string(hval)}"
+                )
+        lines.append("")
+    return "\n".join(lines)
+
+
+async def _prepare_codex_home(
+    cwd: str,
+    mcp_servers: Optional[dict[str, Any]],
+) -> tuple[Optional[str], Optional[dict[str, str]]]:
+    """If `mcp_servers` is non-empty, materialize a per-request
+    `<cwd>/.codex/` with a `config.toml` containing the MCP entries.
+
+    Returns ``(codex_home_path, env_override)``. When `mcp_servers` is
+    empty / absent, returns ``(None, None)`` — caller passes
+    ``env=None`` to `CodexOptions`, which falls through to
+    `os.environ` and the user's real CODEX_HOME (full
+    backwards-compatibility with no-MCP runs).
+    """
+    if not mcp_servers:
+        return None, None
+    codex_home = Path(cwd) / ".codex"
+    codex_home.mkdir(parents=True, exist_ok=True)
+    config_toml = _build_config_toml(mcp_servers)
+    config_path = codex_home / "config.toml"
+    # Atomic write — codex parses this on every subprocess spawn;
+    # partial writes would surface as obscure parse errors.
+    tmp_path = config_path.with_suffix(".toml.tmp")
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(
+        None, lambda: tmp_path.write_text(config_toml, encoding="utf-8")
+    )
+    await loop.run_in_executor(None, lambda: tmp_path.replace(config_path))
+    await _link_auth_into(codex_home)
+    env_override = {**os.environ, "CODEX_HOME": str(codex_home)}
+    return str(codex_home), env_override
+
+
+# ---------------------------------------------------------------------------
 # Per-request handler
 # ---------------------------------------------------------------------------
 
@@ -215,7 +393,6 @@ def _only_set(d: dict[str, Any]) -> dict[str, Any]:
 
 
 async def handle_run(
-    codex: Codex,
     request_id: str,
     params: dict[str, Any],
     stdout_writer: Writer,
@@ -247,10 +424,17 @@ async def handle_run(
             "skip_git_repo_check": True,
         })
 
-        # NOTE(MCP): params.get("mcp_servers") is intentionally ignored
-        # for now — the codex Python SDK Thread API has no MCP knob.
-        # The Rust side plumbs this field through end-to-end so the wire
-        # protocol is stable; wiring it into Codex.Thread is a follow-up.
+        # MCP: when params.mcp_servers is non-empty, materialize a
+        # per-request `<cwd>/.codex/config.toml` and point the codex
+        # subprocess at it via CODEX_HOME. When empty/absent, this is
+        # a no-op and codex inherits the user's real CODEX_HOME.
+        _codex_home, env_override = await _prepare_codex_home(
+            params["cwd"], params.get("mcp_servers")
+        )
+        codex_options = (
+            CodexOptions(env=env_override) if env_override is not None else None
+        )
+        codex = Codex(codex_options)
 
         if params.get("resume"):
             thread = codex.resume_thread(params["resume"], thread_options)
@@ -333,11 +517,13 @@ def _validate_run_params(params: Any) -> Optional[str]:
         return "'input' must be an object"
     if not isinstance(params["cwd"], str) or not params["cwd"]:
         return "'cwd' must be a non-empty string"
+    mcp_servers = params.get("mcp_servers")
+    if mcp_servers is not None and not isinstance(mcp_servers, dict):
+        return "'mcp_servers' must be an object"
     return None
 
 
 async def _dispatch(
-    codex: Codex,
     msg: dict,
     tasks: dict[str, asyncio.Task],
     stdout_writer: Writer,
@@ -362,7 +548,6 @@ async def _dispatch(
             return
         task = asyncio.create_task(
             handle_run(
-                codex,
                 request_id,
                 params,
                 stdout_writer,
@@ -410,10 +595,11 @@ async def main_loop() -> None:
     stderr_writer = Writer(sys.stderr.buffer)
     tasks: dict[str, asyncio.Task] = {}
 
-    # One Codex client shared across every in-flight request — it's a
-    # thin wrapper around the codex binary; instantiation is cheap but
-    # not free, and concurrent threads can be created from one Codex.
-    codex = Codex()
+    # `Codex()` is constructed per request inside `handle_run` — its
+    # __init__ does no I/O (only resolves the binary path and stores
+    # options), so per-request construction is essentially free, and
+    # it lets each request inject its own CODEX_HOME for MCP config
+    # without sharing state across concurrent runs.
 
     while True:
         line = await read_one_line_from_stdin()
@@ -430,7 +616,7 @@ async def main_loop() -> None:
             continue
         if not isinstance(msg, dict):
             continue
-        await _dispatch(codex, msg, tasks, stdout_writer, stderr_writer)
+        await _dispatch(msg, tasks, stdout_writer, stderr_writer)
 
     # Drain phase: every in-flight task emits its own end line as it
     # finishes or is cancelled.

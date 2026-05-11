@@ -36,7 +36,7 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub async fn handle(self, cli_config: &crate::Config) -> Result<crate::Output, crate::error::Error> {
+    pub async fn handle(self, cli_config: &crate::Config) -> Result<(), crate::error::Error> {
         match self {
             Commands::Recursive { command } => command.handle(cli_config).await,
             Commands::Config { command } => command.handle(cli_config).await,

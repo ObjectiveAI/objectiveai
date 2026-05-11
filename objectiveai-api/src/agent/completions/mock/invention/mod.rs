@@ -16,10 +16,10 @@ pub use route::*;
 ///
 /// Tool names in `tool_names` are the strings the proxy actually emits
 /// to the agent — i.e. proxy-prefixed (`<server-name>_<bare-name>`).
-/// `InventionServer::get_info` reports `server_info.name =
-/// "objectiveai-function-invention"`, so invention tools surface as
-/// `objectiveai-function-invention_WriteEssay`,
-/// `objectiveai-function-invention_ReadSpec`, etc. Callers pass and match
+/// `InventionServer::get_info` reports `server_info.name = "oaifi"`,
+/// so invention tools surface as
+/// `oaifi_WriteEssay`,
+/// `oaifi_ReadSpec`, etc. Callers pass and match
 /// on these final, prefixed names directly.
 pub(super) fn pick_invention_tool<'a>(
     key_tool: &str,
@@ -39,7 +39,7 @@ pub(super) fn pick_invention_tool<'a>(
 ///
 /// Tools: `[ReadSpec, ReadEssay, ReadInputSchema, ReadEssayTasks, ReadTask,
 /// ReadTasksLength, WriteDescription]` — all served by the InventionServer,
-/// so they appear as `objectiveai-function-invention_<ToolName>` to the agent.
+/// so they appear as `oaifi_<ToolName>` to the agent.
 pub fn description_tool_call(
     tool_names: &[String],
     tool_map: &std::collections::HashMap<String, crate::agent::completions::ResolvedTool>,
@@ -47,15 +47,15 @@ pub fn description_tool_call(
 ) -> super::client::MockToolCall {
     use super::client::{MockToolCall, random_string};
 
-    let tool_name = pick_invention_tool("objectiveai-function-invention_WriteDescription", tool_names, tool_map, rng);
+    let tool_name = pick_invention_tool("oaifi_WriteDescription", tool_names, tool_map, rng);
     let arguments = match tool_name {
-        "objectiveai-function-invention_WriteDescription" => {
+        "oaifi_WriteDescription" => {
             let description = random_string(rng, 50, 350);
             serde_json::json!({ "description": description }).to_string()
         }
-        "objectiveai-function-invention_ReadSpec" | "objectiveai-function-invention_ReadEssay" | "objectiveai-function-invention_ReadInputSchema"
-        | "objectiveai-function-invention_ReadEssayTasks" | "objectiveai-function-invention_ReadTasksLength" => "{}".to_string(),
-        "objectiveai-function-invention_ReadTask" => {
+        "oaifi_ReadSpec" | "oaifi_ReadEssay" | "oaifi_ReadInputSchema"
+        | "oaifi_ReadEssayTasks" | "oaifi_ReadTasksLength" => "{}".to_string(),
+        "oaifi_ReadTask" => {
             serde_json::json!({ "index": rng.random_range(0u32..5) }).to_string()
         }
         _ => "{}".to_string(),

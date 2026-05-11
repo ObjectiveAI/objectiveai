@@ -29,6 +29,19 @@ const MAX_NAME_LEN: usize = 100;
 /// Leaves room for `-` (1 byte) + base62 path segment (up to 22 bytes).
 const MAX_NAME_LEN_WITHOUT_PATH: usize = 77;
 
+/// Map the integer `invention_step` (which `run_step` already takes as
+/// `usize`) to a stable wire-name for error reporting.
+const fn step_name(invention_step: usize) -> &'static str {
+    match invention_step {
+        0 => "essay",
+        1 => "input_schema",
+        2 => "essay_tasks",
+        3 => "tasks",
+        4 => "description",
+        _ => "unknown",
+    }
+}
+
 /// Validates the invention name length constraints.
 ///
 /// - Must be at most 100 bytes total.
@@ -62,12 +75,12 @@ fn validate_name(name: &str) -> Result<(), super::Error> {
 // ---------------------------------------------------------------------------
 
 /// Prefix the proxy stamps onto every tool name from the InventionServer
-/// upstream. Either `objectiveai-function-invention_<name>` (single upstream)
-/// or `objectiveai-function-invention_<digits>_<name>` (proxy collision-
-/// disambiguated when the same prefix would otherwise collide with another
-/// upstream). The prefix string itself is the InventionServer's rmcp
+/// upstream. Either `oaifi_<name>` (single upstream) or
+/// `oaifi_<digits>_<name>` (proxy collision-disambiguated when the
+/// same prefix would otherwise collide with another upstream). The
+/// prefix string itself is the InventionServer's rmcp
 /// `server_info.name` — see `invention_server.rs::InventionMcp::get_info`.
-const PROXY_INVENTION_PREFIX: &str = "objectiveai-function-invention_";
+const PROXY_INVENTION_PREFIX: &str = "oaifi_";
 
 /// Wait until every name in `expected` is present in the agent's MCP
 /// view of available tools, observing through the agent's existing MCP
@@ -1325,14 +1338,19 @@ where
         // agent completion with a retry prompt on the continuation. The
         // retry prompt includes the validation error, matching the pattern
         // from objectiveai-cli: prompt + "\n\n" + error + "\n\nPlease try again."
+        //
+        // The loop carries the still-failing validation error out via
+        // `break Some(e)` when retries exhaust, so the caller can yield
+        // a terminal error chunk instead of silently advancing to the
+        // next step. `break None` signals validation eventually passed.
         let mut retries = 0u32;
-        loop {
+        let final_validation_error: Option<String> = loop {
             let validation_error = match validate() {
-                Ok(()) => break,
+                Ok(()) => break None,
                 Err(e) => e,
             };
             if retries >= max_step_retries {
-                break;
+                break Some(validation_error);
             }
             retries += 1;
 
@@ -1418,6 +1436,33 @@ where
                     }
                 }
             }
+        };
+
+        // Retries exhausted with validation still failing — yield a
+        // terminal error chunk so `run_all_steps` aborts the invention
+        // instead of advancing to the next step with an invalid state.
+        // Mirrors the two `agent_client.create_streaming` Err paths
+        // above: empty completions, all fields None except `error`,
+        // then `return;` to skip the post-loop yields.
+        if let Some(last_error) = final_validation_error {
+            let attempts = retries + 1; // initial attempt plus N retries
+            let err = super::Error::ValidationFailedAfterRetries {
+                step: step_name(invention_step),
+                attempts,
+                last_error,
+            };
+            yield StepOutput::Chunk(FunctionInventionChunk {
+                id: id.clone(),
+                completions: vec![],
+                state: None,
+                path: None,
+                function: None,
+                created,
+                object,
+                usage: None,
+                error: Some(objectiveai::error::ResponseError::from(&err)),
+            });
+            return;
         }
 
         // Yield final continuation and completion index for the next step.

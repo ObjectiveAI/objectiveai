@@ -1,0 +1,58 @@
+name: Build objectiveai-mcp-filesystem
+description: Cross-compile objectiveai-mcp-filesystem for a Linux musl target and stage embed/, then upload the result as an artifact named per-caller.
+
+inputs:
+  target:
+    description: Rust target triple (x86_64-unknown-linux-musl or aarch64-unknown-linux-musl).
+    required: true
+  artifact-name:
+    description: Per-leg artifact name so each caller uploads its own slot — supports the per-leg-job model where every CLI leg has its own dedicated mcp-filesystem builder.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ inputs.target }}
+    - name: Install cross
+      uses: taiki-e/install-action@v2
+      with:
+        tool: cross
+    - name: Pre-build fingerprint stamp
+      # The fingerprint must reflect the fresh-checkout state the CLI
+      # runner will see, NOT the post-build state. `cross build` runs
+      # cargo inside a Docker container whose toolchain may rewrite
+      # Cargo.lock; computing the fingerprint AFTER that mutation
+      # produces a hash the CLI runner (working from an unmutated
+      # checkout) could never match — its install.sh would then try to
+      # rebuild mcp-filesystem from source on a runner without the musl
+      # rustup target, and fail with `error[E0463]: can't find crate
+      # for 'core'`. Stamping the fingerprint pre-build keeps both
+      # sides agreeing on what's "current".
+      shell: bash
+      run: |
+        EMBED_DIR="objectiveai-mcp-filesystem/embed/${{ inputs.target }}/release"
+        mkdir -p "$EMBED_DIR"
+        source objectiveai-mcp-filesystem/fingerprint.sh --target ${{ inputs.target }} --release
+        echo "$CURRENT_FP" > "$EMBED_DIR/.fingerprint"
+    - name: Build mcp-filesystem
+      # --locked forces cargo to use the checked-in Cargo.lock without
+      # modifying it. If the container's resolver would rewrite the
+      # lock, the build fails loudly rather than silently mutating it
+      # — which would invalidate the fingerprint we just stamped.
+      shell: bash
+      run: cross build -p objectiveai-mcp-filesystem --target ${{ inputs.target }} --release --locked
+    - name: Stage binary into embed/
+      shell: bash
+      run: |
+        EMBED_DIR="objectiveai-mcp-filesystem/embed/${{ inputs.target }}/release"
+        cp "target/${{ inputs.target }}/release/objectiveai-mcp-filesystem" "$EMBED_DIR/"
+    - uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: objectiveai-mcp-filesystem/embed/${{ inputs.target }}/release/
+        if-no-files-found: error
+        # `.fingerprint` is a hidden dotfile that's required for the
+        # CLI build to short-circuit the mcp-filesystem rebuild step.
+        include-hidden-files: true

@@ -30,9 +30,19 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<crate::Output, crate::error::Error> {
+    pub fn handle(self) -> Result<(), crate::error::Error> {
+        #[derive(serde::Serialize)]
+        struct SchemaList {
+            schemas: &'static [&'static str],
+        }
         match self {
-            Commands::List => Ok(crate::Output::Schema("[\"message\",\"request\",\"response\"]")),
+            Commands::List => {
+                const NAMES: &[&str] = &["message", "request", "response"];
+                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
+                    SchemaList { schemas: NAMES },
+                ).emit();
+                Ok(())
+            }
             Commands::Message { command } => command.handle(),
             Commands::Request { command } => command.handle(),
             Commands::Response { command } => command.handle(),

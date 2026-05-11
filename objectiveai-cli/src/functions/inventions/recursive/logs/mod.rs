@@ -24,19 +24,36 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub async fn handle(self, cli_config: &crate::Config) -> Result<crate::Output, crate::error::Error> {
+    pub async fn handle(self, cli_config: &crate::Config) -> Result<(), crate::error::Error> {
         let client = objectiveai::filesystem::Client::new(cli_config.config_base_dir.as_deref(), None::<String>, None::<String>);
         match self {
             Commands::Get { id, filter } => {
                 let content = objectiveai::filesystem::logs::client::read_function_invention_recursive(&client, &id, filter.as_deref()).await.map(objectiveai::filesystem::logs::LogContent::Json)?;
-                Ok(crate::Output::LogsGet(content))
+                {
+                crate::ack::emit_log_content(content);
+                Ok(())
+            }
             }
             Commands::Subscribe { id, timeout_ms, require_modification, filter } => {
                 let result = objectiveai::filesystem::logs::client::subscribe_function_invention_recursive(&client, &id, std::time::Duration::from_millis(timeout_ms), require_modification, filter.as_deref()).await?;
-                Ok(crate::Output::LogsSubscribe(result.map(objectiveai::filesystem::logs::LogContent::Json)))
+                {
+                match result.map(objectiveai::filesystem::logs::LogContent::Json) {
+                    Some(content) => {
+                        crate::ack::emit_log_content(content);
+                        Ok(())
+                    }
+                    None => Err(crate::error::Error::LogSubscribeTimedOut),
+                }
             }
-            Commands::List { offset, limit } => Ok(crate::Output::LogsList(objectiveai::filesystem::logs::client::list_function_inventions_recursive(&client, offset, limit).await?)),
-            Commands::Clear => Ok(crate::Output::LogsClear(objectiveai::filesystem::logs::client::clear_function_inventions_recursive(&client).await?)),
+            }
+            Commands::List { offset, limit } => {
+                crate::ack::emit_log_list(objectiveai::filesystem::logs::client::list_function_inventions_recursive(&client, offset, limit).await?);
+                Ok(())
+            },
+            Commands::Clear => {
+                crate::ack::emit_log_clear_count(objectiveai::filesystem::logs::client::clear_function_inventions_recursive(&client).await?);
+                Ok(())
+            },
         }
     }
 }

@@ -62,42 +62,122 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<crate::Output, crate::error::Error> {
+    pub fn handle(self) -> Result<(), crate::error::Error> {
+        #[derive(serde::Serialize)]
+        struct SchemaList {
+            schemas: &'static [&'static str],
+        }
+        #[derive(serde::Serialize)]
+        struct Schema {
+            schema: serde_json::Value,
+        }
         match self {
-            Commands::List => Ok(crate::Output::Schema("[\"GetPromptResponse\",\"InlinePrompt\",\"InlinePromptOrRemoteCommitOptional\",\"ListPromptResponse\",\"ListPromptsRequest\",\"ListPromptsSource\",\"Prompt\",\"RemotePrompt\",\"StepPromptExpression\",\"StepPromptType\",\"UsagePromptResponse\"]")),
-            Commands::GetPromptResponse { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.inventions.prompts.GetPromptResponse.json"),
-            )),
-            Commands::InlinePrompt { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.inventions.prompts.InlinePrompt.json"),
-            )),
-            Commands::InlinePromptOrRemoteCommitOptional { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.inventions.prompts.InlinePromptOrRemoteCommitOptional.json"),
-            )),
-            Commands::ListPromptResponse { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.inventions.prompts.ListPromptResponse.json"),
-            )),
-            Commands::ListPromptsRequest { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.inventions.prompts.ListPromptsRequest.json"),
-            )),
-            Commands::ListPromptsSource { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.inventions.prompts.ListPromptsSource.json"),
-            )),
-            Commands::Prompt { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.inventions.prompts.Prompt.json"),
-            )),
-            Commands::RemotePrompt { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.inventions.prompts.RemotePrompt.json"),
-            )),
-            Commands::StepPromptExpression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.inventions.prompts.StepPromptExpression.json"),
-            )),
-            Commands::StepPromptType { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.inventions.prompts.StepPromptType.json"),
-            )),
-            Commands::UsagePromptResponse { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.inventions.prompts.UsagePromptResponse.json"),
-            )),
+            Commands::List => {
+                const NAMES: &[&str] = &["GetPromptResponse", "InlinePrompt", "InlinePromptOrRemoteCommitOptional", "ListPromptResponse", "ListPromptsRequest", "ListPromptsSource", "Prompt", "RemotePrompt", "StepPromptExpression", "StepPromptType", "UsagePromptResponse"];
+                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
+                    SchemaList { schemas: NAMES },
+                ).emit();
+                Ok(())
+            }
+            Commands::GetPromptResponse { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.inventions.prompts.GetPromptResponse.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::InlinePrompt { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.inventions.prompts.InlinePrompt.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::InlinePromptOrRemoteCommitOptional { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.inventions.prompts.InlinePromptOrRemoteCommitOptional.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ListPromptResponse { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.inventions.prompts.ListPromptResponse.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ListPromptsRequest { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.inventions.prompts.ListPromptsRequest.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ListPromptsSource { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.inventions.prompts.ListPromptsSource.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Prompt { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.inventions.prompts.Prompt.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::RemotePrompt { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.inventions.prompts.RemotePrompt.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::StepPromptExpression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.inventions.prompts.StepPromptExpression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::StepPromptType { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.inventions.prompts.StepPromptType.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::UsagePromptResponse { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.inventions.prompts.UsagePromptResponse.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
         }
     }
 }

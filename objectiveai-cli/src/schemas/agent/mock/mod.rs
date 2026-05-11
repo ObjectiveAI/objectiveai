@@ -42,27 +42,77 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<crate::Output, crate::error::Error> {
+    pub fn handle(self) -> Result<(), crate::error::Error> {
+        #[derive(serde::Serialize)]
+        struct SchemaList {
+            schemas: &'static [&'static str],
+        }
+        #[derive(serde::Serialize)]
+        struct Schema {
+            schema: serde_json::Value,
+        }
         match self {
-            Commands::List => Ok(crate::Output::Schema("[\"Agent\",\"AgentBase\",\"Continuation\",\"Mode\",\"OutputMode\",\"Upstream\"]")),
-            Commands::Agent { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/agent.mock.Agent.json"),
-            )),
-            Commands::AgentBase { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/agent.mock.AgentBase.json"),
-            )),
-            Commands::Continuation { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/agent.mock.Continuation.json"),
-            )),
-            Commands::Mode { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/agent.mock.Mode.json"),
-            )),
-            Commands::OutputMode { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/agent.mock.OutputMode.json"),
-            )),
-            Commands::Upstream { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/agent.mock.Upstream.json"),
-            )),
+            Commands::List => {
+                const NAMES: &[&str] = &["Agent", "AgentBase", "Continuation", "Mode", "OutputMode", "Upstream"];
+                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
+                    SchemaList { schemas: NAMES },
+                ).emit();
+                Ok(())
+            }
+            Commands::Agent { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/agent.mock.Agent.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::AgentBase { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/agent.mock.AgentBase.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Continuation { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/agent.mock.Continuation.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Mode { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/agent.mock.Mode.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::OutputMode { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/agent.mock.OutputMode.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Upstream { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/agent.mock.Upstream.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
         }
     }
 }

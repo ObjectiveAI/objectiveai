@@ -24,9 +24,19 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<crate::Output, crate::error::Error> {
+    pub fn handle(self) -> Result<(), crate::error::Error> {
+        #[derive(serde::Serialize)]
+        struct SchemaList {
+            schemas: &'static [&'static str],
+        }
         match self {
-            Commands::List => Ok(crate::Output::Schema("[\"streaming\",\"unary\"]")),
+            Commands::List => {
+                const NAMES: &[&str] = &["streaming", "unary"];
+                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
+                    SchemaList { schemas: NAMES },
+                ).emit();
+                Ok(())
+            }
             Commands::Streaming { command } => command.handle(),
             Commands::Unary { command } => command.handle(),
         }

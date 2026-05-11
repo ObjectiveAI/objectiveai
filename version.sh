@@ -93,13 +93,41 @@ set_toml_package_version() {
 #   objectiveai             = { path = "..", version = "X.Y.Z", ... }
 #   objectiveai-api         = { version = "X.Y.Z", ... }
 #   objectiveai-cli         = { ... }
-# ...and rewrites the `version = "..."` token inside.
+#   test-upstream           = { path = "test-upstream", version = "X.Y.Z" }
+# ...and rewrites the `version = "..."` token inside. The `test-upstream`
+# alternative covers the workspace-internal sibling crate that
+# objectiveai-mcp-proxy depends on for its dev tests.
 set_cargo_objectiveai_deps() {
   local file="$1"
   inline_substitute "$file" \
-    '^objectiveai(-[a-zA-Z0-9_-]+)?[[:space:]]*=' \
+    '^(objectiveai(-[a-zA-Z0-9_-]+)?|test-upstream)[[:space:]]*=' \
     'version = "[0-9][^"]*"' \
     "version = \"$NEW_VERSION\""
+}
+
+# Bare-string `objectiveai = "X.Y.Z"` deps. Used in README install snippets
+# that demonstrate Cargo.toml entries to downstream users. Distinct from
+# `set_cargo_objectiveai_deps` which only handles the inline-table form
+# `objectiveai = { ..., version = "X.Y.Z", ... }`.
+set_objectiveai_string_dep() {
+  local file="$1"
+  inline_substitute "$file" \
+    '^objectiveai[[:space:]]*=[[:space:]]*"[0-9]' \
+    '"[0-9][0-9.]*"' \
+    "\"$NEW_VERSION\""
+}
+
+# `version: 'X.Y.Z'` property lines in TypeScript / JavaScript. Used by
+# files whose runtime identifier (e.g. an MCP client `name`+`version`
+# pair) should track the package version. Matches every `version: '...'`
+# in the file — list the file here only if all such occurrences share
+# the package version.
+set_ts_version_string() {
+  local file="$1"
+  inline_substitute "$file" \
+    "version:[[:space:]]*'[0-9]" \
+    "'[0-9][0-9.]*'" \
+    "'$NEW_VERSION'"
 }
 
 # Root "version": "..." in a package.json. Relies on the standard layout
@@ -211,6 +239,7 @@ PACKAGE_JSONS=(
   objectiveai-js/package.json
   objectiveai-function-tree/package.json
   objectiveai-viewer/package.json
+  objectiveai-mcp-proxy/tests-ts/package.json
 )
 
 CSPROJS=(
@@ -225,6 +254,20 @@ PY_RUNNER_MAINS=(
 # pip requirements.txt files that pin `objectiveai==X.Y.Z`.
 REQUIREMENTS_TXTS=(
   objectiveai-cocoindex/requirements.txt
+)
+
+# Markdown files that embed bare-string `objectiveai = "X.Y.Z"` Cargo
+# dep snippets (typically install instructions for the Rust SDK).
+MARKDOWN_FILES=(
+  README.md
+)
+
+# TypeScript/JavaScript files that embed a literal `version: 'X.Y.Z'`
+# property tied to the workspace version (e.g. MCP client identifiers
+# in test rigs). All `version: '...'` lines in each listed file get
+# bumped — verify there are no unrelated occurrences before adding.
+TS_VERSION_STRING_FILES=(
+  objectiveai-mcp-proxy/tests-ts/src/rig.ts
 )
 
 # ---------------------------------------------------------------------------
@@ -264,6 +307,12 @@ update() {
     reqs)
       set_requirements_objectiveai_pin "$file"
       ;;
+    md)
+      set_objectiveai_string_dep "$file"
+      ;;
+    ts)
+      set_ts_version_string "$file"
+      ;;
   esac
 }
 
@@ -275,6 +324,24 @@ for rel in "${PACKAGE_JSONS[@]}";          do update pkg    "$rel"; done
 for rel in "${CSPROJS[@]}";                do update csproj "$rel"; done
 for rel in "${PY_RUNNER_MAINS[@]}";        do update pyrun  "$rel"; done
 for rel in "${REQUIREMENTS_TXTS[@]}";       do update reqs   "$rel"; done
+for rel in "${MARKDOWN_FILES[@]}";          do update md     "$rel"; done
+for rel in "${TS_VERSION_STRING_FILES[@]}"; do update ts     "$rel"; done
+
+# Sync Cargo.lock to the new workspace versions. If we leave Cargo.lock
+# with the old versions, every cargo invocation in CI rewrites the
+# lockfile mid-build, which mutates files mid-run and breaks fingerprint
+# checks (objectiveai-api/build.rs runs validate.sh that hashes Cargo.lock).
+if command -v cargo >/dev/null 2>&1; then
+  echo
+  echo "Refreshing Cargo.lock workspace versions..."
+  ( cd "$REPO_ROOT" && cargo update -w >/dev/null 2>&1 ) && echo "  Cargo.lock synced." \
+    || echo "  Cargo.lock refresh failed — run 'cargo update -w' manually."
+else
+  echo
+  echo "WARNING: cargo not found on PATH. Run 'cargo update -w' manually before"
+  echo "         pushing — otherwise CI will mutate Cargo.lock mid-build and"
+  echo "         break fingerprint checks."
+fi
 
 echo
-echo "Done. Cargo.lock and pnpm-lock.yaml will refresh on next build."
+echo "Done. pnpm-lock.yaml will refresh on next pnpm install."

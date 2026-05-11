@@ -93,47 +93,127 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<crate::Output, crate::error::Error> {
+    pub fn handle(self) -> Result<(), crate::error::Error> {
+        #[derive(serde::Serialize)]
+        struct SchemaList {
+            schemas: &'static [&'static str],
+        }
+        #[derive(serde::Serialize)]
+        struct Schema {
+            schema: serde_json::Value,
+        }
         match self {
-            Commands::List => Ok(crate::Output::Schema("[\"prompts\",\"recursive\",\"request\",\"response\",\"state\",\"DescriptionObject\",\"EssayObject\",\"EssayTasksObject\",\"IndexObject\",\"ScalarBranchTaskObject\",\"ScalarInputSchemaObject\",\"ScalarLeafTaskObject\",\"TasksLengthObject\",\"VectorBranchTaskObject\",\"VectorInputSchemaObject\",\"VectorLeafTaskObject\"]")),
+            Commands::List => {
+                const NAMES: &[&str] = &["prompts", "recursive", "request", "response", "state", "DescriptionObject", "EssayObject", "EssayTasksObject", "IndexObject", "ScalarBranchTaskObject", "ScalarInputSchemaObject", "ScalarLeafTaskObject", "TasksLengthObject", "VectorBranchTaskObject", "VectorInputSchemaObject", "VectorLeafTaskObject"];
+                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
+                    SchemaList { schemas: NAMES },
+                ).emit();
+                Ok(())
+            }
             Commands::Prompts { command } => command.handle(),
             Commands::Recursive { command } => command.handle(),
             Commands::Request { command } => command.handle(),
             Commands::Response { command } => command.handle(),
             Commands::State { command } => command.handle(),
-            Commands::DescriptionObject { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.inventions.DescriptionObject.json"),
-            )),
-            Commands::EssayObject { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.inventions.EssayObject.json"),
-            )),
-            Commands::EssayTasksObject { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.inventions.EssayTasksObject.json"),
-            )),
-            Commands::IndexObject { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.inventions.IndexObject.json"),
-            )),
-            Commands::ScalarBranchTaskObject { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.inventions.ScalarBranchTaskObject.json"),
-            )),
-            Commands::ScalarInputSchemaObject { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.inventions.ScalarInputSchemaObject.json"),
-            )),
-            Commands::ScalarLeafTaskObject { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.inventions.ScalarLeafTaskObject.json"),
-            )),
-            Commands::TasksLengthObject { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.inventions.TasksLengthObject.json"),
-            )),
-            Commands::VectorBranchTaskObject { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.inventions.VectorBranchTaskObject.json"),
-            )),
-            Commands::VectorInputSchemaObject { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.inventions.VectorInputSchemaObject.json"),
-            )),
-            Commands::VectorLeafTaskObject { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.inventions.VectorLeafTaskObject.json"),
-            )),
+            Commands::DescriptionObject { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.inventions.DescriptionObject.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::EssayObject { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.inventions.EssayObject.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::EssayTasksObject { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.inventions.EssayTasksObject.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::IndexObject { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.inventions.IndexObject.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ScalarBranchTaskObject { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.inventions.ScalarBranchTaskObject.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ScalarInputSchemaObject { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.inventions.ScalarInputSchemaObject.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ScalarLeafTaskObject { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.inventions.ScalarLeafTaskObject.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::TasksLengthObject { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.inventions.TasksLengthObject.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::VectorBranchTaskObject { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.inventions.VectorBranchTaskObject.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::VectorInputSchemaObject { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.inventions.VectorInputSchemaObject.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::VectorLeafTaskObject { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.inventions.VectorLeafTaskObject.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
         }
     }
 }

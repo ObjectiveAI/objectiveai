@@ -97,9 +97,23 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<crate::Output, crate::error::Error> {
+    pub fn handle(self) -> Result<(), crate::error::Error> {
+        #[derive(serde::Serialize)]
+        struct SchemaList {
+            schemas: &'static [&'static str],
+        }
+        #[derive(serde::Serialize)]
+        struct Schema {
+            schema: serde_json::Value,
+        }
         match self {
-            Commands::List => Ok(crate::Output::Schema("[\"agent\",\"auth\",\"error\",\"filesystem\",\"functions\",\"laboratories\",\"mcp\",\"swarm\",\"vector\",\"PrefixedUuid\",\"Remote\",\"RemotePath\",\"RemotePathCommitOptional\",\"Weights\",\"WeightsEntry\"]")),
+            Commands::List => {
+                const NAMES: &[&str] = &["agent", "auth", "error", "filesystem", "functions", "laboratories", "mcp", "swarm", "vector", "PrefixedUuid", "Remote", "RemotePath", "RemotePathCommitOptional", "Weights", "WeightsEntry"];
+                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
+                    SchemaList { schemas: NAMES },
+                ).emit();
+                Ok(())
+            }
             Commands::Agent { command } => command.handle(),
             Commands::Auth { command } => command.handle(),
             Commands::Error { command } => command.handle(),
@@ -109,24 +123,60 @@ impl Commands {
             Commands::Mcp { command } => command.handle(),
             Commands::Swarm { command } => command.handle(),
             Commands::Vector { command } => command.handle(),
-            Commands::PrefixedUuid { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../objectiveai-json-schema/PrefixedUuid.json"),
-            )),
-            Commands::Remote { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../objectiveai-json-schema/Remote.json"),
-            )),
-            Commands::RemotePath { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../objectiveai-json-schema/RemotePath.json"),
-            )),
-            Commands::RemotePathCommitOptional { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../objectiveai-json-schema/RemotePathCommitOptional.json"),
-            )),
-            Commands::Weights { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../objectiveai-json-schema/Weights.json"),
-            )),
-            Commands::WeightsEntry { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../objectiveai-json-schema/WeightsEntry.json"),
-            )),
+            Commands::PrefixedUuid { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../objectiveai-json-schema/PrefixedUuid.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Remote { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../objectiveai-json-schema/Remote.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::RemotePath { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../objectiveai-json-schema/RemotePath.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::RemotePathCommitOptional { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../objectiveai-json-schema/RemotePathCommitOptional.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Weights { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../objectiveai-json-schema/Weights.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::WeightsEntry { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../objectiveai-json-schema/WeightsEntry.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
         }
     }
 }

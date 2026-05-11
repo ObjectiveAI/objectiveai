@@ -30,18 +30,50 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<crate::Output, crate::error::Error> {
+    pub fn handle(self) -> Result<(), crate::error::Error> {
+        #[derive(serde::Serialize)]
+        struct SchemaList {
+            schemas: &'static [&'static str],
+        }
+        #[derive(serde::Serialize)]
+        struct Schema {
+            schema: serde_json::Value,
+        }
         match self {
-            Commands::List => Ok(crate::Output::Schema("[\"FunctionInventionChunk\",\"FunctionInventionRecursiveChunk\",\"Object\"]")),
-            Commands::FunctionInventionChunk { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../../../objectiveai-json-schema/functions.inventions.recursive.response.streaming.FunctionInventionChunk.json"),
-            )),
-            Commands::FunctionInventionRecursiveChunk { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../../../objectiveai-json-schema/functions.inventions.recursive.response.streaming.FunctionInventionRecursiveChunk.json"),
-            )),
-            Commands::Object { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../../../objectiveai-json-schema/functions.inventions.recursive.response.streaming.Object.json"),
-            )),
+            Commands::List => {
+                const NAMES: &[&str] = &["FunctionInventionChunk", "FunctionInventionRecursiveChunk", "Object"];
+                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
+                    SchemaList { schemas: NAMES },
+                ).emit();
+                Ok(())
+            }
+            Commands::FunctionInventionChunk { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../../../objectiveai-json-schema/functions.inventions.recursive.response.streaming.FunctionInventionChunk.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::FunctionInventionRecursiveChunk { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../../../objectiveai-json-schema/functions.inventions.recursive.response.streaming.FunctionInventionRecursiveChunk.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Object { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../../../objectiveai-json-schema/functions.inventions.recursive.response.streaming.Object.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
         }
     }
 }

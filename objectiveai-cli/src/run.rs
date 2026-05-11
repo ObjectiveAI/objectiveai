@@ -104,18 +104,6 @@ struct Cli {
     command: Commands,
 }
 
-pub enum Output {
-    ConfigGet(String),
-    ConfigSet,
-    Api(String),
-    Schema(&'static str),
-    LogsGet(objectiveai::filesystem::logs::LogContent),
-    LogsList(Vec<objectiveai::filesystem::logs::ListItem>),
-    LogsClear(u64),
-    LogsSubscribe(Option<objectiveai::filesystem::logs::LogContent>),
-    Instructions(String),
-}
-
 #[derive(Subcommand)]
 enum Commands {
     /// API configuration and operations
@@ -171,7 +159,7 @@ enum Commands {
 }
 
 impl Commands {
-    pub async fn handle(self, cli_config: &Config) -> Result<Output, error::Error> {
+    pub async fn handle(self, cli_config: &Config) -> Result<(), error::Error> {
         match self {
             Commands::Api { command } => command.handle(cli_config).await,
             Commands::Agents { command } => command.handle(cli_config).await,
@@ -198,29 +186,27 @@ pub fn load_config() -> Config {
 /// Run the CLI, parsing arguments from the provided iterator.
 /// The iterator should include the binary name as the first element
 /// (e.g., `["objectiveai", "agents", "list"]`).
-pub async fn run<I, T>(args: I, cli_config: &Config) -> Result<String, String>
+///
+/// Returns `Ok(())` when the requested command succeeded — handlers
+/// emit their own [`objectiveai_cli_lib::output::Output`] lines inline.
+/// Returns `Err(cli_lib::output::Error)` when the command failed; the
+/// caller is responsible for emitting that error and choosing an exit
+/// code.
+pub async fn run<I, T>(
+    args: I,
+    cli_config: &Config,
+) -> Result<(), objectiveai_cli_lib::output::Error>
 where
     I: IntoIterator<Item = T>,
     T: Into<std::ffi::OsString> + Clone,
 {
-    let cli = Cli::try_parse_from(args).map_err(|e| e.to_string())?;
-    match cli.command.handle(cli_config).await {
-        Ok(Output::ConfigGet(output)) => Ok(output),
-        Ok(Output::ConfigSet) => Ok("ok".into()),
-        Ok(Output::Api(output)) => Ok(output),
-        Ok(Output::Schema(output)) => Ok(output.to_string()),
-        Ok(Output::LogsGet(content)) => Ok(match content {
-            objectiveai::filesystem::logs::LogContent::Json(v) => serde_json::to_string(&v).unwrap(),
-            objectiveai::filesystem::logs::LogContent::DataUrl(s) => s,
-        }),
-        Ok(Output::LogsList(items)) => Ok(serde_json::to_string(&items).unwrap()),
-        Ok(Output::LogsClear(count)) => Ok(format!("cleared {count} log files")),
-        Ok(Output::LogsSubscribe(Some(content))) => Ok(match content {
-            objectiveai::filesystem::logs::LogContent::Json(v) => serde_json::to_string(&v).unwrap(),
-            objectiveai::filesystem::logs::LogContent::DataUrl(s) => s,
-        }),
-        Ok(Output::LogsSubscribe(None)) => Err("subscribe timed out".into()),
-        Ok(Output::Instructions(s)) => Ok(s),
-        Err(e) => Err(format!("{e}")),
-    }
+    let cli = Cli::try_parse_from(args).map_err(|e| objectiveai_cli_lib::output::Error {
+        level: objectiveai_cli_lib::output::Level::Error,
+        fatal: true,
+        message: e.to_string(),
+    })?;
+    cli.command
+        .handle(cli_config)
+        .await
+        .map_err(|e| e.to_output(objectiveai_cli_lib::output::Level::Error, true))
 }

@@ -27,14 +27,18 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub async fn handle(self, cli_config: &crate::Config) -> Result<crate::Output, crate::error::Error> {
+    pub async fn handle(self, cli_config: &crate::Config) -> Result<(), crate::error::Error> {
         let (client, mut config) = crate::config::read(cli_config).await?;
         match self {
-            Commands::Get => Ok(crate::Output::ConfigGet(crate::config::format_value(&config.api().get_mode()))),
+            Commands::Get => {
+                crate::config::emit_value(config.api().get_mode());
+                Ok(())
+            }
             Commands::Set { value } => {
                 config.api().set_mode(value.into());
                 crate::config::write(&client, &config, cli_config).await?;
-                Ok(crate::Output::ConfigSet)
+                objectiveai_cli_lib::output::Output::<crate::ack::Ok>::Notification(crate::ack::OK).emit();
+                Ok(())
             }
         }
     }

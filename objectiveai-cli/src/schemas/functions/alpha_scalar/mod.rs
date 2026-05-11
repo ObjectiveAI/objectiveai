@@ -54,36 +54,104 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<crate::Output, crate::error::Error> {
+    pub fn handle(self) -> Result<(), crate::error::Error> {
+        #[derive(serde::Serialize)]
+        struct SchemaList {
+            schemas: &'static [&'static str],
+        }
+        #[derive(serde::Serialize)]
+        struct Schema {
+            schema: serde_json::Value,
+        }
         match self {
-            Commands::List => Ok(crate::Output::Schema("[\"BranchTaskExpression\",\"InlineFunction\",\"LeafTaskExpression\",\"PartialPlaceholderBranchTaskExpression\",\"PartialPlaceholderScalarFunctionTaskExpression\",\"PlaceholderScalarFunctionTaskExpression\",\"RemoteFunction\",\"ScalarFunctionTaskExpression\",\"VectorCompletionTaskExpression\"]")),
-            Commands::BranchTaskExpression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.alpha_scalar.BranchTaskExpression.json"),
-            )),
-            Commands::InlineFunction { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.alpha_scalar.InlineFunction.json"),
-            )),
-            Commands::LeafTaskExpression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.alpha_scalar.LeafTaskExpression.json"),
-            )),
-            Commands::PartialPlaceholderBranchTaskExpression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.alpha_scalar.PartialPlaceholderBranchTaskExpression.json"),
-            )),
-            Commands::PartialPlaceholderScalarFunctionTaskExpression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.alpha_scalar.PartialPlaceholderScalarFunctionTaskExpression.json"),
-            )),
-            Commands::PlaceholderScalarFunctionTaskExpression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.alpha_scalar.PlaceholderScalarFunctionTaskExpression.json"),
-            )),
-            Commands::RemoteFunction { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.alpha_scalar.RemoteFunction.json"),
-            )),
-            Commands::ScalarFunctionTaskExpression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.alpha_scalar.ScalarFunctionTaskExpression.json"),
-            )),
-            Commands::VectorCompletionTaskExpression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.alpha_scalar.VectorCompletionTaskExpression.json"),
-            )),
+            Commands::List => {
+                const NAMES: &[&str] = &["BranchTaskExpression", "InlineFunction", "LeafTaskExpression", "PartialPlaceholderBranchTaskExpression", "PartialPlaceholderScalarFunctionTaskExpression", "PlaceholderScalarFunctionTaskExpression", "RemoteFunction", "ScalarFunctionTaskExpression", "VectorCompletionTaskExpression"];
+                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
+                    SchemaList { schemas: NAMES },
+                ).emit();
+                Ok(())
+            }
+            Commands::BranchTaskExpression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.alpha_scalar.BranchTaskExpression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::InlineFunction { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.alpha_scalar.InlineFunction.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::LeafTaskExpression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.alpha_scalar.LeafTaskExpression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::PartialPlaceholderBranchTaskExpression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.alpha_scalar.PartialPlaceholderBranchTaskExpression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::PartialPlaceholderScalarFunctionTaskExpression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.alpha_scalar.PartialPlaceholderScalarFunctionTaskExpression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::PlaceholderScalarFunctionTaskExpression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.alpha_scalar.PlaceholderScalarFunctionTaskExpression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::RemoteFunction { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.alpha_scalar.RemoteFunction.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ScalarFunctionTaskExpression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.alpha_scalar.ScalarFunctionTaskExpression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::VectorCompletionTaskExpression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.alpha_scalar.VectorCompletionTaskExpression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
         }
     }
 }

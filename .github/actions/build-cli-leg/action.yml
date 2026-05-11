@@ -1,0 +1,116 @@
+name: Build CLI leg and publish to release
+description: Set up toolchains, download the paired mcp-filesystem artifact, build the CLI for this leg's platform, upload the binary as an artifact and append it to the GitHub Release.
+
+inputs:
+  mcp_target:
+    description: Rust target triple of the mcp-filesystem this leg embeds (used to construct the embed/ path).
+    required: true
+  mcp_artifact_name:
+    description: Name of the mcp-filesystem artifact uploaded by this leg's paired mcp-fs job.
+    required: true
+  asset:
+    description: Filename of the released asset (e.g. objectiveai-linux-x86_64).
+    required: true
+  src_name:
+    description: Filename of the built binary inside ~/.objectiveai/ (objectiveai or objectiveai.exe).
+    required: true
+  install_args:
+    description: Extra arguments to objectiveai-cli/install.sh, e.g. --no-viewer.
+    required: false
+    default: ""
+  viewer:
+    description: '"true" or "false" — whether the leg builds with the embedded viewer (controls Linux Tauri sysdep install).'
+    required: true
+  version:
+    description: The version string (without leading "v") used in the release tag.
+    required: true
+  repository:
+    description: The owner/repo slug for `gh release upload`.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: dtolnay/rust-toolchain@stable
+    - uses: pnpm/action-setup@v4
+      with:
+        # Match `packageManager` in the root package.json so workspace
+        # resolution stays consistent with local installs.
+        version: 10.25.0
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 20
+    - uses: actions/setup-python@v5
+      with:
+        # Pin Python to avoid macOS runners flipping the default to a
+        # version PyInstaller doesn't yet support, and to keep the
+        # sdk-runner fingerprint stable across runner OS versions.
+        python-version: '3.13'
+    - name: Install Linux Tauri deps
+      if: runner.os == 'Linux' && inputs.viewer == 'true'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libwebkit2gtk-4.1-dev \
+          libjavascriptcoregtk-4.1-dev \
+          libsoup-3.0-dev \
+          libgtk-3-dev \
+          libayatana-appindicator3-dev \
+          librsvg2-dev \
+          libssl-dev
+    - name: Download pre-built objectiveai-mcp-filesystem
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.mcp_artifact_name }}
+        path: objectiveai-mcp-filesystem/embed/${{ inputs.mcp_target }}/release/
+    - name: Re-stamp mcp-filesystem fingerprint with this runner's view
+      # The fingerprint produced by the mcp-fs builder runner doesn't
+      # always match what fingerprint.sh computes on the CLI runner —
+      # the same sha256-of-source-files calculation produces different
+      # results across (otherwise identical) Ubuntu hosts in practice.
+      # Workaround: re-stamp the fingerprint here using THIS runner's
+      # view of the source. The downstream `install.sh` then sees a
+      # fingerprint that matches what its own fingerprint.sh would
+      # compute on the same runner, and skips the mcp-filesystem
+      # rebuild — which would otherwise fail for lack of the musl
+      # rustup target on non-Linux-musl runners.
+      shell: bash
+      run: |
+        EMBED_DIR="objectiveai-mcp-filesystem/embed/${{ inputs.mcp_target }}/release"
+        # `|| true` because fingerprint.sh may return 1 if the stored
+        # fingerprint happens to match (don't let that propagate as a
+        # step failure under set -e). $CURRENT_FP is exported before
+        # that return so it's always set after sourcing.
+        source objectiveai-mcp-filesystem/fingerprint.sh --target ${{ inputs.mcp_target }} --release || true
+        echo "$CURRENT_FP" > "$EMBED_DIR/.fingerprint"
+    - name: Build CLI
+      shell: bash
+      run: bash objectiveai-cli/install.sh ${{ inputs.install_args }}
+    - name: Dump build logs on failure
+      if: failure()
+      shell: bash
+      run: |
+        shopt -s nullglob
+        for log in .logs/build/*.txt; do
+          echo "::group::$log"
+          cat "$log"
+          echo "::endgroup::"
+        done
+    - name: Stage release binary
+      shell: bash
+      run: cp "$HOME/.objectiveai/${{ inputs.src_name }}" "${{ inputs.asset }}"
+    - uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.asset }}
+        path: ${{ inputs.asset }}
+        if-no-files-found: error
+    - name: Upload asset to release
+      # Each leg appends its single asset to the release the moment this
+      # leg finishes building — no cross-leg gating. `--clobber` keeps
+      # re-runs idempotent. GH_TOKEN is provided by the calling job's `env:`.
+      shell: bash
+      run: |
+        gh release upload "v${{ inputs.version }}" "${{ inputs.asset }}" \
+          --clobber \
+          --repo "${{ inputs.repository }}"

@@ -27,7 +27,11 @@ pub async fn detach() -> ! {
     let mut child = cmd.spawn().expect("failed to spawn detached process");
 
     let pid = child.id().expect("failed to get child PID");
-    println!("PID: {pid}");
+    #[derive(serde::Serialize)]
+    struct Detached {
+        pid: u32,
+    }
+    objectiveai_cli_lib::output::Output::<Detached>::Notification(Detached { pid }).emit();
 
     let child_stdout = child.stdout.take().unwrap();
     let child_stderr = child.stderr.take().unwrap();
@@ -47,7 +51,7 @@ pub async fn detach() -> ! {
                     stdout_done = true;
                 } else {
                     print!("{stdout_line}");
-                    if crate::log_line::is_log_id_line(&stdout_line) {
+                    if crate::log_line::parse_log_stream_ready(&stdout_line).is_some() {
                         std::process::exit(0);
                     }
                     stdout_line.clear();

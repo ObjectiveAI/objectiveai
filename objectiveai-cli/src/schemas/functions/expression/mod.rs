@@ -130,93 +130,275 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<crate::Output, crate::error::Error> {
+    pub fn handle(self) -> Result<(), crate::error::Error> {
+        #[derive(serde::Serialize)]
+        struct SchemaList {
+            schemas: &'static [&'static str],
+        }
+        #[derive(serde::Serialize)]
+        struct Schema {
+            schema: serde_json::Value,
+        }
         match self {
-            Commands::List => Ok(crate::Output::Schema("[\"AnyOfInputSchema\",\"ArrayInputSchema\",\"ArrayInputSchemaType\",\"AudioInputSchema\",\"AudioInputSchemaType\",\"BooleanInputSchema\",\"BooleanInputSchemaType\",\"Expression\",\"FileInputSchema\",\"FileInputSchemaType\",\"ImageInputSchema\",\"ImageInputSchemaType\",\"InputSchema\",\"InputValue\",\"InputValueExpression\",\"IntegerInputSchema\",\"IntegerInputSchemaType\",\"NumberInputSchema\",\"NumberInputSchemaType\",\"ObjectInputSchema\",\"ObjectInputSchemaType\",\"Params\",\"Special\",\"StringInputSchema\",\"StringInputSchemaType\",\"TaskOutput\",\"VideoInputSchema\",\"VideoInputSchemaType\"]")),
-            Commands::AnyOfInputSchema { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.expression.AnyOfInputSchema.json"),
-            )),
-            Commands::ArrayInputSchema { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.expression.ArrayInputSchema.json"),
-            )),
-            Commands::ArrayInputSchemaType { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.expression.ArrayInputSchemaType.json"),
-            )),
-            Commands::AudioInputSchema { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.expression.AudioInputSchema.json"),
-            )),
-            Commands::AudioInputSchemaType { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.expression.AudioInputSchemaType.json"),
-            )),
-            Commands::BooleanInputSchema { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.expression.BooleanInputSchema.json"),
-            )),
-            Commands::BooleanInputSchemaType { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.expression.BooleanInputSchemaType.json"),
-            )),
-            Commands::Expression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.expression.Expression.json"),
-            )),
-            Commands::FileInputSchema { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.expression.FileInputSchema.json"),
-            )),
-            Commands::FileInputSchemaType { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.expression.FileInputSchemaType.json"),
-            )),
-            Commands::ImageInputSchema { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.expression.ImageInputSchema.json"),
-            )),
-            Commands::ImageInputSchemaType { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.expression.ImageInputSchemaType.json"),
-            )),
-            Commands::InputSchema { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.expression.InputSchema.json"),
-            )),
-            Commands::InputValue { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.expression.InputValue.json"),
-            )),
-            Commands::InputValueExpression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.expression.InputValueExpression.json"),
-            )),
-            Commands::IntegerInputSchema { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.expression.IntegerInputSchema.json"),
-            )),
-            Commands::IntegerInputSchemaType { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.expression.IntegerInputSchemaType.json"),
-            )),
-            Commands::NumberInputSchema { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.expression.NumberInputSchema.json"),
-            )),
-            Commands::NumberInputSchemaType { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.expression.NumberInputSchemaType.json"),
-            )),
-            Commands::ObjectInputSchema { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.expression.ObjectInputSchema.json"),
-            )),
-            Commands::ObjectInputSchemaType { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.expression.ObjectInputSchemaType.json"),
-            )),
-            Commands::Params { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.expression.Params.json"),
-            )),
-            Commands::Special { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.expression.Special.json"),
-            )),
-            Commands::StringInputSchema { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.expression.StringInputSchema.json"),
-            )),
-            Commands::StringInputSchemaType { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.expression.StringInputSchemaType.json"),
-            )),
-            Commands::TaskOutput { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.expression.TaskOutput.json"),
-            )),
-            Commands::VideoInputSchema { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.expression.VideoInputSchema.json"),
-            )),
-            Commands::VideoInputSchemaType { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.expression.VideoInputSchemaType.json"),
-            )),
+            Commands::List => {
+                const NAMES: &[&str] = &["AnyOfInputSchema", "ArrayInputSchema", "ArrayInputSchemaType", "AudioInputSchema", "AudioInputSchemaType", "BooleanInputSchema", "BooleanInputSchemaType", "Expression", "FileInputSchema", "FileInputSchemaType", "ImageInputSchema", "ImageInputSchemaType", "InputSchema", "InputValue", "InputValueExpression", "IntegerInputSchema", "IntegerInputSchemaType", "NumberInputSchema", "NumberInputSchemaType", "ObjectInputSchema", "ObjectInputSchemaType", "Params", "Special", "StringInputSchema", "StringInputSchemaType", "TaskOutput", "VideoInputSchema", "VideoInputSchemaType"];
+                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
+                    SchemaList { schemas: NAMES },
+                ).emit();
+                Ok(())
+            }
+            Commands::AnyOfInputSchema { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.expression.AnyOfInputSchema.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ArrayInputSchema { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.expression.ArrayInputSchema.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ArrayInputSchemaType { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.expression.ArrayInputSchemaType.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::AudioInputSchema { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.expression.AudioInputSchema.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::AudioInputSchemaType { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.expression.AudioInputSchemaType.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::BooleanInputSchema { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.expression.BooleanInputSchema.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::BooleanInputSchemaType { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.expression.BooleanInputSchemaType.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Expression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.expression.Expression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::FileInputSchema { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.expression.FileInputSchema.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::FileInputSchemaType { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.expression.FileInputSchemaType.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ImageInputSchema { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.expression.ImageInputSchema.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ImageInputSchemaType { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.expression.ImageInputSchemaType.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::InputSchema { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.expression.InputSchema.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::InputValue { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.expression.InputValue.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::InputValueExpression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.expression.InputValueExpression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::IntegerInputSchema { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.expression.IntegerInputSchema.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::IntegerInputSchemaType { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.expression.IntegerInputSchemaType.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::NumberInputSchema { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.expression.NumberInputSchema.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::NumberInputSchemaType { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.expression.NumberInputSchemaType.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ObjectInputSchema { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.expression.ObjectInputSchema.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ObjectInputSchemaType { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.expression.ObjectInputSchemaType.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Params { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.expression.Params.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Special { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.expression.Special.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::StringInputSchema { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.expression.StringInputSchema.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::StringInputSchemaType { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.expression.StringInputSchemaType.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::TaskOutput { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.expression.TaskOutput.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::VideoInputSchema { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.expression.VideoInputSchema.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::VideoInputSchemaType { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.expression.VideoInputSchemaType.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
         }
     }
 }

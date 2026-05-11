@@ -44,7 +44,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::process::{ChildStdin, Command};
+use tokio::process::{Child, ChildStdin, Command};
 use tokio::sync::{mpsc, Mutex, Semaphore};
 use tokio::task::JoinHandle;
 
@@ -84,6 +84,17 @@ pub struct Runner {
     /// here. Aborted on drop.
     _stdout_task: JoinHandle<()>,
     _stderr_task: JoinHandle<()>,
+
+    /// The runner subprocess handle. Held here so the OS process
+    /// stays alive for the lifetime of the Runner. Dropping this
+    /// (when Runner drops) sends SIGKILL via `kill_on_drop(true)`
+    /// — last in struct-field order so `stdin` (declared first)
+    /// has already been dropped, giving the Python process a
+    /// chance to see EOF on stdin and drain naturally before the
+    /// kill fires. **Do not drop this field early** — doing so
+    /// kills the subprocess immediately and every subsequent
+    /// request fails with `runner subprocess has exited`.
+    _child: Child,
 }
 
 impl Runner {
@@ -163,13 +174,15 @@ impl Runner {
             })
         };
 
-        // We deliberately do NOT keep `child` around — dropping
-        // ChildStdin (via `Runner::drop`) closes stdin from the
-        // parent side, which the runner observes as EOF on stdin and
-        // exits cleanly after draining. `kill_on_drop(true)` plus
-        // letting the Child fall out of scope here means: graceful
-        // drain on normal shutdown, hard kill on panic.
-        drop(child);
+        // Keep `child` alive on the Runner. Field-drop order
+        // (stdin first, _child last) means: when Runner drops,
+        // stdin closes → the Python runner sees EOF and starts to
+        // drain → moments later `_child` drops and `kill_on_drop`
+        // fires SIGKILL as a fallback in case drain hasn't
+        // finished. Dropping `child` here at spawn-time would kill
+        // the subprocess immediately (kill_on_drop is unconditional
+        // on drop, not just on panic) and every subsequent request
+        // would fail with `runner subprocess has exited`.
 
         Ok(Self {
             stdin: Mutex::new(stdin),
@@ -178,6 +191,7 @@ impl Runner {
             semaphore,
             _stdout_task: stdout_task,
             _stderr_task: stderr_task,
+            _child: child,
         })
     }
 

@@ -9,13 +9,19 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self, cli_config: &crate::Config) -> Result<crate::Output, crate::error::Error> {
+    pub fn handle(self, cli_config: &crate::Config) -> Result<(), crate::error::Error> {
         match self {
             Commands::Clear => {
                 let count = super::clear_all(cli_config)?;
-                Ok(crate::Output::Instructions(format!(
+                {
+                #[derive(serde::Serialize)]
+                struct Instructions { instructions: String }
+                let instructions = format!(
                     "cleared {count} instruction tables"
-                )))
+                );
+                objectiveai_cli_lib::output::Output::<Instructions>::Notification(Instructions { instructions }).emit();
+                Ok(())
+            }
             }
         }
     }

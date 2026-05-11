@@ -41,15 +41,35 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<crate::Output, crate::error::Error> {
+    pub fn handle(self) -> Result<(), crate::error::Error> {
+        #[derive(serde::Serialize)]
+        struct SchemaList {
+            schemas: &'static [&'static str],
+        }
+        #[derive(serde::Serialize)]
+        struct Schema {
+            schema: serde_json::Value,
+        }
         match self {
-            Commands::List => Ok(crate::Output::Schema("[\"cache\",\"request\",\"response\",\"VectorResponses\"]")),
+            Commands::List => {
+                const NAMES: &[&str] = &["cache", "request", "response", "VectorResponses"];
+                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
+                    SchemaList { schemas: NAMES },
+                ).emit();
+                Ok(())
+            }
             Commands::Cache { command } => command.handle(),
             Commands::Request { command } => command.handle(),
             Commands::Response { command } => command.handle(),
-            Commands::VectorResponses { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/vector.completions.VectorResponses.json"),
-            )),
+            Commands::VectorResponses { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/vector.completions.VectorResponses.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
         }
     }
 }

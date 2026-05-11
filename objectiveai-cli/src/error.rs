@@ -40,4 +40,20 @@ pub enum Error {
     WriterPanic,
     #[error("unknown --instructions-id: run the matching `instructions` subcommand to get one")]
     UnknownInstructionsId,
+    #[error("subscribe timed out")]
+    LogSubscribeTimedOut,
+}
+
+impl Error {
+    pub fn to_output(
+        &self,
+        level: objectiveai_cli_lib::output::Level,
+        fatal: bool,
+    ) -> objectiveai_cli_lib::output::Error {
+        objectiveai_cli_lib::output::Error {
+            level,
+            fatal,
+            message: self.to_string(),
+        }
+    }
 }

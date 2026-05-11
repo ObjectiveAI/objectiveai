@@ -52,7 +52,7 @@ async fn list_objectiveai(
 }
 
 impl Commands {
-    pub async fn handle(self, cli_config: &crate::Config) -> Result<crate::Output, crate::error::Error> {
+    pub async fn handle(self, cli_config: &crate::Config) -> Result<(), crate::error::Error> {
         match self {
             Commands::Get { args } => {
                 let (function_path, profile_path) = args.resolve(|| get_favorites(cli_config)).await?;
@@ -65,7 +65,15 @@ impl Commands {
                         function: function?,
                         profile: profile?,
                     };
-                    Ok(serde_json::to_string(&pair).unwrap())
+                    #[derive(serde::Serialize)]
+                    struct PairResponse {
+                        pair: GetFunctionProfilePair,
+                    }
+                    objectiveai_cli_lib::output::Output::<PairResponse>::Notification(
+                        PairResponse { pair },
+                    )
+                    .emit();
+                    Ok(())
                 }, false).await
             }
             Commands::List { source } => {

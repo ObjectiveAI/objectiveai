@@ -166,11 +166,30 @@ echo "$CURRENT_FP" > "$FINGERPRINT_FILE"
 echo "Installed $INSTALL_DIR/$DST_NAME"
 
 # ── PATH ───────────────────────────────────────────────────────────────
+#
+# A child process can't mutate its parent shell's environment, so the
+# canonical pattern (rustup, etc.) is to write a sourceable env file.
+# Future shells pick it up via a one-liner appended to the user's rc;
+# the current shell sources it on demand.
+
+write_env_file() {
+  cat > "$INSTALL_DIR/env" <<'EOF'
+#!/bin/sh
+# objectiveai shell setup. Source this file from your shell rc, or run
+#   . "$HOME/.objectiveai/env"
+# to put `objectiveai` on PATH for the current shell.
+
+case ":${PATH}:" in
+    *:"$HOME/.objectiveai":*) ;;
+    *) export PATH="$HOME/.objectiveai:$PATH" ;;
+esac
+EOF
+}
 
 add_to_path() {
   local shell_rc="$1"
-  local line="export PATH=\"\$HOME/.objectiveai:\$PATH\""
-  if [ -f "$shell_rc" ] && grep -qF '.objectiveai' "$shell_rc"; then
+  local line='. "$HOME/.objectiveai/env"'
+  if [ -f "$shell_rc" ] && grep -qF '.objectiveai/env' "$shell_rc"; then
     return
   fi
   echo "" >> "$shell_rc"
@@ -178,6 +197,8 @@ add_to_path() {
   echo "$line" >> "$shell_rc"
   echo "Added to PATH in $shell_rc"
 }
+
+write_env_file
 
 case "$PLATFORM" in
   windows)
@@ -188,7 +209,11 @@ case "$PLATFORM" in
     else
       powershell.exe -NoProfile -Command \
         "[Environment]::SetEnvironmentVariable('Path', '$INSTALL_DIR_WIN;' + [Environment]::GetEnvironmentVariable('Path', 'User'), 'User')" 2>/dev/null
-      echo "Added $INSTALL_DIR_WIN to user PATH (restart your terminal to take effect)"
+      echo "Added $INSTALL_DIR_WIN to user PATH (restart cmd/PowerShell to use it)."
+    fi
+    # Also wire up Git Bash / MSYS via the env file.
+    if [ -f "$HOME/.bashrc" ]; then
+      add_to_path "$HOME/.bashrc"
     fi
     ;;
   macos)
@@ -205,5 +230,9 @@ case "$PLATFORM" in
 esac
 
 echo ""
-echo "Done! Run 'objectiveai --help' to get started."
-echo "You may need to restart your terminal for PATH changes to take effect."
+echo "Done!"
+echo ""
+echo "To use objectiveai in your current shell, run:"
+echo '  . "$HOME/.objectiveai/env"'
+echo ""
+echo "(New shells will pick it up automatically.)"

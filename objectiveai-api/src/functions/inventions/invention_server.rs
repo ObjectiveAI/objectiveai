@@ -424,7 +424,7 @@ impl ServerHandler for InventionMcp {
                 .enable_tool_list_changed()
                 .build(),
             server_info: Implementation {
-                name: "objectiveai-function-invention".into(),
+                name: "oaifi".into(),
                 title: None,
                 version: env!("CARGO_PKG_VERSION").into(),
                 description: None,

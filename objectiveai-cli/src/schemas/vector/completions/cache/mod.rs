@@ -34,21 +34,59 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<crate::Output, crate::error::Error> {
+    pub fn handle(self) -> Result<(), crate::error::Error> {
+        #[derive(serde::Serialize)]
+        struct SchemaList {
+            schemas: &'static [&'static str],
+        }
+        #[derive(serde::Serialize)]
+        struct Schema {
+            schema: serde_json::Value,
+        }
         match self {
-            Commands::List => Ok(crate::Output::Schema("[\"CacheVote\",\"CacheVoteRequest\",\"CompletionVotes\",\"GetCompletionVotesRequest\"]")),
-            Commands::CacheVote { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/vector.completions.cache.CacheVote.json"),
-            )),
-            Commands::CacheVoteRequest { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/vector.completions.cache.CacheVoteRequest.json"),
-            )),
-            Commands::CompletionVotes { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/vector.completions.cache.CompletionVotes.json"),
-            )),
-            Commands::GetCompletionVotesRequest { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/vector.completions.cache.GetCompletionVotesRequest.json"),
-            )),
+            Commands::List => {
+                const NAMES: &[&str] = &["CacheVote", "CacheVoteRequest", "CompletionVotes", "GetCompletionVotesRequest"];
+                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
+                    SchemaList { schemas: NAMES },
+                ).emit();
+                Ok(())
+            }
+            Commands::CacheVote { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/vector.completions.cache.CacheVote.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::CacheVoteRequest { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/vector.completions.cache.CacheVoteRequest.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::CompletionVotes { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/vector.completions.cache.CompletionVotes.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::GetCompletionVotesRequest { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/vector.completions.cache.GetCompletionVotesRequest.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
         }
     }
 }

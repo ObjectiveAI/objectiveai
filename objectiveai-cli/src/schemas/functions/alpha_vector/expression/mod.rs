@@ -30,18 +30,50 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<crate::Output, crate::error::Error> {
+    pub fn handle(self) -> Result<(), crate::error::Error> {
+        #[derive(serde::Serialize)]
+        struct SchemaList {
+            schemas: &'static [&'static str],
+        }
+        #[derive(serde::Serialize)]
+        struct Schema {
+            schema: serde_json::Value,
+        }
         match self {
-            Commands::List => Ok(crate::Output::Schema("[\"VectorFunctionInputSchema\",\"VectorFunctionInputValue\",\"VectorFunctionInputValueExpression\"]")),
-            Commands::VectorFunctionInputSchema { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.alpha_vector.expression.VectorFunctionInputSchema.json"),
-            )),
-            Commands::VectorFunctionInputValue { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.alpha_vector.expression.VectorFunctionInputValue.json"),
-            )),
-            Commands::VectorFunctionInputValueExpression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.alpha_vector.expression.VectorFunctionInputValueExpression.json"),
-            )),
+            Commands::List => {
+                const NAMES: &[&str] = &["VectorFunctionInputSchema", "VectorFunctionInputValue", "VectorFunctionInputValueExpression"];
+                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
+                    SchemaList { schemas: NAMES },
+                ).emit();
+                Ok(())
+            }
+            Commands::VectorFunctionInputSchema { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.alpha_vector.expression.VectorFunctionInputSchema.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::VectorFunctionInputValue { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.alpha_vector.expression.VectorFunctionInputValue.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::VectorFunctionInputValueExpression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.alpha_vector.expression.VectorFunctionInputValueExpression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
         }
     }
 }

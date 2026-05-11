@@ -229,9 +229,23 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<crate::Output, crate::error::Error> {
+    pub fn handle(self) -> Result<(), crate::error::Error> {
+        #[derive(serde::Serialize)]
+        struct SchemaList {
+            schemas: &'static [&'static str],
+        }
+        #[derive(serde::Serialize)]
+        struct Schema {
+            schema: serde_json::Value,
+        }
         match self {
-            Commands::List => Ok(crate::Output::Schema("[\"alpha_scalar\",\"alpha_vector\",\"check\",\"executions\",\"expression\",\"inventions\",\"profiles\",\"AlphaInlineFunction\",\"AlphaRemoteFunction\",\"CompiledTask\",\"FullFunction\",\"FullInlineFunction\",\"FullInlineFunctionOrRemoteCommitOptional\",\"FullRemoteFunction\",\"Function\",\"FunctionType\",\"GetFunctionProfilePairResponse\",\"GetFunctionProfilePairUsageRequest\",\"GetFunctionResponse\",\"InlineFunction\",\"InlineProfile\",\"InlineProfileOrRemoteCommitOptional\",\"InlineTasksProfile\",\"ListFunctionProfilePairItem\",\"ListFunctionProfilePairResponse\",\"ListFunctionProfilePairsRequest\",\"ListFunctionProfilePairsSource\",\"ListFunctionResponse\",\"ListFunctionsRequest\",\"ListFunctionsSource\",\"PlaceholderScalarFunctionTask\",\"PlaceholderScalarFunctionTaskExpression\",\"PlaceholderVectorFunctionTask\",\"PlaceholderVectorFunctionTaskExpression\",\"Profile\",\"RemoteFunction\",\"RemoteProfile\",\"RemoteTasksProfile\",\"ScalarFunctionTask\",\"ScalarFunctionTaskExpression\",\"Task\",\"TaskExpression\",\"TaskProfile\",\"UsageFunctionProfilePairResponse\",\"UsageFunctionResponse\",\"VectorCompletionTask\",\"VectorCompletionTaskExpression\",\"VectorFunctionTask\",\"VectorFunctionTaskExpression\"]")),
+            Commands::List => {
+                const NAMES: &[&str] = &["alpha_scalar", "alpha_vector", "check", "executions", "expression", "inventions", "profiles", "AlphaInlineFunction", "AlphaRemoteFunction", "CompiledTask", "FullFunction", "FullInlineFunction", "FullInlineFunctionOrRemoteCommitOptional", "FullRemoteFunction", "Function", "FunctionType", "GetFunctionProfilePairResponse", "GetFunctionProfilePairUsageRequest", "GetFunctionResponse", "InlineFunction", "InlineProfile", "InlineProfileOrRemoteCommitOptional", "InlineTasksProfile", "ListFunctionProfilePairItem", "ListFunctionProfilePairResponse", "ListFunctionProfilePairsRequest", "ListFunctionProfilePairsSource", "ListFunctionResponse", "ListFunctionsRequest", "ListFunctionsSource", "PlaceholderScalarFunctionTask", "PlaceholderScalarFunctionTaskExpression", "PlaceholderVectorFunctionTask", "PlaceholderVectorFunctionTaskExpression", "Profile", "RemoteFunction", "RemoteProfile", "RemoteTasksProfile", "ScalarFunctionTask", "ScalarFunctionTaskExpression", "Task", "TaskExpression", "TaskProfile", "UsageFunctionProfilePairResponse", "UsageFunctionResponse", "VectorCompletionTask", "VectorCompletionTaskExpression", "VectorFunctionTask", "VectorFunctionTaskExpression"];
+                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
+                    SchemaList { schemas: NAMES },
+                ).emit();
+                Ok(())
+            }
             Commands::AlphaScalar { command } => command.handle(),
             Commands::AlphaVector { command } => command.handle(),
             Commands::Check { command } => command.handle(),
@@ -239,132 +253,384 @@ impl Commands {
             Commands::Expression { command } => command.handle(),
             Commands::Inventions { command } => command.handle(),
             Commands::Profiles { command } => command.handle(),
-            Commands::AlphaInlineFunction { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.AlphaInlineFunction.json"),
-            )),
-            Commands::AlphaRemoteFunction { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.AlphaRemoteFunction.json"),
-            )),
-            Commands::CompiledTask { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.CompiledTask.json"),
-            )),
-            Commands::FullFunction { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.FullFunction.json"),
-            )),
-            Commands::FullInlineFunction { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.FullInlineFunction.json"),
-            )),
-            Commands::FullInlineFunctionOrRemoteCommitOptional { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.FullInlineFunctionOrRemoteCommitOptional.json"),
-            )),
-            Commands::FullRemoteFunction { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.FullRemoteFunction.json"),
-            )),
-            Commands::Function { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.Function.json"),
-            )),
-            Commands::FunctionType { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.FunctionType.json"),
-            )),
-            Commands::GetFunctionProfilePairResponse { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.GetFunctionProfilePairResponse.json"),
-            )),
-            Commands::GetFunctionProfilePairUsageRequest { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.GetFunctionProfilePairUsageRequest.json"),
-            )),
-            Commands::GetFunctionResponse { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.GetFunctionResponse.json"),
-            )),
-            Commands::InlineFunction { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.InlineFunction.json"),
-            )),
-            Commands::InlineProfile { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.InlineProfile.json"),
-            )),
-            Commands::InlineProfileOrRemoteCommitOptional { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.InlineProfileOrRemoteCommitOptional.json"),
-            )),
-            Commands::InlineTasksProfile { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.InlineTasksProfile.json"),
-            )),
-            Commands::ListFunctionProfilePairItem { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.ListFunctionProfilePairItem.json"),
-            )),
-            Commands::ListFunctionProfilePairResponse { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.ListFunctionProfilePairResponse.json"),
-            )),
-            Commands::ListFunctionProfilePairsRequest { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.ListFunctionProfilePairsRequest.json"),
-            )),
-            Commands::ListFunctionProfilePairsSource { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.ListFunctionProfilePairsSource.json"),
-            )),
-            Commands::ListFunctionResponse { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.ListFunctionResponse.json"),
-            )),
-            Commands::ListFunctionsRequest { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.ListFunctionsRequest.json"),
-            )),
-            Commands::ListFunctionsSource { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.ListFunctionsSource.json"),
-            )),
-            Commands::PlaceholderScalarFunctionTask { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.PlaceholderScalarFunctionTask.json"),
-            )),
-            Commands::PlaceholderScalarFunctionTaskExpression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.PlaceholderScalarFunctionTaskExpression.json"),
-            )),
-            Commands::PlaceholderVectorFunctionTask { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.PlaceholderVectorFunctionTask.json"),
-            )),
-            Commands::PlaceholderVectorFunctionTaskExpression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.PlaceholderVectorFunctionTaskExpression.json"),
-            )),
-            Commands::Profile { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.Profile.json"),
-            )),
-            Commands::RemoteFunction { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.RemoteFunction.json"),
-            )),
-            Commands::RemoteProfile { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.RemoteProfile.json"),
-            )),
-            Commands::RemoteTasksProfile { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.RemoteTasksProfile.json"),
-            )),
-            Commands::ScalarFunctionTask { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.ScalarFunctionTask.json"),
-            )),
-            Commands::ScalarFunctionTaskExpression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.ScalarFunctionTaskExpression.json"),
-            )),
-            Commands::Task { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.Task.json"),
-            )),
-            Commands::TaskExpression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.TaskExpression.json"),
-            )),
-            Commands::TaskProfile { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.TaskProfile.json"),
-            )),
-            Commands::UsageFunctionProfilePairResponse { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.UsageFunctionProfilePairResponse.json"),
-            )),
-            Commands::UsageFunctionResponse { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.UsageFunctionResponse.json"),
-            )),
-            Commands::VectorCompletionTask { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.VectorCompletionTask.json"),
-            )),
-            Commands::VectorCompletionTaskExpression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.VectorCompletionTaskExpression.json"),
-            )),
-            Commands::VectorFunctionTask { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.VectorFunctionTask.json"),
-            )),
-            Commands::VectorFunctionTaskExpression { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../objectiveai-json-schema/functions.VectorFunctionTaskExpression.json"),
-            )),
+            Commands::AlphaInlineFunction { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.AlphaInlineFunction.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::AlphaRemoteFunction { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.AlphaRemoteFunction.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::CompiledTask { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.CompiledTask.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::FullFunction { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.FullFunction.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::FullInlineFunction { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.FullInlineFunction.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::FullInlineFunctionOrRemoteCommitOptional { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.FullInlineFunctionOrRemoteCommitOptional.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::FullRemoteFunction { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.FullRemoteFunction.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Function { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.Function.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::FunctionType { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.FunctionType.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::GetFunctionProfilePairResponse { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.GetFunctionProfilePairResponse.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::GetFunctionProfilePairUsageRequest { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.GetFunctionProfilePairUsageRequest.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::GetFunctionResponse { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.GetFunctionResponse.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::InlineFunction { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.InlineFunction.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::InlineProfile { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.InlineProfile.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::InlineProfileOrRemoteCommitOptional { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.InlineProfileOrRemoteCommitOptional.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::InlineTasksProfile { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.InlineTasksProfile.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ListFunctionProfilePairItem { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.ListFunctionProfilePairItem.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ListFunctionProfilePairResponse { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.ListFunctionProfilePairResponse.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ListFunctionProfilePairsRequest { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.ListFunctionProfilePairsRequest.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ListFunctionProfilePairsSource { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.ListFunctionProfilePairsSource.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ListFunctionResponse { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.ListFunctionResponse.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ListFunctionsRequest { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.ListFunctionsRequest.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ListFunctionsSource { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.ListFunctionsSource.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::PlaceholderScalarFunctionTask { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.PlaceholderScalarFunctionTask.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::PlaceholderScalarFunctionTaskExpression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.PlaceholderScalarFunctionTaskExpression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::PlaceholderVectorFunctionTask { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.PlaceholderVectorFunctionTask.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::PlaceholderVectorFunctionTaskExpression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.PlaceholderVectorFunctionTaskExpression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Profile { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.Profile.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::RemoteFunction { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.RemoteFunction.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::RemoteProfile { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.RemoteProfile.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::RemoteTasksProfile { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.RemoteTasksProfile.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ScalarFunctionTask { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.ScalarFunctionTask.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ScalarFunctionTaskExpression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.ScalarFunctionTaskExpression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Task { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.Task.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::TaskExpression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.TaskExpression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::TaskProfile { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.TaskProfile.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::UsageFunctionProfilePairResponse { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.UsageFunctionProfilePairResponse.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::UsageFunctionResponse { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.UsageFunctionResponse.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::VectorCompletionTask { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.VectorCompletionTask.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::VectorCompletionTaskExpression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.VectorCompletionTaskExpression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::VectorFunctionTask { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.VectorFunctionTask.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::VectorFunctionTaskExpression { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../objectiveai-json-schema/functions.VectorFunctionTaskExpression.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
         }
     }
 }

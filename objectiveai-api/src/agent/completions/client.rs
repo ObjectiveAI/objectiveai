@@ -986,6 +986,17 @@ where
                     yield super::StreamItem::Chunk(last);
                 }
 
+                // Push the upstream state (carries SDK session_id) onto the
+                // continuation BEFORE the early-exit branches. Without this,
+                // a turn that ends without calling any tools — common when the
+                // agent emits free-form text — drops the session_id, so the
+                // next call (e.g. invention's retry-with-error prompt) opens
+                // a fresh SDK session and the agent loses memory of the prior
+                // turn.
+                if let Some(state) = current_state.take() {
+                    continuation_items.push(super::ContinuationItem::State(state));
+                }
+
                 if had_error || is_cancelled() {
                     break;
                 }
@@ -995,10 +1006,6 @@ where
                     extract_callable_tool_calls(agg, mcp_tool_names.as_ref());
                 if callable.is_empty() {
                     break;
-                }
-
-                if let Some(state) = current_state.take() {
-                    continuation_items.push(super::ContinuationItem::State(state));
                 }
 
                 // TODO: return to concurrent dispatch (`join_all`) once

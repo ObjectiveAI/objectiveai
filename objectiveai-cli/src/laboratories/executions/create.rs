@@ -10,7 +10,7 @@ struct ResultItem {
     error: Option<objectiveai::error::ResponseError>,
 }
 
-pub async fn handle(args: CreateArgs, cli_config: &crate::Config) -> Result<crate::Output, crate::error::Error> {
+pub async fn handle(args: CreateArgs, cli_config: &crate::Config) -> Result<(), crate::error::Error> {
     args.instructions.verify(cli_config, crate::instructions::InstructionsScope::LaboratoryExecutions)?;
 
     let mut builder_agents = Vec::with_capacity(args.builder_agent.len());
@@ -151,7 +151,15 @@ pub async fn handle(args: CreateArgs, cli_config: &crate::Config) -> Result<crat
                 })
                 .collect();
 
-            Ok(serde_json::to_string(&results).unwrap())
+            #[derive(serde::Serialize)]
+            struct LabEmit {
+                laboratory: Vec<ResultItem>,
+            }
+            objectiveai_cli_lib::output::Output::<LabEmit>::Notification(
+                LabEmit { laboratory: results },
+            )
+            .emit();
+            Ok(())
         })),
         true,
     )

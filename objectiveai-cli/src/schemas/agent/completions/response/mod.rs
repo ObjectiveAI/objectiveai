@@ -79,47 +79,133 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<crate::Output, crate::error::Error> {
+    pub fn handle(self) -> Result<(), crate::error::Error> {
+        #[derive(serde::Serialize)]
+        struct SchemaList {
+            schemas: &'static [&'static str],
+        }
+        #[derive(serde::Serialize)]
+        struct Schema {
+            schema: serde_json::Value,
+        }
         match self {
-            Commands::List => Ok(crate::Output::Schema("[\"streaming\",\"unary\",\"AssistantRole\",\"CompletionTokensDetails\",\"CostDetails\",\"FinishReason\",\"Logprob\",\"Logprobs\",\"PromptTokensDetails\",\"ToolResponse\",\"ToolRole\",\"TopLogprob\",\"UpstreamUsage\",\"Usage\"]")),
+            Commands::List => {
+                const NAMES: &[&str] = &["streaming", "unary", "AssistantRole", "CompletionTokensDetails", "CostDetails", "FinishReason", "Logprob", "Logprobs", "PromptTokensDetails", "ToolResponse", "ToolRole", "TopLogprob", "UpstreamUsage", "Usage"];
+                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
+                    SchemaList { schemas: NAMES },
+                ).emit();
+                Ok(())
+            }
             Commands::Streaming { command } => command.handle(),
             Commands::Unary { command } => command.handle(),
-            Commands::AssistantRole { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.response.AssistantRole.json"),
-            )),
-            Commands::CompletionTokensDetails { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.response.CompletionTokensDetails.json"),
-            )),
-            Commands::CostDetails { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.response.CostDetails.json"),
-            )),
-            Commands::FinishReason { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.response.FinishReason.json"),
-            )),
-            Commands::Logprob { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.response.Logprob.json"),
-            )),
-            Commands::Logprobs { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.response.Logprobs.json"),
-            )),
-            Commands::PromptTokensDetails { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.response.PromptTokensDetails.json"),
-            )),
-            Commands::ToolResponse { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.response.ToolResponse.json"),
-            )),
-            Commands::ToolRole { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.response.ToolRole.json"),
-            )),
-            Commands::TopLogprob { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.response.TopLogprob.json"),
-            )),
-            Commands::UpstreamUsage { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.response.UpstreamUsage.json"),
-            )),
-            Commands::Usage { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.response.Usage.json"),
-            )),
+            Commands::AssistantRole { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.response.AssistantRole.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::CompletionTokensDetails { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.response.CompletionTokensDetails.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::CostDetails { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.response.CostDetails.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::FinishReason { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.response.FinishReason.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Logprob { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.response.Logprob.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Logprobs { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.response.Logprobs.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::PromptTokensDetails { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.response.PromptTokensDetails.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ToolResponse { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.response.ToolResponse.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ToolRole { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.response.ToolRole.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::TopLogprob { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.response.TopLogprob.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::UpstreamUsage { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.response.UpstreamUsage.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Usage { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.response.Usage.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
         }
     }
 }

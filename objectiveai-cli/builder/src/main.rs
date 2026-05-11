@@ -135,7 +135,7 @@ fn generate_module(node: &TreeNode, dir: &Path, depth: usize) {
 
     code.push_str("}\n\n");
 
-    // Build list as JSON array
+    // Build list of names for the `list` subcommand
     let mut list_items: Vec<&str> = Vec::new();
     for name in node.children.keys() {
         list_items.push(name);
@@ -143,16 +143,36 @@ fn generate_module(node: &TreeNode, dir: &Path, depth: usize) {
     for name in node.schemas.keys() {
         list_items.push(name);
     }
-    let list_json = serde_json::to_string(&list_items).unwrap();
-    let list_str = list_json.replace('"', "\\\"");
 
     // handle() implementation
     code.push_str("impl Commands {\n");
-    code.push_str("    pub fn handle(self) -> Result<crate::Output, crate::error::Error> {\n");
+    code.push_str("    pub fn handle(self) -> Result<(), crate::error::Error> {\n");
+    code.push_str("        #[derive(serde::Serialize)]\n");
+    code.push_str("        struct SchemaList {\n");
+    code.push_str("            schemas: &'static [&'static str],\n");
+    code.push_str("        }\n");
+    if !node.schemas.is_empty() {
+        code.push_str("        #[derive(serde::Serialize)]\n");
+        code.push_str("        struct Schema {\n");
+        code.push_str("            schema: serde_json::Value,\n");
+        code.push_str("        }\n");
+    }
     code.push_str("        match self {\n");
 
-    writeln!(code, "            Commands::List => Ok(crate::Output::Schema(\"{list_str}\")),")
-        .unwrap();
+    code.push_str("            Commands::List => {\n");
+    code.push_str("                const NAMES: &[&str] = &[");
+    for (i, name) in list_items.iter().enumerate() {
+        if i > 0 {
+            code.push_str(", ");
+        }
+        write!(code, "\"{name}\"").unwrap();
+    }
+    code.push_str("];\n");
+    code.push_str("                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(\n");
+    code.push_str("                    SchemaList { schemas: NAMES },\n");
+    code.push_str("                ).emit();\n");
+    code.push_str("                Ok(())\n");
+    code.push_str("            }\n");
 
     for child_name in node.children.keys() {
         let variant = to_pascal_case(child_name);
@@ -164,9 +184,15 @@ fn generate_module(node: &TreeNode, dir: &Path, depth: usize) {
     }
 
     for (schema_name, filename) in &node.schemas {
-        writeln!(code, "            Commands::{schema_name} {{ .. }} => Ok(crate::Output::Schema(").unwrap();
-        writeln!(code, "                include_str!(\"{schema_rel}/{filename}\"),").unwrap();
-        writeln!(code, "            )),").unwrap();
+        writeln!(code, "            Commands::{schema_name} {{ .. }} => {{").unwrap();
+        writeln!(code, "                let schema: serde_json::Value = serde_json::from_str(").unwrap();
+        writeln!(code, "                    include_str!(\"{schema_rel}/{filename}\"),").unwrap();
+        writeln!(code, "                ).expect(\"embedded JSON Schema must parse\");").unwrap();
+        writeln!(code, "                objectiveai_cli_lib::output::Output::<Schema>::Notification(").unwrap();
+        writeln!(code, "                    Schema {{ schema }},").unwrap();
+        writeln!(code, "                ).emit();").unwrap();
+        writeln!(code, "                Ok(())").unwrap();
+        writeln!(code, "            }}").unwrap();
     }
 
     code.push_str("        }\n");

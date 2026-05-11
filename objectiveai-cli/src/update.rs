@@ -37,7 +37,14 @@ where
     #[cfg(feature = "updater")]
     {
         if let Err(e) = imp::run(args, cli_config).await {
-            eprintln!("objectiveai: auto-update error: {e}");
+            objectiveai_cli_lib::output::Output::<serde_json::Value>::Error(
+                objectiveai_cli_lib::output::Error {
+                    level: objectiveai_cli_lib::output::Level::Warn,
+                    fatal: false,
+                    message: format!("auto-update error: {e}"),
+                },
+            )
+            .emit();
         }
     }
     #[cfg(not(feature = "updater"))]

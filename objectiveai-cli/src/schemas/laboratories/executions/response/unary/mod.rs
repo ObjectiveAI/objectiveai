@@ -34,21 +34,59 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<crate::Output, crate::error::Error> {
+    pub fn handle(self) -> Result<(), crate::error::Error> {
+        #[derive(serde::Serialize)]
+        struct SchemaList {
+            schemas: &'static [&'static str],
+        }
+        #[derive(serde::Serialize)]
+        struct Schema {
+            schema: serde_json::Value,
+        }
         match self {
-            Commands::List => Ok(crate::Output::Schema("[\"Builder\",\"Evaluation\",\"LaboratoryExecution\",\"Object\"]")),
-            Commands::Builder { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../../objectiveai-json-schema/laboratories.executions.response.unary.Builder.json"),
-            )),
-            Commands::Evaluation { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../../objectiveai-json-schema/laboratories.executions.response.unary.Evaluation.json"),
-            )),
-            Commands::LaboratoryExecution { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../../objectiveai-json-schema/laboratories.executions.response.unary.LaboratoryExecution.json"),
-            )),
-            Commands::Object { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../../objectiveai-json-schema/laboratories.executions.response.unary.Object.json"),
-            )),
+            Commands::List => {
+                const NAMES: &[&str] = &["Builder", "Evaluation", "LaboratoryExecution", "Object"];
+                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
+                    SchemaList { schemas: NAMES },
+                ).emit();
+                Ok(())
+            }
+            Commands::Builder { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../../objectiveai-json-schema/laboratories.executions.response.unary.Builder.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Evaluation { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../../objectiveai-json-schema/laboratories.executions.response.unary.Evaluation.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::LaboratoryExecution { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../../objectiveai-json-schema/laboratories.executions.response.unary.LaboratoryExecution.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Object { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../../objectiveai-json-schema/laboratories.executions.response.unary.Object.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
         }
     }
 }

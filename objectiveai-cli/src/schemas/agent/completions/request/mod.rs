@@ -50,33 +50,95 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<crate::Output, crate::error::Error> {
+    pub fn handle(self) -> Result<(), crate::error::Error> {
+        #[derive(serde::Serialize)]
+        struct SchemaList {
+            schemas: &'static [&'static str],
+        }
+        #[derive(serde::Serialize)]
+        struct Schema {
+            schema: serde_json::Value,
+        }
         match self {
-            Commands::List => Ok(crate::Output::Schema("[\"AgentCompletionCreateParams\",\"AgentCompletionNotifyParams\",\"Provider\",\"ProviderDataCollection\",\"ProviderMaxPrice\",\"ProviderSort\",\"ResponseFormat\",\"ResponseFormatParam\"]")),
-            Commands::AgentCompletionCreateParams { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.request.AgentCompletionCreateParams.json"),
-            )),
-            Commands::AgentCompletionNotifyParams { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.request.AgentCompletionNotifyParams.json"),
-            )),
-            Commands::Provider { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.request.Provider.json"),
-            )),
-            Commands::ProviderDataCollection { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.request.ProviderDataCollection.json"),
-            )),
-            Commands::ProviderMaxPrice { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.request.ProviderMaxPrice.json"),
-            )),
-            Commands::ProviderSort { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.request.ProviderSort.json"),
-            )),
-            Commands::ResponseFormat { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.request.ResponseFormat.json"),
-            )),
-            Commands::ResponseFormatParam { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/agent.completions.request.ResponseFormatParam.json"),
-            )),
+            Commands::List => {
+                const NAMES: &[&str] = &["AgentCompletionCreateParams", "AgentCompletionNotifyParams", "Provider", "ProviderDataCollection", "ProviderMaxPrice", "ProviderSort", "ResponseFormat", "ResponseFormatParam"];
+                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
+                    SchemaList { schemas: NAMES },
+                ).emit();
+                Ok(())
+            }
+            Commands::AgentCompletionCreateParams { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.request.AgentCompletionCreateParams.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::AgentCompletionNotifyParams { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.request.AgentCompletionNotifyParams.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Provider { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.request.Provider.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ProviderDataCollection { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.request.ProviderDataCollection.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ProviderMaxPrice { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.request.ProviderMaxPrice.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ProviderSort { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.request.ProviderSort.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ResponseFormat { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.request.ResponseFormat.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ResponseFormatParam { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/agent.completions.request.ResponseFormatParam.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
         }
     }
 }

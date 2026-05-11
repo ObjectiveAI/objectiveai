@@ -30,18 +30,50 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<crate::Output, crate::error::Error> {
+    pub fn handle(self) -> Result<(), crate::error::Error> {
+        #[derive(serde::Serialize)]
+        struct SchemaList {
+            schemas: &'static [&'static str],
+        }
+        #[derive(serde::Serialize)]
+        struct Schema {
+            schema: serde_json::Value,
+        }
         match self {
-            Commands::List => Ok(crate::Output::Schema("[\"FunctionExecutionCreateParams\",\"Reasoning\",\"Strategy\"]")),
-            Commands::FunctionExecutionCreateParams { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.executions.request.FunctionExecutionCreateParams.json"),
-            )),
-            Commands::Reasoning { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.executions.request.Reasoning.json"),
-            )),
-            Commands::Strategy { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/functions.executions.request.Strategy.json"),
-            )),
+            Commands::List => {
+                const NAMES: &[&str] = &["FunctionExecutionCreateParams", "Reasoning", "Strategy"];
+                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
+                    SchemaList { schemas: NAMES },
+                ).emit();
+                Ok(())
+            }
+            Commands::FunctionExecutionCreateParams { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.executions.request.FunctionExecutionCreateParams.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Reasoning { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.executions.request.Reasoning.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Strategy { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/functions.executions.request.Strategy.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
         }
     }
 }

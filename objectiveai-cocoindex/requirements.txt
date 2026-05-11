@@ -1,2 +1,2 @@
-objectiveai==2.0.0
+objectiveai==2.0.3
 cocoindex

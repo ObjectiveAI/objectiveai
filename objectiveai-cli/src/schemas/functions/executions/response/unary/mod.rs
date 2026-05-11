@@ -42,27 +42,77 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<crate::Output, crate::error::Error> {
+    pub fn handle(self) -> Result<(), crate::error::Error> {
+        #[derive(serde::Serialize)]
+        struct SchemaList {
+            schemas: &'static [&'static str],
+        }
+        #[derive(serde::Serialize)]
+        struct Schema {
+            schema: serde_json::Value,
+        }
         match self {
-            Commands::List => Ok(crate::Output::Schema("[\"FunctionExecution\",\"FunctionExecutionTask\",\"Object\",\"ReasoningSummary\",\"Task\",\"VectorCompletionTask\"]")),
-            Commands::FunctionExecution { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../../objectiveai-json-schema/functions.executions.response.unary.FunctionExecution.json"),
-            )),
-            Commands::FunctionExecutionTask { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../../objectiveai-json-schema/functions.executions.response.unary.FunctionExecutionTask.json"),
-            )),
-            Commands::Object { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../../objectiveai-json-schema/functions.executions.response.unary.Object.json"),
-            )),
-            Commands::ReasoningSummary { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../../objectiveai-json-schema/functions.executions.response.unary.ReasoningSummary.json"),
-            )),
-            Commands::Task { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../../objectiveai-json-schema/functions.executions.response.unary.Task.json"),
-            )),
-            Commands::VectorCompletionTask { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../../objectiveai-json-schema/functions.executions.response.unary.VectorCompletionTask.json"),
-            )),
+            Commands::List => {
+                const NAMES: &[&str] = &["FunctionExecution", "FunctionExecutionTask", "Object", "ReasoningSummary", "Task", "VectorCompletionTask"];
+                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
+                    SchemaList { schemas: NAMES },
+                ).emit();
+                Ok(())
+            }
+            Commands::FunctionExecution { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../../objectiveai-json-schema/functions.executions.response.unary.FunctionExecution.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::FunctionExecutionTask { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../../objectiveai-json-schema/functions.executions.response.unary.FunctionExecutionTask.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Object { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../../objectiveai-json-schema/functions.executions.response.unary.Object.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ReasoningSummary { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../../objectiveai-json-schema/functions.executions.response.unary.ReasoningSummary.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Task { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../../objectiveai-json-schema/functions.executions.response.unary.Task.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::VectorCompletionTask { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../../objectiveai-json-schema/functions.executions.response.unary.VectorCompletionTask.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
         }
     }
 }

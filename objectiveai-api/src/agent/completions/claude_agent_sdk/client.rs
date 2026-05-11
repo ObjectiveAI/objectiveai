@@ -170,28 +170,18 @@ impl Client {
 /// Build the `mcp_servers` map that goes into [`RunParams`]. With the
 /// per-agent proxy connection, this is at most a single entry pointing
 /// the SDK's child at the proxy with the agent's pre-initialized
-/// `Mcp-Session-Id` so it joins the parent's session rather than
-/// re-issuing the `X-MCP-Servers` initialize.
-/// Build the `mcp_servers` map that goes into [`RunParams`]. With the
-/// per-agent proxy connection, this is at most a single entry pointing
-/// the SDK's child at the proxy with the agent's pre-initialized
-/// `Mcp-Session-Id` header. The wire shape stays a name-keyed map (the
-/// Python runner expects one) but the name is sourced from the
-/// connection's `server_info.name` rather than hardcoded here.
+/// `Mcp-Session-Id` header so it resumes the parent's session rather
+/// than re-issuing `initialize`. Header construction is delegated to
+/// `McpHttpServerConfig::from(&Connection)` to keep the merge with
+/// `conn.headers` (User-Agent, Authorization, custom X-*) in one place.
 fn build_mcp_servers(
     mcp_connection: Option<&objectiveai::mcp::Connection>,
 ) -> IndexMap<String, McpServerConfig> {
     let mut servers = IndexMap::new();
     if let Some(conn) = mcp_connection {
-        let mut headers = IndexMap::new();
-        headers.insert("Mcp-Session-Id".to_string(), conn.session_id.clone());
         servers.insert(
             conn.initialize_result.server_info.name.clone(),
-            McpServerConfig::Http(McpHttpServerConfig {
-                r#type: super::mcp_server_config::McpHttpServerConfigType::Http,
-                url: conn.url.clone(),
-                headers: Some(headers),
-            }),
+            McpServerConfig::Http(McpHttpServerConfig::from(conn)),
         );
     }
     servers
@@ -254,7 +244,6 @@ impl UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::ag
     + 'static {
         let enabled = self.enabled;
         let tools_enabled = _tools_enabled;
-        let mcp_connection_for_check = mcp_connection.clone();
         let is_byok = byok.is_some();
         let id = id.to_string();
         let agent = agent.clone();
@@ -281,35 +270,18 @@ impl UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::ag
                 return Err(super::Error::InvalidByok);
             }
 
-            // The agent's tool surface is the union of (a) the MCP
-            // connection's tool list (if any) and (b) a response_format
-            // tool. If tools aren't enabled for this iteration but the
-            // surface is non-empty, surface a `ToolsNotAllowed` error
-            // up front — the SDK runner cannot run with tools off and
-            // tools defined.
-            let has_tools = match &mcp_connection_for_check {
-                Some(conn) => match conn.list_tools().await {
-                    Ok(tools) => !tools.is_empty(),
-                    Err(_) => false,
-                },
-                None => false,
-            } || matches!(
-                params.response_format,
-                Some(objectiveai::agent::completions::request::ResponseFormatParam::Single(
-                    objectiveai::agent::completions::request::ResponseFormat::ToolCall { .. }
-                )) | Some(objectiveai::agent::completions::request::ResponseFormatParam::PerAgent(_)),
-            );
-
-            if !tools_enabled && has_tools {
-                return Err(super::Error::ToolsNotAllowed);
-            }
-
             validate_response_format(&agent.id, &params.response_format)?;
 
             // Build prompt from messages + continuation (handles continuation validation).
             let prompt = Prompt::new(&messages, continuation.as_deref(), request_continuation.as_ref())?;
 
-            let mcp_servers = build_mcp_servers(mcp_connection.as_ref());
+            // When tools are disabled for this iteration, give the SDK
+            // an empty MCP server map so it never tries to connect.
+            let mcp_servers = if tools_enabled {
+                build_mcp_servers(mcp_connection.as_ref())
+            } else {
+                IndexMap::new()
+            };
 
             // Compute assistant_index from continuation. State items
             // carry a message_count (may be >1 since the SDK handles

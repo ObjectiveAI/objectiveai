@@ -235,7 +235,7 @@ impl ServerHandler for FilesystemMcp {
             protocol_version: ProtocolVersion::V_2025_06_18,
             capabilities: ServerCapabilities::builder().enable_tools().build(),
             server_info: Implementation {
-                name: "objectiveai-filesystem".into(),
+                name: "oaifs".into(),
                 title: None,
                 version: env!("CARGO_PKG_VERSION").into(),
                 description: None,

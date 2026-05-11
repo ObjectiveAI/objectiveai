@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-mcp-cli"
-version = "2.0.0"
+version = "2.0.3"
 edition = "2024"
 
 [features]
@@ -14,7 +14,7 @@ anyhow = "1.0.102"
 axum = "0.8.8"
 dotenv = "0.15.0"
 envconfig = "0.11.1"
-objectiveai-cli = { path = "../objectiveai-cli", version = "2.0.0", default-features = false }
+objectiveai-cli = { path = "../objectiveai-cli", version = "2.0.3", default-features = false }
 rmcp = { version = "0.16.0", features = ["server", "transport-streamable-http-server"] }
 schemars = "1.2.1"
 serde = { version = "1.0.228", features = ["derive"] }

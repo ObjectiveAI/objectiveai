@@ -123,7 +123,7 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub async fn handle(self, cli_config: &crate::Config) -> Result<crate::Output, crate::error::Error> {
+    pub async fn handle(self, cli_config: &crate::Config) -> Result<(), crate::error::Error> {
         let (agent_ref, continuation_args, instructions, seed, state, detach) = match self {
             Commands::AlphaScalar { params, agent, continuation, instructions, seed, detach } => {
                 let p = params.into_params();
@@ -215,7 +215,15 @@ impl Commands {
                 })
                 .collect();
 
-            Ok(serde_json::to_string(&results).unwrap())
+            #[derive(serde::Serialize)]
+            struct RecursiveEmit {
+                inventions: Vec<InventionResultItem>,
+            }
+            objectiveai_cli_lib::output::Output::<RecursiveEmit>::Notification(
+                RecursiveEmit { inventions: results },
+            )
+            .emit();
+            Ok(())
         })), true).await
     }
 }

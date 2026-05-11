@@ -2,19 +2,21 @@
 //! runner over stdio. Codex's `Thread` API only consumes HTTP MCP
 //! servers, so this is a single struct (no Stdio/SSE variants).
 //!
-//! The runner currently ignores `mcp_servers` — wiring this into
-//! `Codex.Thread` is a follow-up. The wire shape is stable so callers
-//! can start including it now.
+//! Field names mirror the codex `config.toml` schema 1:1 (`url`,
+//! `http_headers`) so the Python runner can serialize this map
+//! straight into a `[mcp_servers.<name>]` table without a translation
+//! step.
 
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-/// HTTP MCP server config — URL plus optional headers.
+/// HTTP MCP server config — URL plus optional HTTP headers. Mirrors
+/// the codex `[mcp_servers.<name>]` TOML schema field-for-field.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct McpServerConfig {
     pub url: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub headers: Option<IndexMap<String, String>>,
+    pub http_headers: Option<IndexMap<String, String>>,
 }
 
 impl From<&objectiveai::mcp::Connection> for McpServerConfig {
@@ -31,7 +33,7 @@ impl From<&objectiveai::mcp::Connection> for McpServerConfig {
 
         McpServerConfig {
             url: conn.url.clone(),
-            headers: if headers.is_empty() { None } else { Some(headers) },
+            http_headers: if headers.is_empty() { None } else { Some(headers) },
         }
     }
 }

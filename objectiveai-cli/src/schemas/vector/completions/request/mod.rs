@@ -22,12 +22,32 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<crate::Output, crate::error::Error> {
+    pub fn handle(self) -> Result<(), crate::error::Error> {
+        #[derive(serde::Serialize)]
+        struct SchemaList {
+            schemas: &'static [&'static str],
+        }
+        #[derive(serde::Serialize)]
+        struct Schema {
+            schema: serde_json::Value,
+        }
         match self {
-            Commands::List => Ok(crate::Output::Schema("[\"VectorCompletionCreateParams\"]")),
-            Commands::VectorCompletionCreateParams { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../../objectiveai-json-schema/vector.completions.request.VectorCompletionCreateParams.json"),
-            )),
+            Commands::List => {
+                const NAMES: &[&str] = &["VectorCompletionCreateParams"];
+                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
+                    SchemaList { schemas: NAMES },
+                ).emit();
+                Ok(())
+            }
+            Commands::VectorCompletionCreateParams { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../../objectiveai-json-schema/vector.completions.request.VectorCompletionCreateParams.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
         }
     }
 }

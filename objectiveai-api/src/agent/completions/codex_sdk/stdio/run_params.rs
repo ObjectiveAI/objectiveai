@@ -24,8 +24,9 @@ pub struct RunParams<'a> {
     pub resume: Option<&'a str>,
 
     /// HTTP MCP servers — name → config. Empty map = no MCP. The
-    /// runner currently ignores this field; wiring it into
-    /// `Codex.Thread` is a follow-up.
+    /// runner materializes a per-request `CODEX_HOME/config.toml`
+    /// from this map and points the codex subprocess at it via the
+    /// `CODEX_HOME` env var.
     #[serde(skip_serializing_if = "IndexMap::is_empty")]
     pub mcp_servers: &'a IndexMap<String, McpServerConfig>,
 }

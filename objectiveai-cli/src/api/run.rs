@@ -7,10 +7,10 @@ use envconfig::Envconfig;
 ///
 /// If `viewer` is false, the viewer mode is forced to Remote regardless of
 /// config — no point spawning a viewer window if nothing will be displayed.
-pub async fn run<F, Fut>(task: F, viewer: bool) -> Result<crate::Output, crate::error::Error>
+pub async fn run<F, Fut>(task: F, viewer: bool) -> Result<(), crate::error::Error>
 where
     F: FnOnce(objectiveai::HttpClient) -> Fut + Send + 'static,
-    Fut: Future<Output = Result<String, crate::error::Error>> + Send + 'static,
+    Fut: Future<Output = Result<(), crate::error::Error>> + Send + 'static,
 {
     let client = objectiveai::filesystem::Client::new(None::<String>, None::<String>, None::<String>);
     // Note: api::run creates its own Client without cli_config context.
@@ -48,7 +48,6 @@ where
             run_remote_api_remote_viewer(config, task).await
         }
     }
-    .map(crate::Output::Api)
 }
 
 // -- Variants --
@@ -60,10 +59,10 @@ where
 async fn run_local_api_local_viewer<F, Fut>(
     mut config: objectiveai::filesystem::config::Config,
     task: F,
-) -> Result<String, crate::error::Error>
+) -> Result<(), crate::error::Error>
 where
     F: FnOnce(objectiveai::HttpClient) -> Fut + Send + 'static,
-    Fut: Future<Output = Result<String, crate::error::Error>> + Send + 'static,
+    Fut: Future<Output = Result<(), crate::error::Error>> + Send + 'static,
 {
     let (secret, secret_from_env, config_signature) = resolve_viewer_secret(&mut config)?;
 
@@ -105,10 +104,10 @@ where
 async fn run_local_api_remote_viewer<F, Fut>(
     mut config: objectiveai::filesystem::config::Config,
     task: F,
-) -> Result<String, crate::error::Error>
+) -> Result<(), crate::error::Error>
 where
     F: FnOnce(objectiveai::HttpClient) -> Fut + Send + 'static,
-    Fut: Future<Output = Result<String, crate::error::Error>> + Send + 'static,
+    Fut: Future<Output = Result<(), crate::error::Error>> + Send + 'static,
 {
     // Viewer fields overlay from headers (remote viewer configured externally)
     let api_config = build_api_config(&mut config, None, None);
@@ -139,10 +138,10 @@ where
 async fn run_remote_api_local_viewer<F, Fut>(
     mut config: objectiveai::filesystem::config::Config,
     task: F,
-) -> Result<String, crate::error::Error>
+) -> Result<(), crate::error::Error>
 where
     F: FnOnce(objectiveai::HttpClient) -> Fut + Send + 'static,
-    Fut: Future<Output = Result<String, crate::error::Error>> + Send + 'static,
+    Fut: Future<Output = Result<(), crate::error::Error>> + Send + 'static,
 {
     let (secret, _, config_signature) = resolve_viewer_secret(&mut config)?;
 
@@ -167,10 +166,10 @@ where
 async fn run_remote_api_remote_viewer<F, Fut>(
     mut config: objectiveai::filesystem::config::Config,
     task: F,
-) -> Result<String, crate::error::Error>
+) -> Result<(), crate::error::Error>
 where
     F: FnOnce(objectiveai::HttpClient) -> Fut + Send + 'static,
-    Fut: Future<Output = Result<String, crate::error::Error>> + Send + 'static,
+    Fut: Future<Output = Result<(), crate::error::Error>> + Send + 'static,
 {
     let http_client = build_http_client(&mut config, None, None, None);
     task(http_client).await

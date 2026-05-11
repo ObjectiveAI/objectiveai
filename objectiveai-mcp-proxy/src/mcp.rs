@@ -14,7 +14,7 @@ use axum::{
         sse::{Event, KeepAlive, Sse},
     },
 };
-use futures::stream;
+use futures::{StreamExt, stream};
 use objectiveai::mcp::{
     JsonRpcError, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse,
     initialize_result::{
@@ -294,19 +294,20 @@ async fn handle_initialize(
         .and_then(|v| v.to_str().ok())
         .map(str::to_owned);
 
-    let connections_with_headers = if let Some(sid) = &provided_session_id {
+    if let Some(sid) = &provided_session_id {
         if let Some(session) = state.sessions.get(sid) {
-            // Branch 1 — alive in-memory. Re-mint and return without
-            // re-running connect_all. With deterministic
-            // (BLAKE3-keyed-hash) nonce derivation in
-            // `session_manager::encrypt_and_encode`, the re-mint is
-            // byte-identical to the id the caller already holds, so
-            // it stays a key in `state.sessions`.
+            // Branch 1 — alive in-memory. Re-mint to keep the
+            // in-memory session-key consistent (deterministic AEAD
+            // nonce per `41c90d61` makes it byte-identical to what
+            // the client holds), but DON'T echo the id back: per
+            // rmcp's resume behavior we omit the `Mcp-Session-Id`
+            // response header.
             let new_id = state.sessions.mint_id(&session.payload);
-            return ok_response_with_id(request.id, new_id);
+            let _ = (new_id, session);
+            return ok_response_resume_sse(request.id);
         }
         // Branch 2 — decrypt and reconnect strictly from the payload.
-        match state.sessions.decode_session_id(sid) {
+        let connections_with_headers = match state.sessions.decode_session_id(sid) {
             Some(payload) => {
                 match crate::upstream::reconnect_from_payload(&state.client, &payload).await {
                     Ok(pairs) => pairs,
@@ -327,10 +328,20 @@ async fn handle_initialize(
                 )
                     .into_response();
             }
-        }
+        };
+        // Register the just-reconnected session in memory. The minted
+        // id is deterministic and matches what the client already
+        // holds; we discard the return value because the resume path
+        // doesn't echo the id back.
+        let _ = state.sessions.add(connections_with_headers);
+        ok_response_resume_sse(request.id)
     } else {
-        // Branch 3 — fresh init.
-        match crate::upstream::connect_all_fresh(&state.client, headers).await {
+        // Branch 3 — fresh init. `X-MCP-Servers` / `X-MCP-Headers`
+        // build the spec list, every URL connects from scratch, the
+        // resulting `(Connection, headers)` set encodes into a
+        // brand-new id which we echo back in the response header +
+        // SSE-deliver the `InitializeResult`.
+        let connections_with_headers = match crate::upstream::connect_all_fresh(&state.client, headers).await {
             Ok(pairs) => pairs,
             Err(e @ (BadInit::NotUtf8 { .. } | BadInit::NotJson { .. })) => {
                 return invalid_request_response(request.id, e.to_string());
@@ -338,16 +349,27 @@ async fn handle_initialize(
             Err(e @ BadInit::UpstreamConnectFailed { .. }) => {
                 return internal_error_response(request.id, e.to_string());
             }
-        }
-    };
-
-    let session_id = state.sessions.add(connections_with_headers);
-    ok_response_with_id(request.id, session_id)
+        };
+        let session_id = state.sessions.add(connections_with_headers);
+        ok_response_fresh_sse(request.id, session_id)
+    }
 }
 
-/// Build the standard `initialize` 200 response with the proxy's
-/// declared protocol version + capabilities + `Mcp-Session-Id` header.
-fn ok_response_with_id(request_id: serde_json::Value, session_id: String) -> Response {
+/// Fresh-init `initialize` response: 200 OK + `Mcp-Session-Id`
+/// response header + an SSE stream emitting one `data:` event
+/// carrying the `InitializeResult` JSON, then closing.
+///
+/// Streamable-HTTP MCP servers reply over SSE when the client's
+/// `Accept` lists `text/event-stream` (`require_streamable_http_accept`
+/// already 406s callers that don't list both `application/json` and
+/// SSE). rmcp's reference server uses SSE for the initialize reply
+/// too; matching that shape is what keeps `claude_agent_sdk`'s
+/// bundled CLI from silently filtering every tool from this server
+/// out of the model's catalog.
+fn ok_response_fresh_sse(
+    request_id: serde_json::Value,
+    session_id: String,
+) -> Response {
     let result = InitializeResult {
         protocol_version: PROTOCOL_VERSION.into(),
         capabilities: server_capabilities(),
@@ -360,7 +382,16 @@ fn ok_response_with_id(request_id: serde_json::Value, session_id: String) -> Res
         id: request_id,
         result,
     };
-    let mut headers = HeaderMap::new();
+    let payload = match serde_json::to_string(&body) {
+        Ok(s) => s,
+        Err(e) => {
+            return internal_error_response(
+                serde_json::Value::Null,
+                format!("failed to serialize InitializeResult: {e}"),
+            );
+        }
+    };
+
     let header_value = match HeaderValue::from_str(&session_id) {
         Ok(v) => v,
         Err(_) => {
@@ -370,8 +401,96 @@ fn ok_response_with_id(request_id: serde_json::Value, session_id: String) -> Res
             );
         }
     };
-    headers.insert(SESSION_ID_HEADER, header_value);
-    (StatusCode::OK, headers, Json(body)).into_response()
+
+    let stream = stream::once(async move {
+        Ok::<sse_stream::Sse, Infallible>(sse_stream::Sse::default().data(payload))
+    });
+    let body_stream = sse_stream::SseBody::new(stream);
+
+    let mut response = Response::new(axum::body::Body::new(body_stream));
+    *response.status_mut() = StatusCode::OK;
+    let h = response.headers_mut();
+    h.insert(SESSION_ID_HEADER, header_value);
+    h.insert(
+        axum::http::header::CONTENT_TYPE,
+        HeaderValue::from_static("text/event-stream"),
+    );
+    h.insert(
+        axum::http::header::CACHE_CONTROL,
+        HeaderValue::from_static("no-cache"),
+    );
+    response
+}
+
+/// Resume-init `initialize` response: the client already carries an
+/// `Mcp-Session-Id` header for a session we recognize (Branch 1
+/// alive) or one we just decoded and reconnected (Branch 2). Matches
+/// `rmcp`'s reference behavior — yields two SSE events, then leaves
+/// the stream open until the client disconnects:
+///
+///   1. A priming event (`data: \nid: 0\nretry: 3000\n\n`).
+///      `axum::response::sse::Event::data("")` short-circuits empty
+///      input and never writes the `data:` prefix at all, so we use
+///      `sse-stream` (the same crate `rmcp` uses) which writes
+///      `data:\n` even for empty payloads. SSE clients — including
+///      `claude_agent_sdk`'s bundled CLI — ignore events without a
+///      `data:` line.
+///   2. The `InitializeResult` JSON as a `data:` event, so the
+///      client gets the result it asked for, just like a fresh init.
+///
+/// No `Mcp-Session-Id` response header (the client already holds
+/// the id). Echoing back another `InitializeResult` via plain JSON
+/// (which is what this function did before) is what made
+/// `claude_agent_sdk`'s bundled CLI treat the resume as
+/// protocol-noncompliant and drop every tool from this server.
+fn ok_response_resume_sse(request_id: serde_json::Value) -> Response {
+    let priming = sse_stream::Sse::default()
+        .data("")
+        .id("0")
+        .retry_duration(Duration::from_millis(3000));
+
+    let result = InitializeResult {
+        protocol_version: PROTOCOL_VERSION.into(),
+        capabilities: server_capabilities(),
+        server_info: server_info(),
+        instructions: None,
+        _meta: None,
+    };
+    let body: JsonRpcResponse<InitializeResult> = JsonRpcResponse::Success {
+        jsonrpc: "2.0".into(),
+        id: request_id,
+        result,
+    };
+    let payload = match serde_json::to_string(&body) {
+        Ok(s) => s,
+        Err(e) => {
+            return internal_error_response(
+                serde_json::Value::Null,
+                format!("failed to serialize InitializeResult: {e}"),
+            );
+        }
+    };
+    let result_event = sse_stream::Sse::default().data(payload);
+
+    let stream = stream::iter(vec![
+        Ok::<sse_stream::Sse, Infallible>(priming),
+        Ok(result_event),
+    ])
+    .chain(stream::pending::<Result<sse_stream::Sse, Infallible>>());
+    let body_stream = sse_stream::SseBody::new(stream);
+
+    let mut response = Response::new(axum::body::Body::new(body_stream));
+    *response.status_mut() = StatusCode::OK;
+    let h = response.headers_mut();
+    h.insert(
+        axum::http::header::CONTENT_TYPE,
+        HeaderValue::from_static("text/event-stream"),
+    );
+    h.insert(
+        axum::http::header::CACHE_CONTROL,
+        HeaderValue::from_static("no-cache"),
+    );
+    response
 }
 
 fn handle_ping(request: JsonRpcRequest) -> Response {
@@ -723,7 +842,7 @@ fn server_capabilities() -> ServerCapabilities {
 
 fn server_info() -> Implementation {
     Implementation {
-        name: "objectiveai-proxy".into(),
+        name: "oaip".into(),
         title: None,
         version: env!("CARGO_PKG_VERSION").into(),
         website_url: None,

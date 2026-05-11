@@ -50,33 +50,95 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<crate::Output, crate::error::Error> {
+    pub fn handle(self) -> Result<(), crate::error::Error> {
+        #[derive(serde::Serialize)]
+        struct SchemaList {
+            schemas: &'static [&'static str],
+        }
+        #[derive(serde::Serialize)]
+        struct Schema {
+            schema: serde_json::Value,
+        }
         match self {
-            Commands::List => Ok(crate::Output::Schema("[\"Annotations\",\"BlobResourceContents\",\"Icon\",\"IconTheme\",\"ResourceContents\",\"ResourceContentsUnion\",\"Role\",\"TextResourceContents\"]")),
-            Commands::Annotations { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/mcp.shared.Annotations.json"),
-            )),
-            Commands::BlobResourceContents { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/mcp.shared.BlobResourceContents.json"),
-            )),
-            Commands::Icon { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/mcp.shared.Icon.json"),
-            )),
-            Commands::IconTheme { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/mcp.shared.IconTheme.json"),
-            )),
-            Commands::ResourceContents { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/mcp.shared.ResourceContents.json"),
-            )),
-            Commands::ResourceContentsUnion { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/mcp.shared.ResourceContentsUnion.json"),
-            )),
-            Commands::Role { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/mcp.shared.Role.json"),
-            )),
-            Commands::TextResourceContents { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/mcp.shared.TextResourceContents.json"),
-            )),
+            Commands::List => {
+                const NAMES: &[&str] = &["Annotations", "BlobResourceContents", "Icon", "IconTheme", "ResourceContents", "ResourceContentsUnion", "Role", "TextResourceContents"];
+                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
+                    SchemaList { schemas: NAMES },
+                ).emit();
+                Ok(())
+            }
+            Commands::Annotations { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/mcp.shared.Annotations.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::BlobResourceContents { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/mcp.shared.BlobResourceContents.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Icon { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/mcp.shared.Icon.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::IconTheme { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/mcp.shared.IconTheme.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ResourceContents { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/mcp.shared.ResourceContents.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ResourceContentsUnion { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/mcp.shared.ResourceContentsUnion.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Role { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/mcp.shared.Role.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::TextResourceContents { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/mcp.shared.TextResourceContents.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
         }
     }
 }

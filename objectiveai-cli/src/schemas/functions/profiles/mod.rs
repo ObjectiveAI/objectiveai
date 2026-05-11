@@ -45,25 +45,69 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<crate::Output, crate::error::Error> {
+    pub fn handle(self) -> Result<(), crate::error::Error> {
+        #[derive(serde::Serialize)]
+        struct SchemaList {
+            schemas: &'static [&'static str],
+        }
+        #[derive(serde::Serialize)]
+        struct Schema {
+            schema: serde_json::Value,
+        }
         match self {
-            Commands::List => Ok(crate::Output::Schema("[\"computations\",\"GetProfileResponse\",\"ListProfileResponse\",\"ListProfilesRequest\",\"ListProfilesSource\",\"UsageProfileResponse\"]")),
+            Commands::List => {
+                const NAMES: &[&str] = &["computations", "GetProfileResponse", "ListProfileResponse", "ListProfilesRequest", "ListProfilesSource", "UsageProfileResponse"];
+                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
+                    SchemaList { schemas: NAMES },
+                ).emit();
+                Ok(())
+            }
             Commands::Computations { command } => command.handle(),
-            Commands::GetProfileResponse { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.profiles.GetProfileResponse.json"),
-            )),
-            Commands::ListProfileResponse { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.profiles.ListProfileResponse.json"),
-            )),
-            Commands::ListProfilesRequest { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.profiles.ListProfilesRequest.json"),
-            )),
-            Commands::ListProfilesSource { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.profiles.ListProfilesSource.json"),
-            )),
-            Commands::UsageProfileResponse { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/functions.profiles.UsageProfileResponse.json"),
-            )),
+            Commands::GetProfileResponse { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.profiles.GetProfileResponse.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ListProfileResponse { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.profiles.ListProfileResponse.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ListProfilesRequest { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.profiles.ListProfilesRequest.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ListProfilesSource { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.profiles.ListProfilesSource.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::UsageProfileResponse { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/functions.profiles.UsageProfileResponse.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
         }
     }
 }

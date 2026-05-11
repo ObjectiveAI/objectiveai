@@ -90,63 +90,185 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<crate::Output, crate::error::Error> {
+    pub fn handle(self) -> Result<(), crate::error::Error> {
+        #[derive(serde::Serialize)]
+        struct SchemaList {
+            schemas: &'static [&'static str],
+        }
+        #[derive(serde::Serialize)]
+        struct Schema {
+            schema: serde_json::Value,
+        }
         match self {
-            Commands::List => Ok(crate::Output::Schema("[\"AgentsConfig\",\"ApiConfig\",\"ApiHeadersConfig\",\"ApiLocalConfig\",\"ApiMode\",\"ApiRemoteConfig\",\"Config\",\"Favorite\",\"FunctionsConfig\",\"FunctionsInventionsConfig\",\"FunctionsProfilesConfig\",\"FunctionsProfilesPairsConfig\",\"PairFavorite\",\"SwarmsConfig\",\"ViewerConfig\",\"ViewerLocalConfig\",\"ViewerMode\",\"ViewerSecretSignaturePair\"]")),
-            Commands::AgentsConfig { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/filesystem.config.AgentsConfig.json"),
-            )),
-            Commands::ApiConfig { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/filesystem.config.ApiConfig.json"),
-            )),
-            Commands::ApiHeadersConfig { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/filesystem.config.ApiHeadersConfig.json"),
-            )),
-            Commands::ApiLocalConfig { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/filesystem.config.ApiLocalConfig.json"),
-            )),
-            Commands::ApiMode { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/filesystem.config.ApiMode.json"),
-            )),
-            Commands::ApiRemoteConfig { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/filesystem.config.ApiRemoteConfig.json"),
-            )),
-            Commands::Config { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/filesystem.config.Config.json"),
-            )),
-            Commands::Favorite { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/filesystem.config.Favorite.json"),
-            )),
-            Commands::FunctionsConfig { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/filesystem.config.FunctionsConfig.json"),
-            )),
-            Commands::FunctionsInventionsConfig { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/filesystem.config.FunctionsInventionsConfig.json"),
-            )),
-            Commands::FunctionsProfilesConfig { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/filesystem.config.FunctionsProfilesConfig.json"),
-            )),
-            Commands::FunctionsProfilesPairsConfig { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/filesystem.config.FunctionsProfilesPairsConfig.json"),
-            )),
-            Commands::PairFavorite { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/filesystem.config.PairFavorite.json"),
-            )),
-            Commands::SwarmsConfig { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/filesystem.config.SwarmsConfig.json"),
-            )),
-            Commands::ViewerConfig { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/filesystem.config.ViewerConfig.json"),
-            )),
-            Commands::ViewerLocalConfig { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/filesystem.config.ViewerLocalConfig.json"),
-            )),
-            Commands::ViewerMode { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/filesystem.config.ViewerMode.json"),
-            )),
-            Commands::ViewerSecretSignaturePair { .. } => Ok(crate::Output::Schema(
-                include_str!("../../../../../objectiveai-json-schema/filesystem.config.ViewerSecretSignaturePair.json"),
-            )),
+            Commands::List => {
+                const NAMES: &[&str] = &["AgentsConfig", "ApiConfig", "ApiHeadersConfig", "ApiLocalConfig", "ApiMode", "ApiRemoteConfig", "Config", "Favorite", "FunctionsConfig", "FunctionsInventionsConfig", "FunctionsProfilesConfig", "FunctionsProfilesPairsConfig", "PairFavorite", "SwarmsConfig", "ViewerConfig", "ViewerLocalConfig", "ViewerMode", "ViewerSecretSignaturePair"];
+                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
+                    SchemaList { schemas: NAMES },
+                ).emit();
+                Ok(())
+            }
+            Commands::AgentsConfig { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/filesystem.config.AgentsConfig.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ApiConfig { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/filesystem.config.ApiConfig.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ApiHeadersConfig { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/filesystem.config.ApiHeadersConfig.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ApiLocalConfig { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/filesystem.config.ApiLocalConfig.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ApiMode { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/filesystem.config.ApiMode.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ApiRemoteConfig { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/filesystem.config.ApiRemoteConfig.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Config { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/filesystem.config.Config.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::Favorite { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/filesystem.config.Favorite.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::FunctionsConfig { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/filesystem.config.FunctionsConfig.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::FunctionsInventionsConfig { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/filesystem.config.FunctionsInventionsConfig.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::FunctionsProfilesConfig { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/filesystem.config.FunctionsProfilesConfig.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::FunctionsProfilesPairsConfig { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/filesystem.config.FunctionsProfilesPairsConfig.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::PairFavorite { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/filesystem.config.PairFavorite.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::SwarmsConfig { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/filesystem.config.SwarmsConfig.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ViewerConfig { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/filesystem.config.ViewerConfig.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ViewerLocalConfig { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/filesystem.config.ViewerLocalConfig.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ViewerMode { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/filesystem.config.ViewerMode.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
+            Commands::ViewerSecretSignaturePair { .. } => {
+                let schema: serde_json::Value = serde_json::from_str(
+                    include_str!("../../../../../objectiveai-json-schema/filesystem.config.ViewerSecretSignaturePair.json"),
+                ).expect("embedded JSON Schema must parse");
+                objectiveai_cli_lib::output::Output::<Schema>::Notification(
+                    Schema { schema },
+                ).emit();
+                Ok(())
+            }
         }
     }
 }
