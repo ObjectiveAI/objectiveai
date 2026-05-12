@@ -10,6 +10,11 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@radix-ui/react-collapsible": "^1.1.12",
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-scroll-area": "^1.2.10",
+    "@radix-ui/react-tabs": "^1.1.13",
+    "@radix-ui/react-tooltip": "^1.2.8",
     "@tauri-apps/api": "^2.10.1",
     "objectiveai": "workspace:*",
     "react": "^19.2.4",
@@ -17,10 +22,12 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.0",
     "@tauri-apps/cli": "^2.10.1",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "tailwindcss": "^4.3.0",
     "typescript": "^5.9.3",
     "vite": "^8.0.1"
   }

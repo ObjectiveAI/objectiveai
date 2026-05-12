@@ -1,7 +1,7 @@
 import type {
   FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunk,
 } from "objectiveai";
-import { AgentCompletionChat } from "./AgentCompletionView";
+import { AgentCompletionChat } from "./components/shared/AgentCompletionChat";
 
 interface FunctionInventionRecursiveEntry {
   kind: "invention";
@@ -11,8 +11,6 @@ interface FunctionInventionRecursiveEntry {
   error: { id: string; code: number; message: unknown } | null;
 }
 
-/// Name extractor for the invention's state.
-/// State is `{ type: "...", ... }` with `name` flattened from params.
 function inventionName(state: unknown, fallbackIndex: number): string {
   if (state && typeof state === "object" && "name" in state) {
     const n = (state as { name?: unknown }).name;
@@ -28,7 +26,6 @@ export function FunctionInventionRecursiveView({
 }) {
   const chunk = entry.chunk;
 
-  // Top-level error (applies to the whole recursive invention).
   const topError = entry.error
     ? { code: entry.error.code, message: entry.error.message }
     : null;
@@ -43,10 +40,10 @@ export function FunctionInventionRecursiveView({
 
         return (
           <div key={inv.index ?? invIdx}>
-            <div className="ac-section-header">
+            <div className="max-w-[800px] mx-auto mt-4 mb-2 px-4 pb-2.5 font-mono text-[13px] font-bold text-info-bright border-b-2 border-info-dim">
               {name}
               {inv.path && (
-                <span style={{ color: "#888", fontWeight: 400, marginLeft: 8 }}>
+                <span className="text-info-dim font-normal ml-2">
                   {inv.path.remote === "filesystem"
                     ? `filesystem:${inv.path.owner}/${inv.path.repository}`
                     : JSON.stringify(inv.path)}
@@ -54,9 +51,8 @@ export function FunctionInventionRecursiveView({
               )}
             </div>
 
-            {/* One chat per agent completion inside this invention. */}
             {inv.completions.length === 0 && !invError && (
-              <div style={{ maxWidth: 800, margin: "0 auto 12px", color: "#999", fontStyle: "italic", padding: "0 16px" }}>
+              <div className="max-w-[800px] mx-auto mb-3 text-info-dim italic px-4">
                 No completions yet…
               </div>
             )}
@@ -76,17 +72,8 @@ export function FunctionInventionRecursiveView({
               );
             })}
 
-            {/* Per-invention error (distinct from per-completion errors). */}
             {invError && (
-              <div
-                className="ac-error-banner"
-                style={{
-                  maxWidth: 800,
-                  margin: "0 auto 16px",
-                  border: "1px solid #f5c6cb",
-                  borderRadius: 8,
-                }}
-              >
+              <div className="max-w-[800px] mx-auto mb-4 bg-error/10 border border-error/30 rounded-md px-4 py-2 text-error text-xs">
                 Invention error {invError.code}: {JSON.stringify(invError.message)}
               </div>
             )}
@@ -94,33 +81,14 @@ export function FunctionInventionRecursiveView({
         );
       })}
 
-      {/* Placeholder when nothing has arrived yet. */}
       {!chunk && !topError && (
-        <div
-          style={{
-            maxWidth: 800,
-            margin: "0 auto 24px",
-            padding: 16,
-            color: "#999",
-            fontStyle: "italic",
-            textAlign: "center",
-          }}
-        >
+        <div className="max-w-[800px] mx-auto mb-6 p-4 text-info-dim italic text-center">
           Waiting for invention…
         </div>
       )}
 
-      {/* Top-level error for the whole recursive invention. */}
       {topError && (
-        <div
-          className="ac-error-banner"
-          style={{
-            maxWidth: 800,
-            margin: "0 auto 24px",
-            border: "1px solid #f5c6cb",
-            borderRadius: 8,
-          }}
-        >
+        <div className="max-w-[800px] mx-auto mb-6 bg-error/10 border border-error/30 rounded-md px-4 py-2 text-error text-xs">
           Error {topError.code}: {JSON.stringify(topError.message)}
         </div>
       )}

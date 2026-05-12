@@ -6,7 +6,7 @@ import type {
   FunctionsExecutionsResponseStreamingReasoningSummaryChunk,
   VectorCompletionsResponseStreamingAgentCompletionChunk,
 } from "objectiveai";
-import { AgentCompletionChat } from "./AgentCompletionView";
+import { AgentCompletionChat } from "./components/shared/AgentCompletionChat";
 
 interface FunctionExecutionEntry {
   kind: "execution";
@@ -16,47 +16,13 @@ interface FunctionExecutionEntry {
   error: { id: string; code: number; message: unknown } | null;
 }
 
-// ---------------------------------------------------------------------------
-// Tree walk
-// ---------------------------------------------------------------------------
-//
-// A function execution is a tree:
-//
-//   FunctionExecutionChunk (root)
-//   ├── reasoning?  ← one agent completion (its own response id)
-//   └── tasks[]
-//       ├── FunctionExecutionTaskChunk  (a wrapped sub-execution)
-//       │   ├── reasoning?
-//       │   └── tasks[]   ← recurses, possibly many levels deep
-//       │       (split mode wraps an entire execution per array element;
-//       │        swiss strategy wraps an execution per pool per round;
-//       │        nested branch functions wrap their sub-functions; etc.)
-//       └── VectorCompletionTaskChunk   (a leaf)
-//           └── completions[]   ← one or more agent completions, each with a
-//                                 unique response id
-//
-// We exhaustively walk every nested wrapper, picking up every reasoning
-// summary and every vector-completion's agent completions as we go.
-
-/// One renderable chat entry: a single agent-completion chunk plus the
-/// path / modifiers that locate it within the execution tree.
 interface ChatLeaf {
-  /// React key — the inner completion's unique response_id. The execution
-  /// tree assigns a fresh response_id to each individual agent completion,
-  /// so this is sufficient.
   key: string;
-  /// Human-readable label shown above the chat.
   label: string;
-  /// The actual agent-completion chunk (vector-completion variant has the
-  /// same flat shape as the regular agent-completion chunk).
   chunk: VectorCompletionsResponseStreamingAgentCompletionChunk;
-  /// Optional per-completion error.
   error: { code: number; message: unknown } | null;
 }
 
-// `TaskChunk` is `#[serde(untagged)]` in Rust, so the JSON variants are
-// distinguished only by structure. The single most reliable discriminator
-// is the `object` marker every inner chunk carries.
 function isVectorCompletionTask(t: unknown): boolean {
   return (
     typeof t === "object" &&
@@ -104,8 +70,6 @@ function emitReasoning(
   out: ChatLeaf[],
 ): void {
   if (!reasoning) return;
-  // ReasoningSummaryChunk = AgentCompletionChunk fields (flattened) + error.
-  // The chunk itself satisfies the AgentCompletionChat shape directly.
   const r = reasoning as unknown as VectorCompletionsResponseStreamingAgentCompletionChunk & {
     error?: { code: number; message: unknown } | null;
   };
@@ -148,15 +112,10 @@ function walkTasks(
     if (isFunctionExecutionTask(t)) {
       const fe = t as unknown as FunctionsExecutionsResponseStreamingFunctionExecutionTaskChunk;
       const mods = [...inheritedModifiers, ...modifiersFor(fe)];
-      // Reasoning at THIS nesting level (its own agent completion).
       emitReasoning(fe.reasoning, fe.task_path ?? [], mods, out);
-      // Recurse into the wrapper's own tasks (which may themselves contain
-      // more wrappers, indefinitely deep).
       walkTasks(fe.tasks, mods, out);
       continue;
     }
-    // Unknown task variant — silently skip rather than crash. Surfaces as
-    // a missing entry, which is preferable to a blank screen.
   }
 }
 
@@ -164,16 +123,10 @@ function collectChats(
   chunk: FunctionsExecutionsResponseStreamingFunctionExecutionChunk,
 ): ChatLeaf[] {
   const out: ChatLeaf[] = [];
-  // Root reasoning summary, if any.
   emitReasoning(chunk.reasoning, [], [], out);
-  // Walk the whole tree.
   walkTasks(chunk.tasks, [], out);
   return out;
 }
-
-// ---------------------------------------------------------------------------
-// View
-// ---------------------------------------------------------------------------
 
 export function FunctionExecutionView({ entry }: { entry: FunctionExecutionEntry }) {
   const chunk = entry.chunk;
@@ -196,30 +149,13 @@ export function FunctionExecutionView({ entry }: { entry: FunctionExecutionEntry
       ))}
 
       {chats.length === 0 && !topError && (
-        <div
-          style={{
-            maxWidth: 800,
-            margin: "0 auto 24px",
-            padding: 16,
-            color: "#999",
-            fontStyle: "italic",
-            textAlign: "center",
-          }}
-        >
+        <div className="max-w-[800px] mx-auto mb-6 p-4 text-info-dim italic text-center">
           Waiting for execution…
         </div>
       )}
 
       {topError && (
-        <div
-          className="ac-error-banner"
-          style={{
-            maxWidth: 800,
-            margin: "0 auto 24px",
-            border: "1px solid #f5c6cb",
-            borderRadius: 8,
-          }}
-        >
+        <div className="max-w-[800px] mx-auto mb-6 bg-error/10 border border-error/30 rounded-md px-4 py-2 text-error text-xs">
           Error {topError.code}: {JSON.stringify(topError.message)}
         </div>
       )}
