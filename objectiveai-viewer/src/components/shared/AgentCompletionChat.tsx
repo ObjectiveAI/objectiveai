@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import type {
   AgentCompletionsResponseStreamingAgentCompletionChunk,
   AgentCompletionsResponseToolResponse,
@@ -7,7 +7,7 @@ import type {
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { SystemBanner, UserBubble, AssistantBubble, ToolResultBubble } from "./MessageBubble";
 import { UsageFooter } from "./UsageFooter";
-import { isAssistantMessage, hasContent } from "../../lib/typeGuards";
+import { isAssistantMessage, isLastAssistantDone, hasContent } from "../../lib/typeGuards";
 
 export interface AgentCompletionChatProps {
   label?: string;
@@ -36,9 +36,7 @@ export function AgentCompletionChat({
     upstream = chunk.upstream ?? "";
   }
 
-  const hasFinish = chunk?.messages.some(
-    (m) => isAssistantMessage(m) && m.finish_reason
-  );
+  const hasFinish = chunk ? isLastAssistantDone(chunk.messages) : false;
   const status = error ? "error" : hasFinish ? "complete" : "streaming";
 
   const created = chunk?.created;
@@ -52,7 +50,7 @@ export function AgentCompletionChat({
   }[status];
 
   return (
-    <div className="text-left max-w-[800px] mx-auto mb-6 border border-node-border rounded-md overflow-hidden text-sm bg-ground-raised">
+    <div className="text-left max-w-content mx-auto mb-6 border border-node-border rounded-md overflow-hidden text-sm bg-ground-raised">
       {label && (
         <div className="px-4 py-2 bg-ground-surface border-b border-node-border font-mono text-xs font-semibold text-copper-mid break-words">
           {label}
@@ -115,10 +113,18 @@ export function AgentCompletionChat({
 
 function CopyableId({ id }: { id: string }) {
   const [copied, setCopied] = useState(false);
-  const copy = useCallback(() => {
-    navigator.clipboard.writeText(id);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+
+  useEffect(() => {
+    if (!copied) return;
+    const t = setTimeout(() => setCopied(false), 1500);
+    return () => clearTimeout(t);
+  }, [copied]);
+
+  const copy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(id);
+      setCopied(true);
+    } catch { /* clipboard denied */ }
   }, [id]);
 
   return (

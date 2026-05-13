@@ -6,6 +6,14 @@ export function isAssistantMessage(
   return msg.role === "assistant";
 }
 
+export function isLastAssistantDone(messages: { role: string }[]): boolean {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (isAssistantMessage(msg)) return !!msg.finish_reason;
+  }
+  return false;
+}
+
 export function hasContent(value: unknown): value is { content: unknown } {
   return typeof value === "object" && value !== null && "content" in value;
 }

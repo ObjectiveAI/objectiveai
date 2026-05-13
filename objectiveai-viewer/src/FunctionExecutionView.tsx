@@ -150,7 +150,7 @@ export function FunctionExecutionView({ entry }: { entry: FunctionExecutionEntry
               id={leaf.chunk.id}
             />
             {showScores && (
-              <div className="max-w-[800px] mx-auto -mt-3 mb-6 px-4 py-2 bg-ground-surface border border-t-0 border-node-border rounded-b-md">
+              <div className="max-w-content mx-auto -mt-3 mb-6 px-4 py-2 bg-ground-surface border border-t-0 border-node-border rounded-b-md">
                 <OutputBar output={leaf.scores} />
               </div>
             )}
@@ -159,20 +159,20 @@ export function FunctionExecutionView({ entry }: { entry: FunctionExecutionEntry
       })}
 
       {chunk?.output !== undefined && chunk.output !== null && (
-        <div className="max-w-[800px] mx-auto mb-6 px-4 py-3 bg-ground-surface border border-node-border rounded-md">
+        <div className="max-w-content mx-auto mb-6 px-4 py-3 bg-ground-surface border border-node-border rounded-md">
           <div className="text-[10px] font-mono text-info-dim uppercase tracking-wide mb-2">Output</div>
           <OutputBar output={chunk.output} />
         </div>
       )}
 
       {chats.length === 0 && !topError && (
-        <div className="max-w-[800px] mx-auto mb-6 p-4 text-info-dim italic text-center">
+        <div className="max-w-content mx-auto mb-6 p-4 text-info-dim italic text-center">
           Waiting for execution…
         </div>
       )}
 
       {topError && (
-        <div role="alert" className="max-w-[800px] mx-auto mb-6 bg-error/10 border border-error/30 rounded-md px-4 py-2 text-error text-xs">
+        <div role="alert" className="max-w-content mx-auto mb-6 bg-error/10 border border-error/30 rounded-md px-4 py-2 text-error text-xs">
           Error {topError.code}: {JSON.stringify(topError.message)}
         </div>
       )}

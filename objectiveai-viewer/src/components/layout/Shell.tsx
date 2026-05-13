@@ -20,7 +20,7 @@ export function Shell({ children, statusBar, entryCount }: { children: ReactNode
 
   return (
     <div className="flex flex-col h-screen">
-      <header className="flex items-center gap-2.5 px-6 py-3 border-b border-node-border bg-ground-raised shrink-0">
+      <header className="flex items-center gap-2.5 px-6 py-3 border-b border-node-border bg-ground-raised shrink-0 select-none">
         <LogoMark className="h-5 w-auto text-info-bright" />
         <Wordmark className="h-3.5 w-auto text-info-bright" />
         <span className="text-info-dim text-[10px] uppercase tracking-widest font-mono ml-1">viewer</span>

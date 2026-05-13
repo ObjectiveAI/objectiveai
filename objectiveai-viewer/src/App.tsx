@@ -44,7 +44,7 @@ function App() {
   return (
     <Shell statusBar={<StatusBar entries={entries} />} entryCount={entries.length}>
       {entries.length > 0 && (
-        <div className="flex gap-1.5 px-2 mb-4">
+        <div className="flex gap-1.5 px-2 mb-4 select-none">
           {KINDS.map(({ kind, label }) => {
             const count = kindCounts.get(kind) ?? 0;
             const active = activeKinds.has(kind);

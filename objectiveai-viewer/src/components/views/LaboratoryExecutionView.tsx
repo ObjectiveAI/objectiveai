@@ -34,7 +34,7 @@ function EvaluationCard({ evaluation }: { evaluation: LaboratoriesExecutionsResp
         id={evaluation.id}
       />
       {evaluation.output !== undefined && evaluation.output !== null && (
-        <div className="max-w-[800px] mx-auto mb-6 px-4 py-2 bg-ground-surface border border-t-0 border-node-border rounded-b-md">
+        <div className="max-w-content mx-auto mb-6 px-4 py-2 bg-ground-surface border border-t-0 border-node-border rounded-b-md">
           <div className="text-[10px] font-mono text-info-dim uppercase tracking-wide mb-1.5">output</div>
           <OutputBar output={evaluation.output} />
         </div>
@@ -61,7 +61,7 @@ export function LaboratoryExecutionView({ entry }: { entry: LaboratoryExecutionE
   }[status];
 
   return (
-    <div className="max-w-[800px] mx-auto mb-6">
+    <div className="max-w-content mx-auto mb-6">
       <div className="flex items-center gap-2.5 px-4 py-2.5 bg-ground-surface border border-node-border rounded-t-md text-xs text-info-dim">
         <div className={`w-2 h-2 rounded-full shrink-0 ${statusColor} ${status === "streaming" ? "animate-pulse" : ""}`} />
         <span className="font-semibold text-info-bright">Laboratory</span>

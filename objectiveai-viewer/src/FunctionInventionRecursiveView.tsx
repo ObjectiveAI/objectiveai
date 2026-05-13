@@ -38,7 +38,7 @@ export function FunctionInventionRecursiveView({
 
         return (
           <div key={inv.index ?? invIdx}>
-            <div className="max-w-[800px] mx-auto mt-4 mb-2 px-4 pb-2.5 border-b-2 border-info-dim">
+            <div className="max-w-content mx-auto mt-4 mb-2 px-4 pb-2.5 border-b-2 border-info-dim">
               <div className="flex items-center gap-2 font-mono text-[13px] font-bold text-info-bright">
                 {name}
                 {fnType && (
@@ -61,7 +61,7 @@ export function FunctionInventionRecursiveView({
             </div>
 
             {inv.completions.length === 0 && !invError && (
-              <div className="max-w-[800px] mx-auto mb-3 text-info-dim italic px-4">
+              <div className="max-w-content mx-auto mb-3 text-info-dim italic px-4">
                 No completions yet…
               </div>
             )}
@@ -82,7 +82,7 @@ export function FunctionInventionRecursiveView({
             })}
 
             {invError && (
-              <div role="alert" className="max-w-[800px] mx-auto mb-4 bg-error/10 border border-error/30 rounded-md px-4 py-2 text-error text-xs">
+              <div role="alert" className="max-w-content mx-auto mb-4 bg-error/10 border border-error/30 rounded-md px-4 py-2 text-error text-xs">
                 Invention error {invError.code}: {JSON.stringify(invError.message)}
               </div>
             )}
@@ -91,13 +91,13 @@ export function FunctionInventionRecursiveView({
       })}
 
       {!chunk && !topError && (
-        <div className="max-w-[800px] mx-auto mb-6 p-4 text-info-dim italic text-center">
+        <div className="max-w-content mx-auto mb-6 p-4 text-info-dim italic text-center">
           Waiting for invention…
         </div>
       )}
 
       {topError && (
-        <div role="alert" className="max-w-[800px] mx-auto mb-6 bg-error/10 border border-error/30 rounded-md px-4 py-2 text-error text-xs">
+        <div role="alert" className="max-w-content mx-auto mb-6 bg-error/10 border border-error/30 rounded-md px-4 py-2 text-error text-xs">
           Error {topError.code}: {JSON.stringify(topError.message)}
         </div>
       )}

@@ -1,6 +1,7 @@
 import type { Entry } from "../../types";
 import { useElapsedTime } from "../../hooks/useElapsedTime";
 import { formatCost } from "../../lib/format";
+import { isLastAssistantDone } from "../../lib/typeGuards";
 
 export function StatusBar({ entries }: { entries: Entry[] }) {
   if (entries.length === 0) return null;
@@ -11,10 +12,7 @@ export function StatusBar({ entries }: { entries: Entry[] }) {
     if ((e.chunk as { usage?: unknown }).usage != null) return false;
     switch (e.kind) {
       case "agent-completion":
-        return !e.chunk.messages.some(
-          (m: { role: string; finish_reason?: string | null }) =>
-            m.role === "assistant" && m.finish_reason
-        );
+        return !isLastAssistantDone(e.chunk.messages);
       case "execution":
         return e.chunk.output == null;
       case "invention":
@@ -48,7 +46,7 @@ export function StatusBar({ entries }: { entries: Entry[] }) {
   }
 
   return (
-    <footer className="flex items-center gap-6 px-6 py-2 border-t border-node-border bg-ground-raised font-mono text-[10px] text-info-dim tabular-nums">
+    <footer className="flex items-center gap-6 px-6 py-2 border-t border-node-border bg-ground-raised font-mono text-[10px] text-info-dim tabular-nums select-none">
       <div className="flex items-center gap-1.5">
         <div className={`w-1.5 h-1.5 rounded-full ${activeCount > 0 ? "bg-copper-hot animate-pulse" : "bg-info-dim"}`} />
         <span>{activeCount} active</span>

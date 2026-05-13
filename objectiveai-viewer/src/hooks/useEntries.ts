@@ -43,9 +43,9 @@ function createListener(
       }
       if (classified.type === "error") {
         const id = classified.data.id;
-        if (!prev.some((e) => e.id === id)) return prev;
+        if (!prev.some((e) => e.id === id && e.kind === kind)) return prev;
         return prev.map((e) =>
-          e.id === id ? { ...e, error: classified.data } as Entry : e
+          e.id === id && e.kind === kind ? { ...e, error: classified.data } as Entry : e
         );
       }
       const id = (classified.data as { id: string }).id;
@@ -65,6 +65,8 @@ export function useEntries(): Entry[] {
   const [entries, setEntries] = useState<Entry[]>([]);
 
   useEffect(() => {
+    let cancelled = false;
+
     const wrap = <T,>(fn: (a: T, b: T) => [T, boolean]) =>
       (a: unknown, b: unknown) => fn(a as T, b as T) as [unknown, boolean];
 
@@ -75,9 +77,12 @@ export function useEntries(): Entry[] {
       createListener("laboratories-executions", "laboratory", classifyLaboratoryExecution, wrap(laboratoriesExecutionsResponseStreamingLaboratoryExecutionChunkMerged), setEntries),
     ];
 
-    Promise.all(listeners).then(() => invoke("viewer_ready"));
+    Promise.all(listeners).then(() => {
+      if (!cancelled) invoke("viewer_ready");
+    });
 
     return () => {
+      cancelled = true;
       for (const l of listeners) l.then((fn) => fn());
     };
   }, []);

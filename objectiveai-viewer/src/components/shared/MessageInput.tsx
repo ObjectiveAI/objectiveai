@@ -32,7 +32,7 @@ export function MessageInput({ responseId }: { responseId: string }) {
   }, [send]);
 
   return (
-    <div className="max-w-[800px] mx-auto mb-6 flex gap-2 px-4">
+    <div className="max-w-content mx-auto mb-6 flex gap-2 px-4">
       <textarea
         className="flex-1 bg-ground-surface border border-node-border rounded-md px-3 py-2 text-sm text-info-bright font-mono resize-none placeholder:text-info-dim focus:outline-none focus:border-copper-dim"
         rows={1}

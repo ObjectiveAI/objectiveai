@@ -30,11 +30,9 @@
 
   /* Life layer — copper spectrum (cold → hot) */
   --color-copper-dim: #78716c;
-  --color-copper-dim-rgb: 120, 113, 108;
   --color-copper-warm: #b45309;
   --color-copper-mid: #d97706;
   --color-copper-hot: #f59e0b;
-  --color-copper-hot-rgb: 245, 158, 11;
   --color-copper-bright: #fbbf24;
 
   /* Semantic */
@@ -48,6 +46,7 @@
 
   /* Spacing */
   --radius-sm: 4px;
+  --width-content: 800px;
 }
 
 @layer base {
@@ -73,6 +72,11 @@
     box-sizing: border-box;
     padding: 0;
     margin: 0;
+  }
+
+  *:focus-visible {
+    outline: 1px solid var(--color-copper-dim);
+    outline-offset: 2px;
   }
 }
 

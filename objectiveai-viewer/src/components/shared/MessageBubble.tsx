@@ -35,7 +35,7 @@ export function SystemBanner({ role, content }: { role: string; content: unknown
 
 export function UserBubble({ content }: { content: unknown }) {
   return (
-    <div className="self-end max-w-3/4 bg-ground-surface border border-node-border rounded-xl rounded-br-sm px-3.5 py-2.5">
+    <div className="self-end max-w-[75%] bg-ground-surface border border-node-border rounded-xl rounded-br-sm px-3.5 py-2.5">
       <div className="text-[10px] font-semibold uppercase tracking-wide text-info-dim mb-1">User</div>
       <RichContent content={content} />
     </div>
