@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { formatElapsed } from "../lib/format";
 
 export function useElapsedTime(startTime: number | null): string {
   const [now, setNow] = useState(Date.now());
@@ -9,10 +10,6 @@ export function useElapsedTime(startTime: number | null): string {
     return () => clearInterval(id);
   }, [startTime]);
 
-  if (!startTime) return "0s";
-  const seconds = Math.floor((now - startTime) / 1000);
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  const remainder = seconds % 60;
-  return `${minutes}m ${remainder}s`;
+  if (!startTime) return "00:00";
+  return formatElapsed(now - startTime);
 }

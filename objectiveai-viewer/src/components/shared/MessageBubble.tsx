@@ -5,6 +5,7 @@ import type {
 import * as Collapsible from "@radix-ui/react-collapsible";
 import { RichContent } from "./RichContent";
 import { ToolCallCard } from "./ToolCallCard";
+import { hasContent } from "../../lib/typeGuards";
 
 export function SystemBanner({ role, content }: { role: string; content: unknown }) {
   const text =
@@ -16,9 +17,9 @@ export function SystemBanner({ role, content }: { role: string; content: unknown
   return (
     <Collapsible.Root defaultOpen={false}>
       <div className="bg-ground-surface border border-node-border rounded-md px-3 py-2 text-xs text-info-dim">
-        <Collapsible.Trigger className="w-full text-left cursor-pointer">
+        <Collapsible.Trigger className="group w-full text-left cursor-pointer" aria-label={`Toggle ${role} prompt`}>
           <div className="font-semibold uppercase text-[10px] tracking-wide text-info-dim flex items-center gap-1.5">
-            <span className="text-copper-dim text-[8px]">▶</span>
+            <svg className="w-2 h-2 text-copper-dim transition-transform duration-150 group-data-[state=open]:rotate-90" viewBox="0 0 8 8" fill="currentColor"><path d="M2 1l4 3-4 3z"/></svg>
             {role}
           </div>
         </Collapsible.Trigger>
@@ -56,9 +57,9 @@ export function AssistantBubble({ msg }: { msg: AssistantResponseChunkLike }) {
       {msg.reasoning && (
         <Collapsible.Root defaultOpen={false}>
           <div className="bg-ground-surface border border-node-border rounded-sm px-2.5 py-2 mb-2 text-xs text-copper-dim italic">
-            <Collapsible.Trigger className="w-full text-left cursor-pointer">
+            <Collapsible.Trigger className="group w-full text-left cursor-pointer" aria-label="Toggle thinking">
               <div className="font-semibold not-italic text-[10px] uppercase tracking-wide text-copper-dim flex items-center gap-1.5">
-                <span className="text-[8px]">▶</span>
+                <svg className="w-2 h-2 transition-transform duration-150 group-data-[state=open]:rotate-90" viewBox="0 0 8 8" fill="currentColor"><path d="M2 1l4 3-4 3z"/></svg>
                 Thinking
               </div>
             </Collapsible.Trigger>
@@ -92,11 +93,11 @@ export function AssistantBubble({ msg }: { msg: AssistantResponseChunkLike }) {
 
 function FinishBadge({ reason }: { reason: string }) {
   const colors: Record<string, string> = {
-    stop: "bg-green-900/40 text-green-400",
-    length: "bg-amber-900/40 text-amber-400",
-    tool_calls: "bg-blue-900/40 text-blue-400",
-    content_filter: "bg-red-900/40 text-red-400",
-    error: "bg-red-900/40 text-red-400",
+    stop: "bg-copper-hot/20 text-copper-bright",
+    length: "bg-copper-mid/20 text-copper-mid",
+    tool_calls: "bg-info-dim/20 text-info-mid",
+    content_filter: "bg-error/20 text-error",
+    error: "bg-error/20 text-error",
   };
   return (
     <span className={`inline-block text-[10px] px-1.5 py-px rounded-sm font-semibold lowercase ${colors[reason] ?? "bg-ground-surface text-info-dim"}`}>
@@ -106,7 +107,7 @@ function FinishBadge({ reason }: { reason: string }) {
 }
 
 export function ToolResultBubble({ msg }: { msg: AgentCompletionsResponseToolResponse }) {
-  const raw = (msg as unknown as { content: unknown }).content;
+  const raw = hasContent(msg) ? msg.content : undefined;
   const content =
     typeof raw === "string"
       ? raw

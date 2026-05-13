@@ -7,20 +7,16 @@ import type {
   VectorCompletionsResponseStreamingAgentCompletionChunk,
 } from "objectiveai";
 import { AgentCompletionChat } from "./components/shared/AgentCompletionChat";
-
-interface FunctionExecutionEntry {
-  kind: "execution";
-  id: string;
-  request: { id: string };
-  chunk: FunctionsExecutionsResponseStreamingFunctionExecutionChunk | null;
-  error: { id: string; code: number; message: unknown } | null;
-}
+import { OutputBar } from "./components/shared/OutputBar";
+import type { FunctionExecutionEntry } from "./types";
 
 interface ChatLeaf {
   key: string;
   label: string;
   chunk: VectorCompletionsResponseStreamingAgentCompletionChunk;
   error: { code: number; message: unknown } | null;
+  scores?: number[];
+  weights?: number[];
 }
 
 function isVectorCompletionTask(t: unknown): boolean {
@@ -95,6 +91,8 @@ function walkTasks(
       const v = t as unknown as FunctionsExecutionsResponseStreamingVectorCompletionTaskChunk;
       const path = v.task_path ?? [];
       const completions = v.completions ?? [];
+      const scores = v.scores as number[] | undefined;
+      const weights = v.weights as number[] | undefined;
       for (let ci = 0; ci < completions.length; ci++) {
         const comp = completions[ci];
         const compError = comp.error
@@ -105,6 +103,8 @@ function walkTasks(
           label: formatLabel(path, inheritedModifiers, `completion #${comp.index ?? ci}`),
           chunk: comp,
           error: compError,
+          scores,
+          weights,
         });
       }
       continue;
@@ -138,15 +138,32 @@ export function FunctionExecutionView({ entry }: { entry: FunctionExecutionEntry
 
   return (
     <div>
-      {chats.map((leaf) => (
-        <AgentCompletionChat
-          key={leaf.key}
-          label={leaf.label}
-          chunk={leaf.chunk}
-          error={leaf.error}
-          id={leaf.chunk.id}
-        />
-      ))}
+      {chats.map((leaf, idx) => {
+        const showScores = leaf.scores && leaf.scores.length > 0 &&
+          (idx === 0 || chats[idx - 1].scores !== leaf.scores);
+        return (
+          <div key={leaf.key}>
+            <AgentCompletionChat
+              label={leaf.label}
+              chunk={leaf.chunk}
+              error={leaf.error}
+              id={leaf.chunk.id}
+            />
+            {showScores && (
+              <div className="max-w-[800px] mx-auto -mt-3 mb-6 px-4 py-2 bg-ground-surface border border-t-0 border-node-border rounded-b-md">
+                <OutputBar output={leaf.scores} />
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {chunk?.output !== undefined && chunk.output !== null && (
+        <div className="max-w-[800px] mx-auto mb-6 px-4 py-3 bg-ground-surface border border-node-border rounded-md">
+          <div className="text-[10px] font-mono text-info-dim uppercase tracking-wide mb-2">Output</div>
+          <OutputBar output={chunk.output} />
+        </div>
+      )}
 
       {chats.length === 0 && !topError && (
         <div className="max-w-[800px] mx-auto mb-6 p-4 text-info-dim italic text-center">
@@ -155,7 +172,7 @@ export function FunctionExecutionView({ entry }: { entry: FunctionExecutionEntry
       )}
 
       {topError && (
-        <div className="max-w-[800px] mx-auto mb-6 bg-error/10 border border-error/30 rounded-md px-4 py-2 text-error text-xs">
+        <div role="alert" className="max-w-[800px] mx-auto mb-6 bg-error/10 border border-error/30 rounded-md px-4 py-2 text-error text-xs">
           Error {topError.code}: {JSON.stringify(topError.message)}
         </div>
       )}

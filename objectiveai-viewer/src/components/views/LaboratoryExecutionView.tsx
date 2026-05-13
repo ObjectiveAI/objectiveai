@@ -1,18 +1,11 @@
 import * as Tabs from "@radix-ui/react-tabs";
 import type {
-  LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunk,
   LaboratoriesExecutionsResponseStreamingBuilderChunk,
   LaboratoriesExecutionsResponseStreamingEvaluationChunk,
 } from "objectiveai";
 import { AgentCompletionChat } from "../shared/AgentCompletionChat";
-
-interface LaboratoryExecutionEntry {
-  kind: "laboratory";
-  id: string;
-  request: { id: string };
-  chunk: LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunk | null;
-  error: { id: string; code: number; message: unknown } | null;
-}
+import { OutputBar } from "../shared/OutputBar";
+import type { LaboratoryExecutionEntry } from "../../types";
 
 function BuilderCard({ builder }: { builder: LaboratoriesExecutionsResponseStreamingBuilderChunk }) {
   const compError = builder.error
@@ -41,9 +34,9 @@ function EvaluationCard({ evaluation }: { evaluation: LaboratoriesExecutionsResp
         id={evaluation.id}
       />
       {evaluation.output !== undefined && evaluation.output !== null && (
-        <div className="max-w-[800px] mx-auto -mt-4 mb-6 px-4 py-2 bg-ground-surface border border-node-border rounded-b-md font-mono text-xs text-copper-mid">
-          <span className="text-info-dim mr-2">output:</span>
-          {JSON.stringify(evaluation.output)}
+        <div className="max-w-[800px] mx-auto mb-6 px-4 py-2 bg-ground-surface border border-t-0 border-node-border rounded-b-md">
+          <div className="text-[10px] font-mono text-info-dim uppercase tracking-wide mb-1.5">output</div>
+          <OutputBar output={evaluation.output} />
         </div>
       )}
     </div>
@@ -63,7 +56,7 @@ export function LaboratoryExecutionView({ entry }: { entry: LaboratoryExecutionE
   const status = topError ? "error" : hasFinish ? "complete" : "streaming";
   const statusColor = {
     streaming: "bg-copper-hot",
-    complete: "bg-green-500",
+    complete: "bg-success",
     error: "bg-error",
   }[status];
 
@@ -119,7 +112,7 @@ export function LaboratoryExecutionView({ entry }: { entry: LaboratoryExecutionE
       )}
 
       {topError && (
-        <div className="bg-error/10 border border-error/30 rounded-md px-4 py-2 text-error text-xs mt-2">
+        <div role="alert" className="bg-error/10 border border-error/30 rounded-md px-4 py-2 text-error text-xs mt-2">
           Error {topError.code}: {JSON.stringify(topError.message)}
         </div>
       )}

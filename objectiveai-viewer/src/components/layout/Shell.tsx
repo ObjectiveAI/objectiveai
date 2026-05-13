@@ -1,15 +1,32 @@
-import type { ReactNode } from "react";
+import { useRef, useEffect, useCallback, type ReactNode } from "react";
 import * as ScrollArea from "@radix-ui/react-scroll-area";
+import { LogoMark, Wordmark } from "../shared/Logo";
 
-export function Shell({ children, statusBar }: { children: ReactNode; statusBar?: ReactNode }) {
+export function Shell({ children, statusBar, entryCount }: { children: ReactNode; statusBar?: ReactNode; entryCount?: number }) {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const userScrolledUp = useRef(false);
+
+  const onScroll = useCallback(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    userScrolledUp.current = el.scrollTop + el.clientHeight < el.scrollHeight - 100;
+  }, []);
+
+  useEffect(() => {
+    if (userScrolledUp.current) return;
+    const el = viewportRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [entryCount]);
+
   return (
     <div className="flex flex-col h-screen">
-      <header className="flex items-center gap-3 px-6 py-3 border-b border-node-border bg-ground-raised shrink-0">
-        <div className="w-2 h-2 rounded-full bg-copper-hot" />
-        <h1 className="font-mono text-sm font-semibold text-info-bright tracking-wide">ObjectiveAI Viewer</h1>
+      <header className="flex items-center gap-2.5 px-6 py-3 border-b border-node-border bg-ground-raised shrink-0">
+        <LogoMark className="h-5 w-auto text-info-bright" />
+        <Wordmark className="h-3.5 w-auto text-info-bright" />
+        <span className="text-info-dim text-[10px] uppercase tracking-widest font-mono ml-1">viewer</span>
       </header>
       <ScrollArea.Root className="flex-1 overflow-hidden">
-        <ScrollArea.Viewport className="h-full w-full">
+        <ScrollArea.Viewport ref={viewportRef} className="h-full w-full" onScroll={onScroll}>
           <main className="py-6 px-4">
             {children}
           </main>

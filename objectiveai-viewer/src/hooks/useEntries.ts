@@ -7,7 +7,7 @@ import {
   functionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkMerged,
   laboratoriesExecutionsResponseStreamingLaboratoryExecutionChunkMerged,
 } from "objectiveai";
-import type { Entry } from "../types";
+import type { Entry, ResponseError } from "../types";
 import {
   classifyAgentCompletion,
   classifyFunctionExecution,
@@ -15,162 +15,70 @@ import {
   classifyLaboratoryExecution,
 } from "../classify";
 
+interface ClassifiedBegin { type: "begin"; data: { id: string } }
+interface ClassifiedError { type: "error"; data: ResponseError }
+interface ClassifiedChunk { type: "chunk"; data: unknown }
+type ClassifyResult = ClassifiedBegin | ClassifiedError | ClassifiedChunk;
+
+function createListener(
+  channel: string,
+  kind: Entry["kind"],
+  classify: (payload: unknown) => ClassifyResult | null,
+  merge: (a: unknown, b: unknown) => [unknown, boolean],
+  setEntries: React.Dispatch<React.SetStateAction<Entry[]>>,
+): Promise<() => void> {
+  return listen<unknown>(channel, (event) => {
+    const classified = classify(event.payload);
+    if (!classified) return;
+
+    setEntries((prev) => {
+      if (classified.type === "begin") {
+        return [...prev, {
+          kind,
+          id: classified.data.id,
+          request: classified.data,
+          chunk: null,
+          error: null,
+        } as Entry];
+      }
+      if (classified.type === "error") {
+        const id = classified.data.id;
+        if (!prev.some((e) => e.id === id)) return prev;
+        return prev.map((e) =>
+          e.id === id ? { ...e, error: classified.data } as Entry : e
+        );
+      }
+      const id = (classified.data as { id: string }).id;
+      if (!prev.some((e) => e.id === id && e.kind === kind)) return prev;
+      return prev.map((e) => {
+        if (e.id !== id || e.kind !== kind) return e;
+        const [merged] = e.chunk
+          ? merge(e.chunk, classified.data)
+          : [classified.data, true];
+        return { ...e, chunk: merged } as Entry;
+      });
+    });
+  });
+}
+
 export function useEntries(): Entry[] {
   const [entries, setEntries] = useState<Entry[]>([]);
 
   useEffect(() => {
-    const unlistenAgentCompletion = listen<unknown>("agent-completions", (event) => {
-      const classified = classifyAgentCompletion(event.payload);
-      if (!classified) return;
+    const wrap = <T,>(fn: (a: T, b: T) => [T, boolean]) =>
+      (a: unknown, b: unknown) => fn(a as T, b as T) as [unknown, boolean];
 
-      setEntries((prev) => {
-        switch (classified.type) {
-          case "begin":
-            return [...prev, {
-              kind: "agent-completion" as const,
-              id: classified.data.id,
-              request: classified.data,
-              chunk: null,
-              error: null,
-            }];
-          case "error": {
-            const id = classified.data.id;
-            if (!prev.some((e) => e.id === id)) return prev;
-            return prev.map((e) =>
-              e.id === id ? { ...e, error: classified.data } : e
-            );
-          }
-          case "chunk": {
-            const id = classified.data.id;
-            if (!prev.some((e) => e.id === id && e.kind === "agent-completion")) return prev;
-            return prev.map((e) => {
-              if (e.id !== id || e.kind !== "agent-completion") return e;
-              const [merged] = e.chunk
-                ? agentCompletionsResponseStreamingAgentCompletionChunkMerged(e.chunk, classified.data)
-                : [classified.data, true];
-              return { ...e, chunk: merged };
-            });
-          }
-        }
-      });
-    });
+    const listeners = [
+      createListener("agent-completions", "agent-completion", classifyAgentCompletion, wrap(agentCompletionsResponseStreamingAgentCompletionChunkMerged), setEntries),
+      createListener("functions-executions", "execution", classifyFunctionExecution, wrap(functionsExecutionsResponseStreamingFunctionExecutionChunkMerged), setEntries),
+      createListener("functions-inventions-recursive", "invention", classifyFunctionInventionRecursive, wrap(functionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkMerged), setEntries),
+      createListener("laboratories-executions", "laboratory", classifyLaboratoryExecution, wrap(laboratoriesExecutionsResponseStreamingLaboratoryExecutionChunkMerged), setEntries),
+    ];
 
-    const unlistenExecution = listen<unknown>("functions-executions", (event) => {
-      const classified = classifyFunctionExecution(event.payload);
-      if (!classified) return;
-
-      setEntries((prev) => {
-        switch (classified.type) {
-          case "begin":
-            return [...prev, {
-              kind: "execution" as const,
-              id: classified.data.id,
-              request: classified.data,
-              chunk: null,
-              error: null,
-            }];
-          case "error": {
-            const id = classified.data.id;
-            if (!prev.some((e) => e.id === id)) return prev;
-            return prev.map((e) =>
-              e.id === id ? { ...e, error: classified.data } : e
-            );
-          }
-          case "chunk": {
-            const id = classified.data.id;
-            if (!prev.some((e) => e.id === id && e.kind === "execution")) return prev;
-            return prev.map((e) => {
-              if (e.id !== id || e.kind !== "execution") return e;
-              const [merged] = e.chunk
-                ? functionsExecutionsResponseStreamingFunctionExecutionChunkMerged(e.chunk, classified.data)
-                : [classified.data, true];
-              return { ...e, chunk: merged };
-            });
-          }
-        }
-      });
-    });
-
-    const unlistenInvention = listen<unknown>("functions-inventions-recursive", (event) => {
-      const classified = classifyFunctionInventionRecursive(event.payload);
-      if (!classified) return;
-
-      setEntries((prev) => {
-        switch (classified.type) {
-          case "begin":
-            return [...prev, {
-              kind: "invention" as const,
-              id: classified.data.id,
-              request: classified.data,
-              chunk: null,
-              error: null,
-            }];
-          case "error": {
-            const id = classified.data.id;
-            if (!prev.some((e) => e.id === id)) return prev;
-            return prev.map((e) =>
-              e.id === id ? { ...e, error: classified.data } : e
-            );
-          }
-          case "chunk": {
-            const id = classified.data.id;
-            if (!prev.some((e) => e.id === id && e.kind === "invention")) return prev;
-            return prev.map((e) => {
-              if (e.id !== id || e.kind !== "invention") return e;
-              const [merged] = e.chunk
-                ? functionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkMerged(e.chunk, classified.data)
-                : [classified.data, true];
-              return { ...e, chunk: merged };
-            });
-          }
-        }
-      });
-    });
-
-    const unlistenLaboratory = listen<unknown>("laboratories-executions", (event) => {
-      const classified = classifyLaboratoryExecution(event.payload);
-      if (!classified) return;
-
-      setEntries((prev) => {
-        switch (classified.type) {
-          case "begin":
-            return [...prev, {
-              kind: "laboratory" as const,
-              id: classified.data.id,
-              request: classified.data,
-              chunk: null,
-              error: null,
-            }];
-          case "error": {
-            const id = classified.data.id;
-            if (!prev.some((e) => e.id === id)) return prev;
-            return prev.map((e) =>
-              e.id === id ? { ...e, error: classified.data } : e
-            );
-          }
-          case "chunk": {
-            const id = classified.data.id;
-            if (!prev.some((e) => e.id === id && e.kind === "laboratory")) return prev;
-            return prev.map((e) => {
-              if (e.id !== id || e.kind !== "laboratory") return e;
-              const [merged] = e.chunk
-                ? laboratoriesExecutionsResponseStreamingLaboratoryExecutionChunkMerged(e.chunk, classified.data)
-                : [classified.data, true];
-              return { ...e, chunk: merged };
-            });
-          }
-        }
-      });
-    });
-
-    Promise.all([unlistenAgentCompletion, unlistenExecution, unlistenInvention, unlistenLaboratory])
-      .then(() => invoke("viewer_ready"));
+    Promise.all(listeners).then(() => invoke("viewer_ready"));
 
     return () => {
-      unlistenAgentCompletion.then((fn) => fn());
-      unlistenExecution.then((fn) => fn());
-      unlistenInvention.then((fn) => fn());
-      unlistenLaboratory.then((fn) => fn());
+      for (const l of listeners) l.then((fn) => fn());
     };
   }, []);
 

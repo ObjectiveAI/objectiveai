@@ -1,5 +1,6 @@
 import type { Entry } from "../../types";
 import { useElapsedTime } from "../../hooks/useElapsedTime";
+import { formatCost } from "../../lib/format";
 
 export function StatusBar({ entries }: { entries: Entry[] }) {
   if (entries.length === 0) return null;
@@ -7,6 +8,7 @@ export function StatusBar({ entries }: { entries: Entry[] }) {
   const activeCount = entries.filter((e) => {
     if (e.error) return false;
     if (!e.chunk) return true;
+    if ((e.chunk as { usage?: unknown }).usage != null) return false;
     switch (e.kind) {
       case "agent-completion":
         return !e.chunk.messages.some(
@@ -14,13 +16,13 @@ export function StatusBar({ entries }: { entries: Entry[] }) {
             m.role === "assistant" && m.finish_reason
         );
       case "execution":
-        return !("output" in e.chunk && e.chunk.output != null);
+        return e.chunk.output == null;
       case "invention":
-        return !e.chunk.inventions.every(
-          (inv: { function?: unknown }) => inv.function != null
+        return e.chunk.inventions.length === 0 || !e.chunk.inventions.every(
+          (inv: { function?: unknown; error?: unknown }) => inv.function != null || inv.error != null
         );
       case "laboratory":
-        return !e.chunk.evaluations.every(
+        return e.chunk.evaluations.length === 0 || !e.chunk.evaluations.every(
           (ev: { output?: unknown }) => ev.output != null
         );
     }
@@ -53,7 +55,7 @@ export function StatusBar({ entries }: { entries: Entry[] }) {
       </div>
       {activeCount > 0 && <span>{elapsed}</span>}
       {totalTokens > 0 && <span>{totalTokens.toLocaleString()} tokens</span>}
-      {totalCost > 0 && <span>${totalCost.toFixed(6)}</span>}
+      {totalCost > 0 && <span>{formatCost(totalCost)}</span>}
       <span className="ml-auto">{entries.length} total</span>
     </footer>
   );

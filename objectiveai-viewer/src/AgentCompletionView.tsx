@@ -1,15 +1,7 @@
-import type { AgentCompletionsMessageMessage } from "objectiveai";
-import type { AgentCompletionsResponseStreamingAgentCompletionChunk, AgentCompletionsResponseStreamingAssistantResponseChunk } from "objectiveai";
 import { AgentCompletionChat } from "./components/shared/AgentCompletionChat";
 import { MessageInput } from "./components/shared/MessageInput";
-
-interface AgentCompletionEntry {
-  kind: "agent-completion";
-  id: string;
-  request: { id: string; messages?: AgentCompletionsMessageMessage[] };
-  chunk: AgentCompletionsResponseStreamingAgentCompletionChunk | null;
-  error: { id: string; code: number; message: unknown } | null;
-}
+import type { AgentCompletionEntry } from "./types";
+import { isAssistantMessage } from "./lib/typeGuards";
 
 export function AgentCompletionView({ entry }: { entry: AgentCompletionEntry }) {
   const errorForChat = entry.error
@@ -17,7 +9,7 @@ export function AgentCompletionView({ entry }: { entry: AgentCompletionEntry }) 
     : null;
 
   const isStreaming = entry.chunk && !entry.error && !entry.chunk.messages.some(
-    (m) => m.role === "assistant" && (m as AgentCompletionsResponseStreamingAssistantResponseChunk).finish_reason
+    (m) => isAssistantMessage(m) && m.finish_reason
   );
   const responseId = entry.chunk?.id ?? entry.id;
 
@@ -34,5 +26,3 @@ export function AgentCompletionView({ entry }: { entry: AgentCompletionEntry }) 
   );
 }
 
-export { AgentCompletionChat } from "./components/shared/AgentCompletionChat";
-export type { AgentCompletionChatProps } from "./components/shared/AgentCompletionChat";

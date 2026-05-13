@@ -2,9 +2,10 @@ import { AgentCompletionView } from "../../AgentCompletionView";
 import { FunctionInventionRecursiveView } from "../../FunctionInventionRecursiveView";
 import { FunctionExecutionView } from "../../FunctionExecutionView";
 import { LaboratoryExecutionView } from "./LaboratoryExecutionView";
+import { ErrorBoundary } from "../shared/ErrorBoundary";
 import type { Entry } from "../../types";
 
-export function EntryView({ entry }: { entry: Entry }) {
+function EntryContent({ entry }: { entry: Entry }) {
   if (entry.kind === "agent-completion") {
     return <AgentCompletionView entry={entry} />;
   }
@@ -18,4 +19,12 @@ export function EntryView({ entry }: { entry: Entry }) {
     return <LaboratoryExecutionView entry={entry} />;
   }
   return null;
+}
+
+export function EntryView({ entry }: { entry: Entry }) {
+  return (
+    <ErrorBoundary>
+      <EntryContent entry={entry} />
+    </ErrorBoundary>
+  );
 }

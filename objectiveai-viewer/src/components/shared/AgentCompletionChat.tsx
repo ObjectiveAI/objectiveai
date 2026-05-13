@@ -1,3 +1,4 @@
+import { useState, useCallback } from "react";
 import type {
   AgentCompletionsResponseStreamingAgentCompletionChunk,
   AgentCompletionsResponseToolResponse,
@@ -5,8 +6,8 @@ import type {
 } from "objectiveai";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { SystemBanner, UserBubble, AssistantBubble, ToolResultBubble } from "./MessageBubble";
-import type { AssistantResponseChunkLike } from "./MessageBubble";
 import { UsageFooter } from "./UsageFooter";
+import { isAssistantMessage, hasContent } from "../../lib/typeGuards";
 
 export interface AgentCompletionChatProps {
   label?: string;
@@ -27,9 +28,8 @@ export function AgentCompletionChat({
   let upstream = "";
   if (chunk) {
     for (const msg of chunk.messages) {
-      if (msg.role === "assistant") {
-        const asst = msg as AssistantResponseChunkLike;
-        model = asst.model ?? "";
+      if (isAssistantMessage(msg)) {
+        model = msg.model ?? "";
         break;
       }
     }
@@ -37,7 +37,7 @@ export function AgentCompletionChat({
   }
 
   const hasFinish = chunk?.messages.some(
-    (m) => m.role === "assistant" && (m as AssistantResponseChunkLike).finish_reason
+    (m) => isAssistantMessage(m) && m.finish_reason
   );
   const status = error ? "error" : hasFinish ? "complete" : "streaming";
 
@@ -47,7 +47,7 @@ export function AgentCompletionChat({
 
   const statusColor = {
     streaming: "bg-copper-hot",
-    complete: "bg-green-500",
+    complete: "bg-success",
     error: "bg-error",
   }[status];
 
@@ -64,45 +64,32 @@ export function AgentCompletionChat({
         {model && <span className="font-semibold text-info-bright">{model}</span>}
         {upstream && <span className="bg-ground px-1.5 py-px rounded-sm text-[11px] lowercase text-info-dim">{upstream}</span>}
         {timeStr && <span>{timeStr}</span>}
-        {displayId && (
-          <Tooltip.Root>
-            <Tooltip.Trigger asChild>
-              <span className="font-mono text-[11px] opacity-60 ml-auto cursor-default">{displayId.slice(0, 12)}</span>
-            </Tooltip.Trigger>
-            <Tooltip.Portal>
-              <Tooltip.Content className="bg-ground-surface border border-node-border rounded-sm px-2 py-1 font-mono text-[11px] text-info-mid" sideOffset={4}>
-                {displayId}
-                <Tooltip.Arrow className="fill-ground-surface" />
-              </Tooltip.Content>
-            </Tooltip.Portal>
-          </Tooltip.Root>
-        )}
+        {displayId && <CopyableId id={displayId} />}
       </div>
 
       <div className="p-4 flex flex-col gap-3">
         {requestMessages?.map((msg, i) => {
-          const role = (msg as { role: string }).role;
-          if (role === "developer" || role === "system") {
+          if (msg.role === "developer" || msg.role === "system") {
             return (
               <SystemBanner
                 key={`req-${i}`}
-                role={role}
-                content={(msg as { content: unknown }).content}
+                role={msg.role}
+                content={hasContent(msg) ? msg.content : ""}
               />
             );
           }
-          if (role === "user") {
-            return <UserBubble key={`req-${i}`} content={(msg as { content: unknown }).content} />;
+          if (msg.role === "user") {
+            return <UserBubble key={`req-${i}`} content={hasContent(msg) ? msg.content : ""} />;
           }
-          if (role === "assistant") {
-            return <AssistantBubble key={`req-${i}`} msg={msg as AssistantResponseChunkLike} />;
+          if (isAssistantMessage(msg)) {
+            return <AssistantBubble key={`req-${i}`} msg={msg} />;
           }
           return null;
         })}
 
         {chunk?.messages.map((msg, i) => {
-          if (msg.role === "assistant") {
-            return <AssistantBubble key={`resp-${i}`} msg={msg as AssistantResponseChunkLike} />;
+          if (isAssistantMessage(msg)) {
+            return <AssistantBubble key={`resp-${i}`} msg={msg} />;
           }
           if (msg.role === "tool") {
             return <ToolResultBubble key={`resp-${i}`} msg={msg as AgentCompletionsResponseToolResponse} />;
@@ -116,12 +103,40 @@ export function AgentCompletionChat({
       </div>
 
       {error && (
-        <div className="bg-error/10 border-t border-error/30 px-4 py-2 text-error text-xs">
+        <div role="alert" className="bg-error/10 border-t border-error/30 px-4 py-2 text-error text-xs">
           Error {error.code}: {JSON.stringify(error.message)}
         </div>
       )}
 
       {chunk?.usage && <UsageFooter usage={chunk.usage} />}
     </div>
+  );
+}
+
+function CopyableId({ id }: { id: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = useCallback(() => {
+    navigator.clipboard.writeText(id);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }, [id]);
+
+  return (
+    <Tooltip.Root>
+      <Tooltip.Trigger asChild>
+        <button
+          className="font-mono text-[11px] opacity-60 ml-auto cursor-pointer hover:opacity-100 transition-opacity"
+          onClick={copy}
+        >
+          {id.slice(0, 12)}
+        </button>
+      </Tooltip.Trigger>
+      <Tooltip.Portal>
+        <Tooltip.Content className="bg-ground-surface border border-node-border rounded-sm px-2 py-1 font-mono text-[11px] text-info-mid" sideOffset={4}>
+          {copied ? "Copied!" : id}
+          <Tooltip.Arrow className="fill-ground-surface" />
+        </Tooltip.Content>
+      </Tooltip.Portal>
+    </Tooltip.Root>
   );
 }

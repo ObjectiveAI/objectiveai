@@ -30,13 +30,16 @@
 
   /* Life layer — copper spectrum (cold → hot) */
   --color-copper-dim: #78716c;
+  --color-copper-dim-rgb: 120, 113, 108;
   --color-copper-warm: #b45309;
   --color-copper-mid: #d97706;
   --color-copper-hot: #f59e0b;
+  --color-copper-hot-rgb: 245, 158, 11;
   --color-copper-bright: #fbbf24;
 
   /* Semantic */
   --color-node-border: #292524;
+  --color-success: #22c55e;
   --color-error: #b91c1c;
 
   /* Type */
@@ -70,5 +73,13 @@
     box-sizing: border-box;
     padding: 0;
     margin: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

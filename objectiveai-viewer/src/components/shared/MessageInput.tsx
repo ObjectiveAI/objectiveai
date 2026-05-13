@@ -37,6 +37,7 @@ export function MessageInput({ responseId }: { responseId: string }) {
         className="flex-1 bg-ground-surface border border-node-border rounded-md px-3 py-2 text-sm text-info-bright font-mono resize-none placeholder:text-info-dim focus:outline-none focus:border-copper-dim"
         rows={1}
         placeholder="Message agent…"
+        aria-label="Message to agent"
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={handleKeyDown}

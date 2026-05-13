@@ -1,4 +1,5 @@
 import type { AgentCompletionsResponseUsage } from "objectiveai";
+import { formatCost } from "../../lib/format";
 
 export function UsageFooter({ usage }: { usage: AgentCompletionsResponseUsage }) {
   return (
@@ -18,7 +19,7 @@ export function UsageFooter({ usage }: { usage: AgentCompletionsResponseUsage })
       {usage.cost !== undefined && usage.cost !== 0 && (
         <div className="flex gap-1">
           <span className="text-copper-dim">Cost:</span>
-          <span>${typeof usage.cost === "number" ? usage.cost.toFixed(6) : usage.cost}</span>
+          <span>{typeof usage.cost === "number" ? formatCost(usage.cost) : `$${usage.cost}`}</span>
         </div>
       )}
     </div>
