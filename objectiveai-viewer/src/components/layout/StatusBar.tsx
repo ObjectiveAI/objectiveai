@@ -7,13 +7,23 @@ export function StatusBar({ entries }: { entries: Entry[] }) {
   const activeCount = entries.filter((e) => {
     if (e.error) return false;
     if (!e.chunk) return true;
-    if ("messages" in e.chunk) {
-      return !e.chunk.messages.some(
-        (m: { role: string; finish_reason?: string | null }) =>
-          m.role === "assistant" && m.finish_reason
-      );
+    switch (e.kind) {
+      case "agent-completion":
+        return !e.chunk.messages.some(
+          (m: { role: string; finish_reason?: string | null }) =>
+            m.role === "assistant" && m.finish_reason
+        );
+      case "execution":
+        return !("output" in e.chunk && e.chunk.output != null);
+      case "invention":
+        return !e.chunk.inventions.every(
+          (inv: { function?: unknown }) => inv.function != null
+        );
+      case "laboratory":
+        return !e.chunk.evaluations.every(
+          (ev: { output?: unknown }) => ev.output != null
+        );
     }
-    return true;
   }).length;
 
   const firstCreated = entries.reduce<number | null>((min, e) => {
