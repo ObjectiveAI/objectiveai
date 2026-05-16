@@ -70,13 +70,13 @@ impl FlatTaskProfile {
 pub struct FunctionFlatTaskProfile {
     pub path: Vec<u64>,
     pub description: Option<String>,
-    pub function_path: Option<objectiveai::RemotePath>,
-    pub profile_path: Option<objectiveai::RemotePath>,
-    pub input: objectiveai::functions::expression::InputValue,
+    pub function_path: Option<objectiveai_sdk::RemotePath>,
+    pub profile_path: Option<objectiveai_sdk::RemotePath>,
+    pub input: objectiveai_sdk::functions::expression::InputValue,
     pub tasks: Vec<Option<FlatTaskProfile>>,
     pub profile: Vec<rust_decimal::Decimal>,
     pub r#type: FunctionType,
-    pub task_output: Option<objectiveai::functions::expression::Expression>,
+    pub task_output: Option<objectiveai_sdk::functions::expression::Expression>,
     pub invert_output: bool,
 }
 
@@ -104,8 +104,8 @@ pub enum FunctionType {
     Scalar,
     Vector {
         output_length: Option<u64>,
-        input_split: Option<objectiveai::functions::expression::Expression>,
-        input_merge: Option<objectiveai::functions::expression::Expression>,
+        input_split: Option<objectiveai_sdk::functions::expression::Expression>,
+        input_merge: Option<objectiveai_sdk::functions::expression::Expression>,
     },
 }
 
@@ -113,7 +113,7 @@ pub enum FunctionType {
 pub struct MapFunctionFlatTaskProfile {
     pub path: Vec<u64>,
     pub functions: Vec<FunctionFlatTaskProfile>,
-    pub task_output: objectiveai::functions::expression::Expression,
+    pub task_output: objectiveai_sdk::functions::expression::Expression,
     pub invert_output: bool,
 }
 
@@ -127,10 +127,10 @@ impl MapFunctionFlatTaskProfile {
 #[derive(Debug, Clone)]
 pub struct VectorCompletionFlatTaskProfile {
     pub path: Vec<u64>,
-    pub swarm: objectiveai::swarm::InlineSwarm,
-    pub messages: Vec<objectiveai::agent::completions::message::Message>,
-    pub responses: Vec<objectiveai::agent::completions::message::RichContent>,
-    pub output: objectiveai::functions::expression::Expression,
+    pub swarm: objectiveai_sdk::swarm::InlineSwarm,
+    pub messages: Vec<objectiveai_sdk::agent::completions::message::Message>,
+    pub responses: Vec<objectiveai_sdk::agent::completions::message::RichContent>,
+    pub output: objectiveai_sdk::functions::expression::Expression,
     pub invert_output: bool,
 }
 
@@ -143,7 +143,7 @@ impl VectorCompletionFlatTaskProfile {
 pub struct MapVectorCompletionFlatTaskProfile {
     pub path: Vec<u64>,
     pub vector_completions: Vec<VectorCompletionFlatTaskProfile>,
-    pub task_output: objectiveai::functions::expression::Expression,
+    pub task_output: objectiveai_sdk::functions::expression::Expression,
     pub invert_output: bool,
 }
 
@@ -155,8 +155,8 @@ impl MapVectorCompletionFlatTaskProfile {
 #[derive(Debug, Clone)]
 pub struct PlaceholderScalarFunctionFlatTaskProfile {
     pub path: Vec<u64>,
-    pub input: objectiveai::functions::expression::InputValue,
-    pub output: objectiveai::functions::expression::Expression,
+    pub input: objectiveai_sdk::functions::expression::InputValue,
+    pub output: objectiveai_sdk::functions::expression::Expression,
     pub invert_output: bool,
 }
 
@@ -169,7 +169,7 @@ impl PlaceholderScalarFunctionFlatTaskProfile {
 pub struct MapPlaceholderScalarFunctionFlatTaskProfile {
     pub path: Vec<u64>,
     pub placeholders: Vec<PlaceholderScalarFunctionFlatTaskProfile>,
-    pub task_output: objectiveai::functions::expression::Expression,
+    pub task_output: objectiveai_sdk::functions::expression::Expression,
     pub invert_output: bool,
 }
 
@@ -181,11 +181,11 @@ impl MapPlaceholderScalarFunctionFlatTaskProfile {
 #[derive(Debug, Clone)]
 pub struct PlaceholderVectorFunctionFlatTaskProfile {
     pub path: Vec<u64>,
-    pub input: objectiveai::functions::expression::InputValue,
+    pub input: objectiveai_sdk::functions::expression::InputValue,
     pub output_length: u64,
-    pub input_split: objectiveai::functions::expression::Expression,
-    pub input_merge: objectiveai::functions::expression::Expression,
-    pub output: objectiveai::functions::expression::Expression,
+    pub input_split: objectiveai_sdk::functions::expression::Expression,
+    pub input_merge: objectiveai_sdk::functions::expression::Expression,
+    pub output: objectiveai_sdk::functions::expression::Expression,
     pub invert_output: bool,
 }
 
@@ -198,7 +198,7 @@ impl PlaceholderVectorFunctionFlatTaskProfile {
 pub struct MapPlaceholderVectorFunctionFlatTaskProfile {
     pub path: Vec<u64>,
     pub placeholders: Vec<PlaceholderVectorFunctionFlatTaskProfile>,
-    pub task_output: objectiveai::functions::expression::Expression,
+    pub task_output: objectiveai_sdk::functions::expression::Expression,
     pub invert_output: bool,
 }
 
@@ -217,10 +217,10 @@ impl MapPlaceholderVectorFunctionFlatTaskProfile {
 pub async fn get_flat_task_profile<CTXEXT>(
     ctx: &ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
     mut path: Vec<u64>,
-    function: objectiveai::functions::FullInlineFunctionOrRemoteCommitOptional,
-    profile: objectiveai::functions::InlineProfileOrRemoteCommitOptional,
-    input: objectiveai::functions::expression::InputValue,
-    task_output: Option<objectiveai::functions::expression::Expression>,
+    function: objectiveai_sdk::functions::FullInlineFunctionOrRemoteCommitOptional,
+    profile: objectiveai_sdk::functions::InlineProfileOrRemoteCommitOptional,
+    input: objectiveai_sdk::functions::expression::InputValue,
+    task_output: Option<objectiveai_sdk::functions::expression::Expression>,
     invert_output: bool,
     retrieve_router: Arc<
         crate::retrieval::retrieve::Router<
@@ -230,7 +230,7 @@ pub async fn get_flat_task_profile<CTXEXT>(
             CTXEXT,
         >,
     >,
-    mut ancestors: std::collections::HashSet<objectiveai::RemotePath>,
+    mut ancestors: std::collections::HashSet<objectiveai_sdk::RemotePath>,
 ) -> Result<FunctionFlatTaskProfile, super::executions::Error>
 where
     CTXEXT: Send + Sync + 'static,
@@ -240,14 +240,14 @@ where
         let rr = retrieve_router.clone();
         let func_fut = async {
             match function {
-                objectiveai::functions::FullInlineFunctionOrRemoteCommitOptional::Inline(inline) => {
-                    let f = objectiveai::functions::Function::Inline(inline.transpile());
+                objectiveai_sdk::functions::FullInlineFunctionOrRemoteCommitOptional::Inline(inline) => {
+                    let f = objectiveai_sdk::functions::Function::Inline(inline.transpile());
                     Ok::<_, super::executions::Error>((f, None))
                 }
-                objectiveai::functions::FullInlineFunctionOrRemoteCommitOptional::Remote(remote) => {
+                objectiveai_sdk::functions::FullInlineFunctionOrRemoteCommitOptional::Remote(remote) => {
                     let resp = rr.endpoint_get_function(ctx, &remote).await
                         .map_err(super::executions::Error::FetchFunction)?;
-                    let f = objectiveai::functions::Function::Remote(resp.inner.transpile());
+                    let f = objectiveai_sdk::functions::Function::Remote(resp.inner.transpile());
                     Ok((f, Some(resp.path)))
                 }
             }
@@ -255,14 +255,14 @@ where
         let rr2 = retrieve_router.clone();
         let prof_fut = async {
             match profile {
-                objectiveai::functions::InlineProfileOrRemoteCommitOptional::Inline(inline) => {
-                    let p = objectiveai::functions::Profile::Inline(inline);
+                objectiveai_sdk::functions::InlineProfileOrRemoteCommitOptional::Inline(inline) => {
+                    let p = objectiveai_sdk::functions::Profile::Inline(inline);
                     Ok((p, None))
                 }
-                objectiveai::functions::InlineProfileOrRemoteCommitOptional::Remote(remote) => {
+                objectiveai_sdk::functions::InlineProfileOrRemoteCommitOptional::Remote(remote) => {
                     let resp = rr2.endpoint_get_profile(ctx, &remote).await
                         .map_err(super::executions::Error::FetchProfile)?;
-                    let p = objectiveai::functions::Profile::Remote(resp.inner);
+                    let p = objectiveai_sdk::functions::Profile::Remote(resp.inner);
                     Ok((p, Some(resp.path)))
                 }
             }
@@ -291,17 +291,17 @@ where
     struct TasksProfile {
         weights: Vec<rust_decimal::Decimal>,
         invert_flags: Vec<bool>,
-        task_profiles: Vec<objectiveai::functions::TaskProfile>,
+        task_profiles: Vec<objectiveai_sdk::functions::TaskProfile>,
     }
 
     enum ResolvedProfile {
         Tasks(TasksProfile),
-        Auto(objectiveai::swarm::InlineSwarmBase),
+        Auto(objectiveai_sdk::swarm::InlineSwarmBase),
     }
 
     fn extract_tasks_profile(
-        tasks: Vec<objectiveai::functions::TaskProfile>,
-        weights: Option<objectiveai::Weights>,
+        tasks: Vec<objectiveai_sdk::functions::TaskProfile>,
+        weights: Option<objectiveai_sdk::Weights>,
         function_tasks_len: usize,
     ) -> Result<TasksProfile, super::executions::Error> {
         if tasks.len() != function_tasks_len {
@@ -327,16 +327,16 @@ where
     }
 
     let resolved_profile = match profile {
-        objectiveai::functions::Profile::Remote(objectiveai::functions::RemoteProfile::Tasks(rp)) => {
+        objectiveai_sdk::functions::Profile::Remote(objectiveai_sdk::functions::RemoteProfile::Tasks(rp)) => {
             ResolvedProfile::Tasks(extract_tasks_profile(rp.inner.tasks, rp.inner.weights, function_tasks_len)?)
         }
-        objectiveai::functions::Profile::Inline(objectiveai::functions::InlineProfile::Tasks(ip)) => {
+        objectiveai_sdk::functions::Profile::Inline(objectiveai_sdk::functions::InlineProfile::Tasks(ip)) => {
             ResolvedProfile::Tasks(extract_tasks_profile(ip.tasks, ip.weights, function_tasks_len)?)
         }
-        objectiveai::functions::Profile::Remote(objectiveai::functions::RemoteProfile::Auto(swarm_base)) => {
+        objectiveai_sdk::functions::Profile::Remote(objectiveai_sdk::functions::RemoteProfile::Auto(swarm_base)) => {
             ResolvedProfile::Auto(swarm_base.inner)
         }
-        objectiveai::functions::Profile::Inline(objectiveai::functions::InlineProfile::Auto(swarm_base)) => {
+        objectiveai_sdk::functions::Profile::Inline(objectiveai_sdk::functions::InlineProfile::Auto(swarm_base)) => {
             ResolvedProfile::Auto(swarm_base)
         }
     };
@@ -344,9 +344,9 @@ where
     // 4. Extract description + type.
     let description = function.description().map(str::to_owned);
     let r#type = match &function {
-        objectiveai::functions::Function::Remote(objectiveai::functions::RemoteFunction::Scalar { .. }) => FunctionType::Scalar,
-        objectiveai::functions::Function::Remote(objectiveai::functions::RemoteFunction::Vector { output_length, input_split, input_merge, .. }) => {
-            let params = objectiveai::functions::expression::Params::Ref(objectiveai::functions::expression::ParamsRef {
+        objectiveai_sdk::functions::Function::Remote(objectiveai_sdk::functions::RemoteFunction::Scalar { .. }) => FunctionType::Scalar,
+        objectiveai_sdk::functions::Function::Remote(objectiveai_sdk::functions::RemoteFunction::Vector { output_length, input_split, input_merge, .. }) => {
+            let params = objectiveai_sdk::functions::expression::Params::Ref(objectiveai_sdk::functions::expression::ParamsRef {
                 input: &input, output: None, map: None,
                 tasks_min: None, tasks_max: None, depth: None, name: None, spec: None,
             });
@@ -356,8 +356,8 @@ where
                 input_merge: Some(input_merge.clone()),
             }
         }
-        objectiveai::functions::Function::Inline(objectiveai::functions::InlineFunction::Scalar { .. }) => FunctionType::Scalar,
-        objectiveai::functions::Function::Inline(objectiveai::functions::InlineFunction::Vector { input_split, input_merge, .. }) => {
+        objectiveai_sdk::functions::Function::Inline(objectiveai_sdk::functions::InlineFunction::Scalar { .. }) => FunctionType::Scalar,
+        objectiveai_sdk::functions::Function::Inline(objectiveai_sdk::functions::InlineFunction::Vector { input_split, input_merge, .. }) => {
             FunctionType::Vector { output_length: None, input_split: input_split.clone(), input_merge: input_merge.clone() }
         }
     };
@@ -389,12 +389,12 @@ where
 
         match task {
             // ── Function tasks (recursive) ───────────────────────
-            objectiveai::functions::CompiledTask::One(
-                objectiveai::functions::Task::ScalarFunction(objectiveai::functions::ScalarFunctionTask { path, input, output })
-            ) | objectiveai::functions::CompiledTask::One(
-                objectiveai::functions::Task::VectorFunction(objectiveai::functions::VectorFunctionTask { path, input, output })
+            objectiveai_sdk::functions::CompiledTask::One(
+                objectiveai_sdk::functions::Task::ScalarFunction(objectiveai_sdk::functions::ScalarFunctionTask { path, input, output })
+            ) | objectiveai_sdk::functions::CompiledTask::One(
+                objectiveai_sdk::functions::Task::VectorFunction(objectiveai_sdk::functions::VectorFunctionTask { path, input, output })
             ) => {
-                let function_param = objectiveai::functions::FullInlineFunctionOrRemoteCommitOptional::Remote(
+                let function_param = objectiveai_sdk::functions::FullInlineFunctionOrRemoteCommitOptional::Remote(
                     path.into(),
                 );
                 let profile_param = resolve_child_profile(&task_profile, &auto_swarm)?;
@@ -405,8 +405,8 @@ where
             }
 
             // ── Vector completion tasks ──────────────────────────
-            objectiveai::functions::CompiledTask::One(
-                objectiveai::functions::Task::VectorCompletion(vc_task)
+            objectiveai_sdk::functions::CompiledTask::One(
+                objectiveai_sdk::functions::Task::VectorCompletion(vc_task)
             ) => {
                 let swarm_base = resolve_vc_swarm_base(ctx, &task_profile, &auto_swarm, &retrieve_router).await?;
                 flat_tasks_or_futs.push(TaskFut::VectorTaskFut(Box::pin(
@@ -415,8 +415,8 @@ where
             }
 
             // ── Placeholder scalar ───────────────────────────────
-            objectiveai::functions::CompiledTask::One(
-                objectiveai::functions::Task::PlaceholderScalarFunction(task)
+            objectiveai_sdk::functions::CompiledTask::One(
+                objectiveai_sdk::functions::Task::PlaceholderScalarFunction(task)
             ) => {
                 validate_placeholder_profile(&task_profile)?;
                 flat_tasks_or_futs.push(TaskFut::Task(Some(FlatTaskProfile::PlaceholderScalarFunction(
@@ -430,12 +430,12 @@ where
             }
 
             // ── Placeholder vector ───────────────────────────────
-            objectiveai::functions::CompiledTask::One(
-                objectiveai::functions::Task::PlaceholderVectorFunction(task)
+            objectiveai_sdk::functions::CompiledTask::One(
+                objectiveai_sdk::functions::Task::PlaceholderVectorFunction(task)
             ) => {
                 validate_placeholder_profile(&task_profile)?;
-                let params = objectiveai::functions::expression::Params::Ref(
-                    objectiveai::functions::expression::ParamsRef { input: &task.input, output: None, map: None, tasks_min: None, tasks_max: None, depth: None, name: None, spec: None },
+                let params = objectiveai_sdk::functions::expression::Params::Ref(
+                    objectiveai_sdk::functions::expression::ParamsRef { input: &task.input, output: None, map: None, tasks_min: None, tasks_max: None, depth: None, name: None, spec: None },
                 );
                 let output_length = task.output_length.clone().compile_one(&params)?;
                 flat_tasks_or_futs.push(TaskFut::Task(Some(FlatTaskProfile::PlaceholderVectorFunction(
@@ -452,27 +452,27 @@ where
             }
 
             // ── Mapped tasks ─────────────────────────────────────
-            objectiveai::functions::CompiledTask::Many(tasks) => {
+            objectiveai_sdk::functions::CompiledTask::Many(tasks) => {
                 let map_invert = profile_invert_flags[i];
                 let map_output = tasks.first().map(|t| match t {
-                    objectiveai::functions::Task::VectorCompletion(v) => v.output.clone(),
-                    objectiveai::functions::Task::ScalarFunction(s) => s.output.clone(),
-                    objectiveai::functions::Task::VectorFunction(v) => v.output.clone(),
-                    objectiveai::functions::Task::PlaceholderScalarFunction(p) => p.output.clone(),
-                    objectiveai::functions::Task::PlaceholderVectorFunction(p) => p.output.clone(),
-                }).unwrap_or(objectiveai::functions::expression::Expression::JMESPath("output".to_string()));
+                    objectiveai_sdk::functions::Task::VectorCompletion(v) => v.output.clone(),
+                    objectiveai_sdk::functions::Task::ScalarFunction(s) => s.output.clone(),
+                    objectiveai_sdk::functions::Task::VectorFunction(v) => v.output.clone(),
+                    objectiveai_sdk::functions::Task::PlaceholderScalarFunction(p) => p.output.clone(),
+                    objectiveai_sdk::functions::Task::PlaceholderVectorFunction(p) => p.output.clone(),
+                }).unwrap_or(objectiveai_sdk::functions::expression::Expression::JMESPath("output".to_string()));
 
                 // Determine type from first task.
-                let is_vc = matches!(tasks.first(), Some(objectiveai::functions::Task::VectorCompletion(_)));
-                let is_fn = matches!(tasks.first(), Some(objectiveai::functions::Task::ScalarFunction(_) | objectiveai::functions::Task::VectorFunction(_)));
-                let is_ps = matches!(tasks.first(), Some(objectiveai::functions::Task::PlaceholderScalarFunction(_)));
-                let is_pv = matches!(tasks.first(), Some(objectiveai::functions::Task::PlaceholderVectorFunction(_)));
+                let is_vc = matches!(tasks.first(), Some(objectiveai_sdk::functions::Task::VectorCompletion(_)));
+                let is_fn = matches!(tasks.first(), Some(objectiveai_sdk::functions::Task::ScalarFunction(_) | objectiveai_sdk::functions::Task::VectorFunction(_)));
+                let is_ps = matches!(tasks.first(), Some(objectiveai_sdk::functions::Task::PlaceholderScalarFunction(_)));
+                let is_pv = matches!(tasks.first(), Some(objectiveai_sdk::functions::Task::PlaceholderVectorFunction(_)));
 
                 if is_vc {
                     let mut vc_futs = Vec::with_capacity(tasks.len());
                     for (j, task) in tasks.into_iter().enumerate() {
                         let mut tp = task_path.clone(); tp.push(j as u64);
-                        let vc_task = match task { objectiveai::functions::Task::VectorCompletion(t) => t, _ => unreachable!() };
+                        let vc_task = match task { objectiveai_sdk::functions::Task::VectorCompletion(t) => t, _ => unreachable!() };
                         let swarm_base = resolve_vc_swarm_base(ctx, &task_profile, &auto_swarm, &retrieve_router).await?;
                         vc_futs.push(resolve_vc_flat_task_profile(ctx, tp, vc_task, swarm_base, map_invert, &retrieve_router));
                     }
@@ -484,11 +484,11 @@ where
                     for (j, task) in tasks.into_iter().enumerate() {
                         let mut tp = task_path.clone(); tp.push(j as u64);
                         let (path, input, _output) = match task {
-                            objectiveai::functions::Task::ScalarFunction(t) => (t.path, t.input, t.output),
-                            objectiveai::functions::Task::VectorFunction(t) => (t.path, t.input, t.output),
+                            objectiveai_sdk::functions::Task::ScalarFunction(t) => (t.path, t.input, t.output),
+                            objectiveai_sdk::functions::Task::VectorFunction(t) => (t.path, t.input, t.output),
                             _ => unreachable!(),
                         };
-                        let function_param = objectiveai::functions::FullInlineFunctionOrRemoteCommitOptional::Remote(
+                        let function_param = objectiveai_sdk::functions::FullInlineFunctionOrRemoteCommitOptional::Remote(
                             path.into(),
                         );
                         let profile_param = resolve_child_profile(&task_profile, &auto_swarm)?;
@@ -499,7 +499,7 @@ where
                     validate_placeholder_profile(&task_profile)?;
                     let placeholders: Vec<_> = tasks.into_iter().enumerate().map(|(j, task)| {
                         let mut tp = task_path.clone(); tp.push(j as u64);
-                        let t = match task { objectiveai::functions::Task::PlaceholderScalarFunction(t) => t, _ => unreachable!() };
+                        let t = match task { objectiveai_sdk::functions::Task::PlaceholderScalarFunction(t) => t, _ => unreachable!() };
                         PlaceholderScalarFunctionFlatTaskProfile { path: tp, input: t.input, output: t.output, invert_output: map_invert }
                     }).collect();
                     flat_tasks_or_futs.push(TaskFut::Task(Some(FlatTaskProfile::MapPlaceholderScalarFunction(
@@ -510,9 +510,9 @@ where
                     let mut placeholders = Vec::with_capacity(tasks.len());
                     for (j, task) in tasks.into_iter().enumerate() {
                         let mut tp = task_path.clone(); tp.push(j as u64);
-                        let t = match task { objectiveai::functions::Task::PlaceholderVectorFunction(t) => t, _ => unreachable!() };
-                        let params = objectiveai::functions::expression::Params::Ref(
-                            objectiveai::functions::expression::ParamsRef { input: &t.input, output: None, map: None, tasks_min: None, tasks_max: None, depth: None, name: None, spec: None },
+                        let t = match task { objectiveai_sdk::functions::Task::PlaceholderVectorFunction(t) => t, _ => unreachable!() };
+                        let params = objectiveai_sdk::functions::expression::Params::Ref(
+                            objectiveai_sdk::functions::expression::ParamsRef { input: &t.input, output: None, map: None, tasks_min: None, tasks_max: None, depth: None, name: None, spec: None },
                         );
                         let output_length = t.output_length.clone().compile_one(&params)?;
                         placeholders.push(PlaceholderVectorFunctionFlatTaskProfile {
@@ -550,19 +550,19 @@ where
 
 /// Resolves the child profile for a nested function task.
 fn resolve_child_profile(
-    task_profile: &Option<objectiveai::functions::TaskProfile>,
-    auto_swarm: &Option<objectiveai::swarm::InlineSwarmBase>,
-) -> Result<objectiveai::functions::InlineProfileOrRemoteCommitOptional, super::executions::Error> {
+    task_profile: &Option<objectiveai_sdk::functions::TaskProfile>,
+    auto_swarm: &Option<objectiveai_sdk::swarm::InlineSwarmBase>,
+) -> Result<objectiveai_sdk::functions::InlineProfileOrRemoteCommitOptional, super::executions::Error> {
     match task_profile {
-        Some(objectiveai::functions::TaskProfile::Remote(path)) => {
-            Ok(objectiveai::functions::InlineProfileOrRemoteCommitOptional::Remote(
+        Some(objectiveai_sdk::functions::TaskProfile::Remote(path)) => {
+            Ok(objectiveai_sdk::functions::InlineProfileOrRemoteCommitOptional::Remote(
                 path.clone().into(),
             ))
         }
-        Some(objectiveai::functions::TaskProfile::Inline(profile)) => {
-            Ok(objectiveai::functions::InlineProfileOrRemoteCommitOptional::Inline(profile.clone()))
+        Some(objectiveai_sdk::functions::TaskProfile::Inline(profile)) => {
+            Ok(objectiveai_sdk::functions::InlineProfileOrRemoteCommitOptional::Inline(profile.clone()))
         }
-        Some(objectiveai::functions::TaskProfile::Placeholder {}) => {
+        Some(objectiveai_sdk::functions::TaskProfile::Placeholder {}) => {
             Err(super::executions::Error::InvalidProfile(
                 "expected function profile for function task, got Placeholder".to_string()
             ))
@@ -570,8 +570,8 @@ fn resolve_child_profile(
         None => {
             // Auto mode — use the swarm as an auto profile.
             let swarm = auto_swarm.as_ref().expect("auto_swarm must be Some in auto mode");
-            Ok(objectiveai::functions::InlineProfileOrRemoteCommitOptional::Inline(
-                objectiveai::functions::InlineProfile::Auto(swarm.clone()),
+            Ok(objectiveai_sdk::functions::InlineProfileOrRemoteCommitOptional::Inline(
+                objectiveai_sdk::functions::InlineProfile::Auto(swarm.clone()),
             ))
         }
     }
@@ -583,8 +583,8 @@ fn resolve_child_profile(
 async fn resolve_vc_flat_task_profile<CTXEXT>(
     ctx: &ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
     path: Vec<u64>,
-    vc_task: objectiveai::functions::VectorCompletionTask,
-    swarm_base: objectiveai::swarm::InlineSwarmBase,
+    vc_task: objectiveai_sdk::functions::VectorCompletionTask,
+    swarm_base: objectiveai_sdk::swarm::InlineSwarmBase,
     invert_output: bool,
     retrieve_router: &Arc<
         crate::retrieval::retrieve::Router<
@@ -598,7 +598,7 @@ async fn resolve_vc_flat_task_profile<CTXEXT>(
 where
     CTXEXT: Send + Sync + 'static,
 {
-    let swarm_param = objectiveai::swarm::InlineSwarmBaseOrRemoteCommitOptional::SwarmBase(swarm_base);
+    let swarm_param = objectiveai_sdk::swarm::InlineSwarmBaseOrRemoteCommitOptional::SwarmBase(swarm_base);
     let swarm = retrieve_router.get_swarm(ctx, swarm_param).await
         .map_err(|e| super::executions::Error::InvalidSwarm(e.message.to_string()))?
         .into_inline();
@@ -616,8 +616,8 @@ where
 /// Supports inline auto profiles, auto mode fallback, and remote profile/swarm references.
 async fn resolve_vc_swarm_base<CTXEXT>(
     ctx: &ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-    task_profile: &Option<objectiveai::functions::TaskProfile>,
-    auto_swarm: &Option<objectiveai::swarm::InlineSwarmBase>,
+    task_profile: &Option<objectiveai_sdk::functions::TaskProfile>,
+    auto_swarm: &Option<objectiveai_sdk::swarm::InlineSwarmBase>,
     retrieve_router: &Arc<
         crate::retrieval::retrieve::Router<
             impl crate::retrieval::retrieve::Client<CTXEXT> + Send + Sync + 'static,
@@ -626,37 +626,37 @@ async fn resolve_vc_swarm_base<CTXEXT>(
             CTXEXT,
         >,
     >,
-) -> Result<objectiveai::swarm::InlineSwarmBase, super::executions::Error>
+) -> Result<objectiveai_sdk::swarm::InlineSwarmBase, super::executions::Error>
 where
     CTXEXT: Send + Sync + 'static,
 {
     match task_profile {
-        Some(objectiveai::functions::TaskProfile::Inline(
-            objectiveai::functions::InlineProfile::Auto(auto),
+        Some(objectiveai_sdk::functions::TaskProfile::Inline(
+            objectiveai_sdk::functions::InlineProfile::Auto(auto),
         )) => Ok(auto.clone()),
-        Some(objectiveai::functions::TaskProfile::Inline(
-            objectiveai::functions::InlineProfile::Tasks(_),
+        Some(objectiveai_sdk::functions::TaskProfile::Inline(
+            objectiveai_sdk::functions::InlineProfile::Tasks(_),
         )) => Err(super::executions::Error::InvalidProfile(
             "expected Auto (swarm) profile for vector completion task, got inline Tasks".to_string()
         )),
-        Some(objectiveai::functions::TaskProfile::Remote(path)) => {
-            let remote = objectiveai::functions::InlineProfileOrRemoteCommitOptional::Remote(
+        Some(objectiveai_sdk::functions::TaskProfile::Remote(path)) => {
+            let remote = objectiveai_sdk::functions::InlineProfileOrRemoteCommitOptional::Remote(
                 path.clone().into(),
             );
             let profile = retrieve_router.get_profile(ctx, remote).await
                 .map_err(super::executions::Error::FetchProfile)?;
             match profile {
-                objectiveai::functions::Profile::Remote(objectiveai::functions::RemoteProfile::Auto(swarm_base)) => Ok(swarm_base.inner),
-                objectiveai::functions::Profile::Remote(objectiveai::functions::RemoteProfile::Tasks(_)) => Err(super::executions::Error::InvalidProfile(
+                objectiveai_sdk::functions::Profile::Remote(objectiveai_sdk::functions::RemoteProfile::Auto(swarm_base)) => Ok(swarm_base.inner),
+                objectiveai_sdk::functions::Profile::Remote(objectiveai_sdk::functions::RemoteProfile::Tasks(_)) => Err(super::executions::Error::InvalidProfile(
                     "expected Auto (swarm) profile for vector completion task, got remote Tasks".to_string()
                 )),
-                objectiveai::functions::Profile::Inline(objectiveai::functions::InlineProfile::Auto(swarm_base)) => Ok(swarm_base),
-                objectiveai::functions::Profile::Inline(objectiveai::functions::InlineProfile::Tasks(_)) => Err(super::executions::Error::InvalidProfile(
+                objectiveai_sdk::functions::Profile::Inline(objectiveai_sdk::functions::InlineProfile::Auto(swarm_base)) => Ok(swarm_base),
+                objectiveai_sdk::functions::Profile::Inline(objectiveai_sdk::functions::InlineProfile::Tasks(_)) => Err(super::executions::Error::InvalidProfile(
                     "expected Auto (swarm) profile for vector completion task, got inline Tasks".to_string()
                 )),
             }
         }
-        Some(objectiveai::functions::TaskProfile::Placeholder {}) => Err(super::executions::Error::InvalidProfile(
+        Some(objectiveai_sdk::functions::TaskProfile::Placeholder {}) => Err(super::executions::Error::InvalidProfile(
             "expected Auto profile for vector completion task, got Placeholder".to_string()
         )),
         None => Ok(auto_swarm.as_ref().expect("auto_swarm must be Some in auto mode").clone()),
@@ -664,11 +664,11 @@ where
 }
 
 fn validate_placeholder_profile(
-    task_profile: &Option<objectiveai::functions::TaskProfile>,
+    task_profile: &Option<objectiveai_sdk::functions::TaskProfile>,
 ) -> Result<(), super::executions::Error> {
     if let Some(tp) = task_profile {
         match tp {
-            objectiveai::functions::TaskProfile::Placeholder {} => Ok(()),
+            objectiveai_sdk::functions::TaskProfile::Placeholder {} => Ok(()),
             _ => Err(super::executions::Error::InvalidProfile(
                 "expected Placeholder profile for placeholder task".to_string()
             )),
@@ -689,14 +689,14 @@ enum TaskFut<
     VectorTaskFut(Pin<Box<VFUT>>),
     MapVectorTaskFut((
         Vec<u64>,
-        objectiveai::functions::expression::Expression,
+        objectiveai_sdk::functions::expression::Expression,
         bool,
         futures::future::TryJoinAll<VFUT>,
     )),
     FunctionTaskFut(Pin<Box<FFUT>>),
     MapFunctionTaskFut((
         Vec<u64>,
-        objectiveai::functions::expression::Expression,
+        objectiveai_sdk::functions::expression::Expression,
         bool,
         futures::future::TryJoinAll<FFUT>,
     )),

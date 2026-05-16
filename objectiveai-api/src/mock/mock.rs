@@ -14,7 +14,7 @@ pub fn exists(name: &str) -> bool {
 /// Returns a mock Agent by name.
 pub fn get_agent(
     name: &str,
-) -> Option<objectiveai::agent::RemoteAgentBaseWithFallbacks> {
+) -> Option<objectiveai_sdk::agent::RemoteAgentBaseWithFallbacks> {
     let json = get_agent_json(name)?;
     Some(serde_json::from_str(json).expect("invalid mock agent JSON"))
 }
@@ -36,11 +36,11 @@ fn get_agent_json(name: &str) -> Option<&'static str> {
 const AGENT_REPOSITORIES: &[&str] = &["schema-logprobs", "instruction", "tool-call", "instruction-logprobs", "invention", "error-probability-50"];
 
 /// Lists all mock Agents.
-pub fn list_agents() -> objectiveai::agent::response::ListAgentResponse {
-    objectiveai::agent::response::ListAgentResponse {
+pub fn list_agents() -> objectiveai_sdk::agent::response::ListAgentResponse {
+    objectiveai_sdk::agent::response::ListAgentResponse {
         data: AGENT_REPOSITORIES
             .iter()
-            .map(|name| objectiveai::RemotePath::Mock {
+            .map(|name| objectiveai_sdk::RemotePath::Mock {
                 name: name.to_string(),
             })
             .collect(),
@@ -50,7 +50,7 @@ pub fn list_agents() -> objectiveai::agent::response::ListAgentResponse {
 /// Returns a mock Swarm by name.
 pub fn get_swarm(
     name: &str,
-) -> Option<objectiveai::swarm::RemoteSwarmBase> {
+) -> Option<objectiveai_sdk::swarm::RemoteSwarmBase> {
     let json = get_swarm_json(name)?;
     Some(serde_json::from_str(json).expect("invalid mock swarm JSON"))
 }
@@ -68,11 +68,11 @@ fn get_swarm_json(name: &str) -> Option<&'static str> {
 const SWARM_REPOSITORIES: &[&str] = &["schema-and-tool", "instruction-duo"];
 
 /// Lists all mock Swarms.
-pub fn list_swarms() -> objectiveai::swarm::response::ListSwarmResponse {
-    objectiveai::swarm::response::ListSwarmResponse {
+pub fn list_swarms() -> objectiveai_sdk::swarm::response::ListSwarmResponse {
+    objectiveai_sdk::swarm::response::ListSwarmResponse {
         data: SWARM_REPOSITORIES
             .iter()
-            .map(|name| objectiveai::RemotePath::Mock {
+            .map(|name| objectiveai_sdk::RemotePath::Mock {
                 name: name.to_string(),
             })
             .collect(),
@@ -82,7 +82,7 @@ pub fn list_swarms() -> objectiveai::swarm::response::ListSwarmResponse {
 /// Returns a mock Function by name.
 pub fn get_function(
     name: &str,
-) -> Option<objectiveai::functions::FullRemoteFunction> {
+) -> Option<objectiveai_sdk::functions::FullRemoteFunction> {
     let json = get_function_json(name)?;
     Some(serde_json::from_str(json).expect("invalid mock function JSON"))
 }
@@ -200,11 +200,11 @@ const FUNCTION_REPOSITORIES: &[&str] = &[
 ];
 
 /// Lists all mock Functions.
-pub fn list_functions() -> objectiveai::functions::response::ListFunctionResponse {
-    objectiveai::functions::response::ListFunctionResponse {
+pub fn list_functions() -> objectiveai_sdk::functions::response::ListFunctionResponse {
+    objectiveai_sdk::functions::response::ListFunctionResponse {
         data: FUNCTION_REPOSITORIES
             .iter()
-            .map(|repo| objectiveai::RemotePath::Mock {
+            .map(|repo| objectiveai_sdk::RemotePath::Mock {
                 name: repo.to_string(),
             })
             .collect(),
@@ -214,7 +214,7 @@ pub fn list_functions() -> objectiveai::functions::response::ListFunctionRespons
 /// Returns a mock Profile by name.
 pub fn get_profile(
     name: &str,
-) -> Option<objectiveai::functions::RemoteProfile> {
+) -> Option<objectiveai_sdk::functions::RemoteProfile> {
     let json = get_profile_json(name)?;
     Some(serde_json::from_str(json).expect("invalid mock profile JSON"))
 }
@@ -275,11 +275,11 @@ const PROFILE_REPOSITORIES: &[&str] = &[
 ];
 
 /// Lists all mock Profiles.
-pub fn list_profiles() -> objectiveai::functions::profiles::response::ListProfileResponse {
-    objectiveai::functions::profiles::response::ListProfileResponse {
+pub fn list_profiles() -> objectiveai_sdk::functions::profiles::response::ListProfileResponse {
+    objectiveai_sdk::functions::profiles::response::ListProfileResponse {
         data: PROFILE_REPOSITORIES
             .iter()
-            .map(|repo| objectiveai::RemotePath::Mock {
+            .map(|repo| objectiveai_sdk::RemotePath::Mock {
                 name: repo.to_string(),
             })
             .collect(),
@@ -289,7 +289,7 @@ pub fn list_profiles() -> objectiveai::functions::profiles::response::ListProfil
 /// Returns a mock Prompt by name.
 pub fn get_prompt(
     name: &str,
-) -> Option<objectiveai::functions::inventions::prompts::RemotePrompt> {
+) -> Option<objectiveai_sdk::functions::inventions::prompts::RemotePrompt> {
     let json = get_prompt_json(name)?;
     Some(serde_json::from_str(json).expect("invalid mock prompt JSON"))
 }
@@ -308,11 +308,11 @@ const PROMPT_REPOSITORIES: &[&str] = &[
 ];
 
 /// Lists all mock Prompts.
-pub fn list_prompts() -> objectiveai::functions::inventions::prompts::response::ListPromptResponse {
-    objectiveai::functions::inventions::prompts::response::ListPromptResponse {
+pub fn list_prompts() -> objectiveai_sdk::functions::inventions::prompts::response::ListPromptResponse {
+    objectiveai_sdk::functions::inventions::prompts::response::ListPromptResponse {
         data: PROMPT_REPOSITORIES
             .iter()
-            .map(|repo| objectiveai::RemotePath::Mock {
+            .map(|repo| objectiveai_sdk::RemotePath::Mock {
                 name: repo.to_string(),
             })
             .collect(),

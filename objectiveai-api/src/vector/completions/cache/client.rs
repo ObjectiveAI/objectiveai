@@ -45,11 +45,11 @@ where
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
         id: &str,
     ) -> Result<
-        objectiveai::vector::completions::cache::response::CompletionVotes,
-        objectiveai::error::ResponseError,
+        objectiveai_sdk::vector::completions::cache::response::CompletionVotes,
+        objectiveai_sdk::error::ResponseError,
     > {
         let data = self.completion_votes_fetcher.fetch(ctx, id).await?;
-        Ok(objectiveai::vector::completions::cache::response::CompletionVotes {
+        Ok(objectiveai_sdk::vector::completions::cache::response::CompletionVotes {
             data,
         })
     }
@@ -60,19 +60,19 @@ where
     pub async fn fetch_cache_vote(
         &self,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-        agent: &objectiveai::agent::InlineAgentBaseWithFallbacksOrRemote,
-        messages: &[objectiveai::agent::completions::message::Message],
-        responses: &[objectiveai::agent::completions::message::RichContent],
+        agent: &objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemote,
+        messages: &[objectiveai_sdk::agent::completions::message::Message],
+        responses: &[objectiveai_sdk::agent::completions::message::RichContent],
     ) -> Result<
-        objectiveai::vector::completions::cache::response::CacheVote,
-        objectiveai::error::ResponseError,
+        objectiveai_sdk::vector::completions::cache::response::CacheVote,
+        objectiveai_sdk::error::ResponseError,
     > {
         let vote = self
             .cache_vote_fetcher
             .fetch(ctx, agent, messages, responses)
             .await?;
         Ok(
-            objectiveai::vector::completions::cache::response::CacheVote {
+            objectiveai_sdk::vector::completions::cache::response::CacheVote {
                 vote,
             },
         )

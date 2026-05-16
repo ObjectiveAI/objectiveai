@@ -77,8 +77,8 @@ impl SDKUserMessage {
         id: String,
         created: u64,
         message_index: u64,
-        upstream: objectiveai::agent::Upstream,
-    ) -> Option<objectiveai::agent::completions::response::streaming::AgentCompletionChunk> {
+        upstream: objectiveai_sdk::agent::Upstream,
+    ) -> Option<objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk> {
         let (Some(tool_use_result), Some(tool_call_id)) =
             (self.tool_use_result, self.parent_tool_use_id)
         else {
@@ -86,12 +86,12 @@ impl SDKUserMessage {
         };
 
         let content_str = serde_json::to_string(&tool_use_result).unwrap_or_default();
-        let message = objectiveai::agent::completions::response::streaming::MessageChunk::Tool(
-            objectiveai::agent::completions::response::ToolResponse {
+        let message = objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Tool(
+            objectiveai_sdk::agent::completions::response::ToolResponse {
                 role: Default::default(),
                 index: message_index,
-                inner: objectiveai::agent::completions::message::ToolMessage {
-                    content: objectiveai::agent::completions::message::RichContent::Text(
+                inner: objectiveai_sdk::agent::completions::message::ToolMessage {
+                    content: objectiveai_sdk::agent::completions::message::RichContent::Text(
                         content_str,
                     ),
                     tool_call_id,
@@ -100,7 +100,7 @@ impl SDKUserMessage {
         );
 
         Some(
-            objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
+            objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
                 id,
                 created,
                 messages: vec![message],

@@ -24,21 +24,21 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<(), crate::error::Error> {
-        #[derive(serde::Serialize)]
-        struct SchemaList {
-            schemas: &'static [&'static str],
-        }
+    pub async fn handle(self, handle: &objectiveai_sdk::cli::output::Handle) -> Result<(), crate::error::Error> {
         match self {
             Commands::List => {
                 const NAMES: &[&str] = &["streaming", "unary"];
-                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
-                    SchemaList { schemas: NAMES },
-                ).emit();
+                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Schemas>::Notification(
+                    objectiveai_sdk::cli::output::Notification {
+                        value: objectiveai_sdk::cli::output::Schemas {
+                            schemas: NAMES.iter().map(|s| s.to_string()).collect(),
+                        },
+                    },
+                ).emit(handle).await;
                 Ok(())
             }
-            Commands::Streaming { command } => command.handle(),
-            Commands::Unary { command } => command.handle(),
+            Commands::Streaming { command } => command.handle(handle).await,
+            Commands::Unary { command } => command.handle(handle).await,
         }
     }
 }

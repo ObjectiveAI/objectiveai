@@ -1,10 +1,10 @@
 pub trait UpstreamError:
-    std::error::Error + objectiveai::error::StatusError + Send + Sync + 'static
+    std::error::Error + objectiveai_sdk::error::StatusError + Send + Sync + 'static
 {
 }
 
 impl<T> UpstreamError for T where
-    T: std::error::Error + objectiveai::error::StatusError + Send + Sync + 'static
+    T: std::error::Error + objectiveai_sdk::error::StatusError + Send + Sync + 'static
 {
 }
 
@@ -33,10 +33,10 @@ pub trait UpstreamClient<AGENT, CONTINUATION> {
         // optional continuation from the public API request
         request_continuation: Option<&CONTINUATION>,
         // the original request params for the agent completion
-        params: &objectiveai::agent::completions::request::AgentCompletionCreateParams,
+        params: &objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams,
         // contains the full prompt, including from the params and from the agent
         // upstream clients do not handle merging params and agent messages
-        messages: &[objectiveai::agent::completions::message::Message],
+        messages: &[objectiveai_sdk::agent::completions::message::Message],
         // the single MCP connection for this agent — already initialized
         // against the in-process mcp-proxy with `X-MCP-Servers` listing
         // the agent's declared upstreams (and the invention server URL,
@@ -44,7 +44,7 @@ pub trait UpstreamClient<AGENT, CONTINUATION> {
         // The upstream is responsible for sourcing its tool list from
         // this connection (e.g. via `list_tools`); the orchestrator no
         // longer pre-resolves tool names or maps for the upstream.
-        mcp_connection: Option<objectiveai::mcp::Connection>,
+        mcp_connection: Option<objectiveai_sdk::mcp::Connection>,
         // a continuation from a previous agent completion
         // the upstream client can continue conversations from previous state
         // the agent may change
@@ -56,7 +56,7 @@ pub trait UpstreamClient<AGENT, CONTINUATION> {
         // when false, the model should not be allowed to call tools
         tools_enabled: bool,
         // invention context — only set when called from the invention client
-        invention_type: Option<objectiveai::functions::inventions::prompts::StepPromptType>,
+        invention_type: Option<objectiveai_sdk::functions::inventions::prompts::StepPromptType>,
         invention_step: Option<usize>,
         invention_tasks_min: Option<u64>,
         invention_input_schema: Option<String>,
@@ -75,7 +75,7 @@ pub trait UpstreamClient<AGENT, CONTINUATION> {
         &self,
         mcp_sessions: indexmap::IndexMap<String, String>,
         request_continuation: Option<&CONTINUATION>,
-        messages: &[objectiveai::agent::completions::message::Message],
+        messages: &[objectiveai_sdk::agent::completions::message::Message],
         continuation: Option<&[super::ContinuationItem<Self::State>]>,
     ) -> CONTINUATION;
 }
@@ -85,21 +85,21 @@ pub struct UnimplementedUpstreamClient;
 impl<AGENT, CONTINUATION> UpstreamClient<AGENT, CONTINUATION> for UnimplementedUpstreamClient {
     type State = ();
     type Stream = futures::stream::Empty<StreamItem<Self::State>>;
-    type Error = objectiveai::error::ResponseError;
+    type Error = objectiveai_sdk::error::ResponseError;
     fn create(
         &self,
         _id: &str,
         _created: u64,
         _agent: &AGENT,
         _request_continuation: Option<&CONTINUATION>,
-        _params: &objectiveai::agent::completions::request::AgentCompletionCreateParams,
-        _messages: &[objectiveai::agent::completions::message::Message],
-        _mcp_connection: Option<objectiveai::mcp::Connection>,
+        _params: &objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams,
+        _messages: &[objectiveai_sdk::agent::completions::message::Message],
+        _mcp_connection: Option<objectiveai_sdk::mcp::Connection>,
         _continuation: Option<&[super::ContinuationItem<Self::State>]>,
         _byok: Option<&str>,
         _cost_multiplier: rust_decimal::Decimal,
         _tools_enabled: bool,
-        _invention_type: Option<objectiveai::functions::inventions::prompts::StepPromptType>,
+        _invention_type: Option<objectiveai_sdk::functions::inventions::prompts::StepPromptType>,
         _invention_step: Option<usize>,
         _invention_tasks_min: Option<u64>,
         _invention_input_schema: Option<String>,
@@ -112,7 +112,7 @@ impl<AGENT, CONTINUATION> UpstreamClient<AGENT, CONTINUATION> for UnimplementedU
     + 'static {
         async {
             Err(
-                objectiveai::error::ResponseError {
+                objectiveai_sdk::error::ResponseError {
                     code: 501,
                     message: serde_json::Value::Null,
                 }
@@ -124,7 +124,7 @@ impl<AGENT, CONTINUATION> UpstreamClient<AGENT, CONTINUATION> for UnimplementedU
         &self,
         _mcp_sessions: indexmap::IndexMap<String, String>,
         _request_continuation: Option<&CONTINUATION>,
-        _messages: &[objectiveai::agent::completions::message::Message],
+        _messages: &[objectiveai_sdk::agent::completions::message::Message],
         _continuation: Option<&[super::ContinuationItem<Self::State>]>,
     ) -> CONTINUATION {
         unimplemented!()
@@ -133,6 +133,6 @@ impl<AGENT, CONTINUATION> UpstreamClient<AGENT, CONTINUATION> for UnimplementedU
 
 #[derive(Debug, Clone)]
 pub enum StreamItem<STATE> {
-    Chunk(objectiveai::agent::completions::response::streaming::AgentCompletionChunk),
+    Chunk(objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk),
     State(STATE),
 }

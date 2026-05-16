@@ -1557,7 +1557,7 @@ string TitleToPascal(string title)
 string ToPascalCase(string s)
 {
     if (string.IsNullOrEmpty(s)) return s;
-    var parts = s.Split('_', '-', '.');
+    var parts = s.Split('_', '-', '.', '/');
     return string.Concat(parts.Where(p => p.Length > 0).Select(p => char.ToUpper(p[0]) + p[1..]));
 }
 

@@ -15,14 +15,14 @@
 //! - `ItemCompleted` with `Reasoning` → assistant reasoning chunk
 //! - All other items / unknown variants → `None`
 
-use objectiveai::agent::completions::message::RichContent;
-use objectiveai::agent::completions::response::streaming::{
+use objectiveai_sdk::agent::completions::message::RichContent;
+use objectiveai_sdk::agent::completions::response::streaming::{
     AgentCompletionChunk, AssistantResponseChunk, MessageChunk,
 };
-use objectiveai::agent::completions::response::{
+use objectiveai_sdk::agent::completions::response::{
     FinishReason, PromptTokensDetails, UpstreamUsage,
 };
-use objectiveai::agent::Upstream;
+use objectiveai_sdk::agent::Upstream;
 
 use super::{
     KnownThreadEvent, KnownThreadItem, ThreadEvent, ThreadItem, Usage,
@@ -59,7 +59,7 @@ fn upstream_usage(
     let (cost, cost_details, total_cost) = if is_byok {
         (
             total_cost - upstream_total_cost,
-            Some(objectiveai::agent::completions::response::CostDetails {
+            Some(objectiveai_sdk::agent::completions::response::CostDetails {
                 upstream_inference_cost,
                 upstream_upstream_inference_cost,
             }),

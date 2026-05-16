@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-api"
-version = "2.0.3"
+version = "2.0.5"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
 description = "ObjectiveAI API Server"
@@ -11,17 +11,26 @@ documentation = "https://docs.rs/objectiveai-api"
 readme = "README.md"
 keywords = ["llm", "ai", "swarm"]
 publish = true
+# Exclude the 72M `assets/` test-snapshot tree from the published
+# tarball -- crates.io has a 10MB upload cap. Snapshots only matter
+# for running the in-repo tests, not for consumers compiling the
+# library. tests/ is also excluded for the same reason.
+include = [
+    "src/**/*.rs",
+    "Cargo.toml",
+    "build.rs",
+    "README.md",
+    "LICENSE*",
+]
 
 [features]
-default = ["orchestrator-bollard", "claude-agent-sdk"]
+default = ["orchestrator-bollard"]
 sqlite-persistent-cache = ["dep:rusqlite"]
 orchestrator-bollard = ["dep:bollard", "dep:tar"]
-claude-agent-sdk = []
-codex-sdk = []
 
 [dependencies]
-objectiveai = { path = "../objectiveai-rs", version = "2.0.3", default-features = false, features = ["http", "mcp"] }
-objectiveai-mcp-proxy = { path = "../objectiveai-mcp-proxy", version = "2.0.3" }
+objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.0.5", default-features = false, features = ["http", "mcp"] }
+objectiveai-mcp-proxy = { path = "../objectiveai-mcp-proxy", version = "2.0.5" }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
 serde = { version = "1.0.228", features = ["derive"] }
 indexmap = { version = "2.13.0", features = ["serde"] }

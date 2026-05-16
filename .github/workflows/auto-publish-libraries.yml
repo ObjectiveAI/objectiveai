@@ -1,0 +1,231 @@
+name: Auto-publish libraries
+
+# Fires on every push to main. If the version in
+# objectiveai-sdk-rs/Cargo.toml is not yet on crates.io as
+# `objectiveai-sdk@<version>`, this orchestrator runs the same
+# 6-wave dependency chain that `publish.sh` uses manually and
+# rolls out every library to its registry.
+#
+# Wave map (matches publish.sh):
+#   1. sdk-rs-macros (crates), sdk-go (git tag)
+#   2. sdk-rs (crates)             — needs macros
+#   3. mcp-proxy, mcp-filesystem (crates) +
+#      sdk-py (PyPI) + sdk-js (npm)               — need sdk-rs
+#   4. api (crates)                — needs mcp-proxy
+#   5. cli (crates)                — needs api
+#   6. mcp-cli (crates), cocoindex (PyPI)
+#                                  — need cli / sdk-py respectively
+#
+# Each per-package publish workflow is called as a reusable workflow
+# (`uses: ./.github/workflows/publish-objectiveai-X.yml`) so its
+# secrets/setup/build steps stay defined in one place and remain
+# triggerable manually via workflow_dispatch.
+#
+# Between waves a `wait-after-wave-N` job polls each registry until
+# the just-published packages appear, so downstream waves don't race
+# the index.
+#
+# Binaries (release.yml) auto-fire from the same push independently;
+# they are not coupled here.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write  # for the sdk-go tag push
+
+concurrency:
+  group: auto-publish-libraries
+  cancel-in-progress: false
+
+jobs:
+  check-version:
+    name: Check version
+    runs-on: ubuntu-latest
+    outputs:
+      should-publish: ${{ steps.check.outputs.should-publish }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        name: Read version + probe crates.io
+        run: |
+          VERSION=$(awk '/^version = "/ { gsub(/version = "|"/, ""); print; exit }' objectiveai-sdk-rs/Cargo.toml)
+          echo "Canonical version: $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if curl -fsS -A "objectiveai-publish-orchestrator (admin@objectiveai.dev)" -o /dev/null "https://crates.io/api/v1/crates/objectiveai-sdk/$VERSION" 2>/dev/null; then
+            echo "objectiveai-sdk@$VERSION is already live on crates.io — skip"
+            echo "should-publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "objectiveai-sdk@$VERSION is not yet on crates.io — will publish"
+            echo "should-publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ─── Wave 1 ───────────────────────────────────────────────────────
+  publish-sdk-rs-macros:
+    needs: check-version
+    if: needs.check-version.outputs.should-publish == 'true'
+    uses: ./.github/workflows/publish-objectiveai-sdk-rs-macros.yml
+    secrets: inherit
+
+  publish-sdk-go:
+    needs: check-version
+    if: needs.check-version.outputs.should-publish == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Push tag objectiveai-sdk-go/v<version>
+        env:
+          VERSION: ${{ needs.check-version.outputs.version }}
+        run: |
+          TAG="objectiveai-sdk-go/v$VERSION"
+          if git ls-remote --tags origin "refs/tags/$TAG" | grep -q "$TAG"; then
+            echo "Tag $TAG already exists on origin — skip"
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git tag -a "$TAG" -m "objectiveai-sdk-go v$VERSION"
+          git push origin "$TAG"
+
+  # ─── Wave 2 ───────────────────────────────────────────────────────
+  wait-after-wave-1:
+    needs: [check-version, publish-sdk-rs-macros, publish-sdk-go]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for sdk-macros on crates.io
+        env:
+          VERSION: ${{ needs.check-version.outputs.version }}
+        run: |
+          for _ in $(seq 1 80); do
+            if curl -fsS -A "objectiveai-publish-orchestrator (admin@objectiveai.dev)" -o /dev/null "https://crates.io/api/v1/crates/objectiveai-sdk-macros/$VERSION" 2>/dev/null; then
+              echo "live"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "timed out"; exit 1
+
+  publish-sdk-rs:
+    needs: wait-after-wave-1
+    uses: ./.github/workflows/publish-objectiveai-sdk-rs.yml
+    secrets: inherit
+
+  # ─── Wave 3 ───────────────────────────────────────────────────────
+  wait-after-wave-2:
+    needs: [check-version, publish-sdk-rs]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for sdk on crates.io
+        env:
+          VERSION: ${{ needs.check-version.outputs.version }}
+        run: |
+          for _ in $(seq 1 80); do
+            if curl -fsS -A "objectiveai-publish-orchestrator (admin@objectiveai.dev)" -o /dev/null "https://crates.io/api/v1/crates/objectiveai-sdk/$VERSION" 2>/dev/null; then
+              echo "live"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "timed out"; exit 1
+
+  publish-mcp-proxy:
+    needs: wait-after-wave-2
+    uses: ./.github/workflows/publish-objectiveai-mcp-proxy.yml
+    secrets: inherit
+
+  publish-mcp-filesystem:
+    needs: wait-after-wave-2
+    uses: ./.github/workflows/publish-objectiveai-mcp-filesystem.yml
+    secrets: inherit
+
+  publish-sdk-py:
+    needs: wait-after-wave-2
+    uses: ./.github/workflows/publish-objectiveai-sdk-py.yml
+    secrets: inherit
+
+  publish-sdk-js:
+    needs: wait-after-wave-2
+    uses: ./.github/workflows/publish-objectiveai-sdk-js.yml
+    secrets: inherit
+
+  # ─── Wave 4 ───────────────────────────────────────────────────────
+  wait-after-wave-3:
+    needs: [check-version, publish-mcp-proxy, publish-mcp-filesystem, publish-sdk-py, publish-sdk-js]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for mcp-proxy on crates.io
+        env:
+          VERSION: ${{ needs.check-version.outputs.version }}
+        run: |
+          for _ in $(seq 1 80); do
+            if curl -fsS -A "objectiveai-publish-orchestrator (admin@objectiveai.dev)" -o /dev/null "https://crates.io/api/v1/crates/objectiveai-mcp-proxy/$VERSION" 2>/dev/null; then
+              echo "live"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "timed out"; exit 1
+
+  publish-api:
+    needs: wait-after-wave-3
+    uses: ./.github/workflows/publish-objectiveai-api.yml
+    secrets: inherit
+
+  # ─── Wave 5 ───────────────────────────────────────────────────────
+  wait-after-wave-4:
+    needs: [check-version, publish-api]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for api on crates.io
+        env:
+          VERSION: ${{ needs.check-version.outputs.version }}
+        run: |
+          for _ in $(seq 1 80); do
+            if curl -fsS -A "objectiveai-publish-orchestrator (admin@objectiveai.dev)" -o /dev/null "https://crates.io/api/v1/crates/objectiveai-api/$VERSION" 2>/dev/null; then
+              echo "live"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "timed out"; exit 1
+
+  publish-cli:
+    needs: wait-after-wave-4
+    uses: ./.github/workflows/publish-objectiveai-cli.yml
+    secrets: inherit
+
+  # ─── Wave 6 ───────────────────────────────────────────────────────
+  wait-after-wave-5:
+    needs: [check-version, publish-cli]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for cli + sdk-py
+        env:
+          VERSION: ${{ needs.check-version.outputs.version }}
+        run: |
+          for _ in $(seq 1 80); do
+            ok=true
+            curl -fsS -A "objectiveai-publish-orchestrator (admin@objectiveai.dev)" -o /dev/null "https://crates.io/api/v1/crates/objectiveai-cli/$VERSION" 2>/dev/null || ok=false
+            curl -fsS -o /dev/null "https://pypi.org/pypi/objectiveai-sdk/$VERSION/json" 2>/dev/null || ok=false
+            if $ok; then
+              echo "live"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "timed out"; exit 1
+
+  publish-mcp-cli:
+    needs: wait-after-wave-5
+    uses: ./.github/workflows/publish-objectiveai-mcp-cli.yml
+    secrets: inherit
+
+  publish-cocoindex:
+    needs: wait-after-wave-5
+    uses: ./.github/workflows/publish-objectiveai-cocoindex.yml
+    secrets: inherit

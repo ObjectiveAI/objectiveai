@@ -1,7 +1,7 @@
 //! Error endpoint client for testing error handling.
 
 use futures::Stream;
-use objectiveai::error::{request::ErrorCreateParams, response::ErrorResponse};
+use objectiveai_sdk::error::{request::ErrorCreateParams, response::ErrorResponse};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
@@ -18,12 +18,12 @@ impl Client {
         &self,
         _ctx: &crate::ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
         body: &ErrorCreateParams,
-    ) -> Result<ErrorResponse, objectiveai::error::ResponseError> {
+    ) -> Result<ErrorResponse, objectiveai_sdk::error::ResponseError> {
         let mut rng = make_rng(body.seed);
         if rng.random_bool(0.5) {
             Ok(ErrorResponse { ok: true })
         } else {
-            Err(objectiveai::error::ResponseError {
+            Err(objectiveai_sdk::error::ResponseError {
                 code: 500,
                 message: serde_json::json!("coin flip error"),
             })
@@ -40,12 +40,12 @@ impl Client {
         _ctx: &crate::ctx::Context<CTXEXT, PC>,
         body: &ErrorCreateParams,
     ) -> Result<
-        impl Stream<Item = Result<ErrorResponse, objectiveai::error::ResponseError>> + use<CTXEXT, PC>,
-        objectiveai::error::ResponseError,
+        impl Stream<Item = Result<ErrorResponse, objectiveai_sdk::error::ResponseError>> + use<CTXEXT, PC>,
+        objectiveai_sdk::error::ResponseError,
     > {
         let mut rng = make_rng(body.seed);
         if rng.random_bool(0.5) {
-            return Err(objectiveai::error::ResponseError {
+            return Err(objectiveai_sdk::error::ResponseError {
                 code: 500,
                 message: serde_json::json!("coin flip error"),
             });
@@ -57,7 +57,7 @@ impl Client {
                 if rng.random_bool(0.5) {
                     yield Ok(ErrorResponse { ok: true });
                 } else {
-                    yield Err(objectiveai::error::ResponseError {
+                    yield Err(objectiveai_sdk::error::ResponseError {
                         code: 500,
                         message: serde_json::json!("coin flip stream error"),
                     });

@@ -3,6 +3,7 @@
 
 pub mod config;
 pub mod logs;
+pub mod plugins;
 
 use clap::Subcommand;
 
@@ -21,24 +22,30 @@ pub enum Commands {
         #[command(subcommand)]
         command: logs::Commands,
     },
+    #[command(name = "plugins")]
+    Plugins {
+        #[command(subcommand)]
+        command: plugins::Commands,
+    },
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<(), crate::error::Error> {
-        #[derive(serde::Serialize)]
-        struct SchemaList {
-            schemas: &'static [&'static str],
-        }
+    pub async fn handle(self, handle: &objectiveai_sdk::cli::output::Handle) -> Result<(), crate::error::Error> {
         match self {
             Commands::List => {
-                const NAMES: &[&str] = &["config", "logs"];
-                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
-                    SchemaList { schemas: NAMES },
-                ).emit();
+                const NAMES: &[&str] = &["config", "logs", "plugins"];
+                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Schemas>::Notification(
+                    objectiveai_sdk::cli::output::Notification {
+                        value: objectiveai_sdk::cli::output::Schemas {
+                            schemas: NAMES.iter().map(|s| s.to_string()).collect(),
+                        },
+                    },
+                ).emit(handle).await;
                 Ok(())
             }
-            Commands::Config { command } => command.handle(),
-            Commands::Logs { command } => command.handle(),
+            Commands::Config { command } => command.handle(handle).await,
+            Commands::Logs { command } => command.handle(handle).await,
+            Commands::Plugins { command } => command.handle(handle).await,
         }
     }
 }

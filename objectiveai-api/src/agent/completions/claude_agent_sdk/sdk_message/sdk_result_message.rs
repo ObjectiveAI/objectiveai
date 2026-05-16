@@ -103,15 +103,15 @@ impl SDKResultMessage {
         assistant_index: u64,
         is_byok: bool,
         cost_multiplier: rust_decimal::Decimal,
-        upstream: objectiveai::agent::Upstream,
-    ) -> objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
+        upstream: objectiveai_sdk::agent::Upstream,
+    ) -> objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
         let upstream_id = self.session_id().to_string();
         let (total_cost_usd, usage, error) = match &self {
             SDKResultMessage::Success(s) => (s.total_cost_usd, &s.usage, None),
             SDKResultMessage::Error(e) => (
                 e.total_cost_usd,
                 &e.usage,
-                Some(objectiveai::error::ResponseError {
+                Some(objectiveai_sdk::error::ResponseError {
                     code: 500,
                     message: serde_json::Value::String(
                         e.errors.join("; "),
@@ -127,7 +127,7 @@ impl SDKResultMessage {
         let total_tokens = prompt_tokens + completion_tokens;
 
         let prompt_tokens_details =
-            Some(objectiveai::agent::completions::response::PromptTokensDetails {
+            Some(objectiveai_sdk::agent::completions::response::PromptTokensDetails {
                 audio_tokens: None,
                 cached_tokens: Some(usage.cache_read_input_tokens as u64),
                 cache_write_tokens: Some(usage.cache_creation_input_tokens as u64),
@@ -143,7 +143,7 @@ impl SDKResultMessage {
         let (cost, cost_details, total_cost) = if is_byok {
             (
                 total_cost - upstream_total_cost,
-                Some(objectiveai::agent::completions::response::CostDetails {
+                Some(objectiveai_sdk::agent::completions::response::CostDetails {
                     upstream_inference_cost,
                     upstream_upstream_inference_cost,
                 }),
@@ -153,7 +153,7 @@ impl SDKResultMessage {
             (total_cost, None, total_cost)
         };
 
-        let downstream_usage = objectiveai::agent::completions::response::UpstreamUsage {
+        let downstream_usage = objectiveai_sdk::agent::completions::response::UpstreamUsage {
             completion_tokens,
             prompt_tokens,
             total_tokens,
@@ -166,12 +166,12 @@ impl SDKResultMessage {
             is_byok,
         };
 
-        objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
+        objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
             id,
             created,
             messages: vec![
-                objectiveai::agent::completions::response::streaming::MessageChunk::Assistant(
-                    objectiveai::agent::completions::response::streaming::AssistantResponseChunk {
+                objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
+                    objectiveai_sdk::agent::completions::response::streaming::AssistantResponseChunk {
                         index: assistant_index,
                         created,
                         agent,

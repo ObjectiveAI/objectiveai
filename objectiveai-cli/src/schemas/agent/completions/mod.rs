@@ -30,22 +30,22 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<(), crate::error::Error> {
-        #[derive(serde::Serialize)]
-        struct SchemaList {
-            schemas: &'static [&'static str],
-        }
+    pub async fn handle(self, handle: &objectiveai_sdk::cli::output::Handle) -> Result<(), crate::error::Error> {
         match self {
             Commands::List => {
                 const NAMES: &[&str] = &["message", "request", "response"];
-                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
-                    SchemaList { schemas: NAMES },
-                ).emit();
+                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Schemas>::Notification(
+                    objectiveai_sdk::cli::output::Notification {
+                        value: objectiveai_sdk::cli::output::Schemas {
+                            schemas: NAMES.iter().map(|s| s.to_string()).collect(),
+                        },
+                    },
+                ).emit(handle).await;
                 Ok(())
             }
-            Commands::Message { command } => command.handle(),
-            Commands::Request { command } => command.handle(),
-            Commands::Response { command } => command.handle(),
+            Commands::Message { command } => command.handle(handle).await,
+            Commands::Request { command } => command.handle(handle).await,
+            Commands::Response { command } => command.handle(handle).await,
         }
     }
 }

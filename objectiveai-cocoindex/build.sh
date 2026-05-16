@@ -44,21 +44,21 @@ run() {
     "$PIP" install -r "$SCRIPT_DIR/requirements-dev.txt" --quiet
   fi
 
-  # ── editable install of sibling objectiveai-py FIRST. This lands `objectiveai`
-  # in the venv at the version specified in objectiveai-py/pyproject.toml. The
+  # ── editable install of sibling objectiveai-sdk-py FIRST. This lands `objectiveai-sdk`
+  # in the venv at the version specified in objectiveai-sdk-py/pyproject.toml. The
   # subsequent `pip install -e .` for objectiveai-cocoindex sees the version
-  # already satisfies its `objectiveai==X.Y.Z` pin and leaves the editable
-  # install alone — so local edits to ../objectiveai-py are picked up live.
+  # already satisfies its `objectiveai-sdk==X.Y.Z` pin and leaves the editable
+  # install alone — so local edits to ../objectiveai-sdk-py are picked up live.
   # When users `pip install objectiveai-cocoindex` from PyPI, this redirect
-  # doesn't fire; pip pulls `objectiveai==X.Y.Z` from PyPI as a normal dep.
-  if ! "$PYTHON" -c "import objectiveai" 2>/dev/null; then
-    echo "Installing objectiveai from sibling source ($REPO_ROOT/objectiveai-py)..."
-    "$PIP" install -e "$REPO_ROOT/objectiveai-py" --quiet
+  # doesn't fire; pip pulls `objectiveai-sdk==X.Y.Z` from PyPI as a normal dep.
+  if ! "$PYTHON" -c "import objectiveai_sdk" 2>/dev/null; then
+    echo "Installing objectiveai-sdk from sibling source ($REPO_ROOT/objectiveai-sdk-py)..."
+    "$PIP" install -e "$REPO_ROOT/objectiveai-sdk-py" --quiet
   fi
 
   # ── editable install of objectiveai-cocoindex itself. Pulls `cocoindex` from
   # PyPI (declared in pyproject.toml [project.dependencies]) and confirms the
-  # `objectiveai==X.Y.Z` pin against the already-installed editable sibling.
+  # `objectiveai-sdk==X.Y.Z` pin against the already-installed editable sibling.
   if ! "$PYTHON" -c "import objectiveai_cocoindex" 2>/dev/null; then
     echo "Editable-installing objectiveai-cocoindex..."
     "$PIP" install -e "$SCRIPT_DIR" --quiet

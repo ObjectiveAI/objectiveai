@@ -113,12 +113,15 @@ fi
 
 # ── Build embedded binaries ────────────────────────────────────────────
 # The CLI embeds viewer (via build.rs), and objectiveai-api embeds
-# mcp (linux-musl) and the claude-agent-sdk-runner.
+# mcp (linux-musl), the claude-agent-sdk-runner, and the codex-sdk-runner.
 
 echo "Building embedded dependencies..."
 
 # claude-agent-sdk-runner (native target, Python)
 bash "$REPO_ROOT/objectiveai-claude-agent-sdk-runner/build.sh" --release
+
+# codex-sdk-runner (native target, Python)
+bash "$REPO_ROOT/objectiveai-codex-sdk-runner/build.sh" --release
 
 # mcp-filesystem (linux-musl, Docker container injection) — embedded by
 # objectiveai-api with orchestrator-bollard. Match the host architecture
@@ -141,7 +144,7 @@ fi
 # ── Build CLI ──────────────────────────────────────────────────────────
 
 # Assemble feature list
-FEATURES="rustpython,systempython,updater,claude-agent-sdk"
+FEATURES="rustpython,systempython,updater"
 if [ "$NO_VIEWER" = "0" ]; then
   FEATURES="$FEATURES,viewer"
 fi

@@ -43,12 +43,12 @@ fn test_text_only_content() {
         Decimal::from(1),
     );
 
-    let expected = objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
+    let expected = objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
         id: "obj-1".to_string(),
         created: 1000,
         messages: vec![
-            objectiveai::agent::completions::response::streaming::MessageChunk::Assistant(
-                objectiveai::agent::completions::response::streaming::AssistantResponseChunk {
+            objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
+                objectiveai_sdk::agent::completions::response::streaming::AssistantResponseChunk {
                     role: Default::default(),
                     index: 0,
                     created: 1000,
@@ -58,7 +58,7 @@ fn test_text_only_content() {
                     reasoning: None,
                     tool_calls: None,
                     content: Some(
-                        objectiveai::agent::completions::message::RichContent::Text(
+                        objectiveai_sdk::agent::completions::message::RichContent::Text(
                             "Hello".to_string(),
                         ),
                     ),
@@ -74,7 +74,7 @@ fn test_text_only_content() {
         ],
         object: Default::default(),
         usage: None,
-        upstream: objectiveai::agent::Upstream::Openrouter,
+        upstream: objectiveai_sdk::agent::Upstream::Openrouter,
         error: None,
         continuation: None,
     };
@@ -99,12 +99,12 @@ fn test_empty_delta() {
         Decimal::from(1),
     );
 
-    let expected = objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
+    let expected = objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
         id: "obj-2".to_string(),
         created: 1000,
         messages: vec![
-            objectiveai::agent::completions::response::streaming::MessageChunk::Assistant(
-                objectiveai::agent::completions::response::streaming::AssistantResponseChunk {
+            objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
+                objectiveai_sdk::agent::completions::response::streaming::AssistantResponseChunk {
                     role: Default::default(),
                     index: 0,
                     created: 1000,
@@ -126,7 +126,7 @@ fn test_empty_delta() {
         ],
         object: Default::default(),
         usage: None,
-        upstream: objectiveai::agent::Upstream::Openrouter,
+        upstream: objectiveai_sdk::agent::Upstream::Openrouter,
         error: None,
         continuation: None,
     };
@@ -165,12 +165,12 @@ fn test_images_only() {
         Decimal::from(1),
     );
 
-    let expected = objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
+    let expected = objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
         id: "obj-3".to_string(),
         created: 1000,
         messages: vec![
-            objectiveai::agent::completions::response::streaming::MessageChunk::Assistant(
-                objectiveai::agent::completions::response::streaming::AssistantResponseChunk {
+            objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
+                objectiveai_sdk::agent::completions::response::streaming::AssistantResponseChunk {
                     role: Default::default(),
                     index: 0,
                     created: 1000,
@@ -180,15 +180,15 @@ fn test_images_only() {
                     reasoning: None,
                     tool_calls: None,
                     content: Some(
-                        objectiveai::agent::completions::message::RichContent::Parts(vec![
-                            objectiveai::agent::completions::message::RichContentPart::ImageUrl {
-                                image_url: objectiveai::agent::completions::message::ImageUrl {
+                        objectiveai_sdk::agent::completions::message::RichContent::Parts(vec![
+                            objectiveai_sdk::agent::completions::message::RichContentPart::ImageUrl {
+                                image_url: objectiveai_sdk::agent::completions::message::ImageUrl {
                                     url: "https://example.com/a.png".to_string(),
                                     detail: None,
                                 },
                             },
-                            objectiveai::agent::completions::message::RichContentPart::ImageUrl {
-                                image_url: objectiveai::agent::completions::message::ImageUrl {
+                            objectiveai_sdk::agent::completions::message::RichContentPart::ImageUrl {
+                                image_url: objectiveai_sdk::agent::completions::message::ImageUrl {
                                     url: "https://example.com/b.png".to_string(),
                                     detail: None,
                                 },
@@ -207,7 +207,7 @@ fn test_images_only() {
         ],
         object: Default::default(),
         usage: None,
-        upstream: objectiveai::agent::Upstream::Openrouter,
+        upstream: objectiveai_sdk::agent::Upstream::Openrouter,
         error: None,
         continuation: None,
     };
@@ -240,12 +240,12 @@ fn test_text_and_images_merged() {
         Decimal::from(1),
     );
 
-    let expected = objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
+    let expected = objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
         id: "obj-4".to_string(),
         created: 1000,
         messages: vec![
-            objectiveai::agent::completions::response::streaming::MessageChunk::Assistant(
-                objectiveai::agent::completions::response::streaming::AssistantResponseChunk {
+            objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
+                objectiveai_sdk::agent::completions::response::streaming::AssistantResponseChunk {
                     role: Default::default(),
                     index: 0,
                     created: 1000,
@@ -255,12 +255,12 @@ fn test_text_and_images_merged() {
                     reasoning: None,
                     tool_calls: None,
                     content: Some(
-                        objectiveai::agent::completions::message::RichContent::Parts(vec![
-                            objectiveai::agent::completions::message::RichContentPart::Text {
+                        objectiveai_sdk::agent::completions::message::RichContent::Parts(vec![
+                            objectiveai_sdk::agent::completions::message::RichContentPart::Text {
                                 text: "Here is the image:".to_string(),
                             },
-                            objectiveai::agent::completions::message::RichContentPart::ImageUrl {
-                                image_url: objectiveai::agent::completions::message::ImageUrl {
+                            objectiveai_sdk::agent::completions::message::RichContentPart::ImageUrl {
+                                image_url: objectiveai_sdk::agent::completions::message::ImageUrl {
                                     url: "https://example.com/gen.png".to_string(),
                                     detail: None,
                                 },
@@ -279,7 +279,7 @@ fn test_text_and_images_merged() {
         ],
         object: Default::default(),
         usage: None,
-        upstream: objectiveai::agent::Upstream::Openrouter,
+        upstream: objectiveai_sdk::agent::Upstream::Openrouter,
         error: None,
         continuation: None,
     };
@@ -297,7 +297,7 @@ fn test_usage_with_cost_multiplier() {
                 ..Default::default()
             },
             finish_reason: Some(
-                objectiveai::agent::completions::response::FinishReason::Stop,
+                objectiveai_sdk::agent::completions::response::FinishReason::Stop,
             ),
             index: 0,
             logprobs: None,
@@ -329,12 +329,12 @@ fn test_usage_with_cost_multiplier() {
         multiplier,
     );
 
-    let expected = objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
+    let expected = objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
         id: "obj-5".to_string(),
         created: 2000,
         messages: vec![
-            objectiveai::agent::completions::response::streaming::MessageChunk::Assistant(
-                objectiveai::agent::completions::response::streaming::AssistantResponseChunk {
+            objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
+                objectiveai_sdk::agent::completions::response::streaming::AssistantResponseChunk {
                     role: Default::default(),
                     index: 0,
                     created: 2000,
@@ -344,19 +344,19 @@ fn test_usage_with_cost_multiplier() {
                     reasoning: None,
                     tool_calls: None,
                     content: Some(
-                        objectiveai::agent::completions::message::RichContent::Text(
+                        objectiveai_sdk::agent::completions::message::RichContent::Text(
                             "done".to_string(),
                         ),
                     ),
                     refusal: None,
                     finish_reason: Some(
-                        objectiveai::agent::completions::response::FinishReason::Stop,
+                        objectiveai_sdk::agent::completions::response::FinishReason::Stop,
                     ),
                     logprobs: None,
                     service_tier: Some("default".to_string()),
                     system_fingerprint: Some("fp_abc123".to_string()),
                     provider: Some("OpenAI".to_string()),
-                    usage: Some(objectiveai::agent::completions::response::UpstreamUsage {
+                    usage: Some(objectiveai_sdk::agent::completions::response::UpstreamUsage {
                         completion_tokens: 50,
                         prompt_tokens: 100,
                         total_tokens: 150,
@@ -373,7 +373,7 @@ fn test_usage_with_cost_multiplier() {
         ],
         object: Default::default(),
         usage: None,
-        upstream: objectiveai::agent::Upstream::Openrouter,
+        upstream: objectiveai_sdk::agent::Upstream::Openrouter,
         error: None,
         continuation: None,
     };
@@ -389,14 +389,14 @@ fn test_reasoning_and_tool_calls() {
         Delta {
             reasoning: Some("Let me think...".to_string()),
             tool_calls: Some(vec![
-                objectiveai::agent::completions::message::AssistantToolCallDelta {
+                objectiveai_sdk::agent::completions::message::AssistantToolCallDelta {
                     index: 0,
                     id: Some("call_1".to_string()),
                     r#type: Some(
-                        objectiveai::agent::completions::message::AssistantToolCallType::Function,
+                        objectiveai_sdk::agent::completions::message::AssistantToolCallType::Function,
                     ),
                     function: Some(
-                        objectiveai::agent::completions::message::AssistantToolCallFunctionDelta {
+                        objectiveai_sdk::agent::completions::message::AssistantToolCallFunctionDelta {
                             name: Some("get_weather".to_string()),
                             arguments: Some("{\"city\":\"NYC\"}".to_string()),
                         },
@@ -416,12 +416,12 @@ fn test_reasoning_and_tool_calls() {
         Decimal::from(1),
     );
 
-    let expected = objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
+    let expected = objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
         id: "obj-6".to_string(),
         created: 1000,
         messages: vec![
-            objectiveai::agent::completions::response::streaming::MessageChunk::Assistant(
-                objectiveai::agent::completions::response::streaming::AssistantResponseChunk {
+            objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
+                objectiveai_sdk::agent::completions::response::streaming::AssistantResponseChunk {
                     role: Default::default(),
                     index: 0,
                     created: 1000,
@@ -430,14 +430,14 @@ fn test_reasoning_and_tool_calls() {
                     upstream_id: "or-tools".to_string(),
                     reasoning: Some("Let me think...".to_string()),
                     tool_calls: Some(vec![
-                        objectiveai::agent::completions::message::AssistantToolCallDelta {
+                        objectiveai_sdk::agent::completions::message::AssistantToolCallDelta {
                             index: 0,
                             id: Some("call_1".to_string()),
                             r#type: Some(
-                                objectiveai::agent::completions::message::AssistantToolCallType::Function,
+                                objectiveai_sdk::agent::completions::message::AssistantToolCallType::Function,
                             ),
                             function: Some(
-                                objectiveai::agent::completions::message::AssistantToolCallFunctionDelta {
+                                objectiveai_sdk::agent::completions::message::AssistantToolCallFunctionDelta {
                                     name: Some("get_weather".to_string()),
                                     arguments: Some("{\"city\":\"NYC\"}".to_string()),
                                 },
@@ -457,7 +457,7 @@ fn test_reasoning_and_tool_calls() {
         ],
         object: Default::default(),
         usage: None,
-        upstream: objectiveai::agent::Upstream::Openrouter,
+        upstream: objectiveai_sdk::agent::Upstream::Openrouter,
         error: None,
         continuation: None,
     };
@@ -472,7 +472,7 @@ fn test_byok_cost_splitting() {
         choices: vec![Choice {
             delta: Delta::default(),
             finish_reason: Some(
-                objectiveai::agent::completions::response::FinishReason::Stop,
+                objectiveai_sdk::agent::completions::response::FinishReason::Stop,
             ),
             index: 0,
             logprobs: None,
@@ -509,12 +509,12 @@ fn test_byok_cost_splitting() {
     // upstream_total = 0.01 + 0.008 = 0.018
     // total_cost = 0.018 * 2.0 = 0.036
     // cost (byok) = 0.036 - 0.018 = 0.018
-    let expected = objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
+    let expected = objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
         id: "obj-7".to_string(),
         created: 3000,
         messages: vec![
-            objectiveai::agent::completions::response::streaming::MessageChunk::Assistant(
-                objectiveai::agent::completions::response::streaming::AssistantResponseChunk {
+            objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
+                objectiveai_sdk::agent::completions::response::streaming::AssistantResponseChunk {
                     role: Default::default(),
                     index: 0,
                     created: 3000,
@@ -526,20 +526,20 @@ fn test_byok_cost_splitting() {
                     content: None,
                     refusal: None,
                     finish_reason: Some(
-                        objectiveai::agent::completions::response::FinishReason::Stop,
+                        objectiveai_sdk::agent::completions::response::FinishReason::Stop,
                     ),
                     logprobs: None,
                     service_tier: None,
                     system_fingerprint: None,
                     provider: None,
-                    usage: Some(objectiveai::agent::completions::response::UpstreamUsage {
+                    usage: Some(objectiveai_sdk::agent::completions::response::UpstreamUsage {
                         completion_tokens: 10,
                         prompt_tokens: 20,
                         total_tokens: 30,
                         completion_tokens_details: None,
                         prompt_tokens_details: None,
                         cost: Decimal::from_str("0.018").unwrap(),
-                        cost_details: Some(objectiveai::agent::completions::response::CostDetails {
+                        cost_details: Some(objectiveai_sdk::agent::completions::response::CostDetails {
                             upstream_inference_cost: Decimal::from_str("0.01").unwrap(),
                             upstream_upstream_inference_cost: Decimal::from_str("0.008").unwrap(),
                         }),
@@ -552,7 +552,7 @@ fn test_byok_cost_splitting() {
         ],
         object: Default::default(),
         usage: None,
-        upstream: objectiveai::agent::Upstream::Openrouter,
+        upstream: objectiveai_sdk::agent::Upstream::Openrouter,
         error: None,
         continuation: None,
     };

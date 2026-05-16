@@ -1,5 +1,5 @@
 use indexmap::IndexMap;
-use objectiveai::agent::completions::response::{Logprob, TopLogprob};
+use objectiveai_sdk::agent::completions::response::{Logprob, TopLogprob};
 use rand::Rng;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};

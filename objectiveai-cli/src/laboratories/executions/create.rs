@@ -1,16 +1,13 @@
 use futures::StreamExt;
+use objectiveai_sdk::cli::output::{LabResultItem, Laboratory};
 
 use super::create_args::CreateArgs;
 
-/// Result item for a single builder agent.
-#[derive(serde::Serialize)]
-struct ResultItem {
-    agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
-    score: Option<f64>,
-    error: Option<objectiveai::error::ResponseError>,
-}
-
-pub async fn handle(args: CreateArgs, cli_config: &crate::Config) -> Result<(), crate::error::Error> {
+pub async fn handle(
+    args: CreateArgs,
+    cli_config: &crate::Config,
+    handle: &objectiveai_sdk::cli::output::Handle,
+) -> Result<(), crate::error::Error> {
     args.instructions.verify(cli_config, crate::instructions::InstructionsScope::LaboratoryExecutions)?;
 
     let mut builder_agents = Vec::with_capacity(args.builder_agent.len());
@@ -50,7 +47,7 @@ pub async fn handle(args: CreateArgs, cli_config: &crate::Config) -> Result<(), 
 
     let num_agents = original_agents.len();
 
-    let params = objectiveai::laboratories::executions::request::LaboratoryExecutionCreateParams {
+    let params = objectiveai_sdk::laboratories::executions::request::LaboratoryExecutionCreateParams {
         docker_image: args.docker_image,
         builder_agents,
         evaluation_agent,
@@ -66,38 +63,67 @@ pub async fn handle(args: CreateArgs, cli_config: &crate::Config) -> Result<(), 
         stream: Some(true),
     };
 
-    let fs_client = objectiveai::filesystem::Client::new(cli_config.config_base_dir.as_deref(), None::<String>, None::<String>);
-    let log_writer = objectiveai::filesystem::logs::client::write_laboratory_execution(&fs_client);
+    let fs_client = objectiveai_sdk::filesystem::Client::new(cli_config.config_base_dir.as_deref(), None::<String>, None::<String>);
+    let log_writer = fs_client.write_laboratory_execution();
 
+    let handle = handle.clone();
     crate::api::run(
         Box::new(move |http_client| Box::pin(async move {
             let stream =
-                objectiveai::laboratories::executions::create_laboratory_execution_streaming(
+                objectiveai_sdk::laboratories::executions::create_laboratory_execution_streaming(
                     &http_client, params,
                 )
                 .await?;
 
-            let accumulated = crate::log_stream::consume_with_coalesced_writes(
-                stream.map(|r| r.map_err(crate::error::Error::from)),
+            // Emit each chunk's inner errors live (Warn) before pushing.
+            let emit_handle = handle.clone();
+            let stream = stream.then(move |result| {
+                let handle = emit_handle.clone();
+                async move {
+                    if let Ok(chunk) = &result {
+                        for inner in chunk.inner_errors() {
+                            objectiveai_sdk::cli::output::Output::<serde_json::Value>::Error(
+                                objectiveai_sdk::cli::output::Error {
+                                    level: objectiveai_sdk::cli::output::Level::Warn,
+                                    fatal: false,
+                                    message: serde_json::to_value(&inner).unwrap(),
+                                },
+                            )
+                            .emit(&handle)
+                            .await;
+                        }
+                    }
+                    result.map_err(crate::error::Error::from)
+                }
+            });
+
+            let mut accumulated = crate::log_stream::consume_with_coalesced_writes(
+                stream,
                 log_writer,
-                |agg: &mut objectiveai::laboratories::executions::response::streaming::LaboratoryExecutionChunk, c| agg.push(c),
+                |agg: &mut objectiveai_sdk::laboratories::executions::response::streaming::LaboratoryExecutionChunk, c| agg.push(c),
+                handle.clone(),
             ).await?;
 
-            let execution: objectiveai::laboratories::executions::response::unary::LaboratoryExecution =
+            if let Some(error) = accumulated.error.take() {
+                return Err(crate::error::Error::ResponseError(error));
+            }
+
+            let execution: objectiveai_sdk::laboratories::executions::response::unary::LaboratoryExecution =
                 accumulated.into();
 
-            // Collect evaluation outputs indexed by agent_index
-            // agent_index -> (output, error)
-            let mut eval_map: std::collections::HashMap<u64, (Option<&objectiveai::functions::expression::InputValue>, Option<&objectiveai::error::ResponseError>)> =
+            // Collect evaluation outputs indexed by agent_index. Per-evaluation
+            // errors were already streamed as Output::Error during the stream,
+            // so we only need outputs here.
+            let mut eval_map: std::collections::HashMap<u64, Option<&objectiveai_sdk::functions::expression::InputValue>> =
                 std::collections::HashMap::new();
             for eval in &execution.evaluations {
-                eval_map.insert(eval.agent_index, (eval.output.as_ref(), eval.inner.error.as_ref()));
+                eval_map.insert(eval.agent_index, eval.output.as_ref());
             }
 
             // Collect non-None outputs in agent_index order, tracking which indices have outputs
-            let mut outputs_with_indices: Vec<(u64, &objectiveai::functions::expression::InputValue)> = Vec::new();
+            let mut outputs_with_indices: Vec<(u64, &objectiveai_sdk::functions::expression::InputValue)> = Vec::new();
             for agent_index in 0..num_agents as u64 {
-                if let Some((Some(output), _)) = eval_map.get(&agent_index) {
+                if let Some(Some(output)) = eval_map.get(&agent_index) {
                     outputs_with_indices.push((agent_index, output));
                 }
             }
@@ -133,32 +159,22 @@ pub async fn handle(args: CreateArgs, cli_config: &crate::Config) -> Result<(), 
                 }
             }
 
-            // Build results in original argument order
-            let results: Vec<ResultItem> = (0..num_agents)
+            // Build results in original argument order. Per-evaluation
+            // failures already surfaced as Output::Error during streaming;
+            // `score: None` covers both "failed" and "no scoreable output."
+            let results: Vec<LabResultItem> = (0..num_agents)
                 .map(|i| {
                     let agent_index = i as u64;
                     let agent = original_agents[i].clone();
                     let score = score_map.get(&agent_index).copied();
-                    let error = eval_map
-                        .get(&agent_index)
-                        .and_then(|(_, e)| *e)
-                        .cloned();
-                    ResultItem {
-                        agent,
-                        score,
-                        error,
-                    }
+                    LabResultItem { agent, score }
                 })
                 .collect();
 
-            #[derive(serde::Serialize)]
-            struct LabEmit {
-                laboratory: Vec<ResultItem>,
-            }
-            objectiveai_cli_lib::output::Output::<LabEmit>::Notification(
-                LabEmit { laboratory: results },
-            )
-            .emit();
+            objectiveai_sdk::cli::output::Output::<Laboratory>::Notification(objectiveai_sdk::cli::output::Notification { value: 
+                Laboratory { laboratory: results },
+             })
+            .emit(&handle).await;
             Ok(())
         })),
         true,

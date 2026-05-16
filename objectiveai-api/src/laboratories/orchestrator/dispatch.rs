@@ -41,7 +41,7 @@ impl std::fmt::Display for DispatchedOrchestratorError {
 
 impl std::error::Error for DispatchedOrchestratorError {}
 
-impl objectiveai::error::StatusError for DispatchedOrchestratorError {
+impl objectiveai_sdk::error::StatusError for DispatchedOrchestratorError {
     fn status(&self) -> u16 {
         match self {
             #[cfg(feature = "orchestrator-bollard")]

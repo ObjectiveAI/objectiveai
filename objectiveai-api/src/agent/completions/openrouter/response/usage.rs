@@ -14,11 +14,11 @@ pub struct Usage {
     /// Detailed breakdown of completion tokens.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub completion_tokens_details:
-        Option<objectiveai::agent::completions::response::CompletionTokensDetails>,
+        Option<objectiveai_sdk::agent::completions::response::CompletionTokensDetails>,
     /// Detailed breakdown of prompt tokens.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt_tokens_details:
-        Option<objectiveai::agent::completions::response::PromptTokensDetails>,
+        Option<objectiveai_sdk::agent::completions::response::PromptTokensDetails>,
     /// Cost charged by OpenRouter for this request.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cost: Option<rust_decimal::Decimal>,
@@ -35,7 +35,7 @@ impl Usage {
         self,
         is_byok: bool,
         cost_multiplier: rust_decimal::Decimal,
-    ) -> objectiveai::agent::completions::response::UpstreamUsage {
+    ) -> objectiveai_sdk::agent::completions::response::UpstreamUsage {
         let upstream_inference_cost = self.cost.unwrap_or_default();
         let upstream_upstream_inference_cost = self
             .cost_details
@@ -47,7 +47,7 @@ impl Usage {
         let (cost, cost_details, total_cost) = if is_byok {
             (
                 total_cost - upstream_total_cost,
-                Some(objectiveai::agent::completions::response::CostDetails {
+                Some(objectiveai_sdk::agent::completions::response::CostDetails {
                     upstream_inference_cost,
                     upstream_upstream_inference_cost,
                 }),
@@ -56,7 +56,7 @@ impl Usage {
         } else {
             (total_cost, None, total_cost)
         };
-        objectiveai::agent::completions::response::UpstreamUsage {
+        objectiveai_sdk::agent::completions::response::UpstreamUsage {
             completion_tokens: self.completion_tokens,
             prompt_tokens: self.prompt_tokens,
             total_tokens: self.total_tokens,
@@ -99,7 +99,7 @@ impl Usage {
             }
             _ => {}
         }
-        objectiveai::agent::completions::response::util::push_option_decimal(
+        objectiveai_sdk::agent::completions::response::util::push_option_decimal(
             &mut self.cost,
             &other.cost,
         );
@@ -126,7 +126,7 @@ pub struct CostDetails {
 impl CostDetails {
     /// Accumulates cost details from another CostDetails struct.
     pub fn push(&mut self, other: &CostDetails) {
-        objectiveai::agent::completions::response::util::push_option_decimal(
+        objectiveai_sdk::agent::completions::response::util::push_option_decimal(
             &mut self.upstream_inference_cost,
             &other.upstream_inference_cost,
         );

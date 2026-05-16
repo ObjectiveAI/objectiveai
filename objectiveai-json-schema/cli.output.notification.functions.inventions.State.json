@@ -1,0 +1,10 @@
+{
+  "title": "cli.output.notification.functions.inventions.State",
+  "description": "Result of `functions inventions state get`.\n\nWire: `{\"type\":\"notification\",\"state\":{...GetFunctionInventionStateResponse...}}`.",
+  "type": "object",
+  "properties": {
+    "state": {
+      "$ref": "functions.inventions.state.GetFunctionInventionStateResponse"
+    }
+  }
+}

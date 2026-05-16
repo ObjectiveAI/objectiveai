@@ -5,21 +5,21 @@ use serde::{Serialize, Deserialize};
 pub struct ResponseError {
     pub id: String,
     #[serde(flatten)]
-    pub inner: objectiveai::error::ResponseError,
+    pub inner: objectiveai_sdk::error::ResponseError,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentCompletionCreateParams {
     pub id: String,
     #[serde(flatten)]
-    pub inner: Arc<objectiveai::agent::completions::request::AgentCompletionCreateParams>,
+    pub inner: Arc<objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum AgentCompletionRequest {
     Begin(AgentCompletionCreateParams),
-    Continue(objectiveai::agent::completions::response::streaming::AgentCompletionChunk),
+    Continue(objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk),
     Error(ResponseError),
 }
 
@@ -27,14 +27,14 @@ pub enum AgentCompletionRequest {
 pub struct FunctionExecutionCreateParams {
     pub id: String,
     #[serde(flatten)]
-    pub inner: Arc<objectiveai::functions::executions::request::FunctionExecutionCreateParams>,
+    pub inner: Arc<objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum FunctionExecutionRequest {
     Begin(FunctionExecutionCreateParams),
-    Continue(objectiveai::functions::executions::response::streaming::FunctionExecutionChunk),
+    Continue(objectiveai_sdk::functions::executions::response::streaming::FunctionExecutionChunk),
     Error(ResponseError),
 }
 
@@ -42,14 +42,14 @@ pub enum FunctionExecutionRequest {
 pub struct FunctionInventionRecursiveCreateParams {
     pub id: String,
     #[serde(flatten)]
-    pub inner: Arc<objectiveai::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams>,
+    pub inner: Arc<objectiveai_sdk::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum FunctionInventionRecursiveRequest {
     Begin(FunctionInventionRecursiveCreateParams),
-    Continue(objectiveai::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk),
+    Continue(objectiveai_sdk::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk),
     Error(ResponseError),
 }
 
@@ -57,14 +57,14 @@ pub enum FunctionInventionRecursiveRequest {
 pub struct LaboratoryExecutionCreateParams {
     pub id: String,
     #[serde(flatten)]
-    pub inner: Arc<objectiveai::laboratories::executions::request::LaboratoryExecutionCreateParams>,
+    pub inner: Arc<objectiveai_sdk::laboratories::executions::request::LaboratoryExecutionCreateParams>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum LaboratoryExecutionRequest {
     Begin(LaboratoryExecutionCreateParams),
-    Continue(objectiveai::laboratories::executions::response::streaming::LaboratoryExecutionChunk),
+    Continue(objectiveai_sdk::laboratories::executions::response::streaming::LaboratoryExecutionChunk),
     Error(ResponseError),
 }
 

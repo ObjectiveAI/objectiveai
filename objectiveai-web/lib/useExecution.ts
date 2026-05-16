@@ -4,11 +4,11 @@ import { useEffect } from "react";
 import {
   functionsExecutionsCreateFunctionExecution,
   functionsExecutionsResponseStreamingFunctionExecutionChunkMerged,
-} from "objectiveai";
+} from "@objectiveai/sdk";
 import type {
   FunctionsExecutionsResponseStreamingFunctionExecutionChunk,
   FunctionsExpressionInputValue,
-} from "objectiveai";
+} from "@objectiveai/sdk";
 import { getClient } from "./sdk";
 import { useSDKStream } from "./useSDKStream";
 import type { StreamState } from "./useSDKStream";

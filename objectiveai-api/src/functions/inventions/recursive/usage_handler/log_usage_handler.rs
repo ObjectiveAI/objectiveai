@@ -12,8 +12,8 @@ where
     async fn handle_usage<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         ctx: ctx::Context<CTXEXT, PC>,
-        _request: Arc<objectiveai::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams>,
-        response: objectiveai::functions::inventions::recursive::response::unary::FunctionInventionRecursive,
+        _request: Arc<objectiveai_sdk::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams>,
+        response: objectiveai_sdk::functions::inventions::recursive::response::unary::FunctionInventionRecursive,
     ) {
         if !ctx.suppress_output {
             println!(

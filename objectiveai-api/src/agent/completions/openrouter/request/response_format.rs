@@ -25,13 +25,13 @@ impl ResponseFormat {
     ///
     /// Panics if called with the `ToolCall` variant — that variant must be
     /// extracted into a tool before reaching this method.
-    pub fn new(rf: &objectiveai::agent::completions::request::ResponseFormat) -> Self {
+    pub fn new(rf: &objectiveai_sdk::agent::completions::request::ResponseFormat) -> Self {
         match rf {
-            objectiveai::agent::completions::request::ResponseFormat::Text => Self::Text,
-            objectiveai::agent::completions::request::ResponseFormat::JsonObject => {
+            objectiveai_sdk::agent::completions::request::ResponseFormat::Text => Self::Text,
+            objectiveai_sdk::agent::completions::request::ResponseFormat::JsonObject => {
                 Self::JsonObject
             }
-            objectiveai::agent::completions::request::ResponseFormat::JsonSchema {
+            objectiveai_sdk::agent::completions::request::ResponseFormat::JsonSchema {
                 schema,
             } => Self::JsonSchema {
                 json_schema: JsonSchema {
@@ -53,13 +53,13 @@ impl ResponseFormat {
                     strict: None,
                 },
             },
-            objectiveai::agent::completions::request::ResponseFormat::Grammar {
+            objectiveai_sdk::agent::completions::request::ResponseFormat::Grammar {
                 grammar,
             } => Self::Grammar {
                 grammar: grammar.clone(),
             },
-            objectiveai::agent::completions::request::ResponseFormat::Python => Self::Python,
-            objectiveai::agent::completions::request::ResponseFormat::ToolCall { .. } => {
+            objectiveai_sdk::agent::completions::request::ResponseFormat::Python => Self::Python,
+            objectiveai_sdk::agent::completions::request::ResponseFormat::ToolCall { .. } => {
                 unreachable!(
                     "ToolCall variant should be handled before calling ResponseFormat::new"
                 )

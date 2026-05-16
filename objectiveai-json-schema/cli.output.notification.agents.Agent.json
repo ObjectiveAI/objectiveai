@@ -1,0 +1,10 @@
+{
+  "title": "cli.output.notification.agents.Agent",
+  "description": "Result of `agents get`.\n\nWire: `{\"type\":\"notification\",\"agent\":{...GetAgentResponse...}}`.",
+  "type": "object",
+  "properties": {
+    "agent": {
+      "$ref": "agent.GetAgentResponse"
+    }
+  }
+}

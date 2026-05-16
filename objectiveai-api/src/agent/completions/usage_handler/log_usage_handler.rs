@@ -13,8 +13,8 @@ where
     fn handle_usage(
         &self,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-        _request: Arc<objectiveai::agent::completions::request::AgentCompletionCreateParams>,
-        response: objectiveai::agent::completions::response::unary::AgentCompletion,
+        _request: Arc<objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams>,
+        response: objectiveai_sdk::agent::completions::response::unary::AgentCompletion,
     ) -> impl std::future::Future<Output = ()> + Send + 'static {
         async move {
             if !ctx.suppress_output {

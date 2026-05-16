@@ -1,7 +1,7 @@
 //! List router — merges results from all sources or filters by source.
 
 use crate::ctx;
-use objectiveai::error::ResponseError;
+use objectiveai_sdk::error::ResponseError;
 use std::sync::Arc;
 
 /// Source filter for list endpoints.
@@ -39,8 +39,8 @@ where
         &self,
         ctx: &ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
         source: Option<SourceFilter>,
-    ) -> Result<objectiveai::agent::response::ListAgentResponse, ResponseError> {
-        use objectiveai::agent::response::ListAgentResponse;
+    ) -> Result<objectiveai_sdk::agent::response::ListAgentResponse, ResponseError> {
+        use objectiveai_sdk::agent::response::ListAgentResponse;
         match source {
             Some(SourceFilter::Objectiveai) => self.objectiveai.list_agents(ctx).await,
             Some(SourceFilter::Filesystem) => self.filesystem.list_agents(ctx).await,
@@ -64,8 +64,8 @@ where
         &self,
         ctx: &ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
         source: Option<SourceFilter>,
-    ) -> Result<objectiveai::swarm::response::ListSwarmResponse, ResponseError> {
-        use objectiveai::swarm::response::ListSwarmResponse;
+    ) -> Result<objectiveai_sdk::swarm::response::ListSwarmResponse, ResponseError> {
+        use objectiveai_sdk::swarm::response::ListSwarmResponse;
         match source {
             Some(SourceFilter::Objectiveai) => self.objectiveai.list_swarms(ctx).await,
             Some(SourceFilter::Filesystem) => self.filesystem.list_swarms(ctx).await,
@@ -89,8 +89,8 @@ where
         &self,
         ctx: &ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
         source: Option<SourceFilter>,
-    ) -> Result<objectiveai::functions::response::ListFunctionResponse, ResponseError> {
-        use objectiveai::functions::response::ListFunctionResponse;
+    ) -> Result<objectiveai_sdk::functions::response::ListFunctionResponse, ResponseError> {
+        use objectiveai_sdk::functions::response::ListFunctionResponse;
         match source {
             Some(SourceFilter::Objectiveai) => self.objectiveai.list_functions(ctx).await,
             Some(SourceFilter::Filesystem) => self.filesystem.list_functions(ctx).await,
@@ -114,8 +114,8 @@ where
         &self,
         ctx: &ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
         source: Option<SourceFilter>,
-    ) -> Result<objectiveai::functions::profiles::response::ListProfileResponse, ResponseError> {
-        use objectiveai::functions::profiles::response::ListProfileResponse;
+    ) -> Result<objectiveai_sdk::functions::profiles::response::ListProfileResponse, ResponseError> {
+        use objectiveai_sdk::functions::profiles::response::ListProfileResponse;
         match source {
             Some(SourceFilter::Objectiveai) => self.objectiveai.list_profiles(ctx).await,
             Some(SourceFilter::Filesystem) => self.filesystem.list_profiles(ctx).await,
@@ -139,8 +139,8 @@ where
         &self,
         ctx: &ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
         source: Option<SourceFilter>,
-    ) -> Result<objectiveai::functions::inventions::prompts::response::ListPromptResponse, ResponseError> {
-        use objectiveai::functions::inventions::prompts::response::ListPromptResponse;
+    ) -> Result<objectiveai_sdk::functions::inventions::prompts::response::ListPromptResponse, ResponseError> {
+        use objectiveai_sdk::functions::inventions::prompts::response::ListPromptResponse;
         match source {
             Some(SourceFilter::Objectiveai) => self.objectiveai.list_prompts(ctx).await,
             Some(SourceFilter::Filesystem) => self.filesystem.list_prompts(ctx).await,
@@ -163,7 +163,7 @@ where
     pub async fn list_function_profile_pairs(
         &self,
         ctx: &ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-    ) -> Result<objectiveai::functions::response::ListFunctionProfilePairResponse, ResponseError> {
+    ) -> Result<objectiveai_sdk::functions::response::ListFunctionProfilePairResponse, ResponseError> {
         self.objectiveai.list_function_profile_pairs(ctx).await
     }
 }

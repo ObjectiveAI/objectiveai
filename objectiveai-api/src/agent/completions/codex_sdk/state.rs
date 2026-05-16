@@ -3,7 +3,7 @@
 /// stream and persisted into the public [`Continuation`] so subsequent
 /// requests can `--resume` the same Codex thread.
 ///
-/// [`Continuation`]: objectiveai::agent::codex_sdk::Continuation
+/// [`Continuation`]: objectiveai_sdk::agent::codex_sdk::Continuation
 #[derive(Debug, Clone)]
 pub struct State {
     /// The Codex thread id surfaced by the runner. Empty string if no

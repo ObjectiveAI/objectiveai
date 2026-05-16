@@ -1,4 +1,4 @@
-use objectiveai::error::StatusError;
+use objectiveai_sdk::error::StatusError;
 
 /// Errors that can occur during Function invention.
 #[derive(Debug, thiserror::Error)]
@@ -32,13 +32,13 @@ pub enum Error {
     Filesystem(#[from] crate::filesystem::Error),
     /// Error fetching a child function referenced by a branch task.
     #[error("function fetch error: {0}")]
-    FunctionFetch(objectiveai::error::ResponseError),
+    FunctionFetch(objectiveai_sdk::error::ResponseError),
     /// The prompt does not support the required type.
     #[error("prompt does not support type: {0}")]
     PromptUnsupportedType(String),
     /// Error fetching the prompt.
     #[error("prompt fetch error: {0}")]
-    PromptFetch(objectiveai::error::ResponseError),
+    PromptFetch(objectiveai_sdk::error::ResponseError),
     /// Listing tools through the agent's MCP connection failed while
     /// waiting for the InventionServer's tool swap to propagate.
     #[error("mcp list_tools error during tool subscription: {0}")]

@@ -8,6 +8,7 @@ name: Publish objectiveai-mcp-filesystem
 
 on:
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read

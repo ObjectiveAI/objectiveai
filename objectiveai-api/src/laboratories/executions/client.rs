@@ -4,30 +4,30 @@ use futures::{Stream, StreamExt};
 use crate::ctx;
 use crate::util::{ChoiceIndexer, StreamOnce};
 
-use objectiveai::agent::completions::message::{Message, UserMessage, RichContent, RichContentPart};
+use objectiveai_sdk::agent::completions::message::{Message, UserMessage, RichContent, RichContentPart};
 
 type LaboratoryExecutionChunk =
-    objectiveai::laboratories::executions::response::streaming::LaboratoryExecutionChunk;
+    objectiveai_sdk::laboratories::executions::response::streaming::LaboratoryExecutionChunk;
 type BuilderChunk =
-    objectiveai::laboratories::executions::response::streaming::BuilderChunk;
+    objectiveai_sdk::laboratories::executions::response::streaming::BuilderChunk;
 type EvaluationChunk =
-    objectiveai::laboratories::executions::response::streaming::EvaluationChunk;
-type Object = objectiveai::laboratories::executions::response::streaming::Object;
-type Params = objectiveai::laboratories::executions::request::LaboratoryExecutionCreateParams;
+    objectiveai_sdk::laboratories::executions::response::streaming::EvaluationChunk;
+type Object = objectiveai_sdk::laboratories::executions::response::streaming::Object;
+type Params = objectiveai_sdk::laboratories::executions::request::LaboratoryExecutionCreateParams;
 
 type Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK> =
     crate::agent::completions::Continuation<
         <OPENROUTER as crate::agent::completions::UpstreamClient<
-            objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation,
+            objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::agent::openrouter::Continuation,
         >>::State,
         <CLAUDEAGENTSDK as crate::agent::completions::UpstreamClient<
-            objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
+            objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation,
         >>::State,
         <CODEXSDK as crate::agent::completions::UpstreamClient<
-            objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation,
+            objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation,
         >>::State,
         <MOCK as crate::agent::completions::UpstreamClient<
-            objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation,
+            objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
         >>::State,
     >;
 
@@ -53,22 +53,22 @@ pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RET
 }
 
 /// Add an MCP server address to an inline agent base.
-fn inject_mcp_server(agent: &mut objectiveai::agent::InlineAgentBase, mcp_url: String) {
-    let server = objectiveai::agent::McpServer {
+fn inject_mcp_server(agent: &mut objectiveai_sdk::agent::InlineAgentBase, mcp_url: String) {
+    let server = objectiveai_sdk::agent::McpServer {
         url: mcp_url,
         authorization: false,
     };
     match agent {
-        objectiveai::agent::InlineAgentBase::Openrouter(b) => {
+        objectiveai_sdk::agent::InlineAgentBase::Openrouter(b) => {
             b.mcp_servers.get_or_insert_with(Vec::new).push(server);
         }
-        objectiveai::agent::InlineAgentBase::ClaudeAgentSdk(b) => {
+        objectiveai_sdk::agent::InlineAgentBase::ClaudeAgentSdk(b) => {
             b.mcp_servers.get_or_insert_with(Vec::new).push(server);
         }
-        objectiveai::agent::InlineAgentBase::CodexSdk(b) => {
+        objectiveai_sdk::agent::InlineAgentBase::CodexSdk(b) => {
             b.mcp_servers.get_or_insert_with(Vec::new).push(server);
         }
-        objectiveai::agent::InlineAgentBase::Mock(b) => {
+        objectiveai_sdk::agent::InlineAgentBase::Mock(b) => {
             b.mcp_servers.get_or_insert_with(Vec::new).push(server);
         }
     }
@@ -79,22 +79,22 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
 where
     CTXEXT: ctx::ContextExt + Send + Sync + 'static,
     OPENROUTER: crate::agent::completions::UpstreamClient<
-            objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation,
+            objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::agent::openrouter::Continuation,
         > + Send
         + Sync
         + 'static,
     CLAUDEAGENTSDK: crate::agent::completions::UpstreamClient<
-            objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
+            objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation,
         > + Send
         + Sync
         + 'static,
     CODEXSDK: crate::agent::completions::UpstreamClient<
-            objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation,
+            objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation,
         > + Send
         + Sync
         + 'static,
     MOCK: crate::agent::completions::UpstreamClient<
-            objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation,
+            objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
         > + Send
         + Sync
         + 'static,
@@ -133,7 +133,7 @@ where
             self.viewer.send_laboratory_execution_error(
                 ctx.clone(),
                 id.clone(),
-                objectiveai::error::ResponseError::from(&e),
+                objectiveai_sdk::error::ResponseError::from(&e),
             );
             e
         };
@@ -177,7 +177,7 @@ where
             }
         };
         let (mcp_urls, resolved_builder_agents, resolved_eval_agent) = tokio::try_join!(
-            async { orchestrator_fut.await.map_err(|e| super::Error::Orchestrator(objectiveai::error::ResponseError::from(&e))) },
+            async { orchestrator_fut.await.map_err(|e| super::Error::Orchestrator(objectiveai_sdk::error::ResponseError::from(&e))) },
             async {
                 futures::future::try_join_all(builder_resolve_futs)
                     .await
@@ -189,8 +189,8 @@ where
 
         let eval_agent = resolved_eval_agent.map(|wf| {
             let eval_agent_base = wf.inline().inner.clone().into_base();
-            objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-                objectiveai::agent::InlineAgentBaseWithFallbacks {
+            objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+                objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
                     inner: eval_agent_base,
                     fallbacks: None,
                 },
@@ -219,17 +219,17 @@ where
                 let id = id.clone();
                 let agent_index = native_index as u64;
 
-                let builder_agent_with_fallbacks = objectiveai::agent::InlineAgentBaseWithFallbacks {
+                let builder_agent_with_fallbacks = objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
                     inner: builder_agent_base,
                     fallbacks: None,
                 };
                 let builder_agent =
-                    objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+                    objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
                         builder_agent_with_fallbacks,
                     );
 
                 let params = Arc::new(
-                    objectiveai::agent::completions::request::AgentCompletionCreateParams {
+                    objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams {
                         messages: request.builder_messages.clone(),
                         provider: request.provider.clone(),
                         agent: builder_agent,
@@ -279,8 +279,8 @@ where
                                 builders: vec![BuilderChunk {
                                     index: completion_index,
                                     agent_index,
-                                    inner: objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
-                                        error: Some(objectiveai::error::ResponseError::from(&e)),
+                                    inner: objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
+                                        error: Some(objectiveai_sdk::error::ResponseError::from(&e)),
                                         ..Default::default()
                                     },
                                 }],
@@ -303,7 +303,7 @@ where
         let this = self.clone();
         let mut merged = futures::stream::select_all(streams);
         Ok(async_stream::stream! {
-            let mut accumulated_usage = objectiveai::agent::completions::response::Usage::default();
+            let mut accumulated_usage = objectiveai_sdk::agent::completions::response::Usage::default();
             let mut errored_agents: std::collections::HashSet<u64> = std::collections::HashSet::new();
 
             // Phase 1: drain all builder streams
@@ -386,7 +386,7 @@ where
         object: Object,
         evaluation_index: u64,
         agent_index: u64,
-        agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
+        agent: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
     ) -> impl Stream<Item = LaboratoryExecutionChunk> + Send + 'static {
         let agent_client = self.agent_client.clone();
         let max_retries = request.max_evaluation_retries.unwrap_or(3);
@@ -425,7 +425,7 @@ where
         }
 
         let params = Arc::new(
-            objectiveai::agent::completions::request::AgentCompletionCreateParams {
+            objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams {
                 messages,
                 provider: request.provider.clone(),
                 agent,
@@ -459,7 +459,7 @@ where
                     )
                     .await;
 
-                let mut accumulated_chunk: Option<objectiveai::agent::completions::response::streaming::AgentCompletionChunk> = None;
+                let mut accumulated_chunk: Option<objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk> = None;
 
                 match stream_result {
                     Ok(stream) => {
@@ -499,8 +499,8 @@ where
                             evaluations: vec![EvaluationChunk {
                                 index: evaluation_index,
                                 agent_index,
-                                inner: objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
-                                    error: Some(objectiveai::error::ResponseError::from(&e)),
+                                inner: objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
+                                    error: Some(objectiveai_sdk::error::ResponseError::from(&e)),
                                     ..Default::default()
                                 },
                                 output: None,
@@ -519,7 +519,7 @@ where
                     .as_ref()
                     .and_then(|chunk| {
                         chunk.messages.iter().rev().find_map(|msg| {
-                            if let objectiveai::agent::completions::response::streaming::MessageChunk::Assistant(asst) = msg {
+                            if let objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(asst) = msg {
                                 asst.content.as_ref().map(|c| match c {
                                     RichContent::Text(t) => t.clone(),
                                     RichContent::Parts(parts) => parts
@@ -539,7 +539,7 @@ where
                     .unwrap_or_default();
 
                 // Parse as InputValue
-                let parse_result: Result<objectiveai::functions::expression::InputValue, _> = {
+                let parse_result: Result<objectiveai_sdk::functions::expression::InputValue, _> = {
                     let mut de = serde_json::Deserializer::from_str(&content_text);
                     serde_path_to_error::deserialize(&mut de)
                 };
@@ -581,8 +581,8 @@ where
                                 evaluations: vec![EvaluationChunk {
                                     index: evaluation_index,
                                     agent_index,
-                                    inner: objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
-                                        error: Some(objectiveai::error::ResponseError::from(&err)),
+                                    inner: objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
+                                        error: Some(objectiveai_sdk::error::ResponseError::from(&err)),
                                         ..Default::default()
                                     },
                                     output: None,
@@ -618,8 +618,8 @@ where
                                 evaluations: vec![EvaluationChunk {
                                     index: evaluation_index,
                                     agent_index,
-                                    inner: objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
-                                        error: Some(objectiveai::error::ResponseError::from(&err)),
+                                    inner: objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
+                                        error: Some(objectiveai_sdk::error::ResponseError::from(&err)),
                                         ..Default::default()
                                     },
                                     output: None,
@@ -656,7 +656,7 @@ where
         request: Arc<Params>,
     ) -> impl std::future::Future<
         Output = Result<
-            objectiveai::laboratories::executions::response::unary::LaboratoryExecution,
+            objectiveai_sdk::laboratories::executions::response::unary::LaboratoryExecution,
             super::Error,
         >,
     > + Send {
@@ -711,7 +711,7 @@ where
                 }
                 drop(stream);
                 drop(tx);
-                let response: objectiveai::laboratories::executions::response::unary::LaboratoryExecution =
+                let response: objectiveai_sdk::laboratories::executions::response::unary::LaboratoryExecution =
                     aggregate.unwrap().into();
                 if response.any_usage() {
                     self.usage_handler

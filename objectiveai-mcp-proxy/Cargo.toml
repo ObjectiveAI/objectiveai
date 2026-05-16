@@ -1,7 +1,16 @@
 [package]
 name = "objectiveai-mcp-proxy"
-version = "2.0.3"
+version = "2.0.5"
 edition = "2024"
+authors = ["ObjectiveAI <admin@objectiveai.dev>"]
+description = "MCP (Model Context Protocol) proxy server for ObjectiveAI"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://objectiveai.dev"
+documentation = "https://docs.rs/objectiveai-mcp-proxy"
+readme = "README.md"
+keywords = ["llm", "ai", "swarm", "mcp"]
+publish = true
 
 [dependencies]
 anyhow = "1.0.102"
@@ -18,7 +27,7 @@ indexmap = { version = "2.13.0", features = ["serde"] }
 # objectiveai brings the in-tree MCP client (Client / Connection / wire types).
 # default-features = false skips the heavy filesystem feature (vendored libgit2)
 # so this crate stays cheap to build.
-objectiveai = { path = "../objectiveai-rs", version = "2.0.3", default-features = false, features = ["mcp"] }
+objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.0.5", default-features = false, features = ["mcp"] }
 rand = "0.9.2"
 reqwest = { version = "0.12.28", default-features = false, features = ["charset", "http2", "rustls-tls", "json", "stream"] }
 serde = { version = "1.0.228", features = ["derive"] }
@@ -31,5 +40,9 @@ tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 uuid = { version = "1.22.0", features = ["v4"] }
 
 [dev-dependencies]
-test-upstream = { path = "test-upstream", version = "2.0.3" }
+# Path-only (no version): test-upstream is a workspace-internal test
+# helper not published to crates.io. Dev-deps without a version are
+# stripped from the published manifest, so cargo doesn't try to
+# resolve it from the registry during publish.
+test-upstream = { path = "test-upstream" }
 rmcp = { version = "0.16.0", features = ["client", "transport-streamable-http-client", "transport-streamable-http-client-reqwest"] }

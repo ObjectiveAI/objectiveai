@@ -11,11 +11,11 @@ pub trait Fetcher<CTXEXT> {
     async fn fetch<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         ctx: ctx::Context<CTXEXT, PC>,
-        agent: &objectiveai::agent::InlineAgentBaseWithFallbacksOrRemote,
-        messages: &[objectiveai::agent::completions::message::Message],
-        responses: &[objectiveai::agent::completions::message::RichContent],
+        agent: &objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemote,
+        messages: &[objectiveai_sdk::agent::completions::message::Message],
+        responses: &[objectiveai_sdk::agent::completions::message::RichContent],
     ) -> Result<
-        Option<objectiveai::vector::completions::response::Vote>,
-        objectiveai::error::ResponseError,
+        Option<objectiveai_sdk::vector::completions::response::Vote>,
+        objectiveai_sdk::error::ResponseError,
     >;
 }

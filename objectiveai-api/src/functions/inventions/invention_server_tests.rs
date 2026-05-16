@@ -4,7 +4,7 @@ use indexmap::IndexMap;
 use serde_json::{Value, json};
 
 use super::*;
-use objectiveai::functions::inventions::InventionTool;
+use objectiveai_sdk::functions::inventions::InventionTool;
 
 fn echo_tool() -> InventionTool {
     InventionTool {

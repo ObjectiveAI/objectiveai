@@ -7,13 +7,13 @@ use crate::vector;
 pub enum Error {
     /// Failed to fetch a Function definition.
     #[error("fetch function error: {0}")]
-    FetchFunction(objectiveai::error::ResponseError),
+    FetchFunction(objectiveai_sdk::error::ResponseError),
     /// The requested Function was not found.
     #[error("function not found")]
     FunctionNotFound,
     /// Failed to fetch a Profile definition.
     #[error("fetch profile error: {0}")]
-    FetchProfile(objectiveai::error::ResponseError),
+    FetchProfile(objectiveai_sdk::error::ResponseError),
     /// The requested Profile was not found.
     #[error("profile not found")]
     ProfileNotFound,
@@ -22,7 +22,7 @@ pub enum Error {
     InvalidProfile(String),
     /// Failed to fetch an Swarm definition.
     #[error("fetch swarm error: {0}")]
-    FetchSwarm(objectiveai::error::ResponseError),
+    FetchSwarm(objectiveai_sdk::error::ResponseError),
     /// The requested Swarm was not found.
     #[error("swarm not found")]
     SwarmNotFound,
@@ -31,7 +31,7 @@ pub enum Error {
     InvalidSwarm(String),
     /// Failed to fetch retry data.
     #[error("fetch retry error: {0}")]
-    FetchRetry(objectiveai::error::ResponseError),
+    FetchRetry(objectiveai_sdk::error::ResponseError),
     /// The retry data was not found.
     #[error("retry not found")]
     RetryNotFound,
@@ -41,7 +41,7 @@ pub enum Error {
     /// An expression (JMESPath or Starlark) in the Function is invalid.
     #[error("invalid function expression: {0}")]
     InvalidAppExpression(
-        #[from] objectiveai::functions::expression::ExpressionError,
+        #[from] objectiveai_sdk::functions::expression::ExpressionError,
     ),
     /// A Vector Completion task failed.
     #[error("vector completion error: {0}")]
@@ -71,7 +71,7 @@ pub enum Error {
     TaskOutputExpressionErrors(Vec<TaskOutputExpressionError>),
     /// A circular dependency was detected between functions.
     #[error("circular dependency detected: {0:?}")]
-    CircularDependency(objectiveai::RemotePath),
+    CircularDependency(objectiveai_sdk::RemotePath),
     /// Cannot use both from_cache and continuation at the same time.
     #[error("from_cache and continuation are mutually exclusive")]
     CacheAndContinuationConflict,
@@ -89,7 +89,7 @@ pub struct TaskOutputExpressionError {
     pub message: String,
 }
 
-impl objectiveai::error::StatusError for Error {
+impl objectiveai_sdk::error::StatusError for Error {
     fn status(&self) -> u16 {
         match self {
             Error::FetchFunction(e) => e.status(),

@@ -9,26 +9,23 @@ pub enum Commands {
     },
 }
 
-async fn get_favorites(cli_config: &crate::Config) -> Vec<objectiveai::filesystem::config::Favorite> {
+async fn get_favorites(cli_config: &crate::Config) -> Vec<objectiveai_sdk::filesystem::config::Favorite> {
     let (_, mut config) = crate::config::read(cli_config).await.unwrap();
     config.functions().get_favorites().to_vec()
 }
 
 impl Commands {
-    pub async fn handle(self, cli_config: &crate::Config) -> Result<(), crate::error::Error> {
+    pub async fn handle(self, cli_config: &crate::Config, handle: &objectiveai_sdk::cli::output::Handle) -> Result<(), crate::error::Error> {
         match self {
             Commands::Get { args } => {
                 let path = args.resolve(|| get_favorites(cli_config)).await?;
+                let handle = handle.clone();
                 crate::api::run(|http_client| async move {
-                    let response = objectiveai::functions::inventions::state::get_function_invention_state(&http_client, path).await?;
-                    #[derive(serde::Serialize)]
-                    struct StateResponse {
-                        state: objectiveai::functions::inventions::state::response::GetFunctionInventionStateResponse,
-                    }
-                    objectiveai_cli_lib::output::Output::<StateResponse>::Notification(
-                        StateResponse { state: response },
-                    )
-                    .emit();
+                    let response = objectiveai_sdk::functions::inventions::state::get_function_invention_state(&http_client, path).await?;
+                    objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::State>::Notification(objectiveai_sdk::cli::output::Notification { value: 
+                        objectiveai_sdk::cli::output::State { state: response },
+                     })
+                    .emit(&handle).await;
                     Ok(())
                 }, false).await
             }

@@ -28,12 +28,12 @@ use serde_json::Value;
 use tokio::net::TcpListener;
 use tokio_util::sync::CancellationToken;
 
-use objectiveai::functions::inventions::InventionTool;
+use objectiveai_sdk::functions::inventions::InventionTool;
 
 /// A tool the test server exposes: the wire-level definition plus the
 /// callback that runs when the tool is invoked.
 pub struct TestTool {
-    pub tool: objectiveai::mcp::tool::Tool,
+    pub tool: objectiveai_sdk::mcp::tool::Tool,
     pub call: Arc<
         dyn Fn(Value) -> futures::future::BoxFuture<'static, Result<String, String>>
             + Send
@@ -44,7 +44,7 @@ pub struct TestTool {
 impl TestTool {
     /// A tool whose call always returns "ok". Sufficient for tests that
     /// only care about `list_tools()` output, not invocation.
-    pub fn noop(tool: objectiveai::mcp::tool::Tool) -> Self {
+    pub fn noop(tool: objectiveai_sdk::mcp::tool::Tool) -> Self {
         Self {
             tool,
             call: Arc::new(|_| async { Ok("ok".into()) }.boxed()),
@@ -54,13 +54,13 @@ impl TestTool {
     /// Adapt an `InventionTool` into a `TestTool` so an in-process test
     /// server can stand in for the production `InventionServer`.
     pub fn from_invention(t: InventionTool) -> Self {
-        let mcp_tool = objectiveai::mcp::tool::Tool {
+        let mcp_tool = objectiveai_sdk::mcp::tool::Tool {
             name: t.name.to_string(),
             title: None,
             description: Some(t.description.to_string()),
             icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai_sdk::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai_sdk::mcp::tool::ToolSchemaType::Object,
                 properties: None,
                 required: None,
                 extra: t.parameters.clone(),
@@ -236,7 +236,7 @@ impl Drop for TestMcpServer {
 /// exactly so tests run through the same code path agents use at runtime.
 pub async fn connect_through_proxy(
     servers: &[&TestMcpServer],
-) -> objectiveai::mcp::Connection {
+) -> objectiveai_sdk::mcp::Connection {
     let proxy = crate::test_clients::proxy_spawner()
         .get()
         .await

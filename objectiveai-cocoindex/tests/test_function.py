@@ -13,7 +13,7 @@ from objectiveai_cocoindex import (
     RemoteProfile,
     set_default_client,
 )
-from objectiveai.functions.executions.request.strategy import (
+from objectiveai_sdk.functions.executions.request.strategy import (
     Strategy,
     StrategyDefault,
     StrategySwissSystem,

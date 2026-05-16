@@ -1,0 +1,14 @@
+{
+  "title": "cli.output.notification.PairListItem",
+  "description": "One entry in a function-profile pair listing.",
+  "anyOf": [
+    {
+      "title": "Favorite",
+      "$ref": "filesystem.config.PairFavorite"
+    },
+    {
+      "title": "Item",
+      "$ref": "functions.ListFunctionProfilePairItem"
+    }
+  ]
+}

@@ -4,7 +4,7 @@
 use axum::http::HeaderMap;
 use futures::future::try_join_all;
 use indexmap::IndexMap;
-use objectiveai::mcp::{Client, Connection};
+use objectiveai_sdk::mcp::{Client, Connection};
 
 const SERVERS_HEADER: &str = "X-MCP-Servers";
 const HEADERS_HEADER: &str = "X-MCP-Headers";
@@ -36,7 +36,7 @@ pub enum BadInit {
     UpstreamConnectFailed {
         url: String,
         #[source]
-        source: objectiveai::mcp::Error,
+        source: objectiveai_sdk::mcp::Error,
     },
 }
 

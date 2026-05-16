@@ -1,0 +1,10 @@
+{
+  "title": "cli.output.notification.Published",
+  "description": "Result of `<resource> publish`. The SHA identifies the resulting\ncommit on the local filesystem repo.\n\nWire: `{\"type\":\"notification\",\"sha\":\"<commit-sha>\"}`.",
+  "type": "object",
+  "properties": {
+    "sha": {
+      "type": "string"
+    }
+  }
+}

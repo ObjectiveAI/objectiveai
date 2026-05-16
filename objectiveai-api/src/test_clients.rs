@@ -25,9 +25,9 @@ impl crate::retrieval::retrieve::Client<ctx::DefaultContextExt> for StubRetrieve
     async fn get_agent<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         _ctx: &ctx::Context<ctx::DefaultContextExt, PC>,
-        _path: &objectiveai::RemotePath,
-    ) -> Result<Option<objectiveai::agent::RemoteAgentBaseWithFallbacks>, objectiveai::error::ResponseError> {
-        Err(objectiveai::error::ResponseError {
+        _path: &objectiveai_sdk::RemotePath,
+    ) -> Result<Option<objectiveai_sdk::agent::RemoteAgentBaseWithFallbacks>, objectiveai_sdk::error::ResponseError> {
+        Err(objectiveai_sdk::error::ResponseError {
             code: 501,
             message: serde_json::json!("stub retrieve client should not be called"),
         })
@@ -36,9 +36,9 @@ impl crate::retrieval::retrieve::Client<ctx::DefaultContextExt> for StubRetrieve
     async fn get_swarm<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         _ctx: &ctx::Context<ctx::DefaultContextExt, PC>,
-        _path: &objectiveai::RemotePath,
-    ) -> Result<Option<objectiveai::swarm::RemoteSwarmBase>, objectiveai::error::ResponseError> {
-        Err(objectiveai::error::ResponseError {
+        _path: &objectiveai_sdk::RemotePath,
+    ) -> Result<Option<objectiveai_sdk::swarm::RemoteSwarmBase>, objectiveai_sdk::error::ResponseError> {
+        Err(objectiveai_sdk::error::ResponseError {
             code: 501,
             message: serde_json::json!("stub retrieve client should not be called"),
         })
@@ -47,9 +47,9 @@ impl crate::retrieval::retrieve::Client<ctx::DefaultContextExt> for StubRetrieve
     async fn get_function<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         _ctx: &ctx::Context<ctx::DefaultContextExt, PC>,
-        _path: &objectiveai::RemotePath,
-    ) -> Result<Option<objectiveai::functions::FullRemoteFunction>, objectiveai::error::ResponseError> {
-        Err(objectiveai::error::ResponseError {
+        _path: &objectiveai_sdk::RemotePath,
+    ) -> Result<Option<objectiveai_sdk::functions::FullRemoteFunction>, objectiveai_sdk::error::ResponseError> {
+        Err(objectiveai_sdk::error::ResponseError {
             code: 501,
             message: serde_json::json!("stub retrieve client should not be called"),
         })
@@ -58,9 +58,9 @@ impl crate::retrieval::retrieve::Client<ctx::DefaultContextExt> for StubRetrieve
     async fn get_profile<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         _ctx: &ctx::Context<ctx::DefaultContextExt, PC>,
-        _path: &objectiveai::RemotePath,
-    ) -> Result<Option<objectiveai::functions::RemoteProfile>, objectiveai::error::ResponseError> {
-        Err(objectiveai::error::ResponseError {
+        _path: &objectiveai_sdk::RemotePath,
+    ) -> Result<Option<objectiveai_sdk::functions::RemoteProfile>, objectiveai_sdk::error::ResponseError> {
+        Err(objectiveai_sdk::error::ResponseError {
             code: 501,
             message: serde_json::json!("stub retrieve client should not be called"),
         })
@@ -69,9 +69,9 @@ impl crate::retrieval::retrieve::Client<ctx::DefaultContextExt> for StubRetrieve
     async fn get_prompt<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         _ctx: &ctx::Context<ctx::DefaultContextExt, PC>,
-        _path: &objectiveai::RemotePath,
-    ) -> Result<Option<objectiveai::functions::inventions::prompts::RemotePrompt>, objectiveai::error::ResponseError> {
-        Err(objectiveai::error::ResponseError {
+        _path: &objectiveai_sdk::RemotePath,
+    ) -> Result<Option<objectiveai_sdk::functions::inventions::prompts::RemotePrompt>, objectiveai_sdk::error::ResponseError> {
+        Err(objectiveai_sdk::error::ResponseError {
             code: 501,
             message: serde_json::json!("stub retrieve client should not be called"),
         })
@@ -80,10 +80,10 @@ impl crate::retrieval::retrieve::Client<ctx::DefaultContextExt> for StubRetrieve
     async fn get_function_invention_state_file<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         _ctx: &ctx::Context<ctx::DefaultContextExt, PC>,
-        _path: &objectiveai::RemotePath,
+        _path: &objectiveai_sdk::RemotePath,
         _filename: &'static str,
-    ) -> Result<Option<String>, objectiveai::error::ResponseError> {
-        Err(objectiveai::error::ResponseError {
+    ) -> Result<Option<String>, objectiveai_sdk::error::ResponseError> {
+        Err(objectiveai_sdk::error::ResponseError {
             code: 501,
             message: serde_json::json!("stub retrieve client should not be called"),
         })
@@ -93,9 +93,9 @@ impl crate::retrieval::retrieve::Client<ctx::DefaultContextExt> for StubRetrieve
         &self,
         _ctx: &ctx::Context<ctx::DefaultContextExt, PC>,
         _kind: crate::retrieval::Kind,
-        _path: &objectiveai::RemotePathCommitOptional,
-    ) -> Result<Option<objectiveai::RemotePath>, objectiveai::error::ResponseError> {
-        Err(objectiveai::error::ResponseError {
+        _path: &objectiveai_sdk::RemotePathCommitOptional,
+    ) -> Result<Option<objectiveai_sdk::RemotePath>, objectiveai_sdk::error::ResponseError> {
+        Err(objectiveai_sdk::error::ResponseError {
             code: 501,
             message: serde_json::json!("stub retrieve client should not be called"),
         })
@@ -114,8 +114,8 @@ impl crate::agent::completions::usage_handler::UsageHandler<ctx::DefaultContextE
     fn handle_usage(
         &self,
         _ctx: ctx::Context<ctx::DefaultContextExt, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-        _request: Arc<objectiveai::agent::completions::request::AgentCompletionCreateParams>,
-        _response: objectiveai::agent::completions::response::unary::AgentCompletion,
+        _request: Arc<objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams>,
+        _response: objectiveai_sdk::agent::completions::response::unary::AgentCompletion,
     ) -> impl std::future::Future<Output = ()> + Send + 'static {
         async {}
     }
@@ -130,8 +130,8 @@ impl crate::vector::completions::usage_handler::UsageHandler<ctx::DefaultContext
     async fn handle_usage<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         _ctx: ctx::Context<ctx::DefaultContextExt, PC>,
-        _request: Arc<objectiveai::vector::completions::request::VectorCompletionCreateParams>,
-        _response: objectiveai::vector::completions::response::unary::VectorCompletion,
+        _request: Arc<objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams>,
+        _response: objectiveai_sdk::vector::completions::response::unary::VectorCompletion,
     ) {
     }
 }
@@ -145,8 +145,8 @@ impl crate::functions::executions::usage_handler::UsageHandler<ctx::DefaultConte
     async fn handle_usage<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         _ctx: ctx::Context<ctx::DefaultContextExt, PC>,
-        _request: Arc<objectiveai::functions::executions::request::FunctionExecutionCreateParams>,
-        _response: objectiveai::functions::executions::response::unary::FunctionExecution,
+        _request: Arc<objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams>,
+        _response: objectiveai_sdk::functions::executions::response::unary::FunctionExecution,
     ) {
     }
 }
@@ -160,8 +160,8 @@ impl crate::functions::inventions::usage_handler::UsageHandler<ctx::DefaultConte
     async fn handle_usage<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         _ctx: ctx::Context<ctx::DefaultContextExt, PC>,
-        _request: Arc<objectiveai::functions::inventions::request::FunctionInventionCreateParams>,
-        _response: objectiveai::functions::inventions::response::unary::FunctionInvention,
+        _request: Arc<objectiveai_sdk::functions::inventions::request::FunctionInventionCreateParams>,
+        _response: objectiveai_sdk::functions::inventions::response::unary::FunctionInvention,
     ) {
     }
 }
@@ -175,8 +175,8 @@ impl crate::functions::inventions::recursive::usage_handler::UsageHandler<ctx::D
     async fn handle_usage<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         _ctx: ctx::Context<ctx::DefaultContextExt, PC>,
-        _request: Arc<objectiveai::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams>,
-        _response: objectiveai::functions::inventions::recursive::response::unary::FunctionInventionRecursive,
+        _request: Arc<objectiveai_sdk::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams>,
+        _response: objectiveai_sdk::functions::inventions::recursive::response::unary::FunctionInventionRecursive,
     ) {
     }
 }
@@ -190,8 +190,8 @@ impl crate::laboratories::executions::usage_handler::UsageHandler<ctx::DefaultCo
     async fn handle_usage<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         _ctx: ctx::Context<ctx::DefaultContextExt, PC>,
-        _request: Arc<objectiveai::laboratories::executions::request::LaboratoryExecutionCreateParams>,
-        _response: objectiveai::laboratories::executions::response::unary::LaboratoryExecution,
+        _request: Arc<objectiveai_sdk::laboratories::executions::request::LaboratoryExecutionCreateParams>,
+        _response: objectiveai_sdk::laboratories::executions::response::unary::LaboratoryExecution,
     ) {
     }
 }
@@ -211,8 +211,8 @@ impl crate::vector::completions::completion_votes_fetcher::Fetcher<ctx::DefaultC
         _ctx: ctx::Context<ctx::DefaultContextExt, PC>,
         _id: &str,
     ) -> Result<
-        Option<Vec<objectiveai::vector::completions::response::Vote>>,
-        objectiveai::error::ResponseError,
+        Option<Vec<objectiveai_sdk::vector::completions::response::Vote>>,
+        objectiveai_sdk::error::ResponseError,
     > {
         Ok(None)
     }
@@ -227,12 +227,12 @@ impl crate::vector::completions::cache_vote_fetcher::Fetcher<ctx::DefaultContext
     async fn fetch<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         _ctx: ctx::Context<ctx::DefaultContextExt, PC>,
-        _agent: &objectiveai::agent::InlineAgentBaseWithFallbacksOrRemote,
-        _messages: &[objectiveai::agent::completions::message::Message],
-        _responses: &[objectiveai::agent::completions::message::RichContent],
+        _agent: &objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemote,
+        _messages: &[objectiveai_sdk::agent::completions::message::Message],
+        _responses: &[objectiveai_sdk::agent::completions::message::RichContent],
     ) -> Result<
-        Option<objectiveai::vector::completions::response::Vote>,
-        objectiveai::error::ResponseError,
+        Option<objectiveai_sdk::vector::completions::response::Vote>,
+        objectiveai_sdk::error::ResponseError,
     > {
         Ok(None)
     }
@@ -482,7 +482,7 @@ const MCP_BACKOFF_MULTIPLIER: f64 = 1.5;
 const MCP_BACKOFF_MAX_INTERVAL_MS: u64 = 1_000;
 const MCP_BACKOFF_MAX_ELAPSED_TIME_MS: u64 = 40_000;
 
-static MCP_CLIENT: LazyLock<Arc<objectiveai::mcp::Client>> = LazyLock::new(|| {
+static MCP_CLIENT: LazyLock<Arc<objectiveai_sdk::mcp::Client>> = LazyLock::new(|| {
     // Construct reqwest::Client inside the BACKGROUND_RUNTIME so the
     // hyper connection-pool dispatch tasks live forever. Constructing
     // it on a per-`#[tokio::test]` runtime binds the client's HTTP
@@ -496,7 +496,7 @@ static MCP_CLIENT: LazyLock<Arc<objectiveai::mcp::Client>> = LazyLock::new(|| {
         .build()
         .expect("build reqwest::Client");
     drop(_guard);
-    Arc::new(objectiveai::mcp::Client::new(
+    Arc::new(objectiveai_sdk::mcp::Client::new(
         reqwest,
         String::new(),
         String::new(),
@@ -688,7 +688,7 @@ pub(crate) fn invention_server_spawner() -> Arc<crate::functions::inventions::In
     INVENTION_SERVER_SPAWNER.clone()
 }
 
-pub(crate) fn mcp_client() -> Arc<objectiveai::mcp::Client> {
+pub(crate) fn mcp_client() -> Arc<objectiveai_sdk::mcp::Client> {
     MCP_CLIENT.clone()
 }
 

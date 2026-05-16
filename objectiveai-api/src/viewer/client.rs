@@ -162,7 +162,7 @@ impl<CTXEXT: ctx::ContextExt + Send + Sync + 'static> Client<CTXEXT> {
         &self,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
         id: String,
-        request: Arc<objectiveai::agent::completions::request::AgentCompletionCreateParams>,
+        request: Arc<objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams>,
     ) {
         self.send_with_ctx(ctx, super::request::Request::AgentCompletion(
             super::request::AgentCompletionRequest::Begin(super::request::AgentCompletionCreateParams {
@@ -175,7 +175,7 @@ impl<CTXEXT: ctx::ContextExt + Send + Sync + 'static> Client<CTXEXT> {
     pub fn send_agent_completion_continue(
         &self,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-        chunk: objectiveai::agent::completions::response::streaming::AgentCompletionChunk,
+        chunk: objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk,
     ) {
         self.send_with_ctx(ctx, super::request::Request::AgentCompletion(
             super::request::AgentCompletionRequest::Continue(chunk),
@@ -191,7 +191,7 @@ impl<CTXEXT: ctx::ContextExt + Send + Sync + 'static> Client<CTXEXT> {
         self.send_with_ctx(ctx, super::request::Request::AgentCompletion(
             super::request::AgentCompletionRequest::Error(super::request::ResponseError {
                 id,
-                inner: objectiveai::error::ResponseError::from(error),
+                inner: objectiveai_sdk::error::ResponseError::from(error),
             }),
         ));
     }
@@ -200,7 +200,7 @@ impl<CTXEXT: ctx::ContextExt + Send + Sync + 'static> Client<CTXEXT> {
         &self,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
         id: String,
-        request: Arc<objectiveai::functions::executions::request::FunctionExecutionCreateParams>,
+        request: Arc<objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams>,
     ) {
         self.send_with_ctx(ctx, super::request::Request::FunctionExecution(
             super::request::FunctionExecutionRequest::Begin(super::request::FunctionExecutionCreateParams {
@@ -213,7 +213,7 @@ impl<CTXEXT: ctx::ContextExt + Send + Sync + 'static> Client<CTXEXT> {
     pub fn send_function_execution_continue(
         &self,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-        chunk: objectiveai::functions::executions::response::streaming::FunctionExecutionChunk,
+        chunk: objectiveai_sdk::functions::executions::response::streaming::FunctionExecutionChunk,
     ) {
         self.send_with_ctx(ctx, super::request::Request::FunctionExecution(
             super::request::FunctionExecutionRequest::Continue(chunk),
@@ -229,7 +229,7 @@ impl<CTXEXT: ctx::ContextExt + Send + Sync + 'static> Client<CTXEXT> {
         self.send_with_ctx(ctx, super::request::Request::FunctionExecution(
             super::request::FunctionExecutionRequest::Error(super::request::ResponseError {
                 id,
-                inner: objectiveai::error::ResponseError::from(error),
+                inner: objectiveai_sdk::error::ResponseError::from(error),
             }),
         ));
     }
@@ -238,7 +238,7 @@ impl<CTXEXT: ctx::ContextExt + Send + Sync + 'static> Client<CTXEXT> {
         &self,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
         id: String,
-        request: Arc<objectiveai::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams>,
+        request: Arc<objectiveai_sdk::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams>,
     ) {
         self.send_with_ctx(ctx, super::request::Request::FunctionInventionRecursive(
             super::request::FunctionInventionRecursiveRequest::Begin(super::request::FunctionInventionRecursiveCreateParams {
@@ -251,7 +251,7 @@ impl<CTXEXT: ctx::ContextExt + Send + Sync + 'static> Client<CTXEXT> {
     pub fn send_function_invention_recursive_continue(
         &self,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-        chunk: objectiveai::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk,
+        chunk: objectiveai_sdk::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk,
     ) {
         self.send_with_ctx(ctx, super::request::Request::FunctionInventionRecursive(
             super::request::FunctionInventionRecursiveRequest::Continue(chunk),
@@ -262,7 +262,7 @@ impl<CTXEXT: ctx::ContextExt + Send + Sync + 'static> Client<CTXEXT> {
         &self,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
         id: String,
-        request: Arc<objectiveai::laboratories::executions::request::LaboratoryExecutionCreateParams>,
+        request: Arc<objectiveai_sdk::laboratories::executions::request::LaboratoryExecutionCreateParams>,
     ) {
         self.send_with_ctx(ctx, super::request::Request::LaboratoryExecution(
             super::request::LaboratoryExecutionRequest::Begin(super::request::LaboratoryExecutionCreateParams {
@@ -275,7 +275,7 @@ impl<CTXEXT: ctx::ContextExt + Send + Sync + 'static> Client<CTXEXT> {
     pub fn send_laboratory_execution_continue(
         &self,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-        chunk: objectiveai::laboratories::executions::response::streaming::LaboratoryExecutionChunk,
+        chunk: objectiveai_sdk::laboratories::executions::response::streaming::LaboratoryExecutionChunk,
     ) {
         self.send_with_ctx(ctx, super::request::Request::LaboratoryExecution(
             super::request::LaboratoryExecutionRequest::Continue(chunk),
@@ -286,7 +286,7 @@ impl<CTXEXT: ctx::ContextExt + Send + Sync + 'static> Client<CTXEXT> {
         &self,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
         id: String,
-        error: objectiveai::error::ResponseError,
+        error: objectiveai_sdk::error::ResponseError,
     ) {
         self.send_with_ctx(ctx, super::request::Request::LaboratoryExecution(
             super::request::LaboratoryExecutionRequest::Error(super::request::ResponseError {
@@ -305,7 +305,7 @@ impl<CTXEXT: ctx::ContextExt + Send + Sync + 'static> Client<CTXEXT> {
         self.send_with_ctx(ctx, super::request::Request::FunctionInventionRecursive(
             super::request::FunctionInventionRecursiveRequest::Error(super::request::ResponseError {
                 id,
-                inner: objectiveai::error::ResponseError::from(error),
+                inner: objectiveai_sdk::error::ResponseError::from(error),
             }),
         ));
     }

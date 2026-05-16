@@ -1,0 +1,170 @@
+name: Publish objectiveai-sdk-py
+
+# Builds cross-platform wheels for objectiveai-sdk-py via maturin-action and uploads
+# to PyPI (or TestPyPI). Triggered manually via workflow_dispatch.
+#
+# Setup required (one-time):
+#   1. Generate a PyPI API token at https://pypi.org/manage/account/token/
+#      (scope: project = objectiveai-sdk). Save as repo secret PYPI_API_TOKEN.
+#   2. (Optional) Same for TestPyPI → secret TEST_PYPI_API_TOKEN.
+#
+# Wheel coverage (5 wheels + 1 sdist):
+#   - manylinux x86_64
+#   - manylinux aarch64
+#   - macOS x86_64 (Intel)
+#   - macOS arm64 (Apple Silicon)
+#   - Windows x86_64
+#   - sdist (source) — fallback for unsupported platforms with a Rust toolchain
+#
+# Each wheel is abi3 (cp310-abi3-*), so one wheel per platform covers Python 3.10+.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Where to publish'
+        required: true
+        default: 'pypi'
+        type: choice
+        options:
+          - pypi
+          - testpypi
+  workflow_call:
+    inputs:
+      target:
+        description: 'Where to publish'
+        required: false
+        default: 'pypi'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build-wheels:
+    name: Build wheel (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-x86_64
+            target: x86_64-unknown-linux-gnu
+            manylinux: auto
+          - os: ubuntu-24.04-arm
+            platform: linux-aarch64
+            target: aarch64-unknown-linux-gnu
+            manylinux: auto
+          # macos-x86_64 (Intel) wheels dropped from the matrix:
+          # GitHub's macos-13 runners are deprecated and have an
+          # essentially-permanent queue. Apple Silicon dominates the
+          # macOS user base now; the rare Intel Mac user can build
+          # from the sdist locally (it ships with the Rust source).
+          - os: macos-14
+            platform: macos-arm64
+            target: aarch64-apple-darwin
+          - os: windows-latest
+            platform: windows-x86_64
+            target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Stage README + LICENSE for objectiveai-sdk-py
+        shell: bash
+        run: |
+          cp README.md objectiveai-sdk-py/README.md
+          cp LICENSE objectiveai-sdk-py/LICENSE
+
+      - name: Generate Pydantic types
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r objectiveai-sdk-py/requirements.txt
+          python objectiveai-sdk-py/scripts/install_pydantic.py
+
+      - name: Build wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --out dist
+          manylinux: ${{ matrix.manylinux || '' }}
+          sccache: 'true'
+          working-directory: objectiveai-sdk-py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.platform }}
+          path: objectiveai-sdk-py/dist/*.whl
+          if-no-files-found: error
+        # maturin-action ran with working-directory: objectiveai-sdk-py and
+        # `--out dist`, so the artifact ends up at
+        # objectiveai-sdk-py/dist/*.whl relative to the repo root.
+
+  build-sdist:
+    name: Build sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Stage README + LICENSE for objectiveai-sdk-py
+        run: |
+          cp README.md objectiveai-sdk-py/README.md
+          cp LICENSE objectiveai-sdk-py/LICENSE
+
+      - name: Generate Pydantic types
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r objectiveai-sdk-py/requirements.txt
+          python objectiveai-sdk-py/scripts/install_pydantic.py
+
+      - name: Build sdist
+        uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+          working-directory: objectiveai-sdk-py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: objectiveai-sdk-py/dist/*.tar.gz
+          if-no-files-found: error
+
+  publish:
+    name: Publish to ${{ inputs.target }}
+    needs: [build-wheels, build-sdist]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: '*'
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -la dist/
+
+      - name: Publish to TestPyPI
+        if: inputs.target == 'testpypi'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+          repository-url: https://test.pypi.org/legacy/
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+
+      - name: Publish to PyPI
+        if: inputs.target == 'pypi'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+          password: ${{ secrets.PYPI_API_TOKEN }}

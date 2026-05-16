@@ -9,7 +9,7 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self, cli_config: &crate::Config) -> Result<(), crate::error::Error> {
+    pub async fn handle(self, cli_config: &crate::Config, handle: &objectiveai_sdk::cli::output::Handle) -> Result<(), crate::error::Error> {
         match self {
             Commands::Clear => {
                 let count = super::clear_all(cli_config)?;
@@ -19,7 +19,7 @@ impl Commands {
                 let instructions = format!(
                     "cleared {count} instruction tables"
                 );
-                objectiveai_cli_lib::output::Output::<Instructions>::Notification(Instructions { instructions }).emit();
+                objectiveai_sdk::cli::output::Output::<Instructions>::Notification(objectiveai_sdk::cli::output::Notification { value: Instructions { instructions } }).emit(handle).await;
                 Ok(())
             }
             }

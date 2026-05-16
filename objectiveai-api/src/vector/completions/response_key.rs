@@ -69,10 +69,10 @@ impl ResponseKey {
     pub fn response_format(
         vector_response_keys: Vec<String>,
         think: bool,
-    ) -> objectiveai::agent::completions::request::ResponseFormat {
+    ) -> objectiveai_sdk::agent::completions::request::ResponseFormat {
         let schema: indexmap::IndexMap<String, serde_json::Value> =
             Self::schema(vector_response_keys, think).into_iter().collect();
-        objectiveai::agent::completions::request::ResponseFormat::JsonSchema {
+        objectiveai_sdk::agent::completions::request::ResponseFormat::JsonSchema {
             schema,
         }
     }
@@ -81,10 +81,10 @@ impl ResponseKey {
     pub fn tool(
         vector_response_keys: Vec<String>,
         think: bool,
-    ) -> objectiveai::agent::completions::request::ResponseFormat {
+    ) -> objectiveai_sdk::agent::completions::request::ResponseFormat {
         let schema: indexmap::IndexMap<String, serde_json::Value> =
             Self::schema(vector_response_keys, think).into_iter().collect();
-        objectiveai::agent::completions::request::ResponseFormat::ToolCall {
+        objectiveai_sdk::agent::completions::request::ResponseFormat::ToolCall {
             name: "response_key".to_string(),
             description: "Select the response key.".to_string(),
             schema,
@@ -96,10 +96,10 @@ impl ResponseKey {
     pub fn tool_required(
         vector_response_keys: Vec<String>,
         think: bool,
-    ) -> objectiveai::agent::completions::request::ResponseFormat {
+    ) -> objectiveai_sdk::agent::completions::request::ResponseFormat {
         let schema: indexmap::IndexMap<String, serde_json::Value> =
             Self::schema(vector_response_keys, think).into_iter().collect();
-        objectiveai::agent::completions::request::ResponseFormat::ToolCall {
+        objectiveai_sdk::agent::completions::request::ResponseFormat::ToolCall {
             name: "response_key".to_string(),
             description: "Select the response key.".to_string(),
             schema,

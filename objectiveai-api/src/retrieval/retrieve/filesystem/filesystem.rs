@@ -1,7 +1,7 @@
 //! Filesystem fetch source implementation.
 
 use crate::ctx;
-use objectiveai::error::ResponseError;
+use objectiveai_sdk::error::ResponseError;
 use std::sync::Arc;
 
 pub struct FilesystemClient {
@@ -16,13 +16,13 @@ impl FilesystemClient {
 
 /// Extracts (owner, repository, commit) from a RemotePath.
 /// Panics on Mock variant (mock paths should not reach the filesystem client).
-fn fs_fields(path: &objectiveai::RemotePath) -> (&str, &str, &str) {
+fn fs_fields(path: &objectiveai_sdk::RemotePath) -> (&str, &str, &str) {
     match path {
-        objectiveai::RemotePath::Github { owner, repository, commit }
-        | objectiveai::RemotePath::Filesystem { owner, repository, commit } => {
+        objectiveai_sdk::RemotePath::Github { owner, repository, commit }
+        | objectiveai_sdk::RemotePath::Filesystem { owner, repository, commit } => {
             (owner, repository, commit)
         }
-        objectiveai::RemotePath::Mock { .. } => {
+        objectiveai_sdk::RemotePath::Mock { .. } => {
             unreachable!("mock paths should not reach the filesystem client")
         }
     }
@@ -36,12 +36,12 @@ where
     async fn get_agent<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         _ctx: &ctx::Context<CTXEXT, PC>,
-        path: &objectiveai::RemotePath,
-    ) -> Result<Option<objectiveai::agent::RemoteAgentBaseWithFallbacks>, ResponseError> {
+        path: &objectiveai_sdk::RemotePath,
+    ) -> Result<Option<objectiveai_sdk::agent::RemoteAgentBaseWithFallbacks>, ResponseError> {
         let (owner, repository, commit) = fs_fields(path);
         match self
             .client
-            .read_json::<objectiveai::agent::RemoteAgentBaseWithFallbacks>(
+            .read_json::<objectiveai_sdk::agent::RemoteAgentBaseWithFallbacks>(
                 crate::retrieval::Kind::Agents,
                 owner,
                 repository,
@@ -59,12 +59,12 @@ where
     async fn get_swarm<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         _ctx: &ctx::Context<CTXEXT, PC>,
-        path: &objectiveai::RemotePath,
-    ) -> Result<Option<objectiveai::swarm::RemoteSwarmBase>, ResponseError> {
+        path: &objectiveai_sdk::RemotePath,
+    ) -> Result<Option<objectiveai_sdk::swarm::RemoteSwarmBase>, ResponseError> {
         let (owner, repository, commit) = fs_fields(path);
         match self
             .client
-            .read_json::<objectiveai::swarm::RemoteSwarmBase>(
+            .read_json::<objectiveai_sdk::swarm::RemoteSwarmBase>(
                 crate::retrieval::Kind::Swarms,
                 owner,
                 repository,
@@ -82,12 +82,12 @@ where
     async fn get_function<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         _ctx: &ctx::Context<CTXEXT, PC>,
-        path: &objectiveai::RemotePath,
-    ) -> Result<Option<objectiveai::functions::FullRemoteFunction>, ResponseError> {
+        path: &objectiveai_sdk::RemotePath,
+    ) -> Result<Option<objectiveai_sdk::functions::FullRemoteFunction>, ResponseError> {
         let (owner, repository, commit) = fs_fields(path);
         match self
             .client
-            .read_json::<objectiveai::functions::FullRemoteFunction>(
+            .read_json::<objectiveai_sdk::functions::FullRemoteFunction>(
                 crate::retrieval::Kind::Functions,
                 owner,
                 repository,
@@ -105,12 +105,12 @@ where
     async fn get_profile<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         _ctx: &ctx::Context<CTXEXT, PC>,
-        path: &objectiveai::RemotePath,
-    ) -> Result<Option<objectiveai::functions::RemoteProfile>, ResponseError> {
+        path: &objectiveai_sdk::RemotePath,
+    ) -> Result<Option<objectiveai_sdk::functions::RemoteProfile>, ResponseError> {
         let (owner, repository, commit) = fs_fields(path);
         match self
             .client
-            .read_json::<objectiveai::functions::RemoteProfile>(
+            .read_json::<objectiveai_sdk::functions::RemoteProfile>(
                 crate::retrieval::Kind::Profiles,
                 owner,
                 repository,
@@ -128,12 +128,12 @@ where
     async fn get_prompt<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         _ctx: &ctx::Context<CTXEXT, PC>,
-        path: &objectiveai::RemotePath,
-    ) -> Result<Option<objectiveai::functions::inventions::prompts::RemotePrompt>, ResponseError> {
+        path: &objectiveai_sdk::RemotePath,
+    ) -> Result<Option<objectiveai_sdk::functions::inventions::prompts::RemotePrompt>, ResponseError> {
         let (owner, repository, commit) = fs_fields(path);
         match self
             .client
-            .read_json::<objectiveai::functions::inventions::prompts::RemotePrompt>(
+            .read_json::<objectiveai_sdk::functions::inventions::prompts::RemotePrompt>(
                 crate::retrieval::Kind::Prompts,
                 owner,
                 repository,
@@ -151,7 +151,7 @@ where
     async fn get_function_invention_state_file<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         _ctx: &ctx::Context<CTXEXT, PC>,
-        path: &objectiveai::RemotePath,
+        path: &objectiveai_sdk::RemotePath,
         filename: &'static str,
     ) -> Result<Option<String>, ResponseError> {
         let (owner, repository, commit) = fs_fields(path);
@@ -172,10 +172,10 @@ where
         &self,
         _ctx: &ctx::Context<CTXEXT, PC>,
         kind: crate::retrieval::Kind,
-        path: &objectiveai::RemotePathCommitOptional,
-    ) -> Result<Option<objectiveai::RemotePath>, ResponseError> {
+        path: &objectiveai_sdk::RemotePathCommitOptional,
+    ) -> Result<Option<objectiveai_sdk::RemotePath>, ResponseError> {
         match path {
-            objectiveai::RemotePathCommitOptional::Filesystem { owner, repository, commit } => {
+            objectiveai_sdk::RemotePathCommitOptional::Filesystem { owner, repository, commit } => {
                 let resolved_commit = match commit {
                     Some(c) => c.clone(),
                     None => match self.client.resolve_head(kind, owner, repository) {
@@ -183,7 +183,7 @@ where
                         Err(_) => return Ok(None),
                     },
                 };
-                Ok(Some(objectiveai::RemotePath::Filesystem {
+                Ok(Some(objectiveai_sdk::RemotePath::Filesystem {
                     owner: owner.clone(),
                     repository: repository.clone(),
                     commit: resolved_commit,

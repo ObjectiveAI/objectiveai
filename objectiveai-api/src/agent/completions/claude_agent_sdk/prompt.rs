@@ -3,7 +3,7 @@ use super::content_block_param::ContentBlockParam;
 use super::sdk_message::{
     MessageParam, MessageParamContent, MessageParamRole, SDKUserMessage, SDKUserMessageType,
 };
-use objectiveai::agent::completions::message::{Message, RichContent, SimpleContent, SimpleContentPart};
+use objectiveai_sdk::agent::completions::message::{Message, RichContent, SimpleContent, SimpleContentPart};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Prompt {
@@ -55,10 +55,10 @@ impl Prompt {
     pub fn new(
         messages: &[Message],
         continuation: Option<&[ContinuationItem<super::State>]>,
-        request_continuation: Option<&objectiveai::agent::claude_agent_sdk::Continuation>,
+        request_continuation: Option<&objectiveai_sdk::agent::claude_agent_sdk::Continuation>,
     ) -> Result<Self, super::Error> {
         let mut system_parts: Vec<String> = Vec::new();
-        let mut user_msg: Option<&objectiveai::agent::completions::message::UserMessage> = None;
+        let mut user_msg: Option<&objectiveai_sdk::agent::completions::message::UserMessage> = None;
         let mut saw_user = false;
 
         for msg in messages {

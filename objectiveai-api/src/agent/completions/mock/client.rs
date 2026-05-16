@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::pin::Pin;
 use std::time::Duration;
 use futures::Stream;
-use objectiveai::agent::completions::response::{Logprob, Logprobs};
+use objectiveai_sdk::agent::completions::response::{Logprob, Logprobs};
 use rand::{Rng, SeedableRng};
 use super::super::{ContinuationItem, StreamItem, UpstreamClient, ResolvedTool};
 
@@ -21,9 +21,9 @@ pub struct Client {
 /// Resolves the response format for this agent from the request params.
 fn resolve_response_format(
     agent_id: &str,
-    params: &objectiveai::agent::completions::request::AgentCompletionCreateParams,
-) -> Option<objectiveai::agent::completions::request::ResponseFormat> {
-    use objectiveai::agent::completions::request::ResponseFormatParam;
+    params: &objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams,
+) -> Option<objectiveai_sdk::agent::completions::request::ResponseFormat> {
+    use objectiveai_sdk::agent::completions::request::ResponseFormatParam;
     match params.response_format.as_ref()? {
         ResponseFormatParam::Single(rf) => Some(rf.clone()),
         ResponseFormatParam::PerAgent(map) => map.get(agent_id).cloned(),
@@ -49,8 +49,8 @@ enum MockResponse {
     ToolCalls(Vec<MockToolCall>),
 }
 
-impl UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation> for Client {
-    type State = objectiveai::agent::completions::message::AssistantMessage;
+impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation> for Client {
+    type State = objectiveai_sdk::agent::completions::message::AssistantMessage;
     type Stream = Pin<
         Box<dyn Stream<Item = StreamItem<Self::State>> + Send + 'static>,
     >;
@@ -60,16 +60,16 @@ impl UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::C
         &self,
         id: &str,
         created: u64,
-        agent: &objectiveai::agent::mock::Agent,
-        request_continuation: Option<&objectiveai::agent::mock::Continuation>,
-        params: &objectiveai::agent::completions::request::AgentCompletionCreateParams,
-        messages: &[objectiveai::agent::completions::message::Message],
-        mcp_connection: Option<objectiveai::mcp::Connection>,
+        agent: &objectiveai_sdk::agent::mock::Agent,
+        request_continuation: Option<&objectiveai_sdk::agent::mock::Continuation>,
+        params: &objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams,
+        messages: &[objectiveai_sdk::agent::completions::message::Message],
+        mcp_connection: Option<objectiveai_sdk::mcp::Connection>,
         continuation: Option<&[ContinuationItem<Self::State>]>,
         byok: Option<&str>,
         _cost_multiplier: rust_decimal::Decimal,
         tools_enabled: bool,
-        invention_type: Option<objectiveai::functions::inventions::prompts::StepPromptType>,
+        invention_type: Option<objectiveai_sdk::functions::inventions::prompts::StepPromptType>,
         invention_step: Option<usize>,
         invention_tasks_min: Option<u64>,
         invention_input_schema: Option<String>,
@@ -93,7 +93,7 @@ impl UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::C
         // Build the full message list: request_continuation -> messages -> continuation.
         let rc_len = request_continuation.map_or(0, |rc| rc.messages.len());
         let cont_len = continuation.map_or(0, |c| c.len());
-        let mut all_messages: Vec<objectiveai::agent::completions::message::Message> =
+        let mut all_messages: Vec<objectiveai_sdk::agent::completions::message::Message> =
             Vec::with_capacity(rc_len + messages.len() + cont_len);
         if let Some(rc) = request_continuation {
             all_messages.extend_from_slice(&rc.messages);
@@ -101,9 +101,9 @@ impl UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::C
         all_messages.extend_from_slice(messages);
         if let Some(cont) = continuation {
             all_messages.extend(cont.iter().map(|item| match item {
-                ContinuationItem::State(assistant) => objectiveai::agent::completions::message::Message::Assistant(assistant.clone()),
-                ContinuationItem::ToolMessage(t) => objectiveai::agent::completions::message::Message::Tool(t.clone()),
-                ContinuationItem::UserMessage(u) => objectiveai::agent::completions::message::Message::User(u.clone()),
+                ContinuationItem::State(assistant) => objectiveai_sdk::agent::completions::message::Message::Assistant(assistant.clone()),
+                ContinuationItem::ToolMessage(t) => objectiveai_sdk::agent::completions::message::Message::Tool(t.clone()),
+                ContinuationItem::UserMessage(u) => objectiveai_sdk::agent::completions::message::Message::User(u.clone()),
             }));
         }
         // Compute assistant index from internal continuation (State + ToolMessage items),
@@ -146,13 +146,13 @@ impl UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::C
         let max_tool_calls = self.max_tool_calls;
 
         async move {
-            use objectiveai::agent::completions::request::ResponseFormat;
+            use objectiveai_sdk::agent::completions::request::ResponseFormat;
 
             if error && error_probability.is_none() {
                 return Err(super::Error::ExpectedError);
             }
 
-            if matches!(mode, objectiveai::agent::mock::Mode::Invention) && invention_type.is_none() {
+            if matches!(mode, objectiveai_sdk::agent::mock::Mode::Invention) && invention_type.is_none() {
                 return Err(super::Error::InventionAgentWithoutInventionTools);
             }
 
@@ -207,8 +207,8 @@ impl UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::C
                 let mut hasher = twox_hash::XxHash3_64::with_seed(s as u64);
                 {
                     let mut prompt = all_messages.clone();
-                    objectiveai::agent::completions::message::prompt::prepare(&mut prompt);
-                    let pid = objectiveai::agent::completions::message::prompt::id(&prompt);
+                    objectiveai_sdk::agent::completions::message::prompt::prepare(&mut prompt);
+                    let pid = objectiveai_sdk::agent::completions::message::prompt::id(&prompt);
                     hasher.write(pid.as_bytes());
                 }
                 for tn in &tool_names {
@@ -234,19 +234,19 @@ impl UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::C
                 .collect();
 
             // --- Tool call vs content ---
-            let mock_response = if matches!(mode, objectiveai::agent::mock::Mode::LaboratoryEvaluation) {
+            let mock_response = if matches!(mode, objectiveai_sdk::agent::mock::Mode::LaboratoryEvaluation) {
                 // Extract schema from last user message: "## evaluation schema\n\n{json}"
                 let schema_json = {
-                    use objectiveai::agent::completions::message::RichContent;
+                    use objectiveai_sdk::agent::completions::message::RichContent;
                     let extract = |c: &RichContent| match c {
                         RichContent::Text(t) => t.clone(),
                         RichContent::Parts(parts) => parts.iter().filter_map(|p| match p {
-                            objectiveai::agent::completions::message::RichContentPart::Text { text } => Some(text.as_str()),
+                            objectiveai_sdk::agent::completions::message::RichContentPart::Text { text } => Some(text.as_str()),
                             _ => None,
                         }).collect::<Vec<_>>().join(""),
                     };
                     all_messages.iter().rev().find_map(|m| match m {
-                        objectiveai::agent::completions::message::Message::User(u) => {
+                        objectiveai_sdk::agent::completions::message::Message::User(u) => {
                             let text = extract(&u.content);
                             text.find("## evaluation schema\n\n").map(|pos| {
                                 text[pos + "## evaluation schema\n\n".len()..].to_string()
@@ -255,23 +255,23 @@ impl UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::C
                         _ => None,
                     }).unwrap_or_default()
                 };
-                let schema: objectiveai::functions::expression::InputSchema = serde_json::from_str(&schema_json)
-                    .unwrap_or(objectiveai::functions::expression::InputSchema::String(
-                        objectiveai::functions::expression::StringInputSchema {
-                            r#type: objectiveai::functions::expression::StringInputSchemaType::String,
+                let schema: objectiveai_sdk::functions::expression::InputSchema = serde_json::from_str(&schema_json)
+                    .unwrap_or(objectiveai_sdk::functions::expression::InputSchema::String(
+                        objectiveai_sdk::functions::expression::StringInputSchema {
+                            r#type: objectiveai_sdk::functions::expression::StringInputSchemaType::String,
                             description: None,
                             r#enum: None,
                         },
                     ));
-                let input_value = objectiveai::functions::check::example_inputs::generate_seeded(
+                let input_value = objectiveai_sdk::functions::check::example_inputs::generate_seeded(
                     &schema,
                     rng.clone(),
-                ).next().unwrap_or(objectiveai::functions::expression::InputValue::String("mock".to_string()));
+                ).next().unwrap_or(objectiveai_sdk::functions::expression::InputValue::String("mock".to_string()));
                 let text = serde_json::to_string(&input_value).unwrap();
                 MockResponse::Content { text, logprobs: None }
-            } else if matches!(mode, objectiveai::agent::mock::Mode::LaboratoryBuilder) && tools_enabled && prior_tool_call_count == 0 {
+            } else if matches!(mode, objectiveai_sdk::agent::mock::Mode::LaboratoryBuilder) && tools_enabled && prior_tool_call_count == 0 {
                 MockResponse::ToolCalls(vec![super::builder::write_tool_call(&mut rng)])
-            } else if matches!(mode, objectiveai::agent::mock::Mode::Invention) && tools_enabled {
+            } else if matches!(mode, objectiveai_sdk::agent::mock::Mode::Invention) && tools_enabled {
                 resolve_invention_response(
                     invention_type.unwrap(),
                     invention_step.unwrap(),
@@ -304,7 +304,7 @@ impl UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::C
             }
 
             let state = {
-                use objectiveai::agent::completions::message::{
+                use objectiveai_sdk::agent::completions::message::{
                     AssistantMessage, AssistantToolCall, AssistantToolCallFunction, RichContent,
                 };
                 let reasoning = if reasoning_chunks.is_empty() {
@@ -339,14 +339,14 @@ impl UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::C
             };
 
             let stream = async_stream::stream! {
-                use objectiveai::agent::completions::message::{
+                use objectiveai_sdk::agent::completions::message::{
                     AssistantToolCallDelta, AssistantToolCallFunctionDelta,
                     AssistantToolCallType, RichContent,
                 };
-                use objectiveai::agent::completions::response::streaming::{
+                use objectiveai_sdk::agent::completions::response::streaming::{
                     AgentCompletionChunk, AssistantResponseChunk, MessageChunk,
                 };
-                use objectiveai::agent::completions::response::FinishReason;
+                use objectiveai_sdk::agent::completions::response::FinishReason;
 
                 // --- Yield reasoning chunks ---
                 for reasoning_text in &reasoning_chunks {
@@ -367,7 +367,7 @@ impl UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::C
                         })],
                         object: Default::default(),
                         usage: None,
-                        upstream: objectiveai::agent::Upstream::Mock,
+                        upstream: objectiveai_sdk::agent::Upstream::Mock,
                         error: None,
                         continuation: None,
                     });
@@ -406,7 +406,7 @@ impl UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::C
                                 })],
                                 object: Default::default(),
                                 usage: None,
-                                upstream: objectiveai::agent::Upstream::Mock,
+                                upstream: objectiveai_sdk::agent::Upstream::Mock,
                                 error: None,
                                 continuation: None,
                             });
@@ -469,7 +469,7 @@ impl UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::C
                                     })],
                                     object: Default::default(),
                                     usage: None,
-                                    upstream: objectiveai::agent::Upstream::Mock,
+                                    upstream: objectiveai_sdk::agent::Upstream::Mock,
                                     error: None,
                                     continuation: None,
                                 });
@@ -491,11 +491,11 @@ impl UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::C
     fn response_continuation(
         &self,
         mcp_sessions: indexmap::IndexMap<String, String>,
-        request_continuation: Option<&objectiveai::agent::mock::Continuation>,
-        messages: &[objectiveai::agent::completions::message::Message],
+        request_continuation: Option<&objectiveai_sdk::agent::mock::Continuation>,
+        messages: &[objectiveai_sdk::agent::completions::message::Message],
         continuation: Option<&[ContinuationItem<Self::State>]>,
-    ) -> objectiveai::agent::mock::Continuation {
-        use objectiveai::agent::completions::message::Message;
+    ) -> objectiveai_sdk::agent::mock::Continuation {
+        use objectiveai_sdk::agent::completions::message::Message;
         let rc_len = request_continuation.map_or(0, |rc| rc.messages.len());
         let cont_len = continuation.map_or(0, |c| c.len());
         let mut all_messages = Vec::with_capacity(rc_len + messages.len() + cont_len);
@@ -510,8 +510,8 @@ impl UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::C
                 ContinuationItem::UserMessage(u) => Message::User(u.clone()),
             }));
         }
-        objectiveai::agent::mock::Continuation {
-            upstream: objectiveai::agent::mock::Upstream::default(),
+        objectiveai_sdk::agent::mock::Continuation {
+            upstream: objectiveai_sdk::agent::mock::Upstream::default(),
             messages: all_messages,
             mcp_sessions,
         }
@@ -565,13 +565,13 @@ fn chunk_by_logprobs(
 
 /// Decides whether to call a tool or respond with content, and generates the data.
 fn resolve_mock_response(
-    response_format: &Option<objectiveai::agent::completions::request::ResponseFormat>,
+    response_format: &Option<objectiveai_sdk::agent::completions::request::ResponseFormat>,
     tool_names: &[String],
     tool_map: &HashMap<String, ResolvedTool>,
     top_logprobs: Option<u64>,
     rng: &mut impl Rng,
 ) -> MockResponse {
-    use objectiveai::agent::completions::request::ResponseFormat;
+    use objectiveai_sdk::agent::completions::request::ResponseFormat;
 
     // Check for required tool call from response format.
     if let Some(ResponseFormat::ToolCall {
@@ -635,11 +635,11 @@ fn resolve_mock_response(
 
 /// Generates content and optional logprobs based on response format and top_logprobs setting.
 fn generate_content(
-    response_format: &Option<objectiveai::agent::completions::request::ResponseFormat>,
+    response_format: &Option<objectiveai_sdk::agent::completions::request::ResponseFormat>,
     top_logprobs: Option<u64>,
     rng: &mut impl Rng,
 ) -> (String, Option<Vec<Logprob>>) {
-    use objectiveai::agent::completions::request::ResponseFormat;
+    use objectiveai_sdk::agent::completions::request::ResponseFormat;
 
     let permutations = match top_logprobs {
         None | Some(0) => 1,
@@ -750,7 +750,7 @@ pub(super) fn generate_tool_arguments(
 
 /// Generates tool calls for an invention agent based on explicit type and step.
 fn resolve_invention_response(
-    invention_type: objectiveai::functions::inventions::prompts::StepPromptType,
+    invention_type: objectiveai_sdk::functions::inventions::prompts::StepPromptType,
     invention_step: usize,
     tasks_min: u64,
     invention_input_schema: Option<&str>,
@@ -758,7 +758,7 @@ fn resolve_invention_response(
     tool_map: &HashMap<String, ResolvedTool>,
     rng: &mut impl Rng,
 ) -> MockResponse {
-    use objectiveai::functions::inventions::prompts::StepPromptType::*;
+    use objectiveai_sdk::functions::inventions::prompts::StepPromptType::*;
 
     let tc = match (invention_type, invention_step) {
         // Step 0: Essay

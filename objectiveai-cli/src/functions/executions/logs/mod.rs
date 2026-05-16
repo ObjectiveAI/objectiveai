@@ -28,22 +28,22 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub async fn handle(self, cli_config: &crate::Config) -> Result<(), crate::error::Error> {
-        let client = objectiveai::filesystem::Client::new(cli_config.config_base_dir.as_deref(), None::<String>, None::<String>);
+    pub async fn handle(self, cli_config: &crate::Config, handle: &objectiveai_sdk::cli::output::Handle) -> Result<(), crate::error::Error> {
+        let client = objectiveai_sdk::filesystem::Client::new(cli_config.config_base_dir.as_deref(), None::<String>, None::<String>);
         match self {
             Commands::Get { id, filter } => {
-                let content = objectiveai::filesystem::logs::client::read_function_execution(&client, &id, filter.as_deref()).await.map(objectiveai::filesystem::logs::LogContent::Json)?;
+                let content = client.read_function_execution(&id, filter.as_deref()).await.map(objectiveai_sdk::filesystem::logs::LogContent::Json)?;
                 {
-                crate::ack::emit_log_content(content);
+                crate::log_line::emit_log_content(content, handle).await;
                 Ok(())
             }
             }
             Commands::Subscribe { id, timeout_ms, require_modification, filter } => {
-                let result = objectiveai::filesystem::logs::client::subscribe_function_execution(&client, &id, std::time::Duration::from_millis(timeout_ms), require_modification, filter.as_deref()).await?;
+                let result = client.subscribe_function_execution(&id, std::time::Duration::from_millis(timeout_ms), require_modification, filter.as_deref()).await?;
                 {
-                match result.map(objectiveai::filesystem::logs::LogContent::Json) {
+                match result.map(objectiveai_sdk::filesystem::logs::LogContent::Json) {
                     Some(content) => {
-                        crate::ack::emit_log_content(content);
+                        crate::log_line::emit_log_content(content, handle).await;
                         Ok(())
                     }
                     None => Err(crate::error::Error::LogSubscribeTimedOut),
@@ -51,22 +51,22 @@ impl Commands {
             }
             }
             Commands::List { offset, limit } => {
-                crate::ack::emit_log_list(objectiveai::filesystem::logs::client::list_function_executions(&client, offset, limit).await?);
+                crate::log_line::emit_log_list(client.list_function_executions(offset, limit).await?, handle).await;
                 Ok(())
             },
             Commands::Clear { nested } => {
                 if nested {
                     let counts = futures::future::try_join_all(vec![
-                        Box::pin(objectiveai::filesystem::logs::client::clear_function_executions(&client)) as std::pin::Pin<Box<dyn std::future::Future<Output = _> + Send>>,
-                        Box::pin(objectiveai::filesystem::logs::client::clear_function_execution_retry_tokens(&client)),
+                        Box::pin(client.clear_function_executions()) as std::pin::Pin<Box<dyn std::future::Future<Output = _> + Send>>,
+                        Box::pin(client.clear_function_execution_retry_tokens()),
                     ]).await?;
                     {
-                crate::ack::emit_log_clear_count(counts.into_iter().sum());
+                crate::log_line::emit_log_clear_count(counts.into_iter().sum(), handle).await;
                 Ok(())
             }
                 } else {
                     {
-                crate::ack::emit_log_clear_count(objectiveai::filesystem::logs::client::clear_function_executions(&client).await?);
+                crate::log_line::emit_log_clear_count(client.clear_function_executions().await?, handle).await;
                 Ok(())
             }
                 }

@@ -49,10 +49,10 @@ impl SDKMessage {
         assistant_index: u64,
         is_byok: bool,
         cost_multiplier: rust_decimal::Decimal,
-        upstream: objectiveai::agent::Upstream,
+        upstream: objectiveai_sdk::agent::Upstream,
     ) -> Option<
         Result<
-            objectiveai::agent::completions::response::streaming::AgentCompletionChunk,
+            objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk,
             super::super::Error,
         >,
     > {

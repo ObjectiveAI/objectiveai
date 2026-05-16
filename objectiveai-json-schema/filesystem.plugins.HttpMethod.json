@@ -1,0 +1,12 @@
+{
+  "title": "filesystem.plugins.HttpMethod",
+  "description": "HTTP methods supported by [`ViewerRoute`]. Serializes as upper-case\n(`\"GET\"`, `\"POST\"`, …) on the wire.",
+  "type": "string",
+  "enum": [
+    "GET",
+    "POST",
+    "PUT",
+    "PATCH",
+    "DELETE"
+  ]
+}

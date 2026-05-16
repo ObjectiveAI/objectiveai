@@ -25,7 +25,7 @@ namespace ObjectiveAI;
 /// # Examples
 /// 
 /// ```
-/// use objectiveai::prefixed_uuid::PrefixedUuid;
+/// use objectiveai_sdk::prefixed_uuid::PrefixedUuid;
 /// 
 /// // Define an API key type with prefix "apk"
 /// type ApiKey = PrefixedUuid&lt;'a', 'p', 'k'&gt;;
@@ -53,7 +53,7 @@ The prefix is specified as three `const char` generic parameters.
 # Examples
 
 ```
-use objectiveai::prefixed_uuid::PrefixedUuid;
+use objectiveai_sdk::prefixed_uuid::PrefixedUuid;
 
 // Define an API key type with prefix "apk"
 type ApiKey = PrefixedUuid<'a', 'p', 'k'>;

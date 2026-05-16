@@ -1,0 +1,10 @@
+{
+  "title": "cli.output.notification.LogStreamReady",
+  "description": "Emitted mid-stream by long-running `*/create` commands once a log\nid has been allocated and the log file is available. Replaces the\nprior `\"Logs ID: ...\"` plaintext sentinel.\n\nWire: `{\"type\":\"notification\",\"log_stream_ready\":\"<id>\"}`.",
+  "type": "object",
+  "properties": {
+    "log_stream_ready": {
+      "type": "string"
+    }
+  }
+}

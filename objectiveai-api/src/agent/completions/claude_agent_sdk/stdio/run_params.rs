@@ -16,7 +16,7 @@ pub struct RunParams<'a> {
     pub system_prompt: Option<&'a str>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub effort: Option<objectiveai::agent::claude_agent_sdk::Effort>,
+    pub effort: Option<objectiveai_sdk::agent::claude_agent_sdk::Effort>,
 
     #[serde(skip_serializing_if = "is_false")]
     pub thinking_disabled: bool,

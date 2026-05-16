@@ -8,6 +8,7 @@ name: Publish objectiveai-mcp-cli
 
 on:
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -25,4 +26,8 @@ jobs:
       - name: cargo publish
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: cargo publish -p objectiveai-mcp-cli
+        # --no-verify: mcp-cli depends on objectiveai-cli + objectiveai-api,
+        # whose build.rs scripts reach into sibling crates that are not
+        # part of the published tarball. Verification compiles those
+        # transitively and panics. Workspace is type-checked separately.
+        run: cargo publish --no-verify -p objectiveai-mcp-cli

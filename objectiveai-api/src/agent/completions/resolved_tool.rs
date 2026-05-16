@@ -11,8 +11,8 @@ pub enum ResolvedTool {
     },
     /// An MCP tool, with its connection and the original tool name on the server.
     Mcp {
-        connection: objectiveai::mcp::Connection,
-        tool: objectiveai::mcp::tool::Tool,
+        connection: objectiveai_sdk::mcp::Connection,
+        tool: objectiveai_sdk::mcp::tool::Tool,
     },
 }
 
@@ -21,7 +21,7 @@ pub enum ResolvedTool {
 #[error("MCP list_tools error ({url}): {error}")]
 pub struct ResolveToolsError {
     pub url: String,
-    pub error: Arc<objectiveai::mcp::Error>,
+    pub error: Arc<objectiveai_sdk::mcp::Error>,
 }
 
 /// Resolves tool names from a single MCP connection (the per-agent proxy
@@ -34,8 +34,8 @@ pub struct ResolveToolsError {
 /// name disambiguation it needs to do — at this layer we no longer
 /// manufacture suffix-renamed aliases on top.
 pub async fn resolve_tools(
-    mcp_connection: Option<&objectiveai::mcp::Connection>,
-    response_format: Option<&objectiveai::agent::completions::request::ResponseFormat>,
+    mcp_connection: Option<&objectiveai_sdk::mcp::Connection>,
+    response_format: Option<&objectiveai_sdk::agent::completions::request::ResponseFormat>,
 ) -> Result<(Vec<String>, HashMap<String, ResolvedTool>), ResolveToolsError> {
     let mut names = Vec::new();
     let mut map = HashMap::new();
@@ -57,7 +57,7 @@ pub async fn resolve_tools(
         }
     }
 
-    if let Some(objectiveai::agent::completions::request::ResponseFormat::ToolCall {
+    if let Some(objectiveai_sdk::agent::completions::request::ResponseFormat::ToolCall {
         name,
         description,
         schema,

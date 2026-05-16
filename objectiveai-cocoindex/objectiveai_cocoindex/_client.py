@@ -6,7 +6,7 @@ Constructed lazily so importing this module doesn't require auth env vars.
 
 from __future__ import annotations
 
-from objectiveai.client import ObjectiveAI
+from objectiveai_sdk.client import ObjectiveAI
 
 _default_instance: ObjectiveAI | None = None
 

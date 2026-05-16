@@ -30,26 +30,29 @@ use crate::Config;
 /// (notably `GITHUB_AUTHORIZATION`) come through the same `Config`
 /// struct the rest of the CLI uses — no env-var names need to be
 /// defined in this module.
-pub async fn maybe_auto_update<I>(args: I, cli_config: &Config)
-where
+pub async fn maybe_auto_update<I>(
+    args: I,
+    cli_config: &Config,
+    handle: &objectiveai_sdk::cli::output::Handle,
+) where
     I: IntoIterator<Item = OsString> + Clone,
 {
     #[cfg(feature = "updater")]
     {
         if let Err(e) = imp::run(args, cli_config).await {
-            objectiveai_cli_lib::output::Output::<serde_json::Value>::Error(
-                objectiveai_cli_lib::output::Error {
-                    level: objectiveai_cli_lib::output::Level::Warn,
+            objectiveai_sdk::cli::output::Output::<serde_json::Value>::Error(
+                objectiveai_sdk::cli::output::Error {
+                    level: objectiveai_sdk::cli::output::Level::Warn,
                     fatal: false,
-                    message: format!("auto-update error: {e}"),
+                    message: format!("auto-update error: {e}").into(),
                 },
             )
-            .emit();
+            .emit(handle).await;
         }
     }
     #[cfg(not(feature = "updater"))]
     {
-        let _ = (args, cli_config);
+        let _ = (args, cli_config, handle);
     }
 }
 
@@ -304,15 +307,15 @@ mod imp {
     }
 
     /// The marker is `<config_base_dir>/updated.txt`. Reuses
-    /// `objectiveai::filesystem::Client` so CONFIG_BASE_DIR / ~/.objectiveai
+    /// `objectiveai_sdk::filesystem::Client` so CONFIG_BASE_DIR / ~/.objectiveai
     /// resolution matches the rest of the CLI.
     fn marker_path() -> Result<PathBuf, Error> {
         let fs_client = fs_client();
         Ok(fs_client.base_dir().join("updated.txt"))
     }
 
-    fn fs_client() -> objectiveai::filesystem::Client {
-        objectiveai::filesystem::Client::new(
+    fn fs_client() -> objectiveai_sdk::filesystem::Client {
+        objectiveai_sdk::filesystem::Client::new(
             None::<String>,
             None::<String>,
             None::<String>,
@@ -339,7 +342,7 @@ mod imp {
                 let client = fs_client();
                 // Best-effort: if the config file doesn't exist / is
                 // malformed, just skip.
-                match objectiveai::filesystem::config::client::read(&client).await {
+                match client.read_config().await {
                     Ok(mut config) => config
                         .api()
                         .headers()

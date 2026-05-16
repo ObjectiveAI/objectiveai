@@ -10,7 +10,7 @@ pub trait UsageHandler<CTXEXT> {
     async fn handle_usage<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         ctx: ctx::Context<CTXEXT, PC>,
-        request: Arc<objectiveai::vector::completions::request::VectorCompletionCreateParams>,
-        response: objectiveai::vector::completions::response::unary::VectorCompletion,
+        request: Arc<objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams>,
+        response: objectiveai_sdk::vector::completions::response::unary::VectorCompletion,
     );
 }

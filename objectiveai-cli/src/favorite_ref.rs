@@ -34,10 +34,10 @@ impl FavoriteRef {
     pub async fn resolve<F, Fut>(
         self,
         get_favorites: F,
-    ) -> Result<objectiveai::RemotePathCommitOptional, crate::error::Error>
+    ) -> Result<objectiveai_sdk::RemotePathCommitOptional, crate::error::Error>
     where
         F: FnOnce() -> Fut,
-        Fut: std::future::Future<Output = Vec<objectiveai::filesystem::config::Favorite>>,
+        Fut: std::future::Future<Output = Vec<objectiveai_sdk::filesystem::config::Favorite>>,
     {
         if let Some(fav_name) = self.0.favorite {
             let favorites = get_favorites().await;

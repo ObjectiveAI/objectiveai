@@ -22,8 +22,10 @@ fn extract_assistant_content(snapshot: &serde_json::Value) -> String {
         .unwrap_or_default()
 }
 
-/// Run the CLI and return raw stdout as a string (not JSON-parsed).
-/// Strips any "Logs ID:" prefix lines from the output.
+/// Run the CLI and return the assistant content emitted in its JSONL
+/// stream. The CLI wraps output in `{begin}...{notification}...{end}`
+/// lines; we walk the notifications and pluck out the one carrying the
+/// `content` field.
 fn run_cli_text(args: &[&str]) -> String {
     let mut cmd = Command::new(cli_test_util::cli_binary());
     cmd.env("CONFIG_BASE_DIR", cli_test_util::tests_dir());
@@ -40,12 +42,25 @@ fn run_cli_text(args: &[&str]) -> String {
         );
     }
 
-    stdout.lines()
-        .filter(|line| !line.starts_with("Logs ID: "))
-        .collect::<Vec<_>>()
-        .join("\n")
-        .trim()
-        .to_string()
+    for line in stdout.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with("Logs ID:") {
+            continue;
+        }
+        let Ok(value) = serde_json::from_str::<serde_json::Value>(trimmed) else {
+            continue;
+        };
+        if value.get("type").and_then(|t| t.as_str()) != Some("notification") {
+            continue;
+        }
+        if let Some(content) = value
+            .pointer("/value/content")
+            .and_then(|c| c.as_str())
+        {
+            return content.to_string();
+        }
+    }
+    panic!("no `content` notification in CLI output:\n{stdout}");
 }
 
 macro_rules! snapshot_test {

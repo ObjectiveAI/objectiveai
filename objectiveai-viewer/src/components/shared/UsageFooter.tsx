@@ -1,4 +1,4 @@
-import type { AgentCompletionsResponseUsage } from "objectiveai";
+import type { AgentCompletionsResponseUsage } from "@objectiveai/sdk";
 import { formatCost } from "../../lib/format";
 
 export function UsageFooter({ usage }: { usage: AgentCompletionsResponseUsage }) {

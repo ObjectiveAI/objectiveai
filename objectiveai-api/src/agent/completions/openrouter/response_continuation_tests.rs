@@ -1,5 +1,5 @@
 use super::super::{ContinuationItem, UpstreamClient};
-use objectiveai::agent::completions::message::*;
+use objectiveai_sdk::agent::completions::message::*;
 
 fn make_client() -> super::Client {
     super::Client::new(
@@ -21,8 +21,8 @@ fn test_empty_messages_no_continuation() {
         &[],
         None,
     );
-    assert_eq!(result, objectiveai::agent::openrouter::Continuation {
-        upstream: objectiveai::agent::openrouter::Upstream::Openrouter,
+    assert_eq!(result, objectiveai_sdk::agent::openrouter::Continuation {
+        upstream: objectiveai_sdk::agent::openrouter::Upstream::Openrouter,
         messages: vec![],
         mcp_sessions: indexmap::IndexMap::new(),
     });
@@ -43,8 +43,8 @@ fn test_messages_only() {
         &messages,
         None,
     );
-    assert_eq!(result, objectiveai::agent::openrouter::Continuation {
-        upstream: objectiveai::agent::openrouter::Upstream::Openrouter,
+    assert_eq!(result, objectiveai_sdk::agent::openrouter::Continuation {
+        upstream: objectiveai_sdk::agent::openrouter::Upstream::Openrouter,
         messages: vec![
             Message::User(UserMessage {
                 content: RichContent::Text("Hello".into()),
@@ -80,8 +80,8 @@ fn test_messages_with_continuation() {
         &messages,
         Some(&continuation),
     );
-    assert_eq!(result, objectiveai::agent::openrouter::Continuation {
-        upstream: objectiveai::agent::openrouter::Upstream::Openrouter,
+    assert_eq!(result, objectiveai_sdk::agent::openrouter::Continuation {
+        upstream: objectiveai_sdk::agent::openrouter::Upstream::Openrouter,
         messages: vec![
             Message::User(UserMessage {
                 content: RichContent::Text("Hello".into()),
@@ -109,8 +109,8 @@ fn test_request_continuation_messages_come_first() {
             name: None,
         }),
     ];
-    let rc = objectiveai::agent::openrouter::Continuation {
-        upstream: objectiveai::agent::openrouter::Upstream::Openrouter,
+    let rc = objectiveai_sdk::agent::openrouter::Continuation {
+        upstream: objectiveai_sdk::agent::openrouter::Upstream::Openrouter,
         messages: vec![
             Message::User(UserMessage {
                 content: RichContent::Text("Previous turn".into()),
@@ -129,8 +129,8 @@ fn test_request_continuation_messages_come_first() {
         &messages,
         None,
     );
-    assert_eq!(result, objectiveai::agent::openrouter::Continuation {
-        upstream: objectiveai::agent::openrouter::Upstream::Openrouter,
+    assert_eq!(result, objectiveai_sdk::agent::openrouter::Continuation {
+        upstream: objectiveai_sdk::agent::openrouter::Upstream::Openrouter,
         messages: vec![
             Message::User(UserMessage {
                 content: RichContent::Text("Previous turn".into()),

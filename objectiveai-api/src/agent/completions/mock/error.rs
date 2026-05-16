@@ -24,11 +24,11 @@ pub enum Error {
     #[error("MCP list_tools error ({url}): {error}")]
     McpListTools {
         url: String,
-        error: std::sync::Arc<objectiveai::mcp::Error>,
+        error: std::sync::Arc<objectiveai_sdk::mcp::Error>,
     },
 }
 
-impl objectiveai::error::StatusError for Error {
+impl objectiveai_sdk::error::StatusError for Error {
     fn status(&self) -> u16 {
         match self {
             Self::ExpectedError => 500,

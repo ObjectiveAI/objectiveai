@@ -15,7 +15,7 @@ impl std::fmt::Display for Error {
     }
 }
 
-impl objectiveai::error::StatusError for Error {
+impl objectiveai_sdk::error::StatusError for Error {
     fn status(&self) -> u16 { match *self {} }
     fn message(&self) -> Option<serde_json::Value> { match *self {} }
 }

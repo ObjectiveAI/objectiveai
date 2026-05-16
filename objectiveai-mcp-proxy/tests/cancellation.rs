@@ -52,7 +52,10 @@ async fn notifications_cancelled_aborts_in_flight_tool_call() {
         .to_str()
         .unwrap()
         .to_string();
-    let _: Value = init_resp.json().await.unwrap();
+    // Drain the body so the connection releases. The proxy returns
+    // SSE for `initialize` when upstreams are configured (commit
+    // 2743c918), so we don't parse as JSON here.
+    let _ = init_resp.text().await.unwrap();
 
     // 2. Kick off the slow call (id = 42). Don't await yet.
     let call_url = rig.proxy.url.clone();

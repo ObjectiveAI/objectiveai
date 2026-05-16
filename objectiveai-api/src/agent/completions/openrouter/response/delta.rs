@@ -20,7 +20,7 @@ pub struct Delta {
     /// Tool call updates.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls:
-        Option<Vec<objectiveai::agent::completions::message::AssistantToolCallDelta>>,
+        Option<Vec<objectiveai_sdk::agent::completions::message::AssistantToolCallDelta>>,
 
     /// New reasoning text since the last delta.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -43,11 +43,11 @@ impl Delta {
             images,
         }: &Delta,
     ) {
-        objectiveai::agent::completions::response::util::push_option_string(
+        objectiveai_sdk::agent::completions::response::util::push_option_string(
             &mut self.content,
             content,
         );
-        objectiveai::agent::completions::response::util::push_option_string(
+        objectiveai_sdk::agent::completions::response::util::push_option_string(
             &mut self.refusal,
             refusal,
         );
@@ -55,11 +55,11 @@ impl Delta {
             self.role = role.clone();
         }
         self.push_tool_calls(tool_calls);
-        objectiveai::agent::completions::response::util::push_option_string(
+        objectiveai_sdk::agent::completions::response::util::push_option_string(
             &mut self.reasoning,
             reasoning,
         );
-        objectiveai::agent::completions::response::util::push_option_vec(
+        objectiveai_sdk::agent::completions::response::util::push_option_vec(
             &mut self.images,
             images,
         );
@@ -68,21 +68,21 @@ impl Delta {
     fn push_tool_calls(
         &mut self,
         other_tool_calls: &Option<
-            Vec<objectiveai::agent::completions::message::AssistantToolCallDelta>,
+            Vec<objectiveai_sdk::agent::completions::message::AssistantToolCallDelta>,
         >,
     ) {
         fn push_tool_call(
             tool_calls: &mut Vec<
-                objectiveai::agent::completions::message::AssistantToolCallDelta,
+                objectiveai_sdk::agent::completions::message::AssistantToolCallDelta,
             >,
-            other: &objectiveai::agent::completions::message::AssistantToolCallDelta,
+            other: &objectiveai_sdk::agent::completions::message::AssistantToolCallDelta,
         ) {
             fn find_tool_call(
                 tool_calls: &mut Vec<
-                    objectiveai::agent::completions::message::AssistantToolCallDelta,
+                    objectiveai_sdk::agent::completions::message::AssistantToolCallDelta,
                 >,
                 index: u64,
-            ) -> Option<&mut objectiveai::agent::completions::message::AssistantToolCallDelta>
+            ) -> Option<&mut objectiveai_sdk::agent::completions::message::AssistantToolCallDelta>
             {
                 for tool_call in tool_calls {
                     if tool_call.index == index {

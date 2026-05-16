@@ -1,8 +1,8 @@
 use clap::{Args, Subcommand};
 use futures::StreamExt;
 
-crate::define_inline_or_ref!(FunctionArg, "function", objectiveai::functions::FullInlineFunctionOrRemoteCommitOptional, Remote);
-crate::define_inline_or_ref!(ProfileArg, "profile", objectiveai::functions::InlineProfileOrRemoteCommitOptional, Remote);
+crate::define_inline_or_ref!(FunctionArg, "function", objectiveai_sdk::functions::FullInlineFunctionOrRemoteCommitOptional, Remote);
+crate::define_inline_or_ref!(ProfileArg, "profile", objectiveai_sdk::functions::InlineProfileOrRemoteCommitOptional, Remote);
 
 /// How input is provided to the function execution.
 #[derive(Args)]
@@ -20,7 +20,7 @@ pub struct InputSource {
 }
 
 impl InputSource {
-    fn resolve(self) -> Result<objectiveai::functions::expression::InputValue, crate::error::Error> {
+    fn resolve(self) -> Result<objectiveai_sdk::functions::expression::InputValue, crate::error::Error> {
         if let Some(inline) = self.input_inline {
             let mut de = serde_json::Deserializer::from_str(&inline);
             return serde_path_to_error::deserialize(&mut de)
@@ -36,77 +36,7 @@ impl InputSource {
     }
 }
 
-/// Where in the execution tree an error occurred.
-pub enum ErrorPath {
-    Root,
-    Task(Vec<u64>),
-    Reasoning,
-}
-
-impl serde::Serialize for ErrorPath {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        match self {
-            ErrorPath::Root => serializer.serialize_str("root"),
-            ErrorPath::Task(path) => path.serialize(serializer),
-            ErrorPath::Reasoning => serializer.serialize_str("reasoning"),
-        }
-    }
-}
-
-/// A collected error with its location in the execution tree.
-#[derive(serde::Serialize)]
-pub struct CollectedError {
-    pub path: ErrorPath,
-    #[serde(flatten)]
-    pub error: objectiveai::error::ResponseError,
-}
-
-/// The final result of a function execution.
-#[derive(serde::Serialize)]
-pub struct ExecutionResult {
-    pub output: objectiveai::functions::expression::TaskOutputOwned,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub errors: Vec<CollectedError>,
-}
-
-/// Recursively collect errors from the aggregated chunk.
-fn collect_errors(chunk: &objectiveai::functions::executions::response::streaming::FunctionExecutionChunk, errors: &mut Vec<CollectedError>) {
-    if let Some(err) = &chunk.error {
-        errors.push(CollectedError {
-            path: ErrorPath::Root,
-            error: err.clone(),
-        });
-    }
-    for task in &chunk.tasks {
-        match task {
-            objectiveai::functions::executions::response::streaming::TaskChunk::FunctionExecution(ft) => {
-                if let Some(err) = &ft.inner.error {
-                    errors.push(CollectedError {
-                        path: ErrorPath::Task(ft.task_path.clone()),
-                        error: err.clone(),
-                    });
-                }
-                collect_errors(&ft.inner, errors);
-            }
-            objectiveai::functions::executions::response::streaming::TaskChunk::VectorCompletion(vt) => {
-                if let Some(err) = &vt.error {
-                    errors.push(CollectedError {
-                        path: ErrorPath::Task(vt.task_path.clone()),
-                        error: err.clone(),
-                    });
-                }
-            }
-        }
-    }
-    if let Some(reasoning) = &chunk.reasoning {
-        if let Some(err) = &reasoning.error {
-            errors.push(CollectedError {
-                path: ErrorPath::Reasoning,
-                error: err.clone(),
-            });
-        }
-    }
-}
+use objectiveai_sdk::cli::output::{Execution, ExecutionResult};
 
 #[derive(Subcommand)]
 pub enum Commands {
@@ -178,24 +108,24 @@ pub enum Commands {
     },
 }
 
-async fn fn_favorites(cli_config: &crate::Config) -> Vec<objectiveai::filesystem::config::Favorite> {
+async fn fn_favorites(cli_config: &crate::Config) -> Vec<objectiveai_sdk::filesystem::config::Favorite> {
     let (_, mut config) = crate::config::read(cli_config).await.unwrap();
     config.functions().get_favorites().to_vec()
 }
 
-async fn profile_favorites(cli_config: &crate::Config) -> Vec<objectiveai::filesystem::config::Favorite> {
+async fn profile_favorites(cli_config: &crate::Config) -> Vec<objectiveai_sdk::filesystem::config::Favorite> {
     let (_, mut config) = crate::config::read(cli_config).await.unwrap();
     config.functions().profiles().get_favorites().to_vec()
 }
 
 impl Commands {
-    pub async fn handle(self, cli_config: &crate::Config) -> Result<(), crate::error::Error> {
+    pub async fn handle(self, cli_config: &crate::Config, handle: &objectiveai_sdk::cli::output::Handle) -> Result<(), crate::error::Error> {
         let (function_source, profile_source, input_source, continuation_args, instructions, retry_token, seed, split, invert, strategy, detach) = match self {
             Commands::Standard { function, profile, input, continuation, instructions, retry_token, seed, split, invert, detach } => {
-                (function, profile, input, continuation, instructions, retry_token, seed, split, invert, objectiveai::functions::executions::request::Strategy::Default, detach)
+                (function, profile, input, continuation, instructions, retry_token, seed, split, invert, objectiveai_sdk::functions::executions::request::Strategy::Default, detach)
             }
             Commands::SwissSystem { function, profile, input, continuation, instructions, retry_token, seed, split, invert, pool, rounds, detach } => {
-                let strategy = objectiveai::functions::executions::request::Strategy::SwissSystem { pool, rounds };
+                let strategy = objectiveai_sdk::functions::executions::request::Strategy::SwissSystem { pool, rounds };
                 (function, profile, input, continuation, instructions, retry_token, seed, split, invert, strategy, detach)
             }
         };
@@ -203,7 +133,7 @@ impl Commands {
         instructions.verify(cli_config, crate::instructions::InstructionsScope::FunctionExecutions)?;
 
         if detach {
-            crate::api::detach::detach().await;
+            crate::api::detach::detach(handle).await;
         }
 
         let function = function_source.resolve(|| fn_favorites(cli_config)).await?;
@@ -211,7 +141,7 @@ impl Commands {
         let input_value = input_source.resolve()?;
         let continuation = continuation_args.resolve()?;
 
-        let params = objectiveai::functions::executions::request::FunctionExecutionCreateParams {
+        let params = objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams {
             function,
             profile,
             retry_token,
@@ -227,40 +157,65 @@ impl Commands {
             continuation,
         };
 
-        let fs_client = objectiveai::filesystem::Client::new(cli_config.config_base_dir.as_deref(), None::<String>, None::<String>);
-        let log_writer = objectiveai::filesystem::logs::client::write_function_execution(&fs_client);
+        let fs_client = objectiveai_sdk::filesystem::Client::new(cli_config.config_base_dir.as_deref(), None::<String>, None::<String>);
+        let log_writer = fs_client.write_function_execution();
 
+        let handle = handle.clone();
         crate::api::run(Box::new(|http_client| Box::pin(async move {
-            let stream = objectiveai::functions::executions::create_function_execution_streaming(
+            let stream = objectiveai_sdk::functions::executions::create_function_execution_streaming(
                 &http_client, params,
             ).await?;
 
-            let chunk = crate::log_stream::consume_with_coalesced_writes(
-                stream.map(|r| r.map_err(crate::error::Error::from)),
+            // Emit each chunk's inner errors live (Warn) before pushing
+            // into the aggregator. Inner errors are walked in the SDK's
+            // natural order (tasks first, then reasoning).
+            let emit_handle = handle.clone();
+            let stream = stream.then(move |result| {
+                let handle = emit_handle.clone();
+                async move {
+                    if let Ok(chunk) = &result {
+                        for inner in chunk.inner_errors() {
+                            objectiveai_sdk::cli::output::Output::<serde_json::Value>::Error(
+                                objectiveai_sdk::cli::output::Error {
+                                    level: objectiveai_sdk::cli::output::Level::Warn,
+                                    fatal: false,
+                                    message: serde_json::to_value(&inner).unwrap(),
+                                },
+                            )
+                            .emit(&handle)
+                            .await;
+                        }
+                    }
+                    result.map_err(crate::error::Error::from)
+                }
+            });
+
+            let mut chunk = crate::log_stream::consume_with_coalesced_writes(
+                stream,
                 log_writer,
-                |agg: &mut objectiveai::functions::executions::response::streaming::FunctionExecutionChunk, c| agg.push(c),
+                |agg: &mut objectiveai_sdk::functions::executions::response::streaming::FunctionExecutionChunk, c| agg.push(c),
+                handle.clone(),
             ).await?;
 
-            // Recursively collect all errors
-            let mut errors = Vec::new();
-            collect_errors(&chunk, &mut errors);
+            // Root-level execution failure -> propagate as Err so the
+            // global path emits a single Output::Error with Level::Error
+            // and fatal=true, exit code 1.
+            if let Some(error) = chunk.error.take() {
+                return Err(crate::error::Error::ResponseError(error));
+            }
 
             // Extract output (default to Err { error: null } if missing)
             let output = chunk.output
                 .map(|o| o.unwrap())
-                .unwrap_or(objectiveai::functions::expression::TaskOutputOwned::Err {
+                .unwrap_or(objectiveai_sdk::functions::expression::TaskOutputOwned::Err {
                     error: serde_json::Value::Null,
                 });
 
-            let result = ExecutionResult { output, errors };
-            #[derive(serde::Serialize)]
-            struct ExecutionEmit {
-                execution: ExecutionResult,
-            }
-            objectiveai_cli_lib::output::Output::<ExecutionEmit>::Notification(
-                ExecutionEmit { execution: result },
-            )
-            .emit();
+            let result = ExecutionResult { output };
+            objectiveai_sdk::cli::output::Output::<Execution>::Notification(objectiveai_sdk::cli::output::Notification { value:
+                Execution { execution: result },
+             })
+            .emit(&handle).await;
             Ok(())
         })), true).await
     }

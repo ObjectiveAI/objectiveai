@@ -8,12 +8,12 @@ pub struct Choice {
     /// The content delta for this choice.
     pub delta: super::Delta,
     /// The reason generation stopped, if complete.
-    pub finish_reason: Option<objectiveai::agent::completions::response::FinishReason>,
+    pub finish_reason: Option<objectiveai_sdk::agent::completions::response::FinishReason>,
     /// The index of this choice.
     pub index: u64,
     /// Log probabilities for tokens, if requested.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub logprobs: Option<objectiveai::agent::completions::response::Logprobs>,
+    pub logprobs: Option<objectiveai_sdk::agent::completions::response::Logprobs>,
 }
 
 impl Choice {

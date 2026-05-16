@@ -24,7 +24,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-use objectiveai::agent::completions::message::{
+use objectiveai_sdk::agent::completions::message::{
     Message, RichContent, RichContentPart, SimpleContent, SimpleContentPart,
 };
 
@@ -254,10 +254,10 @@ impl Prompt {
         http_client: &reqwest::Client,
         messages: &[Message],
         continuation: Option<&[ContinuationItem<super::State>]>,
-        request_continuation: Option<&objectiveai::agent::codex_sdk::Continuation>,
+        request_continuation: Option<&objectiveai_sdk::agent::codex_sdk::Continuation>,
     ) -> Result<Self, super::Error> {
         let mut system_parts: Vec<String> = Vec::new();
-        let mut user_msg: Option<&objectiveai::agent::completions::message::UserMessage> =
+        let mut user_msg: Option<&objectiveai_sdk::agent::completions::message::UserMessage> =
             None;
         let mut saw_user = false;
 

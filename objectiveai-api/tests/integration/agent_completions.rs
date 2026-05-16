@@ -6,16 +6,16 @@
 #![allow(clippy::too_many_arguments)]
 
 use futures::StreamExt;
-use objectiveai::agent::completions::message::{
+use objectiveai_sdk::agent::completions::message::{
     AssistantMessage, AssistantToolCall, AssistantToolCallFunction, DeveloperMessage, Message,
     RichContent, SimpleContent, UserMessage,
 };
-use objectiveai::agent::completions::request::{
+use objectiveai_sdk::agent::completions::request::{
     AgentCompletionCreateParams, ResponseFormat, ResponseFormatParam,
 };
-use objectiveai::agent::completions::response::streaming::AgentCompletionChunk;
-use objectiveai::agent::completions::response::unary::{AgentCompletion, Message as UnaryMessage};
-use objectiveai::agent::mock::AgentBase as MockAgentBase;
+use objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk;
+use objectiveai_sdk::agent::completions::response::unary::{AgentCompletion, Message as UnaryMessage};
+use objectiveai_sdk::agent::mock::AgentBase as MockAgentBase;
 
 use crate::common;
 
@@ -25,7 +25,7 @@ use crate::common;
 
 fn check_created_and_upstream(
     expected_created: &std::cell::Cell<Option<u64>>,
-    expected_upstream: &std::cell::Cell<Option<objectiveai::agent::Upstream>>,
+    expected_upstream: &std::cell::Cell<Option<objectiveai_sdk::agent::Upstream>>,
     i: usize,
     chunk: &AgentCompletionChunk,
 ) {
@@ -51,7 +51,7 @@ async fn run_and_check(
     stream: impl futures::Stream<Item = AgentCompletionChunk> + Unpin,
 ) -> AgentCompletion {
     let expected_created = std::cell::Cell::new(None);
-    let expected_upstream: std::cell::Cell<Option<objectiveai::agent::Upstream>> =
+    let expected_upstream: std::cell::Cell<Option<objectiveai_sdk::agent::Upstream>> =
         std::cell::Cell::new(None);
     let agg = common::stream_harness::consume_stream(
         stream,
@@ -144,17 +144,17 @@ async fn post_expect_error(params: AgentCompletionCreateParams) {
 /// Build a default mock agent (no error, no logprobs).
 fn mock_agent(
     base: MockAgentBase,
-    fallbacks: Option<Vec<objectiveai::agent::InlineAgentBase>>,
-) -> objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional {
-    objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-        objectiveai::agent::InlineAgentBaseWithFallbacks {
-            inner: objectiveai::agent::InlineAgentBase::Mock(base),
+    fallbacks: Option<Vec<objectiveai_sdk::agent::InlineAgentBase>>,
+) -> objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional {
+    objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+        objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+            inner: objectiveai_sdk::agent::InlineAgentBase::Mock(base),
             fallbacks,
         },
     )
 }
 
-fn default_mock() -> objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional {
+fn default_mock() -> objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional {
     mock_agent(MockAgentBase::default(), None)
 }
 
@@ -162,7 +162,7 @@ fn params_with(
     seed: i64,
     messages: Vec<Message>,
     response_format: Option<ResponseFormatParam>,
-    agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
+    agent: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
 ) -> AgentCompletionCreateParams {
     AgentCompletionCreateParams {
         messages,
@@ -546,7 +546,7 @@ async fn test_json_schema_nested_object() {
 async fn test_fallback_agent_on_error() {
     let agent = mock_agent(
         MockAgentBase { error: Some(true), ..Default::default() },
-        Some(vec![objectiveai::agent::InlineAgentBase::Mock(MockAgentBase::default())]),
+        Some(vec![objectiveai_sdk::agent::InlineAgentBase::Mock(MockAgentBase::default())]),
     );
     let stream = post_streaming(params_with(42, vec![], None, agent)).await;
     let completion = normalize(run_and_check(stream).await);
@@ -563,7 +563,7 @@ async fn test_fallback_agent_on_error() {
 async fn test_all_agents_error() {
     let agent = mock_agent(
         MockAgentBase { error: Some(true), ..Default::default() },
-        Some(vec![objectiveai::agent::InlineAgentBase::Mock(MockAgentBase {
+        Some(vec![objectiveai_sdk::agent::InlineAgentBase::Mock(MockAgentBase {
             error: Some(true),
             ..Default::default()
         })]),
@@ -577,11 +577,11 @@ async fn test_multiple_fallback_agents() {
     let agent = mock_agent(
         MockAgentBase { error: Some(true), ..Default::default() },
         Some(vec![
-            objectiveai::agent::InlineAgentBase::Mock(MockAgentBase {
+            objectiveai_sdk::agent::InlineAgentBase::Mock(MockAgentBase {
                 error: Some(true),
                 ..Default::default()
             }),
-            objectiveai::agent::InlineAgentBase::Mock(MockAgentBase::default()),
+            objectiveai_sdk::agent::InlineAgentBase::Mock(MockAgentBase::default()),
         ]),
     );
     let stream = post_streaming(params_with(42, vec![], None, agent)).await;
@@ -596,8 +596,8 @@ async fn test_multiple_fallback_agents() {
 
 /// Build a base64-encoded `Continuation::Mock` for use as the `continuation` field.
 fn encoded_mock_continuation(messages: Vec<Message>) -> String {
-    let cont = objectiveai::agent::Continuation::Mock(objectiveai::agent::mock::Continuation {
-        upstream: objectiveai::agent::mock::Upstream::Mock,
+    let cont = objectiveai_sdk::agent::Continuation::Mock(objectiveai_sdk::agent::mock::Continuation {
+        upstream: objectiveai_sdk::agent::mock::Upstream::Mock,
         messages,
         mcp_sessions: indexmap::IndexMap::new(),
     });
@@ -816,7 +816,7 @@ async fn test_logprobs_fallback_agent() {
     let agent = mock_agent(
         MockAgentBase { error: Some(true), ..Default::default() },
         Some(vec![
-            objectiveai::agent::InlineAgentBase::Mock(MockAgentBase {
+            objectiveai_sdk::agent::InlineAgentBase::Mock(MockAgentBase {
                 top_logprobs: Some(12),
                 ..Default::default()
             }),

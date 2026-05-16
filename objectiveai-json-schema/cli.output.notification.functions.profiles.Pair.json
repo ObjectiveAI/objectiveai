@@ -1,0 +1,10 @@
+{
+  "title": "cli.output.notification.functions.profiles.Pair",
+  "description": "Result of `functions profiles pairs get`. The CLI fetches both\nhalves of the pair and emits them together.\n\nWire: `{\"type\":\"notification\",\"pair\":{\"function\":...,\"profile\":...}}`.",
+  "type": "object",
+  "properties": {
+    "pair": {
+      "$ref": "cli.output.notification.functions.profiles.FunctionProfilePair"
+    }
+  }
+}

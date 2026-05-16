@@ -481,7 +481,7 @@ impl Client {
         repo: &str,
         description: &str,
         files: &[(&str, &str)],
-    ) -> Result<objectiveai::RemotePath, super::Error> {
+    ) -> Result<objectiveai_sdk::RemotePath, super::Error> {
         // Resolve owner the same way the filesystem client does — from the
         // request context's commit-author name, with the client's own
         // configured commit_author_name as fallback. This guarantees that
@@ -517,7 +517,7 @@ impl Client {
 
         let _ = self.update_description(ctx, &owner, repo, description).await;
 
-        Ok(objectiveai::RemotePath::Github {
+        Ok(objectiveai_sdk::RemotePath::Github {
             owner,
             repository: repo.to_string(),
             commit: commit_sha,

@@ -1,4 +1,4 @@
-use objectiveai::agent::completions::message::ImageUrl;
+use objectiveai_sdk::agent::completions::message::ImageUrl;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]

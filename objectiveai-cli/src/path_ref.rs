@@ -101,7 +101,7 @@ fn parse_remote(s: &str) -> Result<Remote, String> {
 }
 
 impl PathRef {
-    pub fn resolve(self) -> Result<objectiveai::RemotePathCommitOptional, crate::error::Error> {
+    pub fn resolve(self) -> Result<objectiveai_sdk::RemotePathCommitOptional, crate::error::Error> {
         self.remote
             .ok_or(crate::error::Error::MissingArgs(
                 "remote is required",

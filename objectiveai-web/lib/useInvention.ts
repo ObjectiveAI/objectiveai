@@ -4,11 +4,11 @@ import { useState, useEffect } from "react";
 import {
   functionsInventionsRecursiveCreateFunctionInventionRecursive,
   functionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkMerged,
-} from "objectiveai";
+} from "@objectiveai/sdk";
 import type {
   FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunk,
   FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParamsStreaming,
-} from "objectiveai";
+} from "@objectiveai/sdk";
 import { getClient } from "./sdk";
 import { useSDKStream } from "./useSDKStream";
 import type { StreamState } from "./useSDKStream";

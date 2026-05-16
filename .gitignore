@@ -13,6 +13,7 @@ objectiveai-cli-old/
 !README.md
 !CLAUDE.md
 !SDK.md
+!PLUGINS.md
 
 # ignore temp
 temp/
@@ -38,3 +39,6 @@ bin/
 # ignore embedded binaries
 **/embed/
 target-*/
+
+# staged at publish time by .github/workflows/publish-objectiveai-sdk-rs.yml
+objectiveai-sdk-rs/schemas/

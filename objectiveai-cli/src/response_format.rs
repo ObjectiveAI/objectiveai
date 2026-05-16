@@ -53,8 +53,8 @@ pub struct ResponseFormatArgs {
 }
 
 impl ResponseFormatArgs {
-    pub fn resolve(self) -> Result<Option<objectiveai::agent::completions::request::ResponseFormat>, crate::error::Error> {
-        use objectiveai::agent::completions::request::ResponseFormat;
+    pub fn resolve(self) -> Result<Option<objectiveai_sdk::agent::completions::request::ResponseFormat>, crate::error::Error> {
+        use objectiveai_sdk::agent::completions::request::ResponseFormat;
 
         if self.response_format_json_object {
             return Ok(Some(ResponseFormat::JsonObject));

@@ -58,78 +58,72 @@ pub enum Commands {
     },
 }
 
-async fn get_favorites(cli_config: &crate::Config) -> Vec<objectiveai::filesystem::config::Favorite> {
+async fn get_favorites(cli_config: &crate::Config) -> Vec<objectiveai_sdk::filesystem::config::Favorite> {
     let (_, mut config) = crate::config::read(cli_config).await.unwrap();
     config.functions().get_favorites().to_vec()
 }
 
 async fn list_source(
-    http_client: objectiveai::HttpClient,
-    source: objectiveai::functions::request::ListFunctionsSource,
-) -> Result<Vec<objectiveai::RemotePath>, crate::error::Error> {
-    let response = objectiveai::functions::list_functions(
+    http_client: objectiveai_sdk::HttpClient,
+    source: objectiveai_sdk::functions::request::ListFunctionsSource,
+) -> Result<Vec<objectiveai_sdk::RemotePath>, crate::error::Error> {
+    let response = objectiveai_sdk::functions::list_functions(
         &http_client,
-        objectiveai::functions::request::ListFunctionsRequest { source: Some(source) },
+        objectiveai_sdk::functions::request::ListFunctionsRequest { source: Some(source) },
     ).await?;
     Ok(response.data)
 }
 
 impl Commands {
-    pub async fn handle(self, cli_config: &crate::Config) -> Result<(), crate::error::Error> {
+    pub async fn handle(self, cli_config: &crate::Config, handle: &objectiveai_sdk::cli::output::Handle) -> Result<(), crate::error::Error> {
         match self {
             Commands::Get { args } => {
                 let path = args.resolve(|| get_favorites(cli_config)).await?;
+                let handle = handle.clone();
                 crate::api::run(|http_client| async move {
-                    let response = objectiveai::functions::get_function(&http_client, path).await?;
-                    #[derive(serde::Serialize)]
-                    struct FunctionResponse {
-                        function: objectiveai::functions::response::GetFunctionResponse,
-                    }
-                    objectiveai_cli_lib::output::Output::<FunctionResponse>::Notification(
-                        FunctionResponse { function: response },
-                    )
-                    .emit();
+                    let response = objectiveai_sdk::functions::get_function(&http_client, path).await?;
+                    objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Function>::Notification(objectiveai_sdk::cli::output::Notification { value: 
+                        objectiveai_sdk::cli::output::Function { function: response },
+                     })
+                    .emit(&handle).await;
                     Ok(())
                 }, false).await
             }
             Commands::List { source } => {
-                use objectiveai::functions::request::ListFunctionsSource;
+                use objectiveai_sdk::functions::request::ListFunctionsSource;
                 match source {
-                    crate::list::Source::Favorites => crate::list::favorites(|| get_favorites(cli_config)).await,
-                    crate::list::Source::Filesystem => crate::list::single(|c| Box::pin(list_source(c, ListFunctionsSource::Filesystem))).await,
-                    crate::list::Source::Objectiveai => crate::list::single(|c| Box::pin(list_source(c, ListFunctionsSource::Objectiveai))).await,
-                    crate::list::Source::Mock => crate::list::single(|c| Box::pin(list_source(c, ListFunctionsSource::Mock))).await,
+                    crate::list::Source::Favorites => crate::list::favorites(|| get_favorites(cli_config), handle).await,
+                    crate::list::Source::Filesystem => crate::list::single(|c| Box::pin(list_source(c, ListFunctionsSource::Filesystem)), handle).await,
+                    crate::list::Source::Objectiveai => crate::list::single(|c| Box::pin(list_source(c, ListFunctionsSource::Objectiveai)), handle).await,
+                    crate::list::Source::Mock => crate::list::single(|c| Box::pin(list_source(c, ListFunctionsSource::Mock)), handle).await,
                     crate::list::Source::All => crate::list::all(
                         || get_favorites(cli_config),
                         |c| Box::pin(list_source(c, ListFunctionsSource::Filesystem)),
                         |c| Box::pin(list_source(c, ListFunctionsSource::Objectiveai)),
+                        handle,
                     ).await,
                 }
             }
-            Commands::Executions { command } => command.handle(cli_config).await,
-            Commands::Config { command } => command.handle(cli_config).await,
-            Commands::Favorites { command } => command.handle(cli_config).await,
-            Commands::Inventions { command } => command.handle(cli_config).await,
-            Commands::Profiles { command } => command.handle(cli_config).await,
+            Commands::Executions { command } => command.handle(cli_config, handle).await,
+            Commands::Config { command } => command.handle(cli_config, handle).await,
+            Commands::Favorites { command } => command.handle(cli_config, handle).await,
+            Commands::Inventions { command } => command.handle(cli_config, handle).await,
+            Commands::Profiles { command } => command.handle(cli_config, handle).await,
             Commands::Publish { repository, body, message, overwrite } => {
-                let function: objectiveai::functions::FullRemoteFunction = body.resolve()?;
+                let function: objectiveai_sdk::functions::FullRemoteFunction = body.resolve()?;
                 let msg = message.resolve()?;
-                let fs_client = objectiveai::filesystem::Client::new(
+                let fs_client = objectiveai_sdk::filesystem::Client::new(
                     cli_config.config_base_dir.as_deref(),
                     cli_config.commit_author_name.as_deref(),
                     cli_config.commit_author_email.as_deref(),
                 );
-                let sha = objectiveai::filesystem::publish::publish_function(
+                let sha = objectiveai_sdk::filesystem::publish::publish_function(
                     &fs_client, &repository, &function, &msg, overwrite,
                 ).await?;
-                #[derive(serde::Serialize)]
-                struct Published {
-                    sha: String,
-                }
-                objectiveai_cli_lib::output::Output::<Published>::Notification(
-                    Published { sha },
-                )
-                .emit();
+                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Published>::Notification(objectiveai_sdk::cli::output::Notification { value: 
+                    objectiveai_sdk::cli::output::Published { sha },
+                 })
+                .emit(handle).await;
                 Ok(())
             }
         }

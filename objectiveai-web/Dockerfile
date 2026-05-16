@@ -41,16 +41,18 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 # Install workspace dependencies
 WORKDIR /root
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
-COPY objectiveai-js/package.json objectiveai-js/
+COPY objectiveai-sdk-js/package.json objectiveai-sdk-js/
 COPY objectiveai-function-tree/package.json objectiveai-function-tree/
+COPY objectiveai-viewer-sdk/package.json objectiveai-viewer-sdk/
 COPY objectiveai-web/package.json objectiveai-web/
 COPY objectiveai-viewer/package.json objectiveai-viewer/
+COPY objectiveai-mcp-proxy/tests-ts/package.json objectiveai-mcp-proxy/tests-ts/
 RUN pnpm install --frozen-lockfile
 
 # Build JS SDK (workspace resolves "objectiveai" locally)
 COPY objectiveai-json-schema/ objectiveai-json-schema/
-COPY objectiveai-rs-wasm-js/ objectiveai-rs-wasm-js/
-COPY objectiveai-js/ objectiveai-js/
+COPY objectiveai-sdk-rs-wasm-js/ objectiveai-sdk-rs-wasm-js/
+COPY objectiveai-sdk-js/ objectiveai-sdk-js/
 RUN pnpm run build:js
 
 # Build function-tree

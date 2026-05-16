@@ -1,7 +1,7 @@
 //! Validation / error-path checks for `/functions/inventions` and the
 //! "completed state generates no completions" snapshot sanity test.
 
-use objectiveai::functions::inventions::state::{
+use objectiveai_sdk::functions::inventions::state::{
     AlphaScalarBranchState, AlphaScalarLeafState, AlphaVectorLeafState, ParamsState,
 };
 

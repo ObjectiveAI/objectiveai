@@ -23,7 +23,7 @@ pub enum Error {
     Join(#[from] tokio::task::JoinError),
 }
 
-impl objectiveai::error::StatusError for Error {
+impl objectiveai_sdk::error::StatusError for Error {
     fn status(&self) -> u16 {
         match self {
             Error::DeserializationError(_) => 400,

@@ -1,4 +1,4 @@
-use objectiveai::mcp;
+use objectiveai_sdk::mcp;
 
 #[derive(Debug, Clone)]
 pub enum Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK> {
@@ -23,7 +23,7 @@ pub enum Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK> {
 impl<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>
     Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>
 {
-    pub fn push_user_message(&mut self, message: objectiveai::agent::completions::message::UserMessage) {
+    pub fn push_user_message(&mut self, message: objectiveai_sdk::agent::completions::message::UserMessage) {
         match self {
             Self::Openrouter { items, .. } => items.push(ContinuationItem::UserMessage(message)),
             Self::ClaudeAgentSdk { items, .. } => items.push(ContinuationItem::UserMessage(message)),
@@ -32,7 +32,7 @@ impl<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>
         }
     }
 
-    pub fn push_tool_message(&mut self, message: objectiveai::agent::completions::message::ToolMessage) {
+    pub fn push_tool_message(&mut self, message: objectiveai_sdk::agent::completions::message::ToolMessage) {
         match self {
             Self::Openrouter { items, .. } => items.push(ContinuationItem::ToolMessage(message)),
             Self::ClaudeAgentSdk { items, .. } => items.push(ContinuationItem::ToolMessage(message)),
@@ -41,12 +41,12 @@ impl<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>
         }
     }
 
-    pub fn upstream(&self) -> objectiveai::agent::Upstream {
+    pub fn upstream(&self) -> objectiveai_sdk::agent::Upstream {
         match self {
-            Self::Openrouter { .. } => objectiveai::agent::Upstream::Openrouter,
-            Self::ClaudeAgentSdk { .. } => objectiveai::agent::Upstream::ClaudeAgentSdk,
-            Self::CodexSdk { .. } => objectiveai::agent::Upstream::CodexSdk,
-            Self::Mock { .. } => objectiveai::agent::Upstream::Mock,
+            Self::Openrouter { .. } => objectiveai_sdk::agent::Upstream::Openrouter,
+            Self::ClaudeAgentSdk { .. } => objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
+            Self::CodexSdk { .. } => objectiveai_sdk::agent::Upstream::CodexSdk,
+            Self::Mock { .. } => objectiveai_sdk::agent::Upstream::Mock,
         }
     }
 
@@ -65,6 +65,6 @@ impl<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>
 #[derive(Debug, Clone)]
 pub enum ContinuationItem<STATE> {
     State(STATE),
-    ToolMessage(objectiveai::agent::completions::message::ToolMessage),
-    UserMessage(objectiveai::agent::completions::message::UserMessage),
+    ToolMessage(objectiveai_sdk::agent::completions::message::ToolMessage),
+    UserMessage(objectiveai_sdk::agent::completions::message::UserMessage),
 }

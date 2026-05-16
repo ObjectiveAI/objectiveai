@@ -73,7 +73,7 @@ pub struct BuilderMessageSource {
 }
 
 impl BuilderMessageSource {
-    pub fn resolve(self) -> Result<Vec<objectiveai::agent::completions::message::Message>, crate::error::Error> {
+    pub fn resolve(self) -> Result<Vec<objectiveai_sdk::agent::completions::message::Message>, crate::error::Error> {
         if let Some(inline) = self.builder_messages_inline {
             let mut de = serde_json::Deserializer::from_str(&inline);
             return serde_path_to_error::deserialize(&mut de)
@@ -102,7 +102,7 @@ pub struct EvaluationMessageSource {
 }
 
 impl EvaluationMessageSource {
-    pub fn resolve(self) -> Result<Option<Vec<objectiveai::agent::completions::message::Message>>, crate::error::Error> {
+    pub fn resolve(self) -> Result<Option<Vec<objectiveai_sdk::agent::completions::message::Message>>, crate::error::Error> {
         if let Some(inline) = self.evaluation_messages_inline {
             let mut de = serde_json::Deserializer::from_str(&inline);
             return serde_path_to_error::deserialize(&mut de)
@@ -132,7 +132,7 @@ pub struct EvaluationOutputSchemaSource {
 }
 
 impl EvaluationOutputSchemaSource {
-    pub fn resolve(self) -> Result<Option<objectiveai::functions::expression::InputSchema>, crate::error::Error> {
+    pub fn resolve(self) -> Result<Option<objectiveai_sdk::functions::expression::InputSchema>, crate::error::Error> {
         if let Some(inline) = self.evaluation_output_schema_inline {
             let mut de = serde_json::Deserializer::from_str(&inline);
             return serde_path_to_error::deserialize(&mut de)

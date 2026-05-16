@@ -6,7 +6,7 @@ import {
   functionsExecutionsResponseStreamingFunctionExecutionChunkMerged,
   functionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkMerged,
   laboratoriesExecutionsResponseStreamingLaboratoryExecutionChunkMerged,
-} from "objectiveai";
+} from "@objectiveai/sdk";
 import type { Entry, ResponseError } from "../types";
 import {
   classifyAgentCompletion,

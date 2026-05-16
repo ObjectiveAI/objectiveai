@@ -21,10 +21,10 @@ impl BetaRawMessageStreamEvent {
         agent: String,
         assistant_index: u64,
         session_id: String,
-        upstream: objectiveai::agent::Upstream,
-    ) -> Option<objectiveai::agent::completions::response::streaming::AgentCompletionChunk> {
-        use objectiveai::agent::completions::message;
-        use objectiveai::agent::completions::response;
+        upstream: objectiveai_sdk::agent::Upstream,
+    ) -> Option<objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk> {
+        use objectiveai_sdk::agent::completions::message;
+        use objectiveai_sdk::agent::completions::response;
 
         let message_chunk = match self {
             // MessageStart: extract model, use session_id as upstream_id
@@ -202,7 +202,7 @@ impl BetaRawMessageStreamEvent {
         };
 
         message_chunk.map(|message| {
-            objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
+            objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
                 id,
                 created,
                 messages: vec![message],

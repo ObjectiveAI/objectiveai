@@ -16,7 +16,7 @@ pub trait Fetcher<CTXEXT> {
         ctx: ctx::Context<CTXEXT, PC>,
         id: &str,
     ) -> Result<
-        Option<Vec<objectiveai::vector::completions::response::Vote>>,
-        objectiveai::error::ResponseError,
+        Option<Vec<objectiveai_sdk::vector::completions::response::Vote>>,
+        objectiveai_sdk::error::ResponseError,
     >;
 }

@@ -1,7 +1,7 @@
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("{0}")]
-    Filesystem(#[from] objectiveai::filesystem::Error),
+    Filesystem(#[from] objectiveai_sdk::filesystem::Error),
     #[error("viewer subprocess failed to start: {0}")]
     ViewerSpawn(std::io::Error),
     #[error("viewer subprocess did not report its bound address")]
@@ -13,7 +13,9 @@ pub enum Error {
     #[error("VIEWER_SECRET env var set without VIEWER_SIGNATURE, or vice versa")]
     ViewerSecretSignatureEnvMismatch,
     #[error("{0}")]
-    Http(#[from] objectiveai::HttpError),
+    Http(#[from] objectiveai_sdk::HttpError),
+    #[error("{0}")]
+    ResponseError(objectiveai_sdk::error::ResponseError),
     #[error("{0} source is not supported for function-profile pairs")]
     PairsSourceNotSupported(&'static str),
     #[error("favorite not found: {0}")]
@@ -42,18 +44,48 @@ pub enum Error {
     UnknownInstructionsId,
     #[error("subscribe timed out")]
     LogSubscribeTimedOut,
+    #[error("plugin not found: {0}")]
+    PluginNotFound(String),
+    #[error("failed to spawn plugin: {0}")]
+    PluginSpawn(std::io::Error),
+    #[error("failed to read plugin output: {0}")]
+    PluginRead(std::io::Error),
+    #[error("plugin exited with non-zero status: {0}")]
+    PluginExit(i32),
+    #[error("plugin {owner}/{repository} (commit {commit_sha}, version {version}) is not in the install whitelist; pass --allow-untrusted to install anyway")]
+    PluginNotWhitelisted {
+        owner: String,
+        repository: String,
+        commit_sha: String,
+        version: String,
+    },
+    #[error("whitelist regex error: {0}")]
+    WhitelistRegex(regex::Error),
 }
 
 impl Error {
     pub fn to_output(
         &self,
-        level: objectiveai_cli_lib::output::Level,
+        level: objectiveai_sdk::cli::output::Level,
         fatal: bool,
-    ) -> objectiveai_cli_lib::output::Error {
-        objectiveai_cli_lib::output::Error {
+    ) -> objectiveai_sdk::cli::output::Error {
+        objectiveai_sdk::cli::output::Error {
             level,
             fatal,
-            message: self.to_string(),
+            message: self.output_message(),
+        }
+    }
+
+    /// JSON value to use for the `message` field of `Output::Error`.
+    /// For `ResponseError` this is the inner error serialized as a
+    /// structured object; for everything else it's a string built from
+    /// the `Display` impl.
+    pub fn output_message(&self) -> serde_json::Value {
+        match self {
+            Error::ResponseError(re) => {
+                serde_json::to_value(re).unwrap_or_else(|_| self.to_string().into())
+            }
+            _ => self.to_string().into(),
         }
     }
 }

@@ -10,7 +10,7 @@ use dashmap::DashMap;
 use futures::future::try_join_all;
 use indexmap::IndexMap;
 use std::sync::Arc;
-use objectiveai::mcp::{
+use objectiveai_sdk::mcp::{
     Connection, JsonRpcNotification,
     resource::{ListResourcesResult, ReadResourceResult, Resource},
     tool::{CallToolRequestParams, CallToolResult, ContentBlock, ListToolsResult, Tool},
@@ -179,7 +179,7 @@ impl Session {
     /// of upstream `HashMap` iteration order or per-upstream return
     /// order; downstream consumers (e.g. seeded mock agents) rely on
     /// this for deterministic output.
-    pub async fn list_tools(&self) -> Result<ListToolsResult, Arc<objectiveai::mcp::Error>> {
+    pub async fn list_tools(&self) -> Result<ListToolsResult, Arc<objectiveai_sdk::mcp::Error>> {
         let names: Vec<&String> = self.connections.keys().collect();
         let results = try_join_all(
             self.connections
@@ -210,7 +210,7 @@ impl Session {
     /// lists, and return the union sorted by URI. Same fail-fast
     /// semantics as [`Session::list_tools`] — the first upstream error
     /// short-circuits and is returned to the caller.
-    pub async fn list_resources(&self) -> Result<ListResourcesResult, Arc<objectiveai::mcp::Error>> {
+    pub async fn list_resources(&self) -> Result<ListResourcesResult, Arc<objectiveai_sdk::mcp::Error>> {
         let names: Vec<&String> = self.connections.keys().collect();
         let results = try_join_all(
             self.connections
@@ -312,7 +312,7 @@ pub enum CallToolError {
     #[error("tool not found on any upstream: {0}")]
     ToolNotFound(String),
     #[error("upstream call_tool failed: {0}")]
-    Upstream(#[from] objectiveai::mcp::Error),
+    Upstream(#[from] objectiveai_sdk::mcp::Error),
 }
 
 /// Failure modes for [`Session::read_resource`].
@@ -321,6 +321,6 @@ pub enum ReadResourceError {
     #[error("resource not found on any upstream: {0}")]
     ResourceNotFound(String),
     #[error("upstream read_resource failed: {0}")]
-    Upstream(#[from] objectiveai::mcp::Error),
+    Upstream(#[from] objectiveai_sdk::mcp::Error),
 }
 

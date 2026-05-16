@@ -30,7 +30,7 @@ use tokio::sync::OnceCell;
 use tokio::sync::{Mutex, RwLock};
 use tokio_util::sync::{CancellationToken, DropGuard};
 
-use objectiveai::functions::inventions::InventionTool;
+use objectiveai_sdk::functions::inventions::InventionTool;
 
 /// Per-rmcp-session state inside the shared invention server. Tools
 /// and rmcp peers are now keyed directly by rmcp's `Mcp-Session-Id`,

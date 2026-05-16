@@ -3,10 +3,10 @@
 import {
   vectorCompletionsCreateVectorCompletion,
   vectorCompletionsResponseStreamingVectorCompletionChunkMerged,
-} from "objectiveai";
+} from "@objectiveai/sdk";
 import type {
   VectorCompletionsResponseStreamingVectorCompletionChunk,
-} from "objectiveai";
+} from "@objectiveai/sdk";
 import { getClient } from "./sdk";
 import { useSDKStream } from "./useSDKStream";
 import type { StreamState } from "./useSDKStream";

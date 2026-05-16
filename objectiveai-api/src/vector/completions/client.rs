@@ -100,10 +100,10 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, AC
     Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, ACUSG, FVVOTE, FCVOTE, VUSG>
 where
     CTXEXT: ctx::ContextExt + Send + Sync + 'static,
-    OPENROUTER: agent::completions::UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation> + Send + Sync + 'static,
-    CLAUDEAGENTSDK: agent::completions::UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation> + Send + Sync + 'static,
-    CODEXSDK: agent::completions::UpstreamClient<objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation> + Send + Sync + 'static,
-    MOCK: agent::completions::UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation> + Send + Sync + 'static,
+    OPENROUTER: agent::completions::UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::agent::openrouter::Continuation> + Send + Sync + 'static,
+    CLAUDEAGENTSDK: agent::completions::UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation> + Send + Sync + 'static,
+    CODEXSDK: agent::completions::UpstreamClient<objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation> + Send + Sync + 'static,
+    MOCK: agent::completions::UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation> + Send + Sync + 'static,
     RETRG: crate::retrieval::retrieve::Client<CTXEXT>,
     RETRF: crate::retrieval::retrieve::Client<CTXEXT>,
     RETRM: crate::retrieval::retrieve::Client<CTXEXT>,
@@ -121,13 +121,13 @@ where
     pub async fn create_unary_handle_usage(
         self: Arc<Self>,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-        request: Arc<objectiveai::vector::completions::request::VectorCompletionCreateParams>,
+        request: Arc<objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams>,
     ) -> Result<
-        objectiveai::vector::completions::response::unary::VectorCompletion,
+        objectiveai_sdk::vector::completions::response::unary::VectorCompletion,
         super::Error,
     > {
         let mut aggregate: Option<
-            objectiveai::vector::completions::response::streaming::VectorCompletionChunk,
+            objectiveai_sdk::vector::completions::response::streaming::VectorCompletionChunk,
         > = None;
         let mut stream =
             self.create_streaming_handle_usage(ctx, request).await?;
@@ -148,9 +148,9 @@ where
     pub async fn create_streaming_handle_usage(
         self: Arc<Self>,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-        request: Arc<objectiveai::vector::completions::request::VectorCompletionCreateParams>,
+        request: Arc<objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams>,
     ) -> Result<
-        impl Stream<Item = objectiveai::vector::completions::response::streaming::VectorCompletionChunk>
+        impl Stream<Item = objectiveai_sdk::vector::completions::response::streaming::VectorCompletionChunk>
         + Send
         + Unpin
         + 'static,
@@ -159,7 +159,7 @@ where
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
         tokio::spawn(async move {
             let mut aggregate: Option<
-                objectiveai::vector::completions::response::streaming::VectorCompletionChunk,
+                objectiveai_sdk::vector::completions::response::streaming::VectorCompletionChunk,
             > = None;
             let stream = match self
                 .clone()
@@ -184,7 +184,7 @@ where
             }
             drop(stream);
             drop(tx);
-            let response: objectiveai::vector::completions::response::unary::VectorCompletion =
+            let response: objectiveai_sdk::vector::completions::response::unary::VectorCompletion =
                 aggregate.unwrap().into();
             if response.usage.any_usage() {
                 self.usage_handler
@@ -208,10 +208,10 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, AC
     Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, ACUSG, FVVOTE, FCVOTE, VUSG>
 where
     CTXEXT: ctx::ContextExt + Send + Sync + 'static,
-    OPENROUTER: agent::completions::UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation> + Send + Sync + 'static,
-    CLAUDEAGENTSDK: agent::completions::UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation> + Send + Sync + 'static,
-    CODEXSDK: agent::completions::UpstreamClient<objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation> + Send + Sync + 'static,
-    MOCK: agent::completions::UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation> + Send + Sync + 'static,
+    OPENROUTER: agent::completions::UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::agent::openrouter::Continuation> + Send + Sync + 'static,
+    CLAUDEAGENTSDK: agent::completions::UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation> + Send + Sync + 'static,
+    CODEXSDK: agent::completions::UpstreamClient<objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation> + Send + Sync + 'static,
+    MOCK: agent::completions::UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation> + Send + Sync + 'static,
     RETRG: crate::retrieval::retrieve::Client<CTXEXT>,
     RETRF: crate::retrieval::retrieve::Client<CTXEXT>,
     RETRM: crate::retrieval::retrieve::Client<CTXEXT>,
@@ -230,9 +230,9 @@ where
     pub async fn create_streaming(
         self: Arc<Self>,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-        request: Arc<objectiveai::vector::completions::request::VectorCompletionCreateParams>,
+        request: Arc<objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams>,
     ) -> Result<
-        impl Stream<Item = objectiveai::vector::completions::response::streaming::VectorCompletionChunk>
+        impl Stream<Item = objectiveai_sdk::vector::completions::response::streaming::VectorCompletionChunk>
         + Send
         + 'static,
         super::Error,
@@ -299,10 +299,10 @@ where
         // compute hash IDs
         let prompt_id = {
             let mut prompt = request.messages.clone();
-            objectiveai::agent::completions::message::prompt::prepare(
+            objectiveai_sdk::agent::completions::message::prompt::prepare(
                 &mut prompt,
             );
-            objectiveai::agent::completions::message::prompt::id(&prompt)
+            objectiveai_sdk::agent::completions::message::prompt::id(&prompt)
         };
         let responses_ids = {
             let mut responses = request.responses.clone();
@@ -356,20 +356,20 @@ where
         // fetch from cache if requested
         if request.from_cache.is_some_and(|bool| bool) {
             // collect agent refs so they're owned here
-            let mut agent_refs: Vec<objectiveai::agent::InlineAgentBaseWithFallbacksOrRemote> =
+            let mut agent_refs: Vec<objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemote> =
                 Vec::with_capacity(llms.len());
             for (_, _, agent, _, _) in &llms {
                 let inline_wf = match &agent.inner {
-                    objectiveai::agent::AgentWithFallbacks::Remote(r) => &r.inner,
-                    objectiveai::agent::AgentWithFallbacks::Inline(i) => i,
+                    objectiveai_sdk::agent::AgentWithFallbacks::Remote(r) => &r.inner,
+                    objectiveai_sdk::agent::AgentWithFallbacks::Inline(i) => i,
                 };
                 let primary_base = inline_wf.inner.base().to_owned();
                 let fallback_bases = inline_wf.fallbacks.as_ref().map(|fbs| {
                     fbs.iter().map(|fb| fb.base().to_owned()).collect()
                 });
                 agent_refs.push(
-                    objectiveai::agent::InlineAgentBaseWithFallbacksOrRemote::AgentBase(
-                        objectiveai::agent::InlineAgentBaseWithFallbacks {
+                    objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemote::AgentBase(
+                        objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
                             inner: primary_base,
                             fallbacks: fallback_bases,
                         },
@@ -451,7 +451,7 @@ where
 
         // track usage
         let mut usage =
-            objectiveai::agent::completions::response::Usage::default();
+            objectiveai_sdk::agent::completions::response::Usage::default();
 
         // track scores and weights
         let mut weights = vec![Decimal::ZERO; request_responses_len];
@@ -507,7 +507,7 @@ where
                 }
                 // return stream of existing votes
                 return Ok(futures::future::Either::Left(StreamOnce::new(
-                    objectiveai::vector::completions::response::streaming::VectorCompletionChunk {
+                    objectiveai_sdk::vector::completions::response::streaming::VectorCompletionChunk {
                         id: request.retry.clone().unwrap_or_default(),
                         completions: Vec::new(),
                         votes: static_votes,
@@ -515,7 +515,7 @@ where
                         weights,
                         created,
                         swarm: swarm.id,
-                        object: objectiveai::vector::completions::response::streaming::Object::VectorCompletionChunk,
+                        object: objectiveai_sdk::vector::completions::response::streaming::Object::VectorCompletionChunk,
                         usage: None,
                     }
                 )));
@@ -601,18 +601,18 @@ where
         created: u64,
         swarm: String,
         indexer: Arc<ChoiceIndexer>,
-        agent: objectiveai::agent::AgentWithFallbacksWithCount,
+        agent: objectiveai_sdk::agent::AgentWithFallbacksWithCount,
         swarm_index: usize,
         flat_swarm_index: usize,
         flat_swarm_len: usize,
         weight: Decimal,
         invert_vote: bool,
-        request: Arc<objectiveai::vector::completions::request::VectorCompletionCreateParams>,
+        request: Arc<objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams>,
         prompt_id: String,
         responses_ids: Vec<String>,
-    ) -> impl Stream<Item = objectiveai::vector::completions::response::streaming::VectorCompletionChunk> + Send + 'static
+    ) -> impl Stream<Item = objectiveai_sdk::vector::completions::response::streaming::VectorCompletionChunk> + Send + 'static
     {
-        use objectiveai::agent::completions::message::{
+        use objectiveai_sdk::agent::completions::message::{
             Message, UserMessage, RichContent,
         };
 
@@ -684,15 +684,15 @@ where
         // Only Openrouter supports synthetic_reasoning (requires ToolCall output
         // mode); Claude Agent SDK, Claude Code, and Mock only support Instruction.
         let synthetic_reasoning = match agent.inner.agent() {
-            objectiveai::agent::InlineAgent::Openrouter(a) => a.base.synthetic_reasoning.unwrap_or(false),
-            objectiveai::agent::InlineAgent::ClaudeAgentSdk(_) => false,
-            objectiveai::agent::InlineAgent::CodexSdk(_) => false,
-            objectiveai::agent::InlineAgent::Mock(_) => false,
+            objectiveai_sdk::agent::InlineAgent::Openrouter(a) => a.base.synthetic_reasoning.unwrap_or(false),
+            objectiveai_sdk::agent::InlineAgent::ClaudeAgentSdk(_) => false,
+            objectiveai_sdk::agent::InlineAgent::CodexSdk(_) => false,
+            objectiveai_sdk::agent::InlineAgent::Mock(_) => false,
         };
 
         // Build per-agent response formats for json_schema and tool_call modes
         let response_format = match output_mode {
-            objectiveai::agent::OutputMode::JsonSchema => {
+            objectiveai_sdk::agent::OutputMode::JsonSchema => {
                 let mut per_agent = indexmap::IndexMap::new();
                 for (agent_id, pfx_indices) in &vector_pfx_indices {
                     let keys: Vec<String> = pfx_indices.iter().map(|(k, _)| k.clone()).collect();
@@ -701,9 +701,9 @@ where
                         super::ResponseKey::response_format(keys, synthetic_reasoning),
                     );
                 }
-                Some(objectiveai::agent::completions::request::ResponseFormatParam::PerAgent(per_agent))
+                Some(objectiveai_sdk::agent::completions::request::ResponseFormatParam::PerAgent(per_agent))
             }
-            objectiveai::agent::OutputMode::ToolCall => {
+            objectiveai_sdk::agent::OutputMode::ToolCall => {
                 let mut per_agent = indexmap::IndexMap::new();
                 for (agent_id, pfx_indices) in &vector_pfx_indices {
                     let keys: Vec<String> = pfx_indices.iter().map(|(k, _)| k.clone()).collect();
@@ -712,20 +712,20 @@ where
                         super::ResponseKey::tool(keys, synthetic_reasoning),
                     );
                 }
-                Some(objectiveai::agent::completions::request::ResponseFormatParam::PerAgent(per_agent))
+                Some(objectiveai_sdk::agent::completions::request::ResponseFormatParam::PerAgent(per_agent))
             }
-            objectiveai::agent::OutputMode::Instruction => None,
+            objectiveai_sdk::agent::OutputMode::Instruction => None,
         };
 
         let primary_id = agent.inner.id().to_string();
 
         // Build the AgentCompletionCreateParams (messages are NOT modified here)
         let inline_wf = agent.inner.inline();
-        let agent_params = Arc::new(objectiveai::agent::completions::request::AgentCompletionCreateParams {
+        let agent_params = Arc::new(objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams {
             messages: request.messages.clone(),
             provider: request.provider.clone(),
-            agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-                objectiveai::agent::InlineAgentBaseWithFallbacks {
+            agent: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+                objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
                     inner: inline_wf.inner.clone().into_base(),
                     fallbacks: inline_wf.fallbacks.as_ref().map(|fbs| {
                         fbs.iter().map(|fb| fb.clone().into_base()).collect()
@@ -745,11 +745,11 @@ where
         let wrap_agent_chunk = {
             let id = id.clone();
             let swarm = swarm.clone();
-            move |completion_index: u64, inner: objectiveai::agent::completions::response::streaming::AgentCompletionChunk| {
-                objectiveai::vector::completions::response::streaming::VectorCompletionChunk {
+            move |completion_index: u64, inner: objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk| {
+                objectiveai_sdk::vector::completions::response::streaming::VectorCompletionChunk {
                     id: id.clone(),
                     completions: vec![
-                        objectiveai::vector::completions::response::streaming::AgentCompletionChunk {
+                        objectiveai_sdk::vector::completions::response::streaming::AgentCompletionChunk {
                             index: completion_index,
                             inner,
                         },
@@ -759,7 +759,7 @@ where
                     weights: Vec::new(),
                     created,
                     swarm: swarm.clone(),
-                    object: objectiveai::vector::completions::response::streaming::Object::VectorCompletionChunk,
+                    object: objectiveai_sdk::vector::completions::response::streaming::Object::VectorCompletionChunk,
                     usage: None,
                 }
             }
@@ -783,7 +783,7 @@ where
                     None,
                 ).await?;
                 let aggregate: Option<
-                    objectiveai::agent::completions::response::streaming::AgentCompletionChunk,
+                    objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk,
                 > = None;
                 let continuation = None;
                 Ok::<_, agent::completions::Error>((stream, aggregate, continuation))
@@ -818,7 +818,7 @@ where
             drop(stream);
 
             // Convert aggregate to unary for vote extraction
-            let response: objectiveai::agent::completions::response::unary::AgentCompletion =
+            let response: objectiveai_sdk::agent::completions::response::unary::AgentCompletion =
                 match aggregate {
                     Some(agg) => agg.into(),
                     None => return,
@@ -829,7 +829,7 @@ where
 
             // Determine which text to use for vote extraction based on output mode
             let vote_text = match output_mode {
-                objectiveai::agent::OutputMode::ToolCall => {
+                objectiveai_sdk::agent::OutputMode::ToolCall => {
                     tool_call_text.as_deref().unwrap_or(text.as_deref().unwrap_or(""))
                 }
                 _ => {
@@ -857,14 +857,14 @@ where
                 );
 
                 match output_mode {
-                    objectiveai::agent::OutputMode::Instruction => {
+                    objectiveai_sdk::agent::OutputMode::Instruction => {
                         if match_count == 1 {
                             let vote = if invert_vote {
                                 invert_and_l1_normalize(vote)
                             } else {
                                 vote
                             };
-                            votes.push(objectiveai::vector::completions::response::Vote {
+                            votes.push(objectiveai_sdk::vector::completions::response::Vote {
                                 agent: agent_id.clone(),
                                 swarm_index: swarm_index as u64,
                                 flat_swarm_index: flat_swarm_index as u64,
@@ -920,7 +920,7 @@ where
                             ).await {
                                 Ok(mut retry_stream) => {
                                     let mut retry_agg: Option<
-                                        objectiveai::agent::completions::response::streaming::AgentCompletionChunk,
+                                        objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk,
                                     > = None;
                                     while let Some(item) = retry_stream.next().await {
                                         match item {
@@ -935,7 +935,7 @@ where
                                         }
                                     }
                                     if let Some(retry_agg) = retry_agg {
-                                        let retry_response: objectiveai::agent::completions::response::unary::AgentCompletion = retry_agg.into();
+                                        let retry_response: objectiveai_sdk::agent::completions::response::unary::AgentCompletion = retry_agg.into();
                                         let (retry_text, retry_logprobs, _) = extract_assistant_content(&retry_response);
                                         let retry_vote_text = retry_text.as_deref().unwrap_or("");
                                         let (retry_count, retry_vote) = super::get_vote(
@@ -951,7 +951,7 @@ where
                                             } else {
                                                 retry_vote
                                             };
-                                            votes.push(objectiveai::vector::completions::response::Vote {
+                                            votes.push(objectiveai_sdk::vector::completions::response::Vote {
                                                 agent: agent_id.clone(),
                                                 swarm_index: swarm_index as u64,
                                                 flat_swarm_index: flat_swarm_index as u64,
@@ -974,7 +974,7 @@ where
                                         } else {
                                             vote
                                         };
-                                        votes.push(objectiveai::vector::completions::response::Vote {
+                                        votes.push(objectiveai_sdk::vector::completions::response::Vote {
                                             agent: agent_id.clone(),
                                             swarm_index: swarm_index as u64,
                                             flat_swarm_index: flat_swarm_index as u64,
@@ -991,14 +991,14 @@ where
                             }
                         }
                     }
-                    objectiveai::agent::OutputMode::ToolCall => {
+                    objectiveai_sdk::agent::OutputMode::ToolCall => {
                         if tool_call_text.is_some() && match_count > 0 {
                             let vote = if invert_vote {
                                 invert_and_l1_normalize(vote)
                             } else {
                                 vote
                             };
-                            votes.push(objectiveai::vector::completions::response::Vote {
+                            votes.push(objectiveai_sdk::vector::completions::response::Vote {
                                 agent: agent_id.clone(),
                                 swarm_index: swarm_index as u64,
                                 flat_swarm_index: flat_swarm_index as u64,
@@ -1031,8 +1031,8 @@ where
                                 },
                             );
 
-                            let retry_params = Arc::new(objectiveai::agent::completions::request::AgentCompletionCreateParams {
-                                response_format: Some(objectiveai::agent::completions::request::ResponseFormatParam::PerAgent(retry_rf)),
+                            let retry_params = Arc::new(objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams {
+                                response_format: Some(objectiveai_sdk::agent::completions::request::ResponseFormatParam::PerAgent(retry_rf)),
                                 ..(*agent_params).clone()
                             });
 
@@ -1052,7 +1052,7 @@ where
                             ).await {
                                 Ok(mut retry_stream) => {
                                     let mut retry_agg: Option<
-                                        objectiveai::agent::completions::response::streaming::AgentCompletionChunk,
+                                        objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk,
                                     > = None;
                                     while let Some(item) = retry_stream.next().await {
                                         match item {
@@ -1067,7 +1067,7 @@ where
                                         }
                                     }
                                     if let Some(retry_agg) = retry_agg {
-                                        let retry_response: objectiveai::agent::completions::response::unary::AgentCompletion = retry_agg.into();
+                                        let retry_response: objectiveai_sdk::agent::completions::response::unary::AgentCompletion = retry_agg.into();
                                         let (_, retry_logprobs, retry_tc_text) = extract_assistant_content(&retry_response);
                                         if let Some(tc_text) = retry_tc_text {
                                             let retry_agent_id = extract_agent_id(&retry_response);
@@ -1087,7 +1087,7 @@ where
                                                     } else {
                                                         retry_vote
                                                     };
-                                                    votes.push(objectiveai::vector::completions::response::Vote {
+                                                    votes.push(objectiveai_sdk::vector::completions::response::Vote {
                                                         agent: agent_id.clone(),
                                                         swarm_index: swarm_index as u64,
                                                         flat_swarm_index: flat_swarm_index as u64,
@@ -1110,14 +1110,14 @@ where
                             }
                         }
                     }
-                    objectiveai::agent::OutputMode::JsonSchema => {
+                    objectiveai_sdk::agent::OutputMode::JsonSchema => {
                         if match_count > 0 {
                             let vote = if invert_vote {
                                 invert_and_l1_normalize(vote)
                             } else {
                                 vote
                             };
-                            votes.push(objectiveai::vector::completions::response::Vote {
+                            votes.push(objectiveai_sdk::vector::completions::response::Vote {
                                 agent: agent_id.clone(),
                                 swarm_index: swarm_index as u64,
                                 flat_swarm_index: flat_swarm_index as u64,
@@ -1136,7 +1136,7 @@ where
 
             // Yield a final chunk with just the votes (completions already yielded)
             if !votes.is_empty() {
-                yield objectiveai::vector::completions::response::streaming::VectorCompletionChunk {
+                yield objectiveai_sdk::vector::completions::response::streaming::VectorCompletionChunk {
                     id: id.clone(),
                     completions: Vec::new(),
                     votes,
@@ -1144,7 +1144,7 @@ where
                     weights: Vec::new(),
                     created,
                     swarm: swarm.clone(),
-                    object: objectiveai::vector::completions::response::streaming::Object::VectorCompletionChunk,
+                    object: objectiveai_sdk::vector::completions::response::streaming::Object::VectorCompletionChunk,
                     usage: None,
                 };
             }
@@ -1156,17 +1156,17 @@ where
         id: String,
         completion_index: u64,
         error: agent::completions::Error,
-        upstream: objectiveai::agent::Upstream,
+        upstream: objectiveai_sdk::agent::Upstream,
         created: u64,
         swarm: String,
-    ) -> objectiveai::vector::completions::response::streaming::VectorCompletionChunk {
-        objectiveai::vector::completions::response::streaming::VectorCompletionChunk {
+    ) -> objectiveai_sdk::vector::completions::response::streaming::VectorCompletionChunk {
+        objectiveai_sdk::vector::completions::response::streaming::VectorCompletionChunk {
             id,
             completions: vec![
-                objectiveai::vector::completions::response::streaming::AgentCompletionChunk {
+                objectiveai_sdk::vector::completions::response::streaming::AgentCompletionChunk {
                     index: completion_index,
-                    inner: objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
-                        error: Some(objectiveai::error::ResponseError::from(&error)),
+                    inner: objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
+                        error: Some(objectiveai_sdk::error::ResponseError::from(&error)),
                         upstream,
                         ..Default::default()
                     },
@@ -1177,7 +1177,7 @@ where
             weights: Vec::new(),
             created,
             swarm,
-            object: objectiveai::vector::completions::response::streaming::Object::VectorCompletionChunk,
+            object: objectiveai_sdk::vector::completions::response::streaming::Object::VectorCompletionChunk,
             usage: None,
         }
     }
@@ -1185,9 +1185,9 @@ where
 
 /// Extracts text content, logprobs, and tool call arguments from the last assistant message.
 fn extract_assistant_content(
-    response: &objectiveai::agent::completions::response::unary::AgentCompletion,
-) -> (Option<String>, Option<objectiveai::agent::completions::response::Logprobs>, Option<String>) {
-    use objectiveai::agent::completions::response::unary::Message;
+    response: &objectiveai_sdk::agent::completions::response::unary::AgentCompletion,
+) -> (Option<String>, Option<objectiveai_sdk::agent::completions::response::Logprobs>, Option<String>) {
+    use objectiveai_sdk::agent::completions::response::unary::Message;
 
     let mut text = None;
     let mut logprobs = None;
@@ -1208,7 +1208,7 @@ fn extract_assistant_content(
             if let Some(tool_calls) = &assistant.tool_calls {
                 for tc in tool_calls {
                     match tc {
-                        objectiveai::agent::completions::message::AssistantToolCall::Function { function, .. } => {
+                        objectiveai_sdk::agent::completions::message::AssistantToolCall::Function { function, .. } => {
                             if function.name == "response_key" {
                                 tool_call_text = Some(function.arguments.clone());
                             }
@@ -1226,9 +1226,9 @@ fn extract_assistant_content(
 
 /// Extracts the agent ID from the last assistant message in a response.
 fn extract_agent_id(
-    response: &objectiveai::agent::completions::response::unary::AgentCompletion,
+    response: &objectiveai_sdk::agent::completions::response::unary::AgentCompletion,
 ) -> String {
-    use objectiveai::agent::completions::response::unary::Message;
+    use objectiveai_sdk::agent::completions::response::unary::Message;
 
     for msg in response.messages.iter().rev() {
         if let Message::Assistant(assistant) = msg {
@@ -1240,14 +1240,14 @@ fn extract_agent_id(
 
 /// Converts RichContent to a plain string.
 fn rich_content_to_string(
-    content: &objectiveai::agent::completions::message::RichContent,
+    content: &objectiveai_sdk::agent::completions::message::RichContent,
 ) -> String {
     match content {
-        objectiveai::agent::completions::message::RichContent::Text(text) => text.clone(),
-        objectiveai::agent::completions::message::RichContent::Parts(parts) => {
+        objectiveai_sdk::agent::completions::message::RichContent::Text(text) => text.clone(),
+        objectiveai_sdk::agent::completions::message::RichContent::Parts(parts) => {
             let mut result = String::new();
             for part in parts {
-                if let objectiveai::agent::completions::message::RichContentPart::Text { text } = part {
+                if let objectiveai_sdk::agent::completions::message::RichContentPart::Text { text } = part {
                     result.push_str(text);
                 }
             }
@@ -1292,12 +1292,12 @@ fn make_rng(seed: Option<u64>) -> impl Rng {
 ///
 /// For instruction mode, also appends a key listing to the user message.
 fn transform_messages_for_vector(
-    mut messages: Vec<objectiveai::agent::completions::message::Message>,
-    responses: &[objectiveai::agent::completions::message::RichContent],
+    mut messages: Vec<objectiveai_sdk::agent::completions::message::Message>,
+    responses: &[objectiveai_sdk::agent::completions::message::RichContent],
     pfx_indices: &[(String, usize)],
-    output_mode: objectiveai::agent::OutputMode,
-) -> Vec<objectiveai::agent::completions::message::Message> {
-    use objectiveai::agent::completions::message::{
+    output_mode: objectiveai_sdk::agent::OutputMode,
+) -> Vec<objectiveai_sdk::agent::completions::message::Message> {
+    use objectiveai_sdk::agent::completions::message::{
         Message, UserMessage, RichContent, RichContentPart,
     };
 
@@ -1331,7 +1331,7 @@ fn transform_messages_for_vector(
             parts.extend(response_parts.clone());
 
             // For instruction mode, append key listing to the same user message
-            if output_mode == objectiveai::agent::OutputMode::Instruction {
+            if output_mode == objectiveai_sdk::agent::OutputMode::Instruction {
                 parts.push(RichContentPart::Text {
                     text: format!(
                         "\n\nOutput one response key including backticks:\n- {}",
@@ -1355,7 +1355,7 @@ fn transform_messages_for_vector(
             text: "Select the response:\n\n".to_string(),
         });
         parts.extend(response_parts);
-        if output_mode == objectiveai::agent::OutputMode::Instruction {
+        if output_mode == objectiveai_sdk::agent::OutputMode::Instruction {
             parts.push(RichContentPart::Text {
                 text: format!(
                     "\n\nOutput one response key including backticks:\n- {}",

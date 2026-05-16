@@ -3,7 +3,7 @@
 pub enum Error {
     /// Orchestrator operation failed.
     #[error("orchestrator error: {}", serde_json::to_string(.0).unwrap_or_default())]
-    Orchestrator(objectiveai::error::ResponseError),
+    Orchestrator(objectiveai_sdk::error::ResponseError),
     /// MCP communication error.
     #[error("mcp error: {0}")]
     Mcp(String),
@@ -24,7 +24,7 @@ pub enum Error {
     EvaluationConfigMismatch,
 }
 
-impl objectiveai::error::StatusError for Error {
+impl objectiveai_sdk::error::StatusError for Error {
     fn status(&self) -> u16 {
         match self {
             Error::Orchestrator(_) => 500,

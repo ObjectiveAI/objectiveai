@@ -9,6 +9,7 @@ use crate::viewer;
 use crate::schemas;
 use crate::laboratories;
 use crate::logs;
+use crate::plugins;
 use crate::vector;
 use crate::instructions;
 use crate::error;
@@ -25,7 +26,7 @@ struct EnvConfigBuilder {
     commit_author_email: Option<String>,
     /// Consumed by the auto-updater to authenticate against GitHub's
     /// release API — matches the env name the rest of the CLI honours
-    /// (see `objectiveai::HttpClient::new` in
+    /// (see `objectiveai_sdk::HttpClient::new` in
     /// `objectiveai-rs/src/http/client.rs`).
     #[envconfig(from = "GITHUB_AUTHORIZATION")]
     github_authorization: Option<String>,
@@ -83,7 +84,7 @@ impl ConfigBuilder {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Config {
     pub config_set_forbidden: bool,
     pub config_base_dir: Option<String>,
@@ -156,21 +157,38 @@ enum Commands {
         #[command(subcommand)]
         command: instructions::Commands,
     },
+    /// Plugins management
+    Plugins {
+        #[command(subcommand)]
+        command: plugins::Commands,
+    },
+    /// Run a plugin from `~/.objectiveai/plugins/`. First element is
+    /// the plugin name; the rest are forwarded as the plugin's argv.
+    /// Captured via clap's external-subcommand mechanism — any first
+    /// arg that isn't a known built-in lands here.
+    #[command(external_subcommand)]
+    External(Vec<String>),
 }
 
 impl Commands {
-    pub async fn handle(self, cli_config: &Config) -> Result<(), error::Error> {
+    pub async fn handle(
+        self,
+        cli_config: &Config,
+        handle: &objectiveai_sdk::cli::output::Handle,
+    ) -> Result<(), error::Error> {
         match self {
-            Commands::Api { command } => command.handle(cli_config).await,
-            Commands::Agents { command } => command.handle(cli_config).await,
-            Commands::Swarms { command } => command.handle(cli_config).await,
-            Commands::Functions { command } => command.handle(cli_config).await,
-            Commands::Viewer { command } => command.handle(cli_config).await,
-            Commands::Schemas { command } => command.handle(),
-            Commands::Laboratories { command } => command.handle(cli_config).await,
-            Commands::Vector { command } => command.handle(cli_config).await,
-            Commands::Logs { command } => command.handle(cli_config).await,
-            Commands::Instructions { command } => command.handle(cli_config),
+            Commands::Api { command } => command.handle(cli_config, handle).await,
+            Commands::Agents { command } => command.handle(cli_config, handle).await,
+            Commands::Swarms { command } => command.handle(cli_config, handle).await,
+            Commands::Functions { command } => command.handle(cli_config, handle).await,
+            Commands::Viewer { command } => command.handle(cli_config, handle).await,
+            Commands::Schemas { command } => command.handle(handle).await,
+            Commands::Laboratories { command } => command.handle(cli_config, handle).await,
+            Commands::Vector { command } => command.handle(cli_config, handle).await,
+            Commands::Logs { command } => command.handle(cli_config, handle).await,
+            Commands::Instructions { command } => command.handle(cli_config, handle).await,
+            Commands::Plugins { command } => command.handle(cli_config, handle).await,
+            Commands::External(args) => crate::plugins::dispatch_external(args, cli_config, handle).await,
         }
     }
 }
@@ -187,26 +205,49 @@ pub fn load_config() -> Config {
 /// The iterator should include the binary name as the first element
 /// (e.g., `["objectiveai", "agents", "list"]`).
 ///
-/// Returns `Ok(())` when the requested command succeeded — handlers
-/// emit their own [`objectiveai_cli_lib::output::Output`] lines inline.
-/// Returns `Err(cli_lib::output::Error)` when the command failed; the
-/// caller is responsible for emitting that error and choosing an exit
-/// code.
+/// Emits [`objectiveai_sdk::cli::output::BEGIN`] as the very first line
+/// and [`objectiveai_sdk::cli::output::END`] as the very last line.
+/// Everything else (handler output, error notifications) appears
+/// between those bookends.
+///
+/// Returns an exit code: `0` on success, `1` on any failure. Errors
+/// are emitted internally as `Output::Error` via `handle` before the
+/// function returns — the caller doesn't see them. Handlers emit
+/// their own [`objectiveai_sdk::cli::output::Output`] lines for
+/// successful runs.
 pub async fn run<I, T>(
     args: I,
     cli_config: &Config,
-) -> Result<(), objectiveai_cli_lib::output::Error>
+    handle: objectiveai_sdk::cli::output::Handle,
+) -> i32
 where
     I: IntoIterator<Item = T>,
     T: Into<std::ffi::OsString> + Clone,
 {
-    let cli = Cli::try_parse_from(args).map_err(|e| objectiveai_cli_lib::output::Error {
-        level: objectiveai_cli_lib::output::Level::Error,
-        fatal: true,
-        message: e.to_string(),
-    })?;
-    cli.command
-        .handle(cli_config)
-        .await
-        .map_err(|e| e.to_output(objectiveai_cli_lib::output::Level::Error, true))
+    use objectiveai_sdk::cli::output::{Error as OutputError, Level, Output};
+
+    Output::<serde_json::Value>::Begin.emit(&handle).await;
+
+    let code = match Cli::try_parse_from(args) {
+        Ok(cli) => match cli.command.handle(cli_config, &handle).await {
+            Ok(()) => 0,
+            Err(e) => {
+                let err = e.to_output(Level::Error, true);
+                Output::<serde_json::Value>::Error(err).emit(&handle).await;
+                1
+            }
+        },
+        Err(e) => {
+            let err = OutputError {
+                level: Level::Error,
+                fatal: true,
+                message: e.to_string().into(),
+            };
+            Output::<serde_json::Value>::Error(err).emit(&handle).await;
+            1
+        }
+    };
+
+    Output::<serde_json::Value>::End.emit(&handle).await;
+    code
 }

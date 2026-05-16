@@ -1,0 +1,10 @@
+{
+  "title": "cli.output.notification.functions.profiles.Profile",
+  "description": "Result of `functions profiles get`.\n\nWire: `{\"type\":\"notification\",\"profile\":{...GetProfileResponse...}}`.",
+  "type": "object",
+  "properties": {
+    "profile": {
+      "$ref": "functions.profiles.GetProfileResponse"
+    }
+  }
+}

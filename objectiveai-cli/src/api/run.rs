@@ -9,42 +9,42 @@ use envconfig::Envconfig;
 /// config — no point spawning a viewer window if nothing will be displayed.
 pub async fn run<F, Fut>(task: F, viewer: bool) -> Result<(), crate::error::Error>
 where
-    F: FnOnce(objectiveai::HttpClient) -> Fut + Send + 'static,
+    F: FnOnce(objectiveai_sdk::HttpClient) -> Fut + Send + 'static,
     Fut: Future<Output = Result<(), crate::error::Error>> + Send + 'static,
 {
-    let client = objectiveai::filesystem::Client::new(None::<String>, None::<String>, None::<String>);
+    let client = objectiveai_sdk::filesystem::Client::new(None::<String>, None::<String>, None::<String>);
     // Note: api::run creates its own Client without cli_config context.
     // Commit author fields fall back to env vars or defaults.
-    let mut config = objectiveai::filesystem::config::client::read(&client).await?;
+    let mut config = client.read_config().await?;
 
     let api_mode = config.api().get_mode();
     let viewer_mode = if viewer {
         config.viewer().get_mode()
     } else {
-        objectiveai::filesystem::config::ViewerMode::Remote
+        objectiveai_sdk::filesystem::config::ViewerMode::Remote
     };
 
     match (api_mode, viewer_mode) {
         #[cfg(feature = "viewer")]
-        (objectiveai::filesystem::config::ApiMode::Local, objectiveai::filesystem::config::ViewerMode::Local) => {
+        (objectiveai_sdk::filesystem::config::ApiMode::Local, objectiveai_sdk::filesystem::config::ViewerMode::Local) => {
             run_local_api_local_viewer(config, task).await
         }
         #[cfg(not(feature = "viewer"))]
-        (objectiveai::filesystem::config::ApiMode::Local, objectiveai::filesystem::config::ViewerMode::Local) => {
+        (objectiveai_sdk::filesystem::config::ApiMode::Local, objectiveai_sdk::filesystem::config::ViewerMode::Local) => {
             run_local_api_remote_viewer(config, task).await
         }
-        (objectiveai::filesystem::config::ApiMode::Local, objectiveai::filesystem::config::ViewerMode::Remote) => {
+        (objectiveai_sdk::filesystem::config::ApiMode::Local, objectiveai_sdk::filesystem::config::ViewerMode::Remote) => {
             run_local_api_remote_viewer(config, task).await
         }
         #[cfg(feature = "viewer")]
-        (objectiveai::filesystem::config::ApiMode::Remote, objectiveai::filesystem::config::ViewerMode::Local) => {
+        (objectiveai_sdk::filesystem::config::ApiMode::Remote, objectiveai_sdk::filesystem::config::ViewerMode::Local) => {
             run_remote_api_local_viewer(config, task).await
         }
         #[cfg(not(feature = "viewer"))]
-        (objectiveai::filesystem::config::ApiMode::Remote, objectiveai::filesystem::config::ViewerMode::Local) => {
+        (objectiveai_sdk::filesystem::config::ApiMode::Remote, objectiveai_sdk::filesystem::config::ViewerMode::Local) => {
             run_remote_api_remote_viewer(config, task).await
         }
-        (objectiveai::filesystem::config::ApiMode::Remote, objectiveai::filesystem::config::ViewerMode::Remote) => {
+        (objectiveai_sdk::filesystem::config::ApiMode::Remote, objectiveai_sdk::filesystem::config::ViewerMode::Remote) => {
             run_remote_api_remote_viewer(config, task).await
         }
     }
@@ -57,11 +57,11 @@ where
 /// The viewer subprocess is killed when the task completes.
 #[cfg(feature = "viewer")]
 async fn run_local_api_local_viewer<F, Fut>(
-    mut config: objectiveai::filesystem::config::Config,
+    mut config: objectiveai_sdk::filesystem::config::Config,
     task: F,
 ) -> Result<(), crate::error::Error>
 where
-    F: FnOnce(objectiveai::HttpClient) -> Fut + Send + 'static,
+    F: FnOnce(objectiveai_sdk::HttpClient) -> Fut + Send + 'static,
     Fut: Future<Output = Result<(), crate::error::Error>> + Send + 'static,
 {
     let (secret, secret_from_env, config_signature) = resolve_viewer_secret(&mut config)?;
@@ -102,11 +102,11 @@ where
 /// Spawns a local API server only. No viewer window — viewer address and
 /// signature come from ENV/config headers (pointing at a remote viewer).
 async fn run_local_api_remote_viewer<F, Fut>(
-    mut config: objectiveai::filesystem::config::Config,
+    mut config: objectiveai_sdk::filesystem::config::Config,
     task: F,
 ) -> Result<(), crate::error::Error>
 where
-    F: FnOnce(objectiveai::HttpClient) -> Fut + Send + 'static,
+    F: FnOnce(objectiveai_sdk::HttpClient) -> Fut + Send + 'static,
     Fut: Future<Output = Result<(), crate::error::Error>> + Send + 'static,
 {
     // Viewer fields overlay from headers (remote viewer configured externally)
@@ -136,11 +136,11 @@ where
 /// to our local viewer.
 #[cfg(feature = "viewer")]
 async fn run_remote_api_local_viewer<F, Fut>(
-    mut config: objectiveai::filesystem::config::Config,
+    mut config: objectiveai_sdk::filesystem::config::Config,
     task: F,
 ) -> Result<(), crate::error::Error>
 where
-    F: FnOnce(objectiveai::HttpClient) -> Fut + Send + 'static,
+    F: FnOnce(objectiveai_sdk::HttpClient) -> Fut + Send + 'static,
     Fut: Future<Output = Result<(), crate::error::Error>> + Send + 'static,
 {
     let (secret, _, config_signature) = resolve_viewer_secret(&mut config)?;
@@ -164,11 +164,11 @@ where
 /// No local spawning. The API and viewer are both remote.
 /// HttpClient gets all values from ENV and config file.
 async fn run_remote_api_remote_viewer<F, Fut>(
-    mut config: objectiveai::filesystem::config::Config,
+    mut config: objectiveai_sdk::filesystem::config::Config,
     task: F,
 ) -> Result<(), crate::error::Error>
 where
-    F: FnOnce(objectiveai::HttpClient) -> Fut + Send + 'static,
+    F: FnOnce(objectiveai_sdk::HttpClient) -> Fut + Send + 'static,
     Fut: Future<Output = Result<(), crate::error::Error>> + Send + 'static,
 {
     let http_client = build_http_client(&mut config, None, None, None);
@@ -223,7 +223,7 @@ fn extract_viewer_binary() -> Result<std::path::PathBuf, crate::error::Error> {
 #[cfg(feature = "viewer")]
 async fn spawn_viewer(
     secret: Option<&str>,
-    config: &mut objectiveai::filesystem::config::Config,
+    config: &mut objectiveai_sdk::filesystem::config::Config,
 ) -> Result<(tokio::process::Child, String), crate::error::Error> {
     let viewer_path = extract_viewer_binary()?;
 
@@ -290,7 +290,7 @@ fn apply_env_overlay(cmd: &mut tokio::process::Command, name: &str, fallback: Op
 /// Both must be present, or both absent. Returns `(secret, secret_from_env, signature)`.
 #[cfg(feature = "viewer")]
 fn resolve_viewer_secret(
-    config: &mut objectiveai::filesystem::config::Config,
+    config: &mut objectiveai_sdk::filesystem::config::Config,
 ) -> Result<(Option<String>, bool, Option<String>), crate::error::Error> {
     let viewer_local = config.viewer().local();
     let (config_secret, config_signature) = match (viewer_local.get_secret(), viewer_local.get_signature()) {
@@ -321,7 +321,7 @@ fn resolve_viewer_secret(
 ///
 /// Always force-overrides `address`, `port`, and `suppress_output` for local binding.
 fn build_api_config(
-    config: &mut objectiveai::filesystem::config::Config,
+    config: &mut objectiveai_sdk::filesystem::config::Config,
     viewer_address: Option<String>,
     viewer_signature: Option<String>,
 ) -> objectiveai_api::Config {
@@ -377,16 +377,16 @@ fn build_api_config(
 /// - `viewer_signature`: `Some` for local viewer (config pair signature), `None` for remote.
 ///   Only sets if ENV and config overlay didn't already provide one.
 fn build_http_client(
-    config: &mut objectiveai::filesystem::config::Config,
+    config: &mut objectiveai_sdk::filesystem::config::Config,
     address: Option<String>,
     viewer_address: Option<String>,
     viewer_signature: Option<String>,
-) -> objectiveai::HttpClient {
+) -> objectiveai_sdk::HttpClient {
     // ENV fallbacks handled internally by HttpClient::new (env feature).
     // Viewer signature and address are passed directly so ENV takes priority
     // over the caller's values (HttpClient::new checks env first for None params,
     // but our params are Some when the caller provides overrides).
-    let mut http_client = objectiveai::HttpClient::new(
+    let mut http_client = objectiveai_sdk::HttpClient::new(
         reqwest::Client::new(),
         address,          // local API bound addr, or None for remote (env/default)
         None::<String>,   // authorization

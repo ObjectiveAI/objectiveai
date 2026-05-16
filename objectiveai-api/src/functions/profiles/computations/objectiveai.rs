@@ -26,43 +26,43 @@ where
         &self,
         ctx: ctx::Context<CTXEXT, PC>,
         request: Arc<
-            objectiveai::functions::profiles::computations::request::FunctionProfileComputationCreateParams,
+            objectiveai_sdk::functions::profiles::computations::request::FunctionProfileComputationCreateParams,
         >,
     ) -> Result<
-        objectiveai::functions::profiles::computations::response::unary::FunctionProfileComputation,
-        objectiveai::error::ResponseError,
+        objectiveai_sdk::functions::profiles::computations::response::unary::FunctionProfileComputation,
+        objectiveai_sdk::error::ResponseError,
     >{
         let client = self.client.with_authorization(&ctx).await;
-        objectiveai::functions::profiles::computations::compute_profile_unary(
+        objectiveai_sdk::functions::profiles::computations::compute_profile_unary(
             &client,
             (*request).clone(),
         )
         .await
-        .map_err(|e| objectiveai::error::ResponseError::from(&e))
+        .map_err(|e| objectiveai_sdk::error::ResponseError::from(&e))
     }
 
     async fn create_streaming<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         ctx: ctx::Context<CTXEXT, PC>,
         request: Arc<
-            objectiveai::functions::profiles::computations::request::FunctionProfileComputationCreateParams,
+            objectiveai_sdk::functions::profiles::computations::request::FunctionProfileComputationCreateParams,
         >,
     ) -> Result<
         impl Stream<Item = Result<
-            objectiveai::functions::profiles::computations::response::streaming::FunctionProfileComputationChunk,
-            objectiveai::error::ResponseError,
+            objectiveai_sdk::functions::profiles::computations::response::streaming::FunctionProfileComputationChunk,
+            objectiveai_sdk::error::ResponseError,
         >>
             + Send
             + 'static,
-        objectiveai::error::ResponseError,
+        objectiveai_sdk::error::ResponseError,
     >{
         let client = self.client.with_authorization(&ctx).await;
-        let stream = objectiveai::functions::profiles::computations::compute_profile_streaming(
+        let stream = objectiveai_sdk::functions::profiles::computations::compute_profile_streaming(
             &client,
             (*request).clone(),
         )
         .await
-        .map_err(|e| objectiveai::error::ResponseError::from(&e))?;
-        Ok(stream.map_err(|e| objectiveai::error::ResponseError::from(&e)))
+        .map_err(|e| objectiveai_sdk::error::ResponseError::from(&e))?;
+        Ok(stream.map_err(|e| objectiveai_sdk::error::ResponseError::from(&e)))
     }
 }

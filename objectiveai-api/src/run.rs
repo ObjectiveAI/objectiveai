@@ -8,7 +8,7 @@ use axum::{
     response::{IntoResponse, Sse, sse::Event},
 };
 use envconfig::Envconfig;
-use objectiveai::error::ResponseError;
+use objectiveai_sdk::error::ResponseError;
 use crate::{
     agent, auth, ctx,
     error::ResponseErrorExt,
@@ -607,7 +607,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
     ));
 
     // MCP Client
-    let mcp_client = Arc::new(objectiveai::mcp::Client::new(
+    let mcp_client = Arc::new(objectiveai_sdk::mcp::Client::new(
         http_client.clone(),
         user_agent.clone(),
         x_title.clone(),
@@ -826,7 +826,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 let agent_completions_client = agent_completions_client.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(body): Json<
-                    objectiveai::agent::completions::request::AgentCompletionCreateParams,
+                    objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams,
                 >| {
                     create_agent_completion(agent_completions_client, headers, persistent_cache, suppress_output, body)
                 }
@@ -839,7 +839,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 let vector_completions_client = vector_completions_client.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(body): Json<
-                    objectiveai::vector::completions::request::VectorCompletionCreateParams,
+                    objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams,
                 >| {
                     create_vector_completion(vector_completions_client, headers, persistent_cache, suppress_output, body)
                 }
@@ -853,7 +853,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                     vector_completions_cache_client.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(body): Json<
-                    objectiveai::vector::completions::cache::request::GetCompletionVotesRequest,
+                    objectiveai_sdk::vector::completions::cache::request::GetCompletionVotesRequest,
                 >| {
                     get_vector_completion_votes(
                         vector_completions_cache_client,
@@ -873,7 +873,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                     vector_completions_cache_client.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(body): Json<
-                    objectiveai::vector::completions::cache::request::CacheVoteRequestOwned,
+                    objectiveai_sdk::vector::completions::cache::request::CacheVoteRequestOwned,
                 >| {
                     get_vector_cache_vote(
                         vector_completions_cache_client,
@@ -892,7 +892,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 let list_router = list_router.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai::functions::request::ListFunctionsRequest,
+                    objectiveai_sdk::functions::request::ListFunctionsRequest,
                 >| {
                     list_functions(list_router, headers, persistent_cache, suppress_output, params)
                 }
@@ -905,7 +905,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 let retrieve_router = retrieve_router.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai::RemotePathCommitOptional,
+                    objectiveai_sdk::RemotePathCommitOptional,
                 >| {
                     get_function(retrieve_router, headers, persistent_cache, suppress_output, params)
                 }
@@ -918,7 +918,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 let usage_router = usage_router.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai::functions::request::GetFunctionRequest,
+                    objectiveai_sdk::functions::request::GetFunctionRequest,
                 >| {
                     get_function_usage(usage_router, headers, persistent_cache, suppress_output, params)
                 }
@@ -931,7 +931,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 let function_executions_client = function_executions_client.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(body): Json<
-                    objectiveai::functions::executions::request::FunctionExecutionCreateParams,
+                    objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams,
                 >| {
                     execute_function(
                         function_executions_client,
@@ -950,7 +950,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 let list_router = list_router.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai::functions::profiles::request::ListProfilesRequest,
+                    objectiveai_sdk::functions::profiles::request::ListProfilesRequest,
                 >| {
                     list_profiles(list_router, headers, persistent_cache, suppress_output, params)
                 }
@@ -963,7 +963,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 let retrieve_router = retrieve_router.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai::RemotePathCommitOptional,
+                    objectiveai_sdk::RemotePathCommitOptional,
                 >| {
                     get_profile(retrieve_router, headers, persistent_cache, suppress_output, params)
                 }
@@ -976,7 +976,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 let usage_router = usage_router.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai::functions::profiles::request::GetProfileRequest,
+                    objectiveai_sdk::functions::profiles::request::GetProfileRequest,
                 >| {
                     get_profile_usage(usage_router, headers, persistent_cache, suppress_output, params)
                 }
@@ -989,7 +989,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 let list_router = list_router.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai::functions::request::ListFunctionProfilePairsRequest,
+                    objectiveai_sdk::functions::request::ListFunctionProfilePairsRequest,
                 >| {
                     list_function_profile_pairs(list_router, headers, persistent_cache, suppress_output, params)
                 }
@@ -1002,7 +1002,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 let usage_router = usage_router.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai::functions::request::GetFunctionProfilePairUsageRequest,
+                    objectiveai_sdk::functions::request::GetFunctionProfilePairUsageRequest,
                 >| {
                     get_function_profile_pair_usage(usage_router, headers, persistent_cache, suppress_output, params)
                 }
@@ -1015,7 +1015,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 let function_inventions_client = function_inventions_client.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(body): Json<
-                    objectiveai::functions::inventions::request::FunctionInventionCreateParams,
+                    objectiveai_sdk::functions::inventions::request::FunctionInventionCreateParams,
                 >| {
                     create_function_invention(function_inventions_client, headers, persistent_cache, suppress_output, body)
                 }
@@ -1029,7 +1029,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                     function_inventions_recursive_client.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(body): Json<
-                    objectiveai::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams,
+                    objectiveai_sdk::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams,
                 >| {
                     create_function_invention_recursive(
                         function_inventions_recursive_client,
@@ -1048,7 +1048,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 let list_router = list_router.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai::functions::inventions::prompts::request::ListPromptsRequest,
+                    objectiveai_sdk::functions::inventions::prompts::request::ListPromptsRequest,
                 >| {
                     list_prompts(list_router, headers, persistent_cache, suppress_output, params)
                 }
@@ -1061,7 +1061,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 let retrieve_router = retrieve_router.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai::RemotePathCommitOptional,
+                    objectiveai_sdk::RemotePathCommitOptional,
                 >| {
                     get_prompt(retrieve_router, headers, persistent_cache, suppress_output, params)
                 }
@@ -1074,7 +1074,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 let usage_router = usage_router.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai::functions::inventions::prompts::request::GetPromptRequest,
+                    objectiveai_sdk::functions::inventions::prompts::request::GetPromptRequest,
                 >| {
                     get_prompt_usage(usage_router, headers, persistent_cache, suppress_output, params)
                 }
@@ -1087,7 +1087,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 let retrieve_router = retrieve_router.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai::RemotePathCommitOptional,
+                    objectiveai_sdk::RemotePathCommitOptional,
                 >| {
                     get_function_invention_state(retrieve_router, headers, persistent_cache, suppress_output, params)
                 }
@@ -1101,7 +1101,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                     profile_computations_client.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(body): Json<
-                    objectiveai::functions::profiles::computations::request::FunctionProfileComputationCreateParams,
+                    objectiveai_sdk::functions::profiles::computations::request::FunctionProfileComputationCreateParams,
                 >| {
                     create_profile_computation(
                         profile_computations_client,
@@ -1120,7 +1120,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 let auth_client = auth_client.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(body): Json<
-                    objectiveai::auth::request::CreateApiKeyRequest,
+                    objectiveai_sdk::auth::request::CreateApiKeyRequest,
                 >| {
                     create_api_key(auth_client, headers, persistent_cache, suppress_output, body)
                 }
@@ -1133,7 +1133,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 let auth_client = auth_client.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(body): Json<
-                    objectiveai::auth::request::CreateOpenRouterByokApiKeyRequest,
+                    objectiveai_sdk::auth::request::CreateOpenRouterByokApiKeyRequest,
                 >| {
                     create_openrouter_byok_api_key(auth_client, headers, persistent_cache, suppress_output, body)
                 }
@@ -1146,7 +1146,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 let auth_client = auth_client.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(body): Json<
-                    objectiveai::auth::request::DisableApiKeyRequest,
+                    objectiveai_sdk::auth::request::DisableApiKeyRequest,
                 >| {
                     disable_api_key(auth_client, headers, persistent_cache, suppress_output, body)
                 }
@@ -1203,7 +1203,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 let list_router = list_router.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai::swarm::request::ListSwarmsRequest,
+                    objectiveai_sdk::swarm::request::ListSwarmsRequest,
                 >| {
                     list_swarms(list_router, headers, persistent_cache, suppress_output, params)
                 }
@@ -1216,7 +1216,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 let retrieve_router = retrieve_router.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai::RemotePathCommitOptional,
+                    objectiveai_sdk::RemotePathCommitOptional,
                 >| {
                     get_swarm(retrieve_router, headers, persistent_cache, suppress_output, params)
                 }
@@ -1229,7 +1229,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 let usage_router = usage_router.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai::swarm::request::GetSwarmRequest,
+                    objectiveai_sdk::swarm::request::GetSwarmRequest,
                 >| {
                     get_swarm_usage(usage_router, headers, persistent_cache, suppress_output, params)
                 }
@@ -1242,7 +1242,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 let list_router = list_router.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai::agent::request::ListAgentsRequest,
+                    objectiveai_sdk::agent::request::ListAgentsRequest,
                 >| {
                     list_agents(list_router, headers, persistent_cache, suppress_output, params)
                 }
@@ -1255,7 +1255,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 let retrieve_router = retrieve_router.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai::RemotePathCommitOptional,
+                    objectiveai_sdk::RemotePathCommitOptional,
                 >| {
                     get_agent(retrieve_router, headers, persistent_cache, suppress_output, params)
                 }
@@ -1268,7 +1268,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 let usage_router = usage_router.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai::agent::request::GetAgentRequest,
+                    objectiveai_sdk::agent::request::GetAgentRequest,
                 >| {
                     get_agent_usage(usage_router, headers, persistent_cache, suppress_output, params)
                 }
@@ -1281,7 +1281,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 let error_client = Arc::new(crate::error::Client::new());
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(body): Json<
-                    objectiveai::error::request::ErrorCreateParams,
+                    objectiveai_sdk::error::request::ErrorCreateParams,
                 >| {
                     create_error(error_client, headers, persistent_cache, suppress_output, body)
                 }
@@ -1294,7 +1294,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 let laboratory_executions_client = laboratory_executions_client.clone();
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(body): Json<
-                    objectiveai::laboratories::executions::request::LaboratoryExecutionCreateParams,
+                    objectiveai_sdk::laboratories::executions::request::LaboratoryExecutionCreateParams,
                 >| {
                     execute_laboratory(
                         laboratory_executions_client,
@@ -1355,22 +1355,22 @@ async fn create_agent_completion(
         agent::completions::Client<
             ctx::DefaultContextExt,
             impl agent::completions::UpstreamClient<
-                objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation,
+                objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::agent::openrouter::Continuation,
             > + Send
             + Sync
             + 'static,
             impl agent::completions::UpstreamClient<
-                objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
+                objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation,
             > + Send
             + Sync
             + 'static,
             impl agent::completions::UpstreamClient<
-                objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation,
+                objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation,
             > + Send
             + Sync
             + 'static,
             impl agent::completions::UpstreamClient<
-                objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation,
+                objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
             > + Send
             + Sync
             + 'static,
@@ -1396,7 +1396,7 @@ async fn create_agent_completion(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    body: objectiveai::agent::completions::request::AgentCompletionCreateParams,
+    body: objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     if body.stream.unwrap_or(false) {
@@ -1468,22 +1468,22 @@ async fn create_vector_completion(
         vector::completions::Client<
             ctx::DefaultContextExt,
             impl agent::completions::UpstreamClient<
-                objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation,
+                objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::agent::openrouter::Continuation,
             > + Send
             + Sync
             + 'static,
             impl agent::completions::UpstreamClient<
-                objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
+                objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation,
             > + Send
             + Sync
             + 'static,
             impl agent::completions::UpstreamClient<
-                objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation,
+                objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation,
             > + Send
             + Sync
             + 'static,
             impl agent::completions::UpstreamClient<
-                objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation,
+                objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
             > + Send
             + Sync
             + 'static,
@@ -1524,7 +1524,7 @@ async fn create_vector_completion(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    body: objectiveai::vector::completions::request::VectorCompletionCreateParams,
+    body: objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     if body.stream.unwrap_or(false) {
@@ -1562,14 +1562,14 @@ async fn list_functions(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    params: objectiveai::functions::request::ListFunctionsRequest,
+    params: objectiveai_sdk::functions::request::ListFunctionsRequest,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     let source = params.source.map(|s| match s {
-        objectiveai::functions::request::ListFunctionsSource::All => retrieval::list::SourceFilter::All,
-        objectiveai::functions::request::ListFunctionsSource::Mock => retrieval::list::SourceFilter::Mock,
-        objectiveai::functions::request::ListFunctionsSource::Filesystem => retrieval::list::SourceFilter::Filesystem,
-        objectiveai::functions::request::ListFunctionsSource::Objectiveai => retrieval::list::SourceFilter::Objectiveai,
+        objectiveai_sdk::functions::request::ListFunctionsSource::All => retrieval::list::SourceFilter::All,
+        objectiveai_sdk::functions::request::ListFunctionsSource::Mock => retrieval::list::SourceFilter::Mock,
+        objectiveai_sdk::functions::request::ListFunctionsSource::Filesystem => retrieval::list::SourceFilter::Filesystem,
+        objectiveai_sdk::functions::request::ListFunctionsSource::Objectiveai => retrieval::list::SourceFilter::Objectiveai,
     });
     match list_router.list_functions(&ctx, source).await {
         Ok(r) => Json(r).into_response(),
@@ -1582,7 +1582,7 @@ async fn get_function_usage(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    params: objectiveai::functions::request::GetFunctionRequest,
+    params: objectiveai_sdk::functions::request::GetFunctionRequest,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     match usage_router.get_function_usage(&ctx, &params).await {
@@ -1596,22 +1596,22 @@ async fn execute_function(
         functions::executions::Client<
             ctx::DefaultContextExt,
             impl agent::completions::UpstreamClient<
-                objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation,
+                objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::agent::openrouter::Continuation,
             > + Send
             + Sync
             + 'static,
             impl agent::completions::UpstreamClient<
-                objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
+                objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation,
             > + Send
             + Sync
             + 'static,
             impl agent::completions::UpstreamClient<
-                objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation,
+                objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation,
             > + Send
             + Sync
             + 'static,
             impl agent::completions::UpstreamClient<
-                objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation,
+                objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
             > + Send
             + Sync
             + 'static,
@@ -1657,7 +1657,7 @@ async fn execute_function(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    request: objectiveai::functions::executions::request::FunctionExecutionCreateParams,
+    request: objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     if request.stream.unwrap_or(false) {
@@ -1698,14 +1698,14 @@ async fn list_profiles(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    params: objectiveai::functions::profiles::request::ListProfilesRequest,
+    params: objectiveai_sdk::functions::profiles::request::ListProfilesRequest,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     let source = params.source.map(|s| match s {
-        objectiveai::functions::profiles::request::ListProfilesSource::All => retrieval::list::SourceFilter::All,
-        objectiveai::functions::profiles::request::ListProfilesSource::Mock => retrieval::list::SourceFilter::Mock,
-        objectiveai::functions::profiles::request::ListProfilesSource::Filesystem => retrieval::list::SourceFilter::Filesystem,
-        objectiveai::functions::profiles::request::ListProfilesSource::Objectiveai => retrieval::list::SourceFilter::Objectiveai,
+        objectiveai_sdk::functions::profiles::request::ListProfilesSource::All => retrieval::list::SourceFilter::All,
+        objectiveai_sdk::functions::profiles::request::ListProfilesSource::Mock => retrieval::list::SourceFilter::Mock,
+        objectiveai_sdk::functions::profiles::request::ListProfilesSource::Filesystem => retrieval::list::SourceFilter::Filesystem,
+        objectiveai_sdk::functions::profiles::request::ListProfilesSource::Objectiveai => retrieval::list::SourceFilter::Objectiveai,
     });
     match list_router.list_profiles(&ctx, source).await {
         Ok(r) => Json(r).into_response(),
@@ -1718,7 +1718,7 @@ async fn get_profile_usage(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    params: objectiveai::functions::profiles::request::GetProfileRequest,
+    params: objectiveai_sdk::functions::profiles::request::GetProfileRequest,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     match usage_router.get_profile_usage(&ctx, &params).await {
@@ -1734,14 +1734,14 @@ async fn list_prompts(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    params: objectiveai::functions::inventions::prompts::request::ListPromptsRequest,
+    params: objectiveai_sdk::functions::inventions::prompts::request::ListPromptsRequest,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     let source = params.source.map(|s| match s {
-        objectiveai::functions::inventions::prompts::request::ListPromptsSource::All => retrieval::list::SourceFilter::All,
-        objectiveai::functions::inventions::prompts::request::ListPromptsSource::Mock => retrieval::list::SourceFilter::Mock,
-        objectiveai::functions::inventions::prompts::request::ListPromptsSource::Filesystem => retrieval::list::SourceFilter::Filesystem,
-        objectiveai::functions::inventions::prompts::request::ListPromptsSource::Objectiveai => retrieval::list::SourceFilter::Objectiveai,
+        objectiveai_sdk::functions::inventions::prompts::request::ListPromptsSource::All => retrieval::list::SourceFilter::All,
+        objectiveai_sdk::functions::inventions::prompts::request::ListPromptsSource::Mock => retrieval::list::SourceFilter::Mock,
+        objectiveai_sdk::functions::inventions::prompts::request::ListPromptsSource::Filesystem => retrieval::list::SourceFilter::Filesystem,
+        objectiveai_sdk::functions::inventions::prompts::request::ListPromptsSource::Objectiveai => retrieval::list::SourceFilter::Objectiveai,
     });
     match list_router.list_prompts(&ctx, source).await {
         Ok(r) => Json(r).into_response(),
@@ -1754,7 +1754,7 @@ async fn get_prompt(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    params: objectiveai::RemotePathCommitOptional,
+    params: objectiveai_sdk::RemotePathCommitOptional,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     match retrieve_router.endpoint_get_prompt(&ctx, &params).await {
@@ -1768,7 +1768,7 @@ async fn get_function_invention_state(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    params: objectiveai::RemotePathCommitOptional,
+    params: objectiveai_sdk::RemotePathCommitOptional,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     match retrieve_router.endpoint_get_function_invention_state(&ctx, &params).await {
@@ -1782,7 +1782,7 @@ async fn get_prompt_usage(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    params: objectiveai::functions::inventions::prompts::request::GetPromptRequest,
+    params: objectiveai_sdk::functions::inventions::prompts::request::GetPromptRequest,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     match usage_router.get_prompt_usage(&ctx, &params).await {
@@ -1798,7 +1798,7 @@ async fn list_function_profile_pairs(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    _params: objectiveai::functions::request::ListFunctionProfilePairsRequest,
+    _params: objectiveai_sdk::functions::request::ListFunctionProfilePairsRequest,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     match list_router.list_function_profile_pairs(&ctx).await {
@@ -1812,7 +1812,7 @@ async fn get_function_profile_pair_usage(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    params: objectiveai::functions::request::GetFunctionProfilePairUsageRequest,
+    params: objectiveai_sdk::functions::request::GetFunctionProfilePairUsageRequest,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     match usage_router.get_function_profile_pair_usage(&ctx, &params).await {
@@ -1842,7 +1842,7 @@ async fn get_vector_completion_votes(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    body: objectiveai::vector::completions::cache::request::GetCompletionVotesRequest,
+    body: objectiveai_sdk::vector::completions::cache::request::GetCompletionVotesRequest,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     match client.fetch_completion_votes(ctx, &body.id).await {
@@ -1870,7 +1870,7 @@ async fn get_vector_cache_vote(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    body: objectiveai::vector::completions::cache::request::CacheVoteRequestOwned,
+    body: objectiveai_sdk::vector::completions::cache::request::CacheVoteRequestOwned,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     match client
@@ -1894,7 +1894,7 @@ async fn get_function(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    params: objectiveai::RemotePathCommitOptional,
+    params: objectiveai_sdk::RemotePathCommitOptional,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     match retrieve_router.endpoint_get_function(&ctx, &params).await {
@@ -1910,7 +1910,7 @@ async fn get_profile(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    params: objectiveai::RemotePathCommitOptional,
+    params: objectiveai_sdk::RemotePathCommitOptional,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     match retrieve_router.endpoint_get_profile(&ctx, &params).await {
@@ -1934,7 +1934,7 @@ async fn create_profile_computation(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    request: objectiveai::functions::profiles::computations::request::FunctionProfileComputationCreateParams,
+    request: objectiveai_sdk::functions::profiles::computations::request::FunctionProfileComputationCreateParams,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     if request.stream.unwrap_or(false) {
@@ -1976,7 +1976,7 @@ async fn create_api_key(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    body: objectiveai::auth::request::CreateApiKeyRequest,
+    body: objectiveai_sdk::auth::request::CreateApiKeyRequest,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     match client.create_api_key(ctx, body).await {
@@ -1992,7 +1992,7 @@ async fn create_openrouter_byok_api_key(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    body: objectiveai::auth::request::CreateOpenRouterByokApiKeyRequest,
+    body: objectiveai_sdk::auth::request::CreateOpenRouterByokApiKeyRequest,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     match client.create_openrouter_byok_api_key(ctx, body).await {
@@ -2008,7 +2008,7 @@ async fn disable_api_key(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    body: objectiveai::auth::request::DisableApiKeyRequest,
+    body: objectiveai_sdk::auth::request::DisableApiKeyRequest,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     match client.disable_api_key(ctx, body).await {
@@ -2084,14 +2084,14 @@ async fn list_swarms(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    params: objectiveai::swarm::request::ListSwarmsRequest,
+    params: objectiveai_sdk::swarm::request::ListSwarmsRequest,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     let source = params.source.map(|s| match s {
-        objectiveai::swarm::request::ListSwarmsSource::All => retrieval::list::SourceFilter::All,
-        objectiveai::swarm::request::ListSwarmsSource::Mock => retrieval::list::SourceFilter::Mock,
-        objectiveai::swarm::request::ListSwarmsSource::Filesystem => retrieval::list::SourceFilter::Filesystem,
-        objectiveai::swarm::request::ListSwarmsSource::Objectiveai => retrieval::list::SourceFilter::Objectiveai,
+        objectiveai_sdk::swarm::request::ListSwarmsSource::All => retrieval::list::SourceFilter::All,
+        objectiveai_sdk::swarm::request::ListSwarmsSource::Mock => retrieval::list::SourceFilter::Mock,
+        objectiveai_sdk::swarm::request::ListSwarmsSource::Filesystem => retrieval::list::SourceFilter::Filesystem,
+        objectiveai_sdk::swarm::request::ListSwarmsSource::Objectiveai => retrieval::list::SourceFilter::Objectiveai,
     });
     match list_router.list_swarms(&ctx, source).await {
         Ok(r) => Json(r).into_response(),
@@ -2104,7 +2104,7 @@ async fn get_swarm(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    params: objectiveai::RemotePathCommitOptional,
+    params: objectiveai_sdk::RemotePathCommitOptional,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     match retrieve_router.endpoint_get_swarm(&ctx, &params).await {
@@ -2118,7 +2118,7 @@ async fn get_swarm_usage(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    params: objectiveai::swarm::request::GetSwarmRequest,
+    params: objectiveai_sdk::swarm::request::GetSwarmRequest,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     match usage_router.get_swarm_usage(&ctx, &params).await {
@@ -2134,14 +2134,14 @@ async fn list_agents(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    params: objectiveai::agent::request::ListAgentsRequest,
+    params: objectiveai_sdk::agent::request::ListAgentsRequest,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     let source = params.source.map(|s| match s {
-        objectiveai::agent::request::ListAgentsSource::All => retrieval::list::SourceFilter::All,
-        objectiveai::agent::request::ListAgentsSource::Mock => retrieval::list::SourceFilter::Mock,
-        objectiveai::agent::request::ListAgentsSource::Filesystem => retrieval::list::SourceFilter::Filesystem,
-        objectiveai::agent::request::ListAgentsSource::Objectiveai => retrieval::list::SourceFilter::Objectiveai,
+        objectiveai_sdk::agent::request::ListAgentsSource::All => retrieval::list::SourceFilter::All,
+        objectiveai_sdk::agent::request::ListAgentsSource::Mock => retrieval::list::SourceFilter::Mock,
+        objectiveai_sdk::agent::request::ListAgentsSource::Filesystem => retrieval::list::SourceFilter::Filesystem,
+        objectiveai_sdk::agent::request::ListAgentsSource::Objectiveai => retrieval::list::SourceFilter::Objectiveai,
     });
     match list_router.list_agents(&ctx, source).await {
         Ok(r) => Json(r).into_response(),
@@ -2154,7 +2154,7 @@ async fn get_agent(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    params: objectiveai::RemotePathCommitOptional,
+    params: objectiveai_sdk::RemotePathCommitOptional,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     match retrieve_router.endpoint_get_agent(&ctx, &params).await {
@@ -2168,7 +2168,7 @@ async fn get_agent_usage(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    params: objectiveai::agent::request::GetAgentRequest,
+    params: objectiveai_sdk::agent::request::GetAgentRequest,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     match usage_router.get_agent_usage(&ctx, &params).await {
@@ -2183,22 +2183,22 @@ async fn create_function_invention(
         functions::inventions::Client<
             ctx::DefaultContextExt,
             impl agent::completions::UpstreamClient<
-                objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation,
+                objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::agent::openrouter::Continuation,
             > + Send
             + Sync
             + 'static,
             impl agent::completions::UpstreamClient<
-                objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
+                objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation,
             > + Send
             + Sync
             + 'static,
             impl agent::completions::UpstreamClient<
-                objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation,
+                objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation,
             > + Send
             + Sync
             + 'static,
             impl agent::completions::UpstreamClient<
-                objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation,
+                objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
             > + Send
             + Sync
             + 'static,
@@ -2241,7 +2241,7 @@ async fn create_function_invention(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    body: objectiveai::functions::inventions::request::FunctionInventionCreateParams,
+    body: objectiveai_sdk::functions::inventions::request::FunctionInventionCreateParams,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     if body.stream.unwrap_or(false) {
@@ -2282,22 +2282,22 @@ async fn create_function_invention_recursive(
         functions::inventions::recursive::Client<
             ctx::DefaultContextExt,
             impl agent::completions::UpstreamClient<
-                objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation,
+                objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::agent::openrouter::Continuation,
             > + Send
             + Sync
             + 'static,
             impl agent::completions::UpstreamClient<
-                objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
+                objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation,
             > + Send
             + Sync
             + 'static,
             impl agent::completions::UpstreamClient<
-                objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation,
+                objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation,
             > + Send
             + Sync
             + 'static,
             impl agent::completions::UpstreamClient<
-                objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation,
+                objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
             > + Send
             + Sync
             + 'static,
@@ -2345,7 +2345,7 @@ async fn create_function_invention_recursive(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    body: objectiveai::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams,
+    body: objectiveai_sdk::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     if body.stream.unwrap_or(false) {
@@ -2386,7 +2386,7 @@ async fn create_error(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    body: objectiveai::error::request::ErrorCreateParams,
+    body: objectiveai_sdk::error::request::ErrorCreateParams,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     if body.stream.unwrap_or(false) {
@@ -2426,16 +2426,16 @@ async fn execute_laboratory(
         crate::laboratories::executions::Client<
             ctx::DefaultContextExt,
             impl agent::completions::UpstreamClient<
-                objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation,
+                objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::agent::openrouter::Continuation,
             > + Send + Sync + 'static,
             impl agent::completions::UpstreamClient<
-                objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
+                objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation,
             > + Send + Sync + 'static,
             impl agent::completions::UpstreamClient<
-                objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation,
+                objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation,
             > + Send + Sync + 'static,
             impl agent::completions::UpstreamClient<
-                objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation,
+                objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
             > + Send + Sync + 'static,
             impl retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
             impl retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
@@ -2448,7 +2448,7 @@ async fn execute_laboratory(
     headers: axum::http::HeaderMap,
     persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
-    request: objectiveai::laboratories::executions::request::LaboratoryExecutionCreateParams,
+    request: objectiveai_sdk::laboratories::executions::request::LaboratoryExecutionCreateParams,
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     if request.stream.unwrap_or(false) {

@@ -11,24 +11,24 @@ pub trait Client<CTXEXT> {
     async fn create_unary<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         ctx: ctx::Context<CTXEXT, PC>,
-        request: Arc<objectiveai::functions::profiles::computations::request::FunctionProfileComputationCreateParams>,
+        request: Arc<objectiveai_sdk::functions::profiles::computations::request::FunctionProfileComputationCreateParams>,
     ) -> Result<
-        objectiveai::functions::profiles::computations::response::unary::FunctionProfileComputation,
-        objectiveai::error::ResponseError,
+        objectiveai_sdk::functions::profiles::computations::response::unary::FunctionProfileComputation,
+        objectiveai_sdk::error::ResponseError,
     >;
 
     /// Computes a Profile with streaming progress updates.
     async fn create_streaming<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         ctx: ctx::Context<CTXEXT, PC>,
-        request: Arc<objectiveai::functions::profiles::computations::request::FunctionProfileComputationCreateParams>,
+        request: Arc<objectiveai_sdk::functions::profiles::computations::request::FunctionProfileComputationCreateParams>,
     ) -> Result<
         impl Stream<Item = Result<
-            objectiveai::functions::profiles::computations::response::streaming::FunctionProfileComputationChunk,
-            objectiveai::error::ResponseError,
+            objectiveai_sdk::functions::profiles::computations::response::streaming::FunctionProfileComputationChunk,
+            objectiveai_sdk::error::ResponseError,
         >>
             + Send
             + 'static,
-        objectiveai::error::ResponseError,
+        objectiveai_sdk::error::ResponseError,
     >;
 }

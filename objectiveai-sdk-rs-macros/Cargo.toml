@@ -1,0 +1,16 @@
+[package]
+name = "objectiveai-sdk-macros"
+version = "2.0.5"
+edition = "2024"
+authors = ["ObjectiveAI <admin@objectiveai.dev>"]
+description = "Procedural macros for the ObjectiveAI SDK"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://objectiveai.dev"
+documentation = "https://docs.rs/objectiveai-sdk-macros"
+readme = "README.md"
+keywords = ["llm", "ai", "swarm"]
+publish = true
+
+[lib]
+proc-macro = true

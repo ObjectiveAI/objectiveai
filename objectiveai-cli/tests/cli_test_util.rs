@@ -26,13 +26,16 @@ pub fn instructions_id(scope: InstructionsScope) -> &'static String {
             );
         }
         let stdout = String::from_utf8_lossy(&output.stdout);
-        // The output ends with `\n\n Instructions ID: <id>`. Pluck the id off
-        // the last non-empty line.
-        let line = stdout.lines().rev().find(|l| !l.trim().is_empty())
-            .unwrap_or_else(|| panic!("instructions get produced no output: {stdout}"));
-        line.trim()
-            .strip_prefix("Instructions ID: ")
-            .unwrap_or_else(|| panic!("expected `Instructions ID: <id>` line, got: {line:?}"))
+        // The CLI wraps its output in JSONL: `{begin}` / `{notification, value: {instructions: "...\n\n Instructions ID: <id>"}}` / `{end}`.
+        // Find the notification and pluck the id out of the embedded markdown.
+        let needle = "Instructions ID: ";
+        let idx = stdout.find(needle).unwrap_or_else(|| {
+            panic!("`Instructions ID: <id>` not found in output: {stdout}")
+        });
+        stdout[idx + needle.len()..]
+            .split(|c: char| c.is_whitespace() || c == '"' || c == '\\')
+            .next()
+            .unwrap_or_else(|| panic!("empty Instructions ID in output: {stdout}"))
             .to_string()
     })
 }
@@ -143,7 +146,12 @@ pub fn rounded(value: &serde_json::Value) -> serde_json::Value {
     }
 }
 
-/// Run a CLI command and parse stdout as JSON.
+/// Run a CLI command and return the last data-bearing JSONL
+/// notification's `value`. The CLI wraps output in
+/// `{begin}` / `{notification, value: {log_stream_ready: ...}}` /
+/// `{notification, value: <payload>}` / `{end}`; tests want the
+/// `<payload>` line, so we skip control markers and `log_stream_ready`
+/// stubs and return the last remaining notification's value.
 pub fn run_cli(args: &[&str]) -> serde_json::Value {
     let mut cmd = Command::new(cli_binary());
     cmd.env("CONFIG_BASE_DIR", tests_dir());
@@ -160,10 +168,50 @@ pub fn run_cli(args: &[&str]) -> serde_json::Value {
         );
     }
 
-    let filtered: String = stdout.lines()
-        .filter(|line| !line.starts_with("Logs ID: "))
-        .collect::<Vec<_>>()
-        .join("\n");
-    serde_json::from_str(filtered.trim())
-        .unwrap_or_else(|e| panic!("failed to parse CLI output as JSON: {e}\nstdout: {stdout}"))
+    let mut data_values: Vec<serde_json::Value> = Vec::new();
+    for line in stdout.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with("Logs ID:") {
+            continue;
+        }
+        let Ok(parsed) = serde_json::from_str::<serde_json::Value>(trimmed) else {
+            continue;
+        };
+        if parsed.get("type").and_then(|t| t.as_str()) != Some("notification") {
+            continue;
+        }
+        let Some(value) = parsed.get("value") else {
+            continue;
+        };
+        // Skip the `log_stream_ready` stub notification; tests want the
+        // subsequent data-bearing notifications only.
+        if value.as_object()
+            .map(|o| o.len() == 1 && o.contains_key("log_stream_ready"))
+            .unwrap_or(false)
+        {
+            continue;
+        }
+        data_values.push(value.clone());
+    }
+    if data_values.is_empty() {
+        panic!("no data notification in CLI output:\n{stdout}");
+    }
+    // Tests written against the pre-JSONL CLI expect either the direct
+    // payload (single notification) or an array of payloads (streaming
+    // notifications). When there's exactly one notification with exactly
+    // one object-typed wrapper key, descend through it — the cli wraps
+    // command responses in keys like `execution`, `invention`, etc.
+    if data_values.len() == 1 {
+        let v = data_values.into_iter().next().unwrap();
+        if let Some(obj) = v.as_object() {
+            if obj.len() == 1 {
+                let inner = obj.values().next().unwrap();
+                if inner.is_object() || inner.is_array() {
+                    return inner.clone();
+                }
+            }
+        }
+        return v;
+    }
+    serde_json::Value::Array(data_values)
 }

@@ -1,14 +1,14 @@
 use super::*;
 use crate::test_mcp_server::{self, TestTool};
 
-fn mcp_tool(name: &str) -> objectiveai::mcp::tool::Tool {
-    objectiveai::mcp::tool::Tool {
+fn mcp_tool(name: &str) -> objectiveai_sdk::mcp::tool::Tool {
+    objectiveai_sdk::mcp::tool::Tool {
         name: name.into(),
         title: None,
         description: None,
         icons: None,
-        input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-            r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
+        input_schema: objectiveai_sdk::mcp::tool::ToolSchemaObject {
+            r#type: objectiveai_sdk::mcp::tool::ToolSchemaType::Object,
             properties: None,
             required: None,
             extra: indexmap::IndexMap::new(),
@@ -20,8 +20,8 @@ fn mcp_tool(name: &str) -> objectiveai::mcp::tool::Tool {
     }
 }
 
-fn response_format_tool(name: &str) -> objectiveai::agent::completions::request::ResponseFormat {
-    objectiveai::agent::completions::request::ResponseFormat::ToolCall {
+fn response_format_tool(name: &str) -> objectiveai_sdk::agent::completions::request::ResponseFormat {
+    objectiveai_sdk::agent::completions::request::ResponseFormat::ToolCall {
         name: name.into(),
         description: "test".into(),
         schema: indexmap::IndexMap::new(),
@@ -64,7 +64,7 @@ async fn test_single_response_format_tool() {
 #[tokio::test]
 async fn test_response_format_text_yields_no_tool() {
     let _permit = crate::test_clients::acquire_test_permit().await;
-    let rf = objectiveai::agent::completions::request::ResponseFormat::Text;
+    let rf = objectiveai_sdk::agent::completions::request::ResponseFormat::Text;
     let (names, map) = resolve_tools(None, Some(&rf)).await.unwrap();
     assert!(names.is_empty());
     assert!(map.is_empty());

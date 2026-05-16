@@ -12,7 +12,7 @@ pub enum Error {
         /// The URL of the MCP server that errored.
         url: String,
         /// The underlying MCP error.
-        error: Arc<objectiveai::mcp::Error>,
+        error: Arc<objectiveai_sdk::mcp::Error>,
     },
 
     /// Error returned by the OpenRouter provider.
@@ -49,7 +49,7 @@ pub enum Error {
     MissingApiKey,
 }
 
-impl objectiveai::error::StatusError for Error {
+impl objectiveai_sdk::error::StatusError for Error {
     fn status(&self) -> u16 {
         match self {
             Self::Mcp { .. } => 502,
@@ -121,7 +121,7 @@ pub struct OpenRouterProviderError {
     pub user_id: Option<String>,
 }
 
-impl objectiveai::error::StatusError for OpenRouterProviderError {
+impl objectiveai_sdk::error::StatusError for OpenRouterProviderError {
     fn status(&self) -> u16 {
         self.error.status()
     }
@@ -146,7 +146,7 @@ pub struct OpenRouterProviderErrorInner {
     pub metadata: Option<serde_json::Value>,
 }
 
-impl objectiveai::error::StatusError for OpenRouterProviderErrorInner {
+impl objectiveai_sdk::error::StatusError for OpenRouterProviderErrorInner {
     fn status(&self) -> u16 {
         self.code
             .unwrap_or(reqwest::StatusCode::INTERNAL_SERVER_ERROR.as_u16())

@@ -13,19 +13,19 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from objectiveai.functions.full_inline_function import FullInlineFunction
-from objectiveai.functions.full_inline_function_or_remote_commit_optional import (
+from objectiveai_sdk.functions.full_inline_function import FullInlineFunction
+from objectiveai_sdk.functions.full_inline_function_or_remote_commit_optional import (
     FullInlineFunctionOrRemoteCommitOptional,
     FullInlineFunctionOrRemoteCommitOptionalInline,
     FullInlineFunctionOrRemoteCommitOptionalRemote,
 )
-from objectiveai.functions.inline_profile import InlineProfile as InlineProfileBody
-from objectiveai.functions.inline_profile_or_remote_commit_optional import (
+from objectiveai_sdk.functions.inline_profile import InlineProfile as InlineProfileBody
+from objectiveai_sdk.functions.inline_profile_or_remote_commit_optional import (
     InlineProfileOrRemoteCommitOptional,
     InlineProfileOrRemoteCommitOptionalInline,
     InlineProfileOrRemoteCommitOptionalRemote,
 )
-from objectiveai.remote_path_commit_optional import (
+from objectiveai_sdk.remote_path_commit_optional import (
     RemotePathCommitOptional,
     RemotePathCommitOptionalFilesystem,
     RemotePathCommitOptionalGithub,

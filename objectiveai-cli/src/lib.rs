@@ -1,4 +1,3 @@
-mod ack;
 mod inline_or_ref;
 pub mod agent_ref;
 pub mod favorite_ref;
@@ -24,6 +23,7 @@ mod instructions;
 mod log_line;
 mod log_stream;
 mod logs;
+mod plugins;
 pub mod update;
 mod vector;
 

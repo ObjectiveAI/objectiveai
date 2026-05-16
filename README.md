@@ -1,14 +1,14 @@
 # {ai} | ObjectiveAI
 
-[![npm version](https://img.shields.io/npm/v/objectiveai.svg)](https://www.npmjs.com/package/objectiveai)
-[![Crates.io](https://img.shields.io/crates/v/objectiveai.svg)](https://crates.io/crates/objectiveai)
+[![npm version](https://img.shields.io/npm/v/objectiveai-sdk.svg)](https://www.npmjs.com/package/objectiveai-sdk)
+[![Crates.io](https://img.shields.io/crates/v/objectiveai-sdk.svg)](https://crates.io/crates/objectiveai-sdk)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## The agentic collective judgment harness.
 
 Your agent doesn't have to decide alone. ObjectiveAI lets any agent call out to a **swarm** of models for collective judgment — routing decisions through recursive scoring trees that map arbitrary input into a vector of scores across every option. Functions are invented by agents, trained on data, and deployed as reusable decision infrastructure that gets better over time.
 
-[Website](https://objectiveai.dev) | [API](https://api.objectiveai.dev) | [Discord](https://discord.gg/gbNFHensby) | [npm](https://www.npmjs.com/package/objectiveai) | [crates.io](https://crates.io/crates/objectiveai) | [Built with ObjectiveAI](examples/README.md)
+[Website](https://objectiveai.dev) | [API](https://api.objectiveai.dev) | [Discord](https://discord.gg/gbNFHensby) | [npm](https://www.npmjs.com/package/objectiveai-sdk) | [crates.io](https://crates.io/crates/objectiveai-sdk) | [Built with ObjectiveAI](examples/README.md)
 
 ## What this is
 
@@ -51,12 +51,12 @@ Supported platforms: Linux x86_64, Linux aarch64 (Raspberry Pi 4+, Graviton), ma
 ### SDK
 
 ```bash
-npm install objectiveai
+npm install objectiveai-sdk
 ```
 
 ```toml
 [dependencies]
-objectiveai = "2.0.3"
+objectiveai-sdk = "2.0.5"
 ```
 
 ## Core primitives

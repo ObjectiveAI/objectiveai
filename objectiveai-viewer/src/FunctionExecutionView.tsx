@@ -5,7 +5,7 @@ import type {
   FunctionsExecutionsResponseStreamingVectorCompletionTaskChunk,
   FunctionsExecutionsResponseStreamingReasoningSummaryChunk,
   VectorCompletionsResponseStreamingAgentCompletionChunk,
-} from "objectiveai";
+} from "@objectiveai/sdk";
 import { AgentCompletionChat } from "./components/shared/AgentCompletionChat";
 import { OutputBar } from "./components/shared/OutputBar";
 import type { FunctionExecutionEntry } from "./types";

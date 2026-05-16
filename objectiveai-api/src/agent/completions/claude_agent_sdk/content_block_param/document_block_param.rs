@@ -1,4 +1,4 @@
-use objectiveai::agent::completions::message::File;
+use objectiveai_sdk::agent::completions::message::File;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]

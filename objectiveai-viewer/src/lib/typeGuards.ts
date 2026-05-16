@@ -1,4 +1,4 @@
-import type { AgentCompletionsResponseStreamingAssistantResponseChunk } from "objectiveai";
+import type { AgentCompletionsResponseStreamingAssistantResponseChunk } from "@objectiveai/sdk";
 
 export function isAssistantMessage(
   msg: { role: string },

@@ -3,7 +3,7 @@
 //! tests.
 
 use crate::{recursive_test_3x, recursive_test_3x_unrouted};
-use objectiveai::functions::inventions::state::{
+use objectiveai_sdk::functions::inventions::state::{
     AlphaScalarBranchState, AlphaScalarLeafState, AlphaScalarState,
     AlphaVectorBranchState, AlphaVectorLeafState, AlphaVectorState,
     ParamsState,

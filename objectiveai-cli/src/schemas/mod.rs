@@ -3,6 +3,7 @@
 
 pub mod agent;
 pub mod auth;
+pub mod cli;
 pub mod error;
 pub mod filesystem;
 pub mod functions;
@@ -10,6 +11,7 @@ pub mod laboratories;
 pub mod mcp;
 pub mod swarm;
 pub mod vector;
+pub mod viewer;
 
 use clap::Subcommand;
 
@@ -34,6 +36,11 @@ pub enum Commands {
     Auth {
         #[command(subcommand)]
         command: auth::Commands,
+    },
+    #[command(name = "cli")]
+    Cli {
+        #[command(subcommand)]
+        command: cli::Commands,
     },
     #[command(name = "error")]
     Error {
@@ -70,6 +77,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: vector::Commands,
     },
+    #[command(name = "viewer")]
+    Viewer {
+        #[command(subcommand)]
+        command: viewer::Commands,
+    },
     PrefixedUuid {
         #[command(subcommand)]
         command: GetCommand,
@@ -97,84 +109,94 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn handle(self) -> Result<(), crate::error::Error> {
-        #[derive(serde::Serialize)]
-        struct SchemaList {
-            schemas: &'static [&'static str],
-        }
-        #[derive(serde::Serialize)]
-        struct Schema {
-            schema: serde_json::Value,
-        }
+    pub async fn handle(self, handle: &objectiveai_sdk::cli::output::Handle) -> Result<(), crate::error::Error> {
         match self {
             Commands::List => {
-                const NAMES: &[&str] = &["agent", "auth", "error", "filesystem", "functions", "laboratories", "mcp", "swarm", "vector", "PrefixedUuid", "Remote", "RemotePath", "RemotePathCommitOptional", "Weights", "WeightsEntry"];
-                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(
-                    SchemaList { schemas: NAMES },
-                ).emit();
+                const NAMES: &[&str] = &["agent", "auth", "cli", "error", "filesystem", "functions", "laboratories", "mcp", "swarm", "vector", "viewer", "PrefixedUuid", "Remote", "RemotePath", "RemotePathCommitOptional", "Weights", "WeightsEntry"];
+                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Schemas>::Notification(
+                    objectiveai_sdk::cli::output::Notification {
+                        value: objectiveai_sdk::cli::output::Schemas {
+                            schemas: NAMES.iter().map(|s| s.to_string()).collect(),
+                        },
+                    },
+                ).emit(handle).await;
                 Ok(())
             }
-            Commands::Agent { command } => command.handle(),
-            Commands::Auth { command } => command.handle(),
-            Commands::Error { command } => command.handle(),
-            Commands::Filesystem { command } => command.handle(),
-            Commands::Functions { command } => command.handle(),
-            Commands::Laboratories { command } => command.handle(),
-            Commands::Mcp { command } => command.handle(),
-            Commands::Swarm { command } => command.handle(),
-            Commands::Vector { command } => command.handle(),
+            Commands::Agent { command } => command.handle(handle).await,
+            Commands::Auth { command } => command.handle(handle).await,
+            Commands::Cli { command } => command.handle(handle).await,
+            Commands::Error { command } => command.handle(handle).await,
+            Commands::Filesystem { command } => command.handle(handle).await,
+            Commands::Functions { command } => command.handle(handle).await,
+            Commands::Laboratories { command } => command.handle(handle).await,
+            Commands::Mcp { command } => command.handle(handle).await,
+            Commands::Swarm { command } => command.handle(handle).await,
+            Commands::Vector { command } => command.handle(handle).await,
+            Commands::Viewer { command } => command.handle(handle).await,
             Commands::PrefixedUuid { .. } => {
                 let schema: serde_json::Value = serde_json::from_str(
                     include_str!("../../../objectiveai-json-schema/PrefixedUuid.json"),
                 ).expect("embedded JSON Schema must parse");
-                objectiveai_cli_lib::output::Output::<Schema>::Notification(
-                    Schema { schema },
-                ).emit();
+                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Schema>::Notification(
+                    objectiveai_sdk::cli::output::Notification {
+                        value: objectiveai_sdk::cli::output::Schema { schema },
+                    },
+                ).emit(handle).await;
                 Ok(())
             }
             Commands::Remote { .. } => {
                 let schema: serde_json::Value = serde_json::from_str(
                     include_str!("../../../objectiveai-json-schema/Remote.json"),
                 ).expect("embedded JSON Schema must parse");
-                objectiveai_cli_lib::output::Output::<Schema>::Notification(
-                    Schema { schema },
-                ).emit();
+                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Schema>::Notification(
+                    objectiveai_sdk::cli::output::Notification {
+                        value: objectiveai_sdk::cli::output::Schema { schema },
+                    },
+                ).emit(handle).await;
                 Ok(())
             }
             Commands::RemotePath { .. } => {
                 let schema: serde_json::Value = serde_json::from_str(
                     include_str!("../../../objectiveai-json-schema/RemotePath.json"),
                 ).expect("embedded JSON Schema must parse");
-                objectiveai_cli_lib::output::Output::<Schema>::Notification(
-                    Schema { schema },
-                ).emit();
+                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Schema>::Notification(
+                    objectiveai_sdk::cli::output::Notification {
+                        value: objectiveai_sdk::cli::output::Schema { schema },
+                    },
+                ).emit(handle).await;
                 Ok(())
             }
             Commands::RemotePathCommitOptional { .. } => {
                 let schema: serde_json::Value = serde_json::from_str(
                     include_str!("../../../objectiveai-json-schema/RemotePathCommitOptional.json"),
                 ).expect("embedded JSON Schema must parse");
-                objectiveai_cli_lib::output::Output::<Schema>::Notification(
-                    Schema { schema },
-                ).emit();
+                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Schema>::Notification(
+                    objectiveai_sdk::cli::output::Notification {
+                        value: objectiveai_sdk::cli::output::Schema { schema },
+                    },
+                ).emit(handle).await;
                 Ok(())
             }
             Commands::Weights { .. } => {
                 let schema: serde_json::Value = serde_json::from_str(
                     include_str!("../../../objectiveai-json-schema/Weights.json"),
                 ).expect("embedded JSON Schema must parse");
-                objectiveai_cli_lib::output::Output::<Schema>::Notification(
-                    Schema { schema },
-                ).emit();
+                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Schema>::Notification(
+                    objectiveai_sdk::cli::output::Notification {
+                        value: objectiveai_sdk::cli::output::Schema { schema },
+                    },
+                ).emit(handle).await;
                 Ok(())
             }
             Commands::WeightsEntry { .. } => {
                 let schema: serde_json::Value = serde_json::from_str(
                     include_str!("../../../objectiveai-json-schema/WeightsEntry.json"),
                 ).expect("embedded JSON Schema must parse");
-                objectiveai_cli_lib::output::Output::<Schema>::Notification(
-                    Schema { schema },
-                ).emit();
+                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Schema>::Notification(
+                    objectiveai_sdk::cli::output::Notification {
+                        value: objectiveai_sdk::cli::output::Schema { schema },
+                    },
+                ).emit(handle).await;
                 Ok(())
             }
         }

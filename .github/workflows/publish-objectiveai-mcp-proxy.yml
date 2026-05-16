@@ -8,6 +8,7 @@ name: Publish objectiveai-mcp-proxy
 
 on:
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -25,4 +26,7 @@ jobs:
       - name: cargo publish
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: cargo publish -p objectiveai-mcp-proxy
+        # --no-verify: skip the local compile check so cargo doesn't try
+        # to resolve the dev-only `test-upstream` path dep on crates.io.
+        # The workspace was already type-checked before publish.
+        run: cargo publish --no-verify -p objectiveai-mcp-proxy

@@ -303,24 +303,28 @@ fn test_upstream_binary() -> PathBuf {
         .expect("workspace root")
         .to_path_buf();
 
+    // Always run `cargo build -p test-upstream` first so the binary on
+    // disk reflects the current source. Cargo's incremental check is
+    // fast when the source is unchanged. Previously this just returned
+    // the first existing path under target/{debug,release}, which
+    // silently ran tests against a stale binary if the source had
+    // changed since the last build.
+    let cargo = std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
+    let status = std::process::Command::new(&cargo)
+        .args(["build", "-p", "test-upstream"])
+        .status()
+        .expect("failed to spawn cargo build");
+    assert!(status.success(), "cargo build -p test-upstream failed");
+
     let bin_name = if cfg!(windows) {
         "test-upstream.exe"
     } else {
         "test-upstream"
     };
-
-    // Tests typically run after `cargo build --workspace` (no --release)
-    // but the orchestration script uses --release. Try debug first, then
-    // release.
-    for profile in ["debug", "release"] {
-        let candidate = workspace.join("target").join(profile).join(bin_name);
-        if candidate.exists() {
-            return candidate;
-        }
-    }
-    panic!(
-        "could not find {bin_name} under {}/target/{{debug,release}}/. \
-         Run `cargo build --workspace` first, or use objectiveai-mcp-proxy/test.sh.",
-        workspace.display()
-    );
+    let target = std::env::var_os("CARGO_TARGET_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| workspace.join("target"));
+    let candidate = target.join("debug").join(bin_name);
+    assert!(candidate.exists(), "test-upstream binary missing at {candidate:?}");
+    candidate
 }

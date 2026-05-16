@@ -146,17 +146,7 @@ fn generate_module(node: &TreeNode, dir: &Path, depth: usize) {
 
     // handle() implementation
     code.push_str("impl Commands {\n");
-    code.push_str("    pub fn handle(self) -> Result<(), crate::error::Error> {\n");
-    code.push_str("        #[derive(serde::Serialize)]\n");
-    code.push_str("        struct SchemaList {\n");
-    code.push_str("            schemas: &'static [&'static str],\n");
-    code.push_str("        }\n");
-    if !node.schemas.is_empty() {
-        code.push_str("        #[derive(serde::Serialize)]\n");
-        code.push_str("        struct Schema {\n");
-        code.push_str("            schema: serde_json::Value,\n");
-        code.push_str("        }\n");
-    }
+    code.push_str("    pub async fn handle(self, handle: &objectiveai_sdk::cli::output::Handle) -> Result<(), crate::error::Error> {\n");
     code.push_str("        match self {\n");
 
     code.push_str("            Commands::List => {\n");
@@ -168,9 +158,13 @@ fn generate_module(node: &TreeNode, dir: &Path, depth: usize) {
         write!(code, "\"{name}\"").unwrap();
     }
     code.push_str("];\n");
-    code.push_str("                objectiveai_cli_lib::output::Output::<SchemaList>::Notification(\n");
-    code.push_str("                    SchemaList { schemas: NAMES },\n");
-    code.push_str("                ).emit();\n");
+    code.push_str("                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Schemas>::Notification(\n");
+    code.push_str("                    objectiveai_sdk::cli::output::Notification {\n");
+    code.push_str("                        value: objectiveai_sdk::cli::output::Schemas {\n");
+    code.push_str("                            schemas: NAMES.iter().map(|s| s.to_string()).collect(),\n");
+    code.push_str("                        },\n");
+    code.push_str("                    },\n");
+    code.push_str("                ).emit(handle).await;\n");
     code.push_str("                Ok(())\n");
     code.push_str("            }\n");
 
@@ -178,7 +172,7 @@ fn generate_module(node: &TreeNode, dir: &Path, depth: usize) {
         let variant = to_pascal_case(child_name);
         writeln!(
             code,
-            "            Commands::{variant} {{ command }} => command.handle(),"
+            "            Commands::{variant} {{ command }} => command.handle(handle).await,"
         )
         .unwrap();
     }
@@ -188,9 +182,11 @@ fn generate_module(node: &TreeNode, dir: &Path, depth: usize) {
         writeln!(code, "                let schema: serde_json::Value = serde_json::from_str(").unwrap();
         writeln!(code, "                    include_str!(\"{schema_rel}/{filename}\"),").unwrap();
         writeln!(code, "                ).expect(\"embedded JSON Schema must parse\");").unwrap();
-        writeln!(code, "                objectiveai_cli_lib::output::Output::<Schema>::Notification(").unwrap();
-        writeln!(code, "                    Schema {{ schema }},").unwrap();
-        writeln!(code, "                ).emit();").unwrap();
+        writeln!(code, "                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Schema>::Notification(").unwrap();
+        writeln!(code, "                    objectiveai_sdk::cli::output::Notification {{").unwrap();
+        writeln!(code, "                        value: objectiveai_sdk::cli::output::Schema {{ schema }},").unwrap();
+        writeln!(code, "                    }},").unwrap();
+        writeln!(code, "                ).emit(handle).await;").unwrap();
         writeln!(code, "                Ok(())").unwrap();
         writeln!(code, "            }}").unwrap();
     }

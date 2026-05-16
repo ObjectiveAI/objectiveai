@@ -16,7 +16,7 @@ pub struct Provider {
     pub require_parameters: Option<bool>,
     /// Data collection preferences. From request.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub data_collection: Option<objectiveai::agent::completions::request::ProviderDataCollection>,
+    pub data_collection: Option<objectiveai_sdk::agent::completions::request::ProviderDataCollection>,
     /// Zero Data Retention preference. From request.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub zdr: Option<bool>,
@@ -31,13 +31,13 @@ pub struct Provider {
     pub ignore: Option<Vec<String>>,
     /// Allowed quantizations. From Agent.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub quantizations: Option<Vec<objectiveai::agent::openrouter::ProviderQuantization>>,
+    pub quantizations: Option<Vec<objectiveai_sdk::agent::openrouter::ProviderQuantization>>,
     /// Provider sort preference. From request.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub sort: Option<objectiveai::agent::completions::request::ProviderSort>,
+    pub sort: Option<objectiveai_sdk::agent::completions::request::ProviderSort>,
     /// Maximum price constraints. From request.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_price: Option<objectiveai::agent::completions::request::ProviderMaxPrice>,
+    pub max_price: Option<objectiveai_sdk::agent::completions::request::ProviderMaxPrice>,
     /// Preferred minimum throughput. From request.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub preferred_min_throughput: Option<f64>,
@@ -75,12 +75,12 @@ impl Provider {
     ///
     /// Returns None if both inputs are None or if the merged result is empty.
     pub fn new(
-        request: Option<objectiveai::agent::completions::request::Provider>,
-        agent: Option<&objectiveai::agent::openrouter::Provider>,
+        request: Option<objectiveai_sdk::agent::completions::request::Provider>,
+        agent: Option<&objectiveai_sdk::agent::openrouter::Provider>,
     ) -> Option<Self> {
         let provider = match (request, agent) {
             (
-                Some(objectiveai::agent::completions::request::Provider {
+                Some(objectiveai_sdk::agent::completions::request::Provider {
                     data_collection,
                     zdr,
                     sort,
@@ -90,7 +90,7 @@ impl Provider {
                     min_throughput,
                     max_latency,
                 }),
-                Some(objectiveai::agent::openrouter::Provider {
+                Some(objectiveai_sdk::agent::openrouter::Provider {
                     allow_fallbacks,
                     require_parameters,
                     order,
@@ -115,7 +115,7 @@ impl Provider {
                 max_latency,
             },
             (
-                Some(objectiveai::agent::completions::request::Provider {
+                Some(objectiveai_sdk::agent::completions::request::Provider {
                     data_collection,
                     zdr,
                     sort,
@@ -144,7 +144,7 @@ impl Provider {
             },
             (
                 None,
-                Some(objectiveai::agent::openrouter::Provider {
+                Some(objectiveai_sdk::agent::openrouter::Provider {
                     allow_fallbacks,
                     require_parameters,
                     order,

@@ -1,6 +1,6 @@
 //! Spawns the `objectiveai-api` binary as a child process for the
 //! duration of the integration test binary, and exposes an
-//! [`objectiveai::http::HttpClient`] pointing at it.
+//! [`objectiveai_sdk::http::HttpClient`] pointing at it.
 //!
 //! One server per integration test binary (cargo runs each
 //! `tests/*.rs` as its own binary) → one ephemeral-port pool per
@@ -22,7 +22,7 @@ use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, LazyLock, Mutex};
 use std::time::Duration;
 
-use objectiveai::HttpClient;
+use objectiveai_sdk::HttpClient;
 
 mod kill_on_parent_exit {
     //! Tie the spawned server's lifetime to the test binary's. The

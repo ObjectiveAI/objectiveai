@@ -14,9 +14,9 @@ pub struct AddFavorite {
 }
 
 impl AddFavorite {
-    pub fn into_favorite(self) -> Result<objectiveai::filesystem::config::Favorite, crate::error::Error> {
+    pub fn into_favorite(self) -> Result<objectiveai_sdk::filesystem::config::Favorite, crate::error::Error> {
         let path = self.path.resolve()?;
-        Ok(objectiveai::filesystem::config::Favorite::new(self.name, path, self.note)?)
+        Ok(objectiveai_sdk::filesystem::config::Favorite::new(self.name, path, self.note)?)
     }
 }
 
@@ -36,21 +36,21 @@ pub struct EditFavorite {
 }
 
 impl EditFavorite {
-    pub fn apply(self, favorite: &mut objectiveai::filesystem::config::Favorite) -> Result<(), objectiveai::filesystem::Error> {
+    pub fn apply(self, favorite: &mut objectiveai_sdk::filesystem::config::Favorite) -> Result<(), objectiveai_sdk::filesystem::Error> {
         if let Some(note) = self.note {
             favorite.set_note(note)?;
         }
         if let Some(commit) = self.commit {
             match &mut favorite.path {
-                objectiveai::RemotePathCommitOptional::Github { commit: c, .. } => *c = Some(commit),
-                objectiveai::RemotePathCommitOptional::Filesystem { commit: c, .. } => *c = Some(commit),
-                objectiveai::RemotePathCommitOptional::Mock { .. } => {}
+                objectiveai_sdk::RemotePathCommitOptional::Github { commit: c, .. } => *c = Some(commit),
+                objectiveai_sdk::RemotePathCommitOptional::Filesystem { commit: c, .. } => *c = Some(commit),
+                objectiveai_sdk::RemotePathCommitOptional::Mock { .. } => {}
             }
         } else if self.remove_commit {
             match &mut favorite.path {
-                objectiveai::RemotePathCommitOptional::Github { commit, .. } => *commit = None,
-                objectiveai::RemotePathCommitOptional::Filesystem { commit, .. } => *commit = None,
-                objectiveai::RemotePathCommitOptional::Mock { .. } => {}
+                objectiveai_sdk::RemotePathCommitOptional::Github { commit, .. } => *commit = None,
+                objectiveai_sdk::RemotePathCommitOptional::Filesystem { commit, .. } => *commit = None,
+                objectiveai_sdk::RemotePathCommitOptional::Mock { .. } => {}
             }
         }
         Ok(())
@@ -74,10 +74,10 @@ pub struct AddPairFavorite {
 }
 
 impl AddPairFavorite {
-    pub fn into_pair_favorite(self) -> Result<objectiveai::filesystem::config::PairFavorite, crate::error::Error> {
+    pub fn into_pair_favorite(self) -> Result<objectiveai_sdk::filesystem::config::PairFavorite, crate::error::Error> {
         let function = self.function.resolve()?;
         let profile = self.profile.resolve()?;
-        Ok(objectiveai::filesystem::config::PairFavorite::new(self.name, function, profile, self.note)?)
+        Ok(objectiveai_sdk::filesystem::config::PairFavorite::new(self.name, function, profile, self.note)?)
     }
 }
 
@@ -103,34 +103,34 @@ pub struct EditPairFavorite {
 }
 
 impl EditPairFavorite {
-    pub fn apply(self, favorite: &mut objectiveai::filesystem::config::PairFavorite) -> Result<(), objectiveai::filesystem::Error> {
+    pub fn apply(self, favorite: &mut objectiveai_sdk::filesystem::config::PairFavorite) -> Result<(), objectiveai_sdk::filesystem::Error> {
         if let Some(note) = self.note {
             favorite.set_note(note)?;
         }
         if let Some(commit) = self.function_commit {
             match &mut favorite.function {
-                objectiveai::RemotePathCommitOptional::Github { commit: c, .. } => *c = Some(commit),
-                objectiveai::RemotePathCommitOptional::Filesystem { commit: c, .. } => *c = Some(commit),
-                objectiveai::RemotePathCommitOptional::Mock { .. } => {}
+                objectiveai_sdk::RemotePathCommitOptional::Github { commit: c, .. } => *c = Some(commit),
+                objectiveai_sdk::RemotePathCommitOptional::Filesystem { commit: c, .. } => *c = Some(commit),
+                objectiveai_sdk::RemotePathCommitOptional::Mock { .. } => {}
             }
         } else if self.remove_function_commit {
             match &mut favorite.function {
-                objectiveai::RemotePathCommitOptional::Github { commit, .. } => *commit = None,
-                objectiveai::RemotePathCommitOptional::Filesystem { commit, .. } => *commit = None,
-                objectiveai::RemotePathCommitOptional::Mock { .. } => {}
+                objectiveai_sdk::RemotePathCommitOptional::Github { commit, .. } => *commit = None,
+                objectiveai_sdk::RemotePathCommitOptional::Filesystem { commit, .. } => *commit = None,
+                objectiveai_sdk::RemotePathCommitOptional::Mock { .. } => {}
             }
         }
         if let Some(commit) = self.profile_commit {
             match &mut favorite.profile {
-                objectiveai::RemotePathCommitOptional::Github { commit: c, .. } => *c = Some(commit),
-                objectiveai::RemotePathCommitOptional::Filesystem { commit: c, .. } => *c = Some(commit),
-                objectiveai::RemotePathCommitOptional::Mock { .. } => {}
+                objectiveai_sdk::RemotePathCommitOptional::Github { commit: c, .. } => *c = Some(commit),
+                objectiveai_sdk::RemotePathCommitOptional::Filesystem { commit: c, .. } => *c = Some(commit),
+                objectiveai_sdk::RemotePathCommitOptional::Mock { .. } => {}
             }
         } else if self.remove_profile_commit {
             match &mut favorite.profile {
-                objectiveai::RemotePathCommitOptional::Github { commit, .. } => *commit = None,
-                objectiveai::RemotePathCommitOptional::Filesystem { commit, .. } => *commit = None,
-                objectiveai::RemotePathCommitOptional::Mock { .. } => {}
+                objectiveai_sdk::RemotePathCommitOptional::Github { commit, .. } => *commit = None,
+                objectiveai_sdk::RemotePathCommitOptional::Filesystem { commit, .. } => *commit = None,
+                objectiveai_sdk::RemotePathCommitOptional::Mock { .. } => {}
             }
         }
         Ok(())

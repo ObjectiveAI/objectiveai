@@ -1,6 +1,6 @@
 //! SQLite-backed persistent cache client.
 
-use objectiveai::error::ResponseError;
+use objectiveai_sdk::error::ResponseError;
 use rusqlite::{Connection, OptionalExtension};
 use std::collections::HashSet;
 use std::path::PathBuf;

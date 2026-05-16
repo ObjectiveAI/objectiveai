@@ -1,5 +1,5 @@
 use crate::{ctx, util::ChoiceIndexer};
-use objectiveai::error::StatusError;
+use objectiveai_sdk::error::StatusError;
 use futures::{Stream, StreamExt};
 use std::{
     pin::Pin,
@@ -8,13 +8,13 @@ use std::{
 };
 
 type FunctionInventionChunk =
-    objectiveai::functions::inventions::response::streaming::FunctionInventionChunk;
+    objectiveai_sdk::functions::inventions::response::streaming::FunctionInventionChunk;
 type RecursiveChunk =
-    objectiveai::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk;
+    objectiveai_sdk::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk;
 type RecursiveInventionChunk =
-    objectiveai::functions::inventions::recursive::response::streaming::FunctionInventionChunk;
+    objectiveai_sdk::functions::inventions::recursive::response::streaming::FunctionInventionChunk;
 type RecursiveObject =
-    objectiveai::functions::inventions::recursive::response::streaming::Object;
+    objectiveai_sdk::functions::inventions::recursive::response::streaming::Object;
 
 /// Generates a unique response ID for recursive Function inventions.
 pub fn recursive_invention_response_id(created: u64) -> String {
@@ -66,21 +66,21 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
     Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM, RIUSG>
 where
     CTXEXT: ctx::ContextExt + Send + Sync + 'static,
-    OPENROUTER: crate::agent::completions::UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation>
+    OPENROUTER: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::agent::openrouter::Continuation>
         + Send
         + Sync
         + 'static,
     CLAUDEAGENTSDK: crate::agent::completions::UpstreamClient<
-            objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
+            objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation,
         > + Send
         + Sync
         + 'static,
     CODEXSDK: crate::agent::completions::UpstreamClient<
-            objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation,
+            objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation,
         > + Send
         + Sync
         + 'static,
-    MOCK: crate::agent::completions::UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation>
+    MOCK: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation>
         + Send
         + Sync
         + 'static,
@@ -97,9 +97,9 @@ where
     pub async fn create_unary_handle_usage(
         self: Arc<Self>,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-        request: Arc<objectiveai::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams>,
+        request: Arc<objectiveai_sdk::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams>,
     ) -> Result<
-        objectiveai::functions::inventions::recursive::response::unary::FunctionInventionRecursive,
+        objectiveai_sdk::functions::inventions::recursive::response::unary::FunctionInventionRecursive,
         super::Error,
     > {
         let mut aggregate: Option<RecursiveChunk> = None;
@@ -117,7 +117,7 @@ where
     pub async fn create_streaming_handle_usage(
         self: Arc<Self>,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-        request: Arc<objectiveai::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams>,
+        request: Arc<objectiveai_sdk::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams>,
     ) -> Result<
         impl Stream<Item = RecursiveChunk> + Send + Unpin + 'static,
         super::Error,
@@ -151,7 +151,7 @@ where
             drop(tx);
             if let Some(aggregate) = aggregate {
                 if aggregate.usage.as_ref().is_some_and(
-                    objectiveai::agent::completions::response::Usage::any_usage,
+                    objectiveai_sdk::agent::completions::response::Usage::any_usage,
                 ) {
                     self_clone
                         .usage_handler
@@ -175,7 +175,7 @@ where
     pub async fn create_streaming(
         self: Arc<Self>,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-        request: Arc<objectiveai::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams>,
+        request: Arc<objectiveai_sdk::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams>,
     ) -> Result<
         impl Stream<Item = RecursiveChunk> + Send + 'static,
         super::Error,
@@ -201,9 +201,9 @@ where
         );
 
         let is_scalar = match &resolved_state {
-            objectiveai::functions::inventions::state::ParamsState::AlphaScalarBranch(_)
-            | objectiveai::functions::inventions::state::ParamsState::AlphaScalarLeaf(_)
-            | objectiveai::functions::inventions::state::ParamsState::AlphaScalar(_) => true,
+            objectiveai_sdk::functions::inventions::state::ParamsState::AlphaScalarBranch(_)
+            | objectiveai_sdk::functions::inventions::state::ParamsState::AlphaScalarLeaf(_)
+            | objectiveai_sdk::functions::inventions::state::ParamsState::AlphaScalar(_) => true,
             _ => false,
         };
         let object = if is_scalar {
@@ -236,7 +236,7 @@ where
         let stream: Pin<Box<dyn Stream<Item = RecursiveChunk> + Send>> =
             Box::pin(async_stream::stream! {
                 let mut accumulated_usage =
-                    objectiveai::agent::completions::response::Usage::default();
+                    objectiveai_sdk::agent::completions::response::Usage::default();
                 let mut had_errors = false;
                 futures::pin_mut!(inner);
                 while let Some(mut chunk) = inner.next().await {
@@ -303,8 +303,8 @@ fn run_recursive<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETR
         >,
     >,
     ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-    request: Arc<objectiveai::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams>,
-    resolved_state: objectiveai::functions::inventions::ParamsState,
+    request: Arc<objectiveai_sdk::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams>,
+    resolved_state: objectiveai_sdk::functions::inventions::ParamsState,
     id: String,
     created: u64,
     object: RecursiveObject,
@@ -313,21 +313,21 @@ fn run_recursive<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETR
 ) -> Pin<Box<dyn Stream<Item = RecursiveChunk> + Send>>
 where
     CTXEXT: ctx::ContextExt + Send + Sync + 'static,
-    OPENROUTER: crate::agent::completions::UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation>
+    OPENROUTER: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::agent::openrouter::Continuation>
         + Send
         + Sync
         + 'static,
     CLAUDEAGENTSDK: crate::agent::completions::UpstreamClient<
-            objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
+            objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation,
         > + Send
         + Sync
         + 'static,
     CODEXSDK: crate::agent::completions::UpstreamClient<
-            objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation,
+            objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation,
         > + Send
         + Sync
         + 'static,
-    MOCK: crate::agent::completions::UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation>
+    MOCK: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation>
         + Send
         + Sync
         + 'static,
@@ -344,10 +344,10 @@ where
         // Build the single-level invention request using the resolved state (Inline).
         let resolved_state_for_error = resolved_state.clone();
         let invention_request = Arc::new(
-            objectiveai::functions::inventions::request::FunctionInventionCreateParams {
+            objectiveai_sdk::functions::inventions::request::FunctionInventionCreateParams {
                 remote: Some(request.remote),
                 overwrite: request.overwrite,
-                state: objectiveai::functions::inventions::ParamsStateOrRemoteCommitOptional::Inline(resolved_state),
+                state: objectiveai_sdk::functions::inventions::ParamsStateOrRemoteCommitOptional::Inline(resolved_state),
                 provider: request.provider.clone(),
                 agent: request.agent.clone(),
                 prompt: request.prompt.clone(),
@@ -380,9 +380,9 @@ where
                             created,
                             object: object.into(),
                             usage: None,
-                            error: Some(objectiveai::error::ResponseError {
-                                code: objectiveai::error::StatusError::status(&e),
-                                message: objectiveai::error::StatusError::message(&e)
+                            error: Some(objectiveai_sdk::error::ResponseError {
+                                code: objectiveai_sdk::error::StatusError::status(&e),
+                                message: objectiveai_sdk::error::StatusError::message(&e)
                                     .unwrap_or_else(|| serde_json::json!(e.to_string())),
                             }),
                         },
@@ -397,9 +397,9 @@ where
         };
 
         // Stream the single-level invention, wrapping each chunk.
-        let mut final_state: Option<objectiveai::functions::inventions::State> = None;
-        let mut final_path: Option<objectiveai::RemotePath> = None;
-        let mut saved_function: Option<objectiveai::functions::FullRemoteFunction> = None;
+        let mut final_state: Option<objectiveai_sdk::functions::inventions::State> = None;
+        let mut final_path: Option<objectiveai_sdk::RemotePath> = None;
+        let mut saved_function: Option<objectiveai_sdk::functions::FullRemoteFunction> = None;
         let mut had_error = false;
 
         futures::pin_mut!(stream);
@@ -474,10 +474,10 @@ where
 
             // Build the child's recursive request with the child's state wrapped in Inline.
             let child_request = Arc::new(
-                objectiveai::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams {
+                objectiveai_sdk::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams {
                     remote: request.remote,
                     overwrite: request.overwrite,
-                    state: objectiveai::functions::inventions::ParamsStateOrRemoteCommitOptional::Inline(child_state.clone()),
+                    state: objectiveai_sdk::functions::inventions::ParamsStateOrRemoteCommitOptional::Inline(child_state.clone()),
                     provider: request.provider.clone(),
                     agent: request.agent.clone(),
                     prompt: request.prompt.clone(),
@@ -503,7 +503,7 @@ where
 
         // Merge all child streams, yield chunks immediately, and collect
         // child invention paths for placeholder replacement.
-        let mut child_paths: Vec<objectiveai::RemotePath> = Vec::new();
+        let mut child_paths: Vec<objectiveai_sdk::RemotePath> = Vec::new();
         let mut merged = futures::stream::select_all(child_streams);
         while let Some(chunk) = merged.next().await {
             // Collect paths from child inventions as they complete.
@@ -581,7 +581,7 @@ where
         let description = crate::functions::inventions::extract_description(&state);
 
         let (updated_path, publish_error) = match request.remote {
-            objectiveai::Remote::Filesystem => {
+            objectiveai_sdk::Remote::Filesystem => {
                 match crate::functions::inventions::publish_filesystem(
                     &invention_client.filesystem_client, &ctx, repo, &publish_files,
                 ).await {
@@ -589,7 +589,7 @@ where
                     Err(e) => (None, Some(e)),
                 }
             }
-            objectiveai::Remote::Github => {
+            objectiveai_sdk::Remote::Github => {
                 match crate::functions::inventions::publish_github(
                     &invention_client.github_client,
                     &invention_client.filesystem_client,
@@ -600,7 +600,7 @@ where
                     Err(e) => (None, Some(e)),
                 }
             }
-            objectiveai::Remote::Mock => (None, None),
+            objectiveai_sdk::Remote::Mock => (None, None),
         };
 
         // Yield the post-replacement function. On publish failure, fall back
@@ -610,7 +610,7 @@ where
                 saved_function,
                 final_path,
                 Some(true),
-                Some(objectiveai::error::ResponseError {
+                Some(objectiveai_sdk::error::ResponseError {
                     code: publish_error.status(),
                     message: publish_error.message().unwrap_or(serde_json::Value::Null),
                 }),

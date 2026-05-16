@@ -8,7 +8,6 @@ mod common;
 
 use common::TestRig;
 use reqwest::StatusCode;
-use serde_json::Value;
 
 #[tokio::test]
 async fn delete_then_post_returns_404() {
@@ -38,7 +37,10 @@ async fn delete_then_post_returns_404() {
         .to_str()
         .unwrap()
         .to_string();
-    let _: Value = init_resp.json().await.unwrap();
+    // Drain the body so the connection releases. The proxy returns
+    // SSE for `initialize` (commit 2743c918), so we don't parse JSON
+    // here.
+    let _ = init_resp.text().await.unwrap();
 
     // 2. DELETE → 200.
     let del_resp = http

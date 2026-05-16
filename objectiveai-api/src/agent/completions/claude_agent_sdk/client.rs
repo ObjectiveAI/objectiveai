@@ -79,11 +79,9 @@ impl Client {
     /// versions get separate binaries and the same version reuses the cached
     /// binary across restarts.
     ///
-    /// Returns `None` when the crate is built without the
-    /// `claude-agent-sdk` feature — in that configuration no runner
-    /// binary is embedded, and `create()` returns `Error::NotEnabled`
-    /// before this method is reached.
-    #[cfg(feature = "claude-agent-sdk")]
+    /// Returns `None` only if the on-disk extraction of the embedded
+    /// runner binary failed (e.g. temp dir not writable). In normal
+    /// operation this returns `Some(path)`.
     async fn binary_path(&self) -> Option<&str> {
         let path = self
             .binary_path
@@ -134,11 +132,6 @@ impl Client {
         }
     }
 
-    #[cfg(not(feature = "claude-agent-sdk"))]
-    async fn binary_path(&self) -> Option<&str> {
-        None
-    }
-
     /// Get-or-init the shared runner subprocess. The first caller to
     /// hit this on a given `Client` pays the spawn cost; subsequent
     /// callers receive a clone of the same `Arc<Runner>`.
@@ -175,7 +168,7 @@ impl Client {
 /// `McpHttpServerConfig::from(&Connection)` to keep the merge with
 /// `conn.headers` (User-Agent, Authorization, custom X-*) in one place.
 fn build_mcp_servers(
-    mcp_connection: Option<&objectiveai::mcp::Connection>,
+    mcp_connection: Option<&objectiveai_sdk::mcp::Connection>,
 ) -> IndexMap<String, McpServerConfig> {
     let mut servers = IndexMap::new();
     if let Some(conn) = mcp_connection {
@@ -192,9 +185,9 @@ fn build_mcp_servers(
 /// Only `None` or `Text` formats are supported.
 fn validate_response_format(
     agent_id: &str,
-    response_format: &Option<objectiveai::agent::completions::request::ResponseFormatParam>,
+    response_format: &Option<objectiveai_sdk::agent::completions::request::ResponseFormatParam>,
 ) -> Result<(), super::Error> {
-    use objectiveai::agent::completions::request::{ResponseFormat, ResponseFormatParam};
+    use objectiveai_sdk::agent::completions::request::{ResponseFormat, ResponseFormatParam};
 
     match response_format {
         None => Ok(()),
@@ -210,7 +203,7 @@ fn validate_response_format(
     }
 }
 
-impl UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation> for Client {
+impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation> for Client {
     type State = super::State;
     type Stream = Pin<
         Box<dyn Stream<Item = StreamItem<Self::State>> + Send + 'static>,
@@ -222,16 +215,16 @@ impl UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::ag
         &self,
         id: &str,
         created: u64,
-        agent: &objectiveai::agent::claude_agent_sdk::Agent,
-        request_continuation: Option<&objectiveai::agent::claude_agent_sdk::Continuation>,
-        params: &objectiveai::agent::completions::request::AgentCompletionCreateParams,
-        messages: &[objectiveai::agent::completions::message::Message],
-        mcp_connection: Option<objectiveai::mcp::Connection>,
+        agent: &objectiveai_sdk::agent::claude_agent_sdk::Agent,
+        request_continuation: Option<&objectiveai_sdk::agent::claude_agent_sdk::Continuation>,
+        params: &objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams,
+        messages: &[objectiveai_sdk::agent::completions::message::Message],
+        mcp_connection: Option<objectiveai_sdk::mcp::Connection>,
         continuation: Option<&[ContinuationItem<Self::State>]>,
         byok: Option<&str>,
         cost_multiplier: rust_decimal::Decimal,
         _tools_enabled: bool,
-        _invention_type: Option<objectiveai::functions::inventions::prompts::StepPromptType>,
+        _invention_type: Option<objectiveai_sdk::functions::inventions::prompts::StepPromptType>,
         _invention_step: Option<usize>,
         _invention_tasks_min: Option<u64>,
         _invention_input_schema: Option<String>,
@@ -255,14 +248,6 @@ impl UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::ag
 
         async move {
             if !enabled {
-                return Err(super::Error::NotEnabled);
-            }
-
-            // When built without the claude-agent-sdk feature, no
-            // runner binary is embedded, so the client is non-functional
-            // regardless of the `enabled` flag.
-            #[cfg(not(feature = "claude-agent-sdk"))]
-            {
                 return Err(super::Error::NotEnabled);
             }
 
@@ -394,10 +379,10 @@ impl UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::ag
                                 effective_index,
                                 is_byok,
                                 cost_multiplier,
-                                objectiveai::agent::Upstream::ClaudeAgentSdk,
+                                objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
                             ) {
                                 Some(Ok(chunk)) => {
-                                    use objectiveai::agent::completions::response::streaming::MessageChunk;
+                                    use objectiveai_sdk::agent::completions::response::streaming::MessageChunk;
                                     let mut advances_index = false;
                                     for m in &chunk.messages {
                                         match m {
@@ -474,11 +459,11 @@ impl UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::ag
                     let rest = stream.map(move |item| match item {
                         Ok(si) => si,
                         Err(e) => {
-                            use objectiveai::error::StatusError;
+                            use objectiveai_sdk::error::StatusError;
                             StreamItem::Chunk(
-                                objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
+                                objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
                                     id: id_for_stream.clone(),
-                                    error: Some(objectiveai::error::ResponseError {
+                                    error: Some(objectiveai_sdk::error::ResponseError {
                                         code: e.status(),
                                         message: e.message()
                                             .unwrap_or(serde_json::Value::Null),
@@ -500,10 +485,10 @@ impl UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::ag
     fn response_continuation(
         &self,
         mcp_sessions: indexmap::IndexMap<String, String>,
-        request_continuation: Option<&objectiveai::agent::claude_agent_sdk::Continuation>,
-        _messages: &[objectiveai::agent::completions::message::Message],
+        request_continuation: Option<&objectiveai_sdk::agent::claude_agent_sdk::Continuation>,
+        _messages: &[objectiveai_sdk::agent::completions::message::Message],
         continuation: Option<&[ContinuationItem<Self::State>]>,
-    ) -> objectiveai::agent::claude_agent_sdk::Continuation {
+    ) -> objectiveai_sdk::agent::claude_agent_sdk::Continuation {
         // Extract session_id from last State in continuation, fall back to request continuation.
         let session_id = continuation
             .and_then(|items| {
@@ -517,8 +502,8 @@ impl UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::ag
             .or_else(|| request_continuation.map(|rc| rc.session_id.clone()))
             .unwrap_or_default();
 
-        objectiveai::agent::claude_agent_sdk::Continuation {
-            upstream: objectiveai::agent::claude_agent_sdk::Upstream::default(),
+        objectiveai_sdk::agent::claude_agent_sdk::Continuation {
+            upstream: objectiveai_sdk::agent::claude_agent_sdk::Upstream::default(),
             session_id,
             mcp_sessions,
         }

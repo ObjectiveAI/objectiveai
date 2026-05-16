@@ -1,9 +1,28 @@
 /// Re-invokes the current CLI as a subprocess with `--detach` removed from
-/// the arguments. Prints the child PID, then forwards all stdout/stderr.
-/// Once the log availability line appears on stdout, exits with code 0 —
-/// the child continues as an orphan. If the child exits without printing
-/// the log line, forwards its exit code.
-pub async fn detach() -> ! {
+/// the arguments. Emits `Detached { pid }`, then for every line the
+/// orphan writes to its stdout, parses the line as an [`Output`] and
+/// re-emits it through `Output::emit(handle)` — so the routing logic
+/// (handle vs stdout, fatal-error stderr mirror) lives in one place
+/// instead of being duplicated here. A non-JSONL line on the orphan's
+/// stdout is a contract violation and panics.
+///
+/// Stderr is forwarded raw to this process's own stderr (a separate
+/// channel from `handle`'s child stdin — the embedder captures cli's
+/// stderr pipe independently if it wants diagnostic visibility into
+/// the orphan).
+///
+/// Once `log_stream_ready` appears on the orphan's stdout, exits with
+/// code 0; the orphan continues running and writing more lines, but
+/// nobody reads them. If the orphan exits without producing the
+/// handshake, forwards its exit code.
+///
+/// The orphan has no idea about `handle` — it's a fresh CLI invocation
+/// with the default `None` handle, writing JSONL to its own stdout.
+/// The parent's forwarding loop is the only place the JSONL stream
+/// gets routed to the embedder.
+///
+/// [`Output`]: objectiveai_sdk::cli::output::Output
+pub async fn detach(handle: &objectiveai_sdk::cli::output::Handle) -> ! {
     let exe = std::env::current_exe().expect("failed to get current executable path");
     let args: Vec<String> = std::env::args()
         .skip(1) // skip binary name
@@ -27,11 +46,10 @@ pub async fn detach() -> ! {
     let mut child = cmd.spawn().expect("failed to spawn detached process");
 
     let pid = child.id().expect("failed to get child PID");
-    #[derive(serde::Serialize)]
-    struct Detached {
-        pid: u32,
-    }
-    objectiveai_cli_lib::output::Output::<Detached>::Notification(Detached { pid }).emit();
+    objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Detached>::Notification(objectiveai_sdk::cli::output::Notification { value: 
+        objectiveai_sdk::cli::output::Detached { pid },
+     })
+    .emit(handle).await;
 
     let child_stdout = child.stdout.take().unwrap();
     let child_stderr = child.stderr.take().unwrap();
@@ -50,7 +68,21 @@ pub async fn detach() -> ! {
                 if n == 0 {
                     stdout_done = true;
                 } else {
-                    print!("{stdout_line}");
+                    // Parse each orphan-stdout line as an Output and run
+                    // it through the standard emit pipeline. That keeps
+                    // all routing logic (handle vs stdout, fatal-error
+                    // stderr mirror) in one place — Output::emit — and
+                    // never deals with raw bytes here.
+                    //
+                    // The cli is documented to produce only JSONL on
+                    // stdout, so a parse failure is a contract violation
+                    // — panic so it's loud and traceable rather than
+                    // silently corrupting the consumer's stream.
+                    let trimmed = stdout_line.trim_end_matches(['\r', '\n']);
+                    let out: objectiveai_sdk::cli::output::Output<serde_json::Value> =
+                        serde_json::from_str(trimmed)
+                            .expect("orphan stdout produced a non-JSONL line");
+                    out.emit(handle).await;
                     if crate::log_line::parse_log_stream_ready(&stdout_line).is_some() {
                         std::process::exit(0);
                     }

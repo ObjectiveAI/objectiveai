@@ -14,7 +14,7 @@
 #
 # Output is captured to .logs/publish/objectiveai-cocoindex.txt.
 #
-# Dependency note: this package pins `objectiveai==<X.Y.Z>` in pyproject.toml.
+# Dependency note: this package pins `objectiveai-sdk==<X.Y.Z>` in pyproject.toml.
 # When the root `publish.sh` dispatches everything in parallel, this workflow
 # uploads its own wheel/sdist regardless of whether the matching `objectiveai`
 # version is already on PyPI. Downstream `pip install` will fail until the

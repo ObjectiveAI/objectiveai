@@ -81,11 +81,9 @@ impl Client {
     /// versions get separate binaries and the same version reuses the
     /// cached binary across restarts.
     ///
-    /// Returns `None` when the crate is built without the `codex-sdk`
-    /// feature — in that configuration no runner binary is embedded,
-    /// and `create()` returns `Error::NotEnabled` before this method is
-    /// reached.
-    #[cfg(feature = "codex-sdk")]
+    /// Returns `None` only if the on-disk extraction of the embedded
+    /// runner binary failed (e.g. temp dir not writable). In normal
+    /// operation this returns `Some(path)`.
     async fn binary_path(&self) -> Option<&str> {
         let path = self
             .binary_path
@@ -135,11 +133,6 @@ impl Client {
         }
     }
 
-    #[cfg(not(feature = "codex-sdk"))]
-    async fn binary_path(&self) -> Option<&str> {
-        None
-    }
-
     /// Get-or-init the shared runner subprocess. The first caller to
     /// hit this on a given `Client` pays the spawn cost; subsequent
     /// callers receive a clone of the same `Arc<Runner>`.
@@ -175,7 +168,7 @@ impl Client {
 /// Python runner expects one) but the name is sourced from the
 /// connection's `server_info.name` rather than hardcoded here.
 fn build_mcp_servers(
-    mcp_connection: Option<&objectiveai::mcp::Connection>,
+    mcp_connection: Option<&objectiveai_sdk::mcp::Connection>,
 ) -> IndexMap<String, McpServerConfig> {
     let mut servers = IndexMap::new();
     if let Some(conn) = mcp_connection {
@@ -192,9 +185,9 @@ fn build_mcp_servers(
 /// Only `None` or `Text` formats are supported.
 fn validate_response_format(
     agent_id: &str,
-    response_format: &Option<objectiveai::agent::completions::request::ResponseFormatParam>,
+    response_format: &Option<objectiveai_sdk::agent::completions::request::ResponseFormatParam>,
 ) -> Result<(), super::Error> {
-    use objectiveai::agent::completions::request::{
+    use objectiveai_sdk::agent::completions::request::{
         ResponseFormat, ResponseFormatParam,
     };
 
@@ -210,12 +203,12 @@ fn validate_response_format(
     }
 }
 
-/// Map an `objectiveai::agent::codex_sdk::Effort` to the runner's
+/// Map an `objectiveai_sdk::agent::codex_sdk::Effort` to the runner's
 /// `ModelReasoningEffort` enum.
 fn into_codex_effort(
-    effort: objectiveai::agent::codex_sdk::Effort,
+    effort: objectiveai_sdk::agent::codex_sdk::Effort,
 ) -> ModelReasoningEffort {
-    use objectiveai::agent::codex_sdk::Effort;
+    use objectiveai_sdk::agent::codex_sdk::Effort;
     match effort {
         Effort::Minimal => ModelReasoningEffort::Minimal,
         Effort::Low => ModelReasoningEffort::Low,
@@ -226,8 +219,8 @@ fn into_codex_effort(
 
 impl
     UpstreamClient<
-        objectiveai::agent::codex_sdk::Agent,
-        objectiveai::agent::codex_sdk::Continuation,
+        objectiveai_sdk::agent::codex_sdk::Agent,
+        objectiveai_sdk::agent::codex_sdk::Continuation,
     > for Client
 {
     type State = super::State;
@@ -241,16 +234,16 @@ impl
         &self,
         id: &str,
         created: u64,
-        agent: &objectiveai::agent::codex_sdk::Agent,
-        request_continuation: Option<&objectiveai::agent::codex_sdk::Continuation>,
-        params: &objectiveai::agent::completions::request::AgentCompletionCreateParams,
-        messages: &[objectiveai::agent::completions::message::Message],
-        mcp_connection: Option<objectiveai::mcp::Connection>,
+        agent: &objectiveai_sdk::agent::codex_sdk::Agent,
+        request_continuation: Option<&objectiveai_sdk::agent::codex_sdk::Continuation>,
+        params: &objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams,
+        messages: &[objectiveai_sdk::agent::completions::message::Message],
+        mcp_connection: Option<objectiveai_sdk::mcp::Connection>,
         continuation: Option<&[ContinuationItem<Self::State>]>,
         byok: Option<&str>,
         cost_multiplier: rust_decimal::Decimal,
         _tools_enabled: bool,
-        _invention_type: Option<objectiveai::functions::inventions::prompts::StepPromptType>,
+        _invention_type: Option<objectiveai_sdk::functions::inventions::prompts::StepPromptType>,
         _invention_step: Option<usize>,
         _invention_tasks_min: Option<u64>,
         _invention_input_schema: Option<String>,
@@ -268,14 +261,6 @@ impl
 
         async move {
             if !enabled {
-                return Err(super::Error::NotEnabled);
-            }
-
-            // When built without the codex-sdk feature, no runner
-            // binary is embedded, so the client is non-functional
-            // regardless of the `enabled` flag.
-            #[cfg(not(feature = "codex-sdk"))]
-            {
                 return Err(super::Error::NotEnabled);
             }
 
@@ -407,7 +392,7 @@ impl
                                 msg_index,
                                 is_byok,
                                 cost_multiplier,
-                                objectiveai::agent::Upstream::CodexSdk,
+                                objectiveai_sdk::agent::Upstream::CodexSdk,
                                 &latest_thread_id,
                             ) {
                                 Some(Ok(chunk)) => {
@@ -473,11 +458,11 @@ impl
                     let rest = stream.map(move |item| match item {
                         Ok(si) => si,
                         Err(e) => {
-                            use objectiveai::error::StatusError;
+                            use objectiveai_sdk::error::StatusError;
                             StreamItem::Chunk(
-                                objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
+                                objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
                                     id: id_for_stream.clone(),
-                                    error: Some(objectiveai::error::ResponseError {
+                                    error: Some(objectiveai_sdk::error::ResponseError {
                                         code: e.status(),
                                         message: e.message().unwrap_or(serde_json::Value::Null),
                                     }),
@@ -499,10 +484,10 @@ impl
     fn response_continuation(
         &self,
         mcp_sessions: indexmap::IndexMap<String, String>,
-        request_continuation: Option<&objectiveai::agent::codex_sdk::Continuation>,
-        _messages: &[objectiveai::agent::completions::message::Message],
+        request_continuation: Option<&objectiveai_sdk::agent::codex_sdk::Continuation>,
+        _messages: &[objectiveai_sdk::agent::completions::message::Message],
         continuation: Option<&[ContinuationItem<Self::State>]>,
-    ) -> objectiveai::agent::codex_sdk::Continuation {
+    ) -> objectiveai_sdk::agent::codex_sdk::Continuation {
         let thread_id = continuation
             .and_then(|items| {
                 items.iter().rev().find_map(|item| match item {
@@ -519,8 +504,8 @@ impl
             .or_else(|| request_continuation.map(|rc| rc.thread_id.clone()))
             .unwrap_or_default();
 
-        objectiveai::agent::codex_sdk::Continuation {
-            upstream: objectiveai::agent::codex_sdk::Upstream::default(),
+        objectiveai_sdk::agent::codex_sdk::Continuation {
+            upstream: objectiveai_sdk::agent::codex_sdk::Upstream::default(),
             thread_id,
             mcp_sessions,
         }
@@ -528,9 +513,9 @@ impl
 }
 
 fn chunk_has_assistant(
-    chunk: &objectiveai::agent::completions::response::streaming::AgentCompletionChunk,
+    chunk: &objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk,
 ) -> bool {
-    use objectiveai::agent::completions::response::streaming::MessageChunk;
+    use objectiveai_sdk::agent::completions::response::streaming::MessageChunk;
     chunk
         .messages
         .iter()
@@ -538,9 +523,9 @@ fn chunk_has_assistant(
 }
 
 fn chunk_finishes_assistant(
-    chunk: &objectiveai::agent::completions::response::streaming::AgentCompletionChunk,
+    chunk: &objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk,
 ) -> bool {
-    use objectiveai::agent::completions::response::streaming::MessageChunk;
+    use objectiveai_sdk::agent::completions::response::streaming::MessageChunk;
     chunk.messages.iter().any(|m| match m {
         MessageChunk::Assistant(a) => a.finish_reason.is_some(),
         MessageChunk::Tool(_) => true,

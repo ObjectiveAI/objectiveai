@@ -12,7 +12,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use envconfig::Envconfig;
-use objectiveai::mcp::Client;
+use objectiveai_sdk::mcp::Client;
 
 use crate::session_manager::SessionManager;
 use crate::{AppState, mcp};

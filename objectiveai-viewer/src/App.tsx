@@ -1,8 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { useEntries } from "./hooks/useEntries";
 import { Shell } from "./components/layout/Shell";
 import { StatusBar } from "./components/layout/StatusBar";
 import { EntryView } from "./components/views/EntryView";
+import { TabBar, type Tab } from "./TabBar";
+import { PluginPane } from "./PluginPane";
 import type { Entry } from "./types";
 
 const KINDS: { kind: Entry["kind"]; label: string }[] = [
@@ -12,7 +15,7 @@ const KINDS: { kind: Entry["kind"]; label: string }[] = [
   { kind: "laboratory", label: "Laboratory" },
 ];
 
-function App() {
+function ObjectiveAIView() {
   const entries = useEntries();
   const [activeKinds, setActiveKinds] = useState<Set<Entry["kind"]>>(
     new Set(KINDS.map((k) => k.kind))
@@ -76,6 +79,44 @@ function App() {
         <EntryView key={entry.id} entry={entry} />
       ))}
     </Shell>
+  );
+}
+
+const OBJECTIVEAI_TAB_ID = "objectiveai";
+
+function App() {
+  const [pluginNames, setPluginNames] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<string>(OBJECTIVEAI_TAB_ID);
+
+  useEffect(() => {
+    invoke<string[]>("list_plugins_with_viewer")
+      .then(setPluginNames)
+      .catch((e) => {
+        // eslint-disable-next-line no-console
+        console.warn("list_plugins_with_viewer failed:", e);
+      });
+  }, []);
+
+  const tabs: Tab[] = [
+    { id: OBJECTIVEAI_TAB_ID, label: "ObjectiveAI" },
+    ...pluginNames.map((name) => ({ id: name, label: name })),
+  ];
+
+  if (pluginNames.length === 0) {
+    return <ObjectiveAIView />;
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+      <TabBar tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} />
+      <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+        {activeTab === OBJECTIVEAI_TAB_ID ? (
+          <ObjectiveAIView />
+        ) : (
+          <PluginPane pluginName={activeTab} />
+        )}
+      </div>
+    </div>
   );
 }
 

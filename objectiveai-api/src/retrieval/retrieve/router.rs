@@ -1,8 +1,8 @@
 //! Retrieve router — dispatches by `Remote`, resolves commits, and caches per request.
 
 use crate::ctx;
-use objectiveai::error::ResponseError;
-use objectiveai::Remote;
+use objectiveai_sdk::error::ResponseError;
+use objectiveai_sdk::Remote;
 use std::sync::Arc;
 
 /// Routes fetch operations by `Remote` to GitHub/Filesystem/Mock,
@@ -37,8 +37,8 @@ where
         remote: Remote,
         ctx: &ctx::Context<CTXEXT, PC>,
         kind: crate::retrieval::Kind,
-        path: &objectiveai::RemotePathCommitOptional,
-    ) -> Result<Option<objectiveai::RemotePath>, ResponseError> {
+        path: &objectiveai_sdk::RemotePathCommitOptional,
+    ) -> Result<Option<objectiveai_sdk::RemotePath>, ResponseError> {
         match remote {
             Remote::Github => self.github.resolve_latest(ctx, kind, path).await,
             Remote::Filesystem => self.filesystem.resolve_latest(ctx, kind, path).await,
@@ -50,8 +50,8 @@ where
         &self,
         remote: Remote,
         ctx: &ctx::Context<CTXEXT, PC>,
-        path: &objectiveai::RemotePath,
-    ) -> Result<Option<objectiveai::agent::RemoteAgentBaseWithFallbacks>, ResponseError> {
+        path: &objectiveai_sdk::RemotePath,
+    ) -> Result<Option<objectiveai_sdk::agent::RemoteAgentBaseWithFallbacks>, ResponseError> {
         match remote {
             Remote::Github => self.github.get_agent(ctx, path).await,
             Remote::Filesystem => self.filesystem.get_agent(ctx, path).await,
@@ -63,8 +63,8 @@ where
         &self,
         remote: Remote,
         ctx: &ctx::Context<CTXEXT, PC>,
-        path: &objectiveai::RemotePath,
-    ) -> Result<Option<objectiveai::swarm::RemoteSwarmBase>, ResponseError> {
+        path: &objectiveai_sdk::RemotePath,
+    ) -> Result<Option<objectiveai_sdk::swarm::RemoteSwarmBase>, ResponseError> {
         match remote {
             Remote::Github => self.github.get_swarm(ctx, path).await,
             Remote::Filesystem => self.filesystem.get_swarm(ctx, path).await,
@@ -76,8 +76,8 @@ where
         &self,
         remote: Remote,
         ctx: &ctx::Context<CTXEXT, PC>,
-        path: &objectiveai::RemotePath,
-    ) -> Result<Option<objectiveai::functions::FullRemoteFunction>, ResponseError> {
+        path: &objectiveai_sdk::RemotePath,
+    ) -> Result<Option<objectiveai_sdk::functions::FullRemoteFunction>, ResponseError> {
         match remote {
             Remote::Github => self.github.get_function(ctx, path).await,
             Remote::Filesystem => self.filesystem.get_function(ctx, path).await,
@@ -89,8 +89,8 @@ where
         &self,
         remote: Remote,
         ctx: &ctx::Context<CTXEXT, PC>,
-        path: &objectiveai::RemotePath,
-    ) -> Result<Option<objectiveai::functions::RemoteProfile>, ResponseError> {
+        path: &objectiveai_sdk::RemotePath,
+    ) -> Result<Option<objectiveai_sdk::functions::RemoteProfile>, ResponseError> {
         match remote {
             Remote::Github => self.github.get_profile(ctx, path).await,
             Remote::Filesystem => self.filesystem.get_profile(ctx, path).await,
@@ -102,8 +102,8 @@ where
         &self,
         remote: Remote,
         ctx: &ctx::Context<CTXEXT, PC>,
-        path: &objectiveai::RemotePath,
-    ) -> Result<Option<objectiveai::functions::inventions::prompts::RemotePrompt>, ResponseError> {
+        path: &objectiveai_sdk::RemotePath,
+    ) -> Result<Option<objectiveai_sdk::functions::inventions::prompts::RemotePrompt>, ResponseError> {
         match remote {
             Remote::Github => self.github.get_prompt(ctx, path).await,
             Remote::Filesystem => self.filesystem.get_prompt(ctx, path).await,
@@ -116,8 +116,8 @@ where
         self: &Arc<Self>,
         ctx: &ctx::Context<CTXEXT, PC>,
         kind: crate::retrieval::Kind,
-        path: &objectiveai::RemotePathCommitOptional,
-    ) -> Result<Option<objectiveai::RemotePath>, ResponseError> {
+        path: &objectiveai_sdk::RemotePathCommitOptional,
+    ) -> Result<Option<objectiveai_sdk::RemotePath>, ResponseError> {
         let remote = path.remote();
         let cache_key = path.clone();
         let router = self.clone();
@@ -134,18 +134,18 @@ where
     pub async fn get_agent<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         self: &Arc<Self>,
         ctx: &ctx::Context<CTXEXT, PC>,
-        params: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
-    ) -> Result<objectiveai::agent::AgentWithFallbacks, ResponseError> {
+        params: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
+    ) -> Result<objectiveai_sdk::agent::AgentWithFallbacks, ResponseError> {
         match params {
-            objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(base) => {
+            objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(base) => {
                 let converted = base.convert().map_err(|e| bad_request(&e))?;
-                Ok(objectiveai::agent::AgentWithFallbacks::Inline(converted))
+                Ok(objectiveai_sdk::agent::AgentWithFallbacks::Inline(converted))
             }
-            objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::Remote(remote) => {
+            objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::Remote(remote) => {
                 let base = self.fetch_agent_base(ctx, &remote).await?
                     .ok_or_else(|| not_found("agent"))?;
                 let converted = base.convert().map_err(|e| bad_request(&e))?;
-                Ok(objectiveai::agent::AgentWithFallbacks::Remote(converted))
+                Ok(objectiveai_sdk::agent::AgentWithFallbacks::Remote(converted))
             }
         }
     }
@@ -154,8 +154,8 @@ where
     async fn fetch_agent_base<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         self: &Arc<Self>,
         ctx: &ctx::Context<CTXEXT, PC>,
-        params: &objectiveai::RemotePathCommitOptional,
-    ) -> Result<Option<objectiveai::agent::RemoteAgentBaseWithFallbacks>, ResponseError> {
+        params: &objectiveai_sdk::RemotePathCommitOptional,
+    ) -> Result<Option<objectiveai_sdk::agent::RemoteAgentBaseWithFallbacks>, ResponseError> {
         let Some(path) = self.resolve_path(ctx, crate::retrieval::Kind::Agents, params).await? else {
             return Ok(None);
         };
@@ -172,19 +172,19 @@ where
     pub async fn endpoint_get_agent<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         self: &Arc<Self>,
         ctx: &ctx::Context<CTXEXT, PC>,
-        params: &objectiveai::RemotePathCommitOptional,
-    ) -> Result<objectiveai::agent::response::GetAgentResponse, ResponseError> {
+        params: &objectiveai_sdk::RemotePathCommitOptional,
+    ) -> Result<objectiveai_sdk::agent::response::GetAgentResponse, ResponseError> {
         let path = self.resolve_path(ctx, crate::retrieval::Kind::Agents, params).await?
             .ok_or_else(|| not_found("agent"))?;
         let result = self.get_agent(
             ctx,
-            objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::Remote(params.clone()),
+            objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::Remote(params.clone()),
         ).await?;
         let inner = match result {
-            objectiveai::agent::AgentWithFallbacks::Remote(r) => r,
-            objectiveai::agent::AgentWithFallbacks::Inline(_) => unreachable!(),
+            objectiveai_sdk::agent::AgentWithFallbacks::Remote(r) => r,
+            objectiveai_sdk::agent::AgentWithFallbacks::Inline(_) => unreachable!(),
         };
-        Ok(objectiveai::agent::response::GetAgentResponse { path, inner })
+        Ok(objectiveai_sdk::agent::response::GetAgentResponse { path, inner })
     }
 
     // ── Swarm ─────────────────────────────────────────────────────
@@ -194,18 +194,18 @@ where
     pub async fn get_swarm<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         self: &Arc<Self>,
         ctx: &ctx::Context<CTXEXT, PC>,
-        params: objectiveai::swarm::InlineSwarmBaseOrRemoteCommitOptional,
-    ) -> Result<objectiveai::swarm::Swarm, ResponseError> {
+        params: objectiveai_sdk::swarm::InlineSwarmBaseOrRemoteCommitOptional,
+    ) -> Result<objectiveai_sdk::swarm::Swarm, ResponseError> {
         match params {
-            objectiveai::swarm::InlineSwarmBaseOrRemoteCommitOptional::SwarmBase(base) => {
+            objectiveai_sdk::swarm::InlineSwarmBaseOrRemoteCommitOptional::SwarmBase(base) => {
                 let converted = self.resolve_swarm_base(ctx, base).await?;
-                Ok(objectiveai::swarm::Swarm::Inline(converted))
+                Ok(objectiveai_sdk::swarm::Swarm::Inline(converted))
             }
-            objectiveai::swarm::InlineSwarmBaseOrRemoteCommitOptional::Remote(remote) => {
+            objectiveai_sdk::swarm::InlineSwarmBaseOrRemoteCommitOptional::Remote(remote) => {
                 let base = self.fetch_swarm_base(ctx, &remote).await?
                     .ok_or_else(|| not_found("swarm"))?;
                 let converted = self.resolve_swarm_base(ctx, base.inner).await?;
-                Ok(objectiveai::swarm::Swarm::Remote(objectiveai::swarm::RemoteSwarm {
+                Ok(objectiveai_sdk::swarm::Swarm::Remote(objectiveai_sdk::swarm::RemoteSwarm {
                     description: base.description,
                     inner: converted,
                 }))
@@ -218,13 +218,13 @@ where
     async fn resolve_swarm_base<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         self: &Arc<Self>,
         ctx: &ctx::Context<CTXEXT, PC>,
-        base: objectiveai::swarm::InlineSwarmBase,
-    ) -> Result<objectiveai::swarm::InlineSwarm, ResponseError> {
+        base: objectiveai_sdk::swarm::InlineSwarmBase,
+    ) -> Result<objectiveai_sdk::swarm::InlineSwarm, ResponseError> {
         // Collect unique remote agent paths to fetch.
-        let mut unique_paths: indexmap::IndexMap<String, objectiveai::RemotePathCommitOptional> =
+        let mut unique_paths: indexmap::IndexMap<String, objectiveai_sdk::RemotePathCommitOptional> =
             indexmap::IndexMap::new();
         for agent_slot in &base.agents {
-            if let objectiveai::agent::InlineAgentBaseWithFallbacksOrRemote::Remote(path) =
+            if let objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemote::Remote(path) =
                 &agent_slot.inner
             {
                 let key = path.key();
@@ -260,8 +260,8 @@ where
     async fn fetch_swarm_base<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         self: &Arc<Self>,
         ctx: &ctx::Context<CTXEXT, PC>,
-        params: &objectiveai::RemotePathCommitOptional,
-    ) -> Result<Option<objectiveai::swarm::RemoteSwarmBase>, ResponseError> {
+        params: &objectiveai_sdk::RemotePathCommitOptional,
+    ) -> Result<Option<objectiveai_sdk::swarm::RemoteSwarmBase>, ResponseError> {
         let Some(path) = self.resolve_path(ctx, crate::retrieval::Kind::Swarms, params).await? else {
             return Ok(None);
         };
@@ -278,19 +278,19 @@ where
     pub async fn endpoint_get_swarm<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         self: &Arc<Self>,
         ctx: &ctx::Context<CTXEXT, PC>,
-        params: &objectiveai::RemotePathCommitOptional,
-    ) -> Result<objectiveai::swarm::response::GetSwarmResponse, ResponseError> {
+        params: &objectiveai_sdk::RemotePathCommitOptional,
+    ) -> Result<objectiveai_sdk::swarm::response::GetSwarmResponse, ResponseError> {
         let path = self.resolve_path(ctx, crate::retrieval::Kind::Swarms, params).await?
             .ok_or_else(|| not_found("swarm"))?;
         let result = self.get_swarm(
             ctx,
-            objectiveai::swarm::InlineSwarmBaseOrRemoteCommitOptional::Remote(params.clone()),
+            objectiveai_sdk::swarm::InlineSwarmBaseOrRemoteCommitOptional::Remote(params.clone()),
         ).await?;
         let inner = match result {
-            objectiveai::swarm::Swarm::Remote(r) => r,
-            objectiveai::swarm::Swarm::Inline(_) => unreachable!(),
+            objectiveai_sdk::swarm::Swarm::Remote(r) => r,
+            objectiveai_sdk::swarm::Swarm::Inline(_) => unreachable!(),
         };
-        Ok(objectiveai::swarm::response::GetSwarmResponse { path, inner })
+        Ok(objectiveai_sdk::swarm::response::GetSwarmResponse { path, inner })
     }
 
     // ── Function ──────────────────────────────────────────────────
@@ -299,16 +299,16 @@ where
     pub async fn get_function<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         self: &Arc<Self>,
         ctx: &ctx::Context<CTXEXT, PC>,
-        params: objectiveai::functions::FullInlineFunctionOrRemoteCommitOptional,
-    ) -> Result<objectiveai::functions::FullFunction, ResponseError> {
+        params: objectiveai_sdk::functions::FullInlineFunctionOrRemoteCommitOptional,
+    ) -> Result<objectiveai_sdk::functions::FullFunction, ResponseError> {
         match params {
-            objectiveai::functions::FullInlineFunctionOrRemoteCommitOptional::Inline(inline) => {
-                Ok(objectiveai::functions::FullFunction::Inline(inline))
+            objectiveai_sdk::functions::FullInlineFunctionOrRemoteCommitOptional::Inline(inline) => {
+                Ok(objectiveai_sdk::functions::FullFunction::Inline(inline))
             }
-            objectiveai::functions::FullInlineFunctionOrRemoteCommitOptional::Remote(remote) => {
+            objectiveai_sdk::functions::FullInlineFunctionOrRemoteCommitOptional::Remote(remote) => {
                 let fetched = self.fetch_function(ctx, &remote).await?
                     .ok_or_else(|| not_found("function"))?;
-                Ok(objectiveai::functions::FullFunction::Remote(fetched))
+                Ok(objectiveai_sdk::functions::FullFunction::Remote(fetched))
             }
         }
     }
@@ -317,8 +317,8 @@ where
     async fn fetch_function<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         self: &Arc<Self>,
         ctx: &ctx::Context<CTXEXT, PC>,
-        params: &objectiveai::RemotePathCommitOptional,
-    ) -> Result<Option<objectiveai::functions::FullRemoteFunction>, ResponseError> {
+        params: &objectiveai_sdk::RemotePathCommitOptional,
+    ) -> Result<Option<objectiveai_sdk::functions::FullRemoteFunction>, ResponseError> {
         let Some(path) = self.resolve_path(ctx, crate::retrieval::Kind::Functions, params).await? else {
             return Ok(None);
         };
@@ -335,19 +335,19 @@ where
     pub async fn endpoint_get_function<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         self: &Arc<Self>,
         ctx: &ctx::Context<CTXEXT, PC>,
-        params: &objectiveai::RemotePathCommitOptional,
-    ) -> Result<objectiveai::functions::response::GetFunctionResponse, ResponseError> {
+        params: &objectiveai_sdk::RemotePathCommitOptional,
+    ) -> Result<objectiveai_sdk::functions::response::GetFunctionResponse, ResponseError> {
         let path = self.resolve_path(ctx, crate::retrieval::Kind::Functions, params).await?
             .ok_or_else(|| not_found("function"))?;
         let result = self.get_function(
             ctx,
-            objectiveai::functions::FullInlineFunctionOrRemoteCommitOptional::Remote(params.clone()),
+            objectiveai_sdk::functions::FullInlineFunctionOrRemoteCommitOptional::Remote(params.clone()),
         ).await?;
         let inner = match result {
-            objectiveai::functions::FullFunction::Remote(r) => r,
-            objectiveai::functions::FullFunction::Inline(_) => unreachable!(),
+            objectiveai_sdk::functions::FullFunction::Remote(r) => r,
+            objectiveai_sdk::functions::FullFunction::Inline(_) => unreachable!(),
         };
-        Ok(objectiveai::functions::response::GetFunctionResponse { path, inner })
+        Ok(objectiveai_sdk::functions::response::GetFunctionResponse { path, inner })
     }
 
     /// Fetches all child functions referenced by a function's tasks.
@@ -355,13 +355,13 @@ where
     pub async fn get_function_tasks<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         self: &Arc<Self>,
         ctx: &ctx::Context<CTXEXT, PC>,
-        function: objectiveai::functions::FullFunction,
-    ) -> Result<std::collections::HashMap<String, objectiveai::functions::FullRemoteFunction>, ResponseError> {
+        function: objectiveai_sdk::functions::FullFunction,
+    ) -> Result<std::collections::HashMap<String, objectiveai_sdk::functions::FullRemoteFunction>, ResponseError> {
         let mut futs: Vec<(String, _)> = Vec::new();
 
         for path in function.remotes() {
             let key = path.key();
-            let params = objectiveai::functions::FullInlineFunctionOrRemoteCommitOptional::Remote(
+            let params = objectiveai_sdk::functions::FullInlineFunctionOrRemoteCommitOptional::Remote(
                 path.clone().into(),
             );
             let router = self.clone();
@@ -375,10 +375,10 @@ where
         for (key, handle) in futs {
             let full_fn = handle.await.expect("get_function_tasks panicked")?;
             match full_fn {
-                objectiveai::functions::FullFunction::Remote(r) => {
+                objectiveai_sdk::functions::FullFunction::Remote(r) => {
                     children.insert(key, r);
                 }
-                objectiveai::functions::FullFunction::Inline(_) => {
+                objectiveai_sdk::functions::FullFunction::Inline(_) => {
                     unreachable!()
                 }
             }
@@ -393,16 +393,16 @@ where
     pub async fn get_profile<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         self: &Arc<Self>,
         ctx: &ctx::Context<CTXEXT, PC>,
-        params: objectiveai::functions::InlineProfileOrRemoteCommitOptional,
-    ) -> Result<objectiveai::functions::Profile, ResponseError> {
+        params: objectiveai_sdk::functions::InlineProfileOrRemoteCommitOptional,
+    ) -> Result<objectiveai_sdk::functions::Profile, ResponseError> {
         match params {
-            objectiveai::functions::InlineProfileOrRemoteCommitOptional::Inline(inline) => {
-                Ok(objectiveai::functions::Profile::Inline(inline))
+            objectiveai_sdk::functions::InlineProfileOrRemoteCommitOptional::Inline(inline) => {
+                Ok(objectiveai_sdk::functions::Profile::Inline(inline))
             }
-            objectiveai::functions::InlineProfileOrRemoteCommitOptional::Remote(remote) => {
+            objectiveai_sdk::functions::InlineProfileOrRemoteCommitOptional::Remote(remote) => {
                 let fetched = self.fetch_profile(ctx, &remote).await?
                     .ok_or_else(|| not_found("profile"))?;
-                Ok(objectiveai::functions::Profile::Remote(fetched))
+                Ok(objectiveai_sdk::functions::Profile::Remote(fetched))
             }
         }
     }
@@ -412,8 +412,8 @@ where
     async fn fetch_profile<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         self: &Arc<Self>,
         ctx: &ctx::Context<CTXEXT, PC>,
-        params: &objectiveai::RemotePathCommitOptional,
-    ) -> Result<Option<objectiveai::functions::RemoteProfile>, ResponseError> {
+        params: &objectiveai_sdk::RemotePathCommitOptional,
+    ) -> Result<Option<objectiveai_sdk::functions::RemoteProfile>, ResponseError> {
         let Some(path) = self.resolve_path(ctx, crate::retrieval::Kind::Profiles, params).await? else {
             return Ok(None);
         };
@@ -429,7 +429,7 @@ where
                     // Fallback: try swarm.json (a swarm definition is a valid Auto profile)
                     match router.dispatch_get_swarm(remote, &ctx_clone, &path_clone).await {
                         Ok(Some(swarm)) => Ok(Some(
-                            objectiveai::functions::RemoteProfile::Auto(swarm),
+                            objectiveai_sdk::functions::RemoteProfile::Auto(swarm),
                         )),
                         Ok(None) => Ok(None),
                         Err(e) => Err(e),
@@ -448,13 +448,13 @@ where
     pub async fn get_function_invention_state<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         self: &Arc<Self>,
         ctx: &ctx::Context<CTXEXT, PC>,
-        params: objectiveai::functions::inventions::ParamsStateOrRemoteCommitOptional,
-    ) -> Result<Option<objectiveai::functions::inventions::ParamsState>, ResponseError> {
+        params: objectiveai_sdk::functions::inventions::ParamsStateOrRemoteCommitOptional,
+    ) -> Result<Option<objectiveai_sdk::functions::inventions::ParamsState>, ResponseError> {
         let remote_path = match params {
-            objectiveai::functions::inventions::ParamsStateOrRemoteCommitOptional::Inline(state) => {
+            objectiveai_sdk::functions::inventions::ParamsStateOrRemoteCommitOptional::Inline(state) => {
                 return Ok(Some(state));
             }
-            objectiveai::functions::inventions::ParamsStateOrRemoteCommitOptional::Remote(remote) => remote,
+            objectiveai_sdk::functions::inventions::ParamsStateOrRemoteCommitOptional::Remote(remote) => remote,
         };
 
         let Some(path) = self.resolve_path(ctx, crate::retrieval::Kind::Functions, &remote_path).await? else {
@@ -463,7 +463,7 @@ where
         let remote = path.remote();
 
         // Fetch all state files concurrently
-        let filenames = objectiveai::functions::inventions::ParamsState::filenames();
+        let filenames = objectiveai_sdk::functions::inventions::ParamsState::filenames();
         let futs: Vec<_> = filenames.iter().map(|&filename| {
             let path = path.clone();
             let ctx = ctx.clone();
@@ -490,7 +490,7 @@ where
             .filter_map(|(filename, content)| content.map(|c| (filename, c)))
             .collect();
 
-        match objectiveai::functions::inventions::ParamsState::deserialize_from_files(map) {
+        match objectiveai_sdk::functions::inventions::ParamsState::deserialize_from_files(map) {
             Ok(state) => Ok(state),
             Err(e) => Err(ResponseError {
                 code: 500,
@@ -503,35 +503,35 @@ where
     pub async fn endpoint_get_function_invention_state<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         self: &Arc<Self>,
         ctx: &ctx::Context<CTXEXT, PC>,
-        params: &objectiveai::RemotePathCommitOptional,
-    ) -> Result<objectiveai::functions::inventions::state::response::GetFunctionInventionStateResponse, ResponseError> {
+        params: &objectiveai_sdk::RemotePathCommitOptional,
+    ) -> Result<objectiveai_sdk::functions::inventions::state::response::GetFunctionInventionStateResponse, ResponseError> {
         let path = self.resolve_path(ctx, crate::retrieval::Kind::Functions, params).await?
             .ok_or_else(|| not_found("function invention state"))?;
         let state = self.get_function_invention_state(
             ctx,
-            objectiveai::functions::inventions::ParamsStateOrRemoteCommitOptional::Remote(params.clone()),
+            objectiveai_sdk::functions::inventions::ParamsStateOrRemoteCommitOptional::Remote(params.clone()),
         ).await?
             .ok_or_else(|| not_found("function invention state"))?;
-        Ok(objectiveai::functions::inventions::state::response::GetFunctionInventionStateResponse { path, inner: state })
+        Ok(objectiveai_sdk::functions::inventions::state::response::GetFunctionInventionStateResponse { path, inner: state })
     }
 
     /// API endpoint: fetch a remote profile, wrap in response.
     pub async fn endpoint_get_profile<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         self: &Arc<Self>,
         ctx: &ctx::Context<CTXEXT, PC>,
-        params: &objectiveai::RemotePathCommitOptional,
-    ) -> Result<objectiveai::functions::profiles::response::GetProfileResponse, ResponseError> {
+        params: &objectiveai_sdk::RemotePathCommitOptional,
+    ) -> Result<objectiveai_sdk::functions::profiles::response::GetProfileResponse, ResponseError> {
         let path = self.resolve_path(ctx, crate::retrieval::Kind::Profiles, params).await?
             .ok_or_else(|| not_found("profile"))?;
         let result = self.get_profile(
             ctx,
-            objectiveai::functions::InlineProfileOrRemoteCommitOptional::Remote(params.clone()),
+            objectiveai_sdk::functions::InlineProfileOrRemoteCommitOptional::Remote(params.clone()),
         ).await?;
         let inner = match result {
-            objectiveai::functions::Profile::Remote(r) => r,
-            objectiveai::functions::Profile::Inline(_) => unreachable!(),
+            objectiveai_sdk::functions::Profile::Remote(r) => r,
+            objectiveai_sdk::functions::Profile::Inline(_) => unreachable!(),
         };
-        Ok(objectiveai::functions::profiles::response::GetProfileResponse { path, inner })
+        Ok(objectiveai_sdk::functions::profiles::response::GetProfileResponse { path, inner })
     }
 
     // ── Prompt ─────────────────────────────────────────────────────
@@ -540,16 +540,16 @@ where
     pub async fn get_prompt<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         self: &Arc<Self>,
         ctx: &ctx::Context<CTXEXT, PC>,
-        params: objectiveai::functions::inventions::prompts::InlinePromptOrRemoteCommitOptional,
-    ) -> Result<objectiveai::functions::inventions::prompts::Prompt, ResponseError> {
+        params: objectiveai_sdk::functions::inventions::prompts::InlinePromptOrRemoteCommitOptional,
+    ) -> Result<objectiveai_sdk::functions::inventions::prompts::Prompt, ResponseError> {
         match params {
-            objectiveai::functions::inventions::prompts::InlinePromptOrRemoteCommitOptional::Inline(inline) => {
-                Ok(objectiveai::functions::inventions::prompts::Prompt::Inline(inline))
+            objectiveai_sdk::functions::inventions::prompts::InlinePromptOrRemoteCommitOptional::Inline(inline) => {
+                Ok(objectiveai_sdk::functions::inventions::prompts::Prompt::Inline(inline))
             }
-            objectiveai::functions::inventions::prompts::InlinePromptOrRemoteCommitOptional::Remote(remote) => {
+            objectiveai_sdk::functions::inventions::prompts::InlinePromptOrRemoteCommitOptional::Remote(remote) => {
                 let fetched = self.fetch_prompt(ctx, &remote).await?
                     .ok_or_else(|| not_found("prompt"))?;
-                Ok(objectiveai::functions::inventions::prompts::Prompt::Remote(fetched))
+                Ok(objectiveai_sdk::functions::inventions::prompts::Prompt::Remote(fetched))
             }
         }
     }
@@ -558,8 +558,8 @@ where
     async fn fetch_prompt<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         self: &Arc<Self>,
         ctx: &ctx::Context<CTXEXT, PC>,
-        params: &objectiveai::RemotePathCommitOptional,
-    ) -> Result<Option<objectiveai::functions::inventions::prompts::RemotePrompt>, ResponseError> {
+        params: &objectiveai_sdk::RemotePathCommitOptional,
+    ) -> Result<Option<objectiveai_sdk::functions::inventions::prompts::RemotePrompt>, ResponseError> {
         let Some(path) = self.resolve_path(ctx, crate::retrieval::Kind::Prompts, params).await? else {
             return Ok(None);
         };
@@ -571,19 +571,19 @@ where
     pub async fn endpoint_get_prompt<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         self: &Arc<Self>,
         ctx: &ctx::Context<CTXEXT, PC>,
-        params: &objectiveai::RemotePathCommitOptional,
-    ) -> Result<objectiveai::functions::inventions::prompts::response::GetPromptResponse, ResponseError> {
+        params: &objectiveai_sdk::RemotePathCommitOptional,
+    ) -> Result<objectiveai_sdk::functions::inventions::prompts::response::GetPromptResponse, ResponseError> {
         let path = self.resolve_path(ctx, crate::retrieval::Kind::Prompts, params).await?
             .ok_or_else(|| not_found("prompt"))?;
         let result = self.get_prompt(
             ctx,
-            objectiveai::functions::inventions::prompts::InlinePromptOrRemoteCommitOptional::Remote(params.clone()),
+            objectiveai_sdk::functions::inventions::prompts::InlinePromptOrRemoteCommitOptional::Remote(params.clone()),
         ).await?;
         let inner = match result {
-            objectiveai::functions::inventions::prompts::Prompt::Remote(r) => r,
-            objectiveai::functions::inventions::prompts::Prompt::Inline(_) => unreachable!(),
+            objectiveai_sdk::functions::inventions::prompts::Prompt::Remote(r) => r,
+            objectiveai_sdk::functions::inventions::prompts::Prompt::Inline(_) => unreachable!(),
         };
-        Ok(objectiveai::functions::inventions::prompts::response::GetPromptResponse { path, inner })
+        Ok(objectiveai_sdk::functions::inventions::prompts::response::GetPromptResponse { path, inner })
     }
 }
 

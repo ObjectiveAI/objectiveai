@@ -1,7 +1,7 @@
 //! ObjectiveAI list source implementation.
 
 use crate::ctx;
-use objectiveai::error::ResponseError;
+use objectiveai_sdk::error::ResponseError;
 use std::sync::Arc;
 
 pub struct ObjectiveAiClient {
@@ -22,12 +22,12 @@ where
     async fn list_agents<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         ctx: &ctx::Context<CTXEXT, PC>,
-    ) -> Result<objectiveai::agent::response::ListAgentResponse, ResponseError> {
+    ) -> Result<objectiveai_sdk::agent::response::ListAgentResponse, ResponseError> {
         let client = self.client.with_authorization(ctx).await;
-        objectiveai::agent::list_agents(
+        objectiveai_sdk::agent::list_agents(
             &client,
-            objectiveai::agent::request::ListAgentsRequest {
-                source: Some(objectiveai::agent::request::ListAgentsSource::Objectiveai),
+            objectiveai_sdk::agent::request::ListAgentsRequest {
+                source: Some(objectiveai_sdk::agent::request::ListAgentsSource::Objectiveai),
             },
         )
         .await
@@ -37,12 +37,12 @@ where
     async fn list_swarms<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         ctx: &ctx::Context<CTXEXT, PC>,
-    ) -> Result<objectiveai::swarm::response::ListSwarmResponse, ResponseError> {
+    ) -> Result<objectiveai_sdk::swarm::response::ListSwarmResponse, ResponseError> {
         let client = self.client.with_authorization(ctx).await;
-        objectiveai::swarm::list_swarms(
+        objectiveai_sdk::swarm::list_swarms(
             &client,
-            objectiveai::swarm::request::ListSwarmsRequest {
-                source: Some(objectiveai::swarm::request::ListSwarmsSource::Objectiveai),
+            objectiveai_sdk::swarm::request::ListSwarmsRequest {
+                source: Some(objectiveai_sdk::swarm::request::ListSwarmsSource::Objectiveai),
             },
         )
         .await
@@ -52,12 +52,12 @@ where
     async fn list_functions<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         ctx: &ctx::Context<CTXEXT, PC>,
-    ) -> Result<objectiveai::functions::response::ListFunctionResponse, ResponseError> {
+    ) -> Result<objectiveai_sdk::functions::response::ListFunctionResponse, ResponseError> {
         let client = self.client.with_authorization(ctx).await;
-        objectiveai::functions::list_functions(
+        objectiveai_sdk::functions::list_functions(
             &client,
-            objectiveai::functions::request::ListFunctionsRequest {
-                source: Some(objectiveai::functions::request::ListFunctionsSource::Objectiveai),
+            objectiveai_sdk::functions::request::ListFunctionsRequest {
+                source: Some(objectiveai_sdk::functions::request::ListFunctionsSource::Objectiveai),
             },
         )
         .await
@@ -67,14 +67,14 @@ where
     async fn list_profiles<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         ctx: &ctx::Context<CTXEXT, PC>,
-    ) -> Result<objectiveai::functions::profiles::response::ListProfileResponse, ResponseError>
+    ) -> Result<objectiveai_sdk::functions::profiles::response::ListProfileResponse, ResponseError>
     {
         let client = self.client.with_authorization(ctx).await;
-        objectiveai::functions::profiles::list_profiles(
+        objectiveai_sdk::functions::profiles::list_profiles(
             &client,
-            objectiveai::functions::profiles::request::ListProfilesRequest {
+            objectiveai_sdk::functions::profiles::request::ListProfilesRequest {
                 source: Some(
-                    objectiveai::functions::profiles::request::ListProfilesSource::Objectiveai,
+                    objectiveai_sdk::functions::profiles::request::ListProfilesSource::Objectiveai,
                 ),
             },
         )
@@ -85,14 +85,14 @@ where
     async fn list_prompts<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         ctx: &ctx::Context<CTXEXT, PC>,
-    ) -> Result<objectiveai::functions::inventions::prompts::response::ListPromptResponse, ResponseError>
+    ) -> Result<objectiveai_sdk::functions::inventions::prompts::response::ListPromptResponse, ResponseError>
     {
         let client = self.client.with_authorization(ctx).await;
-        objectiveai::functions::inventions::prompts::list_prompts(
+        objectiveai_sdk::functions::inventions::prompts::list_prompts(
             &client,
-            objectiveai::functions::inventions::prompts::request::ListPromptsRequest {
+            objectiveai_sdk::functions::inventions::prompts::request::ListPromptsRequest {
                 source: Some(
-                    objectiveai::functions::inventions::prompts::request::ListPromptsSource::Objectiveai,
+                    objectiveai_sdk::functions::inventions::prompts::request::ListPromptsSource::Objectiveai,
                 ),
             },
         )
@@ -103,14 +103,14 @@ where
     async fn list_function_profile_pairs<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         ctx: &ctx::Context<CTXEXT, PC>,
-    ) -> Result<objectiveai::functions::response::ListFunctionProfilePairResponse, ResponseError>
+    ) -> Result<objectiveai_sdk::functions::response::ListFunctionProfilePairResponse, ResponseError>
     {
         let client = self.client.with_authorization(ctx).await;
-        objectiveai::functions::list_function_profile_pairs(
+        objectiveai_sdk::functions::list_function_profile_pairs(
             &client,
-            objectiveai::functions::request::ListFunctionProfilePairsRequest {
+            objectiveai_sdk::functions::request::ListFunctionProfilePairsRequest {
                 source: Some(
-                    objectiveai::functions::request::ListFunctionProfilePairsSource::Objectiveai,
+                    objectiveai_sdk::functions::request::ListFunctionProfilePairsSource::Objectiveai,
                 ),
             },
         )

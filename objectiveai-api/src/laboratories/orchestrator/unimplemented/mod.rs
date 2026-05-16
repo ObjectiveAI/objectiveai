@@ -8,7 +8,7 @@ pub struct Orchestrator;
 #[error("laboratories orchestrator not implemented")]
 pub struct Error;
 
-impl objectiveai::error::StatusError for Error {
+impl objectiveai_sdk::error::StatusError for Error {
     fn status(&self) -> u16 {
         501
     }

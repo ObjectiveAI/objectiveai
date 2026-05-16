@@ -73,15 +73,15 @@ impl Client {
     ) -> impl Stream<
         Item = Result<
             StreamItem<
-                objectiveai::agent::completions::message::AssistantMessage,
+                objectiveai_sdk::agent::completions::message::AssistantMessage,
             >,
             super::Error,
         >,
     > + Send
     + 'static {
         async_stream::stream! {
-            use objectiveai::agent::completions::message::AssistantMessage;
-            use objectiveai::agent::completions::response::streaming::{
+            use objectiveai_sdk::agent::completions::message::AssistantMessage;
+            use objectiveai_sdk::agent::completions::response::streaming::{
                 AssistantResponseChunk, MessageChunk,
             };
 
@@ -222,8 +222,8 @@ impl Client {
     }
 }
 
-impl UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation> for Client {
-    type State = objectiveai::agent::completions::message::AssistantMessage;
+impl UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::agent::openrouter::Continuation> for Client {
+    type State = objectiveai_sdk::agent::completions::message::AssistantMessage;
     type Stream = Pin<
         Box<dyn Stream<Item = StreamItem<Self::State>> + Send + 'static>,
     >;
@@ -233,16 +233,16 @@ impl UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::o
         &self,
         id: &str,
         created: u64,
-        agent: &objectiveai::agent::openrouter::Agent,
-        request_continuation: Option<&objectiveai::agent::openrouter::Continuation>,
-        params: &objectiveai::agent::completions::request::AgentCompletionCreateParams,
-        messages: &[objectiveai::agent::completions::message::Message],
-        mcp_connection: Option<objectiveai::mcp::Connection>,
+        agent: &objectiveai_sdk::agent::openrouter::Agent,
+        request_continuation: Option<&objectiveai_sdk::agent::openrouter::Continuation>,
+        params: &objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams,
+        messages: &[objectiveai_sdk::agent::completions::message::Message],
+        mcp_connection: Option<objectiveai_sdk::mcp::Connection>,
         continuation: Option<&[ContinuationItem<Self::State>]>,
         byok: Option<&str>,
         cost_multiplier: rust_decimal::Decimal,
         _tools_enabled: bool,
-        _invention_type: Option<objectiveai::functions::inventions::prompts::StepPromptType>,
+        _invention_type: Option<objectiveai_sdk::functions::inventions::prompts::StepPromptType>,
         _invention_step: Option<usize>,
         _invention_tasks_min: Option<u64>,
         _invention_input_schema: Option<String>,
@@ -267,7 +267,7 @@ impl UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::o
         async move {
             // Reject required tool call when tools are not allowed.
             if !tools_enabled {
-                use objectiveai::agent::completions::request::{ResponseFormat, ResponseFormatParam};
+                use objectiveai_sdk::agent::completions::request::{ResponseFormat, ResponseFormatParam};
                 let resolved_rf = match params.response_format.as_ref() {
                     Some(ResponseFormatParam::Single(rf)) => Some(rf),
                     Some(ResponseFormatParam::PerAgent(map)) => map.get(&agent.id),
@@ -278,7 +278,7 @@ impl UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::o
                 }
             }
 
-            use objectiveai::agent::completions::request::ResponseFormatParam;
+            use objectiveai_sdk::agent::completions::request::ResponseFormatParam;
             let response_format = match params.response_format.as_ref() {
                 Some(ResponseFormatParam::Single(rf)) => Some(rf.clone()),
                 Some(ResponseFormatParam::PerAgent(map)) => map.get(&agent.id).cloned(),
@@ -359,11 +359,11 @@ impl UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::o
                     let rest = stream.map(move |item| match item {
                         Ok(si) => si,
                         Err(e) => {
-                            use objectiveai::error::StatusError;
+                            use objectiveai_sdk::error::StatusError;
                             StreamItem::Chunk(
-                                objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
+                                objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
                                     id: id_for_stream.clone(),
-                                    error: Some(objectiveai::error::ResponseError {
+                                    error: Some(objectiveai_sdk::error::ResponseError {
                                         code: e.status(),
                                         message: e.message()
                                             .unwrap_or(serde_json::Value::Null),
@@ -387,11 +387,11 @@ impl UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::o
     fn response_continuation(
         &self,
         mcp_sessions: indexmap::IndexMap<String, String>,
-        request_continuation: Option<&objectiveai::agent::openrouter::Continuation>,
-        messages: &[objectiveai::agent::completions::message::Message],
+        request_continuation: Option<&objectiveai_sdk::agent::openrouter::Continuation>,
+        messages: &[objectiveai_sdk::agent::completions::message::Message],
         continuation: Option<&[ContinuationItem<Self::State>]>,
-    ) -> objectiveai::agent::openrouter::Continuation {
-        use objectiveai::agent::completions::message::Message;
+    ) -> objectiveai_sdk::agent::openrouter::Continuation {
+        use objectiveai_sdk::agent::completions::message::Message;
         let rc_len = request_continuation.map_or(0, |rc| rc.messages.len());
         let cont_len = continuation.map_or(0, |c| c.len());
         let mut all_messages = Vec::with_capacity(rc_len + messages.len() + cont_len);
@@ -406,8 +406,8 @@ impl UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::o
                 ContinuationItem::UserMessage(u) => Message::User(u.clone()),
             }));
         }
-        objectiveai::agent::openrouter::Continuation {
-            upstream: objectiveai::agent::openrouter::Upstream::default(),
+        objectiveai_sdk::agent::openrouter::Continuation {
+            upstream: objectiveai_sdk::agent::openrouter::Upstream::default(),
             messages: all_messages,
             mcp_sessions,
         }

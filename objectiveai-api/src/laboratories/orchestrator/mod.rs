@@ -14,7 +14,7 @@ use crate::ctx;
 /// serverless instances, etc.), uploading and executing binaries inside them,
 /// exposing MCP server URLs, and cleanup.
 pub trait Orchestrator<CTXEXT>: Send + Sync + 'static {
-    type Error: objectiveai::error::StatusError + Send + Sync + 'static;
+    type Error: objectiveai_sdk::error::StatusError + Send + Sync + 'static;
 
     /// Spawn `num_builders` builder environments from the given image.
     ///

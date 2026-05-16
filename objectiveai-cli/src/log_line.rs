@@ -1,36 +1,56 @@
-//! Streaming "log file is ready" handshake.
-//!
-//! Emitted by the long-running streaming `create` commands during the
-//! detach flow so the parent process can detect when the child has
-//! claimed a log id and become orphan-safe.
-//!
-//! Wire shape:
-//!   `{"type":"notification","log_stream_ready":"<id>"}`
+//! Streaming "log file is ready" handshake between the streaming `create`
+//! commands and the `--detach` parent process. The parent watches the
+//! child's stdout for a [`LogStreamReady`] JSONL notification and exits
+//! cleanly once it sees one.
 
-use serde::{Deserialize, Serialize};
+use objectiveai_sdk::cli::output::{Cleared, Handle, Items, LogContent, LogStreamReady, Output};
 
-#[derive(Serialize, Deserialize)]
-pub struct LogStreamReady {
-    pub log_stream_ready: String,
-}
-
-/// Emits the log-stream-ready notification.
-pub fn emit_log_stream_ready(id: &str) {
-    objectiveai_cli_lib::output::Output::<LogStreamReady>::Notification(LogStreamReady {
+/// Emit the log-stream-ready notification with the given log id.
+pub async fn emit_log_stream_ready(id: &str, handle: &Handle) {
+    Output::<LogStreamReady>::Notification(objectiveai_sdk::cli::output::Notification { value: LogStreamReady {
         log_stream_ready: id.to_string(),
-    })
-    .emit();
+    } })
+    .emit(handle)
+    .await;
 }
 
-/// Returns the log id if the line is a log-stream-ready notification.
+/// Returns the log id if `line` is a log-stream-ready notification.
 pub fn parse_log_stream_ready(line: &str) -> Option<String> {
     let trimmed = line.trim();
-    let parsed: objectiveai_cli_lib::output::Output<LogStreamReady> =
-        serde_json::from_str(trimmed).ok()?;
+    let parsed: Output<LogStreamReady> = serde_json::from_str(trimmed).ok()?;
     match parsed {
-        objectiveai_cli_lib::output::Output::Notification(LogStreamReady { log_stream_ready }) => {
-            Some(log_stream_ready)
-        }
-        objectiveai_cli_lib::output::Output::Error(_) => None,
+        Output::Notification(objectiveai_sdk::cli::output::Notification {
+            value: LogStreamReady { log_stream_ready },
+        }) => Some(log_stream_ready),
+        Output::Error(_) | Output::Begin | Output::End => None,
     }
+}
+
+/// Translate the upstream `LogContent` (which has no serde derives)
+/// into the cli-lib wire shape and emit.
+pub async fn emit_log_content(content: objectiveai_sdk::filesystem::logs::LogContent, handle: &Handle) {
+    let wire = match content {
+        objectiveai_sdk::filesystem::logs::LogContent::Json(v) => LogContent::Json { content: v },
+        objectiveai_sdk::filesystem::logs::LogContent::DataUrl(s) => LogContent::DataUrl {
+            content_data_url: s,
+        },
+    };
+    Output::<LogContent>::Notification(objectiveai_sdk::cli::output::Notification { value: wire }).emit(handle).await;
+}
+
+/// Emit a list of log directory entries as `Items<LogListItem>`.
+pub async fn emit_log_list(
+    items: Vec<objectiveai_sdk::filesystem::logs::ListItem>,
+    handle: &Handle,
+) {
+    Output::<Items<objectiveai_sdk::filesystem::logs::ListItem>>::Notification(objectiveai_sdk::cli::output::Notification { value: Items { items } })
+        .emit(handle)
+        .await;
+}
+
+/// Emit the count of cleared log files as `Cleared`.
+pub async fn emit_log_clear_count(count: u64, handle: &Handle) {
+    Output::<Cleared>::Notification(objectiveai_sdk::cli::output::Notification { value: Cleared { cleared: count } })
+        .emit(handle)
+        .await;
 }

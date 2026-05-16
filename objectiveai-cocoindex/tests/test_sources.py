@@ -8,25 +8,25 @@ from objectiveai_cocoindex import (
     RemoteFunction,
     RemoteProfile,
 )
-from objectiveai.functions.full_inline_function import (
+from objectiveai_sdk.functions.full_inline_function import (
     FullInlineFunction,
     FullInlineFunctionStandard,
 )
-from objectiveai.functions.full_inline_function_or_remote_commit_optional import (
+from objectiveai_sdk.functions.full_inline_function_or_remote_commit_optional import (
     FullInlineFunctionOrRemoteCommitOptionalInline,
     FullInlineFunctionOrRemoteCommitOptionalRemote,
 )
-from objectiveai.functions.inline_function import InlineFunction as InlineFunctionBody
-from objectiveai.functions.inline_function import InlineFunctionScalar
-from objectiveai.functions.inline_profile import (
+from objectiveai_sdk.functions.inline_function import InlineFunction as InlineFunctionBody
+from objectiveai_sdk.functions.inline_function import InlineFunctionScalar
+from objectiveai_sdk.functions.inline_profile import (
     InlineProfile as InlineProfileBody,
     InlineProfileAuto,
 )
-from objectiveai.functions.inline_profile_or_remote_commit_optional import (
+from objectiveai_sdk.functions.inline_profile_or_remote_commit_optional import (
     InlineProfileOrRemoteCommitOptionalInline,
     InlineProfileOrRemoteCommitOptionalRemote,
 )
-from objectiveai.swarm.inline_swarm_base import InlineSwarmBase
+from objectiveai_sdk.swarm.inline_swarm_base import InlineSwarmBase
 
 
 # ---------------------------------------------------------------------------

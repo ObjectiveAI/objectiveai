@@ -1,0 +1,10 @@
+{
+  "title": "cli.output.notification.Ok",
+  "description": "Wire shape for silent-success notifications (`config set`,\n`favorites add/del/edit`, `instructions clear`, etc.). Wire:\n`{\"type\":\"notification\",\"ok\":true}`.",
+  "type": "object",
+  "properties": {
+    "ok": {
+      "type": "boolean"
+    }
+  }
+}

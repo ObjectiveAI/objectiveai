@@ -1,6 +1,6 @@
 //! Default (no-op) persistent cache client.
 
-use objectiveai::error::ResponseError;
+use objectiveai_sdk::error::ResponseError;
 
 /// A no-op persistent cache client that never stores or retrieves anything.
 #[derive(Debug)]

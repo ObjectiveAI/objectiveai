@@ -45,8 +45,8 @@ pub struct McpHttpServerConfig {
     pub headers: Option<indexmap::IndexMap<String, String>>,
 }
 
-impl From<&objectiveai::mcp::Connection> for McpHttpServerConfig {
-    fn from(conn: &objectiveai::mcp::Connection) -> Self {
+impl From<&objectiveai_sdk::mcp::Connection> for McpHttpServerConfig {
+    fn from(conn: &objectiveai_sdk::mcp::Connection) -> Self {
         // The connection's `headers` field is the same merged map the
         // proxy stamps on every request — User-Agent / X-Title /
         // Referer / HTTP-Referer / Authorization / any custom X-*.

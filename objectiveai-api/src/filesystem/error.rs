@@ -10,7 +10,7 @@ pub enum Error {
     DeserializationError(#[from] serde_path_to_error::Error<serde_json::Error>),
 }
 
-impl objectiveai::error::StatusError for Error {
+impl objectiveai_sdk::error::StatusError for Error {
     fn status(&self) -> u16 {
         match self {
             Error::Git(_) => 500,

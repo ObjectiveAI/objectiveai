@@ -90,17 +90,17 @@ pub fn issue(
     // Table creation is idempotent — the `instructions get` subcommand
     // may be the first thing the user ever runs, in which case the
     // sqlite file and this table both need to exist before the INSERT.
-    objectiveai::filesystem::config::db::execute(
+    objectiveai_sdk::filesystem::config::db::execute(
         &client,
         &format!(
             "CREATE TABLE IF NOT EXISTS {table} (instructions_id TEXT PRIMARY KEY NOT NULL)"
         ),
         [],
     )?;
-    objectiveai::filesystem::config::db::execute(
+    objectiveai_sdk::filesystem::config::db::execute(
         &client,
         &format!("INSERT OR IGNORE INTO {table} (instructions_id) VALUES (?1)"),
-        objectiveai::filesystem::config::db::params![id],
+        objectiveai_sdk::filesystem::config::db::params![id],
     )?;
     Ok(format!("{content}\n\n Instructions ID: {id}"))
 }
@@ -120,10 +120,10 @@ pub fn verify(
     let client = fs_client(cli_config);
     let table = scope.table_name();
     let sql = format!("SELECT 1 FROM {table} WHERE instructions_id = ?1");
-    let result = objectiveai::filesystem::config::db::query_one(
+    let result = objectiveai_sdk::filesystem::config::db::query_one(
         &client,
         &sql,
-        objectiveai::filesystem::config::db::params![id],
+        objectiveai_sdk::filesystem::config::db::params![id],
         |row| row.get::<_, i64>(0),
     );
     match result {
@@ -146,7 +146,7 @@ pub fn clear_all(cli_config: &crate::Config) -> Result<usize, crate::error::Erro
     let client = fs_client(cli_config);
     for scope in InstructionsScope::ALL {
         let table = scope.table_name();
-        objectiveai::filesystem::config::db::execute(
+        objectiveai_sdk::filesystem::config::db::execute(
             &client,
             &format!("DROP TABLE IF EXISTS {table}"),
             [],
@@ -155,8 +155,8 @@ pub fn clear_all(cli_config: &crate::Config) -> Result<usize, crate::error::Erro
     Ok(InstructionsScope::ALL.len())
 }
 
-fn fs_client(cli_config: &crate::Config) -> objectiveai::filesystem::Client {
-    objectiveai::filesystem::Client::new(
+fn fs_client(cli_config: &crate::Config) -> objectiveai_sdk::filesystem::Client {
+    objectiveai_sdk::filesystem::Client::new(
         cli_config.config_base_dir.as_deref(),
         cli_config.commit_author_name.as_deref(),
         cli_config.commit_author_email.as_deref(),

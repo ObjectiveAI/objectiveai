@@ -1,6 +1,6 @@
 use crate::{ctx, util::StreamOnce};
 use futures::{Stream, StreamExt};
-use objectiveai::error::StatusError;
+use objectiveai_sdk::error::StatusError;
 use std::{
     pin::Pin,
     sync::{Arc, Mutex},
@@ -8,14 +8,14 @@ use std::{
 };
 
 type FunctionInventionChunk =
-    objectiveai::functions::inventions::response::streaming::FunctionInventionChunk;
+    objectiveai_sdk::functions::inventions::response::streaming::FunctionInventionChunk;
 type InventionAgentCompletionChunk =
-    objectiveai::functions::inventions::response::streaming::AgentCompletionChunk;
-type Object = objectiveai::functions::inventions::response::streaming::Object;
-type Params = objectiveai::functions::inventions::Params;
-type State = objectiveai::functions::inventions::State;
+    objectiveai_sdk::functions::inventions::response::streaming::AgentCompletionChunk;
+type Object = objectiveai_sdk::functions::inventions::response::streaming::Object;
+type Params = objectiveai_sdk::functions::inventions::Params;
+type State = objectiveai_sdk::functions::inventions::State;
 
-use objectiveai::functions::inventions::InventionState;
+use objectiveai_sdk::functions::inventions::InventionState;
 
 /// Generates a unique response ID for Function inventions.
 pub fn invention_response_id(created: u64) -> String {
@@ -58,7 +58,7 @@ fn validate_name(name: &str) -> Result<(), super::Error> {
     }
     let has_valid_path = name
         .rsplit_once('-')
-        .and_then(|(_, last)| objectiveai::functions::inventions::path::b62_to_path::<u64>(last).ok())
+        .and_then(|(_, last)| objectiveai_sdk::functions::inventions::path::b62_to_path::<u64>(last).ok())
         .is_some();
     if !has_valid_path && len > MAX_NAME_LEN_WITHOUT_PATH {
         return Err(super::Error::InvalidName(format!(
@@ -93,7 +93,7 @@ const PROXY_INVENTION_PREFIX: &str = "oaifi_";
 /// loop exits with `Error::ToolSubscriptionTimeout` when the budget is
 /// exhausted without coverage.
 async fn wait_for_tools_visible(
-    observer: &objectiveai::mcp::Connection,
+    observer: &objectiveai_sdk::mcp::Connection,
     expected: &[String],
     overall_timeout: time::Duration,
 ) -> Result<(), super::Error> {
@@ -131,7 +131,7 @@ async fn wait_for_tools_visible(
 }
 
 fn all_present(
-    returned: &[objectiveai::mcp::tool::Tool],
+    returned: &[objectiveai_sdk::mcp::tool::Tool],
     expected: &[String],
 ) -> bool {
     expected
@@ -224,16 +224,16 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
 type Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK> =
     crate::agent::completions::Continuation<
         <OPENROUTER as crate::agent::completions::UpstreamClient<
-            objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation,
+            objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::agent::openrouter::Continuation,
         >>::State,
         <CLAUDEAGENTSDK as crate::agent::completions::UpstreamClient<
-            objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
+            objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation,
         >>::State,
         <CODEXSDK as crate::agent::completions::UpstreamClient<
-            objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation,
+            objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation,
         >>::State,
         <MOCK as crate::agent::completions::UpstreamClient<
-            objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation,
+            objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
         >>::State,
     >;
 
@@ -241,21 +241,21 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
     Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG, IUSG, FFNG, FFNF, FFNM>
 where
     CTXEXT: ctx::ContextExt + Send + Sync + 'static,
-    OPENROUTER: crate::agent::completions::UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation>
+    OPENROUTER: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::agent::openrouter::Continuation>
         + Send
         + Sync
         + 'static,
     CLAUDEAGENTSDK: crate::agent::completions::UpstreamClient<
-            objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
+            objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation,
         > + Send
         + Sync
         + 'static,
     CODEXSDK: crate::agent::completions::UpstreamClient<
-            objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation,
+            objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation,
         > + Send
         + Sync
         + 'static,
-    MOCK: crate::agent::completions::UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation>
+    MOCK: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation>
         + Send
         + Sync
         + 'static,
@@ -272,10 +272,10 @@ where
         self: Arc<Self>,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
         request: Arc<
-            objectiveai::functions::inventions::request::FunctionInventionCreateParams,
+            objectiveai_sdk::functions::inventions::request::FunctionInventionCreateParams,
         >,
     ) -> Result<
-        objectiveai::functions::inventions::response::unary::FunctionInvention,
+        objectiveai_sdk::functions::inventions::response::unary::FunctionInvention,
         super::Error,
     > {
         let mut aggregate: Option<FunctionInventionChunk> = None;
@@ -294,7 +294,7 @@ where
         self: Arc<Self>,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
         request: Arc<
-            objectiveai::functions::inventions::request::FunctionInventionCreateParams,
+            objectiveai_sdk::functions::inventions::request::FunctionInventionCreateParams,
         >,
     ) -> Result<
         impl Stream<Item = FunctionInventionChunk> + Send + Unpin + 'static,
@@ -328,7 +328,7 @@ where
             drop(tx);
             if let Some(aggregate) = aggregate {
                 if aggregate.usage.as_ref().is_some_and(
-                    objectiveai::agent::completions::response::Usage::any_usage,
+                    objectiveai_sdk::agent::completions::response::Usage::any_usage,
                 ) {
                     self.usage_handler
                         .handle_usage(ctx, request, aggregate.into())
@@ -351,7 +351,7 @@ where
         self: Arc<Self>,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
         request: Arc<
-            objectiveai::functions::inventions::request::FunctionInventionCreateParams,
+            objectiveai_sdk::functions::inventions::request::FunctionInventionCreateParams,
         >,
     ) -> Result<
         impl Stream<Item = FunctionInventionChunk> + Send + 'static,
@@ -371,12 +371,12 @@ where
 
         // Validate params before starting.
         let params = match &resolved_state {
-            objectiveai::functions::inventions::state::ParamsState::AlphaScalarBranch(s) => &s.params,
-            objectiveai::functions::inventions::state::ParamsState::AlphaScalarLeaf(s) => &s.params,
-            objectiveai::functions::inventions::state::ParamsState::AlphaVectorBranch(s) => &s.params,
-            objectiveai::functions::inventions::state::ParamsState::AlphaVectorLeaf(s) => &s.params,
-            objectiveai::functions::inventions::state::ParamsState::AlphaScalar(s) => &s.params,
-            objectiveai::functions::inventions::state::ParamsState::AlphaVector(s) => &s.params,
+            objectiveai_sdk::functions::inventions::state::ParamsState::AlphaScalarBranch(s) => &s.params,
+            objectiveai_sdk::functions::inventions::state::ParamsState::AlphaScalarLeaf(s) => &s.params,
+            objectiveai_sdk::functions::inventions::state::ParamsState::AlphaVectorBranch(s) => &s.params,
+            objectiveai_sdk::functions::inventions::state::ParamsState::AlphaVectorLeaf(s) => &s.params,
+            objectiveai_sdk::functions::inventions::state::ParamsState::AlphaScalar(s) => &s.params,
+            objectiveai_sdk::functions::inventions::state::ParamsState::AlphaVector(s) => &s.params,
         };
         params.validate().map_err(super::Error::InvalidState)?;
         validate_name(&params.name)?;
@@ -384,13 +384,13 @@ where
         // Validate depth matches variant.
         let is_leaf = matches!(
             &resolved_state,
-            objectiveai::functions::inventions::state::ParamsState::AlphaScalarLeaf(_)
-            | objectiveai::functions::inventions::state::ParamsState::AlphaVectorLeaf(_)
+            objectiveai_sdk::functions::inventions::state::ParamsState::AlphaScalarLeaf(_)
+            | objectiveai_sdk::functions::inventions::state::ParamsState::AlphaVectorLeaf(_)
         );
         let is_branch = matches!(
             &resolved_state,
-            objectiveai::functions::inventions::state::ParamsState::AlphaScalarBranch(_)
-            | objectiveai::functions::inventions::state::ParamsState::AlphaVectorBranch(_)
+            objectiveai_sdk::functions::inventions::state::ParamsState::AlphaScalarBranch(_)
+            | objectiveai_sdk::functions::inventions::state::ParamsState::AlphaVectorBranch(_)
         );
         if is_leaf && params.depth > 0 {
             return Err(super::Error::InvalidState(
@@ -436,7 +436,7 @@ where
         // If the initial state has tasks, fetch all referenced child functions
         // and validate the initial state against them.
         let children = if let Some(full_fn) = state.build_function() {
-            let children = self.retrieve_router.get_function_tasks(&ctx, objectiveai::functions::FullFunction::Remote(full_fn)).await
+            let children = self.retrieve_router.get_function_tasks(&ctx, objectiveai_sdk::functions::FullFunction::Remote(full_fn)).await
                 .map_err(super::Error::FunctionFetch)?;
             Some(children)
         } else {
@@ -462,9 +462,9 @@ where
                 (p.min_leaf_width, p.max_leaf_width)
             }
         };
-        let prompt_params = objectiveai::functions::expression::Params::Owned(
-            objectiveai::functions::expression::ParamsOwned {
-                input: objectiveai::functions::expression::InputValue::Object(Default::default()),
+        let prompt_params = objectiveai_sdk::functions::expression::Params::Owned(
+            objectiveai_sdk::functions::expression::ParamsOwned {
+                input: objectiveai_sdk::functions::expression::InputValue::Object(Default::default()),
                 output: None,
                 map: None,
                 tasks_min: Some(tasks_min),
@@ -518,7 +518,7 @@ where
     async fn check_preflight(
         &self,
         ctx: &ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-        request: &objectiveai::functions::inventions::request::FunctionInventionCreateParams,
+        request: &objectiveai_sdk::functions::inventions::request::FunctionInventionCreateParams,
         name: &str,
     ) -> Result<(), super::Error> {
         let remote = match &request.remote {
@@ -527,7 +527,7 @@ where
         };
 
         // GitHub remote: validate token and check permissions.
-        if matches!(remote, objectiveai::Remote::Github) {
+        if matches!(remote, objectiveai_sdk::Remote::Github) {
             let scopes = self
                 .github_client
                 .validate_token(ctx)
@@ -556,7 +556,7 @@ where
         }
 
         let exists = match remote {
-            objectiveai::Remote::Github => {
+            objectiveai_sdk::Remote::Github => {
                 let (owner, repo) = if let Some((o, r)) = name.split_once('/') {
                     (o, r)
                 } else {
@@ -567,7 +567,7 @@ where
                     .repository_exists(ctx, owner, repo)
                     .await?
             }
-            objectiveai::Remote::Filesystem => {
+            objectiveai_sdk::Remote::Filesystem => {
                 let (owner, repo) = if let Some((o, r)) = name.split_once('/') {
                     (o, r)
                 } else {
@@ -575,7 +575,7 @@ where
                 };
                 self.filesystem_client.repository_exists(crate::retrieval::Kind::Functions, owner, repo)
             }
-            objectiveai::Remote::Mock => crate::mock::exists(name),
+            objectiveai_sdk::Remote::Mock => crate::mock::exists(name),
         };
 
         if exists {
@@ -611,7 +611,7 @@ fn run_all_steps<T, CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, R
     filesystem_client: Arc<crate::filesystem::Client>,
     invention_server_spawner: Arc<super::InventionServerSpawner>,
     ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-    request: Arc<objectiveai::functions::inventions::request::FunctionInventionCreateParams>,
+    request: Arc<objectiveai_sdk::functions::inventions::request::FunctionInventionCreateParams>,
     id: String,
     created: u64,
     persist: bool,
@@ -621,21 +621,21 @@ fn run_all_steps<T, CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, R
 where
     T: InventionState,
     CTXEXT: ctx::ContextExt + Send + Sync + 'static,
-    OPENROUTER: crate::agent::completions::UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation>
+    OPENROUTER: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::agent::openrouter::Continuation>
         + Send
         + Sync
         + 'static,
     CLAUDEAGENTSDK: crate::agent::completions::UpstreamClient<
-            objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
+            objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation,
         > + Send
         + Sync
         + 'static,
     CODEXSDK: crate::agent::completions::UpstreamClient<
-            objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation,
+            objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation,
         > + Send
         + Sync
         + 'static,
-    MOCK: crate::agent::completions::UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation>
+    MOCK: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation>
         + Send
         + Sync
         + 'static,
@@ -665,7 +665,7 @@ where
                     created,
                     object,
                     usage: None,
-                    error: Some(objectiveai::error::ResponseError {
+                    error: Some(objectiveai_sdk::error::ResponseError {
                         code: 500,
                         message: serde_json::Value::String(format!(
                             "InventionServer bootstrap failed: {e}"
@@ -711,7 +711,7 @@ where
         // Completion index incremented across all steps.
         let mut completion_index: u64 = 0;
         // Accumulated usage across all steps.
-        let mut accumulated_usage = objectiveai::agent::completions::response::Usage::default();
+        let mut accumulated_usage = objectiveai_sdk::agent::completions::response::Usage::default();
 
         // Initial state
         yield state_chunk(&state, &id, created, object);
@@ -776,7 +776,7 @@ where
                     id: id.to_string(), completions: vec![], state: None,
                     path: None, function: None, created, object,
                     usage: Some(accumulated_usage),
-                    error: Some(objectiveai::error::ResponseError {
+                    error: Some(objectiveai_sdk::error::ResponseError {
                         code: e.status(),
                         message: e.message().unwrap_or(serde_json::Value::String(e.to_string())),
                     }),
@@ -836,7 +836,7 @@ where
                     id: id.to_string(), completions: vec![], state: None,
                     path: None, function: None, created, object,
                     usage: Some(accumulated_usage),
-                    error: Some(objectiveai::error::ResponseError {
+                    error: Some(objectiveai_sdk::error::ResponseError {
                         code: e.status(),
                         message: e.message().unwrap_or(serde_json::Value::String(e.to_string())),
                     }),
@@ -899,7 +899,7 @@ where
                     id: id.to_string(), completions: vec![], state: None,
                     path: None, function: None, created, object,
                     usage: Some(accumulated_usage),
-                    error: Some(objectiveai::error::ResponseError {
+                    error: Some(objectiveai_sdk::error::ResponseError {
                         code: e.status(),
                         message: e.message().unwrap_or(serde_json::Value::String(e.to_string())),
                     }),
@@ -959,7 +959,7 @@ where
                     id: id.to_string(), completions: vec![], state: None,
                     path: None, function: None, created, object,
                     usage: Some(accumulated_usage),
-                    error: Some(objectiveai::error::ResponseError {
+                    error: Some(objectiveai_sdk::error::ResponseError {
                         code: e.status(),
                         message: e.message().unwrap_or(serde_json::Value::String(e.to_string())),
                     }),
@@ -1023,7 +1023,7 @@ where
                 let repo = &T::params(&state).name;
                 let description = extract_description(&final_state);
                 match remote {
-                    objectiveai::Remote::Filesystem => {
+                    objectiveai_sdk::Remote::Filesystem => {
                         match publish_filesystem(
                             &filesystem_client, &ctx, repo, &publish_files,
                         ).await {
@@ -1031,7 +1031,7 @@ where
                             Err(e) => (None, Some(e)),
                         }
                     }
-                    objectiveai::Remote::Github => {
+                    objectiveai_sdk::Remote::Github => {
                         match publish_github(
                             &github_client, &filesystem_client,
                             &ctx, repo, &description, &publish_files,
@@ -1040,7 +1040,7 @@ where
                             Err(e) => (None, Some(e)),
                         }
                     }
-                    objectiveai::Remote::Mock => (None, None),
+                    objectiveai_sdk::Remote::Mock => (None, None),
                 }
             } else {
                 (None, None)
@@ -1063,7 +1063,7 @@ where
             created,
             object,
             usage: Some(accumulated_usage),
-            error: publish_error.map(|e| objectiveai::error::ResponseError {
+            error: publish_error.map(|e| objectiveai_sdk::error::ResponseError {
                 code: e.status(),
                 message: e.message().unwrap_or(serde_json::Value::Null),
             }),
@@ -1076,8 +1076,8 @@ where
 // ---------------------------------------------------------------------------
 
 /// Extracts the description from the final invention state.
-pub(crate) fn extract_description(state: &objectiveai::functions::inventions::State) -> String {
-    use objectiveai::functions::inventions::State;
+pub(crate) fn extract_description(state: &objectiveai_sdk::functions::inventions::State) -> String {
+    use objectiveai_sdk::functions::inventions::State;
     match state {
         State::AlphaScalarBranch(s) => s.description.clone().unwrap_or_default(),
         State::AlphaScalarLeaf(s) => s.description.clone().unwrap_or_default(),
@@ -1093,7 +1093,7 @@ pub(crate) async fn publish_filesystem<CTXEXT: crate::ctx::ContextExt>(
     ctx: &crate::ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
     repo: &str,
     files: &std::collections::HashMap<&'static str, String>,
-) -> Result<objectiveai::RemotePath, super::Error> {
+) -> Result<objectiveai_sdk::RemotePath, super::Error> {
     let file_refs: Vec<(&str, &str)> = files.iter()
         .map(|(n, c)| (*n, c.as_str()))
         .collect();
@@ -1101,7 +1101,7 @@ pub(crate) async fn publish_filesystem<CTXEXT: crate::ctx::ContextExt>(
     let (owner, commit) = filesystem_client
         .publish(ctx, crate::retrieval::Kind::Functions, repo, &file_refs, &format!("publish {}", repo)).await?;
 
-    Ok(objectiveai::RemotePath::Filesystem {
+    Ok(objectiveai_sdk::RemotePath::Filesystem {
         owner,
         repository: repo.to_string(),
         commit,
@@ -1116,7 +1116,7 @@ pub(crate) async fn publish_github<CTXEXT: ctx::ContextExt + Send + Sync>(
     repo: &str,
     description: &str,
     files: &std::collections::HashMap<&'static str, String>,
-) -> Result<objectiveai::RemotePath, super::Error> {
+) -> Result<objectiveai_sdk::RemotePath, super::Error> {
     let file_refs: Vec<(&str, &str)> = files.iter()
         .map(|(n, c)| (*n, c.as_str()))
         .collect();
@@ -1132,10 +1132,10 @@ pub(crate) async fn publish_github<CTXEXT: ctx::ContextExt + Send + Sync>(
 /// Output from a single step.
 enum StepOutput<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>
 where
-    OPENROUTER: crate::agent::completions::UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation>,
-    CLAUDEAGENTSDK: crate::agent::completions::UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation>,
-    CODEXSDK: crate::agent::completions::UpstreamClient<objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation>,
-    MOCK: crate::agent::completions::UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation>,
+    OPENROUTER: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::agent::openrouter::Continuation>,
+    CLAUDEAGENTSDK: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation>,
+    CODEXSDK: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation>,
+    MOCK: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation>,
 {
     Chunk(FunctionInventionChunk),
     Continuation(Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>),
@@ -1149,10 +1149,10 @@ where
 /// pushed as a user message onto the continuation so that the upstream sees
 /// one continuous conversation.
 fn build_agent_params(
-    request: &objectiveai::functions::inventions::request::FunctionInventionCreateParams,
-    messages: Vec<objectiveai::agent::completions::message::Message>,
-) -> objectiveai::agent::completions::request::AgentCompletionCreateParams {
-    objectiveai::agent::completions::request::AgentCompletionCreateParams {
+    request: &objectiveai_sdk::functions::inventions::request::FunctionInventionCreateParams,
+    messages: Vec<objectiveai_sdk::agent::completions::message::Message>,
+) -> objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams {
+    objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams {
         messages,
         provider: request.provider.clone(),
         agent: request.agent.clone(),
@@ -1165,9 +1165,9 @@ fn build_agent_params(
 
 
 /// Creates a user message from a prompt string.
-fn user_message(prompt: &str) -> objectiveai::agent::completions::message::UserMessage {
-    objectiveai::agent::completions::message::UserMessage {
-        content: objectiveai::agent::completions::message::RichContent::Text(
+fn user_message(prompt: &str) -> objectiveai_sdk::agent::completions::message::UserMessage {
+    objectiveai_sdk::agent::completions::message::UserMessage {
+        content: objectiveai_sdk::agent::completions::message::RichContent::Text(
             prompt.to_string(),
         ),
         name: None,
@@ -1181,7 +1181,7 @@ fn run_step<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RE
         >,
     >,
     ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-    request: Arc<objectiveai::functions::inventions::request::FunctionInventionCreateParams>,
+    request: Arc<objectiveai_sdk::functions::inventions::request::FunctionInventionCreateParams>,
     prompt: String,
     invention_url: String,
     invention_server_headers: indexmap::IndexMap<String, String>,
@@ -1191,7 +1191,7 @@ fn run_step<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RE
     object: Object,
     initial_continuation: Option<Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>>,
     initial_completion_index: u64,
-    invention_type: objectiveai::functions::inventions::prompts::StepPromptType,
+    invention_type: objectiveai_sdk::functions::inventions::prompts::StepPromptType,
     invention_step: usize,
     invention_tasks_min: u64,
     invention_input_schema: Option<String>,
@@ -1203,21 +1203,21 @@ fn run_step<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RE
 >
 where
     CTXEXT: ctx::ContextExt + Send + Sync + 'static,
-    OPENROUTER: crate::agent::completions::UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation>
+    OPENROUTER: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::agent::openrouter::Continuation>
         + Send
         + Sync
         + 'static,
     CLAUDEAGENTSDK: crate::agent::completions::UpstreamClient<
-            objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation,
+            objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation,
         > + Send
         + Sync
         + 'static,
     CODEXSDK: crate::agent::completions::UpstreamClient<
-            objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation,
+            objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation,
         > + Send
         + Sync
         + 'static,
-    MOCK: crate::agent::completions::UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation>
+    MOCK: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation>
         + Send
         + Sync
         + 'static,
@@ -1250,7 +1250,7 @@ where
         } else {
             build_agent_params(
                 &request,
-                vec![objectiveai::agent::completions::message::Message::User(
+                vec![objectiveai_sdk::agent::completions::message::Message::User(
                     user_message(&prompt),
                 )],
             )
@@ -1294,13 +1294,13 @@ where
                     created,
                     object,
                     usage: None,
-                    error: Some(objectiveai::error::ResponseError {
+                    error: Some(objectiveai_sdk::error::ResponseError {
                         code: {
-                            use objectiveai::error::StatusError;
+                            use objectiveai_sdk::error::StatusError;
                             e.status()
                         },
                         message: {
-                            use objectiveai::error::StatusError;
+                            use objectiveai_sdk::error::StatusError;
                             e.message().unwrap_or(serde_json::Value::Null)
                         },
                     }),
@@ -1397,13 +1397,13 @@ where
                         created,
                         object,
                         usage: None,
-                        error: Some(objectiveai::error::ResponseError {
+                        error: Some(objectiveai_sdk::error::ResponseError {
                             code: {
-                                use objectiveai::error::StatusError;
+                                use objectiveai_sdk::error::StatusError;
                                 e.status()
                             },
                             message: {
-                                use objectiveai::error::StatusError;
+                                use objectiveai_sdk::error::StatusError;
                                 e.message().unwrap_or(serde_json::Value::Null)
                             },
                         }),
@@ -1460,7 +1460,7 @@ where
                 created,
                 object,
                 usage: None,
-                error: Some(objectiveai::error::ResponseError::from(&err)),
+                error: Some(objectiveai_sdk::error::ResponseError::from(&err)),
             });
             return;
         }

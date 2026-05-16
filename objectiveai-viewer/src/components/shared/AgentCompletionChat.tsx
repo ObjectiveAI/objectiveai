@@ -3,7 +3,7 @@ import type {
   AgentCompletionsResponseStreamingAgentCompletionChunk,
   AgentCompletionsResponseToolResponse,
   AgentCompletionsMessageMessage,
-} from "objectiveai";
+} from "@objectiveai/sdk";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { SystemBanner, UserBubble, AssistantBubble, ToolResultBubble } from "./MessageBubble";
 import { UsageFooter } from "./UsageFooter";

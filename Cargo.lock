@@ -238,6 +238,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "assert-json-diff"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47e4f2b81832e72834d7518d8487a0396a28cc408186a2e8854c0f98011faf12"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "async-stream"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1272,6 +1282,24 @@ dependencies = [
  "once_cell",
  "parking_lot_core",
 ]
+
+[[package]]
+name = "deadpool"
+version = "0.12.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0be2b1d1d6ec8d846f05e137292d0b89133caf95ef33695424c09568bdd39b1b"
+dependencies = [
+ "deadpool-runtime",
+ "lazy_static",
+ "num_cpus",
+ "tokio",
+]
+
+[[package]]
+name = "deadpool-runtime"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "092966b41edc516079bdf31ec78a2e0588d1d0c08f78b91d8307215928642b2b"
 
 [[package]]
 name = "debugserver-types"
@@ -2456,6 +2484,10 @@ name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
+
+[[package]]
+name = "hello-plugin"
+version = "2.0.5"
 
 [[package]]
 name = "hermit-abi"
@@ -4082,55 +4114,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "objectiveai"
-version = "2.0.3"
-dependencies = [
- "anyhow",
- "arbitrary",
- "backoff",
- "base62",
- "base64 0.22.1",
- "chrono",
- "dirs",
- "eventsource-stream",
- "futures",
- "futures-util",
- "getrandom 0.3.4",
- "git2",
- "indexmap 2.13.0",
- "jaq-core",
- "jaq-json",
- "jaq-std",
- "jmespath",
- "json-escape",
- "mime2ext",
- "mime_guess",
- "objectiveai-macros",
- "proc-macro2",
- "quote",
- "rand 0.9.2",
- "reqwest 0.12.28",
- "reqwest-eventsource",
- "rusqlite",
- "rust_decimal",
- "schemars 1.2.1",
- "serde",
- "serde_json",
- "serde_path_to_error",
- "sha2",
- "starlark",
- "syn 2.0.117",
- "thiserror 2.0.18",
- "tokio",
- "tokio-util",
- "twox-hash",
- "uuid",
- "walkdir",
-]
-
-[[package]]
 name = "objectiveai-api"
-version = "2.0.3"
+version = "2.0.5"
 dependencies = [
  "ahash 0.8.12",
  "async-stream",
@@ -4152,8 +4137,8 @@ dependencies = [
  "git2",
  "indexmap 2.13.0",
  "json-escape",
- "objectiveai",
  "objectiveai-mcp-proxy",
+ "objectiveai-sdk",
  "rand 0.9.2",
  "regex",
  "reqwest 0.12.28",
@@ -4178,20 +4163,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "objectiveai-cffi"
-version = "2.0.3"
-dependencies = [
- "arbitrary",
- "objectiveai",
- "rand 0.10.0",
- "rust_decimal",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "objectiveai-cli"
-version = "2.0.3"
+version = "2.0.5"
 dependencies = [
  "base62",
  "base64 0.22.1",
@@ -4199,10 +4172,10 @@ dependencies = [
  "dotenv",
  "envconfig",
  "futures",
- "objectiveai",
  "objectiveai-api",
- "objectiveai-cli-lib",
+ "objectiveai-sdk",
  "ratatui",
+ "regex",
  "reqwest 0.12.28",
  "rustpython",
  "semver",
@@ -4216,35 +4189,23 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-cli-builder"
-version = "2.0.3"
+version = "2.0.5"
 dependencies = [
- "serde_json",
-]
-
-[[package]]
-name = "objectiveai-cli-lib"
-version = "2.0.3"
-dependencies = [
- "serde",
  "serde_json",
 ]
 
 [[package]]
 name = "objectiveai-json-schema-builder"
-version = "2.0.3"
+version = "2.0.5"
 dependencies = [
- "objectiveai",
+ "objectiveai-sdk",
  "schemars 1.2.1",
  "serde_json",
 ]
 
 [[package]]
-name = "objectiveai-macros"
-version = "2.0.3"
-
-[[package]]
 name = "objectiveai-mcp-cli"
-version = "2.0.3"
+version = "2.0.5"
 dependencies = [
  "anyhow",
  "axum",
@@ -4262,7 +4223,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-mcp-filesystem"
-version = "2.0.3"
+version = "2.0.5"
 dependencies = [
  "anyhow",
  "axum",
@@ -4286,7 +4247,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-mcp-proxy"
-version = "2.0.3"
+version = "2.0.5"
 dependencies = [
  "anyhow",
  "axum",
@@ -4298,7 +4259,7 @@ dependencies = [
  "envconfig",
  "futures",
  "indexmap 2.13.0",
- "objectiveai",
+ "objectiveai-sdk",
  "rand 0.9.2",
  "reqwest 0.12.28",
  "rmcp",
@@ -4315,11 +4276,77 @@ dependencies = [
 ]
 
 [[package]]
-name = "objectiveai-rs-pyo3"
-version = "2.0.3"
+name = "objectiveai-sdk"
+version = "2.0.5"
+dependencies = [
+ "anyhow",
+ "arbitrary",
+ "backoff",
+ "base62",
+ "base64 0.22.1",
+ "chrono",
+ "dirs",
+ "eventsource-stream",
+ "futures",
+ "futures-util",
+ "getrandom 0.3.4",
+ "git2",
+ "indexmap 2.13.0",
+ "jaq-core",
+ "jaq-json",
+ "jaq-std",
+ "jmespath",
+ "json-escape",
+ "mime2ext",
+ "mime_guess",
+ "objectiveai-sdk-macros",
+ "proc-macro2",
+ "quote",
+ "rand 0.9.2",
+ "regex",
+ "reqwest 0.12.28",
+ "reqwest-eventsource",
+ "rusqlite",
+ "rust_decimal",
+ "schemars 1.2.1",
+ "serde",
+ "serde_json",
+ "serde_path_to_error",
+ "sha2",
+ "starlark",
+ "syn 2.0.117",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-util",
+ "twox-hash",
+ "uuid",
+ "walkdir",
+ "wiremock",
+ "zip",
+]
+
+[[package]]
+name = "objectiveai-sdk-cffi"
+version = "2.0.5"
 dependencies = [
  "arbitrary",
- "objectiveai",
+ "objectiveai-sdk",
+ "rand 0.10.0",
+ "rust_decimal",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "objectiveai-sdk-macros"
+version = "2.0.5"
+
+[[package]]
+name = "objectiveai-sdk-rs-pyo3"
+version = "2.0.5"
+dependencies = [
+ "arbitrary",
+ "objectiveai-sdk",
  "pyo3",
  "pythonize",
  "rand 0.9.2",
@@ -4329,14 +4356,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "objectiveai-sdk-wasm-js"
+version = "2.0.5"
+dependencies = [
+ "arbitrary",
+ "getrandom 0.4.2",
+ "objectiveai-sdk",
+ "rand 0.10.0",
+ "rust_decimal",
+ "serde-wasm-bindgen",
+ "serde_json",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "objectiveai-viewer"
-version = "2.0.3"
+version = "2.0.5"
 dependencies = [
  "axum",
  "dotenv",
  "envconfig",
+ "futures",
  "hex",
- "objectiveai",
+ "mime_guess",
+ "objectiveai-cli",
+ "objectiveai-sdk",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
@@ -4345,20 +4389,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tokio",
-]
-
-[[package]]
-name = "objectiveai-wasm-js"
-version = "2.0.3"
-dependencies = [
- "arbitrary",
- "getrandom 0.4.2",
- "objectiveai",
- "rand 0.10.0",
- "rust_decimal",
- "serde-wasm-bindgen",
- "serde_json",
- "wasm-bindgen",
+ "tower",
 ]
 
 [[package]]
@@ -7498,7 +7529,7 @@ dependencies = [
 
 [[package]]
 name = "test-upstream"
-version = "2.0.3"
+version = "2.0.5"
 dependencies = [
  "anyhow",
  "axum",
@@ -7507,7 +7538,7 @@ dependencies = [
  "envconfig",
  "futures",
  "indexmap 2.13.0",
- "objectiveai",
+ "objectiveai-sdk",
  "serde",
  "serde_json",
  "tokio",
@@ -9225,6 +9256,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "wiremock"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08db1edfb05d9b3c1542e521aea074442088292f00b5f28e435c714a98f85031"
+dependencies = [
+ "assert-json-diff",
+ "base64 0.22.1",
+ "deadpool",
+ "futures",
+ "http",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "log",
+ "once_cell",
+ "regex",
+ "serde",
+ "serde_json",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "wit-bindgen"
 version = "0.51.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9512,7 +9566,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "zip"
+version = "2.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fabe6324e908f85a1c52063ce7aa26b68dcb7eb6dbc83a2d148403c9bc3eba50"
+dependencies = [
+ "arbitrary",
+ "crc32fast",
+ "crossbeam-utils",
+ "displaydoc",
+ "flate2",
+ "indexmap 2.13.0",
+ "memchr",
+ "thiserror 2.0.18",
+ "zopfli",
+]
+
+[[package]]
 name = "zmij"
 version = "1.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b8848ee67ecc8aedbaf3e4122217aff892639231befc6a1b58d29fff4c2cabaa"
+
+[[package]]
+name = "zopfli"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f05cd8797d63865425ff89b5c4a48804f35ba0ce8d125800027ad6017d2b5249"
+dependencies = [
+ "bumpalo",
+ "crc32fast",
+ "log",
+ "simd-adler32",
+]

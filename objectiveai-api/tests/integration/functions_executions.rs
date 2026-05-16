@@ -8,12 +8,12 @@
 use futures::StreamExt;
 use rust_decimal::Decimal;
 
-use objectiveai::functions::executions::request::{
+use objectiveai_sdk::functions::executions::request::{
     FunctionExecutionCreateParams, Strategy,
 };
-use objectiveai::functions::executions::response::streaming::FunctionExecutionChunk;
-use objectiveai::functions::executions::response::unary::FunctionExecution;
-use objectiveai::functions::expression::InputValue;
+use objectiveai_sdk::functions::executions::response::streaming::FunctionExecutionChunk;
+use objectiveai_sdk::functions::executions::response::unary::FunctionExecution;
+use objectiveai_sdk::functions::expression::InputValue;
 
 use crate::common;
 
@@ -28,13 +28,13 @@ fn make_request(
     seed: i64,
 ) -> FunctionExecutionCreateParams {
     FunctionExecutionCreateParams {
-        function: objectiveai::functions::FullInlineFunctionOrRemoteCommitOptional::Remote(
-            objectiveai::RemotePathCommitOptional::Mock {
+        function: objectiveai_sdk::functions::FullInlineFunctionOrRemoteCommitOptional::Remote(
+            objectiveai_sdk::RemotePathCommitOptional::Mock {
                 name: function_repo.to_string(),
             },
         ),
-        profile: objectiveai::functions::InlineProfileOrRemoteCommitOptional::Remote(
-            objectiveai::RemotePathCommitOptional::Mock {
+        profile: objectiveai_sdk::functions::InlineProfileOrRemoteCommitOptional::Remote(
+            objectiveai_sdk::RemotePathCommitOptional::Mock {
                 name: profile_repo.to_string(),
             },
         ),
@@ -208,7 +208,7 @@ fn check_indexed_task(
     i: usize,
     chunk: &FunctionExecutionChunk,
     key_to_id: &std::cell::RefCell<std::collections::HashMap<IndexKey, String>>,
-    extract_key: impl Fn(&objectiveai::functions::executions::response::streaming::FunctionExecutionTaskChunk) -> IndexKey,
+    extract_key: impl Fn(&objectiveai_sdk::functions::executions::response::streaming::FunctionExecutionTaskChunk) -> IndexKey,
 ) {
     assert_eq!(
         chunk.tasks.len(),
@@ -217,7 +217,7 @@ fn check_indexed_task(
         chunk.tasks.len(),
     );
     let task = match &chunk.tasks[0] {
-        objectiveai::functions::executions::response::streaming::TaskChunk::FunctionExecution(t) => t,
+        objectiveai_sdk::functions::executions::response::streaming::TaskChunk::FunctionExecution(t) => t,
         other => panic!("chunk {i} task[0] is not a FunctionExecution task chunk: {other:?}"),
     };
     let key = extract_key(task);
@@ -957,12 +957,12 @@ async fn test_mock_21_vector_super_branch_context_seed_42() {
 #[tokio::test]
 async fn test_inline_scalar_placeholder_seed_42() {
     let request = FunctionExecutionCreateParams {
-        function: objectiveai::functions::FullInlineFunctionOrRemoteCommitOptional::Inline(
-            objectiveai::functions::FullInlineFunction::Standard(
-                objectiveai::functions::InlineFunction::Scalar {
+        function: objectiveai_sdk::functions::FullInlineFunctionOrRemoteCommitOptional::Inline(
+            objectiveai_sdk::functions::FullInlineFunction::Standard(
+                objectiveai_sdk::functions::InlineFunction::Scalar {
                     tasks: vec![
-                        objectiveai::functions::TaskExpression::PlaceholderScalarFunction(
-                            objectiveai::functions::PlaceholderScalarFunctionTaskExpression {
+                        objectiveai_sdk::functions::TaskExpression::PlaceholderScalarFunction(
+                            objectiveai_sdk::functions::PlaceholderScalarFunctionTaskExpression {
                                 input_schema: serde_json::from_value(serde_json::json!({
                                     "type": "object",
                                     "properties": { "text": { "type": "string" } },
@@ -970,18 +970,18 @@ async fn test_inline_scalar_placeholder_seed_42() {
                                 })).unwrap(),
                                 skip: None,
                                 map: None,
-                                input: objectiveai::functions::expression::WithExpression::Expression(
-                                    objectiveai::functions::expression::Expression::Starlark(
+                                input: objectiveai_sdk::functions::expression::WithExpression::Expression(
+                                    objectiveai_sdk::functions::expression::Expression::Starlark(
                                         "{'text': input['text']}".to_string(),
                                     ),
                                 ),
-                                output: objectiveai::functions::expression::Expression::Special(
-                                    objectiveai::functions::expression::Special::Output,
+                                output: objectiveai_sdk::functions::expression::Expression::Special(
+                                    objectiveai_sdk::functions::expression::Special::Output,
                                 ),
                             },
                         ),
-                        objectiveai::functions::TaskExpression::PlaceholderScalarFunction(
-                            objectiveai::functions::PlaceholderScalarFunctionTaskExpression {
+                        objectiveai_sdk::functions::TaskExpression::PlaceholderScalarFunction(
+                            objectiveai_sdk::functions::PlaceholderScalarFunctionTaskExpression {
                                 input_schema: serde_json::from_value(serde_json::json!({
                                     "type": "object",
                                     "properties": { "text": { "type": "string" } },
@@ -989,13 +989,13 @@ async fn test_inline_scalar_placeholder_seed_42() {
                                 })).unwrap(),
                                 skip: None,
                                 map: None,
-                                input: objectiveai::functions::expression::WithExpression::Expression(
-                                    objectiveai::functions::expression::Expression::Starlark(
+                                input: objectiveai_sdk::functions::expression::WithExpression::Expression(
+                                    objectiveai_sdk::functions::expression::Expression::Starlark(
                                         "{'text': input['text']}".to_string(),
                                     ),
                                 ),
-                                output: objectiveai::functions::expression::Expression::Special(
-                                    objectiveai::functions::expression::Special::Output,
+                                output: objectiveai_sdk::functions::expression::Expression::Special(
+                                    objectiveai_sdk::functions::expression::Special::Output,
                                 ),
                             },
                         ),
@@ -1003,18 +1003,18 @@ async fn test_inline_scalar_placeholder_seed_42() {
                 },
             ),
         ),
-        profile: objectiveai::functions::InlineProfileOrRemoteCommitOptional::Inline(
-            objectiveai::functions::InlineProfile::Auto(
-                objectiveai::swarm::InlineSwarmBase {
+        profile: objectiveai_sdk::functions::InlineProfileOrRemoteCommitOptional::Inline(
+            objectiveai_sdk::functions::InlineProfile::Auto(
+                objectiveai_sdk::swarm::InlineSwarmBase {
                     agents: vec![
-                        objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteWithCount {
+                        objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteWithCount {
                             count: 1,
-                            inner: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemote::AgentBase(
-                                objectiveai::agent::InlineAgentBaseWithFallbacks {
-                                    inner: objectiveai::agent::InlineAgentBase::Mock(
-                                        objectiveai::agent::mock::AgentBase {
-                                            upstream: objectiveai::agent::mock::Upstream::Mock,
-                                            output_mode: objectiveai::agent::mock::OutputMode::Instruction,
+                            inner: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemote::AgentBase(
+                                objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+                                    inner: objectiveai_sdk::agent::InlineAgentBase::Mock(
+                                        objectiveai_sdk::agent::mock::AgentBase {
+                                            upstream: objectiveai_sdk::agent::mock::Upstream::Mock,
+                                            output_mode: objectiveai_sdk::agent::mock::OutputMode::Instruction,
                                             top_logprobs: None,
                                             error: None,
                                             error_probability: None,
@@ -1027,7 +1027,7 @@ async fn test_inline_scalar_placeholder_seed_42() {
                             ),
                         },
                     ],
-                    weights: Some(objectiveai::Weights::Weights(vec![Decimal::ONE])),
+                    weights: Some(objectiveai_sdk::Weights::Weights(vec![Decimal::ONE])),
                 },
             ),
         ),
@@ -1501,7 +1501,7 @@ async fn test_error_3_1_all_agents_error() {
     let result = run_execution_allow_error(request).await;
     assert_eq!(result.tasks.len(), 1);
     match &result.tasks[0] {
-        objectiveai::functions::executions::response::unary::Task::VectorCompletion(vt) => {
+        objectiveai_sdk::functions::executions::response::unary::Task::VectorCompletion(vt) => {
             assert!(vt.error.is_none(), "expected no task-level error, got: {:?}", vt.error);
             assert!(!vt.inner.completions.is_empty(), "expected at least one completion");
             for completion in &vt.inner.completions {
@@ -1514,7 +1514,7 @@ async fn test_error_3_1_all_agents_error() {
         other => panic!("expected VectorCompletion task, got: {other:?}"),
     }
     assert!(
-        matches!(&result.output.output, objectiveai::functions::expression::TaskOutputOwned::Scalar(s) if *s == rust_decimal::dec!(0.5)),
+        matches!(&result.output.output, objectiveai_sdk::functions::expression::TaskOutputOwned::Scalar(s) if *s == rust_decimal::dec!(0.5)),
         "expected Scalar(0.5) fallback, got: {:?}",
         result.output,
     );
@@ -1533,7 +1533,7 @@ async fn test_error_4_1_output_expression_fails() {
     let result = run_execution_allow_error(request).await;
     assert!(result.error.is_some(), "expected error on response");
     assert!(
-        matches!(result.output.output, objectiveai::functions::expression::TaskOutputOwned::Err { .. }),
+        matches!(result.output.output, objectiveai_sdk::functions::expression::TaskOutputOwned::Err { .. }),
         "expected Err output, got: {:?}",
         result.output,
     );
@@ -1552,7 +1552,7 @@ async fn test_error_4_2_scalar_output_out_of_range() {
     let result = run_execution_allow_error(request).await;
     assert!(result.error.is_some(), "expected error on response");
     assert!(
-        matches!(result.output.output, objectiveai::functions::expression::TaskOutputOwned::Err { .. }),
+        matches!(result.output.output, objectiveai_sdk::functions::expression::TaskOutputOwned::Err { .. }),
         "expected Err output, got: {:?}",
         result.output,
     );
@@ -1571,7 +1571,7 @@ async fn test_error_4_3_scalar_got_vector() {
     let result = run_execution_allow_error(request).await;
     assert!(result.error.is_some(), "expected error on response");
     assert!(
-        matches!(result.output.output, objectiveai::functions::expression::TaskOutputOwned::Err { .. }),
+        matches!(result.output.output, objectiveai_sdk::functions::expression::TaskOutputOwned::Err { .. }),
         "expected Err output, got: {:?}",
         result.output,
     );
@@ -1593,7 +1593,7 @@ async fn test_error_4_4_vector_output_bad_sum() {
     let result = run_execution_allow_error(request).await;
     assert!(result.error.is_some(), "expected error on response");
     assert!(
-        matches!(result.output.output, objectiveai::functions::expression::TaskOutputOwned::Err { .. }),
+        matches!(result.output.output, objectiveai_sdk::functions::expression::TaskOutputOwned::Err { .. }),
         "expected Err output, got: {:?}",
         result.output,
     );
@@ -1615,7 +1615,7 @@ async fn test_error_4_5_vector_got_scalar() {
     let result = run_execution_allow_error(request).await;
     assert!(result.error.is_some(), "expected error on response");
     assert!(
-        matches!(result.output.output, objectiveai::functions::expression::TaskOutputOwned::Err { .. }),
+        matches!(result.output.output, objectiveai_sdk::functions::expression::TaskOutputOwned::Err { .. }),
         "expected Err output, got: {:?}",
         result.output,
     );
@@ -1634,7 +1634,7 @@ async fn test_error_4_6_output_vectors_variant() {
     let result = run_execution_allow_error(request).await;
     assert!(result.error.is_some(), "expected error on response");
     assert!(
-        matches!(result.output.output, objectiveai::functions::expression::TaskOutputOwned::Err { .. }),
+        matches!(result.output.output, objectiveai_sdk::functions::expression::TaskOutputOwned::Err { .. }),
         "expected Err output, got: {:?}",
         result.output,
     );
@@ -1653,7 +1653,7 @@ async fn test_error_4_7_output_returns_none() {
     let result = run_execution_allow_error(request).await;
     assert!(result.error.is_some(), "expected error on response");
     assert!(
-        matches!(result.output.output, objectiveai::functions::expression::TaskOutputOwned::Err { .. }),
+        matches!(result.output.output, objectiveai_sdk::functions::expression::TaskOutputOwned::Err { .. }),
         "expected Err output, got: {:?}",
         result.output,
     );
@@ -1665,12 +1665,12 @@ async fn test_error_6_1_reasoning_agent_error() {
         "binary-classifier",
         "solo-instruction",
         |p| {
-            p.reasoning = Some(objectiveai::functions::executions::request::Reasoning {
-                agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-                    objectiveai::agent::InlineAgentBaseWithFallbacks {
-                        inner: objectiveai::agent::InlineAgentBase::Mock(objectiveai::agent::mock::AgentBase {
-                            upstream: objectiveai::agent::mock::Upstream::Mock,
-                            output_mode: objectiveai::agent::mock::OutputMode::Instruction,
+            p.reasoning = Some(objectiveai_sdk::functions::executions::request::Reasoning {
+                agent: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+                    objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+                        inner: objectiveai_sdk::agent::InlineAgentBase::Mock(objectiveai_sdk::agent::mock::AgentBase {
+                            upstream: objectiveai_sdk::agent::mock::Upstream::Mock,
+                            output_mode: objectiveai_sdk::agent::mock::OutputMode::Instruction,
                             top_logprobs: None,
                             error: Some(true),
                             error_probability: None,
@@ -1701,13 +1701,13 @@ async fn test_error_6_1_reasoning_agent_error() {
 #[tokio::test]
 async fn test_split_scalar_binary_seed_42() {
     let request = FunctionExecutionCreateParams {
-        function: objectiveai::functions::FullInlineFunctionOrRemoteCommitOptional::Remote(
-            objectiveai::RemotePathCommitOptional::Mock {
+        function: objectiveai_sdk::functions::FullInlineFunctionOrRemoteCommitOptional::Remote(
+            objectiveai_sdk::RemotePathCommitOptional::Mock {
                 name: "binary-classifier".to_string(),
             },
         ),
-        profile: objectiveai::functions::InlineProfileOrRemoteCommitOptional::Remote(
-            objectiveai::RemotePathCommitOptional::Mock {
+        profile: objectiveai_sdk::functions::InlineProfileOrRemoteCommitOptional::Remote(
+            objectiveai_sdk::RemotePathCommitOptional::Mock {
                 name: "solo-instruction".to_string(),
             },
         ),
@@ -1742,16 +1742,16 @@ async fn test_split_scalar_binary_seed_42() {
     );
 }
 
-fn ten_tweet_swarm_two_agents(top_logprobs_first: Option<u64>, top_logprobs_second: Option<u64>, output_mode_first: objectiveai::agent::mock::OutputMode, output_mode_second: objectiveai::agent::mock::OutputMode, weights: Vec<Decimal>) -> objectiveai::swarm::InlineSwarmBase {
-    objectiveai::swarm::InlineSwarmBase {
+fn ten_tweet_swarm_two_agents(top_logprobs_first: Option<u64>, top_logprobs_second: Option<u64>, output_mode_first: objectiveai_sdk::agent::mock::OutputMode, output_mode_second: objectiveai_sdk::agent::mock::OutputMode, weights: Vec<Decimal>) -> objectiveai_sdk::swarm::InlineSwarmBase {
+    objectiveai_sdk::swarm::InlineSwarmBase {
         agents: vec![
-            objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteWithCount {
+            objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteWithCount {
                 count: 1,
-                inner: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemote::AgentBase(
-                    objectiveai::agent::InlineAgentBaseWithFallbacks {
-                        inner: objectiveai::agent::InlineAgentBase::Mock(
-                            objectiveai::agent::mock::AgentBase {
-                                upstream: objectiveai::agent::mock::Upstream::Mock,
+                inner: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemote::AgentBase(
+                    objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+                        inner: objectiveai_sdk::agent::InlineAgentBase::Mock(
+                            objectiveai_sdk::agent::mock::AgentBase {
+                                upstream: objectiveai_sdk::agent::mock::Upstream::Mock,
                                 output_mode: output_mode_first,
                                 top_logprobs: top_logprobs_first,
                                 error: None,
@@ -1764,13 +1764,13 @@ fn ten_tweet_swarm_two_agents(top_logprobs_first: Option<u64>, top_logprobs_seco
                     },
                 ),
             },
-            objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteWithCount {
+            objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteWithCount {
                 count: 1,
-                inner: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemote::AgentBase(
-                    objectiveai::agent::InlineAgentBaseWithFallbacks {
-                        inner: objectiveai::agent::InlineAgentBase::Mock(
-                            objectiveai::agent::mock::AgentBase {
-                                upstream: objectiveai::agent::mock::Upstream::Mock,
+                inner: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemote::AgentBase(
+                    objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+                        inner: objectiveai_sdk::agent::InlineAgentBase::Mock(
+                            objectiveai_sdk::agent::mock::AgentBase {
+                                upstream: objectiveai_sdk::agent::mock::Upstream::Mock,
                                 output_mode: output_mode_second,
                                 top_logprobs: top_logprobs_second,
                                 error: None,
@@ -1784,7 +1784,7 @@ fn ten_tweet_swarm_two_agents(top_logprobs_first: Option<u64>, top_logprobs_seco
                 ),
             },
         ],
-        weights: Some(objectiveai::Weights::Weights(weights)),
+        weights: Some(objectiveai_sdk::Weights::Weights(weights)),
     }
 }
 
@@ -1794,17 +1794,17 @@ async fn test_split_tweet_scorer_10_tweets_seed_42() {
         "../../assets/functions/executions/client_tests/inputs/10_tweets.json"
     )).expect("10_tweets.json must parse as InputValue");
     let request = FunctionExecutionCreateParams {
-        function: objectiveai::functions::FullInlineFunctionOrRemoteCommitOptional::Remote(
-            objectiveai::RemotePathCommitOptional::Mock {
+        function: objectiveai_sdk::functions::FullInlineFunctionOrRemoteCommitOptional::Remote(
+            objectiveai_sdk::RemotePathCommitOptional::Mock {
                 name: "tweet-scorer".to_string(),
             },
         ),
-        profile: objectiveai::functions::InlineProfileOrRemoteCommitOptional::Inline(
-            objectiveai::functions::InlineProfile::Auto(ten_tweet_swarm_two_agents(
+        profile: objectiveai_sdk::functions::InlineProfileOrRemoteCommitOptional::Inline(
+            objectiveai_sdk::functions::InlineProfile::Auto(ten_tweet_swarm_two_agents(
                 Some(6),
                 None,
-                objectiveai::agent::mock::OutputMode::Instruction,
-                objectiveai::agent::mock::OutputMode::Instruction,
+                objectiveai_sdk::agent::mock::OutputMode::Instruction,
+                objectiveai_sdk::agent::mock::OutputMode::Instruction,
                 vec![Decimal::ONE, Decimal::ONE],
             )),
         ),
@@ -1835,17 +1835,17 @@ async fn test_vector_tweet_ranker_10_tweets_seed_42() {
         "../../assets/functions/executions/client_tests/inputs/10_tweets.json"
     )).expect("10_tweets.json must parse as InputValue");
     let request = FunctionExecutionCreateParams {
-        function: objectiveai::functions::FullInlineFunctionOrRemoteCommitOptional::Remote(
-            objectiveai::RemotePathCommitOptional::Mock {
+        function: objectiveai_sdk::functions::FullInlineFunctionOrRemoteCommitOptional::Remote(
+            objectiveai_sdk::RemotePathCommitOptional::Mock {
                 name: "tweet-ranker".to_string(),
             },
         ),
-        profile: objectiveai::functions::InlineProfileOrRemoteCommitOptional::Inline(
-            objectiveai::functions::InlineProfile::Auto(ten_tweet_swarm_two_agents(
+        profile: objectiveai_sdk::functions::InlineProfileOrRemoteCommitOptional::Inline(
+            objectiveai_sdk::functions::InlineProfile::Auto(ten_tweet_swarm_two_agents(
                 None,
                 Some(3),
-                objectiveai::agent::mock::OutputMode::ToolCall,
-                objectiveai::agent::mock::OutputMode::JsonSchema,
+                objectiveai_sdk::agent::mock::OutputMode::ToolCall,
+                objectiveai_sdk::agent::mock::OutputMode::JsonSchema,
                 vec![Decimal::new(4, 1), Decimal::new(6, 1)],
             )),
         ),

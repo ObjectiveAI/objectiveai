@@ -1,4 +1,4 @@
-use objectiveai::error::StatusError;
+use objectiveai_sdk::error::StatusError;
 
 /// Errors that can occur during recursive Function invention.
 #[derive(Debug, thiserror::Error)]
@@ -8,7 +8,7 @@ pub enum Error {
     Invention(#[from] crate::functions::inventions::Error),
     /// The first chunk of the invention stream contained an error.
     #[error("invention failed: {0}")]
-    InventionFirstChunk(objectiveai::error::ResponseError),
+    InventionFirstChunk(objectiveai_sdk::error::ResponseError),
 }
 
 impl StatusError for Error {

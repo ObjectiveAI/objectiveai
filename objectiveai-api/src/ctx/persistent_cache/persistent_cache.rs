@@ -1,6 +1,6 @@
 //! Persistent cache trait for key-value storage.
 
-use objectiveai::error::ResponseError;
+use objectiveai_sdk::error::ResponseError;
 
 /// A persistent cache client for simple key-value storage.
 ///

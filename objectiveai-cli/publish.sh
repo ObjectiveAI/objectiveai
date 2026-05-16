@@ -1,41 +1,41 @@
 #!/usr/bin/env bash
-# Publishes objectiveai-cli to GitHub Releases as compiled binaries.
+# Publishes objectiveai-cli to crates.io.
 #
-# This is a thin wrapper around `.github/workflows/release.yml`, which is the
-# canonical CLI release pipeline. That workflow normally fires automatically
-# on push to main: if `objectiveai-cli/Cargo.toml` declares a version that
-# has no matching `vX.Y.Z` GitHub release, it builds the 10-target binary
-# matrix (5 platforms × {viewer-bundled, viewer-omitted}) and creates a draft
-# release.
+# Dispatches the GitHub Actions workflow that runs
+# `cargo publish --no-verify -p objectiveai-cli`. `--no-verify` is used
+# because the default `viewer` feature's build.rs reaches into
+# ../objectiveai-viewer/ (not part of the tarball); the workspace is
+# already type-checked before this script runs.
 #
-# This `publish.sh` exists for the rare case of a manual re-trigger after
-# deleting a draft release, or for sanity-checking a build locally.
+# CLI BINARIES (pre-compiled, cross-platform) are released separately
+# by .github/workflows/release.yml, which fires automatically on push
+# to main when objectiveai-cli/Cargo.toml has a fresh version. No
+# manual trigger needed for the binary release.
 #
 # Usage:
-#   bash objectiveai-cli/publish.sh                # dispatch release.yml manually
-#   bash objectiveai-cli/publish.sh --build-only   # local cargo build --release smoke test
+#   bash objectiveai-cli/publish.sh                # crates.io (via GHA)
+#   bash objectiveai-cli/publish.sh --build-only   # local dry-run
 #
-# `--test` is not supported.
-#
-# Output is captured to .logs/publish/objectiveai-cli.txt.
-#
-# No new GHA workflow file — release.yml already supports workflow_dispatch.
+# Setup (one-time):
+#   - CARGO_REGISTRY_TOKEN as repo secret (generate at https://crates.io/me).
+#   - `gh` CLI authenticated.
 
 set -euo pipefail
 
 MODULE="objectiveai-cli"
+CRATE="objectiveai-cli"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 LOG_DIR="$REPO_ROOT/.logs/publish"
 LOG_FILE="$LOG_DIR/$MODULE.txt"
-WORKFLOW_FILE=".github/workflows/release.yml"
+WORKFLOW_FILE=".github/workflows/publish-$MODULE.yml"
 
 mkdir -p "$LOG_DIR"
 
 BUILD_ONLY=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --test)         echo "ERROR: --test is not supported for the CLI release flow." >&2; exit 1 ;;
+    --test)         echo "ERROR: crates.io has no test registry; --test is not supported." >&2; exit 1 ;;
     --build-only)   BUILD_ONLY=true; shift ;;
     *)              echo "Unknown flag: $1" >&2; exit 1 ;;
   esac
@@ -43,13 +43,12 @@ done
 
 if $BUILD_ONLY; then
   run_local() {
-    echo "Running cargo build --release -p objectiveai-cli (smoke test)..."
-    cargo build --release -p objectiveai-cli || return $?
-    echo "--build-only specified; skipping release. (Real publishes go through release.yml.)"
+    echo "Running cargo publish --dry-run --allow-dirty --no-verify -p $CRATE..."
+    cargo publish --dry-run --allow-dirty --no-verify -p "$CRATE" || return $?
   }
 
   if run_local > "$LOG_FILE" 2>&1; then
-    echo "$MODULE: BUILT (local)"
+    echo "$MODULE: BUILT (cargo publish --dry-run)"
   else
     echo "$MODULE: ERROR (see $LOG_FILE)"
     exit 1

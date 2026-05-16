@@ -12,10 +12,10 @@ impl GetArgs {
     pub async fn resolve<F, Fut>(
         self,
         get_favorites: F,
-    ) -> Result<objectiveai::RemotePathCommitOptional, crate::error::Error>
+    ) -> Result<objectiveai_sdk::RemotePathCommitOptional, crate::error::Error>
     where
         F: FnOnce() -> Fut,
-        Fut: std::future::Future<Output = Vec<objectiveai::filesystem::config::Favorite>>,
+        Fut: std::future::Future<Output = Vec<objectiveai_sdk::filesystem::config::Favorite>>,
     {
         self.path.resolve(get_favorites).await
     }
@@ -39,10 +39,10 @@ impl GetPairArgs {
     pub async fn resolve<F, Fut>(
         self,
         get_favorites: F,
-    ) -> Result<(objectiveai::RemotePathCommitOptional, objectiveai::RemotePathCommitOptional), crate::error::Error>
+    ) -> Result<(objectiveai_sdk::RemotePathCommitOptional, objectiveai_sdk::RemotePathCommitOptional), crate::error::Error>
     where
         F: FnOnce() -> Fut,
-        Fut: std::future::Future<Output = Vec<objectiveai::filesystem::config::PairFavorite>>,
+        Fut: std::future::Future<Output = Vec<objectiveai_sdk::filesystem::config::PairFavorite>>,
     {
         if let Some(name) = self.favorite {
             let favorites = get_favorites().await;

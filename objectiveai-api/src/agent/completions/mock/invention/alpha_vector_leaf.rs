@@ -30,7 +30,7 @@ pub fn tasks_tool_call(
             let messages_expr = if has_context {
                 super::build_messages_expr("input['context']", &ctx_modalities)
             } else {
-                super::build_messages_expr("input", &objectiveai::functions::expression::Modalities::default())
+                super::build_messages_expr("input", &objectiveai_sdk::functions::expression::Modalities::default())
             };
 
             // Responses: use items modalities

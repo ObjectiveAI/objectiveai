@@ -45,7 +45,7 @@ impl ChatCompletionChunk {
         index: u64,
         is_byok: bool,
         cost_multiplier: rust_decimal::Decimal,
-    ) -> objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
+    ) -> objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
         // OpenRouter always returns exactly one choice.
         let choice = self.choices.into_iter().next().unwrap_or_default();
 
@@ -53,31 +53,31 @@ impl ChatCompletionChunk {
         let content = match (choice.delta.content, choice.delta.images) {
             (Some(text), Some(images)) => {
                 let mut parts = vec![
-                    objectiveai::agent::completions::message::RichContentPart::Text {
+                    objectiveai_sdk::agent::completions::message::RichContentPart::Text {
                         text,
                     },
                 ];
                 parts.extend(images.into_iter().map(
-                    objectiveai::agent::completions::message::RichContentPart::from,
+                    objectiveai_sdk::agent::completions::message::RichContentPart::from,
                 ));
-                Some(objectiveai::agent::completions::message::RichContent::Parts(parts))
+                Some(objectiveai_sdk::agent::completions::message::RichContent::Parts(parts))
             }
             (Some(text), None) => {
-                Some(objectiveai::agent::completions::message::RichContent::Text(text))
+                Some(objectiveai_sdk::agent::completions::message::RichContent::Text(text))
             }
             (None, Some(images)) => {
-                Some(objectiveai::agent::completions::message::RichContent::Parts(
+                Some(objectiveai_sdk::agent::completions::message::RichContent::Parts(
                     images
                         .into_iter()
-                        .map(objectiveai::agent::completions::message::RichContentPart::from)
+                        .map(objectiveai_sdk::agent::completions::message::RichContentPart::from)
                         .collect(),
                 ))
             }
             (None, None) => None,
         };
 
-        let message = objectiveai::agent::completions::response::streaming::MessageChunk::Assistant(
-            objectiveai::agent::completions::response::streaming::AssistantResponseChunk {
+        let message = objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
+            objectiveai_sdk::agent::completions::response::streaming::AssistantResponseChunk {
                 role: Default::default(),
                 index,
                 created: self.created,
@@ -99,13 +99,13 @@ impl ChatCompletionChunk {
             },
         );
 
-        objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
+        objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
             id,
             created,
             messages: vec![message],
             object: Default::default(),
             usage: None,
-            upstream: objectiveai::agent::Upstream::Openrouter,
+            upstream: objectiveai_sdk::agent::Upstream::Openrouter,
             error: None,
             continuation: None,
         }

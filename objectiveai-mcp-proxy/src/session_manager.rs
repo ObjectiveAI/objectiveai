@@ -43,7 +43,7 @@ use chacha20poly1305::aead::{Aead, KeyInit};
 use chacha20poly1305::{Key, XChaCha20Poly1305, XNonce};
 use dashmap::DashMap;
 use indexmap::IndexMap;
-use objectiveai::mcp::Connection;
+use objectiveai_sdk::mcp::Connection;
 use rand::RngCore;
 
 use crate::session::Session;

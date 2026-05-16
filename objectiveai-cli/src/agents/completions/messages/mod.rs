@@ -24,14 +24,14 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub async fn handle(self, cli_config: &crate::Config) -> Result<(), crate::error::Error> {
+    pub async fn handle(self, cli_config: &crate::Config, handle: &objectiveai_sdk::cli::output::Handle) -> Result<(), crate::error::Error> {
         match self {
-            Commands::Logs { command } => command.handle(cli_config).await,
-            Commands::Logprobs { command } => command.handle(cli_config).await,
-            Commands::Image { command } => command.handle(cli_config).await,
-            Commands::Audio { command } => command.handle(cli_config).await,
-            Commands::Video { command } => command.handle(cli_config).await,
-            Commands::File { command } => command.handle(cli_config).await,
+            Commands::Logs { command } => command.handle(cli_config, handle).await,
+            Commands::Logprobs { command } => command.handle(cli_config, handle).await,
+            Commands::Image { command } => command.handle(cli_config, handle).await,
+            Commands::Audio { command } => command.handle(cli_config, handle).await,
+            Commands::Video { command } => command.handle(cli_config, handle).await,
+            Commands::File { command } => command.handle(cli_config, handle).await,
         }
     }
 }

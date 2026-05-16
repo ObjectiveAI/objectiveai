@@ -1,14 +1,30 @@
 [package]
 name = "objectiveai-viewer"
-version = "2.0.3"
+version = "2.0.5"
 edition = "2024"
+
+[features]
+# default = [] is critical: the embedded viewer that gets bundled into
+# the cli binary picks up only default features. Enabling `cli` here
+# would mean the cli's build.rs (which builds the viewer) links the
+# viewer which links the cli back — a circular source dep. Keep cli
+# out of defaults; standalone builds opt in explicitly via
+# `cargo run --features cli`.
+default = []
+cli = ["dep:objectiveai-cli"]
+cli-rustpython = ["cli", "objectiveai-cli/rustpython"]
+cli-systempython = ["cli", "objectiveai-cli/systempython"]
+cli-updater = ["cli", "objectiveai-cli/updater"]
 
 [dependencies]
 axum = "0.8.8"
 dotenv = "0.15.0"
 envconfig = "0.11.1"
+futures = "0.3.32"
 hex = "0.4.3"
-objectiveai = { version = "2.0.3", path = "../../objectiveai-rs" }
+mime_guess = "2.0.5"
+objectiveai-sdk = { version = "2.0.5", path = "../../objectiveai-sdk-rs" }
+objectiveai-cli = { version = "2.0.5", path = "../../objectiveai-cli", default-features = false, optional = true }
 reqwest = { version = "0.12.28", default-features = false, features = ["charset", "http2", "rustls-tls", "json", "stream"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
@@ -19,3 +35,6 @@ tokio = { version = "1.50.0", features = ["full"] }
 
 [build-dependencies]
 tauri-build = { version = "2.5.6", features = [] }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }

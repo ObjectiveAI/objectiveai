@@ -1,0 +1,10 @@
+{
+  "title": "cli.output.notification.swarms.Swarm",
+  "description": "Result of `swarms get`.\n\nWire: `{\"type\":\"notification\",\"swarm\":{...GetSwarmResponse...}}`.",
+  "type": "object",
+  "properties": {
+    "swarm": {
+      "$ref": "swarm.GetSwarmResponse"
+    }
+  }
+}

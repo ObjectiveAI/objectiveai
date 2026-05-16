@@ -8,16 +8,16 @@ pub enum Error {
     InvalidProfile(String),
     /// Failed to fetch votes from a previous completion for retry.
     #[error("fetch retry error: {0}")]
-    FetchRetry(objectiveai::error::ResponseError),
+    FetchRetry(objectiveai_sdk::error::ResponseError),
     /// The completion specified for retry was not found.
     #[error("retry not found")]
     RetryNotFound,
     /// Failed to fetch a vote from the global cache.
     #[error("fetch cache vote error: {0}")]
-    FetchCacheVote(objectiveai::error::ResponseError),
+    FetchCacheVote(objectiveai_sdk::error::ResponseError),
     /// Failed to fetch the Swarm definition.
     #[error("fetch swarm error: {0}")]
-    FetchSwarm(objectiveai::error::ResponseError),
+    FetchSwarm(objectiveai_sdk::error::ResponseError),
     /// The requested Swarm was not found.
     #[error("swarm not found")]
     SwarmNotFound,
@@ -32,7 +32,7 @@ pub enum Error {
     CacheAndContinuationConflict,
 }
 
-impl objectiveai::error::StatusError for Error {
+impl objectiveai_sdk::error::StatusError for Error {
     fn status(&self) -> u16 {
         match self {
             Error::InvalidProfile(_) => 400,

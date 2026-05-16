@@ -63,12 +63,12 @@ pub struct Context<CTXEXT, PC> {
     /// Cache for agent fetches, keyed by RemotePath.
     agent_cache: Arc<
         DashMap<
-            objectiveai::RemotePath,
+            objectiveai_sdk::RemotePath,
             Shared<
                 tokio::sync::oneshot::Receiver<
                     Result<
-                        Option<objectiveai::agent::RemoteAgentBaseWithFallbacks>,
-                        objectiveai::error::ResponseError,
+                        Option<objectiveai_sdk::agent::RemoteAgentBaseWithFallbacks>,
+                        objectiveai_sdk::error::ResponseError,
                     >,
                 >,
             >,
@@ -77,12 +77,12 @@ pub struct Context<CTXEXT, PC> {
     /// Cache for swarm fetches, keyed by RemotePath.
     swarm_cache: Arc<
         DashMap<
-            objectiveai::RemotePath,
+            objectiveai_sdk::RemotePath,
             Shared<
                 tokio::sync::oneshot::Receiver<
                     Result<
-                        Option<objectiveai::swarm::RemoteSwarmBase>,
-                        objectiveai::error::ResponseError,
+                        Option<objectiveai_sdk::swarm::RemoteSwarmBase>,
+                        objectiveai_sdk::error::ResponseError,
                     >,
                 >,
             >,
@@ -91,12 +91,12 @@ pub struct Context<CTXEXT, PC> {
     /// Cache for function fetches, keyed by RemotePath.
     function_cache: Arc<
         DashMap<
-            objectiveai::RemotePath,
+            objectiveai_sdk::RemotePath,
             Shared<
                 tokio::sync::oneshot::Receiver<
                     Result<
-                        Option<objectiveai::functions::FullRemoteFunction>,
-                        objectiveai::error::ResponseError,
+                        Option<objectiveai_sdk::functions::FullRemoteFunction>,
+                        objectiveai_sdk::error::ResponseError,
                     >,
                 >,
             >,
@@ -105,12 +105,12 @@ pub struct Context<CTXEXT, PC> {
     /// Cache for profile fetches, keyed by RemotePath.
     profile_cache: Arc<
         DashMap<
-            objectiveai::RemotePath,
+            objectiveai_sdk::RemotePath,
             Shared<
                 tokio::sync::oneshot::Receiver<
                     Result<
-                        Option<objectiveai::functions::RemoteProfile>,
-                        objectiveai::error::ResponseError,
+                        Option<objectiveai_sdk::functions::RemoteProfile>,
+                        objectiveai_sdk::error::ResponseError,
                     >,
                 >,
             >,
@@ -119,12 +119,12 @@ pub struct Context<CTXEXT, PC> {
     /// Cache for resolve_latest fetches, keyed by RemotePathCommitOptional.
     remote_latest_cache: Arc<
         DashMap<
-            objectiveai::RemotePathCommitOptional,
+            objectiveai_sdk::RemotePathCommitOptional,
             Shared<
                 tokio::sync::oneshot::Receiver<
                     Result<
-                        Option<objectiveai::RemotePath>,
-                        objectiveai::error::ResponseError,
+                        Option<objectiveai_sdk::RemotePath>,
+                        objectiveai_sdk::error::ResponseError,
                     >,
                 >,
             >,
@@ -285,20 +285,20 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
 async fn cached_get_or_fetch<K, V, PC, F, Fut>(
     cache: &DashMap<
         K,
-        Shared<tokio::sync::oneshot::Receiver<Result<Option<V>, objectiveai::error::ResponseError>>>,
+        Shared<tokio::sync::oneshot::Receiver<Result<Option<V>, objectiveai_sdk::error::ResponseError>>>,
     >,
     persistent_cache: &Arc<PC>,
     namespace: &'static str,
     key: K,
     permanent: bool,
     fetch: F,
-) -> Result<Option<V>, objectiveai::error::ResponseError>
+) -> Result<Option<V>, objectiveai_sdk::error::ResponseError>
 where
     K: std::hash::Hash + Eq + serde::Serialize + Clone + Send + Sync + 'static,
     V: serde::Serialize + serde::de::DeserializeOwned + Clone + Send + Sync + 'static,
     PC: PersistentCacheClient,
     F: FnOnce() -> Fut + Send + 'static,
-    Fut: std::future::Future<Output = Result<Option<V>, objectiveai::error::ResponseError>> + Send,
+    Fut: std::future::Future<Output = Result<Option<V>, objectiveai_sdk::error::ResponseError>> + Send,
 {
     let persistent_cache = persistent_cache.clone();
     let persistent_key = serde_json::to_string(&key).unwrap();
@@ -339,60 +339,60 @@ where
 impl<CTXEXT, PC: PersistentCacheClient> Context<CTXEXT, PC> {
     pub async fn cached_agent<F, Fut>(
         &self,
-        key: objectiveai::RemotePath,
+        key: objectiveai_sdk::RemotePath,
         fetch: F,
-    ) -> Result<Option<objectiveai::agent::RemoteAgentBaseWithFallbacks>, objectiveai::error::ResponseError>
+    ) -> Result<Option<objectiveai_sdk::agent::RemoteAgentBaseWithFallbacks>, objectiveai_sdk::error::ResponseError>
     where
         F: FnOnce() -> Fut + Send + 'static,
-        Fut: std::future::Future<Output = Result<Option<objectiveai::agent::RemoteAgentBaseWithFallbacks>, objectiveai::error::ResponseError>> + Send,
+        Fut: std::future::Future<Output = Result<Option<objectiveai_sdk::agent::RemoteAgentBaseWithFallbacks>, objectiveai_sdk::error::ResponseError>> + Send,
     {
         cached_get_or_fetch(&self.agent_cache, &self.persistent_cache, "agent", key, true, fetch).await
     }
 
     pub async fn cached_swarm<F, Fut>(
         &self,
-        key: objectiveai::RemotePath,
+        key: objectiveai_sdk::RemotePath,
         fetch: F,
-    ) -> Result<Option<objectiveai::swarm::RemoteSwarmBase>, objectiveai::error::ResponseError>
+    ) -> Result<Option<objectiveai_sdk::swarm::RemoteSwarmBase>, objectiveai_sdk::error::ResponseError>
     where
         F: FnOnce() -> Fut + Send + 'static,
-        Fut: std::future::Future<Output = Result<Option<objectiveai::swarm::RemoteSwarmBase>, objectiveai::error::ResponseError>> + Send,
+        Fut: std::future::Future<Output = Result<Option<objectiveai_sdk::swarm::RemoteSwarmBase>, objectiveai_sdk::error::ResponseError>> + Send,
     {
         cached_get_or_fetch(&self.swarm_cache, &self.persistent_cache, "swarm", key, true, fetch).await
     }
 
     pub async fn cached_function<F, Fut>(
         &self,
-        key: objectiveai::RemotePath,
+        key: objectiveai_sdk::RemotePath,
         fetch: F,
-    ) -> Result<Option<objectiveai::functions::FullRemoteFunction>, objectiveai::error::ResponseError>
+    ) -> Result<Option<objectiveai_sdk::functions::FullRemoteFunction>, objectiveai_sdk::error::ResponseError>
     where
         F: FnOnce() -> Fut + Send + 'static,
-        Fut: std::future::Future<Output = Result<Option<objectiveai::functions::FullRemoteFunction>, objectiveai::error::ResponseError>> + Send,
+        Fut: std::future::Future<Output = Result<Option<objectiveai_sdk::functions::FullRemoteFunction>, objectiveai_sdk::error::ResponseError>> + Send,
     {
         cached_get_or_fetch(&self.function_cache, &self.persistent_cache, "function", key, true, fetch).await
     }
 
     pub async fn cached_profile<F, Fut>(
         &self,
-        key: objectiveai::RemotePath,
+        key: objectiveai_sdk::RemotePath,
         fetch: F,
-    ) -> Result<Option<objectiveai::functions::RemoteProfile>, objectiveai::error::ResponseError>
+    ) -> Result<Option<objectiveai_sdk::functions::RemoteProfile>, objectiveai_sdk::error::ResponseError>
     where
         F: FnOnce() -> Fut + Send + 'static,
-        Fut: std::future::Future<Output = Result<Option<objectiveai::functions::RemoteProfile>, objectiveai::error::ResponseError>> + Send,
+        Fut: std::future::Future<Output = Result<Option<objectiveai_sdk::functions::RemoteProfile>, objectiveai_sdk::error::ResponseError>> + Send,
     {
         cached_get_or_fetch(&self.profile_cache, &self.persistent_cache, "profile", key, true, fetch).await
     }
 
     pub async fn cached_remote_latest<F, Fut>(
         &self,
-        key: objectiveai::RemotePathCommitOptional,
+        key: objectiveai_sdk::RemotePathCommitOptional,
         fetch: F,
-    ) -> Result<Option<objectiveai::RemotePath>, objectiveai::error::ResponseError>
+    ) -> Result<Option<objectiveai_sdk::RemotePath>, objectiveai_sdk::error::ResponseError>
     where
         F: FnOnce() -> Fut + Send + 'static,
-        Fut: std::future::Future<Output = Result<Option<objectiveai::RemotePath>, objectiveai::error::ResponseError>> + Send,
+        Fut: std::future::Future<Output = Result<Option<objectiveai_sdk::RemotePath>, objectiveai_sdk::error::ResponseError>> + Send,
     {
         cached_get_or_fetch(&self.remote_latest_cache, &self.persistent_cache, "remote_latest", key, false, fetch).await
     }
@@ -406,9 +406,9 @@ impl<CTXEXT: super::ContextExt, PC> Context<CTXEXT, PC> {
     /// from the context extension. Result is cached for subsequent calls.
     pub async fn upstream_authorization(
         &self,
-        upstream: objectiveai::agent::Upstream,
+        upstream: objectiveai_sdk::agent::Upstream,
     ) -> Option<Arc<String>> {
-        if upstream != objectiveai::agent::Upstream::Openrouter {
+        if upstream != objectiveai_sdk::agent::Upstream::Openrouter {
             return None;
         }
         self.openrouter_authorization_cached

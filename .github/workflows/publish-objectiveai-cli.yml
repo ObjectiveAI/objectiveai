@@ -1,0 +1,38 @@
+name: Publish objectiveai-cli (crates.io)
+
+# Publishes the `objectiveai-cli` crate to crates.io as a library +
+# installable binary. Triggered manually via workflow_dispatch.
+#
+# This is SEPARATE from .github/workflows/release.yml, which builds and
+# uploads precompiled CLI binaries to GitHub Releases. Both fire from
+# the same Cargo.toml version but go to different channels.
+#
+# --no-verify: the default `viewer` feature's build.rs reaches into
+# ../objectiveai-viewer/embed/ which is not packaged. The workspace
+# is already type-checked before publish; verify-on-publish would
+# duplicate that with the wrong feature set.
+#
+# Setup required (one-time):
+#   - CARGO_REGISTRY_TOKEN: crates.io API token with `publish-update` scope.
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: cargo publish -p objectiveai-cli
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: cargo publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish --no-verify -p objectiveai-cli

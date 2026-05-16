@@ -1,7 +1,7 @@
 import type {
   AgentCompletionsResponseStreamingAssistantResponseChunk,
   AgentCompletionsResponseToolResponse,
-} from "objectiveai";
+} from "@objectiveai/sdk";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import { RichContent } from "./RichContent";
 import { ToolCallCard } from "./ToolCallCard";

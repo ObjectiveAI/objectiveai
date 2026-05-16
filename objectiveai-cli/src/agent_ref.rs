@@ -25,16 +25,16 @@ impl AgentRef {
         self,
         get_favorites: F,
     ) -> Result<
-        objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
+        objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
         crate::error::Error,
     >
     where
         F: FnOnce() -> Fut,
-        Fut: std::future::Future<Output = Vec<objectiveai::filesystem::config::Favorite>>,
+        Fut: std::future::Future<Output = Vec<objectiveai_sdk::filesystem::config::Favorite>>,
     {
         let path = self.0.resolve(get_favorites).await?;
         Ok(
-            objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::Remote(path),
+            objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::Remote(path),
         )
     }
 }

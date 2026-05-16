@@ -1,54 +1,162 @@
 #!/usr/bin/env bash
-# Dispatches every per-package publish.sh in parallel.
+# Publishes the entire ObjectiveAI release across all registries, in
+# dependency order. Each wave dispatches its per-package publish scripts
+# in parallel; the next wave only starts after every registry in the
+# prior wave reports the new version live. No manual retries.
 #
-# Each per-package script triggers its own GitHub Actions workflow (or, for
-# objectiveai-go, pushes a git tag locally). All dispatches run concurrently
-# — one failure does not abort the others — but this script's exit status
-# reflects whether any failed.
-#
-# Race-condition note: when a fresh version bump is being published,
-# downstream crates/packages may race-fail because their upstreams haven't
-# landed on the registry yet (e.g. `objectiveai-api` depends on
-# `objectiveai`; `objectiveai-cocoindex` depends on `objectiveai-py`). The
-# fix is simply to rerun the failed per-package publish.sh once the upstream
-# version is live.
+# Idempotent: re-running after a partial failure skips packages that are
+# already live at the current VERSION and resumes from the rest.
 #
 # Usage:
-#   bash publish.sh                # production registries
-#   bash publish.sh --test         # test registries where supported (PyPI for py + cocoindex)
+#   bash publish.sh                # full production release (dispatches GHA)
 #   bash publish.sh --build-only   # local sanity check across all packages
+#
+# Requires: gh CLI authenticated; relevant secrets set on the repo
+# (CARGO_REGISTRY_TOKEN, NPM_TOKEN, PYPI_API_TOKEN).
 
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
+VERSION="$(awk '/^version = "/ { gsub(/version = "|"/, ""); print; exit }' "$REPO_ROOT/objectiveai-sdk-rs/Cargo.toml")"
+TIMEOUT_SECS=1200   # 20 minutes per package
+POLL_SECS=15
 
-PACKAGES=(
-  objectiveai-rs-macros
-  objectiveai-rs
-  objectiveai-api
-  objectiveai-mcp-cli
-  objectiveai-mcp-proxy
-  objectiveai-mcp-filesystem
-  objectiveai-py
-  objectiveai-cocoindex
-  objectiveai-js
-  objectiveai-go
-  objectiveai-cli
+# Entries: "<dir>|<registry>|<published-name>"
+# registry ∈ {crates, pypi, npm, go, github-release}
+WAVE_1=(
+  "objectiveai-sdk-rs-macros|crates|objectiveai-sdk-macros"
+  "objectiveai-sdk-go|go|objectiveai-sdk-go"
+)
+WAVE_2=(
+  "objectiveai-sdk-rs|crates|objectiveai-sdk"
+)
+WAVE_3=(
+  "objectiveai-mcp-proxy|crates|objectiveai-mcp-proxy"
+  "objectiveai-mcp-filesystem|crates|objectiveai-mcp-filesystem"
+  "objectiveai-sdk-py|pypi|objectiveai-sdk"
+  "objectiveai-sdk-js|npm|@objectiveai/sdk"
+)
+WAVE_4=(
+  "objectiveai-api|crates|objectiveai-api"
+)
+WAVE_5=(
+  "objectiveai-cli|crates|objectiveai-cli"
+)
+WAVE_6=(
+  "objectiveai-mcp-cli|crates|objectiveai-mcp-cli"
+  "objectiveai-cocoindex|pypi|objectiveai-cocoindex"
 )
 
-PIDS=()
-for pkg in "${PACKAGES[@]}"; do
-  bash "$REPO_ROOT/$pkg/publish.sh" "$@" &
-  PIDS+=($!)
-done
-
-FAILED=false
-for pid in "${PIDS[@]}"; do
-  if ! wait "$pid"; then
-    FAILED=true
-  fi
-done
-
-if $FAILED; then
-  exit 1
+# ── --build-only fast path: everything in parallel, no wave/wait logic ──
+if [[ "${1:-}" == "--build-only" ]]; then
+  pids=()
+  for entry in "${WAVE_1[@]}" "${WAVE_2[@]}" "${WAVE_3[@]}" "${WAVE_4[@]}" "${WAVE_5[@]}" "${WAVE_6[@]}"; do
+    dir="${entry%%|*}"
+    bash "$REPO_ROOT/$dir/publish.sh" --build-only &
+    pids+=($!)
+  done
+  failed=false
+  for pid in "${pids[@]}"; do wait "$pid" || failed=true; done
+  $failed && exit 1
+  exit 0
 fi
+
+# ── registry liveness probe ─────────────────────────────────────────────
+is_live() {
+  local registry="$1" name="$2" version="$3"
+  case "$registry" in
+    crates)
+      curl -fsS -o /dev/null 2>/dev/null "https://crates.io/api/v1/crates/$name/$version"
+      ;;
+    pypi)
+      curl -fsS -o /dev/null 2>/dev/null "https://pypi.org/pypi/$name/$version/json"
+      ;;
+    npm)
+      curl -fsS -o /dev/null 2>/dev/null "https://registry.npmjs.org/$name/$version"
+      ;;
+    go)
+      git -C "$REPO_ROOT" ls-remote --tags origin "refs/tags/$name/v$version" \
+        | grep -q "refs/tags/$name/v$version$"
+      ;;
+    github-release)
+      gh release view "v$version" \
+        --repo "$(gh repo view --json nameWithOwner -q .nameWithOwner)" \
+        >/dev/null 2>&1
+      ;;
+    *)
+      echo "unknown registry: $registry" >&2; return 2
+      ;;
+  esac
+}
+
+wait_for_live() {
+  local label="$1" registry="$2" name="$3" version="$4"
+  local started=$SECONDS
+  printf "  · waiting for %s on %s..." "$label" "$registry"
+  while (( SECONDS - started < TIMEOUT_SECS )); do
+    if is_live "$registry" "$name" "$version"; then
+      printf " live (%ds)\n" $(( SECONDS - started ))
+      return 0
+    fi
+    sleep "$POLL_SECS"
+    printf "."
+  done
+  printf " TIMED OUT (%ds)\n" $(( SECONDS - started ))
+  return 1
+}
+
+# ── wave executor ───────────────────────────────────────────────────────
+run_wave() {
+  local wave_name="$1"; shift
+  local entries=("$@")
+
+  echo
+  echo "=== $wave_name ==="
+
+  # 1. Dispatch each per-package script in parallel — but skip any
+  #    package already live at the current VERSION (idempotence).
+  local pids=() labels=() to_wait=()
+  for entry in "${entries[@]}"; do
+    local dir registry name
+    IFS='|' read -r dir registry name <<<"$entry"
+    [[ -z "$name" ]] && name="$dir"
+    if is_live "$registry" "$name" "$VERSION"; then
+      echo "  · $dir already live at $VERSION on $registry — skip"
+      continue
+    fi
+    bash "$REPO_ROOT/$dir/publish.sh" &
+    pids+=($!)
+    labels+=("$dir")
+    to_wait+=("$entry")
+  done
+
+  # 2. Block on dispatch completion (a few seconds each — just the
+  #    `gh workflow run` call returning OK, or the sdk-go tag push).
+  local dispatch_failed=false
+  for i in "${!pids[@]}"; do
+    if ! wait "${pids[$i]}"; then
+      echo "  ✗ dispatch failed: ${labels[$i]}" >&2
+      dispatch_failed=true
+    fi
+  done
+  $dispatch_failed && return 1
+
+  # 3. Poll each registry until the new version is live.
+  for entry in "${to_wait[@]}"; do
+    local dir registry name
+    IFS='|' read -r dir registry name <<<"$entry"
+    [[ -z "$name" ]] && name="$dir"
+    wait_for_live "$dir" "$registry" "$name" "$VERSION" || return 1
+  done
+}
+
+# ── go ──────────────────────────────────────────────────────────────────
+echo "Publishing ObjectiveAI $VERSION across all registries..."
+run_wave "Wave 1 — leaves (no upstream deps)"               "${WAVE_1[@]}"
+run_wave "Wave 2 — depends on objectiveai-sdk-macros"       "${WAVE_2[@]}"
+run_wave "Wave 3 — depends on objectiveai-sdk"              "${WAVE_3[@]}"
+run_wave "Wave 4 — depends on objectiveai-mcp-proxy (api)"  "${WAVE_4[@]}"
+run_wave "Wave 5 — depends on api (cli)"                    "${WAVE_5[@]}"
+run_wave "Wave 6 — depends on cli / sdk-py on PyPI"         "${WAVE_6[@]}"
+echo
+echo "✓ All packages published at $VERSION"

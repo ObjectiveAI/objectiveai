@@ -8,7 +8,7 @@ use indexmap::IndexMap;
 /// Keyed by agent ID so each agent in an swarm can receive different messages.
 pub type TransformMessages = HashMap<
     String,
-    Box<dyn Fn(Vec<objectiveai::agent::completions::message::Message>) -> Vec<objectiveai::agent::completions::message::Message> + Send + Sync>,
+    Box<dyn Fn(Vec<objectiveai_sdk::agent::completions::message::Message>) -> Vec<objectiveai_sdk::agent::completions::message::Message> + Send + Sync>,
 >;
 
 pub fn response_id(created: u64) -> String {
@@ -24,11 +24,11 @@ pub fn response_id(created: u64) -> String {
 /// `request_mcp_auth` / `self.mcp_authorization`. The proxy connection
 /// is per-agent now, so there's no "URL superset" filter anymore.
 fn filter_agents(
-    agents: Vec<objectiveai::agent::InlineAgent>,
-    required_upstream: Option<objectiveai::agent::Upstream>,
+    agents: Vec<objectiveai_sdk::agent::InlineAgent>,
+    required_upstream: Option<objectiveai_sdk::agent::Upstream>,
     request_mcp_auth: Option<&std::collections::HashMap<String, String>>,
     default_mcp_auth: Option<&std::collections::HashMap<String, String>>,
-) -> Vec<objectiveai::agent::InlineAgent> {
+) -> Vec<objectiveai_sdk::agent::InlineAgent> {
     agents
         .into_iter()
         .filter(|agent| {
@@ -56,7 +56,7 @@ fn filter_agents(
 
 pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG> {
     /// MCP Client
-    pub mcp_client: Arc<objectiveai::mcp::Client>,
+    pub mcp_client: Arc<objectiveai_sdk::mcp::Client>,
     /// Lazy in-process mcp-proxy used for every per-agent MCP connection.
     pub proxy_spawner: Arc<super::ProxySpawner>,
     /// Default MCP authorization headers (used when ctx doesn't provide them).
@@ -97,7 +97,7 @@ pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RET
 
 impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG> Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG> {
     pub fn new(
-        mcp_client: Arc<objectiveai::mcp::Client>,
+        mcp_client: Arc<objectiveai_sdk::mcp::Client>,
         proxy_spawner: Arc<super::ProxySpawner>,
         mcp_authorization: Option<Arc<std::collections::HashMap<String, String>>>,
         retrieve_router: Arc<crate::retrieval::retrieve::Router<RETRG, RETRF, RETRM, CTXEXT>>,
@@ -171,10 +171,10 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
 impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG> Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG>
 where
     CTXEXT: ctx::ContextExt + Send + Sync + 'static,
-    OPENROUTER: super::UpstreamClient<objectiveai::agent::openrouter::Agent, objectiveai::agent::openrouter::Continuation> + Send + Sync + 'static,
-    CLAUDEAGENTSDK: super::UpstreamClient<objectiveai::agent::claude_agent_sdk::Agent, objectiveai::agent::claude_agent_sdk::Continuation> + Send + Sync + 'static,
-    CODEXSDK: super::UpstreamClient<objectiveai::agent::codex_sdk::Agent, objectiveai::agent::codex_sdk::Continuation> + Send + Sync + 'static,
-    MOCK: super::UpstreamClient<objectiveai::agent::mock::Agent, objectiveai::agent::mock::Continuation> + Send + Sync + 'static,
+    OPENROUTER: super::UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::agent::openrouter::Continuation> + Send + Sync + 'static,
+    CLAUDEAGENTSDK: super::UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation> + Send + Sync + 'static,
+    CODEXSDK: super::UpstreamClient<objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation> + Send + Sync + 'static,
+    MOCK: super::UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation> + Send + Sync + 'static,
     RETRG: crate::retrieval::retrieve::Client<CTXEXT>,
     RETRF: crate::retrieval::retrieve::Client<CTXEXT>,
     RETRM: crate::retrieval::retrieve::Client<CTXEXT>,
@@ -186,7 +186,7 @@ where
     pub async fn create_unary_handle_usage(
         self: Arc<Self>,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-        params: Arc<objectiveai::agent::completions::request::AgentCompletionCreateParams>,
+        params: Arc<objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams>,
         continuation: Option<
             super::Continuation<
                 OPENROUTER::State,
@@ -200,16 +200,16 @@ where
         extra_mcp_headers: indexmap::IndexMap<String, String>,
         transform_messages: Option<Arc<TransformMessages>>,
         viewer: bool,
-        invention_type: Option<objectiveai::functions::inventions::prompts::StepPromptType>,
+        invention_type: Option<objectiveai_sdk::functions::inventions::prompts::StepPromptType>,
         invention_step: Option<usize>,
         invention_tasks_min: Option<u64>,
         invention_input_schema: Option<String>,
     ) -> Result<
-        objectiveai::agent::completions::response::unary::AgentCompletion,
+        objectiveai_sdk::agent::completions::response::unary::AgentCompletion,
         super::Error,
     > {
         let mut aggregate: Option<
-            objectiveai::agent::completions::response::streaming::AgentCompletionChunk,
+            objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk,
         > = None;
         let mut stream = self
             .create_streaming_handle_usage(ctx, params, continuation, disable_tools, extra_mcp_servers, extra_mcp_headers, transform_messages, viewer, invention_type, invention_step, invention_tasks_min, invention_input_schema)
@@ -230,7 +230,7 @@ where
     pub async fn create_streaming_handle_usage(
         self: Arc<Self>,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-        params: Arc<objectiveai::agent::completions::request::AgentCompletionCreateParams>,
+        params: Arc<objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams>,
         continuation: Option<
             super::Continuation<
                 OPENROUTER::State,
@@ -244,7 +244,7 @@ where
         extra_mcp_headers: indexmap::IndexMap<String, String>,
         transform_messages: Option<Arc<TransformMessages>>,
         viewer: bool,
-        invention_type: Option<objectiveai::functions::inventions::prompts::StepPromptType>,
+        invention_type: Option<objectiveai_sdk::functions::inventions::prompts::StepPromptType>,
         invention_step: Option<usize>,
         invention_tasks_min: Option<u64>,
         invention_input_schema: Option<String>,
@@ -276,7 +276,7 @@ where
                 }
             };
             let mut aggregate: Option<
-                objectiveai::agent::completions::response::streaming::AgentCompletionChunk,
+                objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk,
             > = None;
             futures::pin_mut!(stream);
             while let Some(item) = stream.next().await {
@@ -295,7 +295,7 @@ where
             }
             drop(stream);
             drop(tx);
-            let response: objectiveai::agent::completions::response::unary::AgentCompletion =
+            let response: objectiveai_sdk::agent::completions::response::unary::AgentCompletion =
                 aggregate.unwrap().into();
             if response.usage.any_usage() {
                 self.usage_handler
@@ -318,7 +318,7 @@ where
     pub async fn create_streaming(
         &self,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-        params: Arc<objectiveai::agent::completions::request::AgentCompletionCreateParams>,
+        params: Arc<objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams>,
         continuation: Option<
             super::Continuation<
                 OPENROUTER::State,
@@ -342,7 +342,7 @@ where
         extra_mcp_headers: indexmap::IndexMap<String, String>,
         transform_messages: Option<Arc<TransformMessages>>,
         viewer: bool,
-        invention_type: Option<objectiveai::functions::inventions::prompts::StepPromptType>,
+        invention_type: Option<objectiveai_sdk::functions::inventions::prompts::StepPromptType>,
         invention_step: Option<usize>,
         invention_tasks_min: Option<u64>,
         invention_input_schema: Option<String>,
@@ -373,7 +373,7 @@ where
         // Parse request continuation from base64 string if provided.
         let request_continuation = match &params.continuation {
             Some(s) => Some(
-                objectiveai::agent::Continuation::try_from_string(s)
+                objectiveai_sdk::agent::Continuation::try_from_string(s)
                     .ok_or(super::Error::InvalidContinuation)?,
             ),
             None => None,
@@ -439,7 +439,7 @@ where
             .await
             .map_err(|e| super::Error::InvalidAgent(e.message.to_string()))?;
         let inline = agent_wf.inline();
-        let mut all_agents: Vec<objectiveai::agent::InlineAgent> = vec![inline.inner.clone()];
+        let mut all_agents: Vec<objectiveai_sdk::agent::InlineAgent> = vec![inline.inner.clone()];
         if let Some(fallbacks) = &inline.fallbacks {
             all_agents.extend(fallbacks.iter().cloned());
         }
@@ -476,7 +476,7 @@ where
         let connect_handles: Vec<
             Option<
                 tokio::task::JoinHandle<
-                    Result<objectiveai::mcp::Connection, objectiveai::mcp::Error>,
+                    Result<objectiveai_sdk::mcp::Connection, objectiveai_sdk::mcp::Error>,
                 >,
             >,
         > = filtered_agents
@@ -572,10 +572,10 @@ where
         //    the actual `await` happens inside the per-agent branch
         //    in step 8 below.
         struct AgentAttempt {
-            agent: objectiveai::agent::InlineAgent,
+            agent: objectiveai_sdk::agent::InlineAgent,
             connect_handle: Option<
                 tokio::task::JoinHandle<
-                    Result<objectiveai::mcp::Connection, objectiveai::mcp::Error>,
+                    Result<objectiveai_sdk::mcp::Connection, objectiveai_sdk::mcp::Error>,
                 >,
             >,
         }
@@ -587,7 +587,7 @@ where
         // Slot of resolved-or-None per attempt — populated lazily on
         // first awaited iteration of the retry loop, reused across
         // backoff retries so we don't re-issue the connect.
-        let mut attempt_connections: Vec<Option<objectiveai::mcp::Connection>> =
+        let mut attempt_connections: Vec<Option<objectiveai_sdk::mcp::Connection>> =
             (0..attempts.len()).map(|_| None).collect();
         let mut attempt_connect_done: Vec<bool> = (0..attempts.len()).map(|_| false).collect();
 
@@ -626,7 +626,7 @@ where
                 // servers and the connect failed.
                 let agent_needs_mcp = attempt.agent.base().mcp_servers().is_some()
                     || !extra_mcp_servers.is_empty();
-                let mcp_connection: Option<objectiveai::mcp::Connection> =
+                let mcp_connection: Option<objectiveai_sdk::mcp::Connection> =
                     attempt_connections[idx].clone();
                 if agent_needs_mcp && mcp_connection.is_none() {
                     continue;
@@ -647,10 +647,10 @@ where
 
                 for byok_attempt in &byok_attempts {
                     let err = match &attempt.agent {
-                        objectiveai::agent::InlineAgent::Openrouter(or_agent) => {
+                        objectiveai_sdk::agent::InlineAgent::Openrouter(or_agent) => {
                             let c = mcp_connection.clone();
                             let rc = match &request_continuation {
-                                Some(objectiveai::agent::Continuation::Openrouter(c)) => Some(c),
+                                Some(objectiveai_sdk::agent::Continuation::Openrouter(c)) => Some(c),
                                 _ => None,
                             };
                             match self.run_agent_loop(
@@ -661,7 +661,7 @@ where
                                     items, mcp_connection: c,
                                 },
                                 |e| super::Error::UpstreamOpenrouter(Box::new(e)),
-                                objectiveai::agent::InlineAgentRef::Openrouter(&or_agent.base),
+                                objectiveai_sdk::agent::InlineAgentRef::Openrouter(&or_agent.base),
                                 disable_tools.clone(),
                                 agent_transform,
                                 make_is_cancelled(),
@@ -683,10 +683,10 @@ where
                                 Err(e) => e,
                             }
                         }
-                        objectiveai::agent::InlineAgent::ClaudeAgentSdk(cas_agent) => {
+                        objectiveai_sdk::agent::InlineAgent::ClaudeAgentSdk(cas_agent) => {
                             let c = mcp_connection.clone();
                             let rc = match &request_continuation {
-                                Some(objectiveai::agent::Continuation::ClaudeAgentSdk(c)) => Some(c),
+                                Some(objectiveai_sdk::agent::Continuation::ClaudeAgentSdk(c)) => Some(c),
                                 _ => None,
                             };
                             match self.run_agent_loop(
@@ -697,7 +697,7 @@ where
                                     items, mcp_connection: c,
                                 },
                                 |e| super::Error::UpstreamClaudeAgentSdk(Box::new(e)),
-                                objectiveai::agent::InlineAgentRef::ClaudeAgentSdk(&cas_agent.base),
+                                objectiveai_sdk::agent::InlineAgentRef::ClaudeAgentSdk(&cas_agent.base),
                                 disable_tools.clone(),
                                 agent_transform,
                                 make_is_cancelled(),
@@ -719,10 +719,10 @@ where
                                 Err(e) => e,
                             }
                         }
-                        objectiveai::agent::InlineAgent::CodexSdk(cdx_agent) => {
+                        objectiveai_sdk::agent::InlineAgent::CodexSdk(cdx_agent) => {
                             let c = mcp_connection.clone();
                             let rc = match &request_continuation {
-                                Some(objectiveai::agent::Continuation::CodexSdk(c)) => Some(c),
+                                Some(objectiveai_sdk::agent::Continuation::CodexSdk(c)) => Some(c),
                                 _ => None,
                             };
                             match self.run_agent_loop(
@@ -733,7 +733,7 @@ where
                                     items, mcp_connection: c,
                                 },
                                 |e| super::Error::UpstreamCodexSdk(Box::new(e)),
-                                objectiveai::agent::InlineAgentRef::CodexSdk(&cdx_agent.base),
+                                objectiveai_sdk::agent::InlineAgentRef::CodexSdk(&cdx_agent.base),
                                 disable_tools.clone(),
                                 agent_transform,
                                 make_is_cancelled(),
@@ -755,10 +755,10 @@ where
                                 Err(e) => e,
                             }
                         }
-                        objectiveai::agent::InlineAgent::Mock(mock_agent) => {
+                        objectiveai_sdk::agent::InlineAgent::Mock(mock_agent) => {
                             let c = mcp_connection.clone();
                             let rc = match &request_continuation {
-                                Some(objectiveai::agent::Continuation::Mock(c)) => Some(c),
+                                Some(objectiveai_sdk::agent::Continuation::Mock(c)) => Some(c),
                                 _ => None,
                             };
                             match self.run_agent_loop(
@@ -769,7 +769,7 @@ where
                                     items, mcp_connection: c,
                                 },
                                 |e| super::Error::UpstreamMock(Box::new(e)),
-                                objectiveai::agent::InlineAgentRef::Mock(&mock_agent.base),
+                                objectiveai_sdk::agent::InlineAgentRef::Mock(&mock_agent.base),
                                 disable_tools.clone(),
                                 agent_transform,
                                 make_is_cancelled(),
@@ -829,8 +829,8 @@ where
         upstream: Arc<U>,
         agent: &A,
         request_continuation: Option<&RC>,
-        params: &objectiveai::agent::completions::request::AgentCompletionCreateParams,
-        mcp_connection: Option<objectiveai::mcp::Connection>,
+        params: &objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams,
+        mcp_connection: Option<objectiveai_sdk::mcp::Connection>,
         cont_items: &mut Vec<super::ContinuationItem<U::State>>,
         id: &str,
         created: u64,
@@ -838,11 +838,11 @@ where
         cost_multiplier: rust_decimal::Decimal,
         wrap_continuation: impl FnOnce(Vec<super::ContinuationItem<U::State>>) -> CONT + Send + 'static,
         map_upstream_err: impl Fn(U::Error) -> super::Error + Send + 'static,
-        agent_base: objectiveai::agent::InlineAgentRef<'_>,
+        agent_base: objectiveai_sdk::agent::InlineAgentRef<'_>,
         disable_tools: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
-        transform_messages: Option<&(dyn Fn(Vec<objectiveai::agent::completions::message::Message>) -> Vec<objectiveai::agent::completions::message::Message> + Send + Sync)>,
+        transform_messages: Option<&(dyn Fn(Vec<objectiveai_sdk::agent::completions::message::Message>) -> Vec<objectiveai_sdk::agent::completions::message::Message> + Send + Sync)>,
         is_cancelled: impl Fn() -> bool + Send + Sync + 'static,
-        invention_type: Option<objectiveai::functions::inventions::prompts::StepPromptType>,
+        invention_type: Option<objectiveai_sdk::functions::inventions::prompts::StepPromptType>,
         invention_step: Option<usize>,
         invention_tasks_min: Option<u64>,
         invention_input_schema: Option<String>,
@@ -853,12 +853,12 @@ where
     where
         U: super::UpstreamClient<A, RC> + Send + Sync + 'static,
         A: Send + Sync + Clone + 'static,
-        RC: Send + Sync + Clone + Into<objectiveai::agent::Continuation> + 'static,
+        RC: Send + Sync + Clone + Into<objectiveai_sdk::agent::Continuation> + 'static,
         CONT: Send + 'static,
     {
         // --- Merge messages, prepare, and apply transform. ---
         let mut messages = agent_base.merged_messages(params.messages.clone());
-        objectiveai::agent::completions::message::prompt::prepare(&mut messages);
+        objectiveai_sdk::agent::completions::message::prompt::prepare(&mut messages);
         let messages = match transform_messages {
             Some(f) => f(messages),
             None => messages,
@@ -919,22 +919,22 @@ where
         let request_continuation = request_continuation.cloned();
 
         Ok(Box::pin(async_stream::stream! {
-            use objectiveai::agent::completions::message::{RichContent, ToolMessage};
+            use objectiveai_sdk::agent::completions::message::{RichContent, ToolMessage};
 
             let mut aggregate: Option<
-                objectiveai::agent::completions::response::streaming::AgentCompletionChunk,
+                objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk,
             > = None;
             let mut usage =
-                objectiveai::agent::completions::response::Usage::default();
-            let mut upstream_kind = objectiveai::agent::Upstream::Unknown;
-            let mut final_error: Option<objectiveai::error::ResponseError> = None;
+                objectiveai_sdk::agent::completions::response::Usage::default();
+            let mut upstream_kind = objectiveai_sdk::agent::Upstream::Unknown;
+            let mut final_error: Option<objectiveai_sdk::error::ResponseError> = None;
             let mut stream: Pin<Box<dyn futures::Stream<Item = super::StreamItem<U::State>> + Send>> =
                 Box::pin(initial_stream);
             loop {
                 let mut current_state: Option<U::State> = None;
                 let mut had_error = false;
                 let mut pending_chunk: Option<
-                    objectiveai::agent::completions::response::streaming::AgentCompletionChunk,
+                    objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk,
                 > = None;
 
                 loop {
@@ -942,15 +942,15 @@ where
                         Ok(Some(super::StreamItem::Chunk(chunk))) => {
                             // Import usage from assistant response chunks.
                             for msg in &chunk.messages {
-                                if let objectiveai::agent::completions::response::streaming::MessageChunk::Assistant(asst) = msg {
+                                if let objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(asst) = msg {
                                     if let Some(upstream_usage) = &asst.usage {
                                         usage.push_upstream_usage(upstream_usage);
                                     }
                                 }
                             }
                             // Track upstream from the first chunk that sets it.
-                            if upstream_kind == objectiveai::agent::Upstream::Unknown
-                                && chunk.upstream != objectiveai::agent::Upstream::Unknown
+                            if upstream_kind == objectiveai_sdk::agent::Upstream::Unknown
+                                && chunk.upstream != objectiveai_sdk::agent::Upstream::Unknown
                             {
                                 upstream_kind = chunk.upstream;
                             }
@@ -1039,7 +1039,7 @@ where
                     > = serde_json::from_str(args).ok();
                     let res = conn
                         .call_tool_as_message(
-                            &objectiveai::mcp::tool::CallToolRequestParams {
+                            &objectiveai_sdk::mcp::tool::CallToolRequestParams {
                                 name: name.clone(),
                                 arguments,
                                 _meta: None,
@@ -1114,9 +1114,9 @@ where
                         stream = Box::pin(new_stream);
                     }
                     Err(e) => {
-                        use objectiveai::error::StatusError;
+                        use objectiveai_sdk::error::StatusError;
                         let e = map_upstream_err(e);
-                        final_error = Some(objectiveai::error::ResponseError {
+                        final_error = Some(objectiveai_sdk::error::ResponseError {
                             code: e.status(),
                             message: e.message().unwrap_or(serde_json::Value::Null),
                         });
@@ -1143,19 +1143,19 @@ where
                 &messages,
                 Some(&continuation_items),
             );
-            let continuation_token: objectiveai::agent::Continuation = response_cont.into();
+            let continuation_token: objectiveai_sdk::agent::Continuation = response_cont.into();
             let continuation_token = continuation_token.to_string();
 
             // Set cancellation error if the stream was cancelled.
             if is_cancelled() && final_error.is_none() {
-                final_error = Some(objectiveai::error::ResponseError::from(
+                final_error = Some(objectiveai_sdk::error::ResponseError::from(
                     &super::Error::StreamCancelled,
                 ));
             }
 
             // Single site for usage, continuation, and error (if a continuation call failed).
             yield super::StreamItem::Chunk(
-                objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
+                objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
                     id: id.clone(),
                     created,
                     upstream: upstream_kind,
@@ -1175,9 +1175,9 @@ where
 /// Resolves the response format for a given agent from the request params.
 fn resolve_response_format(
     agent_id: &str,
-    params: &objectiveai::agent::completions::request::AgentCompletionCreateParams,
-) -> Option<objectiveai::agent::completions::request::ResponseFormat> {
-    use objectiveai::agent::completions::request::ResponseFormatParam;
+    params: &objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams,
+) -> Option<objectiveai_sdk::agent::completions::request::ResponseFormat> {
+    use objectiveai_sdk::agent::completions::request::ResponseFormatParam;
     match params.response_format.as_ref()? {
         ResponseFormatParam::Single(rf) => Some(rf.clone()),
         ResponseFormatParam::PerAgent(map) => map.get(agent_id).cloned(),
@@ -1195,10 +1195,10 @@ fn resolve_response_format(
 /// Returns `(call_id, tool_name, arguments_json)` for each callable
 /// tool, in the order the assistant emitted them.
 fn extract_callable_tool_calls(
-    aggregate: &objectiveai::agent::completions::response::streaming::AgentCompletionChunk,
+    aggregate: &objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk,
     callable_names: Option<&std::collections::HashSet<String>>,
 ) -> Vec<(String, String, String)> {
-    use objectiveai::agent::completions::response::streaming::MessageChunk;
+    use objectiveai_sdk::agent::completions::response::streaming::MessageChunk;
 
     let mut callable = Vec::new();
     let Some(names) = callable_names else { return callable };
@@ -1235,14 +1235,14 @@ fn extract_callable_tool_calls(
 fn make_tool_chunk(
     id: &str,
     created: u64,
-    upstream: objectiveai::agent::Upstream,
+    upstream: objectiveai_sdk::agent::Upstream,
     index: u64,
-    tool_msg: &objectiveai::agent::completions::message::ToolMessage,
-) -> objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
-    use objectiveai::agent::completions::response::streaming::{
+    tool_msg: &objectiveai_sdk::agent::completions::message::ToolMessage,
+) -> objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
+    use objectiveai_sdk::agent::completions::response::streaming::{
         AgentCompletionChunk, MessageChunk,
     };
-    use objectiveai::agent::completions::response::ToolResponse;
+    use objectiveai_sdk::agent::completions::response::ToolResponse;
     AgentCompletionChunk {
         id: id.to_string(),
         created,

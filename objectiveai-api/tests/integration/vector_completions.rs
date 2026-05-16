@@ -6,15 +6,15 @@
 use futures::StreamExt;
 use rust_decimal::Decimal;
 
-use objectiveai::agent::completions::message::{
+use objectiveai_sdk::agent::completions::message::{
     File as MessageFile, ImageUrl, Message, RichContent, RichContentPart, UserMessage, VideoUrl,
 };
-use objectiveai::agent::mock::{
+use objectiveai_sdk::agent::mock::{
     AgentBase as MockAgentBase, OutputMode as MockOutputMode, Upstream as MockUpstream,
 };
-use objectiveai::vector::completions::request::VectorCompletionCreateParams;
-use objectiveai::vector::completions::response::streaming::VectorCompletionChunk;
-use objectiveai::vector::completions::response::unary::VectorCompletion;
+use objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams;
+use objectiveai_sdk::vector::completions::response::streaming::VectorCompletionChunk;
+use objectiveai_sdk::vector::completions::response::unary::VectorCompletion;
 
 use crate::common;
 
@@ -28,13 +28,13 @@ fn mock_agent(
     count: u64,
     top_logprobs: Option<u64>,
     error: Option<bool>,
-    fallbacks: Option<Vec<objectiveai::agent::InlineAgentBase>>,
-) -> objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteWithCount {
-    objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteWithCount {
+    fallbacks: Option<Vec<objectiveai_sdk::agent::InlineAgentBase>>,
+) -> objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteWithCount {
+    objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteWithCount {
         count,
-        inner: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemote::AgentBase(
-            objectiveai::agent::InlineAgentBaseWithFallbacks {
-                inner: objectiveai::agent::InlineAgentBase::Mock(MockAgentBase {
+        inner: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemote::AgentBase(
+            objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+                inner: objectiveai_sdk::agent::InlineAgentBase::Mock(MockAgentBase {
                     upstream: MockUpstream::Mock,
                     output_mode,
                     top_logprobs,
@@ -161,29 +161,29 @@ fn user_parts(parts: Vec<RichContentPart>) -> Vec<Message> {
 }
 
 fn swarm(
-    agents: Vec<objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteWithCount>,
-    weights: objectiveai::Weights,
-) -> objectiveai::swarm::InlineSwarmBaseOrRemoteCommitOptional {
-    objectiveai::swarm::InlineSwarmBaseOrRemoteCommitOptional::SwarmBase(
-        objectiveai::swarm::InlineSwarmBase {
+    agents: Vec<objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteWithCount>,
+    weights: objectiveai_sdk::Weights,
+) -> objectiveai_sdk::swarm::InlineSwarmBaseOrRemoteCommitOptional {
+    objectiveai_sdk::swarm::InlineSwarmBaseOrRemoteCommitOptional::SwarmBase(
+        objectiveai_sdk::swarm::InlineSwarmBase {
             agents,
             weights: Some(weights),
         },
     )
 }
 
-fn equal_weights() -> objectiveai::Weights {
-    objectiveai::Weights::Weights(vec![Decimal::ONE])
+fn equal_weights() -> objectiveai_sdk::Weights {
+    objectiveai_sdk::Weights::Weights(vec![Decimal::ONE])
 }
 
-fn weights(values: Vec<Decimal>) -> objectiveai::Weights {
-    objectiveai::Weights::Weights(values)
+fn weights(values: Vec<Decimal>) -> objectiveai_sdk::Weights {
+    objectiveai_sdk::Weights::Weights(values)
 }
 
 fn params(
     seed: i64,
     messages: Vec<Message>,
-    swarm: objectiveai::swarm::InlineSwarmBaseOrRemoteCommitOptional,
+    swarm: objectiveai_sdk::swarm::InlineSwarmBaseOrRemoteCommitOptional,
     responses: Vec<RichContent>,
 ) -> VectorCompletionCreateParams {
     VectorCompletionCreateParams {
@@ -341,7 +341,7 @@ async fn test_invert_vote_seed_42() {
         user_text("Which is worse?"),
         swarm(
             vec![mock_agent(MockOutputMode::Instruction, 1, None, None, None)],
-            objectiveai::Weights::Entries(vec![objectiveai::WeightsEntry {
+            objectiveai_sdk::Weights::Entries(vec![objectiveai_sdk::WeightsEntry {
                 weight: Decimal::ONE,
                 invert: Some(true),
             }]),
@@ -897,10 +897,10 @@ async fn test_error_invalid_swarm_empty_agents() {
     let request = params(
         42,
         user_text("Which is better?"),
-        objectiveai::swarm::InlineSwarmBaseOrRemoteCommitOptional::SwarmBase(
-            objectiveai::swarm::InlineSwarmBase {
+        objectiveai_sdk::swarm::InlineSwarmBaseOrRemoteCommitOptional::SwarmBase(
+            objectiveai_sdk::swarm::InlineSwarmBase {
                 agents: vec![],
-                weights: Some(objectiveai::Weights::Weights(vec![])),
+                weights: Some(objectiveai_sdk::Weights::Weights(vec![])),
             },
         ),
         responses_text(vec!["X", "Y"]),
@@ -945,9 +945,9 @@ async fn test_error_invalid_swarm_conflicting_invert() {
                 mock_agent(MockOutputMode::Instruction, 1, None, None, None),
                 mock_agent(MockOutputMode::Instruction, 1, None, None, None),
             ],
-            objectiveai::Weights::Entries(vec![
-                objectiveai::WeightsEntry { weight: Decimal::new(5, 1), invert: Some(false) },
-                objectiveai::WeightsEntry { weight: Decimal::new(5, 1), invert: Some(true) },
+            objectiveai_sdk::Weights::Entries(vec![
+                objectiveai_sdk::WeightsEntry { weight: Decimal::new(5, 1), invert: Some(false) },
+                objectiveai_sdk::WeightsEntry { weight: Decimal::new(5, 1), invert: Some(true) },
             ]),
         ),
         responses_text(vec!["A", "B"]),
@@ -967,7 +967,7 @@ async fn test_error_invalid_profile_all_zero_weights() {
         user_text("Score these"),
         swarm(
             vec![mock_agent(MockOutputMode::ToolCall, 1, None, None, None)],
-            objectiveai::Weights::Weights(vec![Decimal::ZERO]),
+            objectiveai_sdk::Weights::Weights(vec![Decimal::ZERO]),
         ),
         responses_text(vec!["A", "B"]),
     );
@@ -1069,7 +1069,7 @@ async fn test_logprobs_error_with_fallback_seed_99() {
         swarm(
             vec![mock_agent(
                 MockOutputMode::JsonSchema, 1, Some(8), Some(true),
-                Some(vec![objectiveai::agent::InlineAgentBase::Mock(MockAgentBase {
+                Some(vec![objectiveai_sdk::agent::InlineAgentBase::Mock(MockAgentBase {
                     upstream: MockUpstream::Mock,
                     output_mode: MockOutputMode::JsonSchema,
                     top_logprobs: Some(8),
@@ -1104,7 +1104,7 @@ async fn test_logprobs_all_errors_seed_42() {
         swarm(
             vec![mock_agent(
                 MockOutputMode::JsonSchema, 1, Some(5), Some(true),
-                Some(vec![objectiveai::agent::InlineAgentBase::Mock(MockAgentBase {
+                Some(vec![objectiveai_sdk::agent::InlineAgentBase::Mock(MockAgentBase {
                     upstream: MockUpstream::Mock,
                     output_mode: MockOutputMode::ToolCall,
                     top_logprobs: Some(3),
@@ -1166,7 +1166,7 @@ async fn test_logprobs_mixed_modes_with_fallback_seed_88() {
                 mock_agent(MockOutputMode::ToolCall, 1, Some(4), None, None),
                 mock_agent(
                     MockOutputMode::Instruction, 1, Some(3), Some(true),
-                    Some(vec![objectiveai::agent::InlineAgentBase::Mock(MockAgentBase {
+                    Some(vec![objectiveai_sdk::agent::InlineAgentBase::Mock(MockAgentBase {
                         upstream: MockUpstream::Mock,
                         output_mode: MockOutputMode::Instruction,
                         top_logprobs: Some(3),

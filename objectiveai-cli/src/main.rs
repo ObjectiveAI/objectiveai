@@ -8,12 +8,17 @@ async fn main() {
     // Collect argv once so the updater can forward it to the re-exec'd
     // new binary while run() still gets the same sequence.
     let args: Vec<std::ffi::OsString> = std::env::args_os().collect();
+    // Default destination: this process's stdout. Programmatic embedders
+    // constructing their own `cli::run` call can supply
+    // `Handle::Stdin(Arc::new(Mutex::new(child.stdin.take().unwrap())))`
+    // or `Handle::Collect(_)` instead.
+    let handle: objectiveai_sdk::cli::output::Handle =
+        objectiveai_sdk::cli::output::Handle::Stdout;
     // Best-effort auto-update. No-op unless the `updater` feature is on;
     // may never return because the replacement has been spawned with
-    // the same argv. Any error inside is logged to stderr and swallowed.
-    objectiveai_cli::update::maybe_auto_update(args.clone(), &cli_config).await;
-    if let Err(err) = objectiveai_cli::run(args, &cli_config).await {
-        objectiveai_cli_lib::output::Output::<serde_json::Value>::Error(err).emit();
-        std::process::exit(1);
-    }
+    // the same argv. Any error inside is emitted as a non-fatal warn-level
+    // notification and swallowed.
+    objectiveai_cli::update::maybe_auto_update(args.clone(), &cli_config, &handle).await;
+    let code = objectiveai_cli::run(args, &cli_config, handle).await;
+    std::process::exit(code);
 }

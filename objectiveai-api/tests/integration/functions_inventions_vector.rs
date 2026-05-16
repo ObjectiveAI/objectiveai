@@ -2,7 +2,7 @@
 //! pre-provided-schema variants for both. ~200 tests.
 
 use crate::{invention_test_10x, invention_test_10x_schema};
-use objectiveai::functions::inventions::state::{
+use objectiveai_sdk::functions::inventions::state::{
     AlphaVectorBranchState, AlphaVectorLeafState,
 };
 

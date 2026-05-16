@@ -79,7 +79,7 @@ pub enum Error {
     ImageFetch(String),
 }
 
-impl objectiveai::error::StatusError for Error {
+impl objectiveai_sdk::error::StatusError for Error {
     fn status(&self) -> u16 {
         match self {
             Self::RateLimit => 429,

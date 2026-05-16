@@ -1,5 +1,5 @@
 use super::super::{ContinuationItem, UpstreamClient};
-use objectiveai::agent::completions::message::*;
+use objectiveai_sdk::agent::completions::message::*;
 
 fn make_client() -> super::Client {
     super::Client {
@@ -17,8 +17,8 @@ fn test_empty_messages_no_continuation() {
         &[],
         None,
     );
-    assert_eq!(result, objectiveai::agent::mock::Continuation {
-        upstream: objectiveai::agent::mock::Upstream::Mock,
+    assert_eq!(result, objectiveai_sdk::agent::mock::Continuation {
+        upstream: objectiveai_sdk::agent::mock::Upstream::Mock,
         messages: vec![],
         mcp_sessions: indexmap::IndexMap::new(),
     });
@@ -39,8 +39,8 @@ fn test_messages_only() {
         &messages,
         None,
     );
-    assert_eq!(result, objectiveai::agent::mock::Continuation {
-        upstream: objectiveai::agent::mock::Upstream::Mock,
+    assert_eq!(result, objectiveai_sdk::agent::mock::Continuation {
+        upstream: objectiveai_sdk::agent::mock::Upstream::Mock,
         messages: vec![
             Message::User(UserMessage {
                 content: RichContent::Text("Hello".into()),
@@ -76,8 +76,8 @@ fn test_messages_with_continuation() {
         &messages,
         Some(&continuation),
     );
-    assert_eq!(result, objectiveai::agent::mock::Continuation {
-        upstream: objectiveai::agent::mock::Upstream::Mock,
+    assert_eq!(result, objectiveai_sdk::agent::mock::Continuation {
+        upstream: objectiveai_sdk::agent::mock::Upstream::Mock,
         messages: vec![
             Message::User(UserMessage {
                 content: RichContent::Text("Hello".into()),
@@ -105,8 +105,8 @@ fn test_request_continuation_messages_come_first() {
             name: None,
         }),
     ];
-    let rc = objectiveai::agent::mock::Continuation {
-        upstream: objectiveai::agent::mock::Upstream::Mock,
+    let rc = objectiveai_sdk::agent::mock::Continuation {
+        upstream: objectiveai_sdk::agent::mock::Upstream::Mock,
         messages: vec![
             Message::User(UserMessage {
                 content: RichContent::Text("Previous turn".into()),
@@ -125,8 +125,8 @@ fn test_request_continuation_messages_come_first() {
         &messages,
         None,
     );
-    assert_eq!(result, objectiveai::agent::mock::Continuation {
-        upstream: objectiveai::agent::mock::Upstream::Mock,
+    assert_eq!(result, objectiveai_sdk::agent::mock::Continuation {
+        upstream: objectiveai_sdk::agent::mock::Upstream::Mock,
         messages: vec![
             Message::User(UserMessage {
                 content: RichContent::Text("Previous turn".into()),

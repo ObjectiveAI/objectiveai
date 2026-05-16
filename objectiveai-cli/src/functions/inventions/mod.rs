@@ -36,13 +36,13 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub async fn handle(self, cli_config: &crate::Config) -> Result<(), crate::error::Error> {
+    pub async fn handle(self, cli_config: &crate::Config, handle: &objectiveai_sdk::cli::output::Handle) -> Result<(), crate::error::Error> {
         match self {
-            Commands::Recursive { command } => command.handle(cli_config).await,
-            Commands::Config { command } => command.handle(cli_config).await,
-            Commands::Logs { command } => command.handle(cli_config).await,
-            Commands::Remote { command } => command.handle(cli_config).await,
-            Commands::State { command } => command.handle(cli_config).await,
+            Commands::Recursive { command } => command.handle(cli_config, handle).await,
+            Commands::Config { command } => command.handle(cli_config, handle).await,
+            Commands::Logs { command } => command.handle(cli_config, handle).await,
+            Commands::Remote { command } => command.handle(cli_config, handle).await,
+            Commands::State { command } => command.handle(cli_config, handle).await,
         }
     }
 }

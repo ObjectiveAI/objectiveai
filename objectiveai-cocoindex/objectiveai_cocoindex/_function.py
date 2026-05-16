@@ -13,11 +13,11 @@ from __future__ import annotations
 from typing import Any
 
 import cocoindex as coco
-from objectiveai.client import ObjectiveAI
-from objectiveai.functions.executions.http import create_function_execution
-from objectiveai.functions.executions.request import FunctionExecutionCreateParams
-from objectiveai.functions.executions.request.strategy import Strategy
-from objectiveai.functions.executions.response.unary import FunctionExecution
+from objectiveai_sdk.client import ObjectiveAI
+from objectiveai_sdk.functions.executions.http import create_function_execution
+from objectiveai_sdk.functions.executions.request import FunctionExecutionCreateParams
+from objectiveai_sdk.functions.executions.request.strategy import Strategy
+from objectiveai_sdk.functions.executions.response.unary import FunctionExecution
 
 from objectiveai_cocoindex._client import resolve_client
 from objectiveai_cocoindex._sources import FunctionSource, ProfileSource

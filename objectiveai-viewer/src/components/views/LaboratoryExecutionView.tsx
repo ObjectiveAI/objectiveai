@@ -2,7 +2,7 @@ import * as Tabs from "@radix-ui/react-tabs";
 import type {
   LaboratoriesExecutionsResponseStreamingBuilderChunk,
   LaboratoriesExecutionsResponseStreamingEvaluationChunk,
-} from "objectiveai";
+} from "@objectiveai/sdk";
 import { AgentCompletionChat } from "../shared/AgentCompletionChat";
 import { OutputBar } from "../shared/OutputBar";
 import type { LaboratoryExecutionEntry } from "../../types";

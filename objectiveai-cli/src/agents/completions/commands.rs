@@ -32,13 +32,13 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub async fn handle(self, cli_config: &crate::Config) -> Result<(), crate::error::Error> {
+    pub async fn handle(self, cli_config: &crate::Config, handle: &objectiveai_sdk::cli::output::Handle) -> Result<(), crate::error::Error> {
         match self {
-            Commands::Create { command } => command.handle(cli_config).await,
-            Commands::Instructions { command } => command.handle(cli_config),
-            Commands::Logs { command } => command.handle(cli_config).await,
-            Commands::Continuations { command } => command.handle(cli_config).await,
-            Commands::Messages { command } => command.handle(cli_config).await,
+            Commands::Create { command } => command.handle(cli_config, handle).await,
+            Commands::Instructions { command } => command.handle(cli_config, handle).await,
+            Commands::Logs { command } => command.handle(cli_config, handle).await,
+            Commands::Continuations { command } => command.handle(cli_config, handle).await,
+            Commands::Messages { command } => command.handle(cli_config, handle).await,
         }
     }
 }

@@ -22,7 +22,7 @@ pub fn get_vote(
     with_ticks_pattern: &str,
     responses_len: usize,
     content: &str,
-    logprobs: Option<&objectiveai::agent::completions::response::Logprobs>,
+    logprobs: Option<&objectiveai_sdk::agent::completions::response::Logprobs>,
 ) -> (usize, Vec<rust_decimal::Decimal>) {
     // extract response keys
     let with_ticks_re = Regex::new(with_ticks_pattern).unwrap();
@@ -84,7 +84,7 @@ pub fn get_vote(
 
         // try to get probabilities from logprobs
         let mut from_logprobs = false;
-        if let Some(objectiveai::agent::completions::response::Logprobs {
+        if let Some(objectiveai_sdk::agent::completions::response::Logprobs {
             content: Some(logprob_content),
             ..
         }) = logprobs
@@ -136,7 +136,7 @@ pub fn get_vote(
                 let mut probabilities =
                     vec![rust_decimal::Decimal::ZERO; responses_len];
                 let mut probabilities_sum = rust_decimal::Decimal::ZERO;
-                for objectiveai::agent::completions::response::TopLogprob {
+                for objectiveai_sdk::agent::completions::response::TopLogprob {
                     token,
                     logprob,
                     ..

@@ -23,4 +23,3 @@ export function AgentCompletionView({ entry }: { entry: AgentCompletionEntry }) 
     </>
   );
 }
-

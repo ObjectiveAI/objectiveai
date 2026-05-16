@@ -18,22 +18,22 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub async fn handle(self, cli_config: &crate::Config) -> Result<(), crate::error::Error> {
-        let client = objectiveai::filesystem::Client::new(cli_config.config_base_dir.as_deref(), None::<String>, None::<String>);
+    pub async fn handle(self, cli_config: &crate::Config, handle: &objectiveai_sdk::cli::output::Handle) -> Result<(), crate::error::Error> {
+        let client = objectiveai_sdk::filesystem::Client::new(cli_config.config_base_dir.as_deref(), None::<String>, None::<String>);
         match self {
             Commands::Get { id, message_index, media_index } => {
-                let content = objectiveai::filesystem::logs::client::read_agent_completion_message_image(&client, &id, message_index, media_index).await.map(objectiveai::filesystem::logs::LogContent::DataUrl)?;
+                let content = client.read_agent_completion_message_image(&id, message_index, media_index).await.map(objectiveai_sdk::filesystem::logs::LogContent::DataUrl)?;
                 {
-                crate::ack::emit_log_content(content);
+                crate::log_line::emit_log_content(content, handle).await;
                 Ok(())
             }
             }
             Commands::Subscribe { id, message_index, media_index, timeout_ms, require_modification } => {
-                let result = objectiveai::filesystem::logs::client::subscribe_agent_completion_message_image(&client, &id, message_index, media_index, std::time::Duration::from_millis(timeout_ms), require_modification).await;
+                let result = client.subscribe_agent_completion_message_image(&id, message_index, media_index, std::time::Duration::from_millis(timeout_ms), require_modification).await;
                 {
-                match result.map(objectiveai::filesystem::logs::LogContent::DataUrl) {
+                match result.map(objectiveai_sdk::filesystem::logs::LogContent::DataUrl) {
                     Some(content) => {
-                        crate::ack::emit_log_content(content);
+                        crate::log_line::emit_log_content(content, handle).await;
                         Ok(())
                     }
                     None => Err(crate::error::Error::LogSubscribeTimedOut),
@@ -41,7 +41,7 @@ impl Commands {
             }
             }
             Commands::Clear => {
-                crate::ack::emit_log_clear_count(objectiveai::filesystem::logs::client::clear_agent_completion_message_images(&client).await?);
+                crate::log_line::emit_log_clear_count(client.clear_agent_completion_message_images().await?, handle).await;
                 Ok(())
             },
         }

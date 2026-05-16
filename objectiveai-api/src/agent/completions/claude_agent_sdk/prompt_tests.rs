@@ -2,7 +2,7 @@ use super::content_block_param::*;
 use super::prompt::Prompt;
 use super::sdk_message::*;
 use crate::agent::completions::ContinuationItem;
-use objectiveai::agent::completions::message::*;
+use objectiveai_sdk::agent::completions::message::*;
 
 fn blocks(blocks: Vec<ContentBlockParam>) -> MessageParamContent {
     MessageParamContent::Blocks(blocks)
@@ -537,8 +537,8 @@ fn test_request_continuation_session_id_fallback() {
         name: None,
     })];
 
-    let rc = objectiveai::agent::claude_agent_sdk::Continuation {
-        upstream: objectiveai::agent::claude_agent_sdk::Upstream::default(),
+    let rc = objectiveai_sdk::agent::claude_agent_sdk::Continuation {
+        upstream: objectiveai_sdk::agent::claude_agent_sdk::Upstream::default(),
         session_id: "req-sess-123".to_string(),
         mcp_sessions: indexmap::IndexMap::new(),
     };
@@ -568,8 +568,8 @@ fn test_internal_session_id_takes_precedence_over_request() {
         }),
     ];
 
-    let rc = objectiveai::agent::claude_agent_sdk::Continuation {
-        upstream: objectiveai::agent::claude_agent_sdk::Upstream::default(),
+    let rc = objectiveai_sdk::agent::claude_agent_sdk::Continuation {
+        upstream: objectiveai_sdk::agent::claude_agent_sdk::Upstream::default(),
         session_id: "req-sess-456".to_string(),
         mcp_sessions: indexmap::IndexMap::new(),
     };

@@ -15,11 +15,11 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub async fn handle(self, cli_config: &crate::Config) -> Result<(), crate::error::Error> {
+    pub async fn handle(self, cli_config: &crate::Config, handle: &objectiveai_sdk::cli::output::Handle) -> Result<(), crate::error::Error> {
         match self {
-            Commands::Config { command } => command.handle(cli_config).await,
-            Commands::Secret { command } => command.handle(cli_config).await,
-            Commands::Signature { command } => command.handle(cli_config).await,
+            Commands::Config { command } => command.handle(cli_config, handle).await,
+            Commands::Secret { command } => command.handle(cli_config, handle).await,
+            Commands::Signature { command } => command.handle(cli_config, handle).await,
         }
     }
 }

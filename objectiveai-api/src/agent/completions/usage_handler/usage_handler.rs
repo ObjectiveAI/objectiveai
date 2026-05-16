@@ -11,7 +11,7 @@ pub trait UsageHandler<CTXEXT> {
     fn handle_usage(
         &self,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-        request: Arc<objectiveai::agent::completions::request::AgentCompletionCreateParams>,
-        response: objectiveai::agent::completions::response::unary::AgentCompletion,
+        request: Arc<objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams>,
+        response: objectiveai_sdk::agent::completions::response::unary::AgentCompletion,
     ) -> impl std::future::Future<Output = ()> + Send + 'static;
 }

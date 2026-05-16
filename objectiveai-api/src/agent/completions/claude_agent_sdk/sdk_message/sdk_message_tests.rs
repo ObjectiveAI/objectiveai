@@ -25,26 +25,26 @@ fn test_text_delta() {
     });
 
     assert_eq!(
-        msg.into_downstream("id-1".to_string(), 1000, "agent-1".to_string(), 0, false, Decimal::from(1), objectiveai::agent::Upstream::ClaudeAgentSdk),
-        Some(Ok(objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
+        msg.into_downstream("id-1".to_string(), 1000, "agent-1".to_string(), 0, false, Decimal::from(1), objectiveai_sdk::agent::Upstream::ClaudeAgentSdk),
+        Some(Ok(objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
             id: "id-1".to_string(),
             created: 1000,
             messages: vec![
-                objectiveai::agent::completions::response::streaming::MessageChunk::Assistant(
-                    objectiveai::agent::completions::response::streaming::AssistantResponseChunk {
+                objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
+                    objectiveai_sdk::agent::completions::response::streaming::AssistantResponseChunk {
                         role: Default::default(),
                         index: 0,
                         created: 1000,
                         agent: "agent-1".to_string(),
                         upstream_id: "sess-1".to_string(),
-                        content: Some(objectiveai::agent::completions::message::RichContent::Text("Hello world".to_string())),
+                        content: Some(objectiveai_sdk::agent::completions::message::RichContent::Text("Hello world".to_string())),
                         ..Default::default()
                     },
                 ),
             ],
             object: Default::default(),
             usage: None,
-            upstream: objectiveai::agent::Upstream::ClaudeAgentSdk,
+            upstream: objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
             error: None,
             continuation: None,
         }))
@@ -74,13 +74,13 @@ fn test_thinking_delta() {
     });
 
     assert_eq!(
-        msg.into_downstream("id-2".to_string(), 2000, "agent-2".to_string(), 3, false, Decimal::from(1), objectiveai::agent::Upstream::ClaudeAgentSdk),
-        Some(Ok(objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
+        msg.into_downstream("id-2".to_string(), 2000, "agent-2".to_string(), 3, false, Decimal::from(1), objectiveai_sdk::agent::Upstream::ClaudeAgentSdk),
+        Some(Ok(objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
             id: "id-2".to_string(),
             created: 2000,
             messages: vec![
-                objectiveai::agent::completions::response::streaming::MessageChunk::Assistant(
-                    objectiveai::agent::completions::response::streaming::AssistantResponseChunk {
+                objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
+                    objectiveai_sdk::agent::completions::response::streaming::AssistantResponseChunk {
                         role: Default::default(),
                         index: 3,
                         created: 2000,
@@ -93,7 +93,7 @@ fn test_thinking_delta() {
             ],
             object: Default::default(),
             usage: None,
-            upstream: objectiveai::agent::Upstream::ClaudeAgentSdk,
+            upstream: objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
             error: None,
             continuation: None,
         }))
@@ -126,24 +126,24 @@ fn test_tool_use_content_block_start() {
     });
 
     assert_eq!(
-        msg.into_downstream("id-3".to_string(), 3000, "agent-3".to_string(), 5, false, Decimal::from(1), objectiveai::agent::Upstream::ClaudeAgentSdk),
-        Some(Ok(objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
+        msg.into_downstream("id-3".to_string(), 3000, "agent-3".to_string(), 5, false, Decimal::from(1), objectiveai_sdk::agent::Upstream::ClaudeAgentSdk),
+        Some(Ok(objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
             id: "id-3".to_string(),
             created: 3000,
             messages: vec![
-                objectiveai::agent::completions::response::streaming::MessageChunk::Assistant(
-                    objectiveai::agent::completions::response::streaming::AssistantResponseChunk {
+                objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
+                    objectiveai_sdk::agent::completions::response::streaming::AssistantResponseChunk {
                         role: Default::default(),
                         index: 5,
                         created: 3000,
                         agent: "agent-3".to_string(),
                         upstream_id: "sess-3".to_string(),
                         tool_calls: Some(vec![
-                            objectiveai::agent::completions::message::AssistantToolCallDelta {
+                            objectiveai_sdk::agent::completions::message::AssistantToolCallDelta {
                                 index: 2,
-                                r#type: Some(objectiveai::agent::completions::message::AssistantToolCallType::Function),
+                                r#type: Some(objectiveai_sdk::agent::completions::message::AssistantToolCallType::Function),
                                 id: Some("toolu_01".to_string()),
-                                function: Some(objectiveai::agent::completions::message::AssistantToolCallFunctionDelta {
+                                function: Some(objectiveai_sdk::agent::completions::message::AssistantToolCallFunctionDelta {
                                     name: Some("read_file".to_string()),
                                     arguments: None,
                                 }),
@@ -155,7 +155,7 @@ fn test_tool_use_content_block_start() {
             ],
             object: Default::default(),
             usage: None,
-            upstream: objectiveai::agent::Upstream::ClaudeAgentSdk,
+            upstream: objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
             error: None,
             continuation: None,
         }))
@@ -185,24 +185,24 @@ fn test_input_json_delta() {
     });
 
     assert_eq!(
-        msg.into_downstream("id-4".to_string(), 4000, "agent-4".to_string(), 0, false, Decimal::from(1), objectiveai::agent::Upstream::ClaudeAgentSdk),
-        Some(Ok(objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
+        msg.into_downstream("id-4".to_string(), 4000, "agent-4".to_string(), 0, false, Decimal::from(1), objectiveai_sdk::agent::Upstream::ClaudeAgentSdk),
+        Some(Ok(objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
             id: "id-4".to_string(),
             created: 4000,
             messages: vec![
-                objectiveai::agent::completions::response::streaming::MessageChunk::Assistant(
-                    objectiveai::agent::completions::response::streaming::AssistantResponseChunk {
+                objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
+                    objectiveai_sdk::agent::completions::response::streaming::AssistantResponseChunk {
                         role: Default::default(),
                         index: 0,
                         created: 4000,
                         agent: "agent-4".to_string(),
                         upstream_id: "sess-4".to_string(),
                         tool_calls: Some(vec![
-                            objectiveai::agent::completions::message::AssistantToolCallDelta {
+                            objectiveai_sdk::agent::completions::message::AssistantToolCallDelta {
                                 index: 2,
                                 r#type: None,
                                 id: None,
-                                function: Some(objectiveai::agent::completions::message::AssistantToolCallFunctionDelta {
+                                function: Some(objectiveai_sdk::agent::completions::message::AssistantToolCallFunctionDelta {
                                     name: None,
                                     arguments: Some("{\"path\":\"src/".to_string()),
                                 }),
@@ -214,7 +214,7 @@ fn test_input_json_delta() {
             ],
             object: Default::default(),
             usage: None,
-            upstream: objectiveai::agent::Upstream::ClaudeAgentSdk,
+            upstream: objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
             error: None,
             continuation: None,
         }))
@@ -251,26 +251,26 @@ fn test_message_delta_tool_use_stop_reason() {
     });
 
     assert_eq!(
-        msg.into_downstream("id-5".to_string(), 5000, "agent-5".to_string(), 0, false, Decimal::from(1), objectiveai::agent::Upstream::ClaudeAgentSdk),
-        Some(Ok(objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
+        msg.into_downstream("id-5".to_string(), 5000, "agent-5".to_string(), 0, false, Decimal::from(1), objectiveai_sdk::agent::Upstream::ClaudeAgentSdk),
+        Some(Ok(objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
             id: "id-5".to_string(),
             created: 5000,
             messages: vec![
-                objectiveai::agent::completions::response::streaming::MessageChunk::Assistant(
-                    objectiveai::agent::completions::response::streaming::AssistantResponseChunk {
+                objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
+                    objectiveai_sdk::agent::completions::response::streaming::AssistantResponseChunk {
                         role: Default::default(),
                         index: 0,
                         created: 5000,
                         agent: "agent-5".to_string(),
                         upstream_id: "sess-5".to_string(),
-                        finish_reason: Some(objectiveai::agent::completions::response::FinishReason::ToolCalls),
+                        finish_reason: Some(objectiveai_sdk::agent::completions::response::FinishReason::ToolCalls),
                         ..Default::default()
                     },
                 ),
             ],
             object: Default::default(),
             usage: None,
-            upstream: objectiveai::agent::Upstream::ClaudeAgentSdk,
+            upstream: objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
             error: None,
             continuation: None,
         }))
@@ -294,7 +294,7 @@ fn test_content_block_stop_and_message_stop_ignored() {
     });
 
     assert_eq!(
-        stop.into_downstream("id-6".to_string(), 6000, "a".to_string(), 0, false, Decimal::from(1), objectiveai::agent::Upstream::ClaudeAgentSdk),
+        stop.into_downstream("id-6".to_string(), 6000, "a".to_string(), 0, false, Decimal::from(1), objectiveai_sdk::agent::Upstream::ClaudeAgentSdk),
         None,
     );
 
@@ -311,7 +311,7 @@ fn test_content_block_stop_and_message_stop_ignored() {
     });
 
     assert_eq!(
-        msg_stop.into_downstream("id-6".to_string(), 6000, "a".to_string(), 0, false, Decimal::from(1), objectiveai::agent::Upstream::ClaudeAgentSdk),
+        msg_stop.into_downstream("id-6".to_string(), 6000, "a".to_string(), 0, false, Decimal::from(1), objectiveai_sdk::agent::Upstream::ClaudeAgentSdk),
         None,
     );
 }
@@ -333,17 +333,17 @@ fn test_user_message_tool_result() {
     });
 
     assert_eq!(
-        msg.into_downstream("id-7".to_string(), 7000, "agent-7".to_string(), 4, false, Decimal::from(1), objectiveai::agent::Upstream::ClaudeAgentSdk),
-        Some(Ok(objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
+        msg.into_downstream("id-7".to_string(), 7000, "agent-7".to_string(), 4, false, Decimal::from(1), objectiveai_sdk::agent::Upstream::ClaudeAgentSdk),
+        Some(Ok(objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
             id: "id-7".to_string(),
             created: 7000,
             messages: vec![
-                objectiveai::agent::completions::response::streaming::MessageChunk::Tool(
-                    objectiveai::agent::completions::response::ToolResponse {
+                objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Tool(
+                    objectiveai_sdk::agent::completions::response::ToolResponse {
                         role: Default::default(),
                         index: 4,
-                        inner: objectiveai::agent::completions::message::ToolMessage {
-                            content: objectiveai::agent::completions::message::RichContent::Text(
+                        inner: objectiveai_sdk::agent::completions::message::ToolMessage {
+                            content: objectiveai_sdk::agent::completions::message::RichContent::Text(
                                 "{\"output\":\"file contents\"}".to_string(),
                             ),
                             tool_call_id: "toolu_abc".to_string(),
@@ -353,7 +353,7 @@ fn test_user_message_tool_result() {
             ],
             object: Default::default(),
             usage: None,
-            upstream: objectiveai::agent::Upstream::ClaudeAgentSdk,
+            upstream: objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
             error: None,
             continuation: None,
         }))
@@ -377,7 +377,7 @@ fn test_user_message_without_tool_result_ignored() {
     });
 
     assert_eq!(
-        msg.into_downstream("id-8".to_string(), 8000, "a".to_string(), 0, false, Decimal::from(1), objectiveai::agent::Upstream::ClaudeAgentSdk),
+        msg.into_downstream("id-8".to_string(), 8000, "a".to_string(), 0, false, Decimal::from(1), objectiveai_sdk::agent::Upstream::ClaudeAgentSdk),
         None,
     );
 }
@@ -394,7 +394,7 @@ fn test_rate_limit_event_is_ignored() {
 
     let result = msg.into_downstream(
         "id-9".to_string(), 9000, "a".to_string(), 0, false, Decimal::from(1),
-        objectiveai::agent::Upstream::ClaudeAgentSdk,
+        objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
     );
 
     assert!(result.is_none());
@@ -440,24 +440,24 @@ fn test_result_success_byok() {
     }));
 
     assert_eq!(
-        msg.into_downstream("id-10".to_string(), 10000, "a".to_string(), 0, true, Decimal::from_str("1.5").unwrap(), objectiveai::agent::Upstream::ClaudeAgentSdk),
-        Some(Ok(objectiveai::agent::completions::response::streaming::AgentCompletionChunk {
+        msg.into_downstream("id-10".to_string(), 10000, "a".to_string(), 0, true, Decimal::from_str("1.5").unwrap(), objectiveai_sdk::agent::Upstream::ClaudeAgentSdk),
+        Some(Ok(objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
             id: "id-10".to_string(),
             created: 10000,
             messages: vec![
-                objectiveai::agent::completions::response::streaming::MessageChunk::Assistant(
-                    objectiveai::agent::completions::response::streaming::AssistantResponseChunk {
+                objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
+                    objectiveai_sdk::agent::completions::response::streaming::AssistantResponseChunk {
                         index: 0,
                         created: 10000,
                         agent: "a".to_string(),
                         upstream_id: "sess-10".to_string(),
-                        usage: Some(objectiveai::agent::completions::response::UpstreamUsage {
+                        usage: Some(objectiveai_sdk::agent::completions::response::UpstreamUsage {
                             // prompt = input(2000) + cache_creation(1000) + cache_read(5000) = 8000
                             prompt_tokens: 8000,
                             completion_tokens: 800,
                             total_tokens: 8800,
                             completion_tokens_details: None,
-                            prompt_tokens_details: Some(objectiveai::agent::completions::response::PromptTokensDetails {
+                            prompt_tokens_details: Some(objectiveai_sdk::agent::completions::response::PromptTokensDetails {
                                 audio_tokens: None,
                                 cached_tokens: Some(5000),
                                 cache_write_tokens: Some(1000),
@@ -466,7 +466,7 @@ fn test_result_success_byok() {
                             // upstream = 0.05, upstream_upstream = 0, total = 0.05 * 1.5 = 0.075
                             // byok cost = 0.075 - 0.05 = 0.025
                             cost: Decimal::from_str("0.025").unwrap(),
-                            cost_details: Some(objectiveai::agent::completions::response::CostDetails {
+                            cost_details: Some(objectiveai_sdk::agent::completions::response::CostDetails {
                                 upstream_inference_cost: Decimal::from_str("0.05").unwrap(),
                                 upstream_upstream_inference_cost: Decimal::ZERO,
                             }),
@@ -480,7 +480,7 @@ fn test_result_success_byok() {
             ],
             object: Default::default(),
             usage: None,
-            upstream: objectiveai::agent::Upstream::ClaudeAgentSdk,
+            upstream: objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
             error: None,
             continuation: None,
         }))

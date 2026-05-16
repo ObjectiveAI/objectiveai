@@ -1,4 +1,4 @@
-//! Wrapper around [`objectiveai::HttpClient`] that injects per-request
+//! Wrapper around [`objectiveai_sdk::HttpClient`] that injects per-request
 //! authorization headers from the request context.
 
 use crate::ctx;
@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 /// ObjectiveAI HTTP client that injects per-request authorization from context.
 ///
-/// Stores the same configuration as [`objectiveai::HttpClient`]. The per-request
+/// Stores the same configuration as [`objectiveai_sdk::HttpClient`]. The per-request
 /// authorization fields are populated via [`with_authorization`](Self::with_authorization).
 #[derive(Debug, Clone)]
 pub struct Client {
@@ -58,12 +58,12 @@ impl Client {
         }
     }
 
-    /// Creates an [`objectiveai::HttpClient`] with authorization headers
+    /// Creates an [`objectiveai_sdk::HttpClient`] with authorization headers
     /// populated from the request context.
     pub async fn with_authorization<CTXEXT: ctx::ContextExt>(
         &self,
         ctx: &ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-    ) -> objectiveai::HttpClient {
+    ) -> objectiveai_sdk::HttpClient {
         let (
             ctx_github_authorization,
             ctx_openrouter_authorization,
@@ -74,7 +74,7 @@ impl Client {
             ctx_commit_author_email,
         ) = tokio::join!(
             ctx.github_authorization(),
-            ctx.upstream_authorization(objectiveai::agent::Upstream::Openrouter),
+            ctx.upstream_authorization(objectiveai_sdk::agent::Upstream::Openrouter),
             ctx.mcp_authorization(),
             ctx.viewer_signature(),
             ctx.viewer_address(),
@@ -87,7 +87,7 @@ impl Client {
             None => self.authorization.as_ref().map(|k| Arc::new(k.clone())),
         };
 
-        objectiveai::HttpClient {
+        objectiveai_sdk::HttpClient {
             http_client: self.http_client.clone(),
             address: self.address.clone(),
             authorization,

@@ -105,14 +105,14 @@ set_cargo_objectiveai_deps() {
     "version = \"$NEW_VERSION\""
 }
 
-# Bare-string `objectiveai = "X.Y.Z"` deps. Used in README install snippets
+# Bare-string `objectiveai-sdk = "X.Y.Z"` deps. Used in README install snippets
 # that demonstrate Cargo.toml entries to downstream users. Distinct from
 # `set_cargo_objectiveai_deps` which only handles the inline-table form
-# `objectiveai = { ..., version = "X.Y.Z", ... }`.
+# `objectiveai-sdk = { ..., version = "X.Y.Z", ... }`.
 set_objectiveai_string_dep() {
   local file="$1"
   inline_substitute "$file" \
-    '^objectiveai[[:space:]]*=[[:space:]]*"[0-9]' \
+    '^objectiveai-sdk[[:space:]]*=[[:space:]]*"[0-9]' \
     '"[0-9][0-9.]*"' \
     "\"$NEW_VERSION\""
 }
@@ -161,26 +161,25 @@ set_csproj_version() {
     "<Version>$NEW_VERSION</Version>"
 }
 
-# `objectiveai==X.Y.Z` lines in a pip requirements.txt. Other entries in the
-# file (including non-pinned ones, comments, and unrelated packages) pass
+# `objectiveai-sdk==X.Y.Z` lines in a pip requirements.txt. Other entries in
+# the file (including non-pinned ones, comments, and unrelated packages) pass
 # through untouched. Spec stays `==NEW_VERSION`.
 set_requirements_objectiveai_pin() {
   local file="$1"
   inline_substitute "$file" \
-    '^objectiveai[[:space:]]*==' \
+    '^objectiveai-sdk[[:space:]]*==' \
     '==[0-9][^[:space:]]*' \
     "==$NEW_VERSION"
 }
 
-# `"objectiveai==X.Y.Z"` entries inside a pyproject.toml [project.dependencies]
-# array (or any line that quotes an objectiveai pin). The token regex stops at
-# the closing quote/comma so trailing TOML punctuation isn't consumed. Lines
-# without an objectiveai pin pass through untouched, including unrelated deps
-# like `objectiveai-foo==X` (the `-foo` breaks the `objectiveai==` boundary).
+# `"objectiveai-sdk==X.Y.Z"` entries inside a pyproject.toml [project.dependencies]
+# array (or any line that quotes an objectiveai-sdk pin). The token regex stops
+# at the closing quote/comma so trailing TOML punctuation isn't consumed. Lines
+# without an objectiveai-sdk pin pass through untouched.
 set_pyproject_objectiveai_dep_pin() {
   local file="$1"
   inline_substitute "$file" \
-    'objectiveai[[:space:]]*==' \
+    'objectiveai-sdk[[:space:]]*==' \
     '==[0-9][^",[:space:]]*' \
     "==$NEW_VERSION"
 }
@@ -217,26 +216,27 @@ CARGO_TOMLS=(
   objectiveai-api/Cargo.toml
   objectiveai-cli/Cargo.toml
   objectiveai-cli/builder/Cargo.toml
+  objectiveai-cli/test-fixtures/hello-plugin/Cargo.toml
   objectiveai-json-schema/builder/Cargo.toml
   objectiveai-mcp-cli/Cargo.toml
   objectiveai-mcp-filesystem/Cargo.toml
   objectiveai-mcp-proxy/Cargo.toml
   objectiveai-mcp-proxy/test-upstream/Cargo.toml
-  objectiveai-rs/Cargo.toml
-  objectiveai-rs-cffi/Cargo.toml
-  objectiveai-rs-macros/Cargo.toml
-  objectiveai-rs-pyo3/Cargo.toml
-  objectiveai-rs-wasm-js/Cargo.toml
+  objectiveai-sdk-rs/Cargo.toml
+  objectiveai-sdk-rs-cffi/Cargo.toml
+  objectiveai-sdk-rs-macros/Cargo.toml
+  objectiveai-sdk-rs-pyo3/Cargo.toml
+  objectiveai-sdk-rs-wasm-js/Cargo.toml
   objectiveai-viewer/src-tauri/Cargo.toml
 )
 
 PYPROJECT_TOMLS=(
-  objectiveai-py/pyproject.toml
+  objectiveai-sdk-py/pyproject.toml
   objectiveai-cocoindex/pyproject.toml
 )
 
 PACKAGE_JSONS=(
-  objectiveai-js/package.json
+  objectiveai-sdk-js/package.json
   objectiveai-function-tree/package.json
   objectiveai-viewer/package.json
   objectiveai-mcp-proxy/tests-ts/package.json

@@ -13,7 +13,7 @@ pub enum Tool {
 
 impl Tool {
     /// Creates a Tool from an MCP tool definition with a resolved name.
-    pub fn new_from_mcp(name: String, tool: &objectiveai::mcp::tool::Tool) -> Self {
+    pub fn new_from_mcp(name: String, tool: &objectiveai_sdk::mcp::tool::Tool) -> Self {
         let mut map = IndexMap::new();
         map.insert(
             "type".to_string(),

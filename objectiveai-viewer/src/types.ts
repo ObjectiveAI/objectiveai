@@ -9,13 +9,13 @@ import {
   LaboratoriesExecutionsRequestLaboratoryExecutionCreateParamsSchema,
   LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunkSchema,
   ErrorResponseErrorSchema,
-} from "objectiveai";
+} from "@objectiveai/sdk";
 import type {
   AgentCompletionsResponseStreamingAgentCompletionChunk,
   FunctionsExecutionsResponseStreamingFunctionExecutionChunk,
   FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunk,
   LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunk,
-} from "objectiveai";
+} from "@objectiveai/sdk";
 
 export const AgentCompletionCreateParamsSchema = AgentCompletionsRequestAgentCompletionCreateParamsSchema.extend({
   id: z.string(),

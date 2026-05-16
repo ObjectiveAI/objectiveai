@@ -1,0 +1,64 @@
+{
+  "title": "laboratories.executions.response.streaming.InnerError",
+  "description": "An inner error from a [`LaboratoryExecutionChunk`](super::LaboratoryExecutionChunk).\n\nYielded by [`LaboratoryExecutionChunk::inner_errors`](super::LaboratoryExecutionChunk::inner_errors).\nThe variant identifies which child collection the failing agent\ncompletion came from; fields locate it by `index` (builder or\nevaluation index) and `agent_index` (agent slot within that builder\nor evaluation), with the underlying [`ResponseError`](error::ResponseError)\nheld as a `Cow` so iteration is zero-allocation while deserialization\nstill produces a self-owning value.\n\nWire shape (internally tagged on `\"type\"`):\n```json\n{ \"type\": \"builder\",    \"builder_index\": 0,    \"agent_completion_index\": 1, \"error\": { } }\n{ \"type\": \"evaluation\", \"evaluation_index\": 2, \"agent_completion_index\": 0, \"error\": { } }\n```\n\nDoes NOT include the lab chunk's own top-level `.error` — that\nfield is the chunk's own failure state and is reachable directly\nvia [`LaboratoryExecutionChunk::error`](super::LaboratoryExecutionChunk::error).",
+  "anyOf": [
+    {
+      "title": "Builder",
+      "description": "An error from a [`BuilderChunk`](super::BuilderChunk).",
+      "type": "object",
+      "properties": {
+        "agent_completion_index": {
+          "description": "Agent completion index within the builder (matches `BuilderChunk::agent_index`).",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        "builder_index": {
+          "description": "Builder index (matches `BuilderChunk::index`).",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        "error": {
+          "description": "The underlying error from the agent completion.",
+          "$ref": "error.ResponseError"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "builder"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Evaluation",
+      "description": "An error from an [`EvaluationChunk`](super::EvaluationChunk).",
+      "type": "object",
+      "properties": {
+        "agent_completion_index": {
+          "description": "Agent completion index within the evaluation (matches `EvaluationChunk::agent_index`).",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        "error": {
+          "description": "The underlying error from the agent completion.",
+          "$ref": "error.ResponseError"
+        },
+        "evaluation_index": {
+          "description": "Evaluation index (matches `EvaluationChunk::index`).",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "evaluation"
+          ]
+        }
+      }
+    }
+  ]
+}

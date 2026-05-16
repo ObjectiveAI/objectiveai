@@ -368,7 +368,7 @@ fn main() {
         }
     }
 
-    let schemas = objectiveai::json_schemas();
+    let schemas = objectiveai_sdk::json_schemas();
     let mut count = 0;
 
     for schema in &schemas {

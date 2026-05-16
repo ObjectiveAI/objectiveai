@@ -24,7 +24,7 @@ use axum::{
 };
 use dashmap::DashMap;
 use futures::stream;
-use objectiveai::mcp::{
+use objectiveai_sdk::mcp::{
     JsonRpcError, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse,
     initialize_result::{
         Implementation, InitializeResult, ResourcesCapability, ServerCapabilities,

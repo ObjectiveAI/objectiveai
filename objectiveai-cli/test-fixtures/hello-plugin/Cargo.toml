@@ -1,0 +1,9 @@
+[package]
+name = "hello-plugin"
+version = "2.0.5"
+edition = "2024"
+publish = false
+
+[[bin]]
+name = "hello-plugin"
+path = "src/main.rs"

@@ -1,19 +1,18 @@
 use axum::Json;
-use axum::body::Bytes;
-use axum::extract::State;
-use axum::http::{HeaderMap, StatusCode};
-use axum::middleware::{self, Next};
+use axum::http::StatusCode;
+use axum::middleware;
 use envconfig::Envconfig;
-use objectiveai::HttpClient;
-use objectiveai::agent::completions::request::AgentCompletionNotifyParams;
-use serde::Serialize;
-use subtle::ConstantTimeEq;
+use objectiveai_sdk::HttpClient;
+use objectiveai_sdk::agent::completions::request::AgentCompletionNotifyParams;
+use objectiveai_sdk::filesystem::Client as FsClient;
+use objectiveai_sdk::filesystem::plugins::ManifestWithNameAndSource;
 use std::sync::Arc;
 use tauri::Emitter;
-use tokio::sync::{mpsc, Notify};
-use crate::agent;
-use crate::functions;
-use crate::laboratories;
+use tokio::sync::{Notify, mpsc};
+
+use objectiveai_sdk::viewer::{Event, EventReceiver};
+use crate::plugins::{register_plugin_route, serve_plugin_asset};
+use crate::signature::signature_middleware;
 
 #[tauri::command]
 fn viewer_ready(state: tauri::State<'_, Arc<Notify>>) {
@@ -25,7 +24,7 @@ async fn notify_agent_completion(
     state: tauri::State<'_, HttpClient>,
     params: AgentCompletionNotifyParams,
 ) -> Result<(), String> {
-    objectiveai::agent::completions::notify_agent_completion(
+    objectiveai_sdk::agent::completions::notify_agent_completion(
         state.inner(),
         params,
     )
@@ -67,6 +66,8 @@ struct EnvConfigBuilder {
     port: Option<u16>,
     #[envconfig(from = "VIEWER_SECRET")]
     secret: Option<String>,
+    #[envconfig(from = "CONFIG_BASE_DIR")]
+    config_base_dir: Option<String>,
 }
 
 impl EnvConfigBuilder {
@@ -90,6 +91,7 @@ impl EnvConfigBuilder {
             port: self.port,
             suppress_output: None,
             secret: self.secret,
+            config_base_dir: self.config_base_dir,
         }
     }
 }
@@ -114,6 +116,7 @@ pub struct ConfigBuilder {
     pub port: Option<u16>,
     pub suppress_output: Option<bool>,
     pub secret: Option<String>,
+    pub config_base_dir: Option<String>,
 }
 
 impl Envconfig for ConfigBuilder {
@@ -152,6 +155,7 @@ impl ConfigBuilder {
             port: self.port.unwrap_or(5001),
             suppress_output: self.suppress_output.unwrap_or(false),
             secret: self.secret,
+            config_base_dir: self.config_base_dir,
         }
     }
 }
@@ -175,9 +179,10 @@ pub struct Config {
     pub port: u16,
     pub suppress_output: bool,
     pub secret: Option<String>,
+    pub config_base_dir: Option<String>,
 }
 
-pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, axum::Router, EventReceiver, HttpClient)> {
+pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, axum::Router, objectiveai_sdk::viewer::EventSender, EventReceiver, HttpClient, FsClient)> {
     let (tx, rx) = mpsc::unbounded_channel::<Event>();
     let secret = config.secret.map(Arc::new);
 
@@ -187,6 +192,8 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
     let listener = tokio::net::TcpListener::bind(format!("{}:{}", config.address, config.port)).await?;
     let viewer_address = format!("http://{}", listener.local_addr()?);
 
+    let commit_author_name = config.commit_author_name.clone();
+    let commit_author_email = config.commit_author_email.clone();
     let http_client = HttpClient::new(
         reqwest::Client::new(),
         config.objectiveai_address,
@@ -203,50 +210,71 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
         config.commit_author_email,
     );
 
-    let app = axum::Router::new()
-        .route(
-            "/agent/completions",
-            axum::routing::post({
-                let tx = tx.clone();
-                move |Json(request): Json<agent::completions::request::Request>| async move {
-                    tx.send(Event::AgentCompletions(request)).ok();
-                    StatusCode::OK
-                }
-            }),
-        )
-        .route(
-            "/functions/executions",
-            axum::routing::post({
-                let tx = tx.clone();
-                move |Json(request): Json<functions::executions::request::Request>| async move {
-                    tx.send(Event::FunctionsExecutions(request)).ok();
-                    StatusCode::OK
-                }
-            }),
-        )
-        .route(
-            "/functions/inventions/recursive",
-            axum::routing::post({
-                let tx = tx.clone();
-                move |Json(request): Json<functions::inventions::recursive::request::Request>| async move {
-                    tx.send(Event::FunctionsInventionsRecursive(request)).ok();
-                    StatusCode::OK
-                }
-            }),
-        )
-        .route(
-            "/laboratories/executions",
-            axum::routing::post({
-                let tx = tx.clone();
-                move |Json(request): Json<laboratories::executions::request::Request>| async move {
-                    tx.send(Event::LaboratoriesExecutions(request)).ok();
-                    StatusCode::OK
-                }
-            }),
-        )
-        .layer(middleware::from_fn_with_state(secret, signature_middleware));
+    fn built_in_route(
+        path: &'static str,
+        sub_type: &'static str,
+        tx: tokio::sync::mpsc::UnboundedSender<Event>,
+    ) -> (&'static str, axum::routing::MethodRouter) {
+        let handler = move |Json(value): Json<serde_json::Value>| {
+            let tx = tx.clone();
+            let sub_type = sub_type.to_string();
+            async move {
+                let _ = tx.send(Event::Inbound {
+                    destination: "objectiveai".to_string(),
+                    sub_type,
+                    value,
+                });
+                StatusCode::OK
+            }
+        };
+        (path, axum::routing::post(handler))
+    }
 
-    Ok((listener, app, rx, http_client))
+    let mut app = axum::Router::new();
+    for (path, route) in [
+        built_in_route("/agent/completions", "agent_completions", tx.clone()),
+        built_in_route("/functions/executions", "functions_executions", tx.clone()),
+        built_in_route(
+            "/functions/inventions/recursive",
+            "functions_inventions_recursive",
+            tx.clone(),
+        ),
+        built_in_route("/laboratories/executions", "laboratories_executions", tx.clone()),
+    ] {
+        app = app.route(path, route);
+    }
+
+    let fs_client = FsClient::new(
+        config.config_base_dir.as_deref(),
+        commit_author_name.as_deref(),
+        commit_author_email.as_deref(),
+    );
+
+    // Scan installed plugins and register any viewer routes they
+    // declare. Listing is once-at-startup; the user opts in to
+    // refresh by restarting the viewer.
+    let plugins: Vec<ManifestWithNameAndSource> = fs_client.list_plugins(0, usize::MAX).await;
+    for plugin in plugins {
+        let plugin_name = plugin.name.clone();
+        for route in plugin.manifest.viewer_routes {
+            if !route.path.starts_with('/') {
+                eprintln!(
+                    "skipping plugin {plugin_name:?} route with non-`/`-prefixed path: {:?}",
+                    route.path
+                );
+                continue;
+            }
+            app = register_plugin_route(app, tx.clone(), plugin_name.clone(), route);
+        }
+    }
+
+    let app = app.layer(middleware::from_fn_with_state(secret, signature_middleware));
+
+    // Clone tx for downstream consumers (cli_command Tauri command
+    // managed on the Tauri Builder; lets in-process embedders inject
+    // synthetic events too).
+    let events_tx = tx.clone();
+    Ok((listener, app, events_tx, rx, http_client, fs_client))
 }
 
 /// A function that exits the viewer's event loop with the given exit code.
@@ -263,8 +291,10 @@ pub type Exiter = Box<dyn FnOnce(i32) + Send>;
 pub fn serve(
     listener: tokio::net::TcpListener,
     app: axum::Router,
+    events_tx: objectiveai_sdk::viewer::EventSender,
     mut rx: EventReceiver,
     http_client: HttpClient,
+    fs_client: FsClient,
     exiter_tx: Option<tokio::sync::oneshot::Sender<Exiter>>,
 ) -> i32 {
     tokio::spawn(async move {
@@ -274,10 +304,30 @@ pub fn serve(
     let ready = Arc::new(Notify::new());
     let ready_for_task = ready.clone();
 
-    tauri::Builder::default()
+    let plugins_dir_for_protocol = fs_client.plugins_dir();
+    let builder = tauri::Builder::default()
         .manage(ready)
         .manage(http_client)
-        .invoke_handler(tauri::generate_handler![viewer_ready, notify_agent_completion])
+        .manage(fs_client)
+        .manage(events_tx)
+        .register_uri_scheme_protocol("plugin", move |_app, request| {
+            serve_plugin_asset(&plugins_dir_for_protocol, request)
+        });
+    #[cfg(feature = "cli")]
+    let builder = builder.invoke_handler(tauri::generate_handler![
+        viewer_ready,
+        notify_agent_completion,
+        crate::plugins::list_plugins_with_viewer,
+        crate::cli_command::cli_run,
+        crate::api_call::api_call_run,
+    ]);
+    #[cfg(not(feature = "cli"))]
+    let builder = builder.invoke_handler(tauri::generate_handler![
+        viewer_ready,
+        notify_agent_completion,
+        crate::plugins::list_plugins_with_viewer,
+    ]);
+    builder
         .setup(move |tauri_app| {
             let handle = tauri_app.handle().clone();
             if let Some(tx) = exiter_tx {
@@ -301,11 +351,11 @@ pub fn serve(
                 }
                 // Drain buffered events.
                 for event in buffer {
-                    let _ = handle.emit(event.name(), &event);
+                    let _ = handle.emit(event.destination(), &event);
                 }
                 // Forward remaining events directly.
                 while let Some(event) = rx.recv().await {
-                    let _ = handle.emit(event.name(), &event);
+                    let _ = handle.emit(event.destination(), &event);
                 }
             });
             Ok(())
@@ -319,73 +369,10 @@ pub fn serve(
 /// The caller should use `std::process::exit(code)` with the returned value.
 pub async fn run(config: Config) -> std::io::Result<i32> {
     let suppress_output = config.suppress_output;
-    let (listener, app, rx, http_client) = setup(config).await?;
+    let (listener, app, events_tx, rx, http_client, fs_client) = setup(config).await?;
     if !suppress_output {
         let addr = listener.local_addr()?;
         eprintln!("listening on {addr}");
     }
-    Ok(serve(listener, app, rx, http_client, None))
+    Ok(serve(listener, app, events_tx, rx, http_client, fs_client, None))
 }
-
-async fn signature_middleware(
-    State(secret): State<Option<Arc<String>>>,
-    request: axum::extract::Request,
-    next: Next,
-) -> Result<axum::response::Response, StatusCode> {
-    if let Some(secret) = &secret {
-        let (parts, body) = request.into_parts();
-        let bytes = axum::body::to_bytes(body, usize::MAX).await.map_err(|_| StatusCode::BAD_REQUEST)?;
-        let headers = &parts.headers;
-        let signature = headers
-            .get("X-VIEWER-SIGNATURE")
-            .or_else(|| headers.get("VIEWER-SIGNATURE"))
-            .or_else(|| headers.get("X-OBJECTIVEAI-SIGNATURE"))
-            .or_else(|| headers.get("OBJECTIVEAI-SIGNATURE"))
-            .and_then(|v| v.to_str().ok())
-            .ok_or(StatusCode::UNAUTHORIZED)?;
-        if !verify_signature(secret, &bytes, signature) {
-            return Err(StatusCode::UNAUTHORIZED);
-        }
-        let rebuilt = axum::http::Request::from_parts(parts, axum::body::Body::from(bytes));
-        Ok(next.run(rebuilt).await)
-    } else {
-        Ok(next.run(request).await)
-    }
-}
-
-fn verify_signature(secret: &str, _body: &[u8], signature_header: &str) -> bool {
-    let Some(hex_sig) = signature_header.strip_prefix("sha256=") else {
-        return false;
-    };
-    let Ok(sig_bytes) = hex::decode(hex_sig) else {
-        return false;
-    };
-    // Compute SHA256(secret) and compare against the provided signature.
-    // The signature is a static pre-computed value: sha256=<SHA256(secret)>.
-    // Knowing the signature does not reveal the secret (preimage resistance).
-    use sha2::{Sha256, Digest};
-    let expected = Sha256::digest(secret.as_bytes());
-    expected.ct_eq(&sig_bytes).into()
-}
-
-#[derive(Clone, Serialize)]
-#[serde(untagged)]
-pub enum Event {
-    AgentCompletions(agent::completions::request::Request),
-    FunctionsExecutions(functions::executions::request::Request),
-    FunctionsInventionsRecursive(functions::inventions::recursive::request::Request),
-    LaboratoriesExecutions(laboratories::executions::request::Request),
-}
-
-impl Event {
-    fn name(&self) -> &'static str {
-        match self {
-            Event::AgentCompletions(_) => "agent-completions",
-            Event::FunctionsExecutions(_) => "functions-executions",
-            Event::FunctionsInventionsRecursive(_) => "functions-inventions-recursive",
-            Event::LaboratoriesExecutions(_) => "laboratories-executions",
-        }
-    }
-}
-
-pub type EventReceiver = mpsc::UnboundedReceiver<Event>;

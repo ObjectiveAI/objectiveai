@@ -77,7 +77,7 @@ pub fn description_tool_call(
 // actually expects.
 // ---------------------------------------------------------------------------
 
-use objectiveai::functions::expression::Modalities;
+use objectiveai_sdk::functions::expression::Modalities;
 
 const STATIC_IMAGE: &str =
     r#"{"type": "image_url", "image_url": {"url": "https://example.com/test.png"}}"#;
@@ -126,7 +126,7 @@ fn build_responses_expr(modalities: &Modalities) -> String {
 
 /// Parse a VectorFunctionInputSchema from JSON and return (context_modalities, items_modalities, has_context).
 fn parse_vector_schema(input_schema_json: &str) -> (Modalities, Modalities, bool) {
-    use objectiveai::functions::alpha_vector::expression::VectorFunctionInputSchema;
+    use objectiveai_sdk::functions::alpha_vector::expression::VectorFunctionInputSchema;
     match serde_json::from_str::<VectorFunctionInputSchema>(input_schema_json) {
         Ok(schema) => {
             let ctx_mod = schema.context.as_ref()
@@ -142,7 +142,7 @@ fn parse_vector_schema(input_schema_json: &str) -> (Modalities, Modalities, bool
 
 /// Parse a ScalarFunctionInputSchema (ObjectInputSchema) from JSON and return its modalities.
 fn parse_scalar_schema(input_schema_json: &str) -> Modalities {
-    use objectiveai::functions::expression::ObjectInputSchema;
+    use objectiveai_sdk::functions::expression::ObjectInputSchema;
     serde_json::from_str::<ObjectInputSchema>(input_schema_json)
         .map(|s| s.modalities())
         .unwrap_or_default()

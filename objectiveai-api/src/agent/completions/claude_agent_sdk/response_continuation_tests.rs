@@ -14,8 +14,8 @@ fn test_no_continuation_no_request_continuation() {
         &[],
         None,
     );
-    assert_eq!(result, objectiveai::agent::claude_agent_sdk::Continuation {
-        upstream: objectiveai::agent::claude_agent_sdk::Upstream::ClaudeAgentSdk,
+    assert_eq!(result, objectiveai_sdk::agent::claude_agent_sdk::Continuation {
+        upstream: objectiveai_sdk::agent::claude_agent_sdk::Upstream::ClaudeAgentSdk,
         session_id: String::new(),
         mcp_sessions: indexmap::IndexMap::new(),
     });
@@ -42,8 +42,8 @@ fn test_session_id_from_continuation_state() {
 #[test]
 fn test_session_id_falls_back_to_request_continuation() {
     let client = make_client();
-    let rc = objectiveai::agent::claude_agent_sdk::Continuation {
-        upstream: objectiveai::agent::claude_agent_sdk::Upstream::ClaudeAgentSdk,
+    let rc = objectiveai_sdk::agent::claude_agent_sdk::Continuation {
+        upstream: objectiveai_sdk::agent::claude_agent_sdk::Upstream::ClaudeAgentSdk,
         session_id: "req-sess-123".into(),
         mcp_sessions: indexmap::IndexMap::new(),
     };
@@ -65,8 +65,8 @@ fn test_internal_session_id_takes_precedence() {
             message_count: 1,
         }),
     ];
-    let rc = objectiveai::agent::claude_agent_sdk::Continuation {
-        upstream: objectiveai::agent::claude_agent_sdk::Upstream::ClaudeAgentSdk,
+    let rc = objectiveai_sdk::agent::claude_agent_sdk::Continuation {
+        upstream: objectiveai_sdk::agent::claude_agent_sdk::Upstream::ClaudeAgentSdk,
         session_id: "req-sess-456".into(),
         mcp_sessions: indexmap::IndexMap::new(),
     };
@@ -88,8 +88,8 @@ fn test_empty_internal_session_falls_back_to_request() {
             message_count: 0,
         }),
     ];
-    let rc = objectiveai::agent::claude_agent_sdk::Continuation {
-        upstream: objectiveai::agent::claude_agent_sdk::Upstream::ClaudeAgentSdk,
+    let rc = objectiveai_sdk::agent::claude_agent_sdk::Continuation {
+        upstream: objectiveai_sdk::agent::claude_agent_sdk::Upstream::ClaudeAgentSdk,
         session_id: "req-sess-fallback".into(),
         mcp_sessions: indexmap::IndexMap::new(),
     };

@@ -34,14 +34,14 @@ export OBJECTIVEAI_TEST_PORT="$PORT"
 # Each script prints exactly one line: "$MODULE: PASS N/N" or "$MODULE: FAIL N/N".
 PIDS=()
 for suite in \
-  objectiveai-rs \
+  objectiveai-sdk-rs \
   objectiveai-api \
   objectiveai-json-schema \
   objectiveai-cli \
   objectiveai-mcp-proxy \
-  objectiveai-js \
-  objectiveai-py \
-  objectiveai-go \
+  objectiveai-sdk-js \
+  objectiveai-sdk-py \
+  objectiveai-sdk-go \
 ; do
   bash "$REPO_ROOT/$suite/test.sh" &
   PIDS+=($!)

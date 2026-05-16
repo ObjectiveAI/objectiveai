@@ -1,0 +1,13 @@
+{
+  "title": "cli.output.notification.functions.profiles.FunctionProfilePair",
+  "description": "The composite body inside a `Pair` notification.",
+  "type": "object",
+  "properties": {
+    "function": {
+      "$ref": "functions.GetFunctionResponse"
+    },
+    "profile": {
+      "$ref": "functions.profiles.GetProfileResponse"
+    }
+  }
+}

@@ -17,22 +17,22 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub async fn handle(self, cli_config: &crate::Config) -> Result<(), crate::error::Error> {
-        let client = objectiveai::filesystem::Client::new(cli_config.config_base_dir.as_deref(), None::<String>, None::<String>);
+    pub async fn handle(self, cli_config: &crate::Config, handle: &objectiveai_sdk::cli::output::Handle) -> Result<(), crate::error::Error> {
+        let client = objectiveai_sdk::filesystem::Client::new(cli_config.config_base_dir.as_deref(), None::<String>, None::<String>);
         match self {
             Commands::Get { id, filter } => {
-                let content = objectiveai::filesystem::logs::client::read_function_execution_retry_token(&client, &id, filter.as_deref()).await.map(objectiveai::filesystem::logs::LogContent::Json)?;
+                let content = client.read_function_execution_retry_token(&id, filter.as_deref()).await.map(objectiveai_sdk::filesystem::logs::LogContent::Json)?;
                 {
-                crate::ack::emit_log_content(content);
+                crate::log_line::emit_log_content(content, handle).await;
                 Ok(())
             }
             }
             Commands::Subscribe { id, timeout_ms, require_modification, filter } => {
-                let result = objectiveai::filesystem::logs::client::subscribe_function_execution_retry_token(&client, &id, std::time::Duration::from_millis(timeout_ms), require_modification, filter.as_deref()).await?;
+                let result = client.subscribe_function_execution_retry_token(&id, std::time::Duration::from_millis(timeout_ms), require_modification, filter.as_deref()).await?;
                 {
-                match result.map(objectiveai::filesystem::logs::LogContent::Json) {
+                match result.map(objectiveai_sdk::filesystem::logs::LogContent::Json) {
                     Some(content) => {
-                        crate::ack::emit_log_content(content);
+                        crate::log_line::emit_log_content(content, handle).await;
                         Ok(())
                     }
                     None => Err(crate::error::Error::LogSubscribeTimedOut),
@@ -40,7 +40,7 @@ impl Commands {
             }
             }
             Commands::Clear => {
-                crate::ack::emit_log_clear_count(objectiveai::filesystem::logs::client::clear_function_execution_retry_tokens(&client).await?);
+                crate::log_line::emit_log_clear_count(client.clear_function_execution_retry_tokens().await?, handle).await;
                 Ok(())
             },
         }

@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ChatCompletionCreateParams {
     /// Messages for the conversation, including any prefix/suffix from the Agent.
-    pub messages: Vec<objectiveai::agent::completions::message::Message>,
+    pub messages: Vec<objectiveai_sdk::agent::completions::message::Message>,
     /// Provider preferences merged from request and Agent.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provider: Option<super::Provider>,
@@ -32,7 +32,7 @@ pub struct ChatCompletionCreateParams {
     pub presence_penalty: Option<f64>,
     /// Stop sequences from Agent.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub stop: Option<objectiveai::agent::openrouter::Stop>,
+    pub stop: Option<objectiveai_sdk::agent::openrouter::Stop>,
     /// Temperature from Agent.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub temperature: Option<f64>,
@@ -47,7 +47,7 @@ pub struct ChatCompletionCreateParams {
     pub min_p: Option<f64>,
     /// Reasoning configuration from Agent.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub reasoning: Option<objectiveai::agent::openrouter::Reasoning>,
+    pub reasoning: Option<objectiveai_sdk::agent::openrouter::Reasoning>,
     /// Repetition penalty from Agent.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub repetition_penalty: Option<f64>,
@@ -59,7 +59,7 @@ pub struct ChatCompletionCreateParams {
     pub top_k: Option<u64>,
     /// Verbosity setting from Agent.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub verbosity: Option<objectiveai::agent::openrouter::Verbosity>,
+    pub verbosity: Option<objectiveai_sdk::agent::openrouter::Verbosity>,
 
     /// Whether to include log probabilities from request.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -97,17 +97,17 @@ pub struct ChatCompletionCreateParams {
 impl ChatCompletionCreateParams {
     /// Creates request parameters from pre-resolved tool names and map.
     pub fn new(
-        agent: &objectiveai::agent::openrouter::Agent,
-        params: &objectiveai::agent::completions::request::AgentCompletionCreateParams,
-        messages: &[objectiveai::agent::completions::message::Message],
-        continuation: Option<&[crate::agent::completions::ContinuationItem<objectiveai::agent::completions::message::AssistantMessage>]>,
-        request_continuation: Option<&objectiveai::agent::openrouter::Continuation>,
+        agent: &objectiveai_sdk::agent::openrouter::Agent,
+        params: &objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams,
+        messages: &[objectiveai_sdk::agent::completions::message::Message],
+        continuation: Option<&[crate::agent::completions::ContinuationItem<objectiveai_sdk::agent::completions::message::AssistantMessage>]>,
+        request_continuation: Option<&objectiveai_sdk::agent::openrouter::Continuation>,
         tool_names: &[String],
         tool_map: &HashMap<String, crate::agent::completions::resolved_tool::ResolvedTool>,
         tools_enabled: bool,
     ) -> Self {
         use crate::agent::completions::ContinuationItem;
-        use objectiveai::agent::completions::message::Message;
+        use objectiveai_sdk::agent::completions::message::Message;
 
         // --- Step 0: Build messages array (request_continuation + messages + continuation) ---
         let continuation = continuation.unwrap_or_default();
@@ -136,7 +136,7 @@ impl ChatCompletionCreateParams {
         // --- Step 2: Extract ToolCall variant (if any) from response_format ---
         let (openrouter_response_format, response_format_tool_required) =
             match resolved_response_format {
-                Some(objectiveai::agent::completions::request::ResponseFormat::ToolCall {
+                Some(objectiveai_sdk::agent::completions::request::ResponseFormat::ToolCall {
                     name,
                     required,
                     ..
@@ -252,14 +252,14 @@ impl ChatCompletionCreateParams {
 
 /// Resolves the response format for a specific agent from the request params.
 fn resolve_response_format(
-    params: &objectiveai::agent::completions::request::AgentCompletionCreateParams,
-    agent: &objectiveai::agent::openrouter::Agent,
-) -> Option<objectiveai::agent::completions::request::ResponseFormat> {
+    params: &objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams,
+    agent: &objectiveai_sdk::agent::openrouter::Agent,
+) -> Option<objectiveai_sdk::agent::completions::request::ResponseFormat> {
     match params.response_format.as_ref()? {
-        objectiveai::agent::completions::request::ResponseFormatParam::Single(rf) => {
+        objectiveai_sdk::agent::completions::request::ResponseFormatParam::Single(rf) => {
             Some(rf.clone())
         }
-        objectiveai::agent::completions::request::ResponseFormatParam::PerAgent(map) => {
+        objectiveai_sdk::agent::completions::request::ResponseFormatParam::PerAgent(map) => {
             map.get(&agent.id).cloned()
         }
     }

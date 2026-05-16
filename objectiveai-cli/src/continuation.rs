@@ -30,14 +30,14 @@ pub fn resolve_continuation(fields: ContinuationFields) -> Result<Option<String>
 
     // OpenRouter messages
     if let Some(inline) = fields.openrouter_messages_inline {
-        let messages: Vec<objectiveai::agent::completions::message::Message> = {
+        let messages: Vec<objectiveai_sdk::agent::completions::message::Message> = {
             let mut de = serde_json::Deserializer::from_str(&inline);
             serde_path_to_error::deserialize(&mut de)
                 .map_err(crate::error::Error::InlineDeserialize)?
         };
-        let cont = objectiveai::agent::Continuation::Openrouter(
-            objectiveai::agent::openrouter::Continuation {
-                upstream: objectiveai::agent::openrouter::Upstream::Openrouter,
+        let cont = objectiveai_sdk::agent::Continuation::Openrouter(
+            objectiveai_sdk::agent::openrouter::Continuation {
+                upstream: objectiveai_sdk::agent::openrouter::Upstream::Openrouter,
                 messages,
                 mcp_sessions: Default::default(),
             },
@@ -45,11 +45,11 @@ pub fn resolve_continuation(fields: ContinuationFields) -> Result<Option<String>
         return Ok(Some(cont.to_string()));
     }
     if let Some(code) = fields.openrouter_messages_python_inline {
-        let messages: Vec<objectiveai::agent::completions::message::Message> =
+        let messages: Vec<objectiveai_sdk::agent::completions::message::Message> =
             crate::python::exec_code(&code)?;
-        let cont = objectiveai::agent::Continuation::Openrouter(
-            objectiveai::agent::openrouter::Continuation {
-                upstream: objectiveai::agent::openrouter::Upstream::Openrouter,
+        let cont = objectiveai_sdk::agent::Continuation::Openrouter(
+            objectiveai_sdk::agent::openrouter::Continuation {
+                upstream: objectiveai_sdk::agent::openrouter::Upstream::Openrouter,
                 messages,
                 mcp_sessions: Default::default(),
             },
@@ -57,11 +57,11 @@ pub fn resolve_continuation(fields: ContinuationFields) -> Result<Option<String>
         return Ok(Some(cont.to_string()));
     }
     if let Some(path) = fields.openrouter_messages_python_file {
-        let messages: Vec<objectiveai::agent::completions::message::Message> =
+        let messages: Vec<objectiveai_sdk::agent::completions::message::Message> =
             crate::python::exec_file(&path)?;
-        let cont = objectiveai::agent::Continuation::Openrouter(
-            objectiveai::agent::openrouter::Continuation {
-                upstream: objectiveai::agent::openrouter::Upstream::Openrouter,
+        let cont = objectiveai_sdk::agent::Continuation::Openrouter(
+            objectiveai_sdk::agent::openrouter::Continuation {
+                upstream: objectiveai_sdk::agent::openrouter::Upstream::Openrouter,
                 messages,
                 mcp_sessions: Default::default(),
             },
@@ -71,14 +71,14 @@ pub fn resolve_continuation(fields: ContinuationFields) -> Result<Option<String>
 
     // Mock messages
     if let Some(inline) = fields.mock_messages_inline {
-        let messages: Vec<objectiveai::agent::completions::message::Message> = {
+        let messages: Vec<objectiveai_sdk::agent::completions::message::Message> = {
             let mut de = serde_json::Deserializer::from_str(&inline);
             serde_path_to_error::deserialize(&mut de)
                 .map_err(crate::error::Error::InlineDeserialize)?
         };
-        let cont = objectiveai::agent::Continuation::Mock(
-            objectiveai::agent::mock::Continuation {
-                upstream: objectiveai::agent::mock::Upstream::Mock,
+        let cont = objectiveai_sdk::agent::Continuation::Mock(
+            objectiveai_sdk::agent::mock::Continuation {
+                upstream: objectiveai_sdk::agent::mock::Upstream::Mock,
                 messages,
                 mcp_sessions: Default::default(),
             },
@@ -86,11 +86,11 @@ pub fn resolve_continuation(fields: ContinuationFields) -> Result<Option<String>
         return Ok(Some(cont.to_string()));
     }
     if let Some(code) = fields.mock_messages_python_inline {
-        let messages: Vec<objectiveai::agent::completions::message::Message> =
+        let messages: Vec<objectiveai_sdk::agent::completions::message::Message> =
             crate::python::exec_code(&code)?;
-        let cont = objectiveai::agent::Continuation::Mock(
-            objectiveai::agent::mock::Continuation {
-                upstream: objectiveai::agent::mock::Upstream::Mock,
+        let cont = objectiveai_sdk::agent::Continuation::Mock(
+            objectiveai_sdk::agent::mock::Continuation {
+                upstream: objectiveai_sdk::agent::mock::Upstream::Mock,
                 messages,
                 mcp_sessions: Default::default(),
             },
@@ -98,11 +98,11 @@ pub fn resolve_continuation(fields: ContinuationFields) -> Result<Option<String>
         return Ok(Some(cont.to_string()));
     }
     if let Some(path) = fields.mock_messages_python_file {
-        let messages: Vec<objectiveai::agent::completions::message::Message> =
+        let messages: Vec<objectiveai_sdk::agent::completions::message::Message> =
             crate::python::exec_file(&path)?;
-        let cont = objectiveai::agent::Continuation::Mock(
-            objectiveai::agent::mock::Continuation {
-                upstream: objectiveai::agent::mock::Upstream::Mock,
+        let cont = objectiveai_sdk::agent::Continuation::Mock(
+            objectiveai_sdk::agent::mock::Continuation {
+                upstream: objectiveai_sdk::agent::mock::Upstream::Mock,
                 messages,
                 mcp_sessions: Default::default(),
             },
@@ -112,9 +112,9 @@ pub fn resolve_continuation(fields: ContinuationFields) -> Result<Option<String>
 
     // Claude Agent SDK session ID
     if let Some(session_id) = fields.claude_agent_sdk_session_id {
-        let cont = objectiveai::agent::Continuation::ClaudeAgentSdk(
-            objectiveai::agent::claude_agent_sdk::Continuation {
-                upstream: objectiveai::agent::claude_agent_sdk::Upstream::ClaudeAgentSdk,
+        let cont = objectiveai_sdk::agent::Continuation::ClaudeAgentSdk(
+            objectiveai_sdk::agent::claude_agent_sdk::Continuation {
+                upstream: objectiveai_sdk::agent::claude_agent_sdk::Upstream::ClaudeAgentSdk,
                 session_id,
                 mcp_sessions: Default::default(),
             },

@@ -26,37 +26,37 @@
 
 use futures::StreamExt;
 
-use objectiveai::functions::expression::{
+use objectiveai_sdk::functions::expression::{
     AnyOfInputSchema, ArrayInputSchema, AudioInputSchema, BooleanInputSchema,
     FileInputSchema, ImageInputSchema, IntegerInputSchema, InputSchema, NumberInputSchema,
     ObjectInputSchema, StringInputSchema, VideoInputSchema,
 };
-use objectiveai::functions::alpha_vector::expression::VectorFunctionInputSchema;
-use objectiveai::functions::inventions::request::FunctionInventionCreateParams;
-use objectiveai::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams;
-use objectiveai::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk;
-use objectiveai::functions::inventions::recursive::response::unary::FunctionInventionRecursive;
-use objectiveai::functions::inventions::response::streaming::FunctionInventionChunk;
-use objectiveai::functions::inventions::response::unary::FunctionInvention;
-use objectiveai::functions::inventions::state::{Params, ParamsState};
+use objectiveai_sdk::functions::alpha_vector::expression::VectorFunctionInputSchema;
+use objectiveai_sdk::functions::inventions::request::FunctionInventionCreateParams;
+use objectiveai_sdk::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams;
+use objectiveai_sdk::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk;
+use objectiveai_sdk::functions::inventions::recursive::response::unary::FunctionInventionRecursive;
+use objectiveai_sdk::functions::inventions::response::streaming::FunctionInventionChunk;
+use objectiveai_sdk::functions::inventions::response::unary::FunctionInvention;
+use objectiveai_sdk::functions::inventions::state::{Params, ParamsState};
 
 pub fn make_request(state: ParamsState, seed: i64) -> FunctionInventionCreateParams {
     FunctionInventionCreateParams {
         remote: None,
         overwrite: None,
-        state: objectiveai::functions::inventions::ParamsStateOrRemoteCommitOptional::Inline(state),
+        state: objectiveai_sdk::functions::inventions::ParamsStateOrRemoteCommitOptional::Inline(state),
         provider: None,
-        agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-            objectiveai::agent::InlineAgentBaseWithFallbacks {
-                inner: objectiveai::agent::InlineAgentBase::Mock(objectiveai::agent::mock::AgentBase {
-                    mode: Some(objectiveai::agent::mock::Mode::Invention),
+        agent: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+            objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+                inner: objectiveai_sdk::agent::InlineAgentBase::Mock(objectiveai_sdk::agent::mock::AgentBase {
+                    mode: Some(objectiveai_sdk::agent::mock::Mode::Invention),
                     ..Default::default()
                 }),
                 fallbacks: None,
             },
         ),
-        prompt: objectiveai::functions::inventions::prompts::InlinePromptOrRemoteCommitOptional::Remote(
-            objectiveai::RemotePathCommitOptional::Mock { name: "default".to_string() },
+        prompt: objectiveai_sdk::functions::inventions::prompts::InlinePromptOrRemoteCommitOptional::Remote(
+            objectiveai_sdk::RemotePathCommitOptional::Mock { name: "default".to_string() },
         ),
         seed: Some(seed),
         stream: Some(true),
@@ -133,11 +133,11 @@ pub async fn run_invention(params: FunctionInventionCreateParams) -> FunctionInv
         .await
         .expect("invention should not error before streaming");
     let expected_created = std::cell::Cell::new(None);
-    let mut errors: Vec<objectiveai::error::ResponseError> = Vec::new();
+    let mut errors: Vec<objectiveai_sdk::error::ResponseError> = Vec::new();
     let agg = super::stream_harness::consume_stream_acc(
         stream,
         |agg, c| agg.push(c),
-        |chunk, errors_acc: &mut Vec<objectiveai::error::ResponseError>| {
+        |chunk, errors_acc: &mut Vec<objectiveai_sdk::error::ResponseError>| {
             if let Some(e) = &chunk.error {
                 errors_acc.push(e.clone());
             }
@@ -425,7 +425,7 @@ macro_rules! invention_test_10x {
     ) => {
         mod $test_name {
             use $crate::common::inventions::*;
-            use objectiveai::functions::inventions::state::{
+            use objectiveai_sdk::functions::inventions::state::{
                 AlphaScalarLeafState, AlphaScalarBranchState, AlphaVectorLeafState,
                 AlphaVectorBranchState, ParamsState,
             };
@@ -523,7 +523,7 @@ macro_rules! invention_test_10x_schema {
     ) => {
         mod $test_name {
             use $crate::common::inventions::*;
-            use objectiveai::functions::inventions::state::{
+            use objectiveai_sdk::functions::inventions::state::{
                 AlphaScalarLeafState, AlphaScalarBranchState, AlphaVectorLeafState,
                 AlphaVectorBranchState, ParamsState,
             };
@@ -616,21 +616,21 @@ pub fn make_recursive_request(
     seed: i64,
 ) -> FunctionInventionRecursiveCreateParams {
     FunctionInventionRecursiveCreateParams {
-        remote: objectiveai::Remote::Mock,
+        remote: objectiveai_sdk::Remote::Mock,
         overwrite: None,
-        state: objectiveai::functions::inventions::ParamsStateOrRemoteCommitOptional::Inline(state),
+        state: objectiveai_sdk::functions::inventions::ParamsStateOrRemoteCommitOptional::Inline(state),
         provider: None,
-        agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-            objectiveai::agent::InlineAgentBaseWithFallbacks {
-                inner: objectiveai::agent::InlineAgentBase::Mock(objectiveai::agent::mock::AgentBase {
-                    mode: Some(objectiveai::agent::mock::Mode::Invention),
+        agent: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+            objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+                inner: objectiveai_sdk::agent::InlineAgentBase::Mock(objectiveai_sdk::agent::mock::AgentBase {
+                    mode: Some(objectiveai_sdk::agent::mock::Mode::Invention),
                     ..Default::default()
                 }),
                 fallbacks: None,
             },
         ),
-        prompt: objectiveai::functions::inventions::prompts::InlinePromptOrRemoteCommitOptional::Remote(
-            objectiveai::RemotePathCommitOptional::Mock { name: "default".to_string() },
+        prompt: objectiveai_sdk::functions::inventions::prompts::InlinePromptOrRemoteCommitOptional::Remote(
+            objectiveai_sdk::RemotePathCommitOptional::Mock { name: "default".to_string() },
         ),
         seed: Some(seed),
         stream: Some(true),
@@ -736,7 +736,7 @@ pub fn assert_recursive_snapshot(json: &str, path: &str, expected: &str) {
 // initial-state-validation tests).
 // ---------------------------------------------------------------------------
 
-pub fn valid_scalar_schema() -> objectiveai::functions::alpha_scalar::expression::ScalarFunctionInputSchema {
+pub fn valid_scalar_schema() -> objectiveai_sdk::functions::alpha_scalar::expression::ScalarFunctionInputSchema {
     let mut properties = indexmap::IndexMap::new();
     properties.insert(
         "sentiment".to_string(),
@@ -754,7 +754,7 @@ pub fn valid_scalar_schema() -> objectiveai::functions::alpha_scalar::expression
     }
 }
 
-pub fn invalid_scalar_schema() -> objectiveai::functions::alpha_scalar::expression::ScalarFunctionInputSchema {
+pub fn invalid_scalar_schema() -> objectiveai_sdk::functions::alpha_scalar::expression::ScalarFunctionInputSchema {
     let mut properties = indexmap::IndexMap::new();
     properties.insert(
         "mood".to_string(),
@@ -772,8 +772,8 @@ pub fn invalid_scalar_schema() -> objectiveai::functions::alpha_scalar::expressi
     }
 }
 
-pub fn valid_vector_schema() -> objectiveai::functions::alpha_vector::expression::VectorFunctionInputSchema {
-    objectiveai::functions::alpha_vector::expression::VectorFunctionInputSchema {
+pub fn valid_vector_schema() -> objectiveai_sdk::functions::alpha_vector::expression::VectorFunctionInputSchema {
+    objectiveai_sdk::functions::alpha_vector::expression::VectorFunctionInputSchema {
         context: None,
         items: InputSchema::String(StringInputSchema {
             r#type: Default::default(),
@@ -783,52 +783,52 @@ pub fn valid_vector_schema() -> objectiveai::functions::alpha_vector::expression
     }
 }
 
-pub fn valid_scalar_leaf_task() -> objectiveai::functions::alpha_scalar::LeafTaskExpression {
-    objectiveai::functions::alpha_scalar::LeafTaskExpression::VectorCompletion(
-        objectiveai::functions::alpha_scalar::VectorCompletionTaskExpression {
+pub fn valid_scalar_leaf_task() -> objectiveai_sdk::functions::alpha_scalar::LeafTaskExpression {
+    objectiveai_sdk::functions::alpha_scalar::LeafTaskExpression::VectorCompletion(
+        objectiveai_sdk::functions::alpha_scalar::VectorCompletionTaskExpression {
             skip: None,
-            messages: objectiveai::functions::expression::Expression::Starlark(
+            messages: objectiveai_sdk::functions::expression::Expression::Starlark(
                 "[{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": str(input)}]}]".to_string(),
             ),
             responses: vec![
-                objectiveai::agent::completions::message::RichContent::Parts(vec![
-                    objectiveai::agent::completions::message::RichContentPart::Text { text: "yes".to_string() },
+                objectiveai_sdk::agent::completions::message::RichContent::Parts(vec![
+                    objectiveai_sdk::agent::completions::message::RichContentPart::Text { text: "yes".to_string() },
                 ]),
-                objectiveai::agent::completions::message::RichContent::Parts(vec![
-                    objectiveai::agent::completions::message::RichContentPart::Text { text: "no".to_string() },
+                objectiveai_sdk::agent::completions::message::RichContent::Parts(vec![
+                    objectiveai_sdk::agent::completions::message::RichContentPart::Text { text: "no".to_string() },
                 ]),
             ],
         },
     )
 }
 
-pub fn invalid_scalar_leaf_task() -> objectiveai::functions::alpha_scalar::LeafTaskExpression {
-    objectiveai::functions::alpha_scalar::LeafTaskExpression::VectorCompletion(
-        objectiveai::functions::alpha_scalar::VectorCompletionTaskExpression {
+pub fn invalid_scalar_leaf_task() -> objectiveai_sdk::functions::alpha_scalar::LeafTaskExpression {
+    objectiveai_sdk::functions::alpha_scalar::LeafTaskExpression::VectorCompletion(
+        objectiveai_sdk::functions::alpha_scalar::VectorCompletionTaskExpression {
             skip: None,
-            messages: objectiveai::functions::expression::Expression::Starlark(
+            messages: objectiveai_sdk::functions::expression::Expression::Starlark(
                 "[{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"hardcoded\"}]}]".to_string(),
             ),
             responses: vec![
-                objectiveai::agent::completions::message::RichContent::Parts(vec![
-                    objectiveai::agent::completions::message::RichContentPart::Text { text: "yes".to_string() },
+                objectiveai_sdk::agent::completions::message::RichContent::Parts(vec![
+                    objectiveai_sdk::agent::completions::message::RichContentPart::Text { text: "yes".to_string() },
                 ]),
-                objectiveai::agent::completions::message::RichContent::Parts(vec![
-                    objectiveai::agent::completions::message::RichContentPart::Text { text: "no".to_string() },
+                objectiveai_sdk::agent::completions::message::RichContent::Parts(vec![
+                    objectiveai_sdk::agent::completions::message::RichContentPart::Text { text: "no".to_string() },
                 ]),
             ],
         },
     )
 }
 
-pub fn valid_vector_leaf_task() -> objectiveai::functions::alpha_vector::LeafTaskExpression {
-    objectiveai::functions::alpha_vector::LeafTaskExpression::VectorCompletion(
-        objectiveai::functions::alpha_vector::VectorCompletionTaskExpression {
+pub fn valid_vector_leaf_task() -> objectiveai_sdk::functions::alpha_vector::LeafTaskExpression {
+    objectiveai_sdk::functions::alpha_vector::LeafTaskExpression::VectorCompletion(
+        objectiveai_sdk::functions::alpha_vector::VectorCompletionTaskExpression {
             skip: None,
-            messages: objectiveai::functions::expression::Expression::Starlark(
+            messages: objectiveai_sdk::functions::expression::Expression::Starlark(
                 "[{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"rank these\"}]}]".to_string(),
             ),
-            responses: objectiveai::functions::expression::Expression::Starlark(
+            responses: objectiveai_sdk::functions::expression::Expression::Starlark(
                 "[[{\"type\": \"text\", \"text\": str(item)}] for item in input['items']]".to_string(),
             ),
         },
@@ -852,7 +852,7 @@ macro_rules! recursive_test_3x {
     ) => {
         mod $test_name {
             use $crate::common::inventions::*;
-            use objectiveai::functions::inventions::state::{
+            use objectiveai_sdk::functions::inventions::state::{
                 AlphaScalarLeafState, AlphaScalarBranchState, AlphaVectorLeafState,
                 AlphaVectorBranchState, ParamsState,
             };
@@ -913,7 +913,7 @@ macro_rules! recursive_test_3x_unrouted {
     ) => {
         mod $test_name {
             use $crate::common::inventions::*;
-            use objectiveai::functions::inventions::state::{
+            use objectiveai_sdk::functions::inventions::state::{
                 AlphaScalarState, AlphaVectorState, ParamsState,
             };
 

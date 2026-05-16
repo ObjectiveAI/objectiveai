@@ -7,24 +7,24 @@ pub enum Remote {
 }
 
 impl Remote {
-    pub fn into_path(self, owner: Option<String>, repository: Option<String>, name: Option<String>, commit: Option<String>) -> Option<objectiveai::RemotePathCommitOptional> {
+    pub fn into_path(self, owner: Option<String>, repository: Option<String>, name: Option<String>, commit: Option<String>) -> Option<objectiveai_sdk::RemotePathCommitOptional> {
         match self {
             Remote::Github => {
-                Some(objectiveai::RemotePathCommitOptional::Github {
+                Some(objectiveai_sdk::RemotePathCommitOptional::Github {
                     owner: owner?,
                     repository: repository?,
                     commit,
                 })
             }
             Remote::Filesystem => {
-                Some(objectiveai::RemotePathCommitOptional::Filesystem {
+                Some(objectiveai_sdk::RemotePathCommitOptional::Filesystem {
                     owner: owner?,
                     repository: repository?,
                     commit,
                 })
             }
             Remote::Mock => {
-                Some(objectiveai::RemotePathCommitOptional::Mock {
+                Some(objectiveai_sdk::RemotePathCommitOptional::Mock {
                     name: name?,
                 })
             }

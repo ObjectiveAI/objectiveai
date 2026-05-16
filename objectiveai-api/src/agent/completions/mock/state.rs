@@ -1,10 +1,10 @@
-use objectiveai::agent::completions::message::AssistantMessage;
+use objectiveai_sdk::agent::completions::message::AssistantMessage;
 
 /// Extracts `(tool_name, tool_call_id)` pairs from an AssistantMessage's tool calls.
 pub fn tool_calls_from_state(state: &AssistantMessage) -> Vec<(&str, &str)> {
     state.tool_calls.as_ref().map_or(Vec::new(), |tcs| {
         tcs.iter().map(|tc| match tc {
-            objectiveai::agent::completions::message::AssistantToolCall::Function { id, function } => {
+            objectiveai_sdk::agent::completions::message::AssistantToolCall::Function { id, function } => {
                 (function.name.as_str(), id.as_str())
             }
         }).collect()
@@ -26,7 +26,7 @@ pub fn validate_continuation<'a>(
     state: &AssistantMessage,
     items_after: impl Iterator<Item = &'a super::super::ContinuationItem<AssistantMessage>>,
 ) -> Result<(), super::Error> {
-    use objectiveai::agent::completions::message::RichContent;
+    use objectiveai_sdk::agent::completions::message::RichContent;
 
     let calls = tool_calls_from_state(state);
 

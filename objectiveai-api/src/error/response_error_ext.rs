@@ -1,6 +1,6 @@
 //! Error response handling and conversion to Axum responses.
 
-/// Extension trait for converting [`objectiveai::error::ResponseError`] into Axum responses.
+/// Extension trait for converting [`objectiveai_sdk::error::ResponseError`] into Axum responses.
 #[cfg(not(target_arch = "wasm32"))]
 pub trait ResponseErrorExt {
     /// Converts this error into an Axum HTTP response.
@@ -12,7 +12,7 @@ pub trait ResponseErrorExt {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl ResponseErrorExt for objectiveai::error::ResponseError {
+impl ResponseErrorExt for objectiveai_sdk::error::ResponseError {
     fn into_response(self) -> axum::response::Response {
         use axum::response::IntoResponse;
         let status = axum::http::StatusCode::from_u16(self.code)

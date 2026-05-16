@@ -10,25 +10,25 @@ pub enum Error {
     AgentNotFound(String),
 
     #[error("MCP connection error: {0}")]
-    McpConnection(objectiveai::mcp::Error),
+    McpConnection(objectiveai_sdk::mcp::Error),
 
     #[error("MCP connection error: {0}")]
-    McpConnectionArc(std::sync::Arc<objectiveai::mcp::Error>),
+    McpConnectionArc(std::sync::Arc<objectiveai_sdk::mcp::Error>),
 
     #[error("MCP list_tools error ({url}): {error}")]
     McpListTools {
         url: String,
-        error: std::sync::Arc<objectiveai::mcp::Error>,
+        error: std::sync::Arc<objectiveai_sdk::mcp::Error>,
     },
 
     #[error("MCP call_tool error: {0}")]
-    McpCallTool(objectiveai::mcp::Error),
+    McpCallTool(objectiveai_sdk::mcp::Error),
 
     #[error("MCP proxy bootstrap failed: {0}")]
     McpProxyBootstrap(String),
 
     #[error("{0}")]
-    Fetch(objectiveai::error::ResponseError),
+    Fetch(objectiveai_sdk::error::ResponseError),
 
     #[error("upstream openrouter error: {0}")]
     UpstreamOpenrouter(Box<dyn super::UpstreamError>),
@@ -58,9 +58,9 @@ pub enum Error {
     StreamCancelled,
 }
 
-impl objectiveai::error::StatusError for Error {
+impl objectiveai_sdk::error::StatusError for Error {
     fn status(&self) -> u16 {
-        use objectiveai::error::StatusError;
+        use objectiveai_sdk::error::StatusError;
         match self {
             Self::InvalidAgent(_) => 400,
             Self::InvalidContinuation => 400,
@@ -85,7 +85,7 @@ impl objectiveai::error::StatusError for Error {
     }
 
     fn message(&self) -> Option<serde_json::Value> {
-        use objectiveai::error::StatusError;
+        use objectiveai_sdk::error::StatusError;
         match self {
             Self::Fetch(e) => Some(e.message.clone()),
             Self::UpstreamOpenrouter(e)

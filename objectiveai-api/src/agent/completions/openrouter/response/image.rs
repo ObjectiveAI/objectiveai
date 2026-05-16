@@ -30,7 +30,7 @@ pub struct ImageUrl {
     pub url: String,
 }
 
-impl From<Image> for objectiveai::agent::completions::message::ImageUrl {
+impl From<Image> for objectiveai_sdk::agent::completions::message::ImageUrl {
     fn from(image: Image) -> Self {
         match image {
             Image::ImageUrl { image_url } => Self {
@@ -41,7 +41,7 @@ impl From<Image> for objectiveai::agent::completions::message::ImageUrl {
     }
 }
 
-impl From<Image> for objectiveai::agent::completions::message::RichContentPart {
+impl From<Image> for objectiveai_sdk::agent::completions::message::RichContentPart {
     fn from(image: Image) -> Self {
         Self::ImageUrl {
             image_url: image.into(),

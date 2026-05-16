@@ -15,7 +15,7 @@ use axum::{
     },
 };
 use futures::{StreamExt, stream};
-use objectiveai::mcp::{
+use objectiveai_sdk::mcp::{
     JsonRpcError, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse,
     initialize_result::{
         Implementation, InitializeResult, ResourcesCapability, ServerCapabilities,
@@ -824,7 +824,7 @@ fn server_capabilities() -> ServerCapabilities {
         logging: None,
         completions: None,
         prompts: None,
-        // Tools and resources are exactly what `objectiveai::mcp::Connection`
+        // Tools and resources are exactly what `objectiveai_sdk::mcp::Connection`
         // exercises today. list_changed=true is honest: upstream
         // notifications/{tools,resources}/list_changed are forwarded onto
         // this session's SSE GET stream via Session's per-upstream

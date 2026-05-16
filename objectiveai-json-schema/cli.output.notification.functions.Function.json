@@ -1,0 +1,10 @@
+{
+  "title": "cli.output.notification.functions.Function",
+  "description": "Result of `functions get`.\n\nWire: `{\"type\":\"notification\",\"function\":{...GetFunctionResponse...}}`.",
+  "type": "object",
+  "properties": {
+    "function": {
+      "$ref": "functions.GetFunctionResponse"
+    }
+  }
+}

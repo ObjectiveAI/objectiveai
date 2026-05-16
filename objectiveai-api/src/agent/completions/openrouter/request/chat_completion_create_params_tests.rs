@@ -6,16 +6,16 @@ use std::sync::Arc;
 /// Helper to resolve tools and build params via the per-agent proxy
 /// connection. Pass `None` when the test needs no tools.
 async fn build_params(
-    agent: &objectiveai::agent::openrouter::Agent,
-    params: &objectiveai::agent::completions::request::AgentCompletionCreateParams,
-    messages: &[objectiveai::agent::completions::message::Message],
-    continuation: Option<&[crate::agent::completions::ContinuationItem<objectiveai::agent::completions::message::AssistantMessage>]>,
-    mcp_connection: Option<&objectiveai::mcp::Connection>,
+    agent: &objectiveai_sdk::agent::openrouter::Agent,
+    params: &objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams,
+    messages: &[objectiveai_sdk::agent::completions::message::Message],
+    continuation: Option<&[crate::agent::completions::ContinuationItem<objectiveai_sdk::agent::completions::message::AssistantMessage>]>,
+    mcp_connection: Option<&objectiveai_sdk::mcp::Connection>,
 ) -> ChatCompletionCreateParams {
     let resolved_rf = params.response_format.as_ref().and_then(|rfp| {
         match rfp {
-            objectiveai::agent::completions::request::ResponseFormatParam::Single(rf) => Some(rf.clone()),
-            objectiveai::agent::completions::request::ResponseFormatParam::PerAgent(map) => map.get(&agent.id).cloned(),
+            objectiveai_sdk::agent::completions::request::ResponseFormatParam::Single(rf) => Some(rf.clone()),
+            objectiveai_sdk::agent::completions::request::ResponseFormatParam::PerAgent(map) => map.get(&agent.id).cloned(),
         }
     });
     let (tool_names, tool_map) = crate::agent::completions::resolved_tool::resolve_tools(
@@ -32,17 +32,17 @@ async fn build_params(
 
 /// Like `build_params` but with explicit `tools_enabled` control.
 async fn build_params_with_tools_enabled(
-    agent: &objectiveai::agent::openrouter::Agent,
-    params: &objectiveai::agent::completions::request::AgentCompletionCreateParams,
-    messages: &[objectiveai::agent::completions::message::Message],
-    continuation: Option<&[crate::agent::completions::ContinuationItem<objectiveai::agent::completions::message::AssistantMessage>]>,
-    mcp_connection: Option<&objectiveai::mcp::Connection>,
+    agent: &objectiveai_sdk::agent::openrouter::Agent,
+    params: &objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams,
+    messages: &[objectiveai_sdk::agent::completions::message::Message],
+    continuation: Option<&[crate::agent::completions::ContinuationItem<objectiveai_sdk::agent::completions::message::AssistantMessage>]>,
+    mcp_connection: Option<&objectiveai_sdk::mcp::Connection>,
     tools_enabled: bool,
 ) -> ChatCompletionCreateParams {
     let resolved_rf = params.response_format.as_ref().and_then(|rfp| {
         match rfp {
-            objectiveai::agent::completions::request::ResponseFormatParam::Single(rf) => Some(rf.clone()),
-            objectiveai::agent::completions::request::ResponseFormatParam::PerAgent(map) => map.get(&agent.id).cloned(),
+            objectiveai_sdk::agent::completions::request::ResponseFormatParam::Single(rf) => Some(rf.clone()),
+            objectiveai_sdk::agent::completions::request::ResponseFormatParam::PerAgent(map) => map.get(&agent.id).cloned(),
         }
     });
     let (tool_names, tool_map) = crate::agent::completions::resolved_tool::resolve_tools(
@@ -60,8 +60,8 @@ async fn build_params_with_tools_enabled(
 #[tokio::test]
 async fn test_no_tools_empty_params() {
     let _permit = crate::test_clients::acquire_test_permit().await;
-    let agent = objectiveai::agent::openrouter::Agent::try_from(
-        objectiveai::agent::openrouter::AgentBase {
+    let agent = objectiveai_sdk::agent::openrouter::Agent::try_from(
+        objectiveai_sdk::agent::openrouter::AgentBase {
             model: "test-model".into(),
             ..Default::default()
         },
@@ -69,9 +69,9 @@ async fn test_no_tools_empty_params() {
     .unwrap();
 
     let messages = vec![
-        objectiveai::agent::completions::message::Message::User(
-            objectiveai::agent::completions::message::UserMessage {
-                content: objectiveai::agent::completions::message::RichContent::Text(
+        objectiveai_sdk::agent::completions::message::Message::User(
+            objectiveai_sdk::agent::completions::message::UserMessage {
+                content: objectiveai_sdk::agent::completions::message::RichContent::Text(
                     "Hello".into(),
                 ),
                 name: None,
@@ -79,11 +79,11 @@ async fn test_no_tools_empty_params() {
         ),
     ];
 
-    let params = objectiveai::agent::completions::request::AgentCompletionCreateParams {
+    let params = objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams {
         messages: messages.clone(),
-        agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-            objectiveai::agent::InlineAgentBaseWithFallbacks {
-                inner: objectiveai::agent::InlineAgentBase::Mock(objectiveai::agent::mock::AgentBase::default()),
+        agent: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+            objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+                inner: objectiveai_sdk::agent::InlineAgentBase::Mock(objectiveai_sdk::agent::mock::AgentBase::default()),
                 fallbacks: None,
             },
         ),
@@ -142,21 +142,21 @@ async fn test_no_tools_empty_params() {
 #[tokio::test]
 async fn test_top_logprobs_zero_omits_logprobs() {
     let _permit = crate::test_clients::acquire_test_permit().await;
-    let agent = objectiveai::agent::openrouter::Agent {
+    let agent = objectiveai_sdk::agent::openrouter::Agent {
         id: String::new(),
-        base: objectiveai::agent::openrouter::AgentBase {
+        base: objectiveai_sdk::agent::openrouter::AgentBase {
             model: "test-model".to_string(),
             top_logprobs: Some(0),
             ..Default::default()
         },
     };
 
-    let params = objectiveai::agent::completions::request::AgentCompletionCreateParams {
+    let params = objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams {
         messages: vec![],
         provider: None,
-        agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-            objectiveai::agent::InlineAgentBaseWithFallbacks {
-                inner: objectiveai::agent::InlineAgentBase::Mock(objectiveai::agent::mock::AgentBase::default()),
+        agent: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+            objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+                inner: objectiveai_sdk::agent::InlineAgentBase::Mock(objectiveai_sdk::agent::mock::AgentBase::default()),
                 fallbacks: None,
             },
         ),
@@ -166,7 +166,7 @@ async fn test_top_logprobs_zero_omits_logprobs() {
         continuation: None,
     };
 
-    let messages: Vec<objectiveai::agent::completions::message::Message> = vec![];
+    let messages: Vec<objectiveai_sdk::agent::completions::message::Message> = vec![];
     let result = build_params(
         &agent,
         &params,
@@ -215,20 +215,20 @@ async fn test_top_logprobs_zero_omits_logprobs() {
 #[tokio::test]
 async fn test_multiple_invention_tools_no_conflicts() {
     let _permit = crate::test_clients::acquire_test_permit().await;
-    let agent = objectiveai::agent::openrouter::Agent::try_from(
-        objectiveai::agent::openrouter::AgentBase {
+    let agent = objectiveai_sdk::agent::openrouter::Agent::try_from(
+        objectiveai_sdk::agent::openrouter::AgentBase {
             model: "openai/gpt-4o".into(),
             ..Default::default()
         },
     )
     .unwrap();
 
-    let params = objectiveai::agent::completions::request::AgentCompletionCreateParams {
+    let params = objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams {
         messages: vec![],
         provider: None,
-        agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-            objectiveai::agent::InlineAgentBaseWithFallbacks {
-                inner: objectiveai::agent::InlineAgentBase::Mock(objectiveai::agent::mock::AgentBase::default()),
+        agent: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+            objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+                inner: objectiveai_sdk::agent::InlineAgentBase::Mock(objectiveai_sdk::agent::mock::AgentBase::default()),
                 fallbacks: None,
             },
         ),
@@ -238,9 +238,9 @@ async fn test_multiple_invention_tools_no_conflicts() {
         continuation: None,
     };
 
-    let messages = vec![objectiveai::agent::completions::message::Message::User(
-        objectiveai::agent::completions::message::UserMessage {
-            content: objectiveai::agent::completions::message::RichContent::Text(
+    let messages = vec![objectiveai_sdk::agent::completions::message::Message::User(
+        objectiveai_sdk::agent::completions::message::UserMessage {
+            content: objectiveai_sdk::agent::completions::message::RichContent::Text(
                 "Hello".into(),
             ),
             name: None,
@@ -276,19 +276,19 @@ async fn test_multiple_invention_tools_no_conflicts() {
     };
 
     let invention_tools = vec![
-        objectiveai::functions::inventions::InventionTool {
+        objectiveai_sdk::functions::inventions::InventionTool {
             name: "search".to_string(),
             description: "Search the web",
             parameters: search_params.clone(),
             call: Arc::new(|_| Box::pin(async { Ok("".into()) })),
         },
-        objectiveai::functions::inventions::InventionTool {
+        objectiveai_sdk::functions::inventions::InventionTool {
             name: "calculate".to_string(),
             description: "Evaluate a math expression",
             parameters: calculate_params.clone(),
             call: Arc::new(|_| Box::pin(async { Ok("".into()) })),
         },
-        objectiveai::functions::inventions::InventionTool {
+        objectiveai_sdk::functions::inventions::InventionTool {
             name: "translate".to_string(),
             description: "Translate text to another language",
             parameters: translate_params.clone(),
@@ -388,26 +388,26 @@ async fn test_multiple_invention_tools_no_conflicts() {
 #[tokio::test]
 async fn test_toolcall_not_required_uses_auto_choice() {
     let _permit = crate::test_clients::acquire_test_permit().await;
-    let agent = objectiveai::agent::openrouter::Agent::try_from(
-        objectiveai::agent::openrouter::AgentBase {
+    let agent = objectiveai_sdk::agent::openrouter::Agent::try_from(
+        objectiveai_sdk::agent::openrouter::AgentBase {
             model: "openai/gpt-4o".into(),
             ..Default::default()
         },
     )
     .unwrap();
 
-    let params = objectiveai::agent::completions::request::AgentCompletionCreateParams {
+    let params = objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams {
         messages: vec![],
         provider: None,
-        agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-            objectiveai::agent::InlineAgentBaseWithFallbacks {
-                inner: objectiveai::agent::InlineAgentBase::Mock(objectiveai::agent::mock::AgentBase::default()),
+        agent: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+            objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+                inner: objectiveai_sdk::agent::InlineAgentBase::Mock(objectiveai_sdk::agent::mock::AgentBase::default()),
                 fallbacks: None,
             },
         ),
         response_format: Some(
-            objectiveai::agent::completions::request::ResponseFormatParam::Single(
-                objectiveai::agent::completions::request::ResponseFormat::ToolCall {
+            objectiveai_sdk::agent::completions::request::ResponseFormatParam::Single(
+                objectiveai_sdk::agent::completions::request::ResponseFormat::ToolCall {
                     name: "summarize".into(),
                     description: "Summarize text".into(),
                     schema: {
@@ -427,7 +427,7 @@ async fn test_toolcall_not_required_uses_auto_choice() {
         continuation: None,
     };
 
-    let messages: Vec<objectiveai::agent::completions::message::Message> = vec![];
+    let messages: Vec<objectiveai_sdk::agent::completions::message::Message> = vec![];
     let result = build_params(
         &agent,
         &params,
@@ -489,8 +489,8 @@ async fn test_toolcall_not_required_uses_auto_choice() {
 #[tokio::test]
 async fn test_invention_tool_parameters_preserved() {
     let _permit = crate::test_clients::acquire_test_permit().await;
-    let agent = objectiveai::agent::openrouter::Agent::try_from(
-        objectiveai::agent::openrouter::AgentBase {
+    let agent = objectiveai_sdk::agent::openrouter::Agent::try_from(
+        objectiveai_sdk::agent::openrouter::AgentBase {
             model: "test-model".into(),
             ..Default::default()
         },
@@ -498,9 +498,9 @@ async fn test_invention_tool_parameters_preserved() {
     .unwrap();
 
     let messages = vec![
-        objectiveai::agent::completions::message::Message::User(
-            objectiveai::agent::completions::message::UserMessage {
-                content: objectiveai::agent::completions::message::RichContent::Text(
+        objectiveai_sdk::agent::completions::message::Message::User(
+            objectiveai_sdk::agent::completions::message::UserMessage {
+                content: objectiveai_sdk::agent::completions::message::RichContent::Text(
                     "Hello".into(),
                 ),
                 name: None,
@@ -508,11 +508,11 @@ async fn test_invention_tool_parameters_preserved() {
         ),
     ];
 
-    let params = objectiveai::agent::completions::request::AgentCompletionCreateParams {
+    let params = objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams {
         messages: messages.clone(),
-        agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-            objectiveai::agent::InlineAgentBaseWithFallbacks {
-                inner: objectiveai::agent::InlineAgentBase::Mock(objectiveai::agent::mock::AgentBase::default()),
+        agent: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+            objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+                inner: objectiveai_sdk::agent::InlineAgentBase::Mock(objectiveai_sdk::agent::mock::AgentBase::default()),
                 fallbacks: None,
             },
         ),
@@ -547,7 +547,7 @@ async fn test_invention_tool_parameters_preserved() {
     );
 
     let invention_tools = vec![
-        objectiveai::functions::inventions::InventionTool {
+        objectiveai_sdk::functions::inventions::InventionTool {
             name: "analyze".to_string(),
             description: "Analyze data",
             parameters: inv_params.clone(),
@@ -618,8 +618,8 @@ async fn test_invention_tool_parameters_preserved() {
 #[tokio::test]
 async fn test_agent_base_fields_passthrough() {
     let _permit = crate::test_clients::acquire_test_permit().await;
-    let agent = objectiveai::agent::openrouter::Agent::try_from(
-        objectiveai::agent::openrouter::AgentBase {
+    let agent = objectiveai_sdk::agent::openrouter::Agent::try_from(
+        objectiveai_sdk::agent::openrouter::AgentBase {
             model: "openai/gpt-4o".to_string(),
             temperature: Some(0.7),
             top_p: Some(0.9),
@@ -632,23 +632,23 @@ async fn test_agent_base_fields_passthrough() {
             top_a: Some(0.1),
             repetition_penalty: Some(1.1),
             top_logprobs: Some(5),
-            stop: Some(objectiveai::agent::openrouter::Stop::Strings(vec![
+            stop: Some(objectiveai_sdk::agent::openrouter::Stop::Strings(vec![
                 "END".into(),
                 "STOP".into(),
             ])),
-            verbosity: Some(objectiveai::agent::openrouter::Verbosity::High),
+            verbosity: Some(objectiveai_sdk::agent::openrouter::Verbosity::High),
             ..Default::default()
         },
     )
     .unwrap();
 
     let params =
-        objectiveai::agent::completions::request::AgentCompletionCreateParams {
+        objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams {
             messages: vec![],
             provider: None,
-            agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-                objectiveai::agent::InlineAgentBaseWithFallbacks {
-                    inner: objectiveai::agent::InlineAgentBase::Mock(objectiveai::agent::mock::AgentBase::default()),
+            agent: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+                objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+                    inner: objectiveai_sdk::agent::InlineAgentBase::Mock(objectiveai_sdk::agent::mock::AgentBase::default()),
                     fallbacks: None,
                 },
             ),
@@ -659,10 +659,10 @@ async fn test_agent_base_fields_passthrough() {
             };
 
     let messages = vec![
-        objectiveai::agent::completions::message::Message::User(
-            objectiveai::agent::completions::message::UserMessage {
+        objectiveai_sdk::agent::completions::message::Message::User(
+            objectiveai_sdk::agent::completions::message::UserMessage {
                 content:
-                    objectiveai::agent::completions::message::RichContent::Text(
+                    objectiveai_sdk::agent::completions::message::RichContent::Text(
                         "Hello".to_string(),
                     ),
                 name: None,
@@ -688,7 +688,7 @@ async fn test_agent_base_fields_passthrough() {
             logit_bias: None,
             max_completion_tokens: Some(4096),
             presence_penalty: Some(-0.3),
-            stop: Some(objectiveai::agent::openrouter::Stop::Strings(vec![
+            stop: Some(objectiveai_sdk::agent::openrouter::Stop::Strings(vec![
                 "END".into(),
                 "STOP".into(),
             ])),
@@ -700,7 +700,7 @@ async fn test_agent_base_fields_passthrough() {
             repetition_penalty: Some(1.1),
             top_a: Some(0.1),
             top_k: Some(50),
-            verbosity: Some(objectiveai::agent::openrouter::Verbosity::High),
+            verbosity: Some(objectiveai_sdk::agent::openrouter::Verbosity::High),
             logprobs: Some(true),
             top_logprobs: Some(5),
             response_format: None,
@@ -721,10 +721,10 @@ async fn test_agent_base_fields_passthrough() {
 #[tokio::test]
 async fn test_provider_merging_both_sides() {
     let _permit = crate::test_clients::acquire_test_permit().await;
-    let agent = objectiveai::agent::openrouter::Agent::try_from(
-        objectiveai::agent::openrouter::AgentBase {
+    let agent = objectiveai_sdk::agent::openrouter::Agent::try_from(
+        objectiveai_sdk::agent::openrouter::AgentBase {
             model: "openai/gpt-4o".into(),
-            provider: Some(objectiveai::agent::openrouter::Provider {
+            provider: Some(objectiveai_sdk::agent::openrouter::Provider {
                 allow_fallbacks: Some(false),
                 require_parameters: Some(true),
                 order: Some(vec!["anthropic".into()]),
@@ -738,16 +738,16 @@ async fn test_provider_merging_both_sides() {
     .unwrap();
 
     let params =
-        objectiveai::agent::completions::request::AgentCompletionCreateParams {
+        objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams {
             messages: vec![],
             provider: Some(
-                objectiveai::agent::completions::request::Provider {
+                objectiveai_sdk::agent::completions::request::Provider {
                     data_collection: Some(
-                        objectiveai::agent::completions::request::ProviderDataCollection::Deny,
+                        objectiveai_sdk::agent::completions::request::ProviderDataCollection::Deny,
                     ),
                     zdr: Some(true),
                     sort: Some(
-                        objectiveai::agent::completions::request::ProviderSort::Price,
+                        objectiveai_sdk::agent::completions::request::ProviderSort::Price,
                     ),
                     max_price: None,
                     preferred_min_throughput: Some(100.0),
@@ -756,9 +756,9 @@ async fn test_provider_merging_both_sides() {
                     max_latency: None,
                 },
             ),
-            agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-                objectiveai::agent::InlineAgentBaseWithFallbacks {
-                    inner: objectiveai::agent::InlineAgentBase::Mock(objectiveai::agent::mock::AgentBase::default()),
+            agent: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+                objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+                    inner: objectiveai_sdk::agent::InlineAgentBase::Mock(objectiveai_sdk::agent::mock::AgentBase::default()),
                     fallbacks: None,
                 },
             ),
@@ -768,7 +768,7 @@ async fn test_provider_merging_both_sides() {
             continuation: None,
             };
 
-    let messages: Vec<objectiveai::agent::completions::message::Message> = vec![];
+    let messages: Vec<objectiveai_sdk::agent::completions::message::Message> = vec![];
     let result = build_params(
         &agent,
         &params,
@@ -783,7 +783,7 @@ async fn test_provider_merging_both_sides() {
             allow_fallbacks: Some(false),
             require_parameters: Some(true),
             data_collection: Some(
-                objectiveai::agent::completions::request::ProviderDataCollection::Deny,
+                objectiveai_sdk::agent::completions::request::ProviderDataCollection::Deny,
             ),
             zdr: Some(true),
             order: Some(vec!["anthropic".into()]),
@@ -791,7 +791,7 @@ async fn test_provider_merging_both_sides() {
             ignore: None,
             quantizations: None,
             sort: Some(
-                objectiveai::agent::completions::request::ProviderSort::Price,
+                objectiveai_sdk::agent::completions::request::ProviderSort::Price,
             ),
             max_price: None,
             preferred_min_throughput: Some(100.0),
@@ -835,8 +835,8 @@ async fn test_provider_merging_both_sides() {
 #[tokio::test]
 async fn test_per_agent_response_format_miss() {
     let _permit = crate::test_clients::acquire_test_permit().await;
-    let agent = objectiveai::agent::openrouter::Agent::try_from(
-        objectiveai::agent::openrouter::AgentBase {
+    let agent = objectiveai_sdk::agent::openrouter::Agent::try_from(
+        objectiveai_sdk::agent::openrouter::AgentBase {
             model: "gpt-4o".into(),
             ..Default::default()
         },
@@ -846,20 +846,20 @@ async fn test_per_agent_response_format_miss() {
     let mut per_agent_map = indexmap::IndexMap::new();
     per_agent_map.insert(
         "nonexistent_agent_id".to_string(),
-        objectiveai::agent::completions::request::ResponseFormat::Text,
+        objectiveai_sdk::agent::completions::request::ResponseFormat::Text,
     );
 
-    let params = objectiveai::agent::completions::request::AgentCompletionCreateParams {
+    let params = objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams {
         messages: vec![],
         provider: None,
-        agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-            objectiveai::agent::InlineAgentBaseWithFallbacks {
-                inner: objectiveai::agent::InlineAgentBase::Mock(objectiveai::agent::mock::AgentBase::default()),
+        agent: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+            objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+                inner: objectiveai_sdk::agent::InlineAgentBase::Mock(objectiveai_sdk::agent::mock::AgentBase::default()),
                 fallbacks: None,
             },
         ),
         response_format: Some(
-            objectiveai::agent::completions::request::ResponseFormatParam::PerAgent(
+            objectiveai_sdk::agent::completions::request::ResponseFormatParam::PerAgent(
                 per_agent_map,
             ),
         ),
@@ -868,7 +868,7 @@ async fn test_per_agent_response_format_miss() {
         continuation: None,
     };
 
-    let messages: Vec<objectiveai::agent::completions::message::Message> = vec![];
+    let messages: Vec<objectiveai_sdk::agent::completions::message::Message> = vec![];
     let result = build_params(
         &agent,
         &params,
@@ -917,8 +917,8 @@ async fn test_per_agent_response_format_miss() {
 #[tokio::test]
 async fn test_json_schema_response_format_extracts_title() {
     let _permit = crate::test_clients::acquire_test_permit().await;
-    let agent = objectiveai::agent::openrouter::Agent::try_from(
-        objectiveai::agent::openrouter::AgentBase {
+    let agent = objectiveai_sdk::agent::openrouter::Agent::try_from(
+        objectiveai_sdk::agent::openrouter::AgentBase {
             model: "openai/gpt-4o".into(),
             ..Default::default()
         },
@@ -946,18 +946,18 @@ async fn test_json_schema_response_format_extracts_title() {
         }),
     );
 
-    let params = objectiveai::agent::completions::request::AgentCompletionCreateParams {
+    let params = objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams {
         messages: vec![],
         provider: None,
-        agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-            objectiveai::agent::InlineAgentBaseWithFallbacks {
-                inner: objectiveai::agent::InlineAgentBase::Mock(objectiveai::agent::mock::AgentBase::default()),
+        agent: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+            objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+                inner: objectiveai_sdk::agent::InlineAgentBase::Mock(objectiveai_sdk::agent::mock::AgentBase::default()),
                 fallbacks: None,
             },
         ),
         response_format: Some(
-            objectiveai::agent::completions::request::ResponseFormatParam::Single(
-                objectiveai::agent::completions::request::ResponseFormat::JsonSchema {
+            objectiveai_sdk::agent::completions::request::ResponseFormatParam::Single(
+                objectiveai_sdk::agent::completions::request::ResponseFormat::JsonSchema {
                     schema: schema.clone(),
                 },
             ),
@@ -967,7 +967,7 @@ async fn test_json_schema_response_format_extracts_title() {
         continuation: None,
     };
 
-    let messages: Vec<objectiveai::agent::completions::message::Message> = vec![];
+    let messages: Vec<objectiveai_sdk::agent::completions::message::Message> = vec![];
     let result = build_params(
         &agent,
         &params,
@@ -1044,20 +1044,20 @@ async fn test_json_schema_response_format_extracts_title() {
 #[tokio::test]
 async fn test_seed_passthrough() {
     let _permit = crate::test_clients::acquire_test_permit().await;
-    let agent = objectiveai::agent::openrouter::Agent::try_from(
-        objectiveai::agent::openrouter::AgentBase {
+    let agent = objectiveai_sdk::agent::openrouter::Agent::try_from(
+        objectiveai_sdk::agent::openrouter::AgentBase {
             model: "openai/gpt-4o".into(),
             ..Default::default()
         },
     )
     .unwrap();
 
-    let params = objectiveai::agent::completions::request::AgentCompletionCreateParams {
+    let params = objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams {
         messages: vec![],
         provider: None,
-        agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-            objectiveai::agent::InlineAgentBaseWithFallbacks {
-                inner: objectiveai::agent::InlineAgentBase::Mock(objectiveai::agent::mock::AgentBase::default()),
+        agent: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+            objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+                inner: objectiveai_sdk::agent::InlineAgentBase::Mock(objectiveai_sdk::agent::mock::AgentBase::default()),
                 fallbacks: None,
             },
         ),
@@ -1068,31 +1068,31 @@ async fn test_seed_passthrough() {
     };
 
     let messages = vec![
-        objectiveai::agent::completions::message::Message::System(
-            objectiveai::agent::completions::message::SystemMessage {
-                content: objectiveai::agent::completions::message::SimpleContent::Text(
+        objectiveai_sdk::agent::completions::message::Message::System(
+            objectiveai_sdk::agent::completions::message::SystemMessage {
+                content: objectiveai_sdk::agent::completions::message::SimpleContent::Text(
                     "You are a helpful assistant".into(),
                 ),
                 name: None,
             },
         ),
-        objectiveai::agent::completions::message::Message::User(
-            objectiveai::agent::completions::message::UserMessage {
-                content: objectiveai::agent::completions::message::RichContent::Text(
+        objectiveai_sdk::agent::completions::message::Message::User(
+            objectiveai_sdk::agent::completions::message::UserMessage {
+                content: objectiveai_sdk::agent::completions::message::RichContent::Text(
                     "What's the weather?".into(),
                 ),
                 name: None,
             },
         ),
-        objectiveai::agent::completions::message::Message::Assistant(
-            objectiveai::agent::completions::message::AssistantMessage {
+        objectiveai_sdk::agent::completions::message::Message::Assistant(
+            objectiveai_sdk::agent::completions::message::AssistantMessage {
                 content: None,
                 name: None,
                 refusal: None,
                 tool_calls: Some(vec![
-                    objectiveai::agent::completions::message::AssistantToolCall::Function {
+                    objectiveai_sdk::agent::completions::message::AssistantToolCall::Function {
                         id: "call_1".into(),
-                        function: objectiveai::agent::completions::message::AssistantToolCallFunction {
+                        function: objectiveai_sdk::agent::completions::message::AssistantToolCallFunction {
                             name: "get_weather".into(),
                             arguments: "{\"city\":\"SF\"}".into(),
                         },
@@ -1101,9 +1101,9 @@ async fn test_seed_passthrough() {
                 reasoning: None,
             },
         ),
-        objectiveai::agent::completions::message::Message::Tool(
-            objectiveai::agent::completions::message::ToolMessage {
-                content: objectiveai::agent::completions::message::RichContent::Text(
+        objectiveai_sdk::agent::completions::message::Message::Tool(
+            objectiveai_sdk::agent::completions::message::ToolMessage {
+                content: objectiveai_sdk::agent::completions::message::RichContent::Text(
                     "Sunny, 72F".into(),
                 ),
                 tool_call_id: "call_1".into(),
@@ -1159,8 +1159,8 @@ async fn test_seed_passthrough() {
 #[tokio::test]
 async fn test_toolcall_required_forces_function_choice() {
     let _permit = crate::test_clients::acquire_test_permit().await;
-    let agent = objectiveai::agent::openrouter::Agent::try_from(
-        objectiveai::agent::openrouter::AgentBase {
+    let agent = objectiveai_sdk::agent::openrouter::Agent::try_from(
+        objectiveai_sdk::agent::openrouter::AgentBase {
             model: "openai/gpt-4o".into(),
             ..Default::default()
         },
@@ -1184,18 +1184,18 @@ async fn test_toolcall_required_forces_function_choice() {
         serde_json::json!(["score", "reasoning"]),
     );
 
-    let params = objectiveai::agent::completions::request::AgentCompletionCreateParams {
+    let params = objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams {
         messages: vec![],
-        agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-            objectiveai::agent::InlineAgentBaseWithFallbacks {
-                inner: objectiveai::agent::InlineAgentBase::Mock(objectiveai::agent::mock::AgentBase::default()),
+        agent: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+            objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+                inner: objectiveai_sdk::agent::InlineAgentBase::Mock(objectiveai_sdk::agent::mock::AgentBase::default()),
                 fallbacks: None,
             },
         ),
         provider: None,
         response_format: Some(
-            objectiveai::agent::completions::request::ResponseFormatParam::Single(
-                objectiveai::agent::completions::request::ResponseFormat::ToolCall {
+            objectiveai_sdk::agent::completions::request::ResponseFormatParam::Single(
+                objectiveai_sdk::agent::completions::request::ResponseFormat::ToolCall {
                     name: "evaluate".into(),
                     description: "Evaluate the input".into(),
                     schema: schema.clone(),
@@ -1268,8 +1268,8 @@ async fn test_toolcall_required_forces_function_choice() {
 #[tokio::test]
 async fn test_three_mcp_servers_fifteen_tools_all_unique() {
     let _permit = crate::test_clients::acquire_test_permit().await;
-    let agent = objectiveai::agent::openrouter::Agent::try_from(
-        objectiveai::agent::openrouter::AgentBase {
+    let agent = objectiveai_sdk::agent::openrouter::Agent::try_from(
+        objectiveai_sdk::agent::openrouter::AgentBase {
             model: "anthropic/claude-sonnet-4".into(),
             temperature: Some(0.3),
             ..Default::default()
@@ -1278,9 +1278,9 @@ async fn test_three_mcp_servers_fifteen_tools_all_unique() {
     .unwrap();
 
     let messages = vec![
-        objectiveai::agent::completions::message::Message::User(
-            objectiveai::agent::completions::message::UserMessage {
-                content: objectiveai::agent::completions::message::RichContent::Text(
+        objectiveai_sdk::agent::completions::message::Message::User(
+            objectiveai_sdk::agent::completions::message::UserMessage {
+                content: objectiveai_sdk::agent::completions::message::RichContent::Text(
                     "Use the tools".into(),
                 ),
                 name: None,
@@ -1288,11 +1288,11 @@ async fn test_three_mcp_servers_fifteen_tools_all_unique() {
         ),
     ];
 
-    let params = objectiveai::agent::completions::request::AgentCompletionCreateParams {
+    let params = objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams {
         messages: messages.clone(),
-        agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-            objectiveai::agent::InlineAgentBaseWithFallbacks {
-                inner: objectiveai::agent::InlineAgentBase::Mock(objectiveai::agent::mock::AgentBase::default()),
+        agent: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+            objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+                inner: objectiveai_sdk::agent::InlineAgentBase::Mock(objectiveai_sdk::agent::mock::AgentBase::default()),
                 fallbacks: None,
             },
         ),
@@ -1305,13 +1305,13 @@ async fn test_three_mcp_servers_fifteen_tools_all_unique() {
 
     // Server 1: file operations
     let tools1 = vec![
-        objectiveai::mcp::tool::Tool {
+        objectiveai_sdk::mcp::tool::Tool {
             name: "read_file".into(),
             title: None,
             description: Some("Read a file from disk".into()),
             icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai_sdk::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai_sdk::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "path".into() => serde_json::json!({"type": "string"}),
                 }),
@@ -1323,13 +1323,13 @@ async fn test_three_mcp_servers_fifteen_tools_all_unique() {
             execution: None,
             _meta: None,
         },
-        objectiveai::mcp::tool::Tool {
+        objectiveai_sdk::mcp::tool::Tool {
             name: "write_file".into(),
             title: None,
             description: Some("Write content to a file".into()),
             icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai_sdk::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai_sdk::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "path".into() => serde_json::json!({"type": "string"}),
                     "content".into() => serde_json::json!({"type": "string"}),
@@ -1342,13 +1342,13 @@ async fn test_three_mcp_servers_fifteen_tools_all_unique() {
             execution: None,
             _meta: None,
         },
-        objectiveai::mcp::tool::Tool {
+        objectiveai_sdk::mcp::tool::Tool {
             name: "list_dir".into(),
             title: Some("List Directory".into()),
             description: Some("List files in a directory".into()),
             icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai_sdk::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai_sdk::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "path".into() => serde_json::json!({"type": "string"}),
                     "recursive".into() => serde_json::json!({"type": "boolean", "default": false}),
@@ -1361,13 +1361,13 @@ async fn test_three_mcp_servers_fifteen_tools_all_unique() {
             execution: None,
             _meta: None,
         },
-        objectiveai::mcp::tool::Tool {
+        objectiveai_sdk::mcp::tool::Tool {
             name: "delete_file".into(),
             title: None,
             description: None,
             icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai_sdk::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai_sdk::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "path".into() => serde_json::json!({"type": "string"}),
                 }),
@@ -1379,13 +1379,13 @@ async fn test_three_mcp_servers_fifteen_tools_all_unique() {
             execution: None,
             _meta: None,
         },
-        objectiveai::mcp::tool::Tool {
+        objectiveai_sdk::mcp::tool::Tool {
             name: "file_info".into(),
             title: None,
             description: Some("Get file metadata".into()),
             icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai_sdk::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai_sdk::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "path".into() => serde_json::json!({"type": "string"}),
                 }),
@@ -1401,13 +1401,13 @@ async fn test_three_mcp_servers_fifteen_tools_all_unique() {
 
     // Server 2: database operations
     let tools2 = vec![
-        objectiveai::mcp::tool::Tool {
+        objectiveai_sdk::mcp::tool::Tool {
             name: "query".into(),
             title: None,
             description: Some("Run a SQL query".into()),
             icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai_sdk::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai_sdk::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "sql".into() => serde_json::json!({"type": "string"}),
                     "database".into() => serde_json::json!({"type": "string", "enum": ["prod", "staging"]}),
@@ -1422,13 +1422,13 @@ async fn test_three_mcp_servers_fifteen_tools_all_unique() {
             execution: None,
             _meta: None,
         },
-        objectiveai::mcp::tool::Tool {
+        objectiveai_sdk::mcp::tool::Tool {
             name: "insert".into(),
             title: None,
             description: Some("Insert a row".into()),
             icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai_sdk::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai_sdk::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "table".into() => serde_json::json!({"type": "string"}),
                     "data".into() => serde_json::json!({"type": "object"}),
@@ -1441,13 +1441,13 @@ async fn test_three_mcp_servers_fifteen_tools_all_unique() {
             execution: None,
             _meta: None,
         },
-        objectiveai::mcp::tool::Tool {
+        objectiveai_sdk::mcp::tool::Tool {
             name: "update".into(),
             title: None,
             description: Some("Update rows".into()),
             icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai_sdk::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai_sdk::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "table".into() => serde_json::json!({"type": "string"}),
                     "set".into() => serde_json::json!({"type": "object"}),
@@ -1461,13 +1461,13 @@ async fn test_three_mcp_servers_fifteen_tools_all_unique() {
             execution: None,
             _meta: None,
         },
-        objectiveai::mcp::tool::Tool {
+        objectiveai_sdk::mcp::tool::Tool {
             name: "delete".into(),
             title: None,
             description: Some("Delete rows".into()),
             icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai_sdk::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai_sdk::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "table".into() => serde_json::json!({"type": "string"}),
                     "where".into() => serde_json::json!({"type": "string"}),
@@ -1480,13 +1480,13 @@ async fn test_three_mcp_servers_fifteen_tools_all_unique() {
             execution: None,
             _meta: None,
         },
-        objectiveai::mcp::tool::Tool {
+        objectiveai_sdk::mcp::tool::Tool {
             name: "list_tables".into(),
             title: None,
             description: Some("List all tables".into()),
             icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai_sdk::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai_sdk::mcp::tool::ToolSchemaType::Object,
                 properties: None,
                 required: None,
                 extra: indexmap::IndexMap::new(),
@@ -1500,13 +1500,13 @@ async fn test_three_mcp_servers_fifteen_tools_all_unique() {
 
     // Server 3: web/HTTP operations
     let tools3 = vec![
-        objectiveai::mcp::tool::Tool {
+        objectiveai_sdk::mcp::tool::Tool {
             name: "fetch_url".into(),
             title: None,
             description: Some("Fetch a URL".into()),
             icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai_sdk::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai_sdk::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "url".into() => serde_json::json!({"type": "string", "format": "uri"}),
                     "method".into() => serde_json::json!({"type": "string", "enum": ["GET", "POST", "PUT", "DELETE"]}),
@@ -1520,13 +1520,13 @@ async fn test_three_mcp_servers_fifteen_tools_all_unique() {
             execution: None,
             _meta: None,
         },
-        objectiveai::mcp::tool::Tool {
+        objectiveai_sdk::mcp::tool::Tool {
             name: "parse_html".into(),
             title: None,
             description: Some("Parse HTML and extract text".into()),
             icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai_sdk::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai_sdk::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "html".into() => serde_json::json!({"type": "string"}),
                     "selector".into() => serde_json::json!({"type": "string"}),
@@ -1539,13 +1539,13 @@ async fn test_three_mcp_servers_fifteen_tools_all_unique() {
             execution: None,
             _meta: None,
         },
-        objectiveai::mcp::tool::Tool {
+        objectiveai_sdk::mcp::tool::Tool {
             name: "screenshot".into(),
             title: None,
             description: Some("Take a screenshot of a webpage".into()),
             icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai_sdk::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai_sdk::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "url".into() => serde_json::json!({"type": "string"}),
                     "width".into() => serde_json::json!({"type": "integer", "default": 1280}),
@@ -1559,13 +1559,13 @@ async fn test_three_mcp_servers_fifteen_tools_all_unique() {
             execution: None,
             _meta: None,
         },
-        objectiveai::mcp::tool::Tool {
+        objectiveai_sdk::mcp::tool::Tool {
             name: "dns_lookup".into(),
             title: None,
             description: Some("DNS lookup".into()),
             icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai_sdk::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai_sdk::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "hostname".into() => serde_json::json!({"type": "string"}),
                 }),
@@ -1577,13 +1577,13 @@ async fn test_three_mcp_servers_fifteen_tools_all_unique() {
             execution: None,
             _meta: None,
         },
-        objectiveai::mcp::tool::Tool {
+        objectiveai_sdk::mcp::tool::Tool {
             name: "whois".into(),
             title: None,
             description: None,
             icons: None,
-            input_schema: objectiveai::mcp::tool::ToolSchemaObject {
-                r#type: objectiveai::mcp::tool::ToolSchemaType::Object,
+            input_schema: objectiveai_sdk::mcp::tool::ToolSchemaObject {
+                r#type: objectiveai_sdk::mcp::tool::ToolSchemaType::Object,
                 properties: Some(indexmap::indexmap! {
                     "domain".into() => serde_json::json!({"type": "string"}),
                 }),
@@ -1858,20 +1858,20 @@ async fn test_three_mcp_servers_fifteen_tools_all_unique() {
 #[tokio::test]
 async fn test_continuation_assistant_message_appended() {
     let _permit = crate::test_clients::acquire_test_permit().await;
-    let agent = objectiveai::agent::openrouter::Agent {
+    let agent = objectiveai_sdk::agent::openrouter::Agent {
         id: String::new(),
-        base: objectiveai::agent::openrouter::AgentBase {
+        base: objectiveai_sdk::agent::openrouter::AgentBase {
             model: "test-model".to_string(),
             ..Default::default()
         },
     };
 
-    let params = objectiveai::agent::completions::request::AgentCompletionCreateParams {
+    let params = objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams {
         messages: vec![],
         provider: None,
-        agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-            objectiveai::agent::InlineAgentBaseWithFallbacks {
-                inner: objectiveai::agent::InlineAgentBase::Mock(objectiveai::agent::mock::AgentBase::default()),
+        agent: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+            objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+                inner: objectiveai_sdk::agent::InlineAgentBase::Mock(objectiveai_sdk::agent::mock::AgentBase::default()),
                 fallbacks: None,
             },
         ),
@@ -1881,9 +1881,9 @@ async fn test_continuation_assistant_message_appended() {
         continuation: None,
     };
 
-    let messages = vec![objectiveai::agent::completions::message::Message::User(
-        objectiveai::agent::completions::message::UserMessage {
-            content: objectiveai::agent::completions::message::RichContent::Text(
+    let messages = vec![objectiveai_sdk::agent::completions::message::Message::User(
+        objectiveai_sdk::agent::completions::message::UserMessage {
+            content: objectiveai_sdk::agent::completions::message::RichContent::Text(
                 "Hello".to_string(),
             ),
             name: None,
@@ -1892,8 +1892,8 @@ async fn test_continuation_assistant_message_appended() {
 
     let continuation = vec![
         crate::agent::completions::ContinuationItem::State(
-            objectiveai::agent::completions::message::AssistantMessage {
-                content: Some(objectiveai::agent::completions::message::RichContent::Text(
+            objectiveai_sdk::agent::completions::message::AssistantMessage {
+                content: Some(objectiveai_sdk::agent::completions::message::RichContent::Text(
                     "Hi there!".to_string(),
                 )),
                 name: None,
@@ -1914,18 +1914,18 @@ async fn test_continuation_assistant_message_appended() {
 
     let expected = ChatCompletionCreateParams {
         messages: vec![
-            objectiveai::agent::completions::message::Message::User(
-                objectiveai::agent::completions::message::UserMessage {
-                    content: objectiveai::agent::completions::message::RichContent::Text(
+            objectiveai_sdk::agent::completions::message::Message::User(
+                objectiveai_sdk::agent::completions::message::UserMessage {
+                    content: objectiveai_sdk::agent::completions::message::RichContent::Text(
                         "Hello".to_string(),
                     ),
                     name: None,
                 },
             ),
-            objectiveai::agent::completions::message::Message::Assistant(
-                objectiveai::agent::completions::message::AssistantMessage {
+            objectiveai_sdk::agent::completions::message::Message::Assistant(
+                objectiveai_sdk::agent::completions::message::AssistantMessage {
                     content: Some(
-                        objectiveai::agent::completions::message::RichContent::Text(
+                        objectiveai_sdk::agent::completions::message::RichContent::Text(
                             "Hi there!".to_string(),
                         ),
                     ),
@@ -1973,20 +1973,20 @@ async fn test_continuation_assistant_message_appended() {
 #[tokio::test]
 async fn test_continuation_mixed_items() {
     let _permit = crate::test_clients::acquire_test_permit().await;
-    let agent = objectiveai::agent::openrouter::Agent {
+    let agent = objectiveai_sdk::agent::openrouter::Agent {
         id: String::new(),
-        base: objectiveai::agent::openrouter::AgentBase {
+        base: objectiveai_sdk::agent::openrouter::AgentBase {
             model: "test-model".to_string(),
             ..Default::default()
         },
     };
 
-    let params = objectiveai::agent::completions::request::AgentCompletionCreateParams {
+    let params = objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams {
         messages: vec![],
         provider: None,
-        agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-            objectiveai::agent::InlineAgentBaseWithFallbacks {
-                inner: objectiveai::agent::InlineAgentBase::Mock(objectiveai::agent::mock::AgentBase::default()),
+        agent: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+            objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+                inner: objectiveai_sdk::agent::InlineAgentBase::Mock(objectiveai_sdk::agent::mock::AgentBase::default()),
                 fallbacks: None,
             },
         ),
@@ -1996,9 +1996,9 @@ async fn test_continuation_mixed_items() {
         continuation: None,
     };
 
-    let messages = vec![objectiveai::agent::completions::message::Message::User(
-        objectiveai::agent::completions::message::UserMessage {
-            content: objectiveai::agent::completions::message::RichContent::Text(
+    let messages = vec![objectiveai_sdk::agent::completions::message::Message::User(
+        objectiveai_sdk::agent::completions::message::UserMessage {
+            content: objectiveai_sdk::agent::completions::message::RichContent::Text(
                 "What is the weather?".to_string(),
             ),
             name: None,
@@ -2008,15 +2008,15 @@ async fn test_continuation_mixed_items() {
     let continuation = vec![
         // Assistant made a tool call
         crate::agent::completions::ContinuationItem::State(
-            objectiveai::agent::completions::message::AssistantMessage {
+            objectiveai_sdk::agent::completions::message::AssistantMessage {
                 content: None,
                 name: None,
                 refusal: None,
                 tool_calls: Some(vec![
-                    objectiveai::agent::completions::message::AssistantToolCall::Function {
+                    objectiveai_sdk::agent::completions::message::AssistantToolCall::Function {
                         id: "call_abc".to_string(),
                         function:
-                            objectiveai::agent::completions::message::AssistantToolCallFunction {
+                            objectiveai_sdk::agent::completions::message::AssistantToolCallFunction {
                                 name: "get_weather".to_string(),
                                 arguments: "{\"city\":\"NYC\"}".to_string(),
                             },
@@ -2027,8 +2027,8 @@ async fn test_continuation_mixed_items() {
         ),
         // Tool response
         crate::agent::completions::ContinuationItem::ToolMessage(
-            objectiveai::agent::completions::message::ToolMessage {
-                content: objectiveai::agent::completions::message::RichContent::Text(
+            objectiveai_sdk::agent::completions::message::ToolMessage {
+                content: objectiveai_sdk::agent::completions::message::RichContent::Text(
                     "Sunny, 72F".to_string(),
                 ),
                 tool_call_id: "call_abc".to_string(),
@@ -2036,8 +2036,8 @@ async fn test_continuation_mixed_items() {
         ),
         // User follow-up
         crate::agent::completions::ContinuationItem::UserMessage(
-            objectiveai::agent::completions::message::UserMessage {
-                content: objectiveai::agent::completions::message::RichContent::Text(
+            objectiveai_sdk::agent::completions::message::UserMessage {
+                content: objectiveai_sdk::agent::completions::message::RichContent::Text(
                     "Thanks! What about tomorrow?".to_string(),
                 ),
                 name: None,
@@ -2055,24 +2055,24 @@ async fn test_continuation_mixed_items() {
 
     let expected = ChatCompletionCreateParams {
         messages: vec![
-            objectiveai::agent::completions::message::Message::User(
-                objectiveai::agent::completions::message::UserMessage {
-                    content: objectiveai::agent::completions::message::RichContent::Text(
+            objectiveai_sdk::agent::completions::message::Message::User(
+                objectiveai_sdk::agent::completions::message::UserMessage {
+                    content: objectiveai_sdk::agent::completions::message::RichContent::Text(
                         "What is the weather?".to_string(),
                     ),
                     name: None,
                 },
             ),
-            objectiveai::agent::completions::message::Message::Assistant(
-                objectiveai::agent::completions::message::AssistantMessage {
+            objectiveai_sdk::agent::completions::message::Message::Assistant(
+                objectiveai_sdk::agent::completions::message::AssistantMessage {
                     content: None,
                     name: None,
                     refusal: None,
                     tool_calls: Some(vec![
-                        objectiveai::agent::completions::message::AssistantToolCall::Function {
+                        objectiveai_sdk::agent::completions::message::AssistantToolCall::Function {
                             id: "call_abc".to_string(),
                             function:
-                                objectiveai::agent::completions::message::AssistantToolCallFunction {
+                                objectiveai_sdk::agent::completions::message::AssistantToolCallFunction {
                                     name: "get_weather".to_string(),
                                     arguments: "{\"city\":\"NYC\"}".to_string(),
                                 },
@@ -2081,17 +2081,17 @@ async fn test_continuation_mixed_items() {
                     reasoning: None,
                 },
             ),
-            objectiveai::agent::completions::message::Message::Tool(
-                objectiveai::agent::completions::message::ToolMessage {
-                    content: objectiveai::agent::completions::message::RichContent::Text(
+            objectiveai_sdk::agent::completions::message::Message::Tool(
+                objectiveai_sdk::agent::completions::message::ToolMessage {
+                    content: objectiveai_sdk::agent::completions::message::RichContent::Text(
                         "Sunny, 72F".to_string(),
                     ),
                     tool_call_id: "call_abc".to_string(),
                 },
             ),
-            objectiveai::agent::completions::message::Message::User(
-                objectiveai::agent::completions::message::UserMessage {
-                    content: objectiveai::agent::completions::message::RichContent::Text(
+            objectiveai_sdk::agent::completions::message::Message::User(
+                objectiveai_sdk::agent::completions::message::UserMessage {
+                    content: objectiveai_sdk::agent::completions::message::RichContent::Text(
                         "Thanks! What about tomorrow?".to_string(),
                     ),
                     name: None,
@@ -2135,8 +2135,8 @@ async fn test_continuation_mixed_items() {
 #[tokio::test]
 async fn test_tools_disabled_sets_tool_choice_none() {
     let _permit = crate::test_clients::acquire_test_permit().await;
-    let agent = objectiveai::agent::openrouter::Agent::try_from(
-        objectiveai::agent::openrouter::AgentBase {
+    let agent = objectiveai_sdk::agent::openrouter::Agent::try_from(
+        objectiveai_sdk::agent::openrouter::AgentBase {
             model: "test-model".into(),
             ..Default::default()
         },
@@ -2145,18 +2145,18 @@ async fn test_tools_disabled_sets_tool_choice_none() {
 
     // Use an optional ToolCall response format so tools get resolved but
     // it's not required (required would be rejected earlier in the client).
-    let params = objectiveai::agent::completions::request::AgentCompletionCreateParams {
+    let params = objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams {
         messages: vec![],
-        agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-            objectiveai::agent::InlineAgentBaseWithFallbacks {
-                inner: objectiveai::agent::InlineAgentBase::Mock(objectiveai::agent::mock::AgentBase::default()),
+        agent: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+            objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+                inner: objectiveai_sdk::agent::InlineAgentBase::Mock(objectiveai_sdk::agent::mock::AgentBase::default()),
                 fallbacks: None,
             },
         ),
         provider: None,
         response_format: Some(
-            objectiveai::agent::completions::request::ResponseFormatParam::Single(
-                objectiveai::agent::completions::request::ResponseFormat::ToolCall {
+            objectiveai_sdk::agent::completions::request::ResponseFormatParam::Single(
+                objectiveai_sdk::agent::completions::request::ResponseFormat::ToolCall {
                     name: "my_tool".into(),
                     description: "a tool".into(),
                     schema: indexmap::IndexMap::new(),
@@ -2190,19 +2190,19 @@ async fn test_tools_disabled_sets_tool_choice_none() {
 #[tokio::test]
 async fn test_tools_disabled_no_tools_no_tool_choice() {
     let _permit = crate::test_clients::acquire_test_permit().await;
-    let agent = objectiveai::agent::openrouter::Agent::try_from(
-        objectiveai::agent::openrouter::AgentBase {
+    let agent = objectiveai_sdk::agent::openrouter::Agent::try_from(
+        objectiveai_sdk::agent::openrouter::AgentBase {
             model: "test-model".into(),
             ..Default::default()
         },
     )
     .unwrap();
 
-    let params = objectiveai::agent::completions::request::AgentCompletionCreateParams {
+    let params = objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams {
         messages: vec![],
-        agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-            objectiveai::agent::InlineAgentBaseWithFallbacks {
-                inner: objectiveai::agent::InlineAgentBase::Mock(objectiveai::agent::mock::AgentBase::default()),
+        agent: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+            objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+                inner: objectiveai_sdk::agent::InlineAgentBase::Mock(objectiveai_sdk::agent::mock::AgentBase::default()),
                 fallbacks: None,
             },
         ),
@@ -2225,10 +2225,10 @@ async fn test_tools_disabled_no_tools_no_tool_choice() {
 #[tokio::test]
 async fn test_request_continuation_messages_come_first() {
     let _permit = crate::test_clients::acquire_test_permit().await;
-    use objectiveai::agent::completions::message::*;
+    use objectiveai_sdk::agent::completions::message::*;
 
-    let agent = objectiveai::agent::openrouter::Agent::try_from(
-        objectiveai::agent::openrouter::AgentBase {
+    let agent = objectiveai_sdk::agent::openrouter::Agent::try_from(
+        objectiveai_sdk::agent::openrouter::AgentBase {
             model: "test-model".into(),
             ..Default::default()
         },
@@ -2240,11 +2240,11 @@ async fn test_request_continuation_messages_come_first() {
         name: None,
     })];
 
-    let params = objectiveai::agent::completions::request::AgentCompletionCreateParams {
+    let params = objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams {
         messages: messages.clone(),
-        agent: objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-            objectiveai::agent::InlineAgentBaseWithFallbacks {
-                inner: objectiveai::agent::InlineAgentBase::Mock(objectiveai::agent::mock::AgentBase::default()),
+        agent: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+            objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+                inner: objectiveai_sdk::agent::InlineAgentBase::Mock(objectiveai_sdk::agent::mock::AgentBase::default()),
                 fallbacks: None,
             },
         ),
@@ -2255,8 +2255,8 @@ async fn test_request_continuation_messages_come_first() {
         continuation: None,
     };
 
-    let request_continuation = objectiveai::agent::openrouter::Continuation {
-        upstream: objectiveai::agent::openrouter::Upstream::default(),
+    let request_continuation = objectiveai_sdk::agent::openrouter::Continuation {
+        upstream: objectiveai_sdk::agent::openrouter::Upstream::default(),
         messages: vec![
             Message::User(UserMessage {
                 content: RichContent::Text("Previous turn".into()),

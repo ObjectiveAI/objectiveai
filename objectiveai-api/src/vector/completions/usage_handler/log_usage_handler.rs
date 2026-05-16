@@ -14,8 +14,8 @@ where
     async fn handle_usage<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         ctx: ctx::Context<CTXEXT, PC>,
-        _request: Arc<objectiveai::vector::completions::request::VectorCompletionCreateParams>,
-        response: objectiveai::vector::completions::response::unary::VectorCompletion,
+        _request: Arc<objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams>,
+        response: objectiveai_sdk::vector::completions::response::unary::VectorCompletion,
     ) {
         if !ctx.suppress_output {
             println!(

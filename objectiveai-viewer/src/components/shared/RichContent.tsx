@@ -1,4 +1,4 @@
-import type { AgentCompletionsMessageRichContentPart } from "objectiveai";
+import type { AgentCompletionsMessageRichContentPart } from "@objectiveai/sdk";
 import { hasImageUrl, hasFile } from "../../lib/typeGuards";
 
 export function RichContent({ content }: { content: unknown }) {

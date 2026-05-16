@@ -3,11 +3,11 @@
 //! `LABORATORY_USE_MOCK_ORCHESTRATOR=1` so the server picks the mock
 //! orchestrator at startup — no Docker daemon required.
 
-type Params = objectiveai::laboratories::executions::request::LaboratoryExecutionCreateParams;
+type Params = objectiveai_sdk::laboratories::executions::request::LaboratoryExecutionCreateParams;
 type LaboratoryExecution =
-    objectiveai::laboratories::executions::response::unary::LaboratoryExecution;
+    objectiveai_sdk::laboratories::executions::response::unary::LaboratoryExecution;
 type LaboratoryExecutionChunk =
-    objectiveai::laboratories::executions::response::streaming::LaboratoryExecutionChunk;
+    objectiveai_sdk::laboratories::executions::response::streaming::LaboratoryExecutionChunk;
 
 use crate::common;
 
@@ -18,11 +18,11 @@ use crate::common;
 fn builder_agent(
     seed_error: bool,
     error_probability: Option<u8>,
-) -> objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional {
-    objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-        objectiveai::agent::InlineAgentBaseWithFallbacks {
-            inner: objectiveai::agent::InlineAgentBase::Mock(objectiveai::agent::mock::AgentBase {
-                mode: Some(objectiveai::agent::mock::Mode::LaboratoryBuilder),
+) -> objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional {
+    objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+        objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+            inner: objectiveai_sdk::agent::InlineAgentBase::Mock(objectiveai_sdk::agent::mock::AgentBase {
+                mode: Some(objectiveai_sdk::agent::mock::Mode::LaboratoryBuilder),
                 error: if seed_error { Some(true) } else { None },
                 error_probability,
                 ..Default::default()
@@ -32,11 +32,11 @@ fn builder_agent(
     )
 }
 
-fn evaluation_agent() -> objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional {
-    objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-        objectiveai::agent::InlineAgentBaseWithFallbacks {
-            inner: objectiveai::agent::InlineAgentBase::Mock(objectiveai::agent::mock::AgentBase {
-                mode: Some(objectiveai::agent::mock::Mode::LaboratoryEvaluation),
+fn evaluation_agent() -> objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional {
+    objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+        objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+            inner: objectiveai_sdk::agent::InlineAgentBase::Mock(objectiveai_sdk::agent::mock::AgentBase {
+                mode: Some(objectiveai_sdk::agent::mock::Mode::LaboratoryEvaluation),
                 ..Default::default()
             }),
             fallbacks: None,
@@ -44,19 +44,19 @@ fn evaluation_agent() -> objectiveai::agent::InlineAgentBaseWithFallbacksOrRemot
     )
 }
 
-fn user_message(text: &str) -> objectiveai::agent::completions::message::Message {
-    objectiveai::agent::completions::message::Message::User(
-        objectiveai::agent::completions::message::UserMessage {
-            content: objectiveai::agent::completions::message::RichContent::Text(text.to_string()),
+fn user_message(text: &str) -> objectiveai_sdk::agent::completions::message::Message {
+    objectiveai_sdk::agent::completions::message::Message::User(
+        objectiveai_sdk::agent::completions::message::UserMessage {
+            content: objectiveai_sdk::agent::completions::message::RichContent::Text(text.to_string()),
             name: None,
         },
     )
 }
 
-fn string_schema() -> objectiveai::functions::expression::InputSchema {
-    objectiveai::functions::expression::InputSchema::String(
-        objectiveai::functions::expression::StringInputSchema {
-            r#type: objectiveai::functions::expression::StringInputSchemaType::String,
+fn string_schema() -> objectiveai_sdk::functions::expression::InputSchema {
+    objectiveai_sdk::functions::expression::InputSchema::String(
+        objectiveai_sdk::functions::expression::StringInputSchema {
+            r#type: objectiveai_sdk::functions::expression::StringInputSchemaType::String,
             description: None,
             r#enum: None,
         },
@@ -64,7 +64,7 @@ fn string_schema() -> objectiveai::functions::expression::InputSchema {
 }
 
 fn make_request(
-    builder_agents: Vec<objectiveai::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional>,
+    builder_agents: Vec<objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional>,
     eval: bool,
     seed: i64,
 ) -> Params {
