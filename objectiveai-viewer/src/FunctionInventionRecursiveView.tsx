@@ -84,7 +84,7 @@ export function FunctionInventionRecursiveView({
 
         return (
           <div key={inv.index ?? invIdx}>
-            <div className="max-w-content mx-auto mt-4 mb-2 px-4 pb-2.5 border-b-2 border-info-dim">
+            <div className="max-w-content mx-auto mt-4 mb-2 px-4 pb-2.5 border-b border-node-border">
               <div className="flex items-center gap-2 font-mono text-[13px] font-bold text-info-bright">
                 {name}
                 {fnType && (

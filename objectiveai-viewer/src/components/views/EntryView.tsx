@@ -58,10 +58,12 @@ export const EntryView = memo(function EntryView({
   entry,
   collapsed = false,
   onToggle,
+  selected = false,
 }: {
   entry: Entry;
   collapsed?: boolean;
   onToggle?: () => void;
+  selected?: boolean;
 }) {
   const summary = getEntrySummary(entry);
   const innerErrorCount = useMemo(() => countInnerErrors(entry), [entry.chunk]);
@@ -81,7 +83,7 @@ export const EntryView = memo(function EntryView({
 
   return (
     <Collapsible.Root open={!collapsed} onOpenChange={onToggle}>
-      <Collapsible.Trigger data-entry-trigger className={`group flex items-center gap-2 max-w-content mx-auto w-full pl-3 pr-4 h-10 cursor-pointer rounded-md border border-node-border border-l-2 ${accentClass} bg-ground-raised text-xs select-none hover:bg-ground-surface focus:border-copper-dim transition-all duration-300 mb-1 ${isNew ? "opacity-0 translate-y-1" : "opacity-100 translate-y-0"}`}>
+      <Collapsible.Trigger data-entry-trigger className={`group flex items-center gap-2 max-w-content mx-auto w-full pl-3 pr-4 h-10 cursor-pointer rounded-md border border-l-2 ${accentClass} bg-ground-raised text-xs select-none focus:border-copper-dim transition-all duration-300 mb-1 entry-row ${isNew ? "opacity-0 translate-y-1" : "opacity-100 translate-y-0"} ${selected ? "border-copper-warm/50 bg-ground-surface" : "border-node-border"}`}>
         <svg
           className="w-2 h-2 text-info-dim transition-transform duration-150 group-data-[state=open]:rotate-90 shrink-0"
           viewBox="0 0 8 8"

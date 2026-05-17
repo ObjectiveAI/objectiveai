@@ -65,7 +65,7 @@ export function LaboratoryExecutionView({ entry }: { entry: LaboratoryExecutionE
       <div className="flex items-center gap-2.5 px-4 py-2.5 bg-ground-surface border border-node-border rounded-t-md text-xs text-info-dim">
         <div className={`w-2 h-2 rounded-full shrink-0 ${statusColor} ${status === "streaming" ? "animate-pulse" : ""}`} />
         <span className="font-semibold text-info-bright">Laboratory</span>
-        <span className="font-mono text-[11px] opacity-60 ml-auto">{entry.id.slice(0, 12)}</span>
+        <span className="font-mono text-[10px] opacity-60 ml-auto">{entry.id.slice(0, 12)}</span>
       </div>
 
       {!chunk && !topError && (

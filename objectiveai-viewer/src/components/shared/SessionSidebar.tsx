@@ -30,8 +30,12 @@ export function SessionSidebar({
         Sessions
       </div>
       {sessions.length === 0 && (
-        <div className="px-2 py-4 text-[10px] text-info-dim italic text-center">
-          No saved sessions
+        <div className="px-2 py-8 text-center">
+          <svg className="w-5 h-5 mx-auto mb-2 text-info-dim/30" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+            <rect x="3" y="4" width="14" height="12" rx="2" />
+            <path d="M7 4V2M13 4V2M3 8h14" />
+          </svg>
+          <p className="text-[10px] text-info-dim/50 leading-relaxed">Sessions appear here<br />as you use the viewer</p>
         </div>
       )}
       {sessions.map((session) => {

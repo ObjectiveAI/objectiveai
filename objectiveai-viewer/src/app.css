@@ -114,6 +114,25 @@
   animation: collapsible-close 150ms ease-in;
 }
 
+.entry-row {
+  transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, opacity 300ms ease, transform 300ms ease;
+}
+
+.entry-row:hover {
+  background-color: var(--color-ground-surface);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-copper-dim) 20%, transparent),
+              0 0 8px color-mix(in srgb, var(--color-copper-dim) 8%, transparent);
+}
+
+@keyframes detail-open {
+  from { width: 0; opacity: 0; }
+  to { width: 20rem; opacity: 1; }
+}
+
+.animate-detail-open {
+  animation: detail-open 200ms ease-out forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

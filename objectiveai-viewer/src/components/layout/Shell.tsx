@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, type ReactNode } from "react"
 import * as ScrollArea from "@radix-ui/react-scroll-area";
 import { LogoMark, Wordmark } from "../shared/Logo";
 
-export function Shell({ children, statusBar, banner, networkPanel, sidebar, entryCount }: { children: ReactNode; statusBar?: ReactNode; banner?: ReactNode; networkPanel?: ReactNode; sidebar?: ReactNode; entryCount?: number }) {
+export function Shell({ children, statusBar, banner, networkPanel, sidebar, detailPanel, entryCount }: { children: ReactNode; statusBar?: ReactNode; banner?: ReactNode; networkPanel?: ReactNode; sidebar?: ReactNode; detailPanel?: ReactNode; entryCount?: number }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const userScrolledUp = useRef(false);
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
@@ -74,21 +74,24 @@ export function Shell({ children, statusBar, banner, networkPanel, sidebar, entr
               <ScrollArea.Thumb className="relative flex-1 rounded-full bg-copper-dim/40 hover:bg-copper-dim/60" />
             </ScrollArea.Scrollbar>
           </ScrollArea.Root>
-          {showJumpToBottom && (
-            <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-10">
-              <button
-                onClick={jumpToBottom}
-                aria-label="Jump to latest entry"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-ground-raised/90 backdrop-blur-sm border border-node-border text-[10px] font-mono text-info-mid hover:text-copper-bright hover:border-copper-dim shadow-lg transition-all"
-              >
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                  <path d="M2 4L5 7L8 4" />
-                </svg>
-                Jump to latest
-              </button>
-            </div>
-          )}
+          <div className={`absolute bottom-16 left-1/2 -translate-x-1/2 z-10 transition-opacity duration-200 ${showJumpToBottom ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
+            <button
+              onClick={jumpToBottom}
+              aria-label="Jump to latest entry"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-ground-raised/90 backdrop-blur-sm border border-node-border text-[10px] font-mono text-info-mid hover:text-copper-bright hover:border-copper-dim shadow-lg transition-all"
+            >
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <path d="M2 4L5 7L8 4" />
+              </svg>
+              Jump to latest
+            </button>
+          </div>
         </div>
+        {detailPanel && (
+          <aside className="shrink-0 w-80 overflow-y-auto transition-all duration-200 animate-detail-open">
+            {detailPanel}
+          </aside>
+        )}
       </div>
       {networkPanel}
       {statusBar}

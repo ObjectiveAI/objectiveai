@@ -14,6 +14,7 @@ import { RestoreBanner } from "./components/shared/RestoreBanner";
 import { SessionPicker } from "./components/shared/SessionPicker";
 import { SessionSidebar } from "./components/shared/SessionSidebar";
 import { CommandPalette } from "./components/shared/CommandPalette";
+import { DetailPanel } from "./components/shared/DetailPanel";
 import { LogoMark, Wordmark } from "./components/shared/Logo";
 import type { Entry } from "./types";
 
@@ -65,6 +66,7 @@ function ObjectiveAIView() {
     ? liveEntries
     : (session.restoredEntries ?? liveEntries);
   const { isCollapsed, toggle, collapseAll, expandAll } = useCollapseState(entries);
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [activeKinds, setActiveKinds] = useState<Set<Entry["kind"]>>(
     new Set(KINDS.map((k) => k.kind))
   );
@@ -120,8 +122,14 @@ function ObjectiveAIView() {
     </div>
   ) : null;
 
+  const selectedEntry = selectedEntryId ? entries.find((e) => e.id === selectedEntryId) ?? null : null;
+
+  const detailPanel = selectedEntry ? (
+    <DetailPanel entry={selectedEntry} onClose={() => setSelectedEntryId(null)} />
+  ) : null;
+
   return (
-    <Shell statusBar={<StatusBar entries={entries} isHistorical={session.isViewingPast} />} banner={banner} networkPanel={<NetworkPanel entries={apiCalls} />} entryCount={entries.length} sidebar={<SessionSidebar sessions={session.pastSessions} currentSessionId={session.sessionId} onLoad={(id) => { session.loadSession(id); }} />}>
+    <Shell statusBar={<StatusBar entries={entries} isHistorical={session.isViewingPast} />} banner={banner} networkPanel={<NetworkPanel entries={apiCalls} />} entryCount={entries.length} sidebar={<SessionSidebar sessions={session.pastSessions} currentSessionId={session.sessionId} onLoad={(id) => { session.loadSession(id); }} />} detailPanel={detailPanel}>
       <SessionPicker
         open={sessionPickerOpen}
         onOpenChange={setSessionPickerOpen}
@@ -230,7 +238,7 @@ function ObjectiveAIView() {
       )}
 
       {filtered.map((entry) => (
-        <EntryView key={entry.id} entry={entry} collapsed={isCollapsed(entry.id)} onToggle={() => toggle(entry.id)} />
+        <EntryView key={entry.id} entry={entry} collapsed={isCollapsed(entry.id)} onToggle={() => { toggle(entry.id); setSelectedEntryId(isCollapsed(entry.id) ? entry.id : null); }} selected={entry.id === selectedEntryId} />
       ))}
     </Shell>
   );
