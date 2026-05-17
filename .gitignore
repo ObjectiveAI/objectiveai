@@ -19,6 +19,15 @@ objectiveai-cli-old/
 temp/
 tmp/
 
+# audit files (local only)
+audit/
+
+# test harness (local only)
+objectiveai-viewer/__test_harness__/
+
+# unrelated experiments
+objectiveai-claude-agent-sdk-runner-py/
+
 # ignore build tools
 bin/
 .crates.toml
