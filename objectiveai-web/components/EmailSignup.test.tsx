@@ -2,6 +2,13 @@ import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { EmailSignup } from "./EmailSignup";
 
+vi.mock("@/app/actions/subscribe", () => ({
+  subscribe: vi.fn(),
+}));
+
+import { subscribe } from "@/app/actions/subscribe";
+const mockSubscribe = vi.mocked(subscribe);
+
 describe("EmailSignup", () => {
   afterEach(() => {
     cleanup();
@@ -37,9 +44,8 @@ describe("EmailSignup", () => {
     expect(screen.queryByText("enter a valid email")).not.toBeInTheDocument();
   });
 
-  it("submits to Buttondown and shows success", async () => {
-    const mockFetch = vi.fn().mockResolvedValue({ ok: true });
-    vi.stubGlobal("fetch", mockFetch);
+  it("submits and shows success", async () => {
+    mockSubscribe.mockResolvedValue({ ok: true });
 
     render(<EmailSignup />);
     const input = screen.getByPlaceholderText("your email");
@@ -48,22 +54,17 @@ describe("EmailSignup", () => {
     fireEvent.change(input, { target: { value: "test@example.com" } });
     fireEvent.click(button);
 
-    // Button shows loading state
     expect(screen.getByRole("button")).toHaveTextContent("...");
 
-    // Wait for async submit
     await vi.waitFor(() => {
       expect(screen.getByText("you're on the list")).toBeInTheDocument();
     });
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      "https://buttondown.com/api/emails/embed-subscribe/objectiveai",
-      expect.objectContaining({ method: "POST" }),
-    );
+    expect(mockSubscribe).toHaveBeenCalledWith("test@example.com");
   });
 
-  it("shows error on network failure", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network")));
+  it("shows error on failure", async () => {
+    mockSubscribe.mockResolvedValue({ ok: false, error: "something went wrong" });
 
     render(<EmailSignup />);
     fireEvent.change(screen.getByPlaceholderText("your email"), {

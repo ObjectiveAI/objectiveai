@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { subscribe } from "@/app/actions/subscribe";
 
 interface EmailSignupProps {
   /** CSS class for the <form> element */
@@ -37,24 +38,12 @@ export function EmailSignup({
     }
 
     setState("submitting");
-    try {
-      const res = await fetch(
-        "https://buttondown.com/api/emails/embed-subscribe/objectiveai",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({ email }),
-        }
-      );
-      if (res.ok || res.status === 303) {
-        setState("success");
-        setEmail("");
-      } else {
-        setErrorMsg("something went wrong");
-        setState("error");
-      }
-    } catch {
-      setErrorMsg("something went wrong");
+    const result = await subscribe(email);
+    if (result.ok) {
+      setState("success");
+      setEmail("");
+    } else {
+      setErrorMsg(result.error ?? "something went wrong");
       setState("error");
     }
   }

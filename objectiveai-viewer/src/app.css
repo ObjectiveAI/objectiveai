@@ -80,6 +80,16 @@
   }
 }
 
+.ft-container {
+  --ft-bg: var(--color-ground);
+  --ft-text: var(--color-info-bright);
+  --ft-text-secondary: var(--color-info-dim);
+  --ft-accent: var(--color-copper-mid);
+  --ft-border: var(--color-node-border);
+  --ft-node-bg: var(--color-ground-raised);
+  --ft-panel-bg: var(--color-ground-surface);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

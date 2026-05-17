@@ -3,10 +3,10 @@ import { useElapsedTime } from "../../hooks/useElapsedTime";
 import { formatCost } from "../../lib/format";
 import { isLastAssistantDone } from "../../lib/typeGuards";
 
-export function StatusBar({ entries }: { entries: Entry[] }) {
+export function StatusBar({ entries, isHistorical }: { entries: Entry[]; isHistorical?: boolean }) {
   if (entries.length === 0) return null;
 
-  const activeCount = entries.filter((e) => {
+  const activeCount = isHistorical ? 0 : entries.filter((e) => {
     if (e.error) return false;
     if (!e.chunk) return true;
     if ((e.chunk as { usage?: unknown }).usage != null) return false;
@@ -48,10 +48,19 @@ export function StatusBar({ entries }: { entries: Entry[] }) {
   return (
     <footer className="flex items-center gap-6 px-6 py-2 border-t border-node-border bg-ground-raised font-mono text-[10px] text-info-dim tabular-nums select-none">
       <div className="flex items-center gap-1.5">
-        <div className={`w-1.5 h-1.5 rounded-full ${activeCount > 0 ? "bg-copper-hot animate-pulse" : "bg-info-dim"}`} />
-        <span>{activeCount} active</span>
+        {isHistorical ? (
+          <>
+            <div className="w-1.5 h-1.5 rounded-full bg-info-dim" />
+            <span>Historical</span>
+          </>
+        ) : (
+          <>
+            <div className={`w-1.5 h-1.5 rounded-full ${activeCount > 0 ? "bg-copper-hot animate-pulse" : "bg-info-dim"}`} />
+            <span>{activeCount} active</span>
+          </>
+        )}
       </div>
-      {activeCount > 0 && <span>{elapsed}</span>}
+      {!isHistorical && activeCount > 0 && <span>{elapsed}</span>}
       {totalTokens > 0 && <span>{totalTokens.toLocaleString()} tokens</span>}
       {totalCost > 0 && <span>{formatCost(totalCost)}</span>}
       <span className="ml-auto">{entries.length} total</span>

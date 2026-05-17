@@ -1,3 +1,4 @@
+import { useState, useMemo } from "react";
 import type {
   FunctionsExecutionsResponseStreamingFunctionExecutionChunk,
   FunctionsExecutionsResponseStreamingTaskChunk,
@@ -6,8 +7,10 @@ import type {
   FunctionsExecutionsResponseStreamingReasoningSummaryChunk,
   VectorCompletionsResponseStreamingAgentCompletionChunk,
 } from "@objectiveai/sdk";
+import { FunctionTree } from "@objectiveai/function-tree";
 import { AgentCompletionChat } from "./components/shared/AgentCompletionChat";
 import { OutputBar } from "./components/shared/OutputBar";
+import { toInputFunctionExecution } from "./lib/treeAdapter";
 import type { FunctionExecutionEntry } from "./types";
 
 interface ChatLeaf {
@@ -128,47 +131,91 @@ function collectChats(
   return out;
 }
 
+const VIEW_TABS = [
+  { value: "chat" as const, label: "Chat" },
+  { value: "tree" as const, label: "Tree" },
+];
+
 export function FunctionExecutionView({ entry }: { entry: FunctionExecutionEntry }) {
+  const [view, setView] = useState<"chat" | "tree">("chat");
   const chunk = entry.chunk;
   const topError = entry.error
     ? { code: entry.error.code, message: entry.error.message }
     : null;
 
   const chats = chunk ? collectChats(chunk) : [];
+  const treeData = useMemo(
+    () => (chunk ? toInputFunctionExecution(chunk) : null),
+    [chunk],
+  );
 
   return (
     <div>
-      {chats.map((leaf, idx) => {
-        const showScores = leaf.scores && leaf.scores.length > 0 &&
-          (idx === 0 || chats[idx - 1].scores !== leaf.scores);
-        return (
-          <div key={leaf.key}>
-            <AgentCompletionChat
-              label={leaf.label}
-              chunk={leaf.chunk}
-              error={leaf.error}
-              id={leaf.chunk.id}
-            />
-            {showScores && (
-              <div className="max-w-content mx-auto -mt-3 mb-6 px-4 py-2 bg-ground-surface border border-t-0 border-node-border rounded-b-md">
-                <OutputBar output={leaf.scores} />
-              </div>
-            )}
-          </div>
-        );
-      })}
-
-      {chunk?.output !== undefined && chunk.output !== null && (
-        <div className="max-w-content mx-auto mb-6 px-4 py-3 bg-ground-surface border border-node-border rounded-md">
-          <div className="text-[10px] font-mono text-info-dim uppercase tracking-wide mb-2">Output</div>
-          <OutputBar output={chunk.output} />
+      {chunk && (
+        <div className="max-w-content mx-auto flex gap-1 px-4 mb-3 select-none">
+          {VIEW_TABS.map((tab) => (
+            <button
+              key={tab.value}
+              onClick={() => setView(tab.value)}
+              className={`px-2.5 py-1 rounded-sm font-mono text-[10px] transition-colors ${
+                view === tab.value
+                  ? "bg-copper-warm/20 text-copper-bright"
+                  : "bg-ground-surface text-info-dim hover:text-info-mid"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
       )}
 
-      {chats.length === 0 && !topError && (
-        <div className="max-w-content mx-auto mb-6 p-4 text-info-dim italic text-center">
-          Waiting for execution…
+      {view === "tree" && treeData && (
+        <div className="max-w-content mx-auto mb-6">
+          <FunctionTree
+            data={treeData}
+            config={{ theme: "dark", transparentBg: true, animate: true }}
+            height={500}
+            borderless
+            className="rounded-md border border-node-border overflow-hidden"
+          />
         </div>
+      )}
+
+      {view === "chat" && (
+        <>
+          {chats.map((leaf, idx) => {
+            const showScores = leaf.scores && leaf.scores.length > 0 &&
+              (idx === 0 || chats[idx - 1].scores !== leaf.scores);
+            return (
+              <div key={leaf.key}>
+                <AgentCompletionChat
+                  label={leaf.label}
+                  chunk={leaf.chunk}
+                  error={leaf.error}
+                  id={leaf.chunk.id}
+                />
+                {showScores && (
+                  <div className="max-w-content mx-auto -mt-3 mb-6 px-4 py-2 bg-ground-surface border border-t-0 border-node-border rounded-b-md">
+                    <OutputBar output={leaf.scores} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {chunk?.output !== undefined && chunk.output !== null && (
+            <div className="max-w-content mx-auto mb-6 px-4 py-3 bg-ground-surface border border-node-border rounded-md">
+              <div className="text-[10px] font-mono text-info-dim uppercase tracking-wide mb-2">Output</div>
+              <OutputBar output={chunk.output} />
+            </div>
+          )}
+
+          {chats.length === 0 && !topError && (
+            <div className="max-w-content mx-auto mb-6 p-4 text-info-dim italic text-center">
+              Waiting for execution…
+            </div>
+          )}
+        </>
       )}
 
       {topError && (

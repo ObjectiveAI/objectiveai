@@ -2,7 +2,7 @@ import { useRef, useEffect, useCallback, type ReactNode } from "react";
 import * as ScrollArea from "@radix-ui/react-scroll-area";
 import { LogoMark, Wordmark } from "../shared/Logo";
 
-export function Shell({ children, statusBar, entryCount }: { children: ReactNode; statusBar?: ReactNode; entryCount?: number }) {
+export function Shell({ children, statusBar, banner, entryCount }: { children: ReactNode; statusBar?: ReactNode; banner?: ReactNode; entryCount?: number }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const userScrolledUp = useRef(false);
 
@@ -25,6 +25,7 @@ export function Shell({ children, statusBar, entryCount }: { children: ReactNode
         <Wordmark className="h-3.5 w-auto text-info-bright" />
         <span className="text-info-dim text-[10px] uppercase tracking-widest font-mono ml-1">viewer</span>
       </header>
+      {banner}
       <ScrollArea.Root className="flex-1 overflow-hidden">
         <ScrollArea.Viewport ref={viewportRef} className="h-full w-full" onScroll={onScroll}>
           <main className="py-6 px-4">

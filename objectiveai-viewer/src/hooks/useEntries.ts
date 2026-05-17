@@ -61,10 +61,21 @@ function createListener(
   });
 }
 
-export function useEntries(): Entry[] {
+export function useEntries(options?: {
+  disabled?: boolean;
+  initialEntries?: Entry[] | null;
+}): Entry[] {
   const [entries, setEntries] = useState<Entry[]>([]);
 
   useEffect(() => {
+    if (options?.initialEntries) {
+      setEntries(options.initialEntries);
+    }
+  }, [options?.initialEntries]);
+
+  useEffect(() => {
+    if (options?.disabled) return;
+
     let cancelled = false;
 
     const wrap = <T,>(fn: (a: T, b: T) => [T, boolean]) =>
@@ -85,7 +96,7 @@ export function useEntries(): Entry[] {
       cancelled = true;
       for (const l of listeners) l.then((fn) => fn());
     };
-  }, []);
+  }, [options?.disabled]);
 
   return entries;
 }
