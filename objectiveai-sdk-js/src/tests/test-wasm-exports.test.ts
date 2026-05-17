@@ -71,7 +71,7 @@ function findWasmTsExports(): WasmExport[] {
 function findBindgenFunctions(): string[] {
   const libRsPath = path.resolve(
     __dirname,
-    "../../../objectiveai-rs-wasm-js/src/lib.rs",
+    "../../../objectiveai-sdk-rs-wasm-js/src/lib.rs",
   );
   const source = fs.readFileSync(libRsPath, "utf-8");
   const names: string[] = [];

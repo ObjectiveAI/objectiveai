@@ -5,14 +5,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from objectiveai.agent import (
+    from objectiveai_sdk.agent import (
         GetAgentResponse,
         ListAgentResponse,
         ListAgentsRequest,
         GetAgentRequest,
         UsageAgentResponse,
     )
-    from objectiveai.client import ObjectiveAI
+    from objectiveai_sdk.client import ObjectiveAI
 
 
 async def list_agents(

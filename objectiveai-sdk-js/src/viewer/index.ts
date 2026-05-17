@@ -1,3 +1,6 @@
+export * from "./apiCallBridge";
+export * from "./generatedIndex";
+
 /**
  * @objectiveai/sdk/viewer
  *

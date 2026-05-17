@@ -1,5 +1,5 @@
 def __getattr__(name):
-    from objectiveai._rebuild import ensure_rebuilt
+    from objectiveai_sdk._rebuild import ensure_rebuilt
     ensure_rebuilt()
     import importlib
     _generated = importlib.import_module(__name__ + '._generated')

@@ -10,7 +10,11 @@ name: Publish objectiveai-sdk-js
 # wasm-js build script).
 #
 # Setup required (one-time):
-#   - NPM_TOKEN: npm automation token. Save as a repo secret.
+#   - Trusted Publisher registered on npmjs.com for this workflow:
+#     https://docs.npmjs.com/trusted-publishers
+#     Repository: ObjectiveAI/objectiveai
+#     Workflow filename: publish-objectiveai-sdk-js.yml
+#     No NPM_TOKEN secret is needed — OIDC handles authentication.
 
 on:
   workflow_dispatch:
@@ -23,6 +27,12 @@ jobs:
   publish:
     name: pnpm publish
     runs-on: ubuntu-latest
+    # `id-token: write` lets the runner request the OIDC token that
+    # npm exchanges for a short-lived publish credential when the
+    # repo is registered as a Trusted Publisher.
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -38,8 +48,15 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          # npm Trusted Publishers requires Node >= 22.14.0 and
+          # npm >= 11.5.1 (auto-installed via `npm install -g npm`
+          # below to be safe — the default npm bundled with Node 22
+          # may lag the Trusted Publishing-aware version).
+          node-version: '22.14.0'
           registry-url: 'https://registry.npmjs.org'
+
+      - name: Upgrade npm to a Trusted-Publishing-aware version
+        run: npm install -g npm@latest
 
       - name: pnpm install
         run: pnpm install --frozen-lockfile
@@ -52,6 +69,9 @@ jobs:
 
       - name: pnpm publish
         working-directory: objectiveai-sdk-js
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: pnpm publish --access public --no-git-checks
+        # No NODE_AUTH_TOKEN — pnpm/npm pick up the OIDC token from
+        # the runner's id-token write permission and exchange it
+        # with npmjs.com for a short-lived publish credential.
+        # --provenance attaches the SLSA build attestation that
+        # Trusted Publishing emits automatically.
+        run: pnpm publish --access public --no-git-checks --provenance

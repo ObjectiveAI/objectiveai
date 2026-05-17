@@ -17,7 +17,7 @@ const srcDir = path.resolve(__dirname, "..");
 
 /** Files matching any of these patterns (against forward-slashed absolute path) are excluded. */
 const WHITELIST: RegExp[] = [
-  /^(?!.*objectiveai-js\/src\/)/,
+  /^(?!.*objectiveai-sdk-js\/src\/)/,
   /\.d\.ts$/,
   /\.test\./,
   /\/index\.ts$/,
@@ -59,7 +59,7 @@ describe("all exports available from root index.ts", () => {
   // Find the root index.ts source file
   const indexFile = program
     .getSourceFiles()
-    .find((sf) => normalize(sf.fileName).endsWith("objectiveai-js/src/index.ts"));
+    .find((sf) => normalize(sf.fileName).endsWith("objectiveai-sdk-js/src/index.ts"));
 
   if (!indexFile) {
     it("should find src/index.ts", () => {

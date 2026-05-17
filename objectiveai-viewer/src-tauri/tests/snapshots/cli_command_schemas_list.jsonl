@@ -1,0 +1,3 @@
+{"type":"cli_command","destination":"test-iframe","value":{"type":"begin"}}
+{"type":"cli_command","destination":"test-iframe","value":{"type":"notification","value":{"schemas":["ApiCallEnvelope","ApiCallSubType","Event","HttpMethod"]}}}
+{"type":"cli_command","destination":"test-iframe","value":{"type":"end"}}

@@ -5,17 +5,17 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
-    from objectiveai.client import ObjectiveAI
-    from objectiveai.functions.profiles.computations.request import (
+    from objectiveai_sdk.client import ObjectiveAI
+    from objectiveai_sdk.functions.profiles.computations.request import (
         FunctionProfileComputationCreateParams,
     )
-    from objectiveai.functions.profiles.computations.response.streaming import (
+    from objectiveai_sdk.functions.profiles.computations.response.streaming import (
         FunctionProfileComputationChunk,
     )
-    from objectiveai.functions.profiles.computations.response.unary import (
+    from objectiveai_sdk.functions.profiles.computations.response.unary import (
         FunctionProfileComputation,
     )
-    from objectiveai.stream import Stream
+    from objectiveai_sdk.stream import Stream
 
 
 async def compute_profile(

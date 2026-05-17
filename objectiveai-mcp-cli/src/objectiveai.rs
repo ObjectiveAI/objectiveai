@@ -40,10 +40,24 @@ impl ObjectiveAiMcpCli {
             .chain(req.command)
             .collect();
 
-        match objectiveai_cli::run(args, &self.cli_config).await {
-            Ok(output) => output,
-            Err(e) => format!("error: {e}"),
+        let collected = Arc::new(tokio::sync::Mutex::new(Vec::new()));
+        let handle =
+            objectiveai_sdk::cli::output::Handle::Collect(collected.clone());
+        let code = objectiveai_cli::run(args, &self.cli_config, handle).await;
+
+        let outputs = collected.lock().await;
+        let mut buf = String::new();
+        for output in outputs.iter() {
+            match serde_json::to_string(output) {
+                Ok(line) => buf.push_str(&line),
+                Err(e) => buf.push_str(&format!("error serializing output: {e}")),
+            }
+            buf.push('\n');
         }
+        if code != 0 {
+            buf.push_str(&format!("exit code: {code}\n"));
+        }
+        buf
     }
 }
 

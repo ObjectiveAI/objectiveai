@@ -5,9 +5,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from objectiveai.client import ObjectiveAI
-    from objectiveai.functions.inventions.state import GetFunctionInventionStateResponse
-    from objectiveai.remote_path_commit_optional import RemotePathCommitOptional
+    from objectiveai_sdk.client import ObjectiveAI
+    from objectiveai_sdk.functions.inventions.state import GetFunctionInventionStateResponse
+    from objectiveai_sdk.remote_path_commit_optional import RemotePathCommitOptional
 
 
 async def get_function_invention_state(

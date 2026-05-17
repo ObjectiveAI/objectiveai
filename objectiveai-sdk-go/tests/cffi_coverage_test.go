@@ -10,16 +10,16 @@ import (
 )
 
 // TestCFFICoverage asserts that cffi.go has an exported Go function for every
-// extern "C" function in objectiveai-rs-cffi/src/lib.rs.
+// extern "C" function in objectiveai-sdk-rs-cffi/src/lib.rs.
 //
 // Rust function names like objectiveai_validate_ensemble are expected to appear
 // in cffi.go as PascalCase Go functions like ValidateEnsemble.
 func TestCFFICoverage(t *testing.T) {
-	// Locate repo root (tests/ -> objectiveai-go/ -> repo root)
+	// Locate repo root (tests/ -> objectiveai-sdk-go/ -> repo root)
 	repoRoot := RepoRoot()
 
 	// Read Rust lib.rs
-	rustPath := filepath.Join(repoRoot, "objectiveai-rs-cffi", "src", "lib.rs")
+	rustPath := filepath.Join(repoRoot, "objectiveai-sdk-rs-cffi", "src", "lib.rs")
 	rustBytes, err := os.ReadFile(rustPath)
 	if err != nil {
 		t.Fatalf("Failed to read %s: %v", rustPath, err)
@@ -38,7 +38,7 @@ func TestCFFICoverage(t *testing.T) {
 	}
 
 	// Read Go cffi.go
-	goPath := filepath.Join(repoRoot, "objectiveai-go", "cffi.go")
+	goPath := filepath.Join(repoRoot, "objectiveai-sdk-go", "cffi.go")
 	goBytes, err := os.ReadFile(goPath)
 	if err != nil {
 		t.Fatalf("Failed to read %s: %v", goPath, err)

@@ -42,6 +42,7 @@ for suite in \
   objectiveai-sdk-js \
   objectiveai-sdk-py \
   objectiveai-sdk-go \
+  objectiveai-viewer \
 ; do
   bash "$REPO_ROOT/$suite/test.sh" &
   PIDS+=($!)

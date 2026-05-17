@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from objectiveai.client import ObjectiveAI
-    from objectiveai.functions import (
+    from objectiveai_sdk.client import ObjectiveAI
+    from objectiveai_sdk.functions import (
         GetFunctionProfilePairUsageRequest,
         GetFunctionRequest,
         GetFunctionResponse,

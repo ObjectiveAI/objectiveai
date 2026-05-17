@@ -39,8 +39,42 @@ cd "$REPO_ROOT"
 freed_before=$(df -k "$REPO_ROOT" | awk 'NR==2 {print $4}')
 
 # ---------------------------------------------------------------------------
-# Cargo build outputs. The workspace target/ may be a symlink to an external
-# drive — handle that explicitly so the actual bytes get freed.
+# Helper: empty a directory's contents, but leave the directory itself in
+# place. This preserves any junctions/symlinks pointing at an external drive
+# (the target/ tree usually lives on D: via an NTFS junction) AND the dir
+# entry on disk, so re-running a build doesn't have to recreate the link.
+#
+# `find` descends through the junction transparently — entries under the
+# real path on D: get deleted, the junction itself stays put.
+# ---------------------------------------------------------------------------
+empty_dir() {
+  local dir="$1"
+  # `-e` follows the symlink — true iff the target exists. The link-itself
+  # check (`-L`) is intentionally separate so a dangling link is recreated
+  # as a fresh empty dir below, not left as a broken link.
+  if [ -L "$dir" ] && [ ! -e "$dir" ]; then
+    echo "Dangling symlink $dir/ — replacing with empty dir"
+    rm -f -- "$dir"
+    mkdir -p -- "$dir"
+    return
+  fi
+  if [ ! -e "$dir" ]; then
+    return
+  fi
+  echo "Emptying $dir/"
+  # `find … -mindepth 1 -delete` removes everything inside without
+  # touching the dir itself. Using `find` (vs `rm -rf "$dir"/*`) handles
+  # dotfiles and avoids "argument list too long" on huge target trees.
+  find "$dir" -mindepth 1 -delete 2>/dev/null \
+    || find "$dir" -mindepth 1 -exec rm -rf -- {} +
+}
+
+# ---------------------------------------------------------------------------
+# Cargo build outputs. The workspace target/ is usually an NTFS junction to
+# D:\Programming\objectiveai-targets\target so the 100+ GB of build artifacts
+# don't fill the system drive. The other target-* dirs follow the same
+# convention. We empty contents only — the junction (or plain dir) stays
+# in place so the next build writes straight to the same destination.
 # ---------------------------------------------------------------------------
 RUST_TARGETS=(
   target
@@ -50,19 +84,13 @@ RUST_TARGETS=(
 )
 
 for t in "${RUST_TARGETS[@]}"; do
-  if [ -L "$t" ]; then
-    real=$(readlink "$t")
-    echo "Removing $t/ → $real (symlink target)"
-    rm -rf -- "$real" 2>/dev/null || true
-    rm -f -- "$t"
-  elif [ -d "$t" ]; then
-    echo "Removing $t/"
-    rm -rf -- "$t"
-  fi
+  empty_dir "$t"
 done
 
 # ---------------------------------------------------------------------------
-# Top-level singleton caches.
+# Top-level singleton caches. Same "empty contents, keep the dir" policy as
+# the Rust targets above so any tool watching these paths doesn't see them
+# disappear.
 # ---------------------------------------------------------------------------
 TOP_LEVEL_CACHES=(
   .pytest_cache
@@ -73,10 +101,7 @@ TOP_LEVEL_CACHES=(
 )
 
 for d in "${TOP_LEVEL_CACHES[@]}"; do
-  if [ -d "$d" ]; then
-    echo "Removing $d/"
-    rm -rf -- "$d"
-  fi
+  empty_dir "$d"
 done
 
 # ---------------------------------------------------------------------------

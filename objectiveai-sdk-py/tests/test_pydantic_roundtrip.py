@@ -74,9 +74,9 @@ def title_to_module_and_name(title: str) -> tuple[str, str]:
     """
     dir_path, _file_name = _title_to_path(title)
     if dir_path:
-        module_path = "objectiveai." + dir_path.replace("/", ".")
+        module_path = "objectiveai_sdk." + dir_path.replace("/", ".")
     else:
-        module_path = "objectiveai"
+        module_path = "objectiveai_sdk"
     class_name = GLOBAL_CLASS_NAMES.get(title, title_to_class_name(title))
     return module_path, class_name
 

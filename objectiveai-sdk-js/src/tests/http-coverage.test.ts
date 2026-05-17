@@ -21,7 +21,7 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const RUST_SRC = path.resolve(__dirname, "../../../objectiveai-rs/src");
+const RUST_SRC = path.resolve(__dirname, "../../../objectiveai-sdk-rs/src");
 const TS_SRC = path.resolve(__dirname, "..");
 
 // ---------------------------------------------------------------------------

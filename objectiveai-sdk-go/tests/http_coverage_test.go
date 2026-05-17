@@ -21,13 +21,13 @@ import (
 //   Go fn:            AgentCompletionsCreateAgentCompletionUnary (PascalCase, 1:1 with Rust)
 func TestHTTPCoverage(t *testing.T) {
 	repoRoot := RepoRoot()
-	rustSrc := filepath.Join(repoRoot, "objectiveai-rs", "src")
+	rustSrc := filepath.Join(repoRoot, "objectiveai-sdk-rs", "src")
 	goSrc := SourceDir()
 
 	// Find all Rust http.rs files
 	rustHTTPFiles := findHTTPFiles(t, rustSrc)
 	if len(rustHTTPFiles) == 0 {
-		t.Fatal("Found no http.rs files in objectiveai-rs/src/")
+		t.Fatal("Found no http.rs files in objectiveai-sdk-rs/src/")
 	}
 
 	// Check each Rust http.rs has a Go counterpart

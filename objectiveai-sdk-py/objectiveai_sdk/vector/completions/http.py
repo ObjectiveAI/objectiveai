@@ -5,11 +5,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
-    from objectiveai.client import ObjectiveAI
-    from objectiveai.stream import Stream
-    from objectiveai.vector.completions.request import VectorCompletionCreateParams
-    from objectiveai.vector.completions.response.streaming import VectorCompletionChunk
-    from objectiveai.vector.completions.response.unary import VectorCompletion
+    from objectiveai_sdk.client import ObjectiveAI
+    from objectiveai_sdk.stream import Stream
+    from objectiveai_sdk.vector.completions.request import VectorCompletionCreateParams
+    from objectiveai_sdk.vector.completions.response.streaming import VectorCompletionChunk
+    from objectiveai_sdk.vector.completions.response.unary import VectorCompletion
 
 
 async def create_vector_completion(

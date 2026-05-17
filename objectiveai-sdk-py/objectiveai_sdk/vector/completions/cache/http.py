@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from objectiveai.client import ObjectiveAI
-    from objectiveai.vector.completions.cache import (
+    from objectiveai_sdk.client import ObjectiveAI
+    from objectiveai_sdk.vector.completions.cache import (
         CacheVote,
         CacheVoteRequest,
         CompletionVotes,

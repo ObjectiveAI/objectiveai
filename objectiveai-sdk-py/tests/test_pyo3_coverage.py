@@ -1,12 +1,12 @@
 """
-PyO3 function coverage test: every function exported by objectiveai-rs-pyo3
+PyO3 function coverage test: every function exported by objectiveai-sdk-rs-pyo3
 must have a corresponding Python wrapper in a pyo3.py file at the path
 matching the type it operates on.
 
 Requirements:
 1. Function names are identical to the Rust PyO3 function names (snake_case).
 2. The Python pyo3.py file path mirrors the Rust type's module path:
-   e.g. agent_completion_chunk_merged → objectiveai/agent/completions/response/streaming/pyo3.py
+   e.g. agent_completion_chunk_merged → objectiveai_sdk/agent/completions/response/streaming/pyo3.py
 3. Every function must also be importable from its package __init__.py.
 """
 
@@ -17,8 +17,8 @@ from pathlib import Path
 
 import pytest
 
-PYO3_RS = Path(__file__).resolve().parent.parent.parent / "objectiveai-rs-pyo3" / "src" / "lib.rs"
-PY_SRC = Path(__file__).resolve().parent.parent / "objectiveai"
+PYO3_RS = Path(__file__).resolve().parent.parent.parent / "objectiveai-sdk-rs-pyo3" / "src" / "lib.rs"
+PY_SRC = Path(__file__).resolve().parent.parent / "objectiveai_sdk"
 
 # ---------------------------------------------------------------------------
 # Map each pyo3 function to the Python module path where its pyo3.py should live
@@ -206,7 +206,7 @@ class TestPyo3Coverage:
         errors: list[str] = []
 
         for mod_path, py_fns in pyo3_py_files.items():
-            package_path = f"objectiveai.{mod_path}" if mod_path else "objectiveai"
+            package_path = f"objectiveai_sdk.{mod_path}" if mod_path else "objectiveai_sdk"
 
             try:
                 package = importlib.import_module(package_path)

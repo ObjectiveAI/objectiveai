@@ -5,9 +5,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
-    from objectiveai.client import ObjectiveAI
-    from objectiveai.error import ErrorCreateParams, ErrorResponse
-    from objectiveai.stream import Stream
+    from objectiveai_sdk.client import ObjectiveAI
+    from objectiveai_sdk.error import ErrorCreateParams, ErrorResponse
+    from objectiveai_sdk.stream import Stream
 
 
 async def create_error(

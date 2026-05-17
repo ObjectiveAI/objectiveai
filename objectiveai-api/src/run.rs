@@ -147,6 +147,8 @@ struct EnvConfigBuilder {
     mcp_encryption_key: Option<String>,
     #[envconfig(from = "CONFIG_BASE_DIR")]
     config_base_dir: Option<String>,
+    #[envconfig(from = "PERSISTENT_CACHE_TRANSIENT_TTL_MS")]
+    persistent_cache_transient_ttl_ms: Option<u64>,
     #[envconfig(from = "MOCK_DELAY_MS")]
     mock_delay_ms: Option<u64>,
     #[envconfig(from = "MOCK_MAX_TOOL_CALLS")]
@@ -223,6 +225,7 @@ impl EnvConfigBuilder {
             mcp_call_timeout: self.mcp_call_timeout,
             mcp_encryption_key: self.mcp_encryption_key,
             config_base_dir: self.config_base_dir,
+            persistent_cache_transient_ttl_ms: self.persistent_cache_transient_ttl_ms,
             mock_delay_ms: self.mock_delay_ms,
             mock_max_tool_calls: self.mock_max_tool_calls,
             docker_timeout: self.docker_timeout,
@@ -290,6 +293,7 @@ pub struct ConfigBuilder {
     pub mcp_call_timeout: Option<u64>,
     pub mcp_encryption_key: Option<String>,
     pub config_base_dir: Option<String>,
+    pub persistent_cache_transient_ttl_ms: Option<u64>,
     pub mock_delay_ms: Option<u64>,
     pub mock_max_tool_calls: Option<u32>,
     pub docker_timeout: Option<u64>,
@@ -376,6 +380,7 @@ impl ConfigBuilder {
                     .unwrap_or_else(|| std::path::PathBuf::from("."))
                     .join(".objectiveai"),
             },
+            persistent_cache_transient_ttl_ms: self.persistent_cache_transient_ttl_ms.unwrap_or(3_600_000),
             mock_delay_ms: self.mock_delay_ms.unwrap_or(0),
             mock_max_tool_calls: self.mock_max_tool_calls.unwrap_or(1000),
             docker_timeout: self.docker_timeout.unwrap_or(30),
@@ -445,6 +450,7 @@ pub struct Config {
     /// per process.
     pub mcp_encryption_key: Option<String>,
     pub config_base_dir: std::path::PathBuf,
+    pub persistent_cache_transient_ttl_ms: u64,
     pub mock_delay_ms: u64,
     pub mock_max_tool_calls: u32,
     pub docker_timeout: u64,
@@ -510,6 +516,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
         mcp_call_timeout,
         mcp_encryption_key,
         config_base_dir,
+        persistent_cache_transient_ttl_ms,
         mock_delay_ms,
         mock_max_tool_calls,
         docker_timeout,
@@ -589,7 +596,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
     ));
 
     let filesystem_client = Arc::new(filesystem::Client::new(
-        config_base_dir,
+        config_base_dir.clone(),
         commit_author_name,
         commit_author_email,
     ));
@@ -815,7 +822,20 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
     ));
 
     // Persistent Cache Client
-    let persistent_cache = Arc::new(ctx::persistent_cache::default::DefaultPersistentCacheClient);
+    #[cfg(feature = "sqlite-persistent-cache")]
+    let persistent_cache = Arc::new(
+        ctx::persistent_cache::sqlite::SqlitePersistentCacheClient::new(
+            config_base_dir,
+            std::time::Duration::from_millis(persistent_cache_transient_ttl_ms),
+        )
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
+    );
+    #[cfg(not(feature = "sqlite-persistent-cache"))]
+    let persistent_cache = {
+        let _ = persistent_cache_transient_ttl_ms;
+        let _ = &config_base_dir;
+        Arc::new(ctx::persistent_cache::default::DefaultPersistentCacheClient)
+    };
 
     // Router
     let app = axum::Router::new()

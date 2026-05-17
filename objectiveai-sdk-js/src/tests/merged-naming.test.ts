@@ -94,7 +94,7 @@ function findMergedFunctions(): MergedFn[] {
   for (const sourceFile of program.getSourceFiles()) {
     if (sourceFile.isDeclarationFile) continue;
     const normalizedPath = sourceFile.fileName.replace(/\\/g, "/");
-    if (!normalizedPath.includes("objectiveai-js/src/")) continue;
+    if (!normalizedPath.includes("objectiveai-sdk-js/src/")) continue;
     if (normalizedPath.includes(".test.")) continue;
     if (!normalizedPath.includes("Merged")) continue;
 

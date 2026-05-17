@@ -28,7 +28,19 @@ pub async fn cli_run(
     args: Vec<String>,
     origin: String,
 ) -> Result<(), String> {
-    let handle = cli_event_sink(events_tx.inner().clone(), origin);
+    cli_run_impl(events_tx.inner().clone(), args, origin).await
+}
+
+/// Tauri-free body of [`cli_run`]. Lets integration tests exercise
+/// the bridge without constructing a `tauri::State`. Same
+/// fire-and-forget semantics as the Tauri-wrapped form.
+#[doc(hidden)]
+pub async fn cli_run_impl(
+    events_tx: EventSender,
+    args: Vec<String>,
+    origin: String,
+) -> Result<(), String> {
+    let handle = cli_event_sink(events_tx, origin);
     let cli_config = objectiveai_cli::load_config();
     tokio::spawn(async move {
         let _exit_code = objectiveai_cli::run(args, &cli_config, handle).await;

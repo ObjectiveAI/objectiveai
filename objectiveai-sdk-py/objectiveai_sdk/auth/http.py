@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from objectiveai.auth import (
+    from objectiveai_sdk.auth import (
         ApiKeyWithMetadata,
         CreateApiKeyRequest,
         CreateOpenRouterByokApiKeyRequest,
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
         GetOpenRouterByokApiKeyResponse,
         ListApiKeyResponse,
     )
-    from objectiveai.client import ObjectiveAI
+    from objectiveai_sdk.client import ObjectiveAI
 
 
 async def create_api_key(

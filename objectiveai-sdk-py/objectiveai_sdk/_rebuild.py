@@ -19,7 +19,7 @@ def ensure_rebuilt():
 
     from pydantic import BaseModel, RootModel
 
-    from objectiveai._module_list import MODULES
+    from objectiveai_sdk._module_list import MODULES
 
     # Load all generated modules
     for mod_path in MODULES:

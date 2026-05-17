@@ -35,10 +35,29 @@ pub async fn api_call_run(
     body: serde_json::Value,
     origin: String,
 ) -> Result<(), String> {
-    let tx = events_tx.inner().clone();
-    let client = http_client.inner().clone();
+    api_call_run_impl(
+        events_tx.inner().clone(),
+        http_client.inner().clone(),
+        sub_type,
+        body,
+        origin,
+    )
+    .await
+}
+
+/// Tauri-free body of [`api_call_run`]. Lets integration tests
+/// exercise the bridge without constructing a `tauri::State`. Same
+/// fire-and-forget spawn semantics as the Tauri-wrapped form.
+#[doc(hidden)]
+pub async fn api_call_run_impl(
+    events_tx: EventSender,
+    http_client: objectiveai_sdk::HttpClient,
+    sub_type: ApiCallSubType,
+    body: serde_json::Value,
+    origin: String,
+) -> Result<(), String> {
     tokio::spawn(async move {
-        run(client, tx, sub_type, body, origin).await;
+        run(http_client, events_tx, sub_type, body, origin).await;
     });
     Ok(())
 }

@@ -5,14 +5,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
-    from objectiveai.agent.completions.request import AgentCompletionCreateParams
-    from objectiveai.agent.completions.request.agent_completion_notify_params import (
+    from objectiveai_sdk.agent.completions.request import AgentCompletionCreateParams
+    from objectiveai_sdk.agent.completions.request.agent_completion_notify_params import (
         AgentCompletionNotifyParams,
     )
-    from objectiveai.agent.completions.response.streaming import AgentCompletionChunk
-    from objectiveai.agent.completions.response.unary import AgentCompletion
-    from objectiveai.client import ObjectiveAI
-    from objectiveai.stream import Stream
+    from objectiveai_sdk.agent.completions.response.streaming import AgentCompletionChunk
+    from objectiveai_sdk.agent.completions.response.unary import AgentCompletion
+    from objectiveai_sdk.client import ObjectiveAI
+    from objectiveai_sdk.stream import Stream
 
 
 async def create_agent_completion(

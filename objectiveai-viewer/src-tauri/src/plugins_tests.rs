@@ -29,9 +29,11 @@ async fn register_plugin_route_emits_event_with_type_and_value() {
     assert_eq!(response.status(), StatusCode::OK);
 
     let event = rx.try_recv().expect("expected an event");
-    let Event { destination, r#type, value } = event;
+    let Event::Inbound { destination, sub_type, value } = event else {
+        panic!("expected Event::Inbound, got {event:?}");
+    };
     assert_eq!(destination, "myplugin");
-    assert_eq!(r#type, "echo_request");
+    assert_eq!(sub_type, "echo_request");
     assert_eq!(value["hello"], "world");
 }
 
@@ -52,7 +54,9 @@ async fn register_plugin_route_emits_null_value_for_get() {
     assert_eq!(response.status(), StatusCode::OK);
 
     let event = rx.try_recv().expect("expected an event");
-    let Event { r#type, value, .. } = event;
-    assert_eq!(r#type, "status_request");
+    let Event::Inbound { sub_type, value, .. } = event else {
+        panic!("expected Event::Inbound, got {event:?}");
+    };
+    assert_eq!(sub_type, "status_request");
     assert!(value.is_null());
 }

@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-mcp-cli"
-version = "2.0.5"
+version = "2.0.7"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
 description = "MCP (Model Context Protocol) CLI for ObjectiveAI"
@@ -18,12 +18,22 @@ viewer = ["objectiveai-cli/viewer"]
 rustpython = ["objectiveai-cli/rustpython"]
 systempython = ["objectiveai-cli/systempython"]
 
+# Renames the produced executable from `objectiveai-mcp-cli` to
+# `objectiveai-mcp`. The crate name on crates.io stays unchanged
+# (`objectiveai-mcp-cli`), and so does the library target
+# (`objectiveai_mcp_cli`) for in-process consumers.
+[[bin]]
+name = "objectiveai-mcp"
+path = "src/main.rs"
+
 [dependencies]
 anyhow = "1.0.102"
 axum = "0.8.8"
 dotenv = "0.15.0"
 envconfig = "0.11.1"
-objectiveai-cli = { path = "../objectiveai-cli", version = "2.0.5", default-features = false }
+objectiveai-cli = { path = "../objectiveai-cli", version = "2.0.7", default-features = false }
+objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.0.7", default-features = false, features = ["cli"] }
+serde_json = "1.0.149"
 rmcp = { version = "0.16.0", features = ["server", "transport-streamable-http-server"] }
 schemars = "1.2.1"
 serde = { version = "1.0.228", features = ["derive"] }

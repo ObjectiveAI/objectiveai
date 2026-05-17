@@ -5,11 +5,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
-    from objectiveai.client import ObjectiveAI
-    from objectiveai.functions.executions.request import FunctionExecutionCreateParams
-    from objectiveai.functions.executions.response.streaming import FunctionExecutionChunk
-    from objectiveai.functions.executions.response.unary import FunctionExecution
-    from objectiveai.stream import Stream
+    from objectiveai_sdk.client import ObjectiveAI
+    from objectiveai_sdk.functions.executions.request import FunctionExecutionCreateParams
+    from objectiveai_sdk.functions.executions.response.streaming import FunctionExecutionChunk
+    from objectiveai_sdk.functions.executions.response.unary import FunctionExecution
+    from objectiveai_sdk.stream import Stream
 
 
 async def create_function_execution(

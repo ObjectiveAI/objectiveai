@@ -1,28 +1,56 @@
 #!/usr/bin/env bash
-# ObjectiveAI CLI installer — downloads a pre-built release binary.
+# ObjectiveAI installer — downloads the pre-built release binaries.
+#
+# Default: installs `objectiveai` (CLI), `objectiveai-api` (server),
+# `objectiveai-viewer` (Tauri desktop app), and `objectiveai-mcp`
+# (MCP server) from the latest GitHub Release.
 #
 #   curl -fsSL https://raw.githubusercontent.com/ObjectiveAI/objectiveai/main/install.sh | bash
-#   curl -fsSL https://raw.githubusercontent.com/ObjectiveAI/objectiveai/main/install.sh | bash -s -- --no-viewer
 #
-# - Detects platform + architecture.
-# - Fetches the latest published release asset from GitHub and drops it
-#   at ~/.objectiveai/objectiveai (or objectiveai.exe on Windows).
-# - Adds ~/.objectiveai to PATH.
+# Flags (compose freely):
+#   --no-viewer   skip the standalone viewer binary AND use the CLI variant
+#                 without an embedded viewer.
+#   --no-api      skip the standalone API server binary.
+#   --no-mcp      skip the standalone MCP server binary.
+#   --cli-only    skip viewer, api, and mcp (only install the CLI).
 #
-# No toolchain required. For a from-source install, clone the repo and
-# run `objectiveai-cli/install.sh` instead.
+# All binaries land in ~/.objectiveai/ (or ~/.objectiveai/*.exe on Windows)
+# and are added to PATH. No toolchain required.
+#
+# For a from-source install, clone the repo and run the per-crate
+# install.sh scripts under objectiveai-cli/, objectiveai-api/,
+# objectiveai-viewer/, objectiveai-mcp-cli/.
 
 set -euo pipefail
 
 REPO="ObjectiveAI/objectiveai"
 INSTALL_DIR="$HOME/.objectiveai"
+
 NO_VIEWER=0
+INSTALL_API=1
+INSTALL_VIEWER=1
+INSTALL_MCP=1
 
 for arg in "$@"; do
   case "$arg" in
-    --no-viewer) NO_VIEWER=1 ;;
+    --no-viewer)
+      NO_VIEWER=1
+      INSTALL_VIEWER=0
+      ;;
+    --no-api)
+      INSTALL_API=0
+      ;;
+    --no-mcp)
+      INSTALL_MCP=0
+      ;;
+    --cli-only)
+      NO_VIEWER=1
+      INSTALL_API=0
+      INSTALL_VIEWER=0
+      INSTALL_MCP=0
+      ;;
     -h|--help)
-      sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'
       exit 0
       ;;
     *)
@@ -64,52 +92,83 @@ if [ "$SUPPORTED" = "0" ]; then
   exit 1
 fi
 
-# ── Asset name + destination ──────────────────────────────────────────
-
-# Must match the `ASSET_NAME` table in objectiveai-cli/src/update.rs.
-ASSET="objectiveai-${PLATFORM}-${ARCH}"
-if [ "$NO_VIEWER" = "1" ]; then
-  ASSET="${ASSET}-no-viewer"
-fi
 if [ "$PLATFORM" = "windows" ]; then
-  ASSET="${ASSET}.exe"
-  DST_NAME="objectiveai.exe"
+  EXE_SUFFIX=".exe"
 else
-  DST_NAME="objectiveai"
+  EXE_SUFFIX=""
 fi
 
-URL="https://github.com/${REPO}/releases/latest/download/${ASSET}"
-TMP=$(mktemp -t objectiveai.XXXXXX)
-trap 'rm -f "$TMP"' EXIT
+# ── Download helper ───────────────────────────────────────────────────
 
-# ── Download ──────────────────────────────────────────────────────────
+# install_binary <asset_filename> <dst_filename>
+#
+# Fetches the asset from /releases/latest/download/ and installs it at
+# $INSTALL_DIR/$DST_NAME with the executable bit set.
+install_binary() {
+  local asset="$1" dst_name="$2"
+  local url="https://github.com/${REPO}/releases/latest/download/${asset}"
+  local tmp dst
+  tmp=$(mktemp -t objectiveai.XXXXXX)
+  # shellcheck disable=SC2064
+  trap "rm -f '$tmp'" RETURN
 
-echo "Downloading $ASSET..."
-if command -v curl >/dev/null 2>&1; then
-  # -L follows the redirect from /releases/latest/download/... to the
-  # actual asset URL; -f fails hard on 4xx/5xx instead of writing HTML.
-  curl -fSL --progress-bar "$URL" -o "$TMP"
-elif command -v wget >/dev/null 2>&1; then
-  wget -O "$TMP" "$URL"
-else
-  echo "need curl or wget to download" >&2
-  exit 1
+  echo "Downloading $asset..."
+  if command -v curl >/dev/null 2>&1; then
+    # -L follows the redirect from /releases/latest/download/ to the
+    # actual asset URL; -f fails hard on 4xx/5xx instead of writing HTML.
+    curl -fSL --progress-bar "$url" -o "$tmp"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -O "$tmp" "$url"
+  else
+    echo "need curl or wget to download" >&2
+    return 1
+  fi
+
+  if [ ! -s "$tmp" ]; then
+    echo "download produced an empty file" >&2
+    return 1
+  fi
+
+  mkdir -p "$INSTALL_DIR"
+  dst="$INSTALL_DIR/$dst_name"
+  # `mv` onto a running Windows exe fails ("in use"); prefer `cp` so a
+  # later install over an in-use binary degrades to a clearer error.
+  cp "$tmp" "$dst"
+  chmod +x "$dst"
+  echo "Installed $dst"
+}
+
+# ── Install binaries ──────────────────────────────────────────────────
+
+# CLI — always installed. The `-no-viewer` variant is a smaller build
+# that strips the embedded Tauri viewer.
+CLI_ASSET="objectiveai-${PLATFORM}-${ARCH}"
+if [ "$NO_VIEWER" = "1" ]; then
+  CLI_ASSET="${CLI_ASSET}-no-viewer"
+fi
+CLI_ASSET="${CLI_ASSET}${EXE_SUFFIX}"
+install_binary "$CLI_ASSET" "objectiveai${EXE_SUFFIX}"
+
+# API server — standalone objectiveai-api binary.
+if [ "$INSTALL_API" = "1" ]; then
+  install_binary \
+    "objectiveai-api-${PLATFORM}-${ARCH}${EXE_SUFFIX}" \
+    "objectiveai-api${EXE_SUFFIX}"
 fi
 
-if [ ! -s "$TMP" ]; then
-  echo "download produced an empty file" >&2
-  exit 1
+# Viewer — standalone Tauri desktop app.
+if [ "$INSTALL_VIEWER" = "1" ]; then
+  install_binary \
+    "objectiveai-viewer-${PLATFORM}-${ARCH}${EXE_SUFFIX}" \
+    "objectiveai-viewer${EXE_SUFFIX}"
 fi
 
-# ── Install ───────────────────────────────────────────────────────────
-
-mkdir -p "$INSTALL_DIR"
-DST="$INSTALL_DIR/$DST_NAME"
-# `mv` onto a running Windows exe fails ("in use"); prefer `cp` so a
-# later install over an in-use binary degrades to a clearer error.
-cp "$TMP" "$DST"
-chmod +x "$DST"
-echo "Installed $DST"
+# MCP — standalone MCP (Model Context Protocol) server.
+if [ "$INSTALL_MCP" = "1" ]; then
+  install_binary \
+    "objectiveai-mcp-${PLATFORM}-${ARCH}${EXE_SUFFIX}" \
+    "objectiveai-mcp${EXE_SUFFIX}"
+fi
 
 # ── PATH ──────────────────────────────────────────────────────────────
 #
@@ -123,7 +182,7 @@ write_env_file() {
 #!/bin/sh
 # objectiveai shell setup. Source this file from your shell rc, or run
 #   . "$HOME/.objectiveai/env"
-# to put `objectiveai` on PATH for the current shell.
+# to put the objectiveai binaries on PATH for the current shell.
 
 case ":${PATH}:" in
     *:"$HOME/.objectiveai":*) ;;
@@ -140,7 +199,7 @@ add_to_path() {
   fi
   {
     echo ""
-    echo "# ObjectiveAI CLI"
+    echo "# ObjectiveAI"
     echo "$line"
   } >> "$shell_rc"
   echo "Added to PATH in $shell_rc"
@@ -174,7 +233,7 @@ esac
 echo ""
 echo "Done!"
 echo ""
-echo "To use objectiveai in your current shell, run:"
+echo "To use the objectiveai binaries in your current shell, run:"
 echo '  . "$HOME/.objectiveai/env"'
 echo ""
 echo "(New shells will pick it up automatically.)"

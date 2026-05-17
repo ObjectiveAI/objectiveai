@@ -38,7 +38,7 @@ def get_test_client():
     """Create a test client connected to the local test server."""
     if not _port:
         pytest.skip("OBJECTIVEAI_TEST_PORT not set")
-    from objectiveai.client import ObjectiveAI
+    from objectiveai_sdk.client import ObjectiveAI
     return ObjectiveAI(address=f"http://127.0.0.1:{_port}")
 
 
