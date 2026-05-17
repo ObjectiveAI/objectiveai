@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, memo } from "react";
 import * as Collapsible from "@radix-ui/react-collapsible";
 
 function CopyButton({ text }: { text: string }) {
@@ -28,7 +28,7 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-export function ToolCallCard({ call }: { call: { id?: string | null; function?: { name?: string | null; arguments?: string | null } | null } }) {
+export const ToolCallCard = memo(function ToolCallCard({ call }: { call: { id?: string | null; function?: { name?: string | null; arguments?: string | null } | null } }) {
   const fn = call.function;
   let formattedArgs = fn?.arguments ?? "";
   try {
@@ -43,7 +43,7 @@ export function ToolCallCard({ call }: { call: { id?: string | null; function?: 
       </div>
       {formattedArgs && (
         <Collapsible.Root defaultOpen={formattedArgs.length < 200}>
-          <Collapsible.Trigger className="text-[10px] text-info-dim cursor-pointer hover:text-info-mid">
+          <Collapsible.Trigger className="text-[10px] text-info-dim cursor-pointer hover:text-info-mid" aria-label="Toggle function arguments">
             args
           </Collapsible.Trigger>
           <Collapsible.Content>
@@ -55,4 +55,4 @@ export function ToolCallCard({ call }: { call: { id?: string | null; function?: 
       )}
     </div>
   );
-}
+});

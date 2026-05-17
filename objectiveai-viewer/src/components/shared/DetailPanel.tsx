@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import type { Entry } from "../../types";
 
 function timingBreakdown(entry: Entry): { label: string; value: string }[] {
@@ -32,10 +32,18 @@ export function DetailPanel({ entry, onClose }: { entry: Entry; onClose: () => v
   const requestJson = useMemo(() => JSON.stringify(entry.request, null, 2), [entry.request]);
   const chunkJson = useMemo(() => entry.chunk ? JSON.stringify(entry.chunk, null, 2) : null, [entry.chunk]);
 
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
   return (
     <div className="flex flex-col h-full bg-ground-raised border-l border-node-border">
       <div className="flex items-center gap-2 px-3 py-2 border-b border-node-border shrink-0">
-        <span className="text-[10px] font-mono uppercase tracking-widest text-info-dim">Detail</span>
+        <span className="text-xs font-mono uppercase tracking-widest text-info-dim">Detail</span>
         <span className="text-[10px] font-mono text-info-dim/50 truncate ml-1">{entry.id.slice(0, 12)}</span>
         <button
           onClick={onClose}
@@ -55,7 +63,7 @@ export function DetailPanel({ entry, onClose }: { entry: Entry; onClose: () => v
             <dl className="space-y-1">
               {timing.map((row) => (
                 <div key={row.label} className="flex items-baseline justify-between gap-2">
-                  <dt className="text-[10px] text-info-dim shrink-0">{row.label}</dt>
+                  <dt className="text-[10px] text-info-mid shrink-0">{row.label}</dt>
                   <dd className="text-[10px] font-mono text-info-mid text-right truncate">{row.value}</dd>
                 </div>
               ))}
@@ -65,7 +73,7 @@ export function DetailPanel({ entry, onClose }: { entry: Entry; onClose: () => v
 
         <section>
           <h3 className="text-[9px] font-mono uppercase tracking-widest text-info-dim mb-2">Request</h3>
-          <pre className="text-[10px] font-mono text-info-mid bg-ground p-2.5 rounded-sm border border-node-border overflow-x-auto whitespace-pre-wrap break-words max-h-60 overflow-y-auto">
+          <pre className="text-[10px] font-mono text-info-mid bg-ground p-2.5 rounded-sm border border-node-border whitespace-pre-wrap break-words max-h-60 overflow-y-auto">
             {requestJson}
           </pre>
         </section>
@@ -73,7 +81,7 @@ export function DetailPanel({ entry, onClose }: { entry: Entry; onClose: () => v
         {chunkJson && (
           <section>
             <h3 className="text-[9px] font-mono uppercase tracking-widest text-info-dim mb-2">Response</h3>
-            <pre className="text-[10px] font-mono text-info-mid bg-ground p-2.5 rounded-sm border border-node-border overflow-x-auto whitespace-pre-wrap break-words max-h-96 overflow-y-auto">
+            <pre className="text-[10px] font-mono text-info-mid bg-ground p-2.5 rounded-sm border border-node-border whitespace-pre-wrap break-words max-h-96 overflow-y-auto">
               {chunkJson}
             </pre>
           </section>
@@ -82,7 +90,7 @@ export function DetailPanel({ entry, onClose }: { entry: Entry; onClose: () => v
         {entry.error && (
           <section>
             <h3 className="text-[9px] font-mono uppercase tracking-widest text-error mb-2">Error</h3>
-            <pre className="text-[10px] font-mono text-error/80 bg-error/5 p-2.5 rounded-sm border border-error/20 whitespace-pre-wrap break-words">
+            <pre className="text-[10px] font-mono text-error bg-error/5 p-2.5 rounded-sm border border-error/20 whitespace-pre-wrap break-words">
               {JSON.stringify(entry.error, null, 2)}
             </pre>
           </section>

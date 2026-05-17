@@ -14,7 +14,7 @@ function StatusDot({ status }: { status: ApiCallEntry["status"] }) {
     status === "streaming"
       ? "bg-copper-bright animate-pulse"
       : status === "complete"
-        ? "bg-green-500"
+        ? "bg-success"
         : "bg-error";
   return <span className={`inline-block w-1.5 h-1.5 rounded-full ${color}`} />;
 }
@@ -37,6 +37,8 @@ export function NetworkPanel({ entries }: { entries: ApiCallEntry[] }) {
     <div className="border-t border-node-border bg-ground-surface">
       <button
         onClick={() => setExpanded(!expanded)}
+        aria-label="Toggle network panel"
+        aria-expanded={expanded}
         className="w-full flex items-center gap-2 px-3 py-1.5 text-[10px] font-mono text-info-dim hover:text-info-mid transition-colors select-none"
       >
         <svg
@@ -65,7 +67,7 @@ export function NetworkPanel({ entries }: { entries: ApiCallEntry[] }) {
         <div className="max-h-64 overflow-y-auto border-t border-node-border">
           <table className="w-full text-[10px] font-mono">
             <thead>
-              <tr className="text-info-dim border-b border-node-border/50">
+              <tr className="text-info-mid border-b border-node-border">
                 <th className="text-left px-3 py-1 font-normal"></th>
                 <th className="text-left px-3 py-1 font-normal">Endpoint</th>
                 <th className="text-right px-3 py-1 font-normal">Chunks</th>
@@ -100,13 +102,13 @@ export function NetworkPanel({ entries }: { entries: ApiCallEntry[] }) {
                     <tr key={`${entry.id}-detail`}>
                       <td colSpan={4} className="px-3 py-2 bg-ground-raised/30">
                         <div className="space-y-1">
-                          <div className="text-info-dim">
-                            <span className="text-info-dim/70">Started:</span>{" "}
+                          <div className="text-info-mid">
+                            <span className="text-info-dim">Started:</span>{" "}
                             {new Date(entry.startedAt).toLocaleTimeString()}
                           </div>
                           {entry.endedAt && (
-                            <div className="text-info-dim">
-                              <span className="text-info-dim/70">Ended:</span>{" "}
+                            <div className="text-info-mid">
+                              <span className="text-info-dim">Ended:</span>{" "}
                               {new Date(entry.endedAt).toLocaleTimeString()}
                             </div>
                           )}

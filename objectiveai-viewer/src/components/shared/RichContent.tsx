@@ -1,3 +1,4 @@
+import { memo } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { AgentCompletionsMessageRichContentPart } from "@objectiveai/sdk";
@@ -46,7 +47,7 @@ function MarkdownContent({ text }: { text: string }) {
   );
 }
 
-export function RichContent({ content }: { content: unknown }) {
+export const RichContent = memo(function RichContent({ content }: { content: unknown }) {
   if (typeof content === "string") {
     return <MarkdownContent text={content} />;
   }
@@ -60,7 +61,7 @@ export function RichContent({ content }: { content: unknown }) {
     );
   }
   return null;
-}
+});
 
 export function RichContentPart({ part }: { part: AgentCompletionsMessageRichContentPart }) {
   if ("text" in part && typeof part.text === "string") {

@@ -60,7 +60,7 @@ export function SessionSidebar({
               </span>
             </div>
             <div className="flex items-center gap-1 mt-0.5 pl-3">
-              <span className="text-info-dim">{session.entryCount}</span>
+              <span className="text-info-mid">{session.entryCount}</span>
               {session.kinds.map((kind) => (
                 <span key={kind} className={`w-1.5 h-1.5 rounded-full ${KIND_DOT[kind] ?? "bg-info-dim"}`} />
               ))}

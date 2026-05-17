@@ -465,7 +465,7 @@ export function CommandPalette({
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/60 z-50" />
         <Dialog.Content
-          className="fixed top-[15%] left-1/2 -translate-x-1/2 w-[90vw] max-w-lg z-50 bg-ground-raised border border-node-border rounded-lg shadow-2xl overflow-hidden"
+          className="fixed top-[15%] left-1/2 -translate-x-1/2 w-[90vw] max-w-lg z-[51] bg-ground-raised border border-node-border rounded-lg shadow-2xl overflow-hidden"
           onEscapeKeyDown={() => onOpenChange(false)}
         >
           <div className="p-4 border-b border-node-border">
@@ -520,7 +520,7 @@ export function CommandPalette({
           {!guidedMode && lines.length > 0 && (
             <div
               ref={outputRef}
-              className="max-h-64 overflow-y-auto p-3 font-mono text-[11px] leading-relaxed bg-ground-base"
+              className="max-h-64 overflow-y-auto p-3 font-mono text-[11px] leading-relaxed bg-ground"
             >
               {lastCommand && (
                 <div className="text-[10px] text-copper-dim mb-2 pb-1 border-b border-node-border/50">

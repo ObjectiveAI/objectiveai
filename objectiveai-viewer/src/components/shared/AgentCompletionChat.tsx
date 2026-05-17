@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, memo } from "react";
 import type {
   AgentCompletionsResponseStreamingAgentCompletionChunk,
   AgentCompletionsResponseToolResponse,
@@ -17,7 +17,7 @@ export interface AgentCompletionChatProps {
   id?: string;
 }
 
-export function AgentCompletionChat({
+export const AgentCompletionChat = memo(function AgentCompletionChat({
   label,
   requestMessages,
   chunk,
@@ -116,7 +116,7 @@ export function AgentCompletionChat({
       ) : null}
     </div>
   );
-}
+});
 
 function CopyableId({ id }: { id: string }) {
   const [copied, setCopied] = useState(false);
