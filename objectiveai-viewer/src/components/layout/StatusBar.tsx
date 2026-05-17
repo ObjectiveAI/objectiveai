@@ -65,8 +65,8 @@ export function StatusBar({ entries, isHistorical }: { entries: Entry[]; isHisto
   }
 
   return (
-    <footer role="status" aria-live="polite" className="flex items-center gap-6 px-6 py-2 border-t border-node-border bg-ground-raised font-mono text-[10px] text-info-dim tabular-nums select-none">
-      <div className="flex items-center gap-1.5">
+    <footer role="status" aria-live="polite" className="flex items-center gap-4 px-4 py-2 border-t border-node-border bg-ground-raised font-mono text-[10px] text-info-dim tabular-nums select-none overflow-hidden whitespace-nowrap min-w-0">
+      <div className="flex items-center gap-1.5 shrink-0">
         {isHistorical ? (
           <>
             <div className="w-1.5 h-1.5 rounded-full bg-info-dim" />
@@ -79,11 +79,11 @@ export function StatusBar({ entries, isHistorical }: { entries: Entry[]; isHisto
           </>
         )}
       </div>
-      {!isHistorical && activeCount > 0 && <span>{elapsed}</span>}
-      {totalTokens > 0 && <span>{totalTokens.toLocaleString()} tokens</span>}
-      {totalCost > 0 && <span>{formatCost(totalCost)}</span>}
-      {droppedCount > 0 && <span className="text-red-400">{droppedCount} dropped</span>}
-      <span className="ml-auto">{entries.length} total</span>
+      {!isHistorical && activeCount > 0 && <span className="shrink-0">{elapsed}</span>}
+      {totalTokens > 0 && <span className="shrink-0">{totalTokens.toLocaleString()} tokens</span>}
+      {totalCost > 0 && <span className="shrink-0">{formatCost(totalCost)}</span>}
+      {droppedCount > 0 && <span className="text-error shrink-0">{droppedCount} dropped</span>}
+      <span className="ml-auto shrink-0">{entries.length} total</span>
     </footer>
   );
 }

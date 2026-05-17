@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import type { ApiCallEntry } from "../../hooks/useApiCalls";
 
 function formatDuration(entry: ApiCallEntry): string {
@@ -76,9 +76,8 @@ export function NetworkPanel({ entries }: { entries: ApiCallEntry[] }) {
             </thead>
             <tbody>
               {entries.map((entry) => (
-                <>
+                <Fragment key={entry.id}>
                   <tr
-                    key={entry.id}
                     onClick={() => setExpandedRow(expandedRow === entry.id ? null : entry.id)}
                     className={`border-b border-node-border/30 cursor-pointer hover:bg-ground-raised/50 ${
                       entry.status === "error" ? "bg-error/5" : ""
@@ -99,7 +98,7 @@ export function NetworkPanel({ entries }: { entries: ApiCallEntry[] }) {
                     </td>
                   </tr>
                   {expandedRow === entry.id && (
-                    <tr key={`${entry.id}-detail`}>
+                    <tr>
                       <td colSpan={4} className="px-3 py-2 bg-ground-raised/30">
                         <div className="space-y-1">
                           <div className="text-info-mid">
@@ -124,7 +123,7 @@ export function NetworkPanel({ entries }: { entries: ApiCallEntry[] }) {
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               ))}
             </tbody>
           </table>

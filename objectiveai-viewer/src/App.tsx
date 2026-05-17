@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect, useDeferredValue } from "react";
+import { useState, useMemo, useEffect, useDeferredValue, type ReactNode } from "react";
+import * as Tooltip from "@radix-ui/react-tooltip";
 import { tauriInvoke } from "./lib/tauri";
 import { useEntries } from "./hooks/useEntries";
 import { useApiCalls } from "./hooks/useApiCalls";
@@ -17,6 +18,20 @@ import { CommandPalette } from "./components/shared/CommandPalette";
 import { DetailPanel } from "./components/shared/DetailPanel";
 import { LogoMark, Wordmark } from "./components/shared/Logo";
 import type { Entry } from "./types";
+
+function Tip({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <Tooltip.Root delayDuration={400}>
+      <Tooltip.Trigger asChild>{children}</Tooltip.Trigger>
+      <Tooltip.Portal>
+        <Tooltip.Content className="bg-ground-surface border border-node-border rounded-sm px-2 py-1 font-mono text-[10px] text-info-mid shadow-lg" sideOffset={6}>
+          {label}
+          <Tooltip.Arrow className="fill-ground-surface" />
+        </Tooltip.Content>
+      </Tooltip.Portal>
+    </Tooltip.Root>
+  );
+}
 
 const KINDS: { kind: Entry["kind"]; label: string; activeClass: string }[] = [
   { kind: "agent-completion", label: "Agent", activeClass: "bg-kind-agent/20 text-kind-agent" },
@@ -176,36 +191,42 @@ function ObjectiveAIView() {
                 className="w-28 pl-6 pr-2 py-1 rounded-sm bg-ground-surface border border-node-border text-[10px] font-mono text-info-mid placeholder:text-info-dim/50 outline-none focus:border-copper-dim focus:w-44 transition-all"
               />
             </div>
-            <button
-              onClick={() => { session.refreshSessions().then(() => setSessionPickerOpen(true)); }}
-              title="Sessions"
-              className="p-1.5 rounded-sm text-info-dim hover:text-info-bright hover:bg-ground-surface transition-colors"
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="6" cy="6" r="5" />
-                <path d="M6 3v3l2 1" />
-              </svg>
-            </button>
-            <button
-              onClick={collapseAll}
-              title="Collapse all"
-              className="p-1.5 rounded-sm text-info-dim hover:text-info-bright hover:bg-ground-surface transition-colors"
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M2 8L6 4L10 8" />
-                <path d="M2 11L6 7L10 11" />
-              </svg>
-            </button>
-            <button
-              onClick={expandAll}
-              title="Expand all"
-              className="p-1.5 rounded-sm text-info-dim hover:text-info-bright hover:bg-ground-surface transition-colors"
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M2 4L6 8L10 4" />
-                <path d="M2 1L6 5L10 1" />
-              </svg>
-            </button>
+            <Tip label="Sessions">
+              <button
+                onClick={() => { session.refreshSessions().then(() => setSessionPickerOpen(true)); }}
+                aria-label="Sessions"
+                className="p-1.5 rounded-sm text-info-dim hover:text-info-bright hover:bg-ground-surface transition-colors"
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="6" cy="6" r="5" />
+                  <path d="M6 3v3l2 1" />
+                </svg>
+              </button>
+            </Tip>
+            <Tip label="Collapse all">
+              <button
+                onClick={collapseAll}
+                aria-label="Collapse all"
+                className="p-1.5 rounded-sm text-info-dim hover:text-info-bright hover:bg-ground-surface transition-colors"
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 8L6 4L10 8" />
+                  <path d="M2 11L6 7L10 11" />
+                </svg>
+              </button>
+            </Tip>
+            <Tip label="Expand all">
+              <button
+                onClick={expandAll}
+                aria-label="Expand all"
+                className="p-1.5 rounded-sm text-info-dim hover:text-info-bright hover:bg-ground-surface transition-colors"
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 4L6 8L10 4" />
+                  <path d="M2 1L6 5L10 1" />
+                </svg>
+              </button>
+            </Tip>
           </div>
         </div>
       )}

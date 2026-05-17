@@ -32,7 +32,7 @@ export function RestoreBanner({
         </button>
         <button
           onClick={onDismiss}
-          className="px-2 py-0.5 rounded-sm text-info-dim hover:text-info-mid transition-colors"
+          className="px-2 py-0.5 rounded-sm text-info-dim hover:text-info-mid hover:bg-ground-surface/50 transition-colors"
         >
           Dismiss
         </button>

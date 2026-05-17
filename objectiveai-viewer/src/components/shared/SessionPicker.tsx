@@ -139,7 +139,7 @@ export function SessionPicker({
             <Dialog.Title className="text-sm font-semibold text-info-bright">
               Sessions
             </Dialog.Title>
-            <Dialog.Close className="p-1 rounded-sm text-info-dim hover:text-info-bright transition-colors" aria-label="Close sessions dialog">
+            <Dialog.Close className="p-1 rounded-sm text-info-dim hover:text-info-bright hover:bg-ground-surface transition-colors" aria-label="Close sessions dialog">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                 <path d="M2 2l8 8M10 2l-8 8" />
               </svg>

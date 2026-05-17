@@ -50,8 +50,18 @@
   --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
   --font-sans: "Geist Variable", system-ui, sans-serif;
 
-  /* Spacing */
+  /* Radii */
+  --radius-xs: 2px;
   --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* Timing */
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
+
+  /* Layout */
   --width-content: 800px;
 }
 
@@ -83,6 +93,11 @@
   *:focus-visible {
     outline: 1px solid var(--color-copper-dim);
     outline-offset: 2px;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-copper-warm) 40%, transparent);
+    color: var(--color-info-full);
   }
 }
 
