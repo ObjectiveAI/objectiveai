@@ -2,7 +2,7 @@ import { useRef, useEffect, useCallback, type ReactNode } from "react";
 import * as ScrollArea from "@radix-ui/react-scroll-area";
 import { LogoMark, Wordmark } from "../shared/Logo";
 
-export function Shell({ children, statusBar, banner, entryCount }: { children: ReactNode; statusBar?: ReactNode; banner?: ReactNode; entryCount?: number }) {
+export function Shell({ children, statusBar, banner, networkPanel, entryCount }: { children: ReactNode; statusBar?: ReactNode; banner?: ReactNode; networkPanel?: ReactNode; entryCount?: number }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const userScrolledUp = useRef(false);
 
@@ -39,6 +39,7 @@ export function Shell({ children, statusBar, banner, entryCount }: { children: R
           <ScrollArea.Thumb className="relative flex-1 rounded-full bg-copper-dim/40 hover:bg-copper-dim/60" />
         </ScrollArea.Scrollbar>
       </ScrollArea.Root>
+      {networkPanel}
       {statusBar}
     </div>
   );

@@ -9,8 +9,10 @@ import type {
 } from "@objectiveai/sdk";
 import { FunctionTree } from "@objectiveai/function-tree";
 import { AgentCompletionChat } from "./components/shared/AgentCompletionChat";
+import { InnerErrorsList } from "./components/shared/InnerErrorsList";
 import { OutputBar } from "./components/shared/OutputBar";
 import { toInputFunctionExecution } from "./lib/treeAdapter";
+import { collectInnerErrors } from "./lib/innerErrors";
 import type { FunctionExecutionEntry } from "./types";
 
 interface ChatLeaf {
@@ -144,6 +146,7 @@ export function FunctionExecutionView({ entry }: { entry: FunctionExecutionEntry
     : null;
 
   const chats = chunk ? collectChats(chunk) : [];
+  const innerErrors = useMemo(() => collectInnerErrors(entry), [chunk]);
   const treeData = useMemo(
     () => (chunk ? toInputFunctionExecution(chunk) : null),
     [chunk],
@@ -183,6 +186,7 @@ export function FunctionExecutionView({ entry }: { entry: FunctionExecutionEntry
 
       {view === "chat" && (
         <>
+          <InnerErrorsList errors={innerErrors} />
           {chats.map((leaf, idx) => {
             const showScores = leaf.scores && leaf.scores.length > 0 &&
               (idx === 0 || chats[idx - 1].scores !== leaf.scores);

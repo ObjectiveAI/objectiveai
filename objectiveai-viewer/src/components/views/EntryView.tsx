@@ -1,10 +1,13 @@
+import { useMemo } from "react";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import { AgentCompletionView } from "../../AgentCompletionView";
 import { FunctionInventionRecursiveView } from "../../FunctionInventionRecursiveView";
 import { FunctionExecutionView } from "../../FunctionExecutionView";
 import { LaboratoryExecutionView } from "./LaboratoryExecutionView";
 import { ErrorBoundary } from "../shared/ErrorBoundary";
+import { InnerErrorsBadge } from "../shared/InnerErrorsBadge";
 import { getEntrySummary } from "../../lib/entrySummary";
+import { countInnerErrors } from "../../lib/innerErrors";
 import type { Entry } from "../../types";
 
 function EntryContent({ entry }: { entry: Entry }) {
@@ -46,6 +49,7 @@ export function EntryView({
   onToggle?: () => void;
 }) {
   const summary = getEntrySummary(entry);
+  const innerErrorCount = useMemo(() => countInnerErrors(entry), [entry.chunk]);
 
   return (
     <Collapsible.Root open={!collapsed} onOpenChange={onToggle}>
@@ -63,6 +67,7 @@ export function EntryView({
         </span>
         <span className="text-info-bright font-semibold truncate">{summary.title}</span>
         {summary.detail && <span className="text-info-dim truncate">{summary.detail}</span>}
+        <InnerErrorsBadge count={innerErrorCount} />
         <span className="font-mono text-[10px] text-info-dim opacity-60 ml-auto shrink-0">{entry.id.slice(0, 12)}</span>
       </Collapsible.Trigger>
 

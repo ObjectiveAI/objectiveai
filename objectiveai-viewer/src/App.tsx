@@ -1,15 +1,18 @@
 import { useState, useMemo, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useEntries } from "./hooks/useEntries";
+import { useApiCalls } from "./hooks/useApiCalls";
 import { useCollapseState } from "./hooks/useCollapseState";
 import { useSessionStorage } from "./hooks/useSessionStorage";
 import { Shell } from "./components/layout/Shell";
 import { StatusBar } from "./components/layout/StatusBar";
 import { EntryView } from "./components/views/EntryView";
+import { NetworkPanel } from "./components/shared/NetworkPanel";
 import { TabBar, type Tab } from "./TabBar";
 import { PluginPane } from "./PluginPane";
 import { RestoreBanner } from "./components/shared/RestoreBanner";
 import { SessionPicker } from "./components/shared/SessionPicker";
+import { CommandPalette } from "./components/shared/CommandPalette";
 import type { Entry } from "./types";
 
 const KINDS: { kind: Entry["kind"]; label: string }[] = [
@@ -21,8 +24,21 @@ const KINDS: { kind: Entry["kind"]; label: string }[] = [
 
 function ObjectiveAIView() {
   const liveEntries = useEntries();
+  const apiCalls = useApiCalls();
   const session = useSessionStorage(liveEntries, true);
   const [sessionPickerOpen, setSessionPickerOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setCommandPaletteOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const entries = session.restoredEntries ?? liveEntries;
   const { isCollapsed, toggle, collapseAll, expandAll } = useCollapseState(entries);
@@ -73,7 +89,7 @@ function ObjectiveAIView() {
   ) : null;
 
   return (
-    <Shell statusBar={<StatusBar entries={entries} isHistorical={session.isViewingPast} />} banner={banner} entryCount={entries.length}>
+    <Shell statusBar={<StatusBar entries={entries} isHistorical={session.isViewingPast} />} banner={banner} networkPanel={<NetworkPanel entries={apiCalls} />} entryCount={entries.length}>
       <SessionPicker
         open={sessionPickerOpen}
         onOpenChange={setSessionPickerOpen}
@@ -82,6 +98,7 @@ function ObjectiveAIView() {
         onLoad={session.loadSession}
         onDelete={session.deleteSession}
       />
+      <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
       {entries.length > 0 && (
         <div className="flex items-center gap-1.5 px-2 mb-4 select-none">
           {KINDS.map(({ kind, label }) => {
@@ -175,9 +192,9 @@ function App() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+    <div className="flex flex-col h-screen">
       <TabBar tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} />
-      <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+      <div className="flex-1 min-h-0 flex flex-col">
         {activeTab === OBJECTIVEAI_TAB_ID ? (
           <ObjectiveAIView />
         ) : (

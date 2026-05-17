@@ -100,3 +100,25 @@ export interface LaboratoryExecutionEntry {
 }
 
 export type Entry = AgentCompletionEntry | FunctionExecutionEntry | FunctionInventionRecursiveEntry | LaboratoryExecutionEntry;
+
+export interface ViewerInboundEvent {
+  type: "inbound";
+  destination: string;
+  sub_type: string;
+  value: unknown;
+}
+
+export interface ViewerCliCommandEvent {
+  type: "cli_command";
+  destination: string;
+  value: unknown;
+}
+
+export interface ViewerApiCallEvent {
+  type: "api_call";
+  destination: string;
+  sub_type: string;
+  value: unknown;
+}
+
+export type ViewerEvent = ViewerInboundEvent | ViewerCliCommandEvent | ViewerApiCallEvent;

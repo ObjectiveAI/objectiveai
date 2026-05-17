@@ -15,33 +15,26 @@ export function TabBar({ tabs, activeTab, onSelect }: TabBarProps): ReactElement
   return (
     <nav
       role="tablist"
-      style={{
-        display: "flex",
-        gap: "0.25rem",
-        padding: "0.25rem 0.5rem",
-        borderBottom: "1px solid #ccc",
-        background: "#f7f7f7",
-      }}
+      className="flex gap-1 px-2 py-1 border-b border-node-border bg-ground-raised"
     >
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          role="tab"
-          aria-selected={tab.id === activeTab}
-          onClick={() => onSelect(tab.id)}
-          style={{
-            padding: "0.35rem 0.75rem",
-            border: "none",
-            background: tab.id === activeTab ? "#fff" : "transparent",
-            borderBottom:
-              tab.id === activeTab ? "2px solid #0066cc" : "2px solid transparent",
-            cursor: "pointer",
-            fontWeight: tab.id === activeTab ? 600 : 400,
-          }}
-        >
-          {tab.label}
-        </button>
-      ))}
+      {tabs.map((tab) => {
+        const active = tab.id === activeTab;
+        return (
+          <button
+            key={tab.id}
+            role="tab"
+            aria-selected={active}
+            onClick={() => onSelect(tab.id)}
+            className={`px-3 py-1.5 rounded-sm font-mono text-xs border-b-2 transition-colors cursor-pointer ${
+              active
+                ? "border-copper-mid text-copper-bright font-semibold bg-ground-surface"
+                : "border-transparent text-info-dim hover:text-info-mid"
+            }`}
+          >
+            {tab.label}
+          </button>
+        );
+      })}
     </nav>
   );
 }
