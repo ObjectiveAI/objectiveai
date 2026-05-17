@@ -6,6 +6,7 @@ export interface StoredSession {
   endTime: number | null;
   entryCount: number;
   kinds: Entry["kind"][];
+  name?: string;
 }
 
 const DB_NAME = "objectiveai-viewer";
@@ -139,6 +140,25 @@ export function getEntries(sessionId: string): Promise<Entry[]> {
         resolve(rows.map((r) => r.entry));
       };
       req.onerror = () => reject(req.error);
+    }),
+  );
+}
+
+export function renameSession(id: string, name: string): Promise<void> {
+  return openDB().then((db) =>
+    new Promise((resolve, reject) => {
+      const transaction = db.transaction("sessions", "readwrite");
+      const store = transaction.objectStore("sessions");
+      const getReq = store.get(id);
+      getReq.onsuccess = () => {
+        const session = getReq.result as StoredSession | undefined;
+        if (session) {
+          session.name = name;
+          store.put(session);
+        }
+      };
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
     }),
   );
 }

@@ -13,6 +13,7 @@ import { PluginPane } from "./PluginPane";
 import { RestoreBanner } from "./components/shared/RestoreBanner";
 import { SessionPicker } from "./components/shared/SessionPicker";
 import { CommandPalette } from "./components/shared/CommandPalette";
+import { LogoMark, Wordmark } from "./components/shared/Logo";
 import type { Entry } from "./types";
 
 const KINDS: { kind: Entry["kind"]; label: string }[] = [
@@ -34,6 +35,18 @@ function ObjectiveAIView() {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         setCommandPaletteOpen((v) => !v);
+        return;
+      }
+      if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "j" || e.key === "k") {
+        const active = document.activeElement;
+        if (active?.tagName === "INPUT" || active?.tagName === "TEXTAREA") return;
+        const triggers = Array.from(document.querySelectorAll<HTMLElement>("[data-entry-trigger]"));
+        if (triggers.length === 0) return;
+        const currentIdx = active ? triggers.indexOf(active as HTMLElement) : -1;
+        const direction = (e.key === "ArrowDown" || e.key === "j") ? 1 : -1;
+        const nextIdx = currentIdx === -1 ? (direction === 1 ? 0 : triggers.length - 1) : Math.max(0, Math.min(triggers.length - 1, currentIdx + direction));
+        triggers[nextIdx]?.focus();
+        e.preventDefault();
       }
     };
     window.addEventListener("keydown", handler);
@@ -45,6 +58,7 @@ function ObjectiveAIView() {
   const [activeKinds, setActiveKinds] = useState<Set<Entry["kind"]>>(
     new Set(KINDS.map((k) => k.kind))
   );
+  const [searchQuery, setSearchQuery] = useState("");
 
   const toggleKind = (kind: Entry["kind"]) => {
     setActiveKinds((prev) => {
@@ -64,10 +78,17 @@ function ObjectiveAIView() {
     return counts;
   }, [entries]);
 
-  const filtered = useMemo(
-    () => entries.filter((e) => activeKinds.has(e.kind)),
-    [entries, activeKinds],
-  );
+  const filtered = useMemo(() => {
+    let result = entries.filter((e) => activeKinds.has(e.kind));
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      result = result.filter((e) => {
+        const json = JSON.stringify(e).toLowerCase();
+        return json.includes(q);
+      });
+    }
+    return result;
+  }, [entries, activeKinds, searchQuery]);
 
   const banner = session.showRestoreBanner && session.restoredEntries ? (
     <RestoreBanner
@@ -97,6 +118,8 @@ function ObjectiveAIView() {
         currentSessionId={session.sessionId}
         onLoad={session.loadSession}
         onDelete={session.deleteSession}
+        onRename={session.renameSession}
+        onExport={session.exportSession}
       />
       <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
       {entries.length > 0 && (
@@ -119,7 +142,20 @@ function ObjectiveAIView() {
               </button>
             );
           })}
-          <div className="ml-auto flex gap-1">
+          <div className="ml-auto flex items-center gap-1">
+            <div className="relative mr-1">
+              <svg className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-info-dim pointer-events-none" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <circle cx="5" cy="5" r="3.5" />
+                <path d="M8 8L10.5 10.5" />
+              </svg>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search…"
+                className="w-28 pl-6 pr-2 py-1 rounded-sm bg-ground-surface border border-node-border text-[10px] font-mono text-info-mid placeholder:text-info-dim/50 outline-none focus:border-copper-dim focus:w-44 transition-all"
+              />
+            </div>
             <button
               onClick={() => { session.refreshSessions().then(() => setSessionPickerOpen(true)); }}
               title="Sessions"
@@ -155,8 +191,28 @@ function ObjectiveAIView() {
       )}
 
       {entries.length === 0 && (
-        <div className="text-center text-info-dim italic py-12">
-          Waiting for requests…
+        <div className="flex flex-col items-center justify-center py-20 px-6 select-none">
+          <LogoMark className="h-8 w-auto text-info-dim/30 mb-2" />
+          <Wordmark className="w-[140px] h-auto text-info-dim/30 mb-8" />
+          <p className="text-info-bright text-sm font-medium mb-1">No activity yet</p>
+          <p className="text-info-dim text-xs mb-8 max-w-xs text-center">Run a command from the CLI or use the command palette to get started. Results stream here in real time.</p>
+          <div className="max-w-sm w-full space-y-2.5">
+            <div className="bg-ground-surface border border-node-border rounded-md px-4 py-3">
+              <div className="text-[10px] font-mono text-info-dim uppercase tracking-wide mb-1.5">From the CLI</div>
+              <code className="text-[11px] font-mono text-copper-bright leading-relaxed block">objectiveai functions executions create --viewer</code>
+            </div>
+            <div className="bg-ground-surface border border-node-border rounded-md px-4 py-3">
+              <div className="text-[10px] font-mono text-info-dim uppercase tracking-wide mb-1.5">From here</div>
+              <p className="text-[11px] text-info-mid">
+                Press{' '}
+                <kbd className="px-1 py-px rounded-sm bg-ground-raised border border-node-border text-info-bright font-mono text-[10px]">{navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}K</kbd>
+                {' '}to open the command palette and run any ObjectiveAI command directly.
+              </p>
+            </div>
+            <div className="text-center text-[10px] text-info-dim/50 mt-3 font-mono">
+              listening on localhost:5001
+            </div>
+          </div>
         </div>
       )}
 

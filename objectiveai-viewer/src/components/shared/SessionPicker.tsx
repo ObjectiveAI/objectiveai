@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import type { StoredSession } from "../../lib/storage";
 
@@ -33,6 +34,83 @@ const KIND_SHORT: Record<string, string> = {
   laboratory: "Lab",
 };
 
+function InlineName({
+  session,
+  onRename,
+}: {
+  session: StoredSession;
+  onRename: (id: string, name: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editing]);
+
+  const startEditing = () => {
+    setValue(session.name || formatDate(session.startTime));
+    setEditing(true);
+  };
+
+  const commit = () => {
+    setEditing(false);
+    const trimmed = value.trim();
+    if (trimmed && trimmed !== formatDate(session.startTime)) {
+      onRename(session.id, trimmed);
+    }
+  };
+
+  const cancel = () => {
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit();
+          if (e.key === "Escape") cancel();
+        }}
+        className="bg-ground-surface border border-copper-dim rounded-sm px-1 py-px text-xs text-info-bright font-medium outline-none w-full max-w-[180px]"
+      />
+    );
+  }
+
+  if (session.name) {
+    return (
+      <div>
+        <span
+          onClick={startEditing}
+          className="text-info-bright font-semibold cursor-pointer hover:underline"
+        >
+          {session.name}
+        </span>
+        <div className="text-info-dim text-[10px] mt-0.5">
+          {formatDate(session.startTime)}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <span
+      onClick={startEditing}
+      className="text-info-bright font-medium cursor-pointer hover:underline"
+    >
+      {formatDate(session.startTime)}
+    </span>
+  );
+}
+
 export function SessionPicker({
   open,
   onOpenChange,
@@ -40,6 +118,8 @@ export function SessionPicker({
   currentSessionId,
   onLoad,
   onDelete,
+  onRename,
+  onExport,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -47,6 +127,8 @@ export function SessionPicker({
   currentSessionId: string;
   onLoad: (id: string) => void;
   onDelete: (id: string) => void;
+  onRename: (id: string, name: string) => void;
+  onExport: (id: string) => void;
 }) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -83,9 +165,7 @@ export function SessionPicker({
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-info-bright font-medium">
-                        {formatDate(session.startTime)}
-                      </span>
+                      <InlineName session={session} onRename={onRename} />
                       <span className="text-info-dim">
                         {formatDuration(session.startTime, session.endTime)}
                       </span>
@@ -108,13 +188,26 @@ export function SessionPicker({
                     </div>
                   </div>
                   <div className="flex gap-1 shrink-0">
-                    {!isCurrent && (
+                    {isCurrent ? (
+                      <button
+                        onClick={() => onExport(session.id)}
+                        className="px-2 py-1 rounded-sm text-info-dim hover:text-info-bright hover:bg-ground-surface transition-colors"
+                      >
+                        Export
+                      </button>
+                    ) : (
                       <>
                         <button
                           onClick={() => { onLoad(session.id); onOpenChange(false); }}
                           className="px-2 py-1 rounded-sm text-copper-bright hover:bg-copper-warm/20 transition-colors"
                         >
                           Load
+                        </button>
+                        <button
+                          onClick={() => onExport(session.id)}
+                          className="px-2 py-1 rounded-sm text-info-dim hover:text-info-bright hover:bg-ground-surface transition-colors"
+                        >
+                          Export
                         </button>
                         <button
                           onClick={() => onDelete(session.id)}

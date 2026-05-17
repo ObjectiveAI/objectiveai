@@ -32,24 +32,29 @@ export function MessageInput({ responseId }: { responseId: string }) {
   }, [send]);
 
   return (
-    <div className="max-w-content mx-auto mb-6 flex gap-2 px-4">
-      <textarea
-        className="flex-1 bg-ground-surface border border-node-border rounded-md px-3 py-2 text-sm text-info-bright font-mono resize-none placeholder:text-info-dim focus:outline-none focus:border-copper-dim"
-        rows={1}
-        placeholder="Message agent…"
-        aria-label="Message to agent"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={handleKeyDown}
-        disabled={sending}
-      />
-      <button
-        className="px-3 py-2 bg-copper-warm text-ground font-mono text-xs font-semibold rounded-md hover:bg-copper-mid disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        onClick={send}
-        disabled={!text.trim() || sending}
-      >
-        Send
-      </button>
+    <div className="max-w-content mx-auto mb-6 px-4">
+      <div className="text-[10px] font-mono text-info-dim uppercase tracking-wide mb-1.5 px-1">
+        Multi-turn — send a follow-up while the agent is running
+      </div>
+      <div className="flex gap-2">
+        <textarea
+          className="flex-1 bg-ground-surface border border-node-border rounded-md px-3 py-2 text-sm text-info-bright font-mono resize-none placeholder:text-info-dim focus:outline-none focus:border-copper-dim"
+          rows={1}
+          placeholder="Message agent…"
+          aria-label="Send follow-up message to running agent"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={handleKeyDown}
+          disabled={sending}
+        />
+        <button
+          className="px-3 py-2 bg-copper-warm text-ground font-mono text-xs font-semibold rounded-md hover:bg-copper-mid disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          onClick={send}
+          disabled={!text.trim() || sending}
+        >
+          Send
+        </button>
+      </div>
     </div>
   );
 }

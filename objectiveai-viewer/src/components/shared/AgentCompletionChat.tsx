@@ -106,7 +106,14 @@ export function AgentCompletionChat({
         </div>
       )}
 
-      {chunk?.usage && <UsageFooter usage={chunk.usage} />}
+      {chunk?.usage ? (
+        <UsageFooter usage={chunk.usage} />
+      ) : status === "streaming" && chunk ? (
+        <div className="px-4 py-1.5 border-t border-node-border text-[10px] text-info-dim font-mono tabular-nums flex items-center gap-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-copper-hot animate-pulse" />
+          <span>{chunk.messages.length} message{chunk.messages.length !== 1 ? "s" : ""} received</span>
+        </div>
+      ) : null}
     </div>
   );
 }

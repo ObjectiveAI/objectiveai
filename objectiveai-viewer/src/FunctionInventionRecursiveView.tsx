@@ -1,5 +1,34 @@
+import { useState, useCallback, useEffect } from "react";
+import * as Collapsible from "@radix-ui/react-collapsible";
 import { AgentCompletionChat } from "./components/shared/AgentCompletionChat";
 import type { FunctionInventionRecursiveEntry } from "./types";
+
+function CopyButton({ text, label }: { text: string; label?: string }) {
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!copied) return;
+    const t = setTimeout(() => setCopied(false), 1500);
+    return () => clearTimeout(t);
+  }, [copied]);
+
+  const copy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+    } catch { /* clipboard denied */ }
+  }, [text]);
+
+  return (
+    <button
+      onClick={copy}
+      className="text-[10px] text-info-dim hover:text-copper-bright transition-colors"
+      title="Copy to clipboard"
+    >
+      {copied ? "copied" : (label ?? "copy")}
+    </button>
+  );
+}
 
 function stateField(state: unknown, field: string): string | undefined {
   if (state && typeof state === "object" && field in state) {
@@ -48,10 +77,16 @@ export function FunctionInventionRecursiveView({
                   <span className="text-[10px] font-semibold text-copper-hot bg-copper-hot/15 px-1.5 py-px rounded-sm">created</span>
                 )}
                 {inv.path && (
-                  <span className="text-info-dim font-normal text-[11px] ml-auto">
-                    {inv.path.remote === "filesystem"
-                      ? `${inv.path.owner}/${inv.path.repository}`
-                      : JSON.stringify(inv.path)}
+                  <span className="text-info-dim font-normal text-[11px] ml-auto flex items-center gap-1.5">
+                    {inv.path.remote === "mock"
+                      ? inv.path.name
+                      : `${inv.path.owner}/${inv.path.repository}`}
+                    {hasFunction && (
+                      <CopyButton
+                        text={inv.path.remote === "mock" ? inv.path.name : `${inv.path.owner}/${inv.path.repository}`}
+                        label="copy path"
+                      />
+                    )}
                   </span>
                 )}
               </div>
@@ -59,6 +94,35 @@ export function FunctionInventionRecursiveView({
                 <div className="text-xs text-info-mid mt-1">{description}</div>
               )}
             </div>
+
+            {hasFunction && (
+              <div className="max-w-content mx-auto mb-3 px-4">
+                <Collapsible.Root defaultOpen={false}>
+                  <div className="flex items-center gap-2">
+                    <Collapsible.Trigger className="flex items-center gap-1 text-[11px] text-info-dim hover:text-info-mid cursor-pointer transition-colors group">
+                      <svg
+                        className="w-3 h-3 transition-transform group-data-[state=open]:rotate-90"
+                        viewBox="0 0 12 12"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                      >
+                        <path d="M4.5 2.5L8 6L4.5 9.5" />
+                      </svg>
+                      View function definition
+                    </Collapsible.Trigger>
+                    <CopyButton text={JSON.stringify(inv.function, null, 2)} />
+                  </div>
+                  <Collapsible.Content>
+                    <div className="mt-2 bg-ground-surface border border-node-border rounded-md p-3 max-h-[300px] overflow-y-auto">
+                      <pre className="font-mono text-[11px] text-info-mid whitespace-pre-wrap break-words">
+                        {JSON.stringify(inv.function, null, 2)}
+                      </pre>
+                    </div>
+                  </Collapsible.Content>
+                </Collapsible.Root>
+              </div>
+            )}
 
             {inv.completions.length === 0 && !invError && (
               <div className="max-w-content mx-auto mb-3 text-info-dim italic px-4">

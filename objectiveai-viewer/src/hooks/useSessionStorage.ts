@@ -4,6 +4,7 @@ import {
   saveSession,
   listSessions,
   deleteSession as deleteStoredSession,
+  renameSession as renameStoredSession,
   putEntries,
   getEntries,
   pruneOldSessions,
@@ -110,6 +111,31 @@ export function useSessionStorage(entries: Entry[], isLive: boolean) {
     if (viewingSessionId === id) returnToLive();
   }, [viewingSessionId, returnToLive]);
 
+  const renameSession = useCallback(async (id: string, name: string) => {
+    await renameStoredSession(id, name);
+    const sessions = await listSessions();
+    setPastSessions(sessions);
+  }, []);
+
+  const exportSession = useCallback(async (id: string) => {
+    const entries = await getEntries(id);
+    const sessionMeta = pastSessions.find((s) => s.id === id);
+    if (!sessionMeta) return;
+    const payload = { session: sessionMeta, entries };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const date = new Date(sessionMeta.startTime);
+    const filename = `objectiveai-session-${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}-${String(date.getHours()).padStart(2, "0")}${String(date.getMinutes()).padStart(2, "0")}.json`;
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [pastSessions]);
+
   const refreshSessions = useCallback(async () => {
     const sessions = await listSessions();
     setPastSessions(sessions);
@@ -124,6 +150,8 @@ export function useSessionStorage(entries: Entry[], isLive: boolean) {
     pastSessions,
     loadSession,
     deleteSession,
+    renameSession,
+    exportSession,
     isViewingPast: viewingSessionId !== null,
     returnToLive,
     refreshSessions,

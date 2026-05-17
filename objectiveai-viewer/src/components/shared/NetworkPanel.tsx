@@ -19,8 +19,19 @@ function StatusDot({ status }: { status: ApiCallEntry["status"] }) {
   return <span className={`inline-block w-1.5 h-1.5 rounded-full ${color}`} />;
 }
 
+function formatError(error: unknown): string {
+  if (error === null || error === undefined) return "";
+  if (typeof error === "string") return error;
+  try {
+    return JSON.stringify(error, null, 2);
+  } catch {
+    return String(error);
+  }
+}
+
 export function NetworkPanel({ entries }: { entries: ApiCallEntry[] }) {
   const [expanded, setExpanded] = useState(false);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   if (entries.length === 0) return null;
 
@@ -44,13 +55,16 @@ export function NetworkPanel({ entries }: { entries: ApiCallEntry[] }) {
         </svg>
         <span>Network</span>
         <span className="text-info-dim/70">({entries.length})</span>
+        {entries.some((e) => e.status === "error") && (
+          <span className="ml-1 text-error">{entries.filter((e) => e.status === "error").length} errors</span>
+        )}
         {entries.some((e) => e.status === "streaming") && (
           <span className="ml-auto text-copper-bright">streaming</span>
         )}
       </button>
 
       {expanded && (
-        <div className="max-h-48 overflow-y-auto border-t border-node-border">
+        <div className="max-h-64 overflow-y-auto border-t border-node-border">
           <table className="w-full text-[10px] font-mono">
             <thead>
               <tr className="text-info-dim border-b border-node-border/50">
@@ -62,26 +76,55 @@ export function NetworkPanel({ entries }: { entries: ApiCallEntry[] }) {
             </thead>
             <tbody>
               {entries.map((entry) => (
-                <tr
-                  key={entry.id}
-                  className={`border-b border-node-border/30 ${
-                    entry.status === "error" ? "bg-error/5" : ""
-                  }`}
-                >
-                  <td className="px-3 py-1">
-                    <StatusDot status={entry.status} />
-                  </td>
-                  <td className="px-3 py-1 text-info-mid">
-                    <span className="text-info-dim mr-1.5">{entry.method}</span>
-                    {entry.path}
-                  </td>
-                  <td className="px-3 py-1 text-right text-info-dim">
-                    {entry.chunkCount}
-                  </td>
-                  <td className="px-3 py-1 text-right text-info-dim">
-                    {formatDuration(entry)}
-                  </td>
-                </tr>
+                <>
+                  <tr
+                    key={entry.id}
+                    onClick={() => setExpandedRow(expandedRow === entry.id ? null : entry.id)}
+                    className={`border-b border-node-border/30 cursor-pointer hover:bg-ground-raised/50 ${
+                      entry.status === "error" ? "bg-error/5" : ""
+                    }`}
+                  >
+                    <td className="px-3 py-1">
+                      <StatusDot status={entry.status} />
+                    </td>
+                    <td className="px-3 py-1 text-info-mid">
+                      <span className="text-info-dim mr-1.5">{entry.method}</span>
+                      {entry.path}
+                    </td>
+                    <td className="px-3 py-1 text-right text-info-dim">
+                      {entry.chunkCount}
+                    </td>
+                    <td className="px-3 py-1 text-right text-info-dim">
+                      {formatDuration(entry)}
+                    </td>
+                  </tr>
+                  {expandedRow === entry.id && (
+                    <tr key={`${entry.id}-detail`}>
+                      <td colSpan={4} className="px-3 py-2 bg-ground-raised/30">
+                        <div className="space-y-1">
+                          <div className="text-info-dim">
+                            <span className="text-info-dim/70">Started:</span>{" "}
+                            {new Date(entry.startedAt).toLocaleTimeString()}
+                          </div>
+                          {entry.endedAt && (
+                            <div className="text-info-dim">
+                              <span className="text-info-dim/70">Ended:</span>{" "}
+                              {new Date(entry.endedAt).toLocaleTimeString()}
+                            </div>
+                          )}
+                          {entry.error != null && (
+                            <div className="mt-1">
+                              <div className="text-error/70 text-[9px] uppercase tracking-wide mb-0.5">Error</div>
+                              <pre className="text-error text-[10px] whitespace-pre-wrap break-words max-h-32 overflow-y-auto bg-error/5 rounded-sm px-2 py-1">
+                                {formatError(entry.error)}
+                              </pre>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </>
               ))}
             </tbody>
           </table>
