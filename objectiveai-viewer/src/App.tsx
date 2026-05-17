@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useDeferredValue } from "react";
 import { tauriInvoke } from "./lib/tauri";
 import { useEntries } from "./hooks/useEntries";
 import { useApiCalls } from "./hooks/useApiCalls";
@@ -68,6 +68,7 @@ function ObjectiveAIView() {
     new Set(KINDS.map((k) => k.kind))
   );
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearch = useDeferredValue(searchQuery);
 
   const toggleKind = (kind: Entry["kind"]) => {
     setActiveKinds((prev) => {
@@ -89,15 +90,15 @@ function ObjectiveAIView() {
 
   const filtered = useMemo(() => {
     let result = entries.filter((e) => activeKinds.has(e.kind));
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
+    if (deferredSearch.trim()) {
+      const q = deferredSearch.trim().toLowerCase();
       result = result.filter((e) => {
         const json = JSON.stringify(e).toLowerCase();
         return json.includes(q);
       });
     }
     return result;
-  }, [entries, activeKinds, searchQuery]);
+  }, [entries, activeKinds, deferredSearch]);
 
   const banner = session.showRestoreBanner && session.restoredEntries ? (
     <RestoreBanner
@@ -162,6 +163,7 @@ function ObjectiveAIView() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search…"
+                aria-label="Search entries"
                 className="w-28 pl-6 pr-2 py-1 rounded-sm bg-ground-surface border border-node-border text-[10px] font-mono text-info-mid placeholder:text-info-dim/50 outline-none focus:border-copper-dim focus:w-44 transition-all"
               />
             </div>

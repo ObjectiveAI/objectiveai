@@ -65,7 +65,7 @@ export function StatusBar({ entries, isHistorical }: { entries: Entry[]; isHisto
   }
 
   return (
-    <footer className="flex items-center gap-6 px-6 py-2 border-t border-node-border bg-ground-raised font-mono text-[10px] text-info-dim tabular-nums select-none">
+    <footer role="status" aria-live="polite" className="flex items-center gap-6 px-6 py-2 border-t border-node-border bg-ground-raised font-mono text-[10px] text-info-dim tabular-nums select-none">
       <div className="flex items-center gap-1.5">
         {isHistorical ? (
           <>

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect, useState } from "react";
+import { memo, useMemo, useRef, useEffect, useState } from "react";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import { AgentCompletionView } from "../../AgentCompletionView";
 import { FunctionInventionRecursiveView } from "../../FunctionInventionRecursiveView";
@@ -47,7 +47,7 @@ function entryTimestamp(entry: Entry): string {
   return new Date(c * 1000).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
-export function EntryView({
+export const EntryView = memo(function EntryView({
   entry,
   collapsed = false,
   onToggle,
@@ -98,4 +98,4 @@ export function EntryView({
       </Collapsible.Content>
     </Collapsible.Root>
   );
-}
+});

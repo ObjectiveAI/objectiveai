@@ -32,7 +32,7 @@ export function Shell({ children, statusBar, banner, networkPanel, entryCount }:
 
   return (
     <div className="flex flex-col h-screen relative">
-      <header className="flex items-center gap-2.5 px-6 py-3 border-b border-node-border bg-ground-raised shrink-0 select-none">
+      <header role="banner" className="flex items-center gap-2.5 px-6 py-3 border-b border-node-border bg-ground-raised shrink-0 select-none">
         <LogoMark className="h-5 w-auto text-info-bright" />
         <Wordmark className="w-[110px] h-auto text-info-bright" />
         <span className="text-info-dim text-[10px] uppercase tracking-widest font-mono ml-1">viewer</span>
@@ -43,7 +43,7 @@ export function Shell({ children, statusBar, banner, networkPanel, entryCount }:
       {banner}
       <ScrollArea.Root className="flex-1 overflow-hidden">
         <ScrollArea.Viewport ref={viewportRef} className="h-full w-full" onScroll={onScroll}>
-          <main className="py-6 px-4">
+          <main role="main" className="py-6 px-4">
             {children}
           </main>
         </ScrollArea.Viewport>
@@ -58,6 +58,7 @@ export function Shell({ children, statusBar, banner, networkPanel, entryCount }:
         <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-10">
           <button
             onClick={jumpToBottom}
+            aria-label="Jump to latest entry"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-ground-raised/90 backdrop-blur-sm border border-node-border text-[10px] font-mono text-info-mid hover:text-copper-bright hover:border-copper-dim shadow-lg transition-all"
           >
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
