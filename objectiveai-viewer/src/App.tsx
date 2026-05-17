@@ -12,15 +12,16 @@ import { TabBar, type Tab } from "./TabBar";
 import { PluginPane } from "./PluginPane";
 import { RestoreBanner } from "./components/shared/RestoreBanner";
 import { SessionPicker } from "./components/shared/SessionPicker";
+import { SessionSidebar } from "./components/shared/SessionSidebar";
 import { CommandPalette } from "./components/shared/CommandPalette";
 import { LogoMark, Wordmark } from "./components/shared/Logo";
 import type { Entry } from "./types";
 
-const KINDS: { kind: Entry["kind"]; label: string }[] = [
-  { kind: "agent-completion", label: "Agent" },
-  { kind: "execution", label: "Execution" },
-  { kind: "invention", label: "Invention" },
-  { kind: "laboratory", label: "Laboratory" },
+const KINDS: { kind: Entry["kind"]; label: string; activeClass: string }[] = [
+  { kind: "agent-completion", label: "Agent", activeClass: "bg-kind-agent/20 text-kind-agent" },
+  { kind: "execution", label: "Execution", activeClass: "bg-kind-execution/20 text-kind-execution" },
+  { kind: "invention", label: "Invention", activeClass: "bg-kind-invention/20 text-kind-invention" },
+  { kind: "laboratory", label: "Laboratory", activeClass: "bg-kind-laboratory/20 text-kind-laboratory" },
 ];
 
 function ObjectiveAIView() {
@@ -120,7 +121,7 @@ function ObjectiveAIView() {
   ) : null;
 
   return (
-    <Shell statusBar={<StatusBar entries={entries} isHistorical={session.isViewingPast} />} banner={banner} networkPanel={<NetworkPanel entries={apiCalls} />} entryCount={entries.length}>
+    <Shell statusBar={<StatusBar entries={entries} isHistorical={session.isViewingPast} />} banner={banner} networkPanel={<NetworkPanel entries={apiCalls} />} entryCount={entries.length} sidebar={<SessionSidebar sessions={session.pastSessions} currentSessionId={session.sessionId} onLoad={(id) => { session.loadSession(id); }} />}>
       <SessionPicker
         open={sessionPickerOpen}
         onOpenChange={setSessionPickerOpen}
@@ -134,7 +135,7 @@ function ObjectiveAIView() {
       <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
       {entries.length > 0 && (
         <div className="sticky top-0 z-10 flex items-center gap-1.5 pb-3 pt-0 mb-1 bg-ground/95 backdrop-blur-sm select-none">
-          {KINDS.map(({ kind, label }) => {
+          {KINDS.map(({ kind, label, activeClass }) => {
             const count = kindCounts.get(kind) ?? 0;
             const active = activeKinds.has(kind);
             return (
@@ -143,7 +144,7 @@ function ObjectiveAIView() {
                 onClick={() => toggleKind(kind)}
                 className={`px-2.5 py-1 rounded-sm font-mono text-[10px] transition-colors ${
                   active
-                    ? "bg-copper-warm/20 text-copper-bright"
+                    ? activeClass
                     : "bg-ground-surface text-info-dim hover:text-info-mid"
                 }`}
               >

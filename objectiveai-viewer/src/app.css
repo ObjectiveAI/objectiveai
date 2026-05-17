@@ -35,6 +35,12 @@
   --color-copper-hot: #f59e0b;
   --color-copper-bright: #fbbf24;
 
+  /* Entry kind accents */
+  --color-kind-agent: #fbbf24;
+  --color-kind-execution: #d97706;
+  --color-kind-invention: #f59e0b;
+  --color-kind-laboratory: #a8a29e;
+
   /* Semantic */
   --color-node-border: #292524;
   --color-success: #22c55e;
@@ -88,6 +94,24 @@
   --ft-border: var(--color-node-border);
   --ft-node-bg: var(--color-ground-raised);
   --ft-panel-bg: var(--color-ground-surface);
+}
+
+@keyframes collapsible-open {
+  from { height: 0; opacity: 0; }
+  to { height: var(--radix-collapsible-content-height); opacity: 1; }
+}
+
+@keyframes collapsible-close {
+  from { height: var(--radix-collapsible-content-height); opacity: 1; }
+  to { height: 0; opacity: 0; }
+}
+
+[data-state="open"] > [data-radix-collapsible-content] {
+  animation: collapsible-open 200ms ease-out;
+}
+
+[data-state="closed"] > [data-radix-collapsible-content] {
+  animation: collapsible-close 150ms ease-in;
 }
 
 @media (prefers-reduced-motion: reduce) {

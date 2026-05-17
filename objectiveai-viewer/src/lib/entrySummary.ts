@@ -6,6 +6,8 @@ export interface EntrySummary {
   kindLabel: string;
   title: string;
   detail: string;
+  tokens: number;
+  messageCount: number;
 }
 
 function remotePath(path: unknown): string | null {
@@ -15,34 +17,43 @@ function remotePath(path: unknown): string | null {
   return null;
 }
 
+function extractUsage(entry: Entry): { tokens: number; messageCount: number } {
+  const chunk = entry.chunk as { usage?: { total_tokens?: number }; messages?: unknown[] } | null;
+  const tokens = chunk?.usage?.total_tokens ?? 0;
+  const messageCount = Array.isArray(chunk?.messages) ? chunk.messages.length : 0;
+  return { tokens, messageCount };
+}
+
 export function getEntrySummary(entry: Entry): EntrySummary {
+  const { tokens, messageCount } = extractUsage(entry);
+
   if (entry.error) {
-    return { status: "error", ...summarizeByKind(entry), detail: `error ${entry.error.code}` };
+    return { status: "error", ...summarizeByKind(entry), detail: `error ${entry.error.code}`, tokens, messageCount };
   }
 
   const base = summarizeByKind(entry);
 
   if (!entry.chunk) {
-    return { status: "streaming", ...base };
+    return { status: "streaming", ...base, tokens, messageCount };
   }
 
   switch (entry.kind) {
     case "agent-completion": {
       const done = isLastAssistantDone(entry.chunk.messages);
-      return { status: done ? "complete" : "streaming", ...base };
+      return { status: done ? "complete" : "streaming", ...base, tokens, messageCount };
     }
     case "execution": {
       const done = entry.chunk.output != null;
-      return { status: done ? "complete" : "streaming", ...base };
+      return { status: done ? "complete" : "streaming", ...base, tokens, messageCount };
     }
     case "invention": {
       const allDone = entry.chunk.inventions.length > 0 &&
         entry.chunk.inventions.every((inv: { function?: unknown; error?: unknown }) => inv.function != null || inv.error != null);
-      return { status: allDone ? "complete" : "streaming", ...base };
+      return { status: allDone ? "complete" : "streaming", ...base, tokens, messageCount };
     }
     case "laboratory": {
       const done = entry.chunk.usage != null;
-      return { status: done ? "complete" : "streaming", ...base };
+      return { status: done ? "complete" : "streaming", ...base, tokens, messageCount };
     }
   }
 }

@@ -32,11 +32,18 @@ const STATUS_COLOR = {
   error: "bg-error",
 };
 
+const KIND_ACCENT: Record<string, string> = {
+  "agent-completion": "border-l-kind-agent",
+  execution: "border-l-kind-execution",
+  invention: "border-l-kind-invention",
+  laboratory: "border-l-kind-laboratory",
+};
+
 const KIND_LABEL_STYLE: Record<string, string> = {
-  Agent: "text-copper-bright bg-copper-warm/20",
-  Execution: "text-info-mid bg-ground-surface",
-  Invention: "text-copper-mid bg-copper-mid/15",
-  Laboratory: "text-info-bright bg-ground-surface",
+  Agent: "text-kind-agent bg-kind-agent/15",
+  Execution: "text-kind-execution bg-kind-execution/15",
+  Invention: "text-kind-invention bg-kind-invention/15",
+  Laboratory: "text-kind-laboratory bg-kind-laboratory/15",
 };
 
 function entryTimestamp(entry: Entry): string {
@@ -70,11 +77,13 @@ export const EntryView = memo(function EntryView({
     }
   }, []);
 
+  const accentClass = KIND_ACCENT[entry.kind] ?? "";
+
   return (
     <Collapsible.Root open={!collapsed} onOpenChange={onToggle}>
-      <Collapsible.Trigger data-entry-trigger className={`group flex items-center gap-2.5 max-w-content mx-auto w-full px-4 h-10 cursor-pointer rounded-md border border-node-border bg-ground-raised text-xs select-none hover:bg-ground-surface focus:border-copper-dim transition-all duration-300 mb-1 ${isNew ? "opacity-0 translate-y-1" : "opacity-100 translate-y-0"}`}>
+      <Collapsible.Trigger data-entry-trigger className={`group flex items-center gap-2 max-w-content mx-auto w-full pl-3 pr-4 h-10 cursor-pointer rounded-md border border-node-border border-l-2 ${accentClass} bg-ground-raised text-xs select-none hover:bg-ground-surface focus:border-copper-dim transition-all duration-300 mb-1 ${isNew ? "opacity-0 translate-y-1" : "opacity-100 translate-y-0"}`}>
         <svg
-          className="w-2 h-2 text-copper-dim transition-transform duration-150 group-data-[state=open]:rotate-90 shrink-0"
+          className="w-2 h-2 text-info-dim transition-transform duration-150 group-data-[state=open]:rotate-90 shrink-0"
           viewBox="0 0 8 8"
           fill="currentColor"
         >
@@ -85,13 +94,17 @@ export const EntryView = memo(function EntryView({
           {summary.kindLabel}
         </span>
         <span className="text-info-bright font-semibold truncate">{summary.title}</span>
-        {summary.detail && <span className="text-info-dim truncate">{summary.detail}</span>}
+        {summary.detail && <span className="text-info-dim truncate hidden sm:inline">{summary.detail}</span>}
         <InnerErrorsBadge count={innerErrorCount} />
-        {timeStr && <span className="font-mono text-[10px] text-info-dim opacity-50 shrink-0">{timeStr}</span>}
-        <span className="font-mono text-[10px] text-info-dim opacity-60 ml-auto shrink-0">{entry.id.slice(0, 12)}</span>
+        <div className="ml-auto flex items-center gap-2 shrink-0">
+          {summary.tokens > 0 && <span className="font-mono text-[10px] text-info-dim/70 tabular-nums hidden sm:inline">{summary.tokens.toLocaleString()}t</span>}
+          {summary.messageCount > 0 && <span className="font-mono text-[10px] text-info-dim/50 tabular-nums hidden sm:inline">{summary.messageCount}msg</span>}
+          {timeStr && <span className="font-mono text-[10px] text-info-dim/50">{timeStr}</span>}
+          <span className="font-mono text-[10px] text-info-dim/40">{entry.id.slice(0, 8)}</span>
+        </div>
       </Collapsible.Trigger>
 
-      <Collapsible.Content forceMount className="data-[state=closed]:hidden">
+      <Collapsible.Content className="overflow-hidden">
         <ErrorBoundary>
           <EntryContent entry={entry} />
         </ErrorBoundary>
