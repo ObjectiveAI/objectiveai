@@ -129,8 +129,17 @@
   to { width: 20rem; opacity: 1; }
 }
 
-.animate-detail-open {
+@keyframes detail-close {
+  from { width: 20rem; opacity: 1; }
+  to { width: 0; opacity: 0; }
+}
+
+.detail-panel-enter {
   animation: detail-open 200ms ease-out forwards;
+}
+
+.detail-panel-exit {
+  animation: detail-close 150ms ease-in forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {

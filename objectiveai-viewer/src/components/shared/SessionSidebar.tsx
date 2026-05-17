@@ -44,6 +44,7 @@ export function SessionSidebar({
           <button
             key={session.id}
             onClick={() => { if (!isCurrent) onLoad(session.id); }}
+            aria-current={isCurrent ? "true" : undefined}
             className={`w-full text-left px-2 py-1.5 rounded-sm mb-px text-[10px] transition-colors ${
               isCurrent
                 ? "bg-copper-warm/10 border border-copper-warm/30"

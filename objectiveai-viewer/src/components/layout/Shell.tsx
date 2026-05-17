@@ -7,6 +7,22 @@ export function Shell({ children, statusBar, banner, networkPanel, sidebar, deta
   const userScrolledUp = useRef(false);
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [detailVisible, setDetailVisible] = useState(false);
+  const [detailClosing, setDetailClosing] = useState(false);
+  const prevDetailPanel = useRef(detailPanel);
+
+  useEffect(() => {
+    if (detailPanel && !prevDetailPanel.current) {
+      setDetailVisible(true);
+      setDetailClosing(false);
+    } else if (!detailPanel && prevDetailPanel.current) {
+      setDetailClosing(true);
+      const t = setTimeout(() => { setDetailVisible(false); setDetailClosing(false); }, 150);
+      prevDetailPanel.current = detailPanel;
+      return () => clearTimeout(t);
+    }
+    prevDetailPanel.current = detailPanel;
+  }, [detailPanel]);
 
   const onScroll = useCallback(() => {
     const el = viewportRef.current;
@@ -30,6 +46,18 @@ export function Shell({ children, statusBar, banner, networkPanel, sidebar, deta
     const el = viewportRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [entryCount]);
+
+  useEffect(() => {
+    if (!sidebar) return;
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "b") {
+        e.preventDefault();
+        setSidebarOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [sidebar]);
 
   return (
     <div className="flex flex-col h-screen relative">
@@ -56,7 +84,7 @@ export function Shell({ children, statusBar, banner, networkPanel, sidebar, deta
       {banner}
       <div className="flex flex-1 min-h-0">
         {sidebar && (
-          <aside className={`shrink-0 border-r border-node-border bg-ground-raised overflow-y-auto transition-all duration-200 ${sidebarOpen ? "w-56 opacity-100" : "w-0 opacity-0 border-r-0 overflow-hidden"}`}>
+          <aside className={`shrink-0 border-r border-node-border bg-ground-raised overflow-y-auto transition-[width] duration-200 ease-out ${sidebarOpen ? "w-56" : "w-0 overflow-hidden"}`}>
             {sidebar}
           </aside>
         )}
@@ -69,9 +97,10 @@ export function Shell({ children, statusBar, banner, networkPanel, sidebar, deta
             </ScrollArea.Viewport>
             <ScrollArea.Scrollbar
               orientation="vertical"
-              className="flex select-none touch-none p-0.5 bg-transparent transition-colors hover:bg-ground-surface w-2.5"
+              forceMount
+              className="flex select-none touch-none p-0.5 bg-transparent transition-colors hover:bg-ground-surface/50 w-2.5"
             >
-              <ScrollArea.Thumb className="relative flex-1 rounded-full bg-copper-dim/40 hover:bg-copper-dim/60" />
+              <ScrollArea.Thumb className="relative flex-1 rounded-full bg-copper-dim/20 hover:bg-copper-dim/50 transition-colors" />
             </ScrollArea.Scrollbar>
           </ScrollArea.Root>
           <div className={`absolute bottom-16 left-1/2 -translate-x-1/2 z-10 transition-opacity duration-200 ${showJumpToBottom ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
@@ -87,9 +116,9 @@ export function Shell({ children, statusBar, banner, networkPanel, sidebar, deta
             </button>
           </div>
         </div>
-        {detailPanel && (
-          <aside className="shrink-0 w-80 overflow-y-auto transition-all duration-200 animate-detail-open">
-            {detailPanel}
+        {(detailPanel || detailVisible) && (
+          <aside className={`shrink-0 w-80 overflow-y-auto ${detailClosing ? "detail-panel-exit" : "detail-panel-enter"}`}>
+            {detailPanel ?? prevDetailPanel.current}
           </aside>
         )}
       </div>

@@ -20,7 +20,7 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={copy}
-      className="text-[10px] text-info-dim hover:text-copper-bright transition-colors"
+      className={`text-[10px] transition-colors ${copied ? "text-success" : "text-info-dim hover:text-copper-bright"}`}
       title="Copy to clipboard"
     >
       {copied ? "copied" : "copy"}

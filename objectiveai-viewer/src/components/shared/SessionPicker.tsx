@@ -148,8 +148,13 @@ export function SessionPicker({
 
           <div className="overflow-y-auto flex-1 p-2">
             {sessions.length === 0 && (
-              <div className="text-center text-info-dim italic py-8 text-xs">
-                No saved sessions
+              <div className="text-center py-8">
+                <svg className="w-6 h-6 mx-auto mb-3 text-info-dim/20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+                  <rect x="3" y="4" width="14" height="12" rx="2" />
+                  <path d="M7 4V2M13 4V2M3 8h14" />
+                </svg>
+                <p className="text-info-dim text-xs">No saved sessions</p>
+                <p className="text-info-dim/50 text-[10px] mt-1">Sessions are saved automatically when you run commands</p>
               </div>
             )}
             {sessions.map((session) => {

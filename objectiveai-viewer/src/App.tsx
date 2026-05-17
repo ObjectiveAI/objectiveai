@@ -162,8 +162,8 @@ function ObjectiveAIView() {
             );
           })}
           <div className="ml-auto flex items-center gap-1">
-            <div className="relative mr-1">
-              <svg className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-info-dim pointer-events-none" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <div className="group/search relative mr-1">
+              <svg className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-info-dim group-focus-within/search:text-copper-dim pointer-events-none transition-colors" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                 <circle cx="5" cy="5" r="3.5" />
                 <path d="M8 8L10.5 10.5" />
               </svg>

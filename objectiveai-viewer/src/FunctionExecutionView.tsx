@@ -340,6 +340,17 @@ export function FunctionExecutionView({ entry }: { entry: FunctionExecutionEntry
         </div>
       )}
 
+      {view === "tree" && !treeData && chunk && (
+        <div className="max-w-[1200px] mx-auto mb-6 px-4">
+          <div className="h-[300px] rounded-md border border-node-border bg-ground-surface flex items-center justify-center">
+            <div className="flex items-center gap-2 text-info-dim text-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-copper-hot animate-pulse" />
+              Building tree…
+            </div>
+          </div>
+        </div>
+      )}
+
       {view === "chat" && (
         <>
           <InnerErrorsList errors={innerErrors} />
