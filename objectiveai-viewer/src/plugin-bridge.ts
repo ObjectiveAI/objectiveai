@@ -31,8 +31,7 @@
  * sources are dropped (security: don't let a random iframe drive
  * the host without identity).
  */
-import { invoke } from "@tauri-apps/api/core";
-import { listen as tauriListen, type UnlistenFn } from "@tauri-apps/api/event";
+import { tauriListen as safeListen, tauriInvoke } from "./lib/tauri";
 
 type IframeHandle = {
   pluginName: string;
@@ -62,7 +61,7 @@ type ApiCallPayload = {
 type EventPayload = InboundPayload | CliCommandPayload | ApiCallPayload;
 
 const iframes = new Map<string, IframeHandle>();
-const tauriUnlisteners = new Map<string, UnlistenFn>();
+const tauriUnlisteners = new Map<string, () => void>();
 
 /** Register a plugin iframe so the bridge can forward events to it. */
 export function registerIframe(pluginName: string, iframe: HTMLIFrameElement): void {
@@ -83,7 +82,7 @@ export function unregisterIframe(pluginName: string): void {
 
 async function subscribeToPluginEvents(pluginName: string): Promise<void> {
   if (tauriUnlisteners.has(pluginName)) return;
-  const unlisten = await tauriListen<EventPayload>(pluginName, (event) => {
+  const unlisten = await safeListen<EventPayload>(pluginName, (event) => {
     const handle = iframes.get(pluginName);
     if (!handle) return;
     const payload = event.payload;
@@ -143,7 +142,7 @@ function onIframeMessage(event: MessageEvent): void {
     // Fire-and-forget. The host streams cli_command events back via
     // the events bus; the iframe consumes them through its async
     // iterator.
-    void invoke("cli_run", { args, origin });
+    void tauriInvoke("cli_run", { args, origin });
     return;
   }
 
@@ -156,7 +155,7 @@ function onIframeMessage(event: MessageEvent): void {
     // iterator. `subType` is the serde-rename of the targeted endpoint
     // (e.g. "POST_/agent/completions"); the body is whatever the JS
     // SDK would have sent over fetch().
-    void invoke("api_call_run", {
+    void tauriInvoke("api_call_run", {
       subType: msg.subType,
       body: msg.body ?? null,
       origin,

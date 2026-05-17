@@ -27,7 +27,6 @@ export function OutputBar({ output, labels }: { output: unknown; labels?: string
     const hasLabels = labels && labels.length === scores.length;
     return (
       <div className="space-y-1">
-        {/* Stacked bar with tooltip legend */}
         <div className="relative group">
           <div className="flex h-1.5 gap-px rounded-full overflow-hidden">
             {scores.map((s, i) => (
@@ -50,7 +49,6 @@ export function OutputBar({ output, labels }: { output: unknown; labels?: string
             </div>
           )}
         </div>
-        {/* Per-score rows */}
         <div className="flex flex-col gap-0.5">
           {scores.map((s, i) => (
             <div key={i} className="flex items-center gap-2">
@@ -82,5 +80,11 @@ export function OutputBar({ output, labels }: { output: unknown; labels?: string
     );
   }
 
-  return null;
+  // Fallback for non-numeric output (objects, strings, mixed arrays)
+  const formatted = typeof output === "string" ? output : JSON.stringify(output, null, 2);
+  return (
+    <pre className="font-mono text-[11px] text-info-mid whitespace-pre-wrap break-words max-h-[200px] overflow-y-auto">
+      {formatted}
+    </pre>
+  );
 }

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { tauriInvoke } from "./lib/tauri";
 import { useEntries } from "./hooks/useEntries";
 import { useApiCalls } from "./hooks/useApiCalls";
 import { useCollapseState } from "./hooks/useCollapseState";
@@ -31,6 +31,12 @@ function ObjectiveAIView() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
   useEffect(() => {
+    if (liveEntries.length > 0 && session.showRestoreBanner) {
+      session.dismissRestore();
+    }
+  }, [liveEntries.length, session.showRestoreBanner, session.dismissRestore]);
+
+  useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
@@ -53,7 +59,10 @@ function ObjectiveAIView() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  const entries = session.restoredEntries ?? liveEntries;
+  const isRestoredNotBrowsing = session.restoredEntries && !session.isViewingPast;
+  const entries = (isRestoredNotBrowsing && liveEntries.length > 0)
+    ? liveEntries
+    : (session.restoredEntries ?? liveEntries);
   const { isCollapsed, toggle, collapseAll, expandAll } = useCollapseState(entries);
   const [activeKinds, setActiveKinds] = useState<Set<Entry["kind"]>>(
     new Set(KINDS.map((k) => k.kind))
@@ -123,7 +132,7 @@ function ObjectiveAIView() {
       />
       <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
       {entries.length > 0 && (
-        <div className="flex items-center gap-1.5 px-2 mb-4 select-none">
+        <div className="sticky top-0 z-10 flex items-center gap-1.5 pb-3 pt-0 mb-1 bg-ground/95 backdrop-blur-sm select-none">
           {KINDS.map(({ kind, label }) => {
             const count = kindCounts.get(kind) ?? 0;
             const active = activeKinds.has(kind);
@@ -199,7 +208,8 @@ function ObjectiveAIView() {
           <div className="max-w-sm w-full space-y-2.5">
             <div className="bg-ground-surface border border-node-border rounded-md px-4 py-3">
               <div className="text-[10px] font-mono text-info-dim uppercase tracking-wide mb-1.5">From the CLI</div>
-              <code className="text-[11px] font-mono text-copper-bright leading-relaxed block">objectiveai functions executions create --viewer</code>
+              <code className="text-[11px] font-mono text-copper-bright leading-relaxed block">objectiveai functions executions create</code>
+              <p className="text-[10px] text-info-dim mt-1">Events stream here automatically when the viewer is running.</p>
             </div>
             <div className="bg-ground-surface border border-node-border rounded-md px-4 py-3">
               <div className="text-[10px] font-mono text-info-dim uppercase tracking-wide mb-1.5">From here</div>
@@ -230,8 +240,8 @@ function App() {
   const [activeTab, setActiveTab] = useState<string>(OBJECTIVEAI_TAB_ID);
 
   useEffect(() => {
-    invoke<string[]>("list_plugins_with_viewer")
-      .then(setPluginNames)
+    tauriInvoke<string[]>("list_plugins_with_viewer")
+      .then((names) => { if (names) setPluginNames(names); })
       .catch((e) => {
         // eslint-disable-next-line no-console
         console.warn("list_plugins_with_viewer failed:", e);

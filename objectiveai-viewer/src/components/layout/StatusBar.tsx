@@ -1,9 +1,18 @@
+import { useState, useEffect } from "react";
 import type { Entry } from "../../types";
 import { useElapsedTime } from "../../hooks/useElapsedTime";
 import { formatCost } from "../../lib/format";
 import { isLastAssistantDone } from "../../lib/typeGuards";
+import { getDroppedEventCount, onDroppedCountChange } from "../../classify";
+
+function useDroppedCount(): number {
+  const [count, setCount] = useState(getDroppedEventCount);
+  useEffect(() => onDroppedCountChange(setCount), []);
+  return count;
+}
 
 export function StatusBar({ entries, isHistorical }: { entries: Entry[]; isHistorical?: boolean }) {
+  const droppedCount = useDroppedCount();
   if (entries.length === 0) {
     return (
       <footer className="flex items-center gap-4 px-6 py-2 border-t border-node-border bg-ground-raised font-mono text-[10px] text-info-dim tabular-nums select-none">
@@ -36,14 +45,14 @@ export function StatusBar({ entries, isHistorical }: { entries: Entry[]; isHisto
     }
   }).length;
 
-  const firstCreated = entries.reduce<number | null>((min, e) => {
-    const c = e.chunk && "created" in e.chunk ? (e.chunk as { created?: number }).created : undefined;
-    if (c == null) return min;
-    const ms = c * 1000;
-    return min === null ? ms : Math.min(min, ms);
+  const earliestActiveReceived = entries.reduce<number | null>((min, e) => {
+    if (e.error) return min;
+    if (!e.chunk) return min === null ? e.receivedAt : Math.min(min, e.receivedAt);
+    if ((e.chunk as { usage?: unknown }).usage != null) return min;
+    return min === null ? e.receivedAt : Math.min(min, e.receivedAt);
   }, null);
 
-  const elapsed = useElapsedTime(activeCount > 0 ? firstCreated : null);
+  const elapsed = useElapsedTime(activeCount > 0 ? earliestActiveReceived : null);
 
   let totalTokens = 0;
   let totalCost = 0;
@@ -73,6 +82,7 @@ export function StatusBar({ entries, isHistorical }: { entries: Entry[]; isHisto
       {!isHistorical && activeCount > 0 && <span>{elapsed}</span>}
       {totalTokens > 0 && <span>{totalTokens.toLocaleString()} tokens</span>}
       {totalCost > 0 && <span>{formatCost(totalCost)}</span>}
+      {droppedCount > 0 && <span className="text-red-400">{droppedCount} dropped</span>}
       <span className="ml-auto">{entries.length} total</span>
     </footer>
   );

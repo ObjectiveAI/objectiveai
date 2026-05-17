@@ -70,6 +70,7 @@ export type LaboratoryExecutionEvent =
 export interface AgentCompletionEntry {
   kind: "agent-completion";
   id: string;
+  receivedAt: number;
   request: AgentCompletionCreateParams;
   chunk: AgentCompletionsResponseStreamingAgentCompletionChunk | null;
   error: ResponseError | null;
@@ -78,6 +79,7 @@ export interface AgentCompletionEntry {
 export interface FunctionExecutionEntry {
   kind: "execution";
   id: string;
+  receivedAt: number;
   request: FunctionExecutionCreateParams;
   chunk: FunctionsExecutionsResponseStreamingFunctionExecutionChunk | null;
   error: ResponseError | null;
@@ -86,6 +88,7 @@ export interface FunctionExecutionEntry {
 export interface FunctionInventionRecursiveEntry {
   kind: "invention";
   id: string;
+  receivedAt: number;
   request: FunctionInventionRecursiveCreateParams;
   chunk: FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunk | null;
   error: ResponseError | null;
@@ -94,6 +97,7 @@ export interface FunctionInventionRecursiveEntry {
 export interface LaboratoryExecutionEntry {
   kind: "laboratory";
   id: string;
+  receivedAt: number;
   request: LaboratoryExecutionCreateParams;
   chunk: LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunk | null;
   error: ResponseError | null;

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { listen } from "@tauri-apps/api/event";
-import { invoke } from "@tauri-apps/api/core";
+import { tauriListen, tauriInvoke } from "../lib/tauri";
 import {
   agentCompletionsResponseStreamingAgentCompletionChunkMerged,
   functionsExecutionsResponseStreamingFunctionExecutionChunkMerged,
@@ -66,6 +65,7 @@ function handleEvent(
       return [...prev, {
         kind: config.kind,
         id: classified.data.id,
+        receivedAt: Date.now(),
         request: classified.data,
         chunk: null,
         error: null,
@@ -107,12 +107,12 @@ export function useEntries(options?: {
 
     let cancelled = false;
 
-    const unlisten = listen<ViewerEvent>("objectiveai", (event) => {
+    const unlisten = tauriListen<ViewerEvent>("objectiveai", (event) => {
       handleEvent(event.payload, setEntries);
     });
 
     unlisten.then(() => {
-      if (!cancelled) invoke("viewer_ready");
+      if (!cancelled) tauriInvoke("viewer_ready");
     });
 
     return () => {

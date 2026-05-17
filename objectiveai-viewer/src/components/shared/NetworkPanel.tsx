@@ -33,8 +33,6 @@ export function NetworkPanel({ entries }: { entries: ApiCallEntry[] }) {
   const [expanded, setExpanded] = useState(false);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
-  if (entries.length === 0) return null;
-
   return (
     <div className="border-t border-node-border bg-ground-surface">
       <button

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { listen } from "@tauri-apps/api/event";
-import { invoke } from "@tauri-apps/api/core";
+import { tauriListen, tauriInvoke } from "../lib/tauri";
 import type { ViewerEvent } from "../types";
 
 export interface CliLine {
@@ -14,7 +13,7 @@ export function useCliCommand() {
   const unlistenRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    const unlisten = listen<ViewerEvent>("objectiveai", (event) => {
+    const unlisten = tauriListen<ViewerEvent>("objectiveai", (event) => {
       const payload = event.payload;
       if (payload.type !== "cli_command") return;
 
@@ -40,7 +39,7 @@ export function useCliCommand() {
   const run = useCallback((args: string[]) => {
     setLines([]);
     setIsRunning(true);
-    invoke("cli_run", { args, origin: "objectiveai" }).catch((e) => {
+    tauriInvoke("cli_run", { args, origin: "objectiveai" }).catch((e) => {
       setLines((prev) => [...prev, { type: "error", value: String(e) }]);
       setIsRunning(false);
     });

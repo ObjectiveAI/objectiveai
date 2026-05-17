@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { listen } from "@tauri-apps/api/event";
+import { tauriListen } from "../lib/tauri";
 import type { ViewerEvent } from "../types";
 
 export interface ApiCallEntry {
@@ -28,7 +28,7 @@ export function useApiCalls(options?: { disabled?: boolean }): ApiCallEntry[] {
   useEffect(() => {
     if (options?.disabled) return;
 
-    const unlisten = listen<ViewerEvent>("objectiveai", (event) => {
+    const unlisten = tauriListen<ViewerEvent>("objectiveai", (event) => {
       const payload = event.payload;
       if (payload.type !== "api_call") return;
 

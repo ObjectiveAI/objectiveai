@@ -58,7 +58,7 @@ export function Shell({ children, statusBar, banner, networkPanel, entryCount }:
         <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-10">
           <button
             onClick={jumpToBottom}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-ground-raised border border-node-border text-[10px] font-mono text-info-mid hover:text-copper-bright hover:border-copper-dim shadow-lg transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-ground-raised/90 backdrop-blur-sm border border-node-border text-[10px] font-mono text-info-mid hover:text-copper-bright hover:border-copper-dim shadow-lg transition-all"
           >
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
               <path d="M2 4L5 7L8 4" />

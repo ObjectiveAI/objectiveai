@@ -1,5 +1,5 @@
 import { useState, useCallback, type KeyboardEvent } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { tauriInvoke } from "../../lib/tauri";
 
 export function MessageInput({ responseId }: { responseId: string }) {
   const [text, setText] = useState("");
@@ -10,7 +10,7 @@ export function MessageInput({ responseId }: { responseId: string }) {
     if (!trimmed || sending) return;
     setSending(true);
     try {
-      await invoke("notify_agent_completion", {
+      await tauriInvoke("notify_agent_completion", {
         params: {
           response_id: responseId,
           content: trimmed,

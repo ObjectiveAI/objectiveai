@@ -53,8 +53,25 @@ export function FunctionInventionRecursiveView({
     ? { code: entry.error.code, message: entry.error.message }
     : null;
 
+  const inventions = chunk?.inventions ?? [];
+  const completedCount = inventions.filter((inv) => inv.function != null || inv.error != null).length;
+
   return (
     <div>
+      {inventions.length > 1 && (
+        <div className="max-w-content mx-auto px-4 mb-3 flex items-center gap-2">
+          <div className="flex-1 h-1 bg-ground-surface rounded-full overflow-hidden">
+            <div
+              className="h-full bg-copper-bright rounded-full transition-all duration-500"
+              style={{ width: `${(completedCount / inventions.length) * 100}%` }}
+            />
+          </div>
+          <span className="text-[10px] font-mono text-info-dim tabular-nums">
+            {completedCount}/{inventions.length}
+          </span>
+        </div>
+      )}
+
       {chunk?.inventions.map((inv, invIdx) => {
         const name = inventionName(inv.state, inv.index ?? invIdx);
         const invError = inv.error
@@ -125,25 +142,60 @@ export function FunctionInventionRecursiveView({
             )}
 
             {inv.completions.length === 0 && !invError && (
-              <div className="max-w-content mx-auto mb-3 text-info-dim italic px-4">
-                No completions yet…
+              <div className="max-w-content mx-auto mb-3 px-4 flex items-center gap-2 text-info-dim text-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-copper-hot animate-pulse" />
+                <span>Generating…</span>
               </div>
             )}
-            {inv.completions.map((comp, compIdx) => {
-              const compError = comp.error
-                ? { code: comp.error.code, message: comp.error.message }
-                : null;
-              const label = `${name} — completion #${comp.index ?? compIdx}`;
-              return (
-                <AgentCompletionChat
-                  key={`${inv.index ?? invIdx}-${comp.index ?? compIdx}`}
-                  label={label}
-                  chunk={comp}
-                  error={compError}
-                  id={comp.id}
-                />
-              );
-            })}
+            {inv.completions.length > 1 ? (
+              <Collapsible.Root defaultOpen={inv.completions.length <= 3}>
+                <div className="max-w-content mx-auto px-4 mb-2">
+                  <Collapsible.Trigger className="flex items-center gap-1.5 text-[11px] text-info-dim hover:text-info-mid cursor-pointer transition-colors group">
+                    <svg
+                      className="w-2.5 h-2.5 transition-transform group-data-[state=open]:rotate-90"
+                      viewBox="0 0 8 8"
+                      fill="currentColor"
+                    >
+                      <path d="M2 1l4 3-4 3z" />
+                    </svg>
+                    {inv.completions.length} completions
+                  </Collapsible.Trigger>
+                </div>
+                <Collapsible.Content>
+                  {inv.completions.map((comp, compIdx) => {
+                    const compError = comp.error
+                      ? { code: comp.error.code, message: comp.error.message }
+                      : null;
+                    const label = `${name} — completion #${comp.index ?? compIdx}`;
+                    return (
+                      <AgentCompletionChat
+                        key={`${inv.index ?? invIdx}-${comp.index ?? compIdx}`}
+                        label={label}
+                        chunk={comp}
+                        error={compError}
+                        id={comp.id}
+                      />
+                    );
+                  })}
+                </Collapsible.Content>
+              </Collapsible.Root>
+            ) : (
+              inv.completions.map((comp, compIdx) => {
+                const compError = comp.error
+                  ? { code: comp.error.code, message: comp.error.message }
+                  : null;
+                const label = `${name} — completion #${comp.index ?? compIdx}`;
+                return (
+                  <AgentCompletionChat
+                    key={`${inv.index ?? invIdx}-${comp.index ?? compIdx}`}
+                    label={label}
+                    chunk={comp}
+                    error={compError}
+                    id={comp.id}
+                  />
+                );
+              })
+            )}
 
             {invError && (
               <div role="alert" className="max-w-content mx-auto mb-4 bg-error/10 border border-error/30 rounded-md px-4 py-2 text-error text-xs">

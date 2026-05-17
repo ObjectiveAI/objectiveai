@@ -102,7 +102,16 @@ export function LaboratoryExecutionView({ entry }: { entry: LaboratoryExecutionE
 
           <Tabs.Content value="evaluations" className="py-4">
             {evaluations.length === 0 && (
-              <div className="text-info-dim italic text-center text-xs py-4">No evaluations yet…</div>
+              <div className="text-info-dim text-center text-xs py-4">
+                {status === "streaming" ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-copper-hot animate-pulse" />
+                    <span>Evaluations begin after builders complete</span>
+                  </div>
+                ) : (
+                  <span className="italic">No evaluations configured</span>
+                )}
+              </div>
             )}
             {evaluations.map((e) => (
               <EvaluationCard key={e.id || `eval-${e.index}`} evaluation={e} />

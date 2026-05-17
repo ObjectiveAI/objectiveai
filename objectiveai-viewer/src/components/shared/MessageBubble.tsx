@@ -49,7 +49,7 @@ export function AssistantBubble({ msg }: { msg: AssistantResponseChunkLike }) {
     <div className="self-start max-w-[85%] bg-ground-raised border border-node-border rounded-xl rounded-bl-sm px-3.5 py-2.5">
       <div className="text-[10px] text-info-dim mb-1.5 flex gap-2 items-center">
         <span className="font-semibold uppercase tracking-wide">Assistant</span>
-        {msg.model && <span className="text-info-mid">{msg.model}</span>}
+        {msg.model && msg.model !== msg.agent && <span className="text-info-mid">{msg.model}</span>}
         {msg.agent && <span className="font-mono text-[10px] text-copper-dim">{msg.agent}</span>}
         {msg.finish_reason && <FinishBadge reason={msg.finish_reason} />}
       </div>
@@ -93,15 +93,16 @@ export function AssistantBubble({ msg }: { msg: AssistantResponseChunkLike }) {
 
 function FinishBadge({ reason }: { reason: string }) {
   const colors: Record<string, string> = {
-    stop: "bg-copper-hot/20 text-copper-bright",
+    stop: "bg-success/15 text-success",
     length: "bg-copper-mid/20 text-copper-mid",
     tool_calls: "bg-info-dim/20 text-info-mid",
     content_filter: "bg-error/20 text-error",
     error: "bg-error/20 text-error",
   };
+  const label: Record<string, string> = { stop: "done", tool_calls: "tools" };
   return (
     <span className={`inline-block text-[10px] px-1.5 py-px rounded-sm font-semibold lowercase ${colors[reason] ?? "bg-ground-surface text-info-dim"}`}>
-      {reason}
+      {label[reason] ?? reason}
     </span>
   );
 }
