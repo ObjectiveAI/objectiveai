@@ -210,10 +210,15 @@ fn spawn_server() -> ServerHandle {
         .env("AGENT_COMPLETIONS_BACKOFF_MAX_INTERVAL", "0")
         .env("AGENT_COMPLETIONS_BACKOFF_MAX_ELAPSED_TIME", "0")
         // Bump invention tool-subscription wait from the 30s default to
-        // 60s so contention-induced flakes (e.g. listener task pile-up
-        // during parallel-suite load) don't surface as
-        // `tool_subscription_timeout` errors.
-        .env("FUNCTIONS_INVENTIONS_SUBSCRIBE_TOOLS_TIMEOUT", "60000")
+        // 5 min so contention-induced flakes during heavy parallel test.sh
+        // load don't trip the retry loop in
+        // objectiveai-api/src/functions/inventions/client.rs:1346 (which
+        // would append an extra `completion` block to the stream and
+        // diverge from the snapshot). 60s was the previous bump; observed
+        // failures on `test_scalar_d1_default::seed_2` and
+        // `test_scalar_d2_narrow::seed_0` during a 1816s integration run
+        // confirm 60s isn't enough under full-suite contention.
+        .env("FUNCTIONS_INVENTIONS_SUBSCRIBE_TOOLS_TIMEOUT", "300000")
         .stdout(Stdio::null())
         .stderr(Stdio::piped());
 

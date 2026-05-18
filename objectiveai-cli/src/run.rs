@@ -224,7 +224,7 @@ where
     I: IntoIterator<Item = T>,
     T: Into<std::ffi::OsString> + Clone,
 {
-    use objectiveai_sdk::cli::output::{Error as OutputError, Level, Output};
+    use objectiveai_sdk::cli::output::{Error as OutputError, Level, Notification, Output};
 
     Output::<serde_json::Value>::Begin.emit(&handle).await;
 
@@ -237,6 +237,23 @@ where
                 1
             }
         },
+        Err(e) if is_informational(&e) => {
+            // --help, --version, or "no subcommand → show help". Not
+            // an error — render as a single notification with the help
+            // text as a plain string. Exit 0 so scripts can run
+            // `objectiveai --help` without `&&` short-circuiting.
+            //
+            // Going through Output::Error here would also cause a
+            // stderr-mirror double-print (handle.rs emits fatal errors
+            // to both stdout AND stderr so they survive stdout
+            // capture), which is wrong for help output.
+            Output::<String>::Notification(Notification {
+                value: e.to_string(),
+            })
+            .emit(&handle)
+            .await;
+            0
+        }
         Err(e) => {
             let err = OutputError {
                 level: Level::Error,
@@ -250,4 +267,19 @@ where
 
     Output::<serde_json::Value>::End.emit(&handle).await;
     code
+}
+
+/// Did clap exit with one of the "successful informational output"
+/// variants? `--help`, `--version`, or a missing-subcommand bail. These
+/// aren't errors — they're rendered as Notifications rather than
+/// fatal Errors so consumers don't treat them as failures and the
+/// stderr-mirror dance doesn't double-print to mixed terminals.
+fn is_informational(e: &clap::Error) -> bool {
+    use clap::error::ErrorKind;
+    matches!(
+        e.kind(),
+        ErrorKind::DisplayHelp
+            | ErrorKind::DisplayVersion
+            | ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand
+    )
 }

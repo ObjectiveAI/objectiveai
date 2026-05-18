@@ -21,6 +21,12 @@ pub enum Error {
         error: std::sync::Arc<objectiveai_sdk::mcp::Error>,
     },
 
+    #[error("MCP drain_notifications error ({url}): {error}")]
+    McpDrainNotifications {
+        url: String,
+        error: objectiveai_sdk::mcp::Error,
+    },
+
     #[error("MCP call_tool error: {0}")]
     McpCallTool(objectiveai_sdk::mcp::Error),
 
@@ -67,6 +73,7 @@ impl objectiveai_sdk::error::StatusError for Error {
             Self::AgentNotFound(_) => 404,
             Self::McpConnection(_) | Self::McpConnectionArc(_) => 502,
             Self::McpListTools { .. } => 502,
+            Self::McpDrainNotifications { .. } => 502,
             Self::McpCallTool(_) => 502,
             Self::McpProxyBootstrap(_) => 500,
             Self::Fetch(e) => e.code,

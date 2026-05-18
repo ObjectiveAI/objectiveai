@@ -14,11 +14,24 @@ async fn main() {
     // or `Handle::Collect(_)` instead.
     let handle: objectiveai_sdk::cli::output::Handle =
         objectiveai_sdk::cli::output::Handle::Stdout;
-    // Best-effort auto-update. No-op unless the `updater` feature is on;
-    // may never return because the replacement has been spawned with
-    // the same argv. Any error inside is emitted as a non-fatal warn-level
-    // notification and swallowed.
-    objectiveai_cli::update::maybe_auto_update(args.clone(), &cli_config, &handle).await;
+    // Best-effort auto-update. Compiled out entirely unless the
+    // `updater` feature is on; may never return because the replacement
+    // has been spawned with the same argv. Errors are reported as a
+    // warn-level `Output::Error` line through the shared handle.
+    #[cfg(feature = "updater")]
+    objectiveai_sdk::updater::maybe_auto_update(
+        objectiveai_sdk::updater::UpdaterConfig {
+            asset_prefix: "objectiveai",
+            variant_suffix: if cfg!(feature = "viewer") { "" } else { "-no-viewer" },
+            current_version: env!("CARGO_PKG_VERSION"),
+            github_authorization: cli_config.github_authorization.clone(),
+            // Share the cli's JSONL stream so updater notifications
+            // appear inline with normal `cli::run` output.
+            handle: Some(handle.clone()),
+        },
+        args.clone(),
+    )
+    .await;
     let code = objectiveai_cli::run(args, &cli_config, handle).await;
     std::process::exit(code);
 }

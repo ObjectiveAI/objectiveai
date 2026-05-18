@@ -52,11 +52,28 @@ pub struct Manifest {
 
     /// GitHub-release asset filename for the plugin's viewer UI
     /// bundle (a `.zip` whose root contains `index.html` plus
-    /// assets). When absent, the plugin has no viewer tab and the
-    /// viewer's startup scan ignores it for UI purposes.
+    /// assets). When absent, the plugin has no viewer tab from this
+    /// source. Mutually exclusive with [`Self::viewer_url`] —
+    /// validated by [`Self::validate`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub viewer_zip: Option<String>,
+
+    /// Remote URL the viewer's iframe loads directly, instead of an
+    /// on-disk bundle from [`Self::viewer_zip`]. The full URL is used
+    /// as the iframe `src=` verbatim — query string, path, port,
+    /// fragment all pass through. Must use `https://`, or `http://`
+    /// targeting `localhost` / `127.0.0.1` (development only).
+    ///
+    /// Mutually exclusive with [`Self::viewer_zip`]. [`Self::viewer_routes`]
+    /// and [`Self::mobile_ready`] apply to remote-URL viewers the same
+    /// way they apply to zip-bundled viewers — the embedded axum
+    /// server still hosts the declared routes; the iframe still
+    /// receives the same postMessage protocol regardless of where
+    /// its HTML/JS loaded from.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub viewer_url: Option<String>,
 
     /// HTTP routes the viewer exposes on behalf of this plugin.
     /// Each entry registers a handler at
@@ -75,6 +92,63 @@ pub struct Manifest {
     /// to false (desktop-only).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub mobile_ready: bool,
+}
+
+impl Manifest {
+    /// Whether this plugin presents a viewer tab in the host. True
+    /// iff either viewer source field — [`Self::viewer_zip`] or
+    /// [`Self::viewer_url`] — is set.
+    pub fn has_viewer(&self) -> bool {
+        self.viewer_zip.is_some() || self.viewer_url.is_some()
+    }
+
+    /// Validate fields that can't be enforced by serde alone:
+    /// `viewer_zip` and `viewer_url` are mutually exclusive, and
+    /// `viewer_url` (when present) must be `https://` or `http://`
+    /// targeting `localhost` / `127.0.0.1`. Called at every parse
+    /// boundary (remote-fetched install, on-disk read) so a broken
+    /// manifest can't sneak through.
+    pub fn validate(&self) -> Result<(), &'static str> {
+        if self.viewer_zip.is_some() && self.viewer_url.is_some() {
+            return Err("viewer_zip and viewer_url are mutually exclusive");
+        }
+        if let Some(url) = self.viewer_url.as_deref() {
+            validate_viewer_url(url)?;
+        }
+        Ok(())
+    }
+}
+
+/// Allow `https://*`. Allow `http://` only when the host is
+/// `localhost` or `127.0.0.1` (development). Reject everything else
+/// — raw http on a public hostname inside a Tauri WebView is a
+/// footgun (plaintext, MITM-able, mixed-content-blocked by the
+/// browser engine in most cases).
+///
+/// Dependency-free: a couple of `starts_with` / split checks beat
+/// pulling the full `url` crate for one validation. Doesn't handle
+/// IPv6 brackets or punycode — neither matters for the localhost
+/// allow-list.
+fn validate_viewer_url(url: &str) -> Result<(), &'static str> {
+    let url = url.trim();
+    if url.is_empty() {
+        return Err("viewer_url cannot be empty");
+    }
+    if url.starts_with("https://") {
+        return Ok(());
+    }
+    if let Some(rest) = url.strip_prefix("http://") {
+        // Host ends at the first '/', ':', '?', '#', or EOF.
+        let host_end = rest
+            .find(|c: char| matches!(c, '/' | ':' | '?' | '#'))
+            .unwrap_or(rest.len());
+        let host = &rest[..host_end];
+        if host == "localhost" || host == "127.0.0.1" {
+            return Ok(());
+        }
+        return Err("viewer_url with http:// scheme is only allowed for localhost or 127.0.0.1");
+    }
+    Err("viewer_url must use https:// or http://localhost / http://127.0.0.1")
 }
 
 /// Release-asset filename per platform. Every field is optional;

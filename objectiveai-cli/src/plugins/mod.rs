@@ -38,6 +38,8 @@ use objectiveai_sdk::cli::plugins::PluginOutput;
 use tokio::io::AsyncBufReadExt;
 use tokio::task::JoinHandle;
 
+mod install;
+
 #[derive(Subcommand)]
 pub enum Commands {
     /// Get a single plugin's manifest by name. Emits the manifest as
@@ -60,29 +62,14 @@ pub enum Commands {
     /// isn't in the manifest's `binaries` map. Errors with
     /// `PluginNotWhitelisted` when the quadruple matches no
     /// whitelist entry and `--allow-untrusted` was not passed.
+    ///
+    /// Now subcommand-bearing: `plugins install github …` for the
+    /// remote-install flow, `plugins install filesystem` for
+    /// instructions on hand-authoring a local plugin. See
+    /// [`install::Commands`].
     Install {
-        #[arg(long)]
-        owner: String,
-        #[arg(long)]
-        repository: String,
-        #[arg(long)]
-        commit_sha: Option<String>,
-        /// Bypass the plugin whitelist. Emits a warning notification
-        /// and proceeds with the install. Use only if you trust the
-        /// repository — a non-whitelisted plugin runs with the same
-        /// permissions as any binary on your system.
-        #[arg(long)]
-        allow_untrusted: bool,
-        /// Replace an already-installed plugin. Without this flag,
-        /// install fails with `AlreadyInstalled` when a manifest exists
-        /// at `~/.objectiveai/plugins/<repository>.json`. With it,
-        /// the existing binary, viewer/ directory, and sibling
-        /// manifest are deleted before the new install runs. Extra
-        /// data under `~/.objectiveai/plugins/<repository>/` (files
-        /// the plugin's runtime created beyond the install artifacts)
-        /// is preserved either way.
-        #[arg(long)]
-        upgrade: bool,
+        #[command(subcommand)]
+        command: install::Commands,
     },
     /// List installed plugins (every `.json` manifest in
     /// `~/.objectiveai/plugins/`). Sorted by manifest mtime, most
@@ -112,16 +99,14 @@ impl Commands {
     ) -> Result<(), crate::error::Error> {
         match self {
             Commands::Get { name } => get(cli_config, handle, &name).await,
-            Commands::Install { owner, repository, commit_sha, allow_untrusted, upgrade } => {
-                install(cli_config, handle, &owner, &repository, commit_sha.as_deref(), allow_untrusted, upgrade).await
-            }
+            Commands::Install { command } => command.handle(cli_config, handle).await,
             Commands::List { offset, limit } => list(cli_config, handle, offset, limit).await,
             Commands::Run(args) => dispatch_external(args, cli_config, handle).await,
         }
     }
 }
 
-async fn install(
+pub(super) async fn install(
     cli_config: &crate::Config,
     handle: &Handle,
     owner: &str,

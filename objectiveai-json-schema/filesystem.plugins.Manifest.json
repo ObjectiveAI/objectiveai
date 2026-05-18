@@ -63,8 +63,20 @@
         "$ref": "filesystem.plugins.ViewerRoute"
       }
     },
+    "viewer_url": {
+      "description": "Remote URL the viewer's iframe loads directly, instead of an\non-disk bundle from [`Self::viewer_zip`]. The full URL is used\nas the iframe `src=` verbatim — query string, path, port,\nfragment all pass through. Must use `https://`, or `http://`\ntargeting `localhost` / `127.0.0.1` (development only).\n\nMutually exclusive with [`Self::viewer_zip`]. [`Self::viewer_routes`]\nand [`Self::mobile_ready`] apply to remote-URL viewers the same\nway they apply to zip-bundled viewers — the embedded axum\nserver still hosts the declared routes; the iframe still\nreceives the same postMessage protocol regardless of where\nits HTML/JS loaded from.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "viewer_zip": {
-      "description": "GitHub-release asset filename for the plugin's viewer UI\nbundle (a `.zip` whose root contains `index.html` plus\nassets). When absent, the plugin has no viewer tab and the\nviewer's startup scan ignores it for UI purposes.",
+      "description": "GitHub-release asset filename for the plugin's viewer UI\nbundle (a `.zip` whose root contains `index.html` plus\nassets). When absent, the plugin has no viewer tab from this\nsource. Mutually exclusive with [`Self::viewer_url`] —\nvalidated by [`Self::validate`].",
       "anyOf": [
         {
           "type": "string"

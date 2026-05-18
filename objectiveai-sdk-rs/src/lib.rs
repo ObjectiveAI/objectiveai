@@ -75,3 +75,6 @@ pub mod cli;
 #[cfg(feature = "viewer")]
 pub mod viewer;
 
+#[cfg(feature = "updater")]
+pub mod updater;
+

@@ -59,10 +59,12 @@ bash "$REPO_ROOT/objectiveai-mcp-filesystem/build.sh" --target "$MCP_ARCH-unknow
 
 # ── Build api ──────────────────────────────────────────────────────────
 
-# Fully-featured: orchestrator-bollard is on by default; explicitly opt
-# into sqlite-persistent-cache so the shipped binary supports both
-# in-memory and SQLite-backed caches.
-FEATURES="sqlite-persistent-cache"
+# Fully-featured: orchestrator-bollard + updater are on by default;
+# explicitly opt into sqlite-persistent-cache so the shipped binary
+# supports both in-memory and SQLite-backed caches. Explicit `updater`
+# beats relying on defaults so this script can't accidentally ship a
+# non-self-updating binary if defaults are ever pruned.
+FEATURES="sqlite-persistent-cache,updater"
 
 echo "Building objectiveai-api (release, features: default + $FEATURES)..."
 cargo build --release -p objectiveai-api \

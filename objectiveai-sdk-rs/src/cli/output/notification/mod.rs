@@ -13,6 +13,7 @@ mod log_stream_ready;
 mod plugins;
 mod published;
 mod schema;
+mod updater;
 mod value;
 
 // Command-specific wire shapes (subpaths mirror objectiveai-cli/src/).
@@ -32,6 +33,7 @@ pub use log_stream_ready::*;
 pub use plugins::*;
 pub use published::*;
 pub use schema::*;
+pub use updater::*;
 pub use value::*;
 
 pub use agents::*;

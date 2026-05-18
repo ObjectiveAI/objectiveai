@@ -4,8 +4,10 @@
 # Phase 1 (parallel): build-bin + objectiveai-json-schema
 # Background: objectiveai-cli + mcp + claude-agent-sdk runners (after phase 1, concurrent with phases 2+3)
 # Phase 2 (parallel): objectiveai-sdk-rs-wasm-js + objectiveai-sdk-rs-cffi
-# Phase 3 (parallel): objectiveai-sdk-js + objectiveai-sdk-py + objectiveai-sdk-go + objectiveai-dotnet
+# Phase 3 (parallel): objectiveai-sdk-js + objectiveai-sdk-py + objectiveai-sdk-go
 #                     (objectiveai-sdk-py builds its bundled Rust extension via maturin)
+#                     (objectiveai-dotnet is disconnected from the root build for now;
+#                     run `bash objectiveai-dotnet/build.sh` directly if you need it.)
 # Phase 4 (sequential): objectiveai-viewer release (cross-platform)
 #                       then host-target debug. Sequential because both invoke
 #                       `tauri build`, which holds the workspace cargo target/
@@ -64,9 +66,12 @@ CODEX_RUNNER_PID=$!
 # Phase 2: wasm + cffi (need build tools from phase 1)
 run_phase objectiveai-sdk-rs-wasm-js/build.sh objectiveai-sdk-rs-cffi/build.sh
 
-# Phase 3: js + py + go + dotnet (need wasm/cffi from phase 2)
+# Phase 3: js + py + go (need wasm/cffi from phase 2). objectiveai-dotnet
+# is intentionally NOT part of this phase — its codegen has a duplicate-
+# variant-property bug that breaks on newly-added internally-tagged enums;
+# run `bash objectiveai-dotnet/build.sh` directly if you need it.
 # objectiveai-sdk-py compiles its own Rust extension (_pyo3) via maturin as part of its build.
-run_phase objectiveai-sdk-js/build.sh objectiveai-sdk-py/build.sh objectiveai-sdk-go/build.sh objectiveai-dotnet/build.sh
+run_phase objectiveai-sdk-js/build.sh objectiveai-sdk-py/build.sh objectiveai-sdk-go/build.sh
 
 # Wait for background builds before running viewer (viewer depends on objectiveai-sdk-js)
 FAILED=false

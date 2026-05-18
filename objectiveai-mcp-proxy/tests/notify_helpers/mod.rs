@@ -78,6 +78,23 @@ pub async fn post_notify(
         .expect("post /notify")
 }
 
+/// `GET /notify` — atomically drains the proxy's pending-notifications
+/// queue for the given session and returns the raw response so callers
+/// can assert on status as well as body.
+pub async fn get_notify(
+    client: &reqwest::Client,
+    proxy_url: &str,
+    session_id: &str,
+) -> reqwest::Response {
+    let notify_url = format!("{proxy_url}notify");
+    client
+        .get(&notify_url)
+        .header("Mcp-Session-Id", session_id)
+        .send()
+        .await
+        .expect("get /notify")
+}
+
 /// Issue a `tools/call` against the proxy and return the parsed JSON-RPC
 /// response value.
 pub async fn call_tool(

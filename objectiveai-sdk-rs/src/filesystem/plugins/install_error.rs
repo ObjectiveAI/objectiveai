@@ -56,4 +56,6 @@ pub enum InstallError {
     AlreadyInstalled { repository: String },
     #[error("repository name {repository:?} is reserved and cannot be used as a plugin name")]
     ReservedRepositoryName { repository: String },
+    #[error("manifest failed validation: {0}")]
+    ManifestInvalid(&'static str),
 }

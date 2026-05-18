@@ -647,6 +647,34 @@ pub async fn handle_notify(
     StatusCode::ACCEPTED.into_response()
 }
 
+/// `GET /notify` — atomically drain the pending-notifications queue for
+/// the session named by `Mcp-Session-Id` and return the blocks as a
+/// JSON array. Used by the agent completions client at the start of a
+/// new turn to pick up notifications that would otherwise have ridden
+/// the next `tools/call` response — covering the case where the prior
+/// turn ended without a tool call, or the user is starting a fresh
+/// continuation.
+///
+/// Same drain semantics as the tool-response path: a second `GET /notify`
+/// returns `[]` until the next `POST /notify`.
+pub async fn handle_notify_get(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Response {
+    let session_id = match extract_session_id(&headers) {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
+
+    let session = match state.sessions.get(&session_id) {
+        Some(s) => s,
+        None => return unknown_session_response(),
+    };
+
+    let blocks = session.drain_notifications().await;
+    (StatusCode::OK, Json(blocks)).into_response()
+}
+
 async fn handle_resources_list(
     sessions: &SessionManager,
     headers: &HeaderMap,

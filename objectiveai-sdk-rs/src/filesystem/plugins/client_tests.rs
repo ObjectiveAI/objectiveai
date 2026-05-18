@@ -24,6 +24,7 @@ fn minimal_manifest_json() -> String {
         license: None,
         binaries: Binaries::default(),
         viewer_zip: None,
+        viewer_url: None,
         viewer_routes: vec![],
         mobile_ready: false,
     })
@@ -191,6 +192,71 @@ async fn resolve_plugin_returns_canonical_nested_path_when_present() {
 
     let resolved = client.resolve_plugin("hello").await;
     assert_eq!(resolved.as_deref(), Some(target.as_path()));
+    cleanup(&base);
+}
+
+#[tokio::test]
+async fn resolve_plugin_falls_back_to_cross_platform_canonical() {
+    // Tier 2: only the non-preferred canonical filename is present
+    // (`plugin` on Windows, `plugin.exe` elsewhere). Resolve still
+    // returns it.
+    let base = fresh_base_dir();
+    let client = client_for(&base);
+    let dir = client.plugin_dir("hello");
+    std::fs::create_dir_all(&dir).unwrap();
+    let alt = dir.join(if cfg!(windows) { "plugin" } else { "plugin.exe" });
+    std::fs::write(&alt, b"x").unwrap();
+
+    let resolved = client.resolve_plugin("hello").await;
+    assert_eq!(resolved.as_deref(), Some(alt.as_path()));
+    cleanup(&base);
+}
+
+#[tokio::test]
+async fn resolve_plugin_falls_back_to_arbitrary_extension() {
+    // Tier 3: only `plugin.<some-ext>` exists. Resolve returns it.
+    let base = fresh_base_dir();
+    let client = client_for(&base);
+    let dir = client.plugin_dir("hello");
+    std::fs::create_dir_all(&dir).unwrap();
+    let bat = dir.join("plugin.bat");
+    std::fs::write(&bat, b"@echo off\n").unwrap();
+
+    let resolved = client.resolve_plugin("hello").await;
+    assert_eq!(resolved.as_deref(), Some(bat.as_path()));
+    cleanup(&base);
+}
+
+#[tokio::test]
+async fn resolve_plugin_prefers_canonical_over_alternate_extension() {
+    // Tier 1 wins over tier 3: both `plugin[.exe]` and `plugin.bat`
+    // exist. The platform-preferred canonical resolves.
+    let base = fresh_base_dir();
+    let client = client_for(&base);
+    let canonical = client.plugin_binary_path("hello");
+    std::fs::create_dir_all(canonical.parent().unwrap()).unwrap();
+    std::fs::write(&canonical, b"canonical").unwrap();
+    std::fs::write(canonical.parent().unwrap().join("plugin.bat"), b"alt").unwrap();
+
+    let resolved = client.resolve_plugin("hello").await;
+    assert_eq!(resolved.as_deref(), Some(canonical.as_path()));
+    cleanup(&base);
+}
+
+#[tokio::test]
+async fn resolve_plugin_ignores_unrelated_stems() {
+    // Files whose stem isn't exactly "plugin" don't satisfy tier 3.
+    // `plugin.tar.gz` has stem `plugin.tar` (Path::file_stem strips
+    // only the last extension), so it's rejected.
+    let base = fresh_base_dir();
+    let client = client_for(&base);
+    let dir = client.plugin_dir("hello");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("other.exe"), b"x").unwrap();
+    std::fs::write(dir.join("plugin.tar.gz"), b"x").unwrap();
+
+    let resolved = client.resolve_plugin("hello").await;
+    assert!(resolved.is_none(), "got {resolved:?}");
     cleanup(&base);
 }
 

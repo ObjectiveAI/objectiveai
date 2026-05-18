@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-viewer"
-version = "2.0.7"
+version = "2.0.8"
 edition = "2024"
 
 [features]
@@ -15,6 +15,11 @@ cli = ["dep:objectiveai-cli"]
 cli-rustpython = ["cli", "objectiveai-cli/rustpython"]
 cli-systempython = ["cli", "objectiveai-cli/systempython"]
 cli-updater = ["cli", "objectiveai-cli/updater"]
+# Standalone-viewer auto-update from GitHub releases on startup. NOT in
+# default so the embedded-in-cli viewer build (which inherits default
+# features) stays minimal; the standalone release build opts in via
+# `--features updater` from install.sh + build-viewer-leg.
+updater = ["objectiveai-sdk/updater"]
 
 [dependencies]
 axum = "0.8.8"
@@ -23,8 +28,8 @@ envconfig = "0.11.1"
 futures = "0.3.32"
 hex = "0.4.3"
 mime_guess = "2.0.5"
-objectiveai-sdk = { version = "2.0.7", path = "../../objectiveai-sdk-rs" }
-objectiveai-cli = { version = "2.0.7", path = "../../objectiveai-cli", default-features = false, optional = true }
+objectiveai-sdk = { version = "2.0.8", path = "../../objectiveai-sdk-rs" }
+objectiveai-cli = { version = "2.0.8", path = "../../objectiveai-cli", default-features = false, optional = true }
 reqwest = { version = "0.12.28", default-features = false, features = ["charset", "http2", "rustls-tls", "json", "stream"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"

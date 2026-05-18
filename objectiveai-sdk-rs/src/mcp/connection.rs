@@ -219,6 +219,30 @@ impl Connection {
         self.inner.subscribe_resources(current, timeout).await
     }
 
+    /// Atomically drain the proxy's `pending_notifications` queue for
+    /// this session via `GET /notify` and return the queued content
+    /// blocks. A second call returns `[]` until the next out-of-band
+    /// `POST /notify`.
+    ///
+    /// Intended for use at the start of an agent turn so notifications
+    /// queued between turns — when the prior turn ended without a tool
+    /// call, or the user is starting a fresh continuation — surface as
+    /// a user message instead of being lost. The proxy's existing
+    /// `tools/call` response path still drains in-flight notifications
+    /// arriving *during* a turn; this method covers the gap between
+    /// turns.
+    ///
+    /// A 404 from the proxy (session unknown — possible after a proxy
+    /// restart) is mapped to an empty `Vec` so callers do not need to
+    /// distinguish "no notifications" from "lost session" at the use
+    /// site; the next upstream call will surface the lost-session
+    /// condition through its own error path.
+    pub async fn drain_notifications(
+        &self,
+    ) -> Result<Vec<super::tool::ContentBlock>, super::Error> {
+        self.inner.drain_notifications().await
+    }
+
     /// Reads a resource from the upstream server.
     pub async fn read_resource(
         &self,
@@ -712,6 +736,58 @@ impl ConnectionInner {
             Ok(())
         })
         .await
+    }
+
+    /// `GET <self.url>/notify` against the ObjectiveAI MCP proxy.
+    /// Atomically drains the proxy's pending-notifications queue for
+    /// this session and returns the queued content blocks.
+    ///
+    /// Single-attempt — the proxy drain is destructive, so a retry
+    /// after a transient failure would risk silently dropping
+    /// notifications that the first attempt's response carried but
+    /// failed to deliver. Networks errors propagate to the caller; the
+    /// next turn's drain will pick up anything queued in the meantime.
+    /// A 404 (session unknown) is mapped to `Ok(vec![])` — see the
+    /// public method's doc on `Connection`.
+    async fn drain_notifications(
+        &self,
+    ) -> Result<Vec<super::tool::ContentBlock>, super::Error> {
+        if self.mock {
+            return Ok(Vec::new());
+        }
+
+        let url = format!("{}/notify", self.url.trim_end_matches('/'));
+        let mut request = self
+            .http_client
+            .get(&url)
+            .timeout(self.call_timeout)
+            .header("Accept", "application/json");
+        for (name, value) in &self.headers {
+            request = request.header(name, value);
+        }
+        // Mcp-Session-Id applied last so a same-named entry in `headers`
+        // can never override the connection's own session id — matches
+        // the invariant in `Self::post`.
+        request = request.header("Mcp-Session-Id", &self.session_id);
+
+        let response = request.send().await.map_err(|source| super::Error::Request {
+            url: url.clone(),
+            source,
+        })?;
+
+        if response.status() == reqwest::StatusCode::NOT_FOUND {
+            return Ok(Vec::new());
+        }
+        if !response.status().is_success() {
+            let code = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(super::Error::BadStatus { url, code, body });
+        }
+
+        response
+            .json::<Vec<super::tool::ContentBlock>>()
+            .await
+            .map_err(|source| super::Error::Request { url, source })
     }
 
     /// Returns a key identifying this connection for tool namespacing.
@@ -1534,5 +1610,107 @@ mod subscribe_tests {
         let r2 = r2.unwrap();
         assert_eq!(r1.as_slice(), &[tool("c")]);
         assert_eq!(r2.as_slice(), &[tool("c")]);
+    }
+}
+
+#[cfg(test)]
+mod drain_notifications_tests {
+    use super::*;
+    use crate::mcp::tool::{ContentBlock, TextContent};
+    use serde_json::json;
+    use wiremock::matchers::{header, method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    /// Happy path: proxy returns `[text, text]`, we parse it as two
+    /// `ContentBlock::Text` and return them in order.
+    #[tokio::test]
+    async fn drain_notifications_parses_text_blocks_in_order() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/notify"))
+            .and(header("Mcp-Session-Id", ""))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!([
+                {"type": "text", "text": "first"},
+                {"type": "text", "text": "second"},
+            ])))
+            .mount(&server)
+            .await;
+
+        let conn = Connection::new_for_test("t".into(), server.uri());
+        let blocks = conn.drain_notifications().await.expect("drain ok");
+        assert_eq!(blocks.len(), 2);
+        match &blocks[0] {
+            ContentBlock::Text(TextContent { text, .. }) => assert_eq!(text, "first"),
+            other => panic!("expected text, got {other:?}"),
+        }
+        match &blocks[1] {
+            ContentBlock::Text(TextContent { text, .. }) => assert_eq!(text, "second"),
+            other => panic!("expected text, got {other:?}"),
+        }
+    }
+
+    /// 404 (proxy lost the session, e.g. after a restart) → empty vec
+    /// rather than an error. The next upstream call will surface the
+    /// session-lost condition through its own error path; init-time
+    /// drain shouldn't be the one to abort the request.
+    #[tokio::test]
+    async fn drain_notifications_404_returns_empty() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/notify"))
+            .respond_with(ResponseTemplate::new(404))
+            .mount(&server)
+            .await;
+
+        let conn = Connection::new_for_test("t".into(), server.uri());
+        let blocks = conn.drain_notifications().await.expect("404 → ok(empty)");
+        assert!(blocks.is_empty(), "expected empty vec, got {blocks:?}");
+    }
+
+    /// Empty queue → empty array → empty vec. The most common case.
+    #[tokio::test]
+    async fn drain_notifications_empty_queue_returns_empty() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/notify"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!([])))
+            .mount(&server)
+            .await;
+
+        let conn = Connection::new_for_test("t".into(), server.uri());
+        let blocks = conn.drain_notifications().await.expect("drain ok");
+        assert!(blocks.is_empty(), "expected empty vec, got {blocks:?}");
+    }
+
+    /// Non-success / non-404 status propagates as `BadStatus`.
+    #[tokio::test]
+    async fn drain_notifications_5xx_returns_bad_status() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/notify"))
+            .respond_with(ResponseTemplate::new(500).set_body_string("boom"))
+            .mount(&server)
+            .await;
+
+        let conn = Connection::new_for_test("t".into(), server.uri());
+        let err = conn
+            .drain_notifications()
+            .await
+            .expect_err("5xx → err");
+        match err {
+            super::super::Error::BadStatus { code, body, .. } => {
+                assert_eq!(code.as_u16(), 500);
+                assert_eq!(body, "boom");
+            }
+            other => panic!("expected BadStatus, got {other:?}"),
+        }
+    }
+
+    /// Mock connections never hit the network and always return empty.
+    #[tokio::test]
+    async fn drain_notifications_mock_returns_empty() {
+        let conn = Connection::new_mock("http://does-not-matter".into());
+        let blocks = conn.drain_notifications().await.expect("mock ok");
+        assert!(blocks.is_empty());
     }
 }

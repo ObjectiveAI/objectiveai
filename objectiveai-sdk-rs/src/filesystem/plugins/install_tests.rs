@@ -544,6 +544,96 @@ async fn install_skips_viewer_zip_when_absent() {
 }
 
 #[tokio::test]
+async fn install_skips_viewer_zip_download_when_viewer_url_set() {
+    // When the manifest declares `viewer_url` (and no `viewer_zip`),
+    // the install path should download the binary, persist the
+    // manifest with the URL, and NOT create `<plugin_dir>/viewer/`.
+    // No viewer-zip mock is registered — if install tries to fetch
+    // one, wiremock 404s and the test fails.
+    let base = temp_base();
+    let server = MockServer::start().await;
+    let platform_key = current_platform_key();
+
+    let manifest_body = json!({
+        "description": "url-viewer plugin",
+        "version": "1.0.0",
+        "binaries": { platform_key: "asset-bin" },
+        "viewer_url": "https://plugin.example.com/index.html",
+        "viewer_routes": [
+            { "path": "/say", "method": "POST", "type": "say_request" }
+        ]
+    });
+
+    Mock::given(method("GET"))
+        .and(path("/owner/repo/HEAD/objectiveai.json"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(manifest_body))
+        .mount(&server)
+        .await;
+
+    Mock::given(method("GET"))
+        .and(path("/owner/repo/releases/download/v1.0.0/asset-bin"))
+        .respond_with(ResponseTemplate::new(200).set_body_bytes(FAKE_BIN.to_vec()))
+        .mount(&server)
+        .await;
+
+    let client = client_for(&base);
+    let ok = client
+        .install_plugin_at(&server.uri(), &server.uri(), "owner", "repo", None, None, false)
+        .await
+        .unwrap();
+    assert!(ok);
+
+    let viewer_dir = base.join("plugins").join("repo").join("viewer");
+    assert!(
+        !viewer_dir.exists(),
+        "viewer dir should not exist for viewer_url plugin (no zip to extract)"
+    );
+
+    let persisted: ManifestWithNameAndSource =
+        serde_json::from_slice(&std::fs::read(base.join("plugins").join("repo.json")).unwrap()).unwrap();
+    assert_eq!(
+        persisted.manifest.viewer_url.as_deref(),
+        Some("https://plugin.example.com/index.html")
+    );
+    assert!(persisted.manifest.viewer_zip.is_none());
+    assert_eq!(persisted.manifest.viewer_routes.len(), 1);
+    assert!(persisted.manifest.has_viewer());
+
+    cleanup(&base);
+}
+
+#[tokio::test]
+async fn install_rejects_manifest_with_both_viewer_sources() {
+    let base = temp_base();
+    let server = MockServer::start().await;
+    let platform_key = current_platform_key();
+
+    let manifest_body = json!({
+        "description": "broken plugin",
+        "version": "1.0.0",
+        "binaries": { platform_key: "asset-bin" },
+        "viewer_zip": "v.zip",
+        "viewer_url": "https://plugin.example.com/"
+    });
+
+    Mock::given(method("GET"))
+        .and(path("/owner/repo/HEAD/objectiveai.json"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(manifest_body))
+        .mount(&server)
+        .await;
+
+    let client = client_for(&base);
+    let err = client
+        .install_plugin_at(&server.uri(), &server.uri(), "owner", "repo", None, None, false)
+        .await
+        .unwrap_err();
+    let msg = format!("{err}");
+    assert!(msg.contains("mutually exclusive"), "got {msg:?}");
+
+    cleanup(&base);
+}
+
+#[tokio::test]
 async fn install_viewer_zip_404_returns_error() {
     let base = temp_base();
     let server = MockServer::start().await;

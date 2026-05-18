@@ -856,8 +856,35 @@ where
         RC: Send + Sync + Clone + Into<objectiveai_sdk::agent::Continuation> + 'static,
         CONT: Send + 'static,
     {
-        // --- Merge messages, prepare, and apply transform. ---
+        // --- Merge messages, drain proxy-queued notifications, prepare,
+        // and apply transform. ---
+        //
+        // The drain happens *before* `prepare` so the appended user
+        // message is folded into the single normalization pass (consecutive
+        // same-role messages get consolidated) and `transform_messages`
+        // sees the drained content like any other message. The proxy's
+        // tool-response path still drains in-flight notifications during
+        // a turn; this init-time drain covers the gap *between* turns —
+        // i.e. when the previous turn ended without a tool call, or when
+        // the user is starting a fresh continuation.
         let mut messages = agent_base.merged_messages(params.messages.clone());
+
+        if let Some(conn) = &mcp_connection {
+            let blocks = conn.drain_notifications().await.map_err(|error| {
+                super::Error::McpDrainNotifications {
+                    url: conn.url.clone(),
+                    error,
+                }
+            })?;
+            if !blocks.is_empty() {
+                messages.push(
+                    objectiveai_sdk::agent::completions::message::Message::User(
+                        build_drain_user_message(blocks),
+                    ),
+                );
+            }
+        }
+
         objectiveai_sdk::agent::completions::message::prompt::prepare(&mut messages);
         let messages = match transform_messages {
             Some(f) => f(messages),
@@ -1231,6 +1258,84 @@ fn extract_callable_tool_calls(
     callable
 }
 
+/// Wrap MCP `ContentBlock`s drained from the proxy at agent init time
+/// into a `UserMessage`.
+///
+/// The blocks are presented to the model as a plain user turn — no
+/// `<system-reminder>` wrapper. (The wrapper is reserved for the
+/// proxy's tool-response drain path, where notifications surface
+/// mid-turn and need the "while you were working" framing.) Init-time
+/// notifications are semantically a user message that arrived between
+/// turns, so they take the user-message shape directly.
+///
+/// Mapping:
+/// - `Text` → text part
+/// - `Image` → image_url part (data URL, matching `call_tool_as_message`)
+/// - `Audio` → input_audio part
+/// - `ResourceLink` / `EmbeddedResource` → JSON-serialized text part
+///   (we don't have the proxy's resource-list context here; richer
+///   inlining lives in `call_tool_as_message`)
+///
+/// Empty input is the caller's responsibility — the caller checks
+/// `!blocks.is_empty()` before invoking.
+fn build_drain_user_message(
+    blocks: Vec<objectiveai_sdk::mcp::tool::ContentBlock>,
+) -> objectiveai_sdk::agent::completions::message::UserMessage {
+    use objectiveai_sdk::agent::completions::message::{
+        ImageUrl, InputAudio, RichContent, RichContentPart, UserMessage,
+    };
+    use objectiveai_sdk::mcp::tool::ContentBlock;
+
+    let mut parts: Vec<RichContentPart> = Vec::with_capacity(blocks.len());
+    for block in &blocks {
+        match block {
+            ContentBlock::Text(text) => parts.push(RichContentPart::Text {
+                text: text.text.clone(),
+            }),
+            ContentBlock::Image(image) => parts.push(RichContentPart::ImageUrl {
+                image_url: ImageUrl {
+                    url: format!("data:{};base64,{}", image.mime_type, image.data),
+                    detail: None,
+                },
+            }),
+            ContentBlock::Audio(audio) => parts.push(RichContentPart::InputAudio {
+                input_audio: InputAudio {
+                    data: audio.data.clone(),
+                    format: audio.mime_type.clone(),
+                },
+            }),
+            ContentBlock::ResourceLink(_) | ContentBlock::EmbeddedResource(_) => {
+                parts.push(RichContentPart::Text {
+                    text: serde_json::to_string(block).unwrap_or_default(),
+                });
+            }
+        }
+    }
+
+    // Collapse to plain `Text` when every part is text — matches the
+    // shape `call_tool_as_message` lands on and lets `prepare()` fold
+    // the message into a trailing user message in the conversation if
+    // one is present.
+    let all_text = parts
+        .iter()
+        .all(|p| matches!(p, RichContentPart::Text { .. }));
+    let content = if all_text {
+        let joined = parts
+            .into_iter()
+            .filter_map(|p| match p {
+                RichContentPart::Text { text } => Some(text),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        RichContent::Text(joined)
+    } else {
+        RichContent::Parts(parts)
+    };
+
+    UserMessage { content, name: None }
+}
+
 /// Builds an `AgentCompletionChunk` containing a single tool-response message.
 fn make_tool_chunk(
     id: &str,
@@ -1253,5 +1358,113 @@ fn make_tool_chunk(
             inner: tool_msg.clone(),
         })],
         ..Default::default()
+    }
+}
+
+#[cfg(test)]
+mod build_drain_user_message_tests {
+    use super::build_drain_user_message;
+    use objectiveai_sdk::agent::completions::message::{
+        RichContent, RichContentPart,
+    };
+    use objectiveai_sdk::mcp::tool::{
+        AudioContent, ContentBlock, ImageContent, TextContent,
+    };
+
+    /// All-text input collapses to a single `RichContent::Text` joined
+    /// with `\n\n` between blocks. No `<system-reminder>` wrapper —
+    /// that's reserved for the proxy's tool-response drain path.
+    #[test]
+    fn text_only_blocks_collapse_to_joined_text() {
+        let msg = build_drain_user_message(vec![
+            ContentBlock::Text(TextContent {
+                text: "hello".into(),
+                annotations: None,
+                _meta: None,
+            }),
+            ContentBlock::Text(TextContent {
+                text: "world".into(),
+                annotations: None,
+                _meta: None,
+            }),
+        ]);
+        assert_eq!(msg.name, None);
+        match msg.content {
+            RichContent::Text(s) => assert_eq!(s, "hello\n\nworld"),
+            other => panic!("expected RichContent::Text, got {other:?}"),
+        }
+    }
+
+    /// A single text block becomes a plain `Text` (no `Parts` wrapper).
+    #[test]
+    fn single_text_block_is_plain_text() {
+        let msg = build_drain_user_message(vec![ContentBlock::Text(TextContent {
+            text: "just one".into(),
+            annotations: None,
+            _meta: None,
+        })]);
+        match msg.content {
+            RichContent::Text(s) => assert_eq!(s, "just one"),
+            other => panic!("expected RichContent::Text, got {other:?}"),
+        }
+    }
+
+    /// Mixed content (text + image) stays as `Parts` since the image
+    /// has to ride alongside the text in a multimodal-aware shape.
+    #[test]
+    fn mixed_content_becomes_parts() {
+        let msg = build_drain_user_message(vec![
+            ContentBlock::Text(TextContent {
+                text: "look at this".into(),
+                annotations: None,
+                _meta: None,
+            }),
+            ContentBlock::Image(ImageContent {
+                data: "BASE64DATA".into(),
+                mime_type: "image/png".into(),
+                annotations: None,
+                _meta: None,
+            }),
+        ]);
+        match msg.content {
+            RichContent::Parts(parts) => {
+                assert_eq!(parts.len(), 2);
+                match &parts[0] {
+                    RichContentPart::Text { text } => assert_eq!(text, "look at this"),
+                    other => panic!("expected text part, got {other:?}"),
+                }
+                match &parts[1] {
+                    RichContentPart::ImageUrl { image_url } => {
+                        assert_eq!(image_url.url, "data:image/png;base64,BASE64DATA");
+                    }
+                    other => panic!("expected image part, got {other:?}"),
+                }
+            }
+            other => panic!("expected RichContent::Parts, got {other:?}"),
+        }
+    }
+
+    /// Audio block round-trips through `InputAudio` part.
+    #[test]
+    fn audio_block_becomes_input_audio_part() {
+        let msg = build_drain_user_message(vec![ContentBlock::Audio(AudioContent {
+            data: "AUDIO".into(),
+            mime_type: "audio/wav".into(),
+            annotations: None,
+            _meta: None,
+        })]);
+        match msg.content {
+            RichContent::Parts(parts) => {
+                assert_eq!(parts.len(), 1);
+                match &parts[0] {
+                    RichContentPart::InputAudio { input_audio } => {
+                        assert_eq!(input_audio.data, "AUDIO");
+                        assert_eq!(input_audio.format, "audio/wav");
+                    }
+                    other => panic!("expected input_audio part, got {other:?}"),
+                }
+            }
+            other => panic!("expected RichContent::Parts, got {other:?}"),
+        }
     }
 }

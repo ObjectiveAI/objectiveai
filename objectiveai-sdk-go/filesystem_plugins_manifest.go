@@ -52,10 +52,24 @@ type FilesystemPluginsManifest struct {
 	// to the React frontend, which dispatches to the plugin's
 	// iframe via the postMessage bridge.
 	ViewerRoutes []FilesystemPluginsViewerRoute `json:"viewer_routes"`
+	// Remote URL the viewer's iframe loads directly, instead of an
+	// on-disk bundle from [`Self::viewer_zip`]. The full URL is used
+	// as the iframe `src=` verbatim — query string, path, port,
+	// fragment all pass through. Must use `https://`, or `http://`
+	// targeting `localhost` / `127.0.0.1` (development only).
+	//
+	// Mutually exclusive with [`Self::viewer_zip`]. [`Self::viewer_routes`]
+	// and [`Self::mobile_ready`] apply to remote-URL viewers the same
+	// way they apply to zip-bundled viewers — the embedded axum
+	// server still hosts the declared routes; the iframe still
+	// receives the same postMessage protocol regardless of where
+	// its HTML/JS loaded from.
+	ViewerURL *string `json:"viewer_url,omitempty"`
 	// GitHub-release asset filename for the plugin's viewer UI
 	// bundle (a `.zip` whose root contains `index.html` plus
-	// assets). When absent, the plugin has no viewer tab and the
-	// viewer's startup scan ignores it for UI purposes.
+	// assets). When absent, the plugin has no viewer tab from this
+	// source. Mutually exclusive with [`Self::viewer_url`] —
+	// validated by [`Self::validate`].
 	ViewerZip *string `json:"viewer_zip,omitempty"`
 }
 

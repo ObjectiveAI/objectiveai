@@ -67,8 +67,8 @@ bash "$REPO_ROOT/objectiveai-viewer/build.sh" --release
 # ── Build mcp ──────────────────────────────────────────────────────────
 
 # Fully-featured: all three passthrough features on for parity with
-# the cli release.
-FEATURES="viewer,rustpython,systempython"
+# the cli release, plus the updater so the shipped binary self-updates.
+FEATURES="viewer,rustpython,systempython,updater"
 
 echo "Building objectiveai-mcp (release, features: $FEATURES)..."
 cargo build --release -p objectiveai-mcp-cli \

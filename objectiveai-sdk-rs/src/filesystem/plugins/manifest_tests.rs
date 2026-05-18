@@ -10,6 +10,7 @@ fn manifest_minimal_roundtrip() {
         license: None,
         binaries: Binaries::default(),
         viewer_zip: None,
+        viewer_url: None,
         viewer_routes: vec![],
         mobile_ready: false,
     };
@@ -39,6 +40,7 @@ fn manifest_full_roundtrip() {
         license: Some("MIT".to_string()),
         binaries: Binaries::default(),
         viewer_zip: None,
+        viewer_url: None,
         viewer_routes: vec![],
         mobile_ready: false,
     };
@@ -63,6 +65,7 @@ fn manifest_with_name_and_source_field_order() {
             license: Some("MIT".to_string()),
             binaries: Binaries::default(),
             viewer_zip: None,
+            viewer_url: None,
             viewer_routes: vec![],
             mobile_ready: false,
         },
@@ -131,6 +134,7 @@ fn manifest_with_binaries_roundtrip() {
         license: None,
         binaries: full_binaries(),
         viewer_zip: None,
+        viewer_url: None,
         viewer_routes: vec![],
         mobile_ready: false,
     };
@@ -153,6 +157,7 @@ fn manifest_omits_empty_binaries_field() {
         license: None,
         binaries: Binaries::default(),
         viewer_zip: None,
+        viewer_url: None,
         viewer_routes: vec![],
         mobile_ready: false,
     };
@@ -181,6 +186,7 @@ fn manifest_with_binaries_field_order() {
         license: None,
         binaries: full_binaries(),
         viewer_zip: None,
+        viewer_url: None,
         viewer_routes: vec![],
         mobile_ready: false,
     };
@@ -219,6 +225,7 @@ fn manifest_with_sparse_binaries_is_valid() {
             ..Default::default()
         },
         viewer_zip: None,
+        viewer_url: None,
         viewer_routes: vec![],
         mobile_ready: false,
     };
@@ -243,6 +250,7 @@ fn manifest_with_viewer_fields_roundtrip() {
         license: None,
         binaries: Binaries::default(),
         viewer_zip: Some("psyops-viewer.zip".to_string()),
+        viewer_url: None,
         viewer_routes: vec![
             ViewerRoute {
                 path: "/say".to_string(),
@@ -283,6 +291,7 @@ fn manifest_omits_viewer_fields_when_absent() {
         license: None,
         binaries: Binaries::default(),
         viewer_zip: None,
+        viewer_url: None,
         viewer_routes: vec![],
         mobile_ready: false,
     };
@@ -320,4 +329,122 @@ fn http_method_serializes_uppercase() {
         let back: HttpMethod = serde_json::from_str(&got).unwrap();
         assert_eq!(back, m);
     }
+}
+
+// Helper: a minimal Manifest with no viewer source set. Tests below
+// override one or both viewer fields before calling `validate`.
+fn manifest_without_viewer() -> Manifest {
+    Manifest {
+        description: "t".to_string(),
+        version: "0.0.1".to_string(),
+        author: None,
+        homepage: None,
+        license: None,
+        binaries: Binaries::default(),
+        viewer_zip: None,
+        viewer_url: None,
+        viewer_routes: vec![],
+        mobile_ready: false,
+    }
+}
+
+#[test]
+fn has_viewer_returns_true_for_either_source() {
+    let mut m = manifest_without_viewer();
+    assert!(!m.has_viewer());
+
+    m.viewer_zip = Some("v.zip".to_string());
+    assert!(m.has_viewer());
+    m.viewer_zip = None;
+
+    m.viewer_url = Some("https://x.example.com".to_string());
+    assert!(m.has_viewer());
+}
+
+#[test]
+fn manifest_validate_rejects_both_viewer_sources() {
+    let mut m = manifest_without_viewer();
+    m.viewer_zip = Some("v.zip".to_string());
+    m.viewer_url = Some("https://x.example.com".to_string());
+    let err = m.validate().unwrap_err();
+    assert!(err.contains("mutually exclusive"), "got {err:?}");
+}
+
+#[test]
+fn manifest_validate_accepts_viewer_url_only() {
+    let mut m = manifest_without_viewer();
+    m.viewer_url = Some("https://x.example.com".to_string());
+    assert!(m.validate().is_ok());
+}
+
+#[test]
+fn manifest_validate_accepts_viewer_zip_only() {
+    let mut m = manifest_without_viewer();
+    m.viewer_zip = Some("v.zip".to_string());
+    assert!(m.validate().is_ok());
+}
+
+#[test]
+fn manifest_validate_accepts_no_viewer_source() {
+    let m = manifest_without_viewer();
+    assert!(m.validate().is_ok());
+}
+
+#[test]
+fn manifest_validate_accepts_localhost_http() {
+    for url in [
+        "http://localhost",
+        "http://localhost:5173",
+        "http://localhost:5173/foo/bar?q=1#frag",
+        "http://127.0.0.1",
+        "http://127.0.0.1:8080/index.html",
+    ] {
+        let mut m = manifest_without_viewer();
+        m.viewer_url = Some(url.to_string());
+        assert!(m.validate().is_ok(), "expected ok for {url:?}");
+    }
+}
+
+#[test]
+fn manifest_validate_rejects_non_localhost_http() {
+    for url in [
+        "http://example.com",
+        "http://evil.example.com:8080",
+        "http://1.2.3.4",
+    ] {
+        let mut m = manifest_without_viewer();
+        m.viewer_url = Some(url.to_string());
+        let err = m.validate().unwrap_err();
+        assert!(err.contains("localhost"), "got {err:?} for {url:?}");
+    }
+}
+
+#[test]
+fn manifest_validate_rejects_other_schemes() {
+    for url in [
+        "ftp://example.com",
+        "file:///tmp/x",
+        "javascript:alert(1)",
+        "",
+    ] {
+        let mut m = manifest_without_viewer();
+        m.viewer_url = Some(url.to_string());
+        assert!(m.validate().is_err(), "expected err for {url:?}");
+    }
+}
+
+#[test]
+fn manifest_with_viewer_url_serde_roundtrip() {
+    let mut m = manifest_without_viewer();
+    m.viewer_url = Some("https://plugin.example.com/index.html".to_string());
+    let json = serde_json::to_value(&m).unwrap();
+    assert_eq!(
+        json["viewer_url"],
+        serde_json::json!("https://plugin.example.com/index.html")
+    );
+    assert!(!json.as_object().unwrap().contains_key("viewer_zip"));
+    let back: Manifest = serde_json::from_value(json).unwrap();
+    assert_eq!(back.viewer_url, m.viewer_url);
+    assert!(back.viewer_zip.is_none());
+    assert!(back.has_viewer());
 }

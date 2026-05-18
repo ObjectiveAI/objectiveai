@@ -51,21 +51,70 @@ pub(crate) fn register_plugin_route(
     app.route(&full_path, method_router)
 }
 
-/// Names of installed plugins that should appear as tabs in the
-/// viewer shell. Pre-filtered to plugins that ship a viewer bundle
-/// (`viewer_zip` set) — without a bundle there's nothing for the
+/// Percent-encode characters in a plugin name that would change the
+/// meaning of a URL path segment. GitHub repo names are constrained
+/// to `[A-Za-z0-9._-]+` which need no encoding, but defend in depth
+/// against future name conventions or hand-edited manifests.
+/// Dependency-free; no need for the full `percent-encoding` crate.
+fn percent_encode_plugin_name(name: &str) -> String {
+    let mut out = String::with_capacity(name.len());
+    for b in name.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                out.push(b as char);
+            }
+            _ => out.push_str(&format!("%{b:02X}")),
+        }
+    }
+    out
+}
+
+/// One installed plugin's viewer info, surfaced to the React shell.
+/// Pre-resolves `iframe_src` on the Rust side so the frontend doesn't
+/// have to know about `viewer_zip` vs `viewer_url` — it just renders
+/// the URL.
+#[derive(serde::Serialize, Clone, Debug)]
+pub(crate) struct ViewerPluginInfo {
+    /// Plugin name (== repository name == tab label).
+    pub name: String,
+    /// Iframe `src=` to load. For `viewer_zip` plugins this is the
+    /// `plugin://localhost/<name>/index.html` URL served by
+    /// [`serve_plugin_asset`]; for `viewer_url` plugins this is the
+    /// manifest's URL verbatim.
+    pub iframe_src: String,
+    /// Manifest's `mobile_ready` flag, forwarded for future responsive
+    /// layout decisions on the frontend.
+    pub mobile_ready: bool,
+}
+
+/// Installed plugins that should appear as tabs in the viewer shell.
+/// Pre-filtered to plugins that ship a viewer (either `viewer_zip` or
+/// `viewer_url`) — without a viewer source there's nothing for the
 /// iframe to render. Plugins with only `viewer_routes` and no
-/// bundle still have their axum routes registered at startup but
-/// don't get a tab.
+/// viewer source still have their axum routes registered at startup
+/// but don't get a tab.
 #[tauri::command]
 pub(crate) async fn list_plugins_with_viewer(
     state: tauri::State<'_, FsClient>,
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<ViewerPluginInfo>, String> {
     let plugins = state.inner().list_plugins(0, usize::MAX).await;
     Ok(plugins
         .into_iter()
-        .filter(|p| p.manifest.viewer_zip.is_some())
-        .map(|p| p.name)
+        .filter(|p| p.manifest.has_viewer())
+        .map(|p| {
+            let iframe_src = match p.manifest.viewer_url.as_deref() {
+                Some(url) => url.to_string(),
+                None => format!(
+                    "plugin://localhost/{}/index.html",
+                    percent_encode_plugin_name(&p.name)
+                ),
+            };
+            ViewerPluginInfo {
+                name: p.name,
+                iframe_src,
+                mobile_ready: p.manifest.mobile_ready,
+            }
+        })
         .collect())
 }
 
