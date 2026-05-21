@@ -1,3 +1,4 @@
+import cn from "classnames";
 import { useState, useCallback, useEffect, memo } from "react";
 import * as Collapsible from "@radix-ui/react-collapsible";
 
@@ -20,7 +21,7 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={copy}
-      className={`text-[10px] transition-colors ${copied ? "text-success" : "text-info-dim hover:text-copper-bright"}`}
+      className={cn("text-[10px]", "transition-colors", copied ? cn("text-success") : cn("text-info-dim", "hover:text-copper-bright"))}
       title="Copy to clipboard"
     >
       {copied ? "copied" : "copy"}
@@ -36,18 +37,18 @@ export const ToolCallCard = memo(function ToolCallCard({ call }: { call: { id?: 
   } catch { /* keep raw */ }
 
   return (
-    <div className="bg-ground-surface border border-node-border rounded-md p-2.5 text-xs">
-      <div className="flex items-center gap-2 mb-1">
-        <span className="font-semibold font-mono text-copper-mid">{fn?.name ?? "unknown"}</span>
+    <div className={cn("bg-ground-surface", "border", "border-node-border", "rounded-md", "p-2.5", "text-xs")}>
+      <div className={cn("flex", "items-center", "gap-2", "mb-1")}>
+        <span className={cn("font-semibold", "font-mono", "text-copper-mid")}>{fn?.name ?? "unknown"}</span>
         {formattedArgs && <CopyButton text={formattedArgs} />}
       </div>
       {formattedArgs && (
         <Collapsible.Root defaultOpen={formattedArgs.length < 200}>
-          <Collapsible.Trigger className="text-[10px] text-info-dim cursor-pointer hover:text-info-mid" aria-label="Toggle function arguments">
+          <Collapsible.Trigger className={cn("text-[10px]", "text-info-dim", "cursor-pointer", "hover:text-info-mid")} aria-label="Toggle function arguments">
             args
           </Collapsible.Trigger>
           <Collapsible.Content>
-            <div className="font-mono text-[11px] whitespace-pre-wrap break-words text-info-mid max-h-[150px] overflow-y-auto mt-1">
+            <div className={cn("font-mono", "text-[11px]", "whitespace-pre-wrap", "break-words", "text-info-mid", "max-h-[150px]", "overflow-y-auto", "mt-1")}>
               {formattedArgs}
             </div>
           </Collapsible.Content>

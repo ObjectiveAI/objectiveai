@@ -1,4 +1,5 @@
 import { Component, type ReactNode, type ErrorInfo } from "react";
+import cn from "classnames";
 
 interface Props {
   children: ReactNode;
@@ -23,11 +24,11 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex flex-col items-center justify-center py-10 px-6 text-center">
-          <div className="text-info-dim text-sm mb-1">Something went wrong rendering this entry.</div>
-          <div className="text-error text-xs font-mono mb-3 max-w-md truncate">{this.state.error?.message}</div>
+        <div className={cn("flex", "flex-col", "items-center", "justify-center", "py-10", "px-6", "text-center")}>
+          <div className={cn("text-info-dim", "text-sm", "mb-1")}>Something went wrong rendering this entry.</div>
+          <div className={cn("text-error", "text-xs", "font-mono", "mb-3", "max-w-md", "truncate")}>{this.state.error?.message}</div>
           <button
-            className="font-mono text-[10px] text-info-dim bg-ground-raised border border-node-border rounded-sm px-3 py-1 hover:text-info-bright transition-colors"
+            className={cn("font-mono", "text-[10px]", "text-info-dim", "bg-ground-raised", "border", "border-node-border", "rounded-sm", "px-3", "py-1", "hover:text-info-bright", "transition-colors")}
             onClick={() => this.setState({ hasError: false, error: null })}
           >
             Retry

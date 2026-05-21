@@ -1,4 +1,5 @@
 import { useState, useCallback, type KeyboardEvent } from "react";
+import cn from "classnames";
 import { tauriInvoke } from "../../lib/tauri";
 
 export function MessageInput({ responseId }: { responseId: string }) {
@@ -32,13 +33,13 @@ export function MessageInput({ responseId }: { responseId: string }) {
   }, [send]);
 
   return (
-    <div className="max-w-content mx-auto mb-6 px-4">
-      <div className="text-[10px] font-mono text-info-dim uppercase tracking-wide mb-1.5 px-1">
+    <div className={cn("max-w-content", "mx-auto", "mb-6", "px-4")}>
+      <div className={cn("text-[10px]", "font-mono", "text-info-dim", "uppercase", "tracking-wide", "mb-1.5", "px-1")}>
         Multi-turn — send a follow-up while the agent is running
       </div>
-      <div className="flex gap-2">
+      <div className={cn("flex", "gap-2")}>
         <textarea
-          className="flex-1 bg-ground-surface border border-node-border rounded-md px-3 py-2 text-sm text-info-bright font-mono resize-none placeholder:text-info-dim focus:outline-none focus:border-copper-dim"
+          className={cn("flex-1", "bg-ground-surface", "border", "border-node-border", "rounded-md", "px-3", "py-2", "text-sm", "text-info-bright", "font-mono", "resize-none", "placeholder:text-info-dim", "focus:outline-none", "focus:border-copper-dim")}
           rows={1}
           placeholder="Message agent…"
           aria-label="Send follow-up message to running agent"
@@ -48,7 +49,7 @@ export function MessageInput({ responseId }: { responseId: string }) {
           disabled={sending}
         />
         <button
-          className="px-3 py-2 bg-copper-warm text-ground font-mono text-xs font-semibold rounded-md hover:bg-copper-mid disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className={cn("px-3", "py-2", "bg-copper-warm", "text-ground", "font-mono", "text-xs", "font-semibold", "rounded-md", "hover:bg-copper-mid", "disabled:opacity-40", "disabled:cursor-not-allowed", "transition-colors")}
           onClick={send}
           disabled={!text.trim() || sending}
         >

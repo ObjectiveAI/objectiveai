@@ -3,3 +3,7 @@ node_modules/
 app-icon.png
 src-tauri/target/
 src-tauri/gen/
+figma-handoff.md
+figma-frames.md
+viewer-states.html
+viewer-wireframes.html

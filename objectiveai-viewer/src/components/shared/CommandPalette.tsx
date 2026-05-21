@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import cn from "classnames";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useCliCommand, type CliLine } from "../../hooks/useCliCommand";
 
@@ -39,7 +40,7 @@ function JsonHighlighted({ value }: { value: unknown }) {
   // Tokenize JSON for highlighting
   const lines = json.split("\n");
   return (
-    <pre className="whitespace-pre-wrap">
+    <pre className={cn("whitespace-pre-wrap")}>
       {lines.map((line, i) => (
         <div key={i}>{colorizeJsonLine(line)}</div>
       ))}
@@ -57,7 +58,7 @@ function colorizeJsonLine(line: string): React.ReactNode {
     // Match leading whitespace/structural chars
     const structMatch = remaining.match(/^([\s,\[\]{}:]+)/);
     if (structMatch) {
-      parts.push(<span key={key++} className="text-info-dim">{structMatch[1]}</span>);
+      parts.push(<span key={key++} className={cn("text-info-dim")}>{structMatch[1]}</span>);
       remaining = remaining.slice(structMatch[1].length);
       continue;
     }
@@ -70,9 +71,9 @@ function colorizeJsonLine(line: string): React.ReactNode {
       const afterStr = remaining.slice(str.length);
       const isKey = /^\s*:/.test(afterStr);
       if (isKey) {
-        parts.push(<span key={key++} className="text-copper-mid">{str}</span>);
+        parts.push(<span key={key++} className={cn("text-copper-mid")}>{str}</span>);
       } else {
-        parts.push(<span key={key++} className="text-info-mid">{str}</span>);
+        parts.push(<span key={key++} className={cn("text-info-mid")}>{str}</span>);
       }
       remaining = remaining.slice(str.length);
       continue;
@@ -81,7 +82,7 @@ function colorizeJsonLine(line: string): React.ReactNode {
     // Match numbers
     const numMatch = remaining.match(/^(-?\d+\.?\d*(?:[eE][+-]?\d+)?)/);
     if (numMatch) {
-      parts.push(<span key={key++} className="text-copper-bright">{numMatch[1]}</span>);
+      parts.push(<span key={key++} className={cn("text-copper-bright")}>{numMatch[1]}</span>);
       remaining = remaining.slice(numMatch[1].length);
       continue;
     }
@@ -89,13 +90,13 @@ function colorizeJsonLine(line: string): React.ReactNode {
     // Match booleans and null
     const boolMatch = remaining.match(/^(true|false|null)/);
     if (boolMatch) {
-      parts.push(<span key={key++} className="text-copper-dim">{boolMatch[1]}</span>);
+      parts.push(<span key={key++} className={cn("text-copper-dim")}>{boolMatch[1]}</span>);
       remaining = remaining.slice(boolMatch[1].length);
       continue;
     }
 
     // Fallback: take one character
-    parts.push(<span key={key++} className="text-info-mid">{remaining[0]}</span>);
+    parts.push(<span key={key++} className={cn("text-info-mid")}>{remaining[0]}</span>);
     remaining = remaining.slice(1);
   }
 
@@ -105,12 +106,12 @@ function colorizeJsonLine(line: string): React.ReactNode {
 /** Render a single output line with optional JSON highlighting */
 function OutputLine({ line }: { line: CliLine }) {
   if (line.type === "end") {
-    return <div className="text-info-dim italic">— done —</div>;
+    return <div className={cn("text-info-dim", "italic")}>— done —</div>;
   }
 
   if (line.type === "error") {
     const text = typeof line.value === "string" ? line.value : JSON.stringify(line.value);
-    return <div className="text-error">{text}</div>;
+    return <div className={cn("text-error")}>{text}</div>;
   }
 
   const text =
@@ -124,13 +125,13 @@ function OutputLine({ line }: { line: CliLine }) {
   const parsed = tryParseJson(text);
   if (parsed !== null) {
     return (
-      <div className="text-info-mid">
+      <div className={cn("text-info-mid")}>
         <JsonHighlighted value={parsed} />
       </div>
     );
   }
 
-  return <div className="text-info-mid">{text}</div>;
+  return <div className={cn("text-info-mid")}>{text}</div>;
 }
 
 /** Guided execution flow for "Execute function" */
@@ -151,43 +152,60 @@ function GuidedExecution({
 }) {
   if (mode.step === "picking") {
     return (
-      <div className="mt-2">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[10px] font-mono text-copper-dim uppercase tracking-wide">
+      <div className={cn("mt-2")}>
+        <div className={cn("flex", "items-center", "justify-between", "mb-2")}>
+          <span className={cn("text-[10px]", "font-mono", "text-copper-dim", "uppercase", "tracking-wide")}>
             Step 1: Select function
           </span>
           <button
             onClick={onBack}
-            className="text-[10px] font-mono text-info-dim hover:text-info-mid transition-colors"
+            className={cn("text-[10px]", "font-mono", "text-info-dim", "hover:text-info-mid", "transition-colors")}
           >
             Back
           </button>
         </div>
 
         {isRunning && (
-          <div className="flex items-center gap-2 py-3">
-            <span className="inline-block w-1.5 h-3 bg-copper-bright animate-pulse" />
-            <span className="text-[11px] font-mono text-info-dim">Loading functions...</span>
+          <div className={cn("flex", "items-center", "gap-2", "py-3")}>
+            <span className={cn("inline-block", "w-1.5", "h-3", "bg-copper-bright", "animate-pulse")} />
+            <span className={cn("text-[11px]", "font-mono", "text-info-dim")}>Loading functions...</span>
           </div>
         )}
 
         {mode.error && (
-          <div className="text-[11px] font-mono text-error bg-ground-surface rounded-sm p-2 mb-2">
+          <div className={cn("text-[11px]", "font-mono", "text-error", "bg-ground-surface", "rounded-sm", "p-2", "mb-2")}>
             {mode.error}
           </div>
         )}
 
         {mode.functions && mode.functions.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto py-1">
+          <div className={cn("flex", "flex-wrap", "gap-1.5", "max-h-40", "overflow-y-auto", "py-1")}>
             {mode.functions.map((fn) => (
               <button
                 key={fn.id}
                 onClick={() => onSelect(fn.id)}
-                className="flex items-center gap-1.5 px-2 py-1.5 rounded-sm text-[11px] font-mono bg-ground-surface border border-node-border text-info-mid hover:text-copper-bright hover:border-copper-dim transition-colors text-left"
+                className={cn(
+                  "flex",
+                  "items-center",
+                  "gap-1.5",
+                  "px-2",
+                  "py-1.5",
+                  "rounded-sm",
+                  "text-[11px]",
+                  "font-mono",
+                  "bg-ground-surface",
+                  "border",
+                  "border-node-border",
+                  "text-info-mid",
+                  "hover:text-copper-bright",
+                  "hover:border-copper-dim",
+                  "transition-colors",
+                  "text-left",
+                )}
               >
-                <span className="truncate max-w-[200px]">{fn.id}</span>
+                <span className={cn("truncate", "max-w-[200px]")}>{fn.id}</span>
                 {fn.type && (
-                  <span className="text-[9px] px-1 py-0.5 rounded-sm bg-copper-warm/10 text-copper-dim shrink-0">
+                  <span className={cn("text-[9px]", "px-1", "py-0.5", "rounded-sm", "bg-copper-warm/10", "text-copper-dim", "shrink-0")}>
                     {fn.type}
                   </span>
                 )}
@@ -197,14 +215,14 @@ function GuidedExecution({
         )}
 
         {mode.functions && mode.functions.length === 0 && !mode.error && (
-          <div className="text-[11px] font-mono text-info-dim py-2">
+          <div className={cn("text-[11px]", "font-mono", "text-info-dim", "py-2")}>
             No functions found.
           </div>
         )}
 
         <button
           onClick={onBack}
-          className="mt-2 text-[10px] font-mono text-info-dim hover:text-copper-dim transition-colors underline underline-offset-2"
+          className={cn("mt-2", "text-[10px]", "font-mono", "text-info-dim", "hover:text-copper-dim", "transition-colors", "underline", "underline-offset-2")}
         >
           Skip — type manually
         </button>
@@ -216,24 +234,24 @@ function GuidedExecution({
   const commandPreview = `functions executions create --function ${mode.selectedFunction}`;
 
   return (
-    <div className="mt-2">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] font-mono text-copper-dim uppercase tracking-wide">
+    <div className={cn("mt-2")}>
+      <div className={cn("flex", "items-center", "justify-between", "mb-2")}>
+        <span className={cn("text-[10px]", "font-mono", "text-copper-dim", "uppercase", "tracking-wide")}>
           Step 2: Configure input
         </span>
         <button
           onClick={() => onSelect("")}
-          className="text-[10px] font-mono text-info-dim hover:text-info-mid transition-colors"
+          className={cn("text-[10px]", "font-mono", "text-info-dim", "hover:text-info-mid", "transition-colors")}
         >
           Back
         </button>
       </div>
 
-      <div className="text-[10px] font-mono text-info-dim bg-ground-surface rounded-sm px-2 py-1.5 mb-2 border border-node-border/50">
+      <div className={cn("text-[10px]", "font-mono", "text-info-dim", "bg-ground-surface", "rounded-sm", "px-2", "py-1.5", "mb-2", "border", "border-node-border/50")}>
         $ objectiveai {commandPreview}
       </div>
 
-      <label className="block text-[10px] font-mono text-info-dim mb-1">
+      <label className={cn("block", "text-[10px]", "font-mono", "text-info-dim", "mb-1")}>
         Input JSON (optional)
       </label>
       <textarea
@@ -241,20 +259,46 @@ function GuidedExecution({
         onChange={(e) => onUpdateInput(e.target.value)}
         placeholder='{"key": "value"}'
         rows={4}
-        className="w-full bg-ground-surface border border-node-border rounded-sm px-3 py-2 text-[11px] font-mono text-info-bright placeholder:text-info-dim/50 outline-none focus:border-copper-dim resize-y"
+        className={cn(
+          "w-full",
+          "bg-ground-surface",
+          "border",
+          "border-node-border",
+          "rounded-sm",
+          "px-3",
+          "py-2",
+          "text-[11px]",
+          "font-mono",
+          "text-info-bright",
+          "placeholder:text-info-dim/50",
+          "outline-none",
+          "focus:border-copper-dim",
+          "resize-y",
+        )}
       />
 
-      <div className="flex gap-2 mt-2">
+      <div className={cn("flex", "gap-2", "mt-2")}>
         <button
           onClick={onRun}
           disabled={isRunning}
-          className="px-3 py-1.5 rounded-sm text-xs font-mono bg-copper-warm/20 text-copper-bright hover:bg-copper-warm/30 transition-colors disabled:opacity-50"
+          className={cn(
+            "px-3",
+            "py-1.5",
+            "rounded-sm",
+            "text-xs",
+            "font-mono",
+            "bg-copper-warm/20",
+            "text-copper-bright",
+            "hover:bg-copper-warm/30",
+            "transition-colors",
+            "disabled:opacity-50",
+          )}
         >
           {isRunning ? "..." : "Run"}
         </button>
         <button
           onClick={onBack}
-          className="px-3 py-1.5 rounded-sm text-xs font-mono text-info-dim hover:text-info-mid transition-colors"
+          className={cn("px-3", "py-1.5", "rounded-sm", "text-xs", "font-mono", "text-info-dim", "hover:text-info-mid", "transition-colors")}
         >
           Cancel
         </button>
@@ -463,22 +507,48 @@ export function CommandPalette({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/60 z-50" />
+        <Dialog.Overlay className={cn("fixed", "inset-0", "bg-black/60", "z-50")} />
         <Dialog.Content
-          className="fixed top-[15%] left-1/2 -translate-x-1/2 w-[90vw] max-w-lg z-[51] bg-ground-raised border border-node-border rounded-lg shadow-2xl overflow-hidden"
+          className={cn(
+            "fixed",
+            "top-[15%]",
+            "left-1/2",
+            "-translate-x-1/2",
+            "w-[90vw]",
+            "max-w-lg",
+            "z-[51]",
+            "bg-ground-raised",
+            "border",
+            "border-node-border",
+            "rounded-lg",
+            "shadow-2xl",
+            "overflow-hidden",
+          )}
           onEscapeKeyDown={() => onOpenChange(false)}
         >
-          <div className="p-4 border-b border-node-border">
-            <Dialog.Title className="text-xs font-mono text-info-dim uppercase tracking-wide mb-3">
+          <div className={cn("p-4", "border-b", "border-node-border")}>
+            <Dialog.Title className={cn("text-xs", "font-mono", "text-info-dim", "uppercase", "tracking-wide", "mb-3")}>
               Command Palette
             </Dialog.Title>
-            <div className="flex gap-1.5 mb-3 flex-wrap">
+            <div className={cn("flex", "gap-1.5", "mb-3", "flex-wrap")}>
               {QUICK_ACTIONS.map((action) => (
                 <button
                   key={action.label}
                   onClick={() => handleQuickAction(action.args, action.guided)}
                   disabled={isRunning}
-                  className="px-2 py-1 rounded-sm text-[10px] font-mono bg-ground-surface text-info-mid hover:text-copper-bright hover:bg-copper-warm/10 transition-colors disabled:opacity-50"
+                  className={cn(
+                    "px-2",
+                    "py-1",
+                    "rounded-sm",
+                    "text-[10px]",
+                    "font-mono",
+                    "bg-ground-surface",
+                    "text-info-mid",
+                    "hover:text-copper-bright",
+                    "hover:bg-copper-warm/10",
+                    "transition-colors",
+                    "disabled:opacity-50",
+                  )}
                 >
                   {action.label}
                 </button>
@@ -495,7 +565,7 @@ export function CommandPalette({
               />
             ) : (
               <>
-                <div className="flex gap-2">
+                <div className={cn("flex", "gap-2")}>
                   <input
                     ref={inputRef}
                     type="text"
@@ -503,12 +573,37 @@ export function CommandPalette({
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="objectiveai <args...>"
-                    className="flex-1 bg-ground-surface border border-node-border rounded-sm px-3 py-1.5 text-xs font-mono text-info-bright placeholder:text-info-dim/50 outline-none focus:border-copper-dim"
+                    className={cn(
+                      "flex-1",
+                      "bg-ground-surface",
+                      "border",
+                      "border-node-border",
+                      "rounded-sm",
+                      "px-3",
+                      "py-1.5",
+                      "text-xs",
+                      "font-mono",
+                      "text-info-bright",
+                      "placeholder:text-info-dim/50",
+                      "outline-none",
+                      "focus:border-copper-dim",
+                    )}
                   />
                   <button
                     onClick={submit}
                     disabled={isRunning || !input.trim()}
-                    className="px-3 py-1.5 rounded-sm text-xs font-mono bg-copper-warm/20 text-copper-bright hover:bg-copper-warm/30 transition-colors disabled:opacity-50"
+                    className={cn(
+                      "px-3",
+                      "py-1.5",
+                      "rounded-sm",
+                      "text-xs",
+                      "font-mono",
+                      "bg-copper-warm/20",
+                      "text-copper-bright",
+                      "hover:bg-copper-warm/30",
+                      "transition-colors",
+                      "disabled:opacity-50",
+                    )}
                   >
                     {isRunning ? "…" : "Run"}
                   </button>
@@ -520,10 +615,10 @@ export function CommandPalette({
           {!guidedMode && lines.length > 0 && (
             <div
               ref={outputRef}
-              className="max-h-64 overflow-y-auto p-3 font-mono text-[11px] leading-relaxed bg-ground"
+              className={cn("max-h-64", "overflow-y-auto", "p-3", "font-mono", "text-[11px]", "leading-relaxed", "bg-ground")}
             >
               {lastCommand && (
-                <div className="text-[10px] text-copper-dim mb-2 pb-1 border-b border-node-border/50">
+                <div className={cn("text-[10px]", "text-copper-dim", "mb-2", "pb-1", "border-b", "border-node-border/50")}>
                   $ objectiveai {lastCommand}
                 </div>
               )}
@@ -531,16 +626,16 @@ export function CommandPalette({
                 <OutputLine key={i} line={line} />
               ))}
               {isRunning && (
-                <span className="inline-block w-1.5 h-3 bg-copper-bright animate-pulse" />
+                <span className={cn("inline-block", "w-1.5", "h-3", "bg-copper-bright", "animate-pulse")} />
               )}
             </div>
           )}
 
           {!guidedMode && lines.length > 0 && !isRunning && (
-            <div className="px-3 py-2 border-t border-node-border">
+            <div className={cn("px-3", "py-2", "border-t", "border-node-border")}>
               <button
                 onClick={clear}
-                className="text-[10px] font-mono text-info-dim hover:text-info-mid transition-colors"
+                className={cn("text-[10px]", "font-mono", "text-info-dim", "hover:text-info-mid", "transition-colors")}
               >
                 Clear
               </button>

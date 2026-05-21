@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, memo } from "react";
+import cn from "classnames";
 import type {
   AgentCompletionsResponseStreamingAgentCompletionChunk,
   AgentCompletionsResponseToolResponse,
@@ -50,22 +51,22 @@ export const AgentCompletionChat = memo(function AgentCompletionChat({
   }[status];
 
   return (
-    <div className="text-left max-w-content mx-auto mb-6 border border-node-border rounded-md overflow-hidden text-sm bg-ground-raised">
+    <div className={cn("text-left", "max-w-content", "mx-auto", "mb-6", "border", "border-node-border", "rounded-md", "overflow-hidden", "text-sm", "bg-ground-raised")}>
       {label && (
-        <div className="px-4 py-2 bg-ground-surface border-b border-node-border font-mono text-xs font-semibold text-copper-mid break-words">
+        <div className={cn("px-4", "py-2", "bg-ground-surface", "border-b", "border-node-border", "font-mono", "text-xs", "font-semibold", "text-copper-mid", "break-words")}>
           {label}
         </div>
       )}
 
-      <div className="flex items-center gap-2.5 px-4 py-2.5 bg-ground-surface border-b border-node-border text-xs text-info-dim">
-        <div className={`w-2 h-2 rounded-full shrink-0 ${statusColor} ${status === "streaming" ? "animate-pulse" : ""}`} />
-        {model && <span className="font-semibold text-info-bright">{model}</span>}
-        {upstream && <span className="bg-ground px-1.5 py-px rounded-sm text-[11px] lowercase text-info-dim">{upstream}</span>}
+      <div className={cn("flex", "items-center", "gap-2.5", "px-4", "py-2.5", "bg-ground-surface", "border-b", "border-node-border", "text-xs", "text-info-dim")}>
+        <div className={cn("w-2", "h-2", "rounded-full", "shrink-0", statusColor, status === "streaming" && "animate-pulse")} />
+        {model && <span className={cn("font-semibold", "text-info-bright")}>{model}</span>}
+        {upstream && <span className={cn("bg-ground", "px-1.5", "py-px", "rounded-sm", "text-[11px]", "lowercase", "text-info-dim")}>{upstream}</span>}
         {timeStr && <span>{timeStr}</span>}
         {displayId && <CopyableId id={displayId} />}
       </div>
 
-      <div className="p-4 flex flex-col gap-3">
+      <div className={cn("p-4", "flex", "flex-col", "gap-3")}>
         {requestMessages?.map((msg, i) => {
           if (msg.role === "developer" || msg.role === "system") {
             return (
@@ -96,12 +97,12 @@ export const AgentCompletionChat = memo(function AgentCompletionChat({
         })}
 
         {!chunk && !error && (
-          <div className="text-info-dim italic">Waiting for response...</div>
+          <div className={cn("text-info-dim", "italic")}>Waiting for response...</div>
         )}
       </div>
 
       {error && (
-        <div role="alert" className="bg-error/10 border-t border-error/30 px-4 py-2 text-error text-xs">
+        <div role="alert" className={cn("bg-error/10", "border-t", "border-error/30", "px-4", "py-2", "text-error", "text-xs")}>
           Error {error.code}: {JSON.stringify(error.message)}
         </div>
       )}
@@ -109,8 +110,8 @@ export const AgentCompletionChat = memo(function AgentCompletionChat({
       {chunk?.usage ? (
         <UsageFooter usage={chunk.usage} />
       ) : status === "streaming" && chunk ? (
-        <div className="px-4 py-1.5 border-t border-node-border text-[10px] text-info-dim font-mono tabular-nums flex items-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-copper-hot animate-pulse" />
+        <div className={cn("px-4", "py-1.5", "border-t", "border-node-border", "text-[10px]", "text-info-dim", "font-mono", "tabular-nums", "flex", "items-center", "gap-2")}>
+          <div className={cn("w-1.5", "h-1.5", "rounded-full", "bg-copper-hot", "animate-pulse")} />
           <span>{chunk.messages.length} message{chunk.messages.length !== 1 ? "s" : ""} received</span>
         </div>
       ) : null}
@@ -138,16 +139,16 @@ function CopyableId({ id }: { id: string }) {
     <Tooltip.Root>
       <Tooltip.Trigger asChild>
         <button
-          className="font-mono text-[11px] opacity-60 ml-auto cursor-pointer hover:opacity-100 transition-opacity"
+          className={cn("font-mono", "text-[11px]", "opacity-60", "ml-auto", "cursor-pointer", "hover:opacity-100", "transition-opacity")}
           onClick={copy}
         >
           {id.slice(0, 12)}
         </button>
       </Tooltip.Trigger>
       <Tooltip.Portal>
-        <Tooltip.Content className="bg-ground-surface border border-node-border rounded-sm px-2 py-1 font-mono text-[11px] text-info-mid" sideOffset={4}>
+        <Tooltip.Content className={cn("bg-ground-surface", "border", "border-node-border", "rounded-sm", "px-2", "py-1", "font-mono", "text-[11px]", "text-info-mid")} sideOffset={4}>
           {copied ? "Copied!" : id}
-          <Tooltip.Arrow className="fill-ground-surface" />
+          <Tooltip.Arrow className={cn("fill-ground-surface")} />
         </Tooltip.Content>
       </Tooltip.Portal>
     </Tooltip.Root>

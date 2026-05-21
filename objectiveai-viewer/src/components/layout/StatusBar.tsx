@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import cn from "classnames";
 import type { Entry } from "../../types";
 import { useElapsedTime } from "../../hooks/useElapsedTime";
 import { formatCost } from "../../lib/format";
@@ -15,12 +16,12 @@ export function StatusBar({ entries, isHistorical }: { entries: Entry[]; isHisto
   const droppedCount = useDroppedCount();
   if (entries.length === 0) {
     return (
-      <footer className="flex items-center gap-4 px-6 py-2 border-t border-node-border bg-ground-raised font-mono text-[10px] text-info-dim tabular-nums select-none">
-        <div className="flex items-center gap-1.5">
-          <div className="w-1.5 h-1.5 rounded-full bg-success" />
+      <footer className={cn("flex", "items-center", "gap-4", "px-6", "py-2", "border-t", "border-node-border", "bg-ground-raised", "font-mono", "text-[10px]", "text-info-dim", "tabular-nums", "select-none")}>
+        <div className={cn("flex", "items-center", "gap-1.5")}>
+          <div className={cn("w-1.5", "h-1.5", "rounded-full", "bg-success")} />
           <span>Ready</span>
         </div>
-        <span className="text-info-dim/70">localhost:5001</span>
+        <span className={cn("text-info-dim/70")}>localhost:5001</span>
       </footer>
     );
   }
@@ -65,25 +66,25 @@ export function StatusBar({ entries, isHistorical }: { entries: Entry[]; isHisto
   }
 
   return (
-    <footer role="status" aria-live="polite" className="flex items-center gap-4 px-4 py-2 border-t border-node-border bg-ground-raised font-mono text-[10px] text-info-dim tabular-nums select-none overflow-hidden whitespace-nowrap min-w-0">
-      <div className="flex items-center gap-1.5 shrink-0">
+    <footer role="status" aria-live="polite" className={cn("flex", "items-center", "gap-4", "px-4", "py-2", "border-t", "border-node-border", "bg-ground-raised", "font-mono", "text-[10px]", "text-info-dim", "tabular-nums", "select-none", "overflow-hidden", "whitespace-nowrap", "min-w-0")}>
+      <div className={cn("flex", "items-center", "gap-1.5", "shrink-0")}>
         {isHistorical ? (
           <>
-            <div className="w-1.5 h-1.5 rounded-full bg-info-dim" />
+            <div className={cn("w-1.5", "h-1.5", "rounded-full", "bg-info-dim")} />
             <span>Historical</span>
           </>
         ) : (
           <>
-            <div className={`w-1.5 h-1.5 rounded-full ${activeCount > 0 ? "bg-copper-hot animate-pulse" : "bg-info-dim"}`} />
+            <div className={cn("w-1.5", "h-1.5", "rounded-full", activeCount > 0 ? cn("bg-copper-hot", "animate-pulse") : "bg-info-dim")} />
             <span>{activeCount} active</span>
           </>
         )}
       </div>
-      {!isHistorical && activeCount > 0 && <span className="shrink-0">{elapsed}</span>}
-      {totalTokens > 0 && <span className="shrink-0">{totalTokens.toLocaleString()} tokens</span>}
-      {totalCost > 0 && <span className="shrink-0">{formatCost(totalCost)}</span>}
-      {droppedCount > 0 && <span className="text-error shrink-0">{droppedCount} dropped</span>}
-      <span className="ml-auto shrink-0">{entries.length} total</span>
+      {!isHistorical && activeCount > 0 && <span className={cn("shrink-0")}>{elapsed}</span>}
+      {totalTokens > 0 && <span className={cn("shrink-0")}>{totalTokens.toLocaleString()} tokens</span>}
+      {totalCost > 0 && <span className={cn("shrink-0")}>{formatCost(totalCost)}</span>}
+      {droppedCount > 0 && <span className={cn("text-error", "shrink-0")}>{droppedCount} dropped</span>}
+      <span className={cn("ml-auto", "shrink-0")}>{entries.length} total</span>
     </footer>
   );
 }

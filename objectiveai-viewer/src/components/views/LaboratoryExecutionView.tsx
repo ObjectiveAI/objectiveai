@@ -1,3 +1,4 @@
+import cn from "classnames";
 import * as Tabs from "@radix-ui/react-tabs";
 import type {
   LaboratoriesExecutionsResponseStreamingBuilderChunk,
@@ -34,8 +35,8 @@ function EvaluationCard({ evaluation }: { evaluation: LaboratoriesExecutionsResp
         id={evaluation.id}
       />
       {evaluation.output !== undefined && evaluation.output !== null && (
-        <div className="max-w-content mx-auto mb-6 px-4 py-2 bg-ground-surface border border-t-0 border-node-border rounded-b-md">
-          <div className="text-[10px] font-mono text-info-dim uppercase tracking-wide mb-1.5">output</div>
+        <div className={cn("max-w-content", "mx-auto", "mb-6", "px-4", "py-2", "bg-ground-surface", "border", "border-t-0", "border-node-border", "rounded-b-md")}>
+          <div className={cn("text-[10px]", "font-mono", "text-info-dim", "uppercase", "tracking-wide", "mb-1.5")}>output</div>
           <OutputBar output={evaluation.output} />
         </div>
       )}
@@ -61,55 +62,55 @@ export function LaboratoryExecutionView({ entry }: { entry: LaboratoryExecutionE
   }[status];
 
   return (
-    <div className="max-w-content mx-auto mb-6">
-      <div className="flex items-center gap-2.5 px-4 py-2.5 bg-ground-surface border border-node-border rounded-t-md text-xs text-info-dim">
-        <div className={`w-2 h-2 rounded-full shrink-0 ${statusColor} ${status === "streaming" ? "animate-pulse" : ""}`} />
-        <span className="font-semibold text-info-bright">Laboratory</span>
-        <span className="font-mono text-[10px] opacity-60 ml-auto">{entry.id.slice(0, 12)}</span>
+    <div className={cn("max-w-content", "mx-auto", "mb-6")}>
+      <div className={cn("flex", "items-center", "gap-2.5", "px-4", "py-2.5", "bg-ground-surface", "border", "border-node-border", "rounded-t-md", "text-xs", "text-info-dim")}>
+        <div className={cn("w-2", "h-2", "rounded-full", "shrink-0", statusColor, status === "streaming" && "animate-pulse")} />
+        <span className={cn("font-semibold", "text-info-bright")}>Laboratory</span>
+        <span className={cn("font-mono", "text-[10px]", "opacity-60", "ml-auto")}>{entry.id.slice(0, 12)}</span>
       </div>
 
       {!chunk && !topError && (
-        <div className="border border-t-0 border-node-border rounded-b-md p-4 text-info-dim italic text-center">
+        <div className={cn("border", "border-t-0", "border-node-border", "rounded-b-md", "p-4", "text-info-dim", "italic", "text-center")}>
           Waiting for laboratory…
         </div>
       )}
 
       {chunk && (
-        <Tabs.Root defaultValue="builders" className="border border-t-0 border-node-border rounded-b-md overflow-hidden">
-          <Tabs.List className="flex border-b border-node-border bg-ground-raised">
+        <Tabs.Root defaultValue="builders" className={cn("border", "border-t-0", "border-node-border", "rounded-b-md", "overflow-hidden")}>
+          <Tabs.List className={cn("flex", "border-b", "border-node-border", "bg-ground-raised")}>
             <Tabs.Trigger
               value="builders"
-              className="flex-1 px-4 py-2 text-xs font-mono text-info-dim data-[state=active]:text-copper-mid data-[state=active]:border-b-2 data-[state=active]:border-copper-mid transition-colors"
+              className={cn("flex-1", "px-4", "py-2", "text-xs", "font-mono", "text-info-dim", "data-[state=active]:text-copper-mid", "data-[state=active]:border-b-2", "data-[state=active]:border-copper-mid", "transition-colors")}
             >
               builders ({builders.length})
             </Tabs.Trigger>
             <Tabs.Trigger
               value="evaluations"
-              className="flex-1 px-4 py-2 text-xs font-mono text-info-dim data-[state=active]:text-copper-mid data-[state=active]:border-b-2 data-[state=active]:border-copper-mid transition-colors"
+              className={cn("flex-1", "px-4", "py-2", "text-xs", "font-mono", "text-info-dim", "data-[state=active]:text-copper-mid", "data-[state=active]:border-b-2", "data-[state=active]:border-copper-mid", "transition-colors")}
             >
               evaluations ({evaluations.length})
             </Tabs.Trigger>
           </Tabs.List>
 
-          <Tabs.Content value="builders" className="py-4">
+          <Tabs.Content value="builders" className={cn("py-4")}>
             {builders.length === 0 && (
-              <div className="text-info-dim italic text-center text-xs py-4">No builders yet…</div>
+              <div className={cn("text-info-dim", "italic", "text-center", "text-xs", "py-4")}>No builders yet…</div>
             )}
             {builders.map((b) => (
               <BuilderCard key={b.id || `builder-${b.index}`} builder={b} />
             ))}
           </Tabs.Content>
 
-          <Tabs.Content value="evaluations" className="py-4">
+          <Tabs.Content value="evaluations" className={cn("py-4")}>
             {evaluations.length === 0 && (
-              <div className="text-info-dim text-center text-xs py-4">
+              <div className={cn("text-info-dim", "text-center", "text-xs", "py-4")}>
                 {status === "streaming" ? (
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-copper-hot animate-pulse" />
+                  <div className={cn("flex", "items-center", "justify-center", "gap-2")}>
+                    <span className={cn("w-1.5", "h-1.5", "rounded-full", "bg-copper-hot", "animate-pulse")} />
                     <span>Evaluations begin after builders complete</span>
                   </div>
                 ) : (
-                  <span className="italic">No evaluations configured</span>
+                  <span className={cn("italic")}>No evaluations configured</span>
                 )}
               </div>
             )}
@@ -121,7 +122,7 @@ export function LaboratoryExecutionView({ entry }: { entry: LaboratoryExecutionE
       )}
 
       {topError && (
-        <div role="alert" className="bg-error/10 border border-error/30 rounded-md px-4 py-2 text-error text-xs mt-2">
+        <div role="alert" className={cn("bg-error/10", "border", "border-error/30", "rounded-md", "px-4", "py-2", "text-error", "text-xs", "mt-2")}>
           Error {topError.code}: {JSON.stringify(topError.message)}
         </div>
       )}

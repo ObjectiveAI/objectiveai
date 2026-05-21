@@ -27,9 +27,9 @@ function Tip({ label, children }: { label: string; children: ReactNode }) {
     <Tooltip.Root delayDuration={400}>
       <Tooltip.Trigger asChild>{children}</Tooltip.Trigger>
       <Tooltip.Portal>
-        <Tooltip.Content className="bg-ground-surface border border-node-border rounded-sm px-2 py-1 font-mono text-[10px] text-info-mid shadow-lg" sideOffset={6}>
+        <Tooltip.Content className={cn("bg-ground-surface", "border", "border-node-border", "rounded-sm", "px-2", "py-1", "font-mono", "text-[10px]", "text-info-mid", "shadow-lg")} sideOffset={6}>
           {label}
-          <Tooltip.Arrow className="fill-ground-surface" />
+          <Tooltip.Arrow className={cn("fill-ground-surface")} />
         </Tooltip.Content>
       </Tooltip.Portal>
     </Tooltip.Root>
@@ -129,11 +129,11 @@ function ObjectiveAIView() {
       onBrowse={() => { session.dismissRestore(); session.refreshSessions().then(() => setSessionPickerOpen(true)); }}
     />
   ) : session.isViewingPast ? (
-    <div className="flex items-center gap-3 px-4 py-2 border-b border-copper-warm/30 bg-copper-warm/5 text-xs text-info-mid select-none">
+    <div className={cn("flex", "items-center", "gap-3", "px-4", "py-2", "border-b", "border-copper-warm/30", "bg-copper-warm/5", "text-xs", "text-info-mid", "select-none")}>
       <span>Viewing historical session</span>
       <button
         onClick={session.returnToLive}
-        className="ml-auto px-2 py-0.5 rounded-sm text-copper-bright hover:bg-copper-warm/20 transition-colors"
+        className={cn("ml-auto", "px-2", "py-0.5", "rounded-sm", "text-copper-bright", "hover:bg-copper-warm/20", "transition-colors")}
       >
         Return to live
       </button>
@@ -160,7 +160,7 @@ function ObjectiveAIView() {
       />
       <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
       {entries.length > 0 && (
-        <div className="sticky top-0 z-10 flex items-center gap-1.5 pb-3 pt-0 mb-1 bg-ground/95 backdrop-blur-sm select-none">
+        <div className={cn("sticky", "top-0", "z-10", "flex", "items-center", "gap-1.5", "pb-3", "pt-0", "mb-1", "bg-ground/95", "backdrop-blur-sm", "select-none")}>
           {KINDS.map(({ kind, label, activeClass }) => {
             const count = kindCounts.get(kind) ?? 0;
             const active = activeKinds.has(kind);
@@ -168,20 +168,26 @@ function ObjectiveAIView() {
               <button
                 key={kind}
                 onClick={() => toggleKind(kind)}
-                className={`px-2.5 py-1 rounded-sm font-mono text-[10px] transition-colors ${
+                className={cn(
+                  "px-2.5",
+                  "py-1",
+                  "rounded-sm",
+                  "font-mono",
+                  "text-[10px]",
+                  "transition-colors",
                   active
                     ? activeClass
-                    : "bg-ground-surface text-info-dim hover:text-info-mid"
-                }`}
+                    : cn("bg-ground-surface", "text-info-dim", "hover:text-info-mid"),
+                )}
               >
                 {label}
-                {count > 0 && <span className="ml-1 opacity-70">({count})</span>}
+                {count > 0 && <span className={cn("ml-1", "opacity-70")}>({count})</span>}
               </button>
             );
           })}
-          <div className="ml-auto flex items-center gap-1">
-            <div className="group/search relative mr-1">
-              <svg className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-info-dim group-focus-within/search:text-copper-dim pointer-events-none transition-colors" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+          <div className={cn("ml-auto", "flex", "items-center", "gap-1")}>
+            <div className={cn("group/search", "relative", "mr-1")}>
+              <svg className={cn("absolute", "left-2", "top-1/2", "-translate-y-1/2", "w-3", "h-3", "text-info-dim", "group-focus-within/search:text-copper-dim", "pointer-events-none", "transition-colors")} viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                 <circle cx="5" cy="5" r="3.5" />
                 <path d="M8 8L10.5 10.5" />
               </svg>
@@ -191,14 +197,14 @@ function ObjectiveAIView() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search…"
                 aria-label="Search entries"
-                className="w-28 pl-6 pr-2 py-1 rounded-sm bg-ground-surface border border-node-border text-[10px] font-mono text-info-mid placeholder:text-info-dim/50 outline-none focus:border-copper-dim focus:w-44 transition-all"
+                className={cn("w-28", "pl-6", "pr-2", "py-1", "rounded-sm", "bg-ground-surface", "border", "border-node-border", "text-[10px]", "font-mono", "text-info-mid", "placeholder:text-info-dim/50", "outline-none", "focus:border-copper-dim", "focus:w-44", "transition-all")}
               />
             </div>
             <Tip label="Sessions">
               <button
                 onClick={() => { session.refreshSessions().then(() => setSessionPickerOpen(true)); }}
                 aria-label="Sessions"
-                className="p-1.5 rounded-sm text-info-dim hover:text-info-bright hover:bg-ground-surface transition-colors"
+                className={cn("p-1.5", "rounded-sm", "text-info-dim", "hover:text-info-bright", "hover:bg-ground-surface", "transition-colors")}
               >
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="6" cy="6" r="5" />
@@ -210,7 +216,7 @@ function ObjectiveAIView() {
               <button
                 onClick={collapseAll}
                 aria-label="Collapse all"
-                className="p-1.5 rounded-sm text-info-dim hover:text-info-bright hover:bg-ground-surface transition-colors"
+                className={cn("p-1.5", "rounded-sm", "text-info-dim", "hover:text-info-bright", "hover:bg-ground-surface", "transition-colors")}
               >
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M2 8L6 4L10 8" />
@@ -222,7 +228,7 @@ function ObjectiveAIView() {
               <button
                 onClick={expandAll}
                 aria-label="Expand all"
-                className="p-1.5 rounded-sm text-info-dim hover:text-info-bright hover:bg-ground-surface transition-colors"
+                className={cn("p-1.5", "rounded-sm", "text-info-dim", "hover:text-info-bright", "hover:bg-ground-surface", "transition-colors")}
               >
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M2 4L6 8L10 4" />
@@ -235,26 +241,26 @@ function ObjectiveAIView() {
       )}
 
       {entries.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-20 px-6 select-none">
-          <LogoMark className="h-8 w-auto text-info-dim/30 mb-2" />
-          <Wordmark className="w-[140px] h-auto text-info-dim/30 mb-8" />
-          <p className="text-info-bright text-sm font-medium mb-1">No activity yet</p>
-          <p className="text-info-dim text-xs mb-8 max-w-xs text-center">Run a command from the CLI or use the command palette to get started. Results stream here in real time.</p>
-          <div className="max-w-sm w-full space-y-2.5">
-            <div className="bg-ground-surface border border-node-border rounded-md px-4 py-3">
-              <div className="text-[10px] font-mono text-info-dim uppercase tracking-wide mb-1.5">From the CLI</div>
-              <code className="text-[11px] font-mono text-copper-bright leading-relaxed block">objectiveai functions executions create</code>
-              <p className="text-[10px] text-info-dim mt-1">Events stream here automatically when the viewer is running.</p>
+        <div className={cn("flex", "flex-col", "items-center", "justify-center", "py-20", "px-6", "select-none")}>
+          <LogoMark className={cn("h-8", "w-auto", "text-info-dim/30", "mb-2")} />
+          <Wordmark className={cn("w-[140px]", "h-auto", "text-info-dim/30", "mb-8")} />
+          <p className={cn("text-info-bright", "text-sm", "font-medium", "mb-1")}>No activity yet</p>
+          <p className={cn("text-info-dim", "text-xs", "mb-8", "max-w-xs", "text-center")}>Run a command from the CLI or use the command palette to get started. Results stream here in real time.</p>
+          <div className={cn("max-w-sm", "w-full", "space-y-2.5")}>
+            <div className={cn("bg-ground-surface", "border", "border-node-border", "rounded-md", "px-4", "py-3")}>
+              <div className={cn("text-[10px]", "font-mono", "text-info-dim", "uppercase", "tracking-wide", "mb-1.5")}>From the CLI</div>
+              <code className={cn("text-[11px]", "font-mono", "text-copper-bright", "leading-relaxed", "block")}>objectiveai functions executions create</code>
+              <p className={cn("text-[10px]", "text-info-dim", "mt-1")}>Events stream here automatically when the viewer is running.</p>
             </div>
-            <div className="bg-ground-surface border border-node-border rounded-md px-4 py-3">
-              <div className="text-[10px] font-mono text-info-dim uppercase tracking-wide mb-1.5">From here</div>
-              <p className="text-[11px] text-info-mid">
+            <div className={cn("bg-ground-surface", "border", "border-node-border", "rounded-md", "px-4", "py-3")}>
+              <div className={cn("text-[10px]", "font-mono", "text-info-dim", "uppercase", "tracking-wide", "mb-1.5")}>From here</div>
+              <p className={cn("text-[11px]", "text-info-mid")}>
                 Press{' '}
-                <kbd className="px-1 py-px rounded-sm bg-ground-raised border border-node-border text-info-bright font-mono text-[10px]">{navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}K</kbd>
+                <kbd className={cn("px-1", "py-px", "rounded-sm", "bg-ground-raised", "border", "border-node-border", "text-info-bright", "font-mono", "text-[10px]")}>{navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}K</kbd>
                 {' '}to open the command palette and run any ObjectiveAI command directly.
               </p>
             </div>
-            <div className="text-center text-[10px] text-info-dim/50 mt-3 font-mono">
+            <div className={cn("text-center", "text-[10px]", "text-info-dim/50", "mt-3", "font-mono")}>
               listening on localhost:5001
             </div>
           </div>
