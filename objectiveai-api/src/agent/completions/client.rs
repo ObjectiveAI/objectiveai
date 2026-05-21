@@ -16,6 +16,21 @@ pub fn response_id(created: u64) -> String {
     format!("agtcpl-{}-{created}", uuid.simple())
 }
 
+/// Per-response-id target set for `agent/completions/notify`. The
+/// enclosing `Arc<tokio::sync::Mutex<…>>` (see `Client.notify_targets`)
+/// serializes notify-deliverers against the stream's final-chunk
+/// queue check, so the `messages_queued` value in the final chunk
+/// reflects every notify that returned `Ok`.
+#[derive(Debug)]
+pub enum NotifyTargets {
+    /// Completion has zero MCP connections (no tools). Any notify
+    /// against this `response_id` rejects with [`Error::NotifyNoMcp`].
+    NoMcp,
+    /// Completion has at least one live MCP connection. Notify forwards
+    /// `content` to every connection's proxy `/notify` queue.
+    Active(Vec<objectiveai_sdk::mcp::Connection>),
+}
+
 // ---------------------------------------------------------------------------
 
 /// Filters agents by upstream type (if required by the continuation) and
@@ -92,6 +107,25 @@ pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RET
     pub first_chunk_timeout: Duration,
     /// Maximum wait time between subsequent chunks in a streaming response.
     pub other_chunk_timeout: Duration,
+    /// Monotonic indices keyed by `(parent_agent_id, this_agent_id)`.
+    /// Each new agent run for a given (parent, agent.id) pair gets the
+    /// next value; continuation rounds reuse the index already baked
+    /// into the `Continuation`. Process-lifetime; bounded by the
+    /// cardinality of distinct (parent, agent.id) pairs.
+    pub agent_indices: Arc<
+        dashmap::DashMap<(Option<String>, String), std::sync::atomic::AtomicU64>,
+    >,
+    /// Per-`response_id` notify-target registry. Populated when an
+    /// agent completion stream commits to a successful upstream attempt
+    /// (in `run_agent_loop`), and removed under the per-entry mutex
+    /// immediately before the stream's final chunk is yielded. The
+    /// `notify` endpoint takes the same per-entry mutex before
+    /// delivering, so its delivery is mutually exclusive with the
+    /// stream's `has_pending_notifications` peek — the final chunk's
+    /// `messages_queued` field can't miss an `Ok`-returning notify.
+    pub notify_targets: Arc<
+        dashmap::DashMap<String, Arc<tokio::sync::Mutex<NotifyTargets>>>,
+    >,
     _marker: std::marker::PhantomData<CTXEXT>,
 }
 
@@ -135,7 +169,88 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
             backoff_max_elapsed_time,
             first_chunk_timeout,
             other_chunk_timeout,
+            agent_indices: Arc::new(dashmap::DashMap::new()),
+            notify_targets: Arc::new(dashmap::DashMap::new()),
             _marker: std::marker::PhantomData,
+        }
+    }
+
+    /// Allocate the next monotonic index for the (parent, agent_id)
+    /// pair. Returns 0 for the first invocation of a given pair,
+    /// 1 for the second, etc. Reused across continuation rounds via
+    /// `Continuation::agent_index`.
+    fn next_agent_index(&self, parent: Option<&str>, agent_id: &str) -> u64 {
+        let key = (parent.map(str::to_string), agent_id.to_string());
+        let entry = self
+            .agent_indices
+            .entry(key)
+            .or_insert_with(|| std::sync::atomic::AtomicU64::new(0));
+        entry.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// Forward `content` to the MCP proxy notify queue(s) of the
+    /// agent completion identified by `response_id`. Returns
+    /// [`super::Error::NotifyResponseIdNotFound`] if the completion
+    /// isn't currently streaming (never started, already finished, or
+    /// cancelled), and [`super::Error::NotifyNoMcp`] if the completion
+    /// is streaming but its agent has no MCP connection — in which
+    /// case there's no queue to forward to.
+    ///
+    /// Mutually exclusive with the stream's final-chunk queue peek
+    /// via a per-`response_id` [`tokio::sync::Mutex`]: the stream
+    /// locks, removes the registry entry, then peeks the queue — so
+    /// any notify that returns `Ok` is reflected in the final chunk's
+    /// `messages_queued` field, and any notify that races against
+    /// remove sees the dashmap miss on its post-lock re-check and
+    /// returns `NotifyResponseIdNotFound`.
+    pub async fn notify(
+        &self,
+        params: objectiveai_sdk::agent::completions::request::AgentCompletionNotifyParams,
+    ) -> Result<(), super::Error> {
+        // Look up the entry + clone the Arc<Mutex<…>>; release the
+        // dashmap shard lock immediately.
+        let arc = {
+            let entry = self
+                .notify_targets
+                .get(&params.response_id)
+                .ok_or_else(|| {
+                    super::Error::NotifyResponseIdNotFound(params.response_id.clone())
+                })?;
+            entry.value().clone()
+        };
+
+        // Acquire the per-response_id mutex. Mutually exclusive with
+        // the stream's remove + queue-peek.
+        let guard = arc.lock().await;
+
+        // Re-check the dashmap: the stream may have removed the entry
+        // while we were waiting on the mutex, in which case its
+        // `has_pending_notifications` has already been (or is about
+        // to be) computed and delivering now would leave a notify
+        // unreported in the final chunk.
+        if !self.notify_targets.contains_key(&params.response_id) {
+            return Err(super::Error::NotifyResponseIdNotFound(
+                params.response_id,
+            ));
+        }
+
+        match &*guard {
+            super::NotifyTargets::NoMcp => {
+                Err(super::Error::NotifyNoMcp(params.response_id))
+            }
+            super::NotifyTargets::Active(conns) => {
+                let blocks: Vec<objectiveai_sdk::mcp::tool::ContentBlock> =
+                    params.content.into();
+                for conn in conns {
+                    conn.enqueue_notifications(&blocks).await.map_err(
+                        |error| super::Error::McpEnqueueNotifications {
+                            url: conn.url.clone(),
+                            error,
+                        },
+                    )?;
+                }
+                Ok(())
+            }
         }
     }
 }
@@ -163,6 +278,8 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
             backoff_max_elapsed_time: self.backoff_max_elapsed_time,
             first_chunk_timeout: self.first_chunk_timeout,
             other_chunk_timeout: self.other_chunk_timeout,
+            agent_indices: self.agent_indices.clone(),
+            notify_targets: self.notify_targets.clone(),
             _marker: std::marker::PhantomData,
         }
     }
@@ -410,6 +527,10 @@ where
 
         // 2. Extract continuation items, MCP connection, and upstream type.
         let cont_upstream = continuation.as_ref().map(|c| c.upstream());
+        // Index allocated by the previous turn (if any). On continuation
+        // we reuse this value for every per-attempt connect; on a fresh
+        // call we allocate a new one per attempt from `next_agent_index`.
+        let cont_agent_index = continuation.as_ref().map(|c| c.agent_index());
         let (
             mut cont_items_or,
             mut cont_items_cas,
@@ -417,16 +538,16 @@ where
             mut cont_items_mock,
             internal_conn,
         ) = match continuation {
-            Some(super::Continuation::Openrouter { items, mcp_connection }) => {
+            Some(super::Continuation::Openrouter { items, mcp_connection, .. }) => {
                 (items, vec![], vec![], vec![], mcp_connection)
             }
-            Some(super::Continuation::ClaudeAgentSdk { items, mcp_connection }) => {
+            Some(super::Continuation::ClaudeAgentSdk { items, mcp_connection, .. }) => {
                 (vec![], items, vec![], vec![], mcp_connection)
             }
-            Some(super::Continuation::CodexSdk { items, mcp_connection }) => {
+            Some(super::Continuation::CodexSdk { items, mcp_connection, .. }) => {
                 (vec![], vec![], items, vec![], mcp_connection)
             }
-            Some(super::Continuation::Mock { items, mcp_connection }) => {
+            Some(super::Continuation::Mock { items, mcp_connection, .. }) => {
                 (vec![], vec![], vec![], items, mcp_connection)
             }
             None => (vec![], vec![], vec![], vec![], None),
@@ -473,6 +594,31 @@ where
         let default_mcp_auth_owned = self.mcp_authorization.clone();
         let internal_conn_for_resume = internal_conn.clone();
 
+        // 6.5. Compose the per-attempt agent index and the
+        //      `X-OBJECTIVEAI-AGENT-ID` header we forward to the proxy.
+        //
+        // Continuation rounds reuse the index baked into the prior
+        // turn's continuation; fresh calls allocate a new value per
+        // (parent, agent.id) pair via `next_agent_index`. The parent
+        // is whatever `X-OBJECTIVEAI-AGENT-ID` the caller sent us on
+        // the way in (None counts as its own first-class parent slot).
+        let parent_agent_id = ctx.agent_id().map(|s| s.to_string());
+        let agent_indices: Vec<u64> = filtered_agents
+            .iter()
+            .map(|agent| match cont_agent_index {
+                Some(idx) => idx,
+                None => self.next_agent_index(parent_agent_id.as_deref(), agent.id()),
+            })
+            .collect();
+        let composite_agent_ids: Vec<String> = filtered_agents
+            .iter()
+            .zip(agent_indices.iter())
+            .map(|(agent, idx)| match parent_agent_id.as_deref() {
+                Some(prefix) => format!("{prefix}/{}_{idx}", agent.id()),
+                None => format!("{}_{idx}", agent.id()),
+            })
+            .collect();
+
         let connect_handles: Vec<
             Option<
                 tokio::task::JoinHandle<
@@ -481,7 +627,8 @@ where
             >,
         > = filtered_agents
             .iter()
-            .map(|agent| {
+            .zip(composite_agent_ids.iter())
+            .map(|(agent, composite_agent_id)| {
                 // Build the per-agent X-MCP-* header set: the agent's
                 // declared `mcp_servers` plus any caller-supplied
                 // `extra_mcp_servers` (e.g. the function-inventions
@@ -550,6 +697,7 @@ where
                     indexmap::indexmap! {
                         "X-MCP-Servers".to_string() => serde_json::to_string(&urls).unwrap(),
                         "X-MCP-Headers".to_string() => serde_json::to_string(&per_url_headers).unwrap(),
+                        "X-OBJECTIVEAI-AGENT-ID".to_string() => composite_agent_id.clone(),
                     };
 
                 let mcp_client = self.mcp_client.clone();
@@ -578,11 +726,27 @@ where
                     Result<objectiveai_sdk::mcp::Connection, objectiveai_sdk::mcp::Error>,
                 >,
             >,
+            /// Per-(parent, agent.id) index assigned to this attempt;
+            /// baked into the wrapping `Continuation` so subsequent
+            /// turns reuse the same value.
+            agent_index: u64,
+            /// Composite agent id forwarded as `X-OBJECTIVEAI-AGENT-ID`
+            /// to the MCP proxy and (for runner-backed upstreams) as
+            /// `OBJECTIVEAI_AGENT_ID` in the env dict the runner hands
+            /// to its child SDK subprocess.
+            composite_agent_id: String,
         }
         let mut attempts: Vec<AgentAttempt> = filtered_agents
             .into_iter()
             .zip(connect_handles)
-            .map(|(agent, connect_handle)| AgentAttempt { agent, connect_handle })
+            .zip(agent_indices)
+            .zip(composite_agent_ids)
+            .map(|(((agent, connect_handle), agent_index), composite_agent_id)| AgentAttempt {
+                agent,
+                connect_handle,
+                agent_index,
+                composite_agent_id,
+            })
             .collect();
         // Slot of resolved-or-None per attempt — populated lazily on
         // first awaited iteration of the retry loop, reused across
@@ -657,8 +821,11 @@ where
                                 self.openrouter.clone(), or_agent, rc, &params, mcp_connection.clone(),
                                 &mut cont_items_or, &id, created,
                                 *byok_attempt, ctx.cost_multiplier,
-                                move |items| super::Continuation::Openrouter {
-                                    items, mcp_connection: c,
+                                {
+                                    let agent_index = attempt.agent_index;
+                                    move |items| super::Continuation::Openrouter {
+                                        items, mcp_connection: c, agent_index,
+                                    }
                                 },
                                 |e| super::Error::UpstreamOpenrouter(Box::new(e)),
                                 objectiveai_sdk::agent::InlineAgentRef::Openrouter(&or_agent.base),
@@ -669,6 +836,7 @@ where
                                 invention_step,
                                 invention_tasks_min,
                                 invention_input_schema.clone(),
+                                Some(attempt.composite_agent_id.as_str()),
                             ).await {
                                 Ok(stream) => {
                                     if !viewer { return Ok(stream); }
@@ -693,8 +861,11 @@ where
                                 self.claude_agent_sdk.clone(), cas_agent, rc, &params, mcp_connection.clone(),
                                 &mut cont_items_cas, &id, created,
                                 *byok_attempt, ctx.cost_multiplier,
-                                move |items| super::Continuation::ClaudeAgentSdk {
-                                    items, mcp_connection: c,
+                                {
+                                    let agent_index = attempt.agent_index;
+                                    move |items| super::Continuation::ClaudeAgentSdk {
+                                        items, mcp_connection: c, agent_index,
+                                    }
                                 },
                                 |e| super::Error::UpstreamClaudeAgentSdk(Box::new(e)),
                                 objectiveai_sdk::agent::InlineAgentRef::ClaudeAgentSdk(&cas_agent.base),
@@ -705,6 +876,7 @@ where
                                 invention_step,
                                 invention_tasks_min,
                                 invention_input_schema.clone(),
+                                Some(attempt.composite_agent_id.as_str()),
                             ).await {
                                 Ok(stream) => {
                                     if !viewer { return Ok(stream); }
@@ -729,8 +901,11 @@ where
                                 self.codex_sdk.clone(), cdx_agent, rc, &params, mcp_connection.clone(),
                                 &mut cont_items_cdx, &id, created,
                                 *byok_attempt, ctx.cost_multiplier,
-                                move |items| super::Continuation::CodexSdk {
-                                    items, mcp_connection: c,
+                                {
+                                    let agent_index = attempt.agent_index;
+                                    move |items| super::Continuation::CodexSdk {
+                                        items, mcp_connection: c, agent_index,
+                                    }
                                 },
                                 |e| super::Error::UpstreamCodexSdk(Box::new(e)),
                                 objectiveai_sdk::agent::InlineAgentRef::CodexSdk(&cdx_agent.base),
@@ -741,6 +916,7 @@ where
                                 invention_step,
                                 invention_tasks_min,
                                 invention_input_schema.clone(),
+                                Some(attempt.composite_agent_id.as_str()),
                             ).await {
                                 Ok(stream) => {
                                     if !viewer { return Ok(stream); }
@@ -765,8 +941,11 @@ where
                                 self.mock.clone(), mock_agent, rc, &params, mcp_connection.clone(),
                                 &mut cont_items_mock, &id, created,
                                 *byok_attempt, ctx.cost_multiplier,
-                                move |items| super::Continuation::Mock {
-                                    items, mcp_connection: c,
+                                {
+                                    let agent_index = attempt.agent_index;
+                                    move |items| super::Continuation::Mock {
+                                        items, mcp_connection: c, agent_index,
+                                    }
                                 },
                                 |e| super::Error::UpstreamMock(Box::new(e)),
                                 objectiveai_sdk::agent::InlineAgentRef::Mock(&mock_agent.base),
@@ -777,6 +956,7 @@ where
                                 invention_step,
                                 invention_tasks_min,
                                 invention_input_schema.clone(),
+                                Some(attempt.composite_agent_id.as_str()),
                             ).await {
                                 Ok(stream) => {
                                     if !viewer { return Ok(stream); }
@@ -846,6 +1026,7 @@ where
         invention_step: Option<usize>,
         invention_tasks_min: Option<u64>,
         invention_input_schema: Option<String>,
+        agent_id_header: Option<&str>,
     ) -> Result<
         Pin<Box<dyn futures::Stream<Item = super::StreamItem<CONT>> + Send>>,
         super::Error,
@@ -913,6 +1094,7 @@ where
             invention_step,
             invention_tasks_min,
             invention_input_schema.clone(),
+            agent_id_header,
         );
         let initial_stream =
             tokio::time::timeout(self.first_chunk_timeout, create_fut)
@@ -943,7 +1125,25 @@ where
         let params = params.clone();
         let id = id.to_string();
         let byok = byok.map(|s| s.to_string());
+        let agent_id_header = agent_id_header.map(|s| s.to_string());
         let request_continuation = request_continuation.cloned();
+
+        // Register this completion's notify target(s) before the stream
+        // is polled. The entry is removed inside the stream body — under
+        // the per-entry mutex — immediately before the final chunk's
+        // `has_pending_notifications` peek, so a notify that returned
+        // `Ok` is always reflected in the final `messages_queued`.
+        let notify_targets = self.notify_targets.clone();
+        {
+            let state = match &mcp_connection {
+                Some(conn) => super::NotifyTargets::Active(vec![conn.clone()]),
+                None => super::NotifyTargets::NoMcp,
+            };
+            notify_targets.insert(
+                id.clone(),
+                Arc::new(tokio::sync::Mutex::new(state)),
+            );
+        }
 
         Ok(Box::pin(async_stream::stream! {
             use objectiveai_sdk::agent::completions::message::{RichContent, ToolMessage};
@@ -1134,6 +1334,7 @@ where
                         invention_step,
                         invention_tasks_min,
                         invention_input_schema.clone(),
+                        agent_id_header.as_deref(),
                     )
                     .await
                 {
@@ -1180,6 +1381,58 @@ where
                 ));
             }
 
+            // Lock the per-response_id notify mutex, remove the
+            // registry entry under the lock, then peek the queue —
+            // also under the lock. This serializes the queue peek
+            // against any in-flight `Client::notify` call: a notify
+            // that delivered before this point is reflected in
+            // `messages_queued`; a notify that races against the
+            // remove (and would land after the peek) sees the
+            // dashmap miss on its post-lock re-check and returns
+            // `NotifyResponseIdNotFound`. The guard is held until
+            // the end of this scope so the lock is released only
+            // after `messages_queued` is materialized below.
+            let notify_lock_arc = notify_targets
+                .get(&id)
+                .map(|entry| entry.value().clone());
+            let _notify_guard = match notify_lock_arc {
+                Some(arc) => {
+                    let g = arc.lock_owned().await;
+                    notify_targets.remove(&id);
+                    Some(g)
+                }
+                None => None,
+            };
+
+            // Peek the proxy's pending-notifications queue so the
+            // caller can tell whether a follow-up continuation would
+            // surface queued blocks. Only meaningful when a
+            // continuation is also being returned — this site always
+            // sets `continuation: Some(_)`, so the peek is
+            // unconditionally relevant here. A peek failure is
+            // surfaced via the chunk's `error` field only if no prior
+            // error already occupies it (the earlier failure is the
+            // more important signal).
+            let mut messages_queued: Option<bool> = None;
+            if let Some(conn) = &mcp_connection {
+                match conn.has_pending_notifications().await {
+                    Ok(true) => messages_queued = Some(true),
+                    Ok(false) => {}
+                    Err(error) => {
+                        if final_error.is_none() {
+                            final_error = Some(
+                                objectiveai_sdk::error::ResponseError::from(
+                                    &super::Error::McpQueuedNotifications {
+                                        url: conn.url.clone(),
+                                        error,
+                                    },
+                                ),
+                            );
+                        }
+                    }
+                }
+            }
+
             // Single site for usage, continuation, and error (if a continuation call failed).
             yield super::StreamItem::Chunk(
                 objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
@@ -1189,6 +1442,7 @@ where
                     usage: Some(usage),
                     error: final_error,
                     continuation: Some(continuation_token),
+                    messages_queued,
                     ..Default::default()
                 },
             );
@@ -1268,72 +1522,18 @@ fn extract_callable_tool_calls(
 /// notifications are semantically a user message that arrived between
 /// turns, so they take the user-message shape directly.
 ///
-/// Mapping:
-/// - `Text` → text part
-/// - `Image` → image_url part (data URL, matching `call_tool_as_message`)
-/// - `Audio` → input_audio part
-/// - `ResourceLink` / `EmbeddedResource` → JSON-serialized text part
-///   (we don't have the proxy's resource-list context here; richer
-///   inlining lives in `call_tool_as_message`)
-///
-/// Empty input is the caller's responsibility — the caller checks
-/// `!blocks.is_empty()` before invoking.
+/// Delegates to the SDK's [`From<Vec<ContentBlock>> for RichContent`]
+/// impl — same mapping (text / image-data-URL / audio direct;
+/// `ResourceLink` / `EmbeddedResource` → JSON text), same collapse
+/// of all-text inputs into a single `RichContent::Text`. Empty input
+/// is the caller's responsibility.
 fn build_drain_user_message(
     blocks: Vec<objectiveai_sdk::mcp::tool::ContentBlock>,
 ) -> objectiveai_sdk::agent::completions::message::UserMessage {
-    use objectiveai_sdk::agent::completions::message::{
-        ImageUrl, InputAudio, RichContent, RichContentPart, UserMessage,
-    };
-    use objectiveai_sdk::mcp::tool::ContentBlock;
-
-    let mut parts: Vec<RichContentPart> = Vec::with_capacity(blocks.len());
-    for block in &blocks {
-        match block {
-            ContentBlock::Text(text) => parts.push(RichContentPart::Text {
-                text: text.text.clone(),
-            }),
-            ContentBlock::Image(image) => parts.push(RichContentPart::ImageUrl {
-                image_url: ImageUrl {
-                    url: format!("data:{};base64,{}", image.mime_type, image.data),
-                    detail: None,
-                },
-            }),
-            ContentBlock::Audio(audio) => parts.push(RichContentPart::InputAudio {
-                input_audio: InputAudio {
-                    data: audio.data.clone(),
-                    format: audio.mime_type.clone(),
-                },
-            }),
-            ContentBlock::ResourceLink(_) | ContentBlock::EmbeddedResource(_) => {
-                parts.push(RichContentPart::Text {
-                    text: serde_json::to_string(block).unwrap_or_default(),
-                });
-            }
-        }
+    objectiveai_sdk::agent::completions::message::UserMessage {
+        content: blocks.into(),
+        name: None,
     }
-
-    // Collapse to plain `Text` when every part is text — matches the
-    // shape `call_tool_as_message` lands on and lets `prepare()` fold
-    // the message into a trailing user message in the conversation if
-    // one is present.
-    let all_text = parts
-        .iter()
-        .all(|p| matches!(p, RichContentPart::Text { .. }));
-    let content = if all_text {
-        let joined = parts
-            .into_iter()
-            .filter_map(|p| match p {
-                RichContentPart::Text { text } => Some(text),
-                _ => None,
-            })
-            .collect::<Vec<_>>()
-            .join("\n\n");
-        RichContent::Text(joined)
-    } else {
-        RichContent::Parts(parts)
-    };
-
-    UserMessage { content, name: None }
 }
 
 /// Builds an `AgentCompletionChunk` containing a single tool-response message.

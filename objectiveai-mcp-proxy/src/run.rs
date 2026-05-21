@@ -239,6 +239,10 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
             "/notify",
             axum::routing::post(mcp::handle_notify).get(mcp::handle_notify_get),
         )
+        .route(
+            "/notify/queued",
+            axum::routing::get(mcp::handle_notify_queued_get),
+        )
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind(format!("{address}:{port}")).await?;

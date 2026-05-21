@@ -6,6 +6,7 @@ type FilesystemConfigConfig struct {
 	Agents *FilesystemConfigAgentsConfig `json:"agents,omitempty"`
 	API *FilesystemConfigApiConfig `json:"api,omitempty"`
 	Functions *FilesystemConfigFunctionsConfig `json:"functions,omitempty"`
+	MCP *FilesystemConfigMcpConfig `json:"mcp,omitempty"`
 	Swarms *FilesystemConfigSwarmsConfig `json:"swarms,omitempty"`
 	Viewer *FilesystemConfigViewerConfig `json:"viewer,omitempty"`
 }

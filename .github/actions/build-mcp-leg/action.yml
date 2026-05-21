@@ -1,15 +1,9 @@
 name: Build MCP leg and publish to release
-description: Set up toolchains, download the paired mcp-filesystem artifact, build the standalone objectiveai-mcp binary (the MCP server wrapper around the cli, published from the objectiveai-mcp-cli crate) for this leg's platform, upload it as an artifact and append it to the GitHub Release.
+description: Set up the Rust toolchain, build the standalone objectiveai-mcp binary (the MCP server wrapper around the cli, published from the objectiveai-mcp-cli crate) for this leg's platform, upload it as an artifact and append it to the GitHub Release.
 
 inputs:
-  mcp_target:
-    description: Rust target triple of the mcp-filesystem this leg embeds (used to construct the embed/ path).
-    required: true
-  mcp_artifact_name:
-    description: Name of the mcp-filesystem artifact uploaded by this leg's paired mcp-fs job.
-    required: true
   asset:
-    description: Filename of the released asset (e.g. objectiveai-mcp-linux-x86_64).
+    description: Filename of the released asset (e.g. objectiveai-linux-x86_64-mcp).
     required: true
   src_name:
     description: Filename of the built binary inside ~/.objectiveai/ (objectiveai-mcp or objectiveai-mcp.exe).
@@ -25,43 +19,6 @@ runs:
   using: composite
   steps:
     - uses: dtolnay/rust-toolchain@stable
-    - uses: pnpm/action-setup@v4
-      with:
-        # Match `packageManager` in the root package.json so workspace
-        # resolution stays consistent with local installs.
-        version: 10.25.0
-    - uses: actions/setup-node@v4
-      with:
-        node-version: 20
-    - uses: actions/setup-python@v5
-      with:
-        # Pin Python so PyInstaller's sdk-runner fingerprint stays
-        # stable across runner OS versions (same pin as build-cli-leg).
-        python-version: '3.13'
-    - name: Install Linux Tauri deps
-      if: runner.os == 'Linux'
-      shell: bash
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          libwebkit2gtk-4.1-dev \
-          libjavascriptcoregtk-4.1-dev \
-          libsoup-3.0-dev \
-          libgtk-3-dev \
-          libayatana-appindicator3-dev \
-          librsvg2-dev \
-          libssl-dev
-    - name: Download pre-built objectiveai-mcp-filesystem
-      uses: actions/download-artifact@v4
-      with:
-        name: ${{ inputs.mcp_artifact_name }}
-        path: objectiveai-mcp-filesystem/embed/${{ inputs.mcp_target }}/release/
-    - name: Re-stamp mcp-filesystem fingerprint with this runner's view
-      shell: bash
-      run: |
-        EMBED_DIR="objectiveai-mcp-filesystem/embed/${{ inputs.mcp_target }}/release"
-        source objectiveai-mcp-filesystem/fingerprint.sh --target ${{ inputs.mcp_target }} --release || true
-        echo "$CURRENT_FP" > "$EMBED_DIR/.fingerprint"
     - name: Build MCP
       shell: bash
       run: bash objectiveai-mcp-cli/install.sh
@@ -77,7 +34,7 @@ runs:
         done
     - name: Stage release binary
       shell: bash
-      run: cp "$HOME/.objectiveai/${{ inputs.src_name }}" "${{ inputs.asset }}"
+      run: cp "$HOME/.objectiveai/bin/${{ inputs.src_name }}" "${{ inputs.asset }}"
     - uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.asset }}

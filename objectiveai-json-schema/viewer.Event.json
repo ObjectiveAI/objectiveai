@@ -38,26 +38,6 @@
         },
         "value": {}
       }
-    },
-    {
-      "title": "ApiCall",
-      "description": "Host → iframe. One value in the response stream of an\nin-process upstream API call started by the iframe via\n`api-call-invoke`. `sub_type` identifies which endpoint the\nstream belongs to (lets the iframe demux multiple concurrent\ncalls to *different* endpoints). `value` is an\n[`ApiCallEnvelope`](super::ApiCallEnvelope) JSON object: one\n`begin`, then one or more `chunk`s (or `error`), then exactly\none `end`.",
-      "type": "object",
-      "properties": {
-        "destination": {
-          "type": "string"
-        },
-        "sub_type": {
-          "$ref": "viewer.ApiCallSubType"
-        },
-        "type": {
-          "type": "string",
-          "enum": [
-            "api_call"
-          ]
-        },
-        "value": {}
-      }
     }
   ]
 }

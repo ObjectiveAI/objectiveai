@@ -1,8 +1,0 @@
-{
-  "title": "filesystem.config.ApiMode",
-  "type": "string",
-  "enum": [
-    "remote",
-    "local"
-  ]
-}

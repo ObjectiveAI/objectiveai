@@ -11,10 +11,8 @@
 //!   `objectiveai_cli::run` invocation and forwards each emitted line
 //!   onto a given [`EventSender`] as [`Event::CliCommand`].
 
-mod api_call;
 mod events;
 
-pub use api_call::*;
 pub use events::*;
 
 #[cfg(feature = "cli")]

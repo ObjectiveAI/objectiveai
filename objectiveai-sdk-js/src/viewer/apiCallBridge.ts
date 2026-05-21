@@ -3,166 +3,115 @@
  * client.
  *
  * When `client.viewer === true`, every HTTP method on the client
- * routes through this module instead of `fetch()`. We post an
- * `api-call-invoke` message to the host plugin-bridge, which
- * dispatches to the `api_call_run` Tauri command. The host streams
- * one or more `api_call` events back; we collect them in an
- * AsyncIterable and either:
+ * routes through this module instead of `fetch()`. Internally we
+ * spawn `objectiveai api <segments> <method>` via the host viewer's
+ * `cli_run` Tauri command (through the existing `invokeCli` shim)
+ * and unwrap the cli's JSONL `Output<T>` envelopes:
  *
- *   - return the single `Chunk` (unary path), or
- *   - re-emit each `Chunk` through a `Stream<T>` (streaming path).
+ *   - `{type:"begin"}` / `{type:"end"}` — markers, dropped here
+ *   - `{type:"notification","value":<T>}` — yielded as a chunk
+ *   - `{type:"error","level":..., "message":...}` — thrown as
+ *     [`ObjectiveAIFetchError`]
  *
- * Wire format of each event's `value` is the `ApiCallEnvelope`
- * tagged enum:
+ * Unary endpoints emit one `notification` line; streaming endpoints
+ * emit one `notification` per chunk. Either path collapses cleanly
+ * onto the same iterator.
  *
- *   - `{type: "begin"}`           — emitted once, ignored here
- *   - `{type: "chunk", chunk: T}` — one per SSE event (streaming) or
- *                                   one total (unary)
- *   - `{type: "error", error: o}` — terminates the stream by throwing
- *   - `{type: "end"}`             — terminates the iterator cleanly
- *
- * Demux: `sub_type` on each incoming event matches the `subType`
- * (METHOD_PATH string) of the original invocation. Concurrent calls
- * to *different* endpoints from the same iframe are correctly
- * separated; concurrent calls to the *same* endpoint will interleave
- * (no per-invocation correlation id — same limitation as
- * `invokeCli`).
+ * The function exports here are the only viewer-mode entry points
+ * the rest of the SDK ever calls — `client.ts`'s `get/post_unary` /
+ * `get/post/delete_streaming` etc. all hit `viewerApiCall*`. Keeping
+ * the names stable preserves that surface as we swap the underlying
+ * transport from `api_call_run` (HTTP via SDK) to `cli_run`
+ * (subprocess via `objectiveai` cli).
  */
 import { ObjectiveAIFetchError } from "../error";
 import { Stream } from "../stream";
-import type { ViewerApiCallEnvelope } from "./apiCallEnvelope";
-import type { ViewerApiCallSubType } from "./apiCallSubType";
-import type { ViewerHttpMethod } from "./httpMethod";
+import { invokeCli } from "./index";
 
-/** True when running inside an iframe in the host viewer. */
-function isInIframe(): boolean {
-  return typeof window !== "undefined" && window.parent !== window;
+/** HTTP methods routable through `objectiveai api ...`. */
+export type ViewerHttpMethod = "GET" | "POST" | "DELETE";
+
+/**
+ * Map `(method, path)` to the cli argv vector. Convention matches
+ * the coverage test in `objectiveai-cli/tests/api_endpoint_coverage.rs`:
+ * URL segments become positional subcommands, the lowercased method
+ * is the leaf verb (`post`/`get`/`delete`).
+ */
+function buildCliArgs(
+  method: ViewerHttpMethod,
+  path: string,
+  body: unknown,
+): string[] {
+  const segments = path
+    .replace(/^\//, "")
+    .split("/")
+    .filter((s) => s.length > 0);
+  const args = ["objectiveai", "api", ...segments, method.toLowerCase()];
+  if (body !== null && body !== undefined) {
+    args.push("--body-inline", JSON.stringify(body));
+  }
+  return args;
 }
 
 /**
- * `{kind: "plugin-event", type: "api_call", ...}` postMessage shape
- * that the host's plugin-bridge forwards to iframes. The `sub_type`
- * and `value` fields are typed against the auto-generated zod
- * schemas for `viewer.ApiCallSubType` and `viewer.ApiCallEnvelope`.
+ * Shape of a single cli output envelope on the wire (the JSON value
+ * inside one `cli_command` postMessage). Matches
+ * `objectiveai_sdk::cli::output::Output<T>`'s serde-tagged form.
  */
-type ApiCallMessage = {
-  kind: "plugin-event";
-  type: "api_call";
-  sub_type: ViewerApiCallSubType;
-  value: ViewerApiCallEnvelope;
-};
+type CliOutput =
+  | { type: "begin" }
+  | { type: "end" }
+  | { type: "notification"; value: unknown }
+  | { type: "error"; level?: string; fatal?: boolean; message?: unknown };
 
 /**
- * Build the `<METHOD>_<PATH>` sub_type string that matches the Rust
- * [`ApiCallSubType`] serde rename. The resulting string is
- * type-asserted against the auto-generated `ViewerApiCallSubType`
- * union (35 enum members) — invalid `(method, path)` combinations
- * will produce a non-matching string at runtime and the host will
- * fail to dispatch.
- */
-function buildSubType(method: ViewerHttpMethod, path: string): ViewerApiCallSubType {
-  return `${method}_${path}` as ViewerApiCallSubType;
-}
-
-/**
- * Start an api-call-invoke session against the host. Returns an
- * AsyncIterable of `chunk` values (the SSE event bodies or, for
- * unary endpoints, the single response body). The iterator terminates
- * on the `end` envelope and throws an [`ObjectiveAIFetchError`] on
- * `error` envelopes.
- *
- * Bails synchronously if not running in an iframe (no host present).
+ * Start a cli-invoke session against the host. Returns an
+ * AsyncIterable of `notification.value` payloads. The iterator
+ * terminates on `{"type":"end"}` and throws an
+ * [`ObjectiveAIFetchError`] on any `{"type":"error"}` line.
  */
 export function viewerApiCallChunks<T>(
   method: ViewerHttpMethod,
   path: string,
   body: unknown,
 ): AsyncIterable<T> {
-  if (!isInIframe()) {
-    throw new Error(
-      `ObjectiveAI({ viewer: true }) used outside a viewer iframe; ` +
-        `cannot route ${method} ${path} through Tauri. Construct the ` +
-        `client with viewer: false (or omit it) when running outside ` +
-        `the viewer host.`,
-    );
-  }
-  const subType = buildSubType(method, path);
+  const args = buildCliArgs(method, path, body);
+  const cliOutput = invokeCli(args);
 
   return {
     [Symbol.asyncIterator]() {
-      const queue: T[] = [];
-      let resolveNext: (() => void) | null = null;
-      let done = false;
-      let errored: ObjectiveAIFetchError | Error | null = null;
-      let cleaned = false;
-
-      const onMessage = (event: MessageEvent) => {
-        const msg = event.data as ApiCallMessage | null;
-        if (!msg || typeof msg !== "object") return;
-        if (msg.kind !== "plugin-event") return;
-        if (msg.type !== "api_call") return;
-        if (msg.sub_type !== subType) return;
-
-        const env: ViewerApiCallEnvelope | undefined = msg.value;
-        if (!env || typeof env !== "object") return;
-
-        if (env.type === "begin") {
-          // No-op marker.
-        } else if (env.type === "chunk") {
-          queue.push(env.chunk as T);
-        } else if (env.type === "error") {
-          // Wrap as ObjectiveAIFetchError if the inner shape looks
-          // like a ResponseError, else surface the raw error message.
-          const raw = env.error as { message?: unknown } | null;
-          const message = raw && typeof raw === "object" && typeof raw.message === "string"
-            ? raw.message
-            : JSON.stringify(env.error);
-          errored = new ObjectiveAIFetchError(0, message);
-          done = true;
-        } else if (env.type === "end") {
-          done = true;
-        }
-
-        if (resolveNext) {
-          const r = resolveNext;
-          resolveNext = null;
-          r();
-        }
-      };
-
-      const cleanup = () => {
-        if (cleaned) return;
-        cleaned = true;
-        if (typeof window !== "undefined") {
-          window.removeEventListener("message", onMessage);
-        }
-      };
-
-      window.addEventListener("message", onMessage);
-      // Fire the request. The host derives `origin` from
-      // event.source (the iframe's contentWindow), so the caller
-      // never sets it.
-      window.parent.postMessage(
-        { kind: "api-call-invoke", subType, body: body ?? null },
-        "*",
-      );
-
+      const inner = cliOutput[Symbol.asyncIterator]();
       return {
         async next(): Promise<IteratorResult<T>> {
-          while (queue.length === 0 && !done) {
-            await new Promise<void>((r) => {
-              resolveNext = r;
-            });
+          for (;;) {
+            const result = await inner.next();
+            if (result.done) {
+              return { value: undefined, done: true };
+            }
+            const line = result.value as CliOutput | null;
+            if (!line || typeof line !== "object") continue;
+            switch (line.type) {
+              case "begin":
+              case "end":
+                continue;
+              case "notification":
+                return { value: line.value as T, done: false };
+              case "error": {
+                const message =
+                  typeof line.message === "string"
+                    ? line.message
+                    : JSON.stringify(line.message ?? line);
+                throw new ObjectiveAIFetchError(0, message);
+              }
+              default:
+                continue;
+            }
           }
-          if (queue.length > 0) {
-            return { value: queue.shift() as T, done: false };
-          }
-          cleanup();
-          if (errored) throw errored;
-          return { value: undefined, done: true };
         },
         async return(): Promise<IteratorResult<T>> {
-          cleanup();
+          if (inner.return) {
+            await inner.return();
+          }
           return { value: undefined, done: true };
         },
       };
@@ -171,10 +120,10 @@ export function viewerApiCallChunks<T>(
 }
 
 /**
- * Make a viewer-mode unary API call. Awaits the first `chunk`
- * envelope and returns it; subsequent chunks are silently discarded
- * (unary endpoints emit exactly one). Throws on `error` envelopes or
- * if no chunk arrives before `end`.
+ * Make a viewer-mode unary API call. Awaits the first `notification`
+ * envelope and returns its value; subsequent notifications are
+ * silently discarded (unary endpoints emit exactly one). Throws on
+ * `error` envelopes or if no notification arrives before `end`.
  */
 export async function viewerApiCallUnary<T>(
   method: ViewerHttpMethod,

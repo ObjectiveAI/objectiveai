@@ -15,6 +15,7 @@
 
 mod client;
 mod error;
+pub mod viewer;
 
 pub use client::*;
 pub use error::*;

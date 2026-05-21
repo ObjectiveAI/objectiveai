@@ -127,6 +127,14 @@ impl Session {
 
     /// Append `blocks` to the pending-notifications queue. The next
     /// `tools/call` response on this session drains and prepends them.
+    /// Caller-supplied `X-OBJECTIVEAI-AGENT-ID` captured at session-
+    /// open time. Recovered from the encrypted session-id payload on
+    /// every resume, so upstream sdk runners (which only carry the
+    /// session id back) never have to re-send the header themselves.
+    pub fn agent_id(&self) -> Option<&str> {
+        self.payload.agent_id.as_deref()
+    }
+
     pub async fn enqueue_notifications(&self, blocks: Vec<ContentBlock>) {
         if blocks.is_empty() {
             return;
@@ -138,6 +146,14 @@ impl Session {
     /// `Vec::new()` until the next enqueue.
     pub async fn drain_notifications(&self) -> Vec<ContentBlock> {
         std::mem::take(&mut *self.pending_notifications.lock().await)
+    }
+
+    /// Non-draining peek — `true` iff the pending-notifications queue
+    /// holds at least one block. Companion to [`Self::drain_notifications`]
+    /// for callers that want to know whether a drain *would* return
+    /// anything without consuming the queue.
+    pub async fn has_pending_notifications(&self) -> bool {
+        !self.pending_notifications.lock().await.is_empty()
     }
 
     /// Mint a [`CancellationToken`] for an inbound request id, store it,

@@ -68,6 +68,7 @@ class ObjectiveAI:
         x_viewer_address: str | None = None,
         x_commit_author_name: str | None = None,
         x_commit_author_email: str | None = None,
+        agent_id: str | None = None,
         timeout: float = 60.0,
     ) -> None:
         self.address = (
@@ -101,6 +102,7 @@ class ObjectiveAI:
         self.x_viewer_address = x_viewer_address or os.environ.get("VIEWER_ADDRESS")
         self.x_commit_author_name = x_commit_author_name or os.environ.get("COMMIT_AUTHOR_NAME")
         self.x_commit_author_email = x_commit_author_email or os.environ.get("COMMIT_AUTHOR_EMAIL")
+        self.agent_id = agent_id or os.environ.get("OBJECTIVEAI_AGENT_ID")
         self.timeout = timeout
 
     def _build_headers(
@@ -133,6 +135,8 @@ class ObjectiveAI:
             headers["X-COMMIT-AUTHOR-NAME"] = self.x_commit_author_name
         if self.x_commit_author_email:
             headers["X-COMMIT-AUTHOR-EMAIL"] = self.x_commit_author_email
+        if self.agent_id:
+            headers["X-OBJECTIVEAI-AGENT-ID"] = self.agent_id
 
         if extra_headers:
             headers.update(extra_headers)

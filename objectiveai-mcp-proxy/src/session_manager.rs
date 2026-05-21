@@ -48,13 +48,26 @@ use rand::RngCore;
 
 use crate::session::Session;
 
-/// Per-session encoded payload: `URL → header_map`. The header_map is
-/// the full set of HTTP headers used to reconnect this upstream
+/// Per-session encoded payload.
+///
+/// `connections` is `URL → header_map`, where the header_map is the
+/// full set of HTTP headers used to reconnect that upstream
 /// (`Mcp-Session-Id`, `Authorization`, custom `X-*`). The session id is
 /// uniform with every other header — there's no separate session-id
 /// field. URLs sort alphabetically when encoding for stable ids; the
 /// per-URL header map sorts the same way.
-pub type SessionPayload = IndexMap<String, IndexMap<String, String>>;
+///
+/// `agent_id` carries the caller-supplied `X-OBJECTIVEAI-AGENT-ID`
+/// value at session-open time. Because the whole payload is
+/// AEAD-encrypted into the public session id, this value travels
+/// inside every Mcp-Session-Id the upstream sdk runners hand back to
+/// the proxy — runners don't have to re-send the header themselves.
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct SessionPayload {
+    pub connections: IndexMap<String, IndexMap<String, String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_id: Option<String>,
+}
 
 /// Current envelope version byte. Bumping this lets future shape
 /// changes be distinguished from old ids that happen to decrypt under
@@ -108,8 +121,9 @@ impl SessionManager {
     pub fn add(
         &self,
         connections_with_headers: Vec<(Connection, IndexMap<String, String>)>,
+        agent_id: Option<String>,
     ) -> String {
-        let payload = build_payload(&connections_with_headers);
+        let payload = build_payload(&connections_with_headers, agent_id);
         let id = encrypt_and_encode(&payload, &self.key);
         let connections: Vec<Connection> =
             connections_with_headers.into_iter().map(|(c, _)| c).collect();
@@ -167,6 +181,7 @@ impl SessionManager {
 ///   - sorted alphabetically.
 fn build_payload(
     pairs: &[(Connection, IndexMap<String, String>)],
+    agent_id: Option<String>,
 ) -> SessionPayload {
     // Collect (url, sorted headers) pairs, then sort by URL.
     let mut url_entries: Vec<(String, IndexMap<String, String>)> = pairs
@@ -186,11 +201,12 @@ fn build_payload(
         .collect();
     url_entries.sort_by(|a, b| a.0.cmp(&b.0));
 
-    let mut payload: SessionPayload = IndexMap::with_capacity(url_entries.len());
+    let mut connections: IndexMap<String, IndexMap<String, String>> =
+        IndexMap::with_capacity(url_entries.len());
     for (url, headers) in url_entries {
-        payload.insert(url, headers);
+        connections.insert(url, headers);
     }
-    payload
+    SessionPayload { connections, agent_id }
 }
 
 /// JSON-serialize the payload, AEAD-encrypt with a *deterministic*
@@ -381,16 +397,16 @@ mod tests {
     use super::*;
 
     fn sample_payload() -> SessionPayload {
-        let mut p: SessionPayload = IndexMap::new();
+        let mut connections: IndexMap<String, IndexMap<String, String>> = IndexMap::new();
         let mut h_a: IndexMap<String, String> = IndexMap::new();
         h_a.insert("Authorization".into(), "Bearer secret-A".into());
         h_a.insert("Mcp-Session-Id".into(), "sid-A".into());
         h_a.insert("X-Tenant".into(), "tenant-1".into());
-        p.insert("https://upstream-a.example/mcp".into(), h_a);
+        connections.insert("https://upstream-a.example/mcp".into(), h_a);
         let mut h_b: IndexMap<String, String> = IndexMap::new();
         h_b.insert("Mcp-Session-Id".into(), "sid-B".into());
-        p.insert("https://upstream-b.example/mcp".into(), h_b);
-        p
+        connections.insert("https://upstream-b.example/mcp".into(), h_b);
+        SessionPayload { connections, agent_id: None }
     }
 
     #[test]
@@ -455,7 +471,7 @@ mod tests {
         let pairs_unsorted: Vec<(String, IndexMap<String, String>)> =
             vec![(conn_a_url.clone(), h_unsorted.clone()), (conn_b_url.clone(), h_unsorted.clone())];
 
-        let mut payload: SessionPayload = IndexMap::new();
+        let mut connections: IndexMap<String, IndexMap<String, String>> = IndexMap::new();
         let mut url_entries: Vec<(String, IndexMap<String, String>)> = pairs_unsorted
             .into_iter()
             .map(|(url, headers)| {
@@ -471,12 +487,13 @@ mod tests {
             .collect();
         url_entries.sort_by(|a, b| a.0.cmp(&b.0));
         for (u, h) in url_entries {
-            payload.insert(u, h);
+            connections.insert(u, h);
         }
+        let payload = SessionPayload { connections, agent_id: None };
 
-        let urls: Vec<&String> = payload.keys().collect();
+        let urls: Vec<&String> = payload.connections.keys().collect();
         assert_eq!(urls, vec![&conn_b_url, &conn_a_url]); // a.example before b.example
-        let inner = &payload[&conn_b_url];
+        let inner = &payload.connections[&conn_b_url];
         let inner_keys: Vec<&String> = inner.keys().collect();
         assert_eq!(inner_keys, vec!["Authorization", "Z-Header"]); // alphabetical
     }

@@ -7,7 +7,8 @@ from objectiveai_sdk.cli.output.notification.skip_reason import SkipReason
 
 
 class UpdaterSkipped(BaseModel):
-    """Skipped this run for a non-cooldown reason. (Cooldown is silent.)"""
+    """Refused to proceed with the update — the `reason` carries why.
+No binaries were modified."""
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Skipped'})
 
     event: Literal['skipped']
@@ -47,9 +48,8 @@ class UpdaterFound(BaseModel):
 
 
 class UpdaterInstalled(BaseModel):
-    """Swap complete; the next line of output will come from the
-re-exec'd new binary, not this one. Terminal for the current
-process."""
+    """One binary's swap completed. Emitted once per package the
+updater touched (cli, api, viewer, mcp)."""
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Installed'})
 
     current_version: str
@@ -58,11 +58,9 @@ process."""
 
 
 class Updater(RootModel):
-    """Wire shapes emitted by `crate::updater::maybe_auto_update`. Every
-non-cooldown skip path AND every active step emits one of these.
-The ONLY silent path is the 2-hour marker cooldown — when the marker
-says we already checked within the time frame, the updater exits
-without emission.
+    """Wire shapes emitted by the cli's `update` subcommand (and by
+programmatic callers that invoke the cli's updater). Every skip
+path AND every active step emits one of these.
 
 Errors are emitted as `super::super::Output::Error` (level=warn,
 fatal=false), not as a variant here.

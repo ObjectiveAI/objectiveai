@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-mcp-cli"
-version = "2.0.8"
+version = "2.0.10"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
 description = "MCP (Model Context Protocol) CLI for ObjectiveAI"
@@ -14,17 +14,8 @@ publish = true
 
 [features]
 default = []
-viewer = ["objectiveai-cli/viewer"]
 rustpython = ["objectiveai-cli/rustpython"]
 systempython = ["objectiveai-cli/systempython"]
-# Auto-update from GitHub releases on startup. Opt-in — install.sh and
-# the build-mcp-leg CI composite enable it explicitly so the shipped
-# `objectiveai-mcp` binary self-updates; cargo install and library
-# consumers don't carry the updater unless they ask. The
-# objectiveai-cli dep uses default-features = false anyway, so the
-# cli's own updater feature does NOT leak through — this binary runs
-# its own updater for the mcp asset.
-updater = ["objectiveai-sdk/updater"]
 
 # Renames the produced executable from `objectiveai-mcp-cli` to
 # `objectiveai-mcp`. The crate name on crates.io stays unchanged
@@ -39,8 +30,8 @@ anyhow = "1.0.102"
 axum = "0.8.8"
 dotenv = "0.15.0"
 envconfig = "0.11.1"
-objectiveai-cli = { path = "../objectiveai-cli", version = "2.0.8", default-features = false }
-objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.0.8", default-features = false, features = ["cli"] }
+objectiveai-cli = { path = "../objectiveai-cli", version = "2.0.10", default-features = false }
+objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.0.10", default-features = false, features = ["cli"] }
 serde_json = "1.0.149"
 rmcp = { version = "0.16.0", features = ["server", "transport-streamable-http-server"] }
 schemars = "1.2.1"
@@ -49,3 +40,4 @@ tokio = { version = "1.50.0", features = ["full"] }
 tokio-util = "0.7.18"
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+http = "1.4.0"

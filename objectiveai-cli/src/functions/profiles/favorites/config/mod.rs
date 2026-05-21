@@ -30,7 +30,7 @@ impl Commands {
                 config.functions().profiles().add_favorite(args.into_favorite()?);
                 crate::config::write(&client, &config, cli_config).await?;
                 {
-                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Ok>::Notification(objectiveai_sdk::cli::output::Notification { value: objectiveai_sdk::cli::output::OK }).emit(handle).await;
+                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Ok>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: objectiveai_sdk::cli::output::OK }).emit(handle).await;
                 Ok(())
             }
             }
@@ -38,7 +38,7 @@ impl Commands {
                 config.functions().profiles().del_favorite(&name)?;
                 crate::config::write(&client, &config, cli_config).await?;
                 {
-                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Ok>::Notification(objectiveai_sdk::cli::output::Notification { value: objectiveai_sdk::cli::output::OK }).emit(handle).await;
+                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Ok>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: objectiveai_sdk::cli::output::OK }).emit(handle).await;
                 Ok(())
             }
             }
@@ -47,7 +47,7 @@ impl Commands {
                 args.apply(favorite)?;
                 crate::config::write(&client, &config, cli_config).await?;
                 {
-                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Ok>::Notification(objectiveai_sdk::cli::output::Notification { value: objectiveai_sdk::cli::output::OK }).emit(handle).await;
+                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Ok>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: objectiveai_sdk::cli::output::OK }).emit(handle).await;
                 Ok(())
             }
             }

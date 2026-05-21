@@ -12,6 +12,7 @@ stream_push_test!(
         upstream: crate::agent::Upstream::Openrouter,
         error: None,
         continuation: None,
+        messages_queued: None,
     }],
     AgentCompletionChunk {
         id: "acc-1".into(),
@@ -22,6 +23,7 @@ stream_push_test!(
         upstream: crate::agent::Upstream::Openrouter,
         error: None,
         continuation: None,
+        messages_queued: None,
     }
 );
 
@@ -56,6 +58,7 @@ stream_push_test!(
             upstream: crate::agent::Upstream::Openrouter,
             error: None,
             continuation: None,
+            messages_queued: None,
         },
         AgentCompletionChunk {
             id: "acc-2".into(),
@@ -85,6 +88,7 @@ stream_push_test!(
             upstream: crate::agent::Upstream::Openrouter,
             error: None,
             continuation: None,
+            messages_queued: None,
         },
     ],
     AgentCompletionChunk {
@@ -115,6 +119,7 @@ stream_push_test!(
         upstream: crate::agent::Upstream::Openrouter,
         error: None,
         continuation: None,
+        messages_queued: None,
     }
 );
 
@@ -149,6 +154,7 @@ stream_push_test!(
             upstream: crate::agent::Upstream::Openrouter,
             error: None,
             continuation: None,
+            messages_queued: None,
         },
         AgentCompletionChunk {
             id: "acc-3".into(),
@@ -178,6 +184,7 @@ stream_push_test!(
             upstream: crate::agent::Upstream::Openrouter,
             error: None,
             continuation: None,
+            messages_queued: None,
         },
         AgentCompletionChunk {
             id: "acc-3".into(),
@@ -207,6 +214,7 @@ stream_push_test!(
             upstream: crate::agent::Upstream::Openrouter,
             error: None,
             continuation: None,
+            messages_queued: None,
         },
     ],
     AgentCompletionChunk {
@@ -237,6 +245,7 @@ stream_push_test!(
         upstream: crate::agent::Upstream::Openrouter,
         error: None,
         continuation: None,
+        messages_queued: None,
     }
 );
 
@@ -252,6 +261,7 @@ stream_push_test!(
             upstream: crate::agent::Upstream::Openrouter,
             error: None,
             continuation: None,
+            messages_queued: None,
         },
         AgentCompletionChunk {
             id: "acc-4".into(),
@@ -271,6 +281,7 @@ stream_push_test!(
             upstream: crate::agent::Upstream::Openrouter,
             error: None,
             continuation: None,
+            messages_queued: None,
         },
     ],
     AgentCompletionChunk {
@@ -291,6 +302,7 @@ stream_push_test!(
         upstream: crate::agent::Upstream::Openrouter,
         error: None,
         continuation: None,
+        messages_queued: None,
     }
 );
 
@@ -309,6 +321,7 @@ stream_push_test!(
                 message: serde_json::json!("first"),
             }),
             continuation: None,
+            messages_queued: None,
         },
         AgentCompletionChunk {
             id: "acc-5".into(),
@@ -322,6 +335,7 @@ stream_push_test!(
                 message: serde_json::json!("second"),
             }),
             continuation: None,
+            messages_queued: None,
         },
     ],
     AgentCompletionChunk {
@@ -336,5 +350,6 @@ stream_push_test!(
             message: serde_json::json!("second"),
         }),
         continuation: None,
+        messages_queued: None,
     }
 );

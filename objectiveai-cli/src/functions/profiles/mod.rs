@@ -70,12 +70,12 @@ impl Commands {
                 let handle = handle.clone();
                 crate::api::run(|http_client| async move {
                     let response = objectiveai_sdk::functions::profiles::get_profile(&http_client, path).await?;
-                    objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Profile>::Notification(objectiveai_sdk::cli::output::Notification { value: 
+                    objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Profile>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: 
                         objectiveai_sdk::cli::output::Profile { profile: response },
                      })
                     .emit(&handle).await;
                     Ok(())
-                }, false).await
+                }).await
             }
             Commands::List { source } => {
                 use objectiveai_sdk::functions::profiles::request::ListProfilesSource;
@@ -106,7 +106,7 @@ impl Commands {
                 let sha = objectiveai_sdk::filesystem::publish::publish_profile(
                     &fs_client, &repository, &profile, &msg, overwrite,
                 ).await?;
-                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Published>::Notification(objectiveai_sdk::cli::output::Notification { value: 
+                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Published>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: 
                     objectiveai_sdk::cli::output::Published { sha },
                  })
                 .emit(handle).await;

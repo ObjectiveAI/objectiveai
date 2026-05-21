@@ -11,6 +11,8 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::agent::InlineAgent),
         schemars::schema_for!(crate::agent::RemoteAgent),
         schemars::schema_for!(crate::agent::Agent),
+        schemars::schema_for!(crate::agent::favorites::Action),
+        schemars::schema_for!(crate::agent::favorites::ChangedNotification),
         schemars::schema_for!(crate::agent::InlineAgentBaseWithFallbacksOrRemote),
         schemars::schema_for!(crate::agent::claude_agent_sdk::AgentBase),
         schemars::schema_for!(crate::agent::claude_agent_sdk::Agent),
@@ -433,10 +435,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemas.extend([
             schemars::schema_for!(crate::filesystem::config::AgentsConfig),
             schemars::schema_for!(crate::filesystem::config::ApiConfig),
-            schemars::schema_for!(crate::filesystem::config::ApiMode),
-            schemars::schema_for!(crate::filesystem::config::ApiRemoteConfig),
-            schemars::schema_for!(crate::filesystem::config::ApiLocalConfig),
-            schemars::schema_for!(crate::filesystem::config::ApiHeadersConfig),
             schemars::schema_for!(crate::filesystem::config::Config),
             schemars::schema_for!(crate::filesystem::config::Favorite),
             schemars::schema_for!(crate::filesystem::config::PairFavorite),
@@ -446,9 +444,8 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
             schemars::schema_for!(crate::filesystem::config::FunctionsProfilesPairsConfig),
             schemars::schema_for!(crate::filesystem::config::SwarmsConfig),
             schemars::schema_for!(crate::filesystem::config::ViewerSecretSignaturePair),
-            schemars::schema_for!(crate::filesystem::config::ViewerMode),
             schemars::schema_for!(crate::filesystem::config::ViewerConfig),
-            schemars::schema_for!(crate::filesystem::config::ViewerLocalConfig),
+            schemars::schema_for!(crate::filesystem::config::McpConfig),
             schemars::schema_for!(crate::filesystem::logs::ListItem),
             schemars::schema_for!(crate::filesystem::plugins::Binaries),
             schemars::schema_for!(crate::filesystem::plugins::Manifest),
@@ -502,9 +499,21 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
     {
         schemas.extend([
             schemars::schema_for!(crate::viewer::Event),
-            schemars::schema_for!(crate::viewer::ApiCallSubType),
-            schemars::schema_for!(crate::viewer::ApiCallEnvelope),
-            schemars::schema_for!(crate::viewer::HttpMethod),
+        ]);
+    }
+    #[cfg(feature = "http")]
+    {
+        schemas.extend([
+            schemars::schema_for!(crate::http::viewer::ResponseError),
+            schemars::schema_for!(crate::http::viewer::AgentCompletionCreateParams),
+            schemars::schema_for!(crate::http::viewer::AgentCompletionRequest),
+            schemars::schema_for!(crate::http::viewer::FunctionExecutionCreateParams),
+            schemars::schema_for!(crate::http::viewer::FunctionExecutionRequest),
+            schemars::schema_for!(crate::http::viewer::FunctionInventionRecursiveCreateParams),
+            schemars::schema_for!(crate::http::viewer::FunctionInventionRecursiveRequest),
+            schemars::schema_for!(crate::http::viewer::LaboratoryExecutionCreateParams),
+            schemars::schema_for!(crate::http::viewer::LaboratoryExecutionRequest),
+            schemars::schema_for!(crate::http::viewer::Request),
         ]);
     }
     schemas

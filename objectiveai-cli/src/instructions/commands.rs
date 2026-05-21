@@ -19,7 +19,7 @@ impl Commands {
                 let instructions = format!(
                     "cleared {count} instruction tables"
                 );
-                objectiveai_sdk::cli::output::Output::<Instructions>::Notification(objectiveai_sdk::cli::output::Notification { value: Instructions { instructions } }).emit(handle).await;
+                objectiveai_sdk::cli::output::Output::<Instructions>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: Instructions { instructions } }).emit(handle).await;
                 Ok(())
             }
             }

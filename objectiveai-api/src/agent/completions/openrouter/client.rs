@@ -246,6 +246,7 @@ impl UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::
         _invention_step: Option<usize>,
         _invention_tasks_min: Option<u64>,
         _invention_input_schema: Option<String>,
+        _agent_id_header: Option<&str>,
     ) -> impl Future<
         Output = Result<
             Self::Stream,

@@ -12,15 +12,6 @@ class SkipReasonUnsupportedPlatform(RootModel):
     root: Literal['unsupported_platform']
 
 
-class SkipReasonOptedOut(RootModel):
-    """`OBJECTIVEAI_SKIP_UPDATE` env var is set. The updater respects
-this so re-exec'd children don't loop, and so users can disable
-auto-update by setting it."""
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'OptedOut'})
-
-    root: Literal['opted_out']
-
-
 class SkipReasonDevTree(RootModel):
     """Binary is running out of a `target*/` directory — looks like a
 dev build (`cargo run`), not an installed binary."""
@@ -29,11 +20,18 @@ dev build (`cargo run`), not an installed binary."""
     root: Literal['dev_tree']
 
 
+class SkipReasonIncompleteRelease(RootModel):
+    """The latest release is missing one or more of the four expected
+assets for this host triple. No partial updates: refuse the
+whole run."""
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'IncompleteRelease'})
+
+    root: Literal['incomplete_release']
+
+
 class SkipReason(RootModel):
-    """Reasons the updater can skip a run *and emit a notification about it*.
-The 2-hour marker cooldown is NOT included here because cooldown
-skips are silent (no notification emitted)."""
+    """Reasons the updater can skip a run *and emit a notification about it*."""
     model_config = ConfigDict(title='cli.output.notification.SkipReason')
 
-    root: Union[SkipReasonUnsupportedPlatform, SkipReasonOptedOut, SkipReasonDevTree]
+    root: Union[SkipReasonUnsupportedPlatform, SkipReasonDevTree, SkipReasonIncompleteRelease]
 

@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-sdk"
-version = "2.0.8"
+version = "2.0.10"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
 description = "ObjectiveAI SDK, definitions, and utilities"
@@ -22,16 +22,15 @@ include = [
 
 [features]
 default = ["http", "filesystem", "env", "mcp", "cli", "viewer"]
-http = ["dep:reqwest", "dep:reqwest-eventsource", "dep:eventsource-stream", "dep:futures"]
+http = ["dep:reqwest", "dep:reqwest-eventsource", "dep:eventsource-stream", "dep:futures", "dep:tokio", "dep:backoff"]
 filesystem = ["dep:dirs", "dep:jaq-core", "dep:jaq-std", "dep:jaq-json", "dep:sha2", "dep:tokio", "dep:futures", "dep:mime_guess", "dep:git2", "dep:rusqlite", "dep:regex", "dep:zip"]
 env = []
 mcp = ["dep:reqwest", "dep:backoff", "dep:futures-util", "dep:tokio", "dep:tokio-util"]
 cli = ["filesystem", "dep:tokio"]
 viewer = ["dep:tokio"]
-updater = ["http", "filesystem", "cli", "dep:semver"]
 
 [dependencies]
-objectiveai-sdk-macros = { version = "2.0.8", path = "../objectiveai-sdk-rs-macros" }
+objectiveai-sdk-macros = { version = "2.0.10", path = "../objectiveai-sdk-rs-macros" }
 base62 = { version = "2.2.4" }
 serde = { version = "1.0.228", features = ["derive"] }
 indexmap = { version = "2.13.0", features = ["serde"] }
@@ -69,7 +68,6 @@ git2 = { version = "0.20.4", default-features = false, features = ["vendored-lib
 rusqlite = { version = "0.31.0", features = ["bundled"], optional = true }
 regex = { version = "1.12.3", optional = true }
 zip = { version = "2.4.0", default-features = false, features = ["deflate"], optional = true }
-semver = { version = "1", optional = true }
 
 [dev-dependencies]
 proc-macro2 = { version = "1.0.106", features = ["span-locations"] }

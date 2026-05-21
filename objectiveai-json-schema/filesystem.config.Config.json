@@ -35,6 +35,17 @@
       ],
       "omitempty": true
     },
+    "mcp": {
+      "anyOf": [
+        {
+          "$ref": "filesystem.config.McpConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "swarms": {
       "anyOf": [
         {

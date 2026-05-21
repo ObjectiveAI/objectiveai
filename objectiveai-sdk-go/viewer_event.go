@@ -71,41 +71,6 @@ func (v *ViewerEventCliCommand) UnmarshalJSON(data []byte) error {
 }
 func (ViewerEventCliCommand) SchemaVariantTitle() string { return "CliCommand" }
 
-// Host → iframe. One value in the response stream of an
-// in-process upstream API call started by the iframe via
-// `api-call-invoke`. `sub_type` identifies which endpoint the
-// stream belongs to (lets the iframe demux multiple concurrent
-// calls to *different* endpoints). `value` is an
-// [`ApiCallEnvelope`](super::ApiCallEnvelope) JSON object: one
-// `begin`, then one or more `chunk`s (or `error`), then exactly
-// one `end`.
-type ViewerEventApiCall struct {
-	Destination string `json:"destination"`
-	SubType ViewerApiCallSubType `json:"sub_type"`
-	Type string `json:"type" validate:"oneof=api_call"`
-	Value JsonValue `json:"value"`
-}
-
-func (v *ViewerEventApiCall) UnmarshalJSON(data []byte) error {
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	for _, key := range []string{"destination", "sub_type", "type", "value"} {
-		if _, ok := raw[key]; !ok {
-			return fmt.Errorf("ViewerEventApiCall: missing required field %q", key)
-		}
-	}
-	type Alias ViewerEventApiCall
-	var alias Alias
-	if err := json.Unmarshal(data, &alias); err != nil {
-		return err
-	}
-	*v = ViewerEventApiCall(alias)
-	return nil
-}
-func (ViewerEventApiCall) SchemaVariantTitle() string { return "ApiCall" }
-
 // Every event the viewer emits to the JS side. Serde-tagged on
 // `type` so the JS bridge can pattern-match and decide how to
 // repackage each variant for the destination iframe.
@@ -129,15 +94,6 @@ type ViewerEvent struct {
 	// envelope. No sub_type — a single invocation produces a single
 	// stream of lines.
 	CliCommand *ViewerEventCliCommand 
-	// Host → iframe. One value in the response stream of an
-	// in-process upstream API call started by the iframe via
-	// `api-call-invoke`. `sub_type` identifies which endpoint the
-	// stream belongs to (lets the iframe demux multiple concurrent
-	// calls to *different* endpoints). `value` is an
-	// [`ApiCallEnvelope`](super::ApiCallEnvelope) JSON object: one
-	// `begin`, then one or more `chunk`s (or `error`), then exactly
-	// one `end`.
-	ApiCall *ViewerEventApiCall 
 }
 
 func (v ViewerEvent) MarshalJSON() ([]byte, error) {
@@ -146,9 +102,6 @@ func (v ViewerEvent) MarshalJSON() ([]byte, error) {
 	}
 	if v.CliCommand != nil {
 		return json.Marshal(v.CliCommand)
-	}
-	if v.ApiCall != nil {
-		return json.Marshal(v.ApiCall)
 	}
 	return []byte("null"), nil
 }
@@ -176,17 +129,6 @@ func (v *ViewerEvent) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	{
-		var try ViewerEventApiCall
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := ViewerEvent{}
-			candidate.ApiCall = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
 	return fmt.Errorf("data did not match any variant of ViewerEvent")
 }
 
@@ -194,7 +136,6 @@ func (v ViewerEvent) Validate() error {
 	count := 0
 	if v.Inbound != nil { count++ }
 	if v.CliCommand != nil { count++ }
-	if v.ApiCall != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("ViewerEvent: exactly one variant must be set, got %d", count)
 	}

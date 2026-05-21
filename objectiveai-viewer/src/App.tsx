@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useDeferredValue, type ReactNode } from "react";
+import cn from "classnames";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { tauriInvoke } from "./lib/tauri";
 import { useEntries } from "./hooks/useEntries";
@@ -17,6 +18,8 @@ import { SessionSidebar } from "./components/shared/SessionSidebar";
 import { CommandPalette } from "./components/shared/CommandPalette";
 import { DetailPanel } from "./components/shared/DetailPanel";
 import { LogoMark, Wordmark } from "./components/shared/Logo";
+import { RightOverlayPanel, type PanelTab } from "./RightOverlayPanel";
+import { useAgentChat } from "./chat/useAgentChat";
 import type { Entry } from "./types";
 
 function Tip({ label, children }: { label: string; children: ReactNode }) {
@@ -267,13 +270,24 @@ function ObjectiveAIView() {
 
 const OBJECTIVEAI_TAB_ID = "objectiveai";
 
+export interface ViewerPluginInfo {
+  name: string;
+  iframe_src: string;
+  mobile_ready: boolean;
+}
+
 function App() {
-  const [pluginNames, setPluginNames] = useState<string[]>([]);
+  const [plugins, setPlugins] = useState<ViewerPluginInfo[]>([]);
   const [activeTab, setActiveTab] = useState<string>(OBJECTIVEAI_TAB_ID);
 
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [panelTabs, setPanelTabs] = useState<PanelTab[]>([]);
+  const [activePanelTabId, setActivePanelTabId] = useState<string | null>(null);
+  const { sendMessage } = useAgentChat(setPanelTabs);
+
   useEffect(() => {
-    tauriInvoke<string[]>("list_plugins_with_viewer")
-      .then((names) => { if (names) setPluginNames(names); })
+    tauriInvoke<ViewerPluginInfo[]>("list_plugins_with_viewer")
+      .then((p) => { if (p) setPlugins(p); })
       .catch((e) => {
         // eslint-disable-next-line no-console
         console.warn("list_plugins_with_viewer failed:", e);
@@ -282,21 +296,72 @@ function App() {
 
   const tabs: Tab[] = [
     { id: OBJECTIVEAI_TAB_ID, label: "ObjectiveAI" },
-    ...pluginNames.map((name) => ({ id: name, label: name })),
+    ...plugins.map((p) => ({ id: p.name, label: p.name })),
   ];
 
-  if (pluginNames.length === 0) {
+  const activePlugin = plugins.find((p) => p.name === activeTab);
+
+  if (plugins.length === 0) {
     return <ObjectiveAIView />;
   }
 
   return (
-    <div className="flex flex-col h-screen">
-      <TabBar tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} />
-      <div className="flex-1 min-h-0 flex flex-col">
+    <div className={cn("flex", "flex-col", "h-screen")}>
+      <div
+        className={cn(
+          "flex",
+          "flex-row",
+          "items-stretch",
+          "bg-neutral-100",
+          "dark:bg-neutral-900",
+          "border-b",
+          "border-neutral-300",
+          "dark:border-neutral-700",
+        )}
+      >
+        <div className={cn("flex-1", "min-w-0")}>
+          <TabBar tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} />
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsPanelOpen((v) => !v)}
+          aria-label={isPanelOpen ? "Close side panel" : "Open side panel"}
+          className={cn(
+            "shrink-0",
+            "px-3",
+            "text-neutral-600",
+            "dark:text-neutral-400",
+            "hover:text-neutral-900",
+            "dark:hover:text-neutral-50",
+            "cursor-pointer",
+            "text-lg",
+          )}
+        >
+          {isPanelOpen ? "⟩" : "⟨"}
+        </button>
+      </div>
+      <div
+        className={cn(
+          "relative",
+          "flex",
+          "flex-col",
+          "flex-1",
+          "min-h-0",
+        )}
+      >
         {activeTab === OBJECTIVEAI_TAB_ID ? (
           <ObjectiveAIView />
-        ) : (
-          <PluginPane pluginName={activeTab} />
+        ) : activePlugin ? (
+          <PluginPane info={activePlugin} />
+        ) : null}
+        {isPanelOpen && (
+          <RightOverlayPanel
+            panelTabs={panelTabs}
+            setPanelTabs={setPanelTabs}
+            activePanelTabId={activePanelTabId}
+            setActivePanelTabId={setActivePanelTabId}
+            sendMessage={sendMessage}
+          />
         )}
       </div>
     </div>

@@ -1,14 +1,11 @@
 #!/usr/bin/env bash
-# Builds and installs a standalone, fully-featured objectiveai-mcp
-# binary (the MCP (Model Context Protocol) server wrapper around the
-# cli — published from the objectiveai-mcp-cli crate, but the binary
-# itself is named `objectiveai-mcp`).
+# Builds and installs a standalone objectiveai-mcp binary (the MCP
+# (Model Context Protocol) server wrapper around the cli — published
+# from the objectiveai-mcp-cli crate, but the binary itself is named
+# `objectiveai-mcp`).
 #
-# Mirrors objectiveai-cli/install.sh's structure: build the per-host
-# embedded dependencies first (claude-agent-sdk-runner, codex-sdk-
-# runner, mcp-filesystem, viewer embed), then cargo-build
-# objectiveai-mcp-cli in release mode with all passthrough features
-# turned on, then copy the binary to ~/.objectiveai/.
+# The cli no longer embeds the viewer or api, so the build chain is
+# now just `cargo build` with the cli's passthrough features.
 #
 # Usage:
 #   bash objectiveai-mcp-cli/install.sh
@@ -34,41 +31,10 @@ else
   DST_NAME="objectiveai-mcp"
 fi
 
-# ── Build embedded binaries ────────────────────────────────────────────
-# objectiveai-mcp-cli depends on objectiveai-cli, which embeds the
-# viewer (via build.rs) and depends on objectiveai-api (which embeds
-# claude-agent-sdk-runner + codex-sdk-runner + linux-musl
-# mcp-filesystem). Same per-host artifact chain the cli release uses.
-
-echo "Building embedded dependencies..."
-
-# claude-agent-sdk-runner (native target, Python)
-bash "$REPO_ROOT/objectiveai-claude-agent-sdk-runner/build.sh" --release
-
-# codex-sdk-runner (native target, Python)
-bash "$REPO_ROOT/objectiveai-codex-sdk-runner/build.sh" --release
-
-# mcp-filesystem (linux-musl, Docker container injection) — embedded by
-# objectiveai-api with orchestrator-bollard. Match the host
-# architecture (ARM hosts embed aarch64, x86_64 hosts embed x86_64) and
-# always target linux-musl. Normalize macOS's `arm64` to Rust's
-# `aarch64` triple.
-MCP_ARCH=$(uname -m)
-case "$MCP_ARCH" in
-  arm64) MCP_ARCH=aarch64 ;;
-esac
-bash "$REPO_ROOT/objectiveai-mcp-filesystem/build.sh" --target "$MCP_ARCH-unknown-linux-musl" --release
-
-# viewer (native target) — required because the `viewer` passthrough
-# feature pulls in the cli's viewer feature which expects an embedded
-# viewer binary.
-bash "$REPO_ROOT/objectiveai-viewer/build.sh" --release
-
 # ── Build mcp ──────────────────────────────────────────────────────────
 
-# Fully-featured: all three passthrough features on for parity with
-# the cli release, plus the updater so the shipped binary self-updates.
-FEATURES="viewer,rustpython,systempython,updater"
+# Pass through the cli's python features for parity with the cli release.
+FEATURES="rustpython,systempython"
 
 echo "Building objectiveai-mcp (release, features: $FEATURES)..."
 cargo build --release -p objectiveai-mcp-cli \
@@ -82,8 +48,10 @@ if [ ! -f "$SRC" ]; then
 fi
 
 # ── Install ────────────────────────────────────────────────────────────
+# api/viewer/mcp land in <base>/bin/; only the cli sits at <base>/.
 
-mkdir -p "$INSTALL_DIR"
-cp "$SRC" "$INSTALL_DIR/$DST_NAME"
-chmod +x "$INSTALL_DIR/$DST_NAME"
-echo "Installed $INSTALL_DIR/$DST_NAME"
+BIN_DIR="$INSTALL_DIR/bin"
+mkdir -p "$BIN_DIR"
+cp "$SRC" "$BIN_DIR/$DST_NAME"
+chmod +x "$BIN_DIR/$DST_NAME"
+echo "Installed $BIN_DIR/$DST_NAME"

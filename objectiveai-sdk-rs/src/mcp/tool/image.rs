@@ -22,3 +22,35 @@ pub struct ImageContent {
     #[schemars(extend("omitempty" = true))]
     pub _meta: Option<IndexMap<String, serde_json::Value>>,
 }
+
+/// Returned from [`TryFrom<&ImageUrl>`] for `ImageContent` when the
+/// source URL is not a `data:<mime>;base64,<payload>` URL — i.e. an
+/// http(s) or unknown-scheme URL that can't be inlined as base64.
+#[derive(Debug, thiserror::Error)]
+#[error("image url is not a base64 data URL: {url}")]
+pub struct ImageUrlNotDataUrl {
+    pub url: String,
+}
+
+impl TryFrom<crate::agent::completions::message::ImageUrl> for ImageContent {
+    type Error = ImageUrlNotDataUrl;
+
+    fn try_from(
+        image_url: crate::agent::completions::message::ImageUrl,
+    ) -> Result<Self, Self::Error> {
+        let parsed = image_url
+            .url
+            .strip_prefix("data:")
+            .and_then(|rest| rest.split_once(";base64,"))
+            .map(|(mime, data)| (mime.to_string(), data.to_string()));
+        match parsed {
+            Some((mime_type, data)) => Ok(Self {
+                data,
+                mime_type,
+                annotations: None,
+                _meta: None,
+            }),
+            None => Err(ImageUrlNotDataUrl { url: image_url.url }),
+        }
+    }
+}

@@ -7,7 +7,8 @@ import (
 	"fmt"
 )
 
-// Skipped this run for a non-cooldown reason. (Cooldown is silent.)
+// Refused to proceed with the update — the `reason` carries why.
+// No binaries were modified.
 type CliOutputNotificationUpdaterSkipped struct {
 	Event string `json:"event" validate:"oneof=skipped"`
 	Reason CliOutputNotificationSkipReason `json:"reason"`
@@ -119,9 +120,8 @@ func (v *CliOutputNotificationUpdaterFound) UnmarshalJSON(data []byte) error {
 }
 func (CliOutputNotificationUpdaterFound) SchemaVariantTitle() string { return "Found" }
 
-// Swap complete; the next line of output will come from the
-// re-exec'd new binary, not this one. Terminal for the current
-// process.
+// One binary's swap completed. Emitted once per package the
+// updater touched (cli, api, viewer, mcp).
 type CliOutputNotificationUpdaterInstalled struct {
 	CurrentVersion string `json:"current_version"`
 	Event string `json:"event" validate:"oneof=installed"`
@@ -148,11 +148,9 @@ func (v *CliOutputNotificationUpdaterInstalled) UnmarshalJSON(data []byte) error
 }
 func (CliOutputNotificationUpdaterInstalled) SchemaVariantTitle() string { return "Installed" }
 
-// Wire shapes emitted by `crate::updater::maybe_auto_update`. Every
-// non-cooldown skip path AND every active step emits one of these.
-// The ONLY silent path is the 2-hour marker cooldown — when the marker
-// says we already checked within the time frame, the updater exits
-// without emission.
+// Wire shapes emitted by the cli's `update` subcommand (and by
+// programmatic callers that invoke the cli's updater). Every skip
+// path AND every active step emits one of these.
 //
 // Errors are emitted as `super::super::Output::Error` (level=warn,
 // fatal=false), not as a variant here.
@@ -161,7 +159,8 @@ func (CliOutputNotificationUpdaterInstalled) SchemaVariantTitle() string { retur
 // `super::Notification`'s `value` wrapper):
 //   `{"type":"notification","value":{"event":"checking",...}}`.
 type CliOutputNotificationUpdater struct {
-	// Skipped this run for a non-cooldown reason. (Cooldown is silent.)
+	// Refused to proceed with the update — the `reason` carries why.
+	// No binaries were modified.
 	Skipped *CliOutputNotificationUpdaterSkipped 
 	// All gates passed; about to call
 	// `GET /repos/ObjectiveAI/objectiveai/releases/latest`. The very
@@ -172,9 +171,8 @@ type CliOutputNotificationUpdater struct {
 	UpToDate *CliOutputNotificationUpdaterUpToDate 
 	// Found a newer release with our asset attached; about to download.
 	Found *CliOutputNotificationUpdaterFound 
-	// Swap complete; the next line of output will come from the
-	// re-exec'd new binary, not this one. Terminal for the current
-	// process.
+	// One binary's swap completed. Emitted once per package the
+	// updater touched (cli, api, viewer, mcp).
 	Installed *CliOutputNotificationUpdaterInstalled 
 }
 

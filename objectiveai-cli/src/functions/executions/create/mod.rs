@@ -180,6 +180,7 @@ impl Commands {
                                     level: objectiveai_sdk::cli::output::Level::Warn,
                                     fatal: false,
                                     message: serde_json::to_value(&inner).unwrap(),
+                                    agent_id: None,
                                 },
                             )
                             .emit(&handle)
@@ -212,11 +213,11 @@ impl Commands {
                 });
 
             let result = ExecutionResult { output };
-            objectiveai_sdk::cli::output::Output::<Execution>::Notification(objectiveai_sdk::cli::output::Notification { value:
+            objectiveai_sdk::cli::output::Output::<Execution>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value:
                 Execution { execution: result },
              })
             .emit(&handle).await;
             Ok(())
-        })), true).await
+        }))).await
     }
 }

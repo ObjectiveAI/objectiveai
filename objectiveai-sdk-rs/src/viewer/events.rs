@@ -13,8 +13,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
-use super::ApiCallSubType;
-
 /// Every event the viewer emits to the JS side. Serde-tagged on
 /// `type` so the JS bridge can pattern-match and decide how to
 /// repackage each variant for the destination iframe.
@@ -50,20 +48,6 @@ pub enum Event {
         destination: String,
         value: serde_json::Value,
     },
-    /// Host → iframe. One value in the response stream of an
-    /// in-process upstream API call started by the iframe via
-    /// `api-call-invoke`. `sub_type` identifies which endpoint the
-    /// stream belongs to (lets the iframe demux multiple concurrent
-    /// calls to *different* endpoints). `value` is an
-    /// [`ApiCallEnvelope`](super::ApiCallEnvelope) JSON object: one
-    /// `begin`, then one or more `chunk`s (or `error`), then exactly
-    /// one `end`.
-    #[schemars(title = "ApiCall")]
-    ApiCall {
-        destination: String,
-        sub_type: ApiCallSubType,
-        value: serde_json::Value,
-    },
 }
 
 impl Event {
@@ -73,7 +57,6 @@ impl Event {
         match self {
             Event::Inbound { destination, .. } => destination,
             Event::CliCommand { destination, .. } => destination,
-            Event::ApiCall { destination, .. } => destination,
         }
     }
 }
@@ -136,38 +119,7 @@ mod tests {
             destination: "d2".to_string(),
             value: json!(null),
         };
-        let a = Event::ApiCall {
-            destination: "d3".to_string(),
-            sub_type: ApiCallSubType::PostAgentCompletions,
-            value: json!(null),
-        };
         assert_eq!(i.destination(), "d1");
         assert_eq!(c.destination(), "d2");
-        assert_eq!(a.destination(), "d3");
-    }
-
-    #[test]
-    fn api_call_serializes_with_method_underscore_path_subtype() {
-        let e = Event::ApiCall {
-            destination: "my_plugin".to_string(),
-            sub_type: ApiCallSubType::PostAgentCompletions,
-            value: json!({"type": "chunk", "chunk": {"id": "abc"}}),
-        };
-        let s = serde_json::to_string(&e).unwrap();
-        let v: serde_json::Value = serde_json::from_str(&s).unwrap();
-        assert_eq!(v["type"], "api_call");
-        assert_eq!(v["destination"], "my_plugin");
-        assert_eq!(v["sub_type"], "POST_/agent/completions");
-        assert_eq!(v["value"]["type"], "chunk");
-
-        let back: Event = serde_json::from_str(&s).unwrap();
-        match back {
-            Event::ApiCall { destination, sub_type, value } => {
-                assert_eq!(destination, "my_plugin");
-                assert_eq!(sub_type, ApiCallSubType::PostAgentCompletions);
-                assert_eq!(value["chunk"]["id"], "abc");
-            }
-            _ => panic!("expected ApiCall"),
-        }
     }
 }

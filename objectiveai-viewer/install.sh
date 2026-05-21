@@ -69,13 +69,10 @@ echo "Installing JS workspace dependencies..."
 # .msi / .AppImage installer wrappers. Matches the CLI embed path
 # (objectiveai-viewer/build.sh also uses --no-bundle).
 # --features cli enables the in-process cli + api routes the viewer's
-# Tauri commands (cli_run, api_call_run) require. --features updater
-# is required for the standalone-viewer release; the viewer crate's
-# default = [] means we must opt in here (and the embedded-in-cli
-# viewer build, which never runs this script, stays minimal).
+# Tauri commands (cli_run, api_call_run) require.
 
-echo "Building objectiveai-viewer (release, features: cli,updater, target: $HOST_TARGET)..."
-(cd "$SCRIPT_DIR/src-tauri" && pnpm exec tauri build --no-bundle --features cli,updater --target "$HOST_TARGET")
+echo "Building objectiveai-viewer (release, features: cli, target: $HOST_TARGET)..."
+(cd "$SCRIPT_DIR/src-tauri" && pnpm exec tauri build --no-bundle --features cli --target "$HOST_TARGET")
 
 SRC="$REPO_ROOT/target/$HOST_TARGET/release/$SRC_NAME"
 if [ ! -f "$SRC" ]; then
@@ -84,8 +81,10 @@ if [ ! -f "$SRC" ]; then
 fi
 
 # ── Install ────────────────────────────────────────────────────────────
+# api/viewer/mcp land in <base>/bin/; only the cli sits at <base>/.
 
-mkdir -p "$INSTALL_DIR"
-cp "$SRC" "$INSTALL_DIR/$DST_NAME"
-chmod +x "$INSTALL_DIR/$DST_NAME"
-echo "Installed $INSTALL_DIR/$DST_NAME"
+BIN_DIR="$INSTALL_DIR/bin"
+mkdir -p "$BIN_DIR"
+cp "$SRC" "$BIN_DIR/$DST_NAME"
+chmod +x "$BIN_DIR/$DST_NAME"
+echo "Installed $BIN_DIR/$DST_NAME"

@@ -28,6 +28,7 @@ type Client struct {
 	XViewerAddress           string
 	XCommitAuthorName        string
 	XCommitAuthorEmail       string
+	AgentID                  string
 	HTTPClient               *http.Client
 }
 
@@ -46,6 +47,7 @@ func NewClient(opts ...func(*Client)) *Client {
 		XViewerAddress:           os.Getenv("VIEWER_ADDRESS"),
 		XCommitAuthorName:        os.Getenv("COMMIT_AUTHOR_NAME"),
 		XCommitAuthorEmail:       os.Getenv("COMMIT_AUTHOR_EMAIL"),
+		AgentID:                  os.Getenv("OBJECTIVEAI_AGENT_ID"),
 	}
 
 	if mcp := os.Getenv("MCP_AUTHORIZATION"); mcp != "" {
@@ -122,6 +124,9 @@ func (c *Client) buildHeaders() http.Header {
 	}
 	if c.XCommitAuthorEmail != "" {
 		h.Set("X-COMMIT-AUTHOR-EMAIL", c.XCommitAuthorEmail)
+	}
+	if c.AgentID != "" {
+		h.Set("X-OBJECTIVEAI-AGENT-ID", c.AgentID)
 	}
 
 	return h

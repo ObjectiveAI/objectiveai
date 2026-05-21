@@ -211,6 +211,7 @@ impl BetaRawMessageStreamEvent {
                 upstream,
                 error: None,
                 continuation: None,
+                messages_queued: None,
             }
         })
     }

@@ -29,4 +29,11 @@ pub struct RunParams<'a> {
     /// `CODEX_HOME` env var.
     #[serde(skip_serializing_if = "IndexMap::is_empty")]
     pub mcp_servers: &'a IndexMap<String, McpServerConfig>,
+
+    /// Composite agent id forwarded by the api at MCP-connect time
+    /// (`X-OBJECTIVEAI-AGENT-ID`). The Python runner sets this as
+    /// `OBJECTIVEAI_AGENT_ID` in the per-Run env dict it hands to the
+    /// codex subprocess via `CodexOptions(env=...)`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_id: Option<&'a str>,
 }

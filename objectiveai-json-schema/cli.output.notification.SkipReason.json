@@ -1,6 +1,6 @@
 {
   "title": "cli.output.notification.SkipReason",
-  "description": "Reasons the updater can skip a run *and emit a notification about it*.\nThe 2-hour marker cooldown is NOT included here because cooldown\nskips are silent (no notification emitted).",
+  "description": "Reasons the updater can skip a run *and emit a notification about it*.",
   "anyOf": [
     {
       "title": "UnsupportedPlatform",
@@ -11,19 +11,19 @@
       ]
     },
     {
-      "title": "OptedOut",
-      "description": "`OBJECTIVEAI_SKIP_UPDATE` env var is set. The updater respects\nthis so re-exec'd children don't loop, and so users can disable\nauto-update by setting it.",
-      "type": "string",
-      "enum": [
-        "opted_out"
-      ]
-    },
-    {
       "title": "DevTree",
       "description": "Binary is running out of a `target*/` directory — looks like a\ndev build (`cargo run`), not an installed binary.",
       "type": "string",
       "enum": [
         "dev_tree"
+      ]
+    },
+    {
+      "title": "IncompleteRelease",
+      "description": "The latest release is missing one or more of the four expected\nassets for this host triple. No partial updates: refuse the\nwhole run.",
+      "type": "string",
+      "enum": [
+        "incomplete_release"
       ]
     }
   ]

@@ -16,6 +16,7 @@ export const LaboratoriesExecutionsResponseUnaryEvaluationSchema = z.object({
   id: z.string(),
   index: z.number().int().min(0).max(18446744073709552000).describe("Evaluation index (0-based)."),
   messages: z.array(AgentCompletionsResponseUnaryMessageSchema),
+  messages_queued: z.boolean().nullable().describe("`true` when the MCP proxy holds queued messages that were not\ndelivered to the agent via a tool response on this turn. See\n[`super::streaming::AgentCompletionChunk::messages_queued`].").meta({ omitempty: true }).optional(),
   object: AgentCompletionsResponseUnaryObjectSchema.describe("The object type (always \"agent.completion\")."),
   output: FunctionsExpressionInputValueSchema.nullable().optional(),
   upstream: AgentUpstreamSchema.describe("Upstream provider"),

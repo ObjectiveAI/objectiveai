@@ -16,13 +16,13 @@ pub enum Source {
 }
 
 async fn emit_items(items: Vec<ListItem>, handle: &Handle) {
-    Output::<Items<ListItem>>::Notification(objectiveai_sdk::cli::output::Notification { value: Items { items } })
+    Output::<Items<ListItem>>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: Items { items } })
         .emit(handle)
         .await;
 }
 
 async fn emit_pair_items(items: Vec<PairListItem>, handle: &Handle) {
-    Output::<Items<PairListItem>>::Notification(objectiveai_sdk::cli::output::Notification { value: Items { items } })
+    Output::<Items<PairListItem>>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: Items { items } })
         .emit(handle)
         .await;
 }
@@ -65,7 +65,7 @@ where
             .collect();
         emit_items(items, &handle).await;
         Ok(())
-    }), false).await
+    })).await
 }
 
 /// Fetches from all sources with de-duplication via api::run.
@@ -125,7 +125,7 @@ where
 
         emit_items(items, &handle).await;
         Ok(())
-    }), false).await
+    })).await
 }
 
 // -- Pair variants (function-profile pairs) --
@@ -194,7 +194,7 @@ where
             .collect();
         emit_pair_items(items, &handle).await;
         Ok(())
-    }), false).await
+    })).await
 }
 
 /// Fetches pairs from all sources with de-duplication via api::run.
@@ -230,5 +230,5 @@ where
 
         emit_pair_items(items, &handle).await;
         Ok(())
-    }), false).await
+    })).await
 }

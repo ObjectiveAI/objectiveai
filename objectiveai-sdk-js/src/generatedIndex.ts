@@ -6,6 +6,7 @@ export * from "./cli/index";
 export * from "./error/index";
 export * from "./filesystem/index";
 export * from "./functions/index";
+export * from "./http/index";
 export * from "./laboratories/index";
 export * from "./mcp/index";
 export * from "./swarm/index";

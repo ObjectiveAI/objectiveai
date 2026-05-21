@@ -228,6 +228,7 @@ impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai
         _invention_step: Option<usize>,
         _invention_tasks_min: Option<u64>,
         _invention_input_schema: Option<String>,
+        agent_id_header: Option<&str>,
     ) -> impl Future<
         Output = Result<
             Self::Stream,
@@ -245,6 +246,7 @@ impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai
         let continuation = continuation.map(|c| c.to_vec());
         let request_continuation = request_continuation.cloned();
         let client = self.clone();
+        let agent_id_header = agent_id_header.map(|s| s.to_string());
 
         async move {
             if !enabled {
@@ -305,6 +307,7 @@ impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai
                 mcp_servers: &mcp_servers,
                 resume: resume_arg,
                 user_agent: user_agent_arg,
+                agent_id: agent_id_header.as_deref(),
                 rate_limit_max_retries: client.rate_limit_max_retries,
                 rate_limit_max_wait_secs: client.rate_limit_max_wait_secs,
             };

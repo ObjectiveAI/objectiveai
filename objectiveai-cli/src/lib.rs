@@ -17,6 +17,8 @@ mod agents;
 mod swarms;
 mod functions;
 mod viewer;
+mod mcp;
+mod spawn;
 mod schemas;
 mod laboratories;
 mod instructions;
@@ -25,6 +27,7 @@ mod log_stream;
 mod logs;
 mod plugins;
 mod vector;
+mod updater;
 
 #[cfg(test)]
 mod python_tests;

@@ -23,7 +23,7 @@ impl Commands {
                 config.functions().inventions().set_remote(value.into())?;
                 crate::config::write(&client, &config, cli_config).await?;
                 {
-                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Ok>::Notification(objectiveai_sdk::cli::output::Notification { value: objectiveai_sdk::cli::output::OK }).emit(handle).await;
+                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Ok>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: objectiveai_sdk::cli::output::OK }).emit(handle).await;
                 Ok(())
             }
             }

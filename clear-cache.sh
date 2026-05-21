@@ -44,8 +44,10 @@ freed_before=$(df -k "$REPO_ROOT" | awk 'NR==2 {print $4}')
 # (the target/ tree usually lives on D: via an NTFS junction) AND the dir
 # entry on disk, so re-running a build doesn't have to recreate the link.
 #
-# `find` descends through the junction transparently — entries under the
-# real path on D: get deleted, the junction itself stays put.
+# Uses a shell glob (`shopt -s dotglob nullglob; rm -rf -- "$dir"/*`) rather
+# than `find`. Bash's glob expansion traverses NTFS junctions transparently —
+# `find -mindepth 1 -delete` silently no-ops on junction children under
+# msys2/git-bash on Windows and would leave the contents intact.
 # ---------------------------------------------------------------------------
 empty_dir() {
   local dir="$1"
@@ -62,11 +64,13 @@ empty_dir() {
     return
   fi
   echo "Emptying $dir/"
-  # `find … -mindepth 1 -delete` removes everything inside without
-  # touching the dir itself. Using `find` (vs `rm -rf "$dir"/*`) handles
-  # dotfiles and avoids "argument list too long" on huge target trees.
-  find "$dir" -mindepth 1 -delete 2>/dev/null \
-    || find "$dir" -mindepth 1 -exec rm -rf -- {} +
+  # Shell glob in a subshell so the `shopt` changes don't leak out:
+  #   dotglob   — match dotfiles (.cargo-lock, .fingerprint, ...)
+  #   nullglob  — empty dirs expand to nothing instead of a literal `*`
+  (
+    shopt -s dotglob nullglob
+    rm -rf -- "$dir"/*
+  )
 }
 
 # ---------------------------------------------------------------------------

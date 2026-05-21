@@ -92,7 +92,7 @@ async fn emit_instructions(handle: &Handle) -> Result<(), crate::error::Error> {
         "../../assets/plugins/install/filesystem/INSTRUCTIONS.md"
     )
     .to_string();
-    Output::<Instructions>::Notification(Notification {
+    Output::<Instructions>::Notification(Notification { agent_id: None,
         value: Instructions { instructions },
     })
     .emit(handle)

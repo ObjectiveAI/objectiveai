@@ -14,5 +14,5 @@ from .plugins import Plugins  # noqa: F401
 from .published import Published  # noqa: F401
 from .schema import Schema  # noqa: F401
 from .schemas import Schemas  # noqa: F401
-from .skip_reason import SkipReason, SkipReasonDevTree, SkipReasonOptedOut, SkipReasonUnsupportedPlatform  # noqa: F401
+from .skip_reason import SkipReason, SkipReasonDevTree, SkipReasonIncompleteRelease, SkipReasonUnsupportedPlatform  # noqa: F401
 from .updater import Updater, UpdaterChecking, UpdaterFound, UpdaterInstalled, UpdaterSkipped, UpdaterUpToDate  # noqa: F401

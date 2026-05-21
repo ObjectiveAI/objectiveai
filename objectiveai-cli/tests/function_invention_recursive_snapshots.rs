@@ -63,6 +63,10 @@ fn assert_invention_snapshot(snapshot_name: &str, cli_result: &serde_json::Value
 /// Matches JS/Python: valid_schema_valid_tasks_scalar_leaf, seed 5300.
 #[test]
 fn valid_schema_valid_tasks_scalar_leaf() {
+    if cli_test_util::test_api_address().is_none() {
+        eprintln!("OBJECTIVEAI_TEST_PORT not set — skipping valid_schema_valid_tasks_scalar_leaf");
+        return;
+    }
     let id = cli_test_util::instructions_id(
         cli_test_util::InstructionsScope::FunctionInventionsRecursive,
     );
@@ -80,6 +84,10 @@ fn valid_schema_valid_tasks_scalar_leaf() {
 /// Matches JS/Python: valid_vector_schema_valid_tasks, seed 5400.
 #[test]
 fn valid_vector_schema_valid_tasks() {
+    if cli_test_util::test_api_address().is_none() {
+        eprintln!("OBJECTIVEAI_TEST_PORT not set — skipping valid_vector_schema_valid_tasks");
+        return;
+    }
     let id = cli_test_util::instructions_id(
         cli_test_util::InstructionsScope::FunctionInventionsRecursive,
     );
@@ -97,6 +105,10 @@ fn valid_vector_schema_valid_tasks() {
 /// Matches JS/Python: valid_schema_no_tasks_with_essay, seed 5900.
 #[test]
 fn valid_schema_no_tasks_with_essay() {
+    if cli_test_util::test_api_address().is_none() {
+        eprintln!("OBJECTIVEAI_TEST_PORT not set — skipping valid_schema_no_tasks_with_essay");
+        return;
+    }
     let id = cli_test_util::instructions_id(
         cli_test_util::InstructionsScope::FunctionInventionsRecursive,
     );

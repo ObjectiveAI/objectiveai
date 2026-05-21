@@ -6,7 +6,7 @@ import { CliOutputNotificationSkipReasonSchema } from "./skipReason";
 export const CliOutputNotificationUpdaterSchema = z.union([z.object({
   event: z.literal("skipped"),
   reason: CliOutputNotificationSkipReasonSchema,
-}).describe("Skipped this run for a non-cooldown reason. (Cooldown is silent.)").meta({"variantTitle":"Skipped"}), z.object({
+}).describe("Refused to proceed with the update — the `reason` carries why.\nNo binaries were modified.").meta({"variantTitle":"Skipped"}), z.object({
   asset_name: z.string(),
   current_version: z.string(),
   event: z.literal("checking"),
@@ -24,5 +24,5 @@ export const CliOutputNotificationUpdaterSchema = z.union([z.object({
   current_version: z.string(),
   event: z.literal("installed"),
   remote_version: z.string(),
-}).describe("Swap complete; the next line of output will come from the\nre-exec'd new binary, not this one. Terminal for the current\nprocess.").meta({"variantTitle":"Installed"})]).describe("Wire shapes emitted by `crate::updater::maybe_auto_update`. Every\nnon-cooldown skip path AND every active step emits one of these.\nThe ONLY silent path is the 2-hour marker cooldown — when the marker\nsays we already checked within the time frame, the updater exits\nwithout emission.\n\nErrors are emitted as `super::super::Output::Error` (level=warn,\nfatal=false), not as a variant here.\n\nWire (in combination with `super::super::Output::Notification` +\n`super::Notification`'s `value` wrapper):\n  `{\"type\":\"notification\",\"value\":{\"event\":\"checking\",...}}`.").meta({ title: "cli.output.notification.Updater" });
+}).describe("One binary's swap completed. Emitted once per package the\nupdater touched (cli, api, viewer, mcp).").meta({"variantTitle":"Installed"})]).describe("Wire shapes emitted by the cli's `update` subcommand (and by\nprogrammatic callers that invoke the cli's updater). Every skip\npath AND every active step emits one of these.\n\nErrors are emitted as `super::super::Output::Error` (level=warn,\nfatal=false), not as a variant here.\n\nWire (in combination with `super::super::Output::Notification` +\n`super::Notification`'s `value` wrapper):\n  `{\"type\":\"notification\",\"value\":{\"event\":\"checking\",...}}`.").meta({ title: "cli.output.notification.Updater" });
 export type CliOutputNotificationUpdater = z.infer<typeof CliOutputNotificationUpdaterSchema>;

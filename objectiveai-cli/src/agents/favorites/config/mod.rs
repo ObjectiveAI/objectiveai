@@ -1,4 +1,5 @@
 use clap::Subcommand;
+use objectiveai_sdk::agent::favorites::{Action, ChangedNotification};
 
 #[derive(Subcommand)]
 pub enum Commands {
@@ -25,32 +26,57 @@ impl Commands {
             Commands::Get => {
                 crate::config::emit_value(&config.agents().get_favorites(), handle).await;
                 Ok(())
-            },
-            Commands::Add { args } => {
-                config.agents().add_favorite(args.into_favorite()?);
-                crate::config::write(&client, &config, cli_config).await?;
-                {
-                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Ok>::Notification(objectiveai_sdk::cli::output::Notification { value: objectiveai_sdk::cli::output::OK }).emit(handle).await;
-                Ok(())
             }
+            Commands::Add { args } => {
+                let favorite = args.into_favorite()?;
+                let name = favorite.get_name().to_string();
+                config.agents().add_favorite(favorite);
+                crate::config::write(&client, &config, cli_config).await?;
+                notify(&mut config, Action::Added, name).await;
+                emit_ok(handle).await;
+                Ok(())
             }
             Commands::Del { name } => {
                 config.agents().del_favorite(&name)?;
                 crate::config::write(&client, &config, cli_config).await?;
-                {
-                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Ok>::Notification(objectiveai_sdk::cli::output::Notification { value: objectiveai_sdk::cli::output::OK }).emit(handle).await;
+                notify(&mut config, Action::Removed, name).await;
+                emit_ok(handle).await;
                 Ok(())
             }
-            }
             Commands::Edit { args } => {
+                let name = args.name.clone();
                 let favorite = config.agents().edit_favorite(&args.name)?;
                 args.apply(favorite)?;
                 crate::config::write(&client, &config, cli_config).await?;
-                {
-                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Ok>::Notification(objectiveai_sdk::cli::output::Notification { value: objectiveai_sdk::cli::output::OK }).emit(handle).await;
+                notify(&mut config, Action::Edited, name).await;
+                emit_ok(handle).await;
                 Ok(())
-            }
             }
         }
     }
+}
+
+async fn notify(
+    config: &mut objectiveai_sdk::filesystem::config::Config,
+    action: Action,
+    name: String,
+) {
+    let client = crate::api::client::build_viewer_client(config);
+    client.send_agents_favorites_changed(
+        None,
+        None,
+        ChangedNotification { action, name },
+    );
+    client.flush().await;
+}
+
+async fn emit_ok(handle: &objectiveai_sdk::cli::output::Handle) {
+    objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Ok>::Notification(
+        objectiveai_sdk::cli::output::Notification {
+            agent_id: None,
+            value: objectiveai_sdk::cli::output::OK,
+        },
+    )
+    .emit(handle)
+    .await;
 }

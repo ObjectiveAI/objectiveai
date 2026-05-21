@@ -60,10 +60,10 @@ impl Commands {
                         function: function?,
                         profile: profile?,
                     };
-                    objectiveai_sdk::cli::output::Output::<Pair>::Notification(objectiveai_sdk::cli::output::Notification { value: Pair { pair } })
+                    objectiveai_sdk::cli::output::Output::<Pair>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: Pair { pair } })
                         .emit(&handle).await;
                     Ok(())
-                }, false).await
+                }).await
             }
             Commands::List { source } => {
                 match source {

@@ -11,38 +11,36 @@ type CliOutputNotificationSkipReasonUnsupportedPlatform string
 
 func (CliOutputNotificationSkipReasonUnsupportedPlatform) SchemaVariantTitle() string { return "UnsupportedPlatform" }
 
-type CliOutputNotificationSkipReasonOptedOut string
-
-func (CliOutputNotificationSkipReasonOptedOut) SchemaVariantTitle() string { return "OptedOut" }
-
 type CliOutputNotificationSkipReasonDevTree string
 
 func (CliOutputNotificationSkipReasonDevTree) SchemaVariantTitle() string { return "DevTree" }
 
+type CliOutputNotificationSkipReasonIncompleteRelease string
+
+func (CliOutputNotificationSkipReasonIncompleteRelease) SchemaVariantTitle() string { return "IncompleteRelease" }
+
 // Reasons the updater can skip a run *and emit a notification about it*.
-// The 2-hour marker cooldown is NOT included here because cooldown
-// skips are silent (no notification emitted).
 type CliOutputNotificationSkipReason struct {
 	// Host OS/arch combination doesn't have a release asset.
 	UnsupportedPlatform *CliOutputNotificationSkipReasonUnsupportedPlatform `validate:"omitempty,oneof=unsupported_platform"`
-	// `OBJECTIVEAI_SKIP_UPDATE` env var is set. The updater respects
-	// this so re-exec'd children don't loop, and so users can disable
-	// auto-update by setting it.
-	OptedOut *CliOutputNotificationSkipReasonOptedOut `validate:"omitempty,oneof=opted_out"`
 	// Binary is running out of a `target*/` directory — looks like a
 	// dev build (`cargo run`), not an installed binary.
 	DevTree *CliOutputNotificationSkipReasonDevTree `validate:"omitempty,oneof=dev_tree"`
+	// The latest release is missing one or more of the four expected
+	// assets for this host triple. No partial updates: refuse the
+	// whole run.
+	IncompleteRelease *CliOutputNotificationSkipReasonIncompleteRelease `validate:"omitempty,oneof=incomplete_release"`
 }
 
 func (v CliOutputNotificationSkipReason) MarshalJSON() ([]byte, error) {
 	if v.UnsupportedPlatform != nil {
 		return json.Marshal(v.UnsupportedPlatform)
 	}
-	if v.OptedOut != nil {
-		return json.Marshal(v.OptedOut)
-	}
 	if v.DevTree != nil {
 		return json.Marshal(v.DevTree)
+	}
+	if v.IncompleteRelease != nil {
+		return json.Marshal(v.IncompleteRelease)
 	}
 	return []byte("null"), nil
 }
@@ -60,10 +58,10 @@ func (v *CliOutputNotificationSkipReason) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try CliOutputNotificationSkipReasonOptedOut
+		var try CliOutputNotificationSkipReasonDevTree
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliOutputNotificationSkipReason{}
-			candidate.OptedOut = &try
+			candidate.DevTree = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -71,10 +69,10 @@ func (v *CliOutputNotificationSkipReason) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try CliOutputNotificationSkipReasonDevTree
+		var try CliOutputNotificationSkipReasonIncompleteRelease
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliOutputNotificationSkipReason{}
-			candidate.DevTree = &try
+			candidate.IncompleteRelease = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -87,8 +85,8 @@ func (v *CliOutputNotificationSkipReason) UnmarshalJSON(data []byte) error {
 func (v CliOutputNotificationSkipReason) Validate() error {
 	count := 0
 	if v.UnsupportedPlatform != nil { count++ }
-	if v.OptedOut != nil { count++ }
 	if v.DevTree != nil { count++ }
+	if v.IncompleteRelease != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliOutputNotificationSkipReason: exactly one variant must be set, got %d", count)
 	}

@@ -1,0 +1,12 @@
+[package]
+name = "objectiveai-development-launcher"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# Own workspace — NOT a member of the main workspace, so the root
+# `cargo build` / `cargo test` doesn't see this crate.
+[workspace]
+
+[dependencies]
+# std only.

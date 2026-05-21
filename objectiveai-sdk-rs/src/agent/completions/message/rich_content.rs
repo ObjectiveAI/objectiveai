@@ -246,6 +246,77 @@ impl FromStarlarkValue for RichContent {
     }
 }
 
+/// Collapse a `Vec<RichContentPart>` into `RichContent`, joining
+/// consecutive text-only parts into one `RichContent::Text` (separated
+/// by `\n\n`) and leaving mixed-media inputs as `RichContent::Parts`.
+/// Empty input yields `RichContent::Text(String::new())`.
+impl From<Vec<RichContentPart>> for RichContent {
+    fn from(parts: Vec<RichContentPart>) -> Self {
+        if parts.is_empty() {
+            return RichContent::Text(String::new());
+        }
+        let all_text = parts
+            .iter()
+            .all(|p| matches!(p, RichContentPart::Text { .. }));
+        if all_text {
+            let joined = parts
+                .into_iter()
+                .filter_map(|p| match p {
+                    RichContentPart::Text { text } => Some(text),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+                .join("\n\n");
+            RichContent::Text(joined)
+        } else {
+            RichContent::Parts(parts)
+        }
+    }
+}
+
+/// Convert an MCP `ContentBlock` into a `RichContentPart`. Lossless
+/// for text / image / audio; `ResourceLink` and `EmbeddedResource`
+/// fall back to a JSON-serialized text part so the content survives
+/// even when there's no rich representation. Mirrors the resource-
+/// resolution-free path of [`crate::mcp::Connection::call_tool_as_message`]
+/// (the connection-bound method does extra work to fetch resource
+/// contents, which this stateless `From` impl cannot do — callers
+/// that want resource resolution must do it before invoking this
+/// conversion).
+#[cfg(feature = "mcp")]
+impl From<crate::mcp::tool::ContentBlock> for RichContentPart {
+    fn from(block: crate::mcp::tool::ContentBlock) -> Self {
+        use crate::mcp::tool::ContentBlock;
+        match block {
+            ContentBlock::Text(t) => RichContentPart::Text { text: t.text },
+            ContentBlock::Image(i) => RichContentPart::ImageUrl {
+                image_url: i.into(),
+            },
+            ContentBlock::Audio(a) => RichContentPart::InputAudio {
+                input_audio: a.into(),
+            },
+            block @ (ContentBlock::ResourceLink(_)
+            | ContentBlock::EmbeddedResource(_)) => RichContentPart::Text {
+                text: serde_json::to_string(&block).unwrap_or_default(),
+            },
+        }
+    }
+}
+
+/// Build a `RichContent` from an MCP `Vec<ContentBlock>` via the
+/// element-wise [`From<ContentBlock>`] impl, then collapse to plain
+/// text when every part is text. Matches the shape produced by
+/// `call_tool_as_message` and `build_drain_user_message` on the
+/// agent side.
+#[cfg(feature = "mcp")]
+impl From<Vec<crate::mcp::tool::ContentBlock>> for RichContent {
+    fn from(blocks: Vec<crate::mcp::tool::ContentBlock>) -> Self {
+        let parts: Vec<RichContentPart> =
+            blocks.into_iter().map(Into::into).collect();
+        RichContent::from(parts)
+    }
+}
+
 /// Expression variant of [`RichContent`] for dynamic content.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
 #[serde(untagged)]
@@ -678,6 +749,18 @@ impl ImageUrl {
     }
 }
 
+/// Compose a base64 data URL from an MCP `ImageContent`'s mime + data.
+/// `detail` defaults to `None`.
+#[cfg(feature = "mcp")]
+impl From<crate::mcp::tool::ImageContent> for ImageUrl {
+    fn from(image: crate::mcp::tool::ImageContent) -> Self {
+        Self {
+            url: format!("data:{};base64,{}", image.mime_type, image.data),
+            detail: None,
+        }
+    }
+}
+
 impl ToStarlarkValue for ImageUrl {
     fn to_starlark_value<'v>(
         &self,
@@ -817,6 +900,17 @@ impl InputAudio {
             content: &self.data,
             extension: if self.format.is_empty() { "bin" } else { &self.format },
         })
+    }
+}
+
+/// Adopt an MCP `AudioContent`'s `mime_type` as `format` verbatim.
+#[cfg(feature = "mcp")]
+impl From<crate::mcp::tool::AudioContent> for InputAudio {
+    fn from(audio: crate::mcp::tool::AudioContent) -> Self {
+        Self {
+            data: audio.data,
+            format: audio.mime_type,
+        }
     }
 }
 

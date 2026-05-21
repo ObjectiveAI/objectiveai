@@ -22,3 +22,14 @@ pub struct AudioContent {
     #[schemars(extend("omitempty" = true))]
     pub _meta: Option<IndexMap<String, serde_json::Value>>,
 }
+
+impl From<crate::agent::completions::message::InputAudio> for AudioContent {
+    fn from(audio: crate::agent::completions::message::InputAudio) -> Self {
+        Self {
+            data: audio.data,
+            mime_type: audio.format,
+            annotations: None,
+            _meta: None,
+        }
+    }
+}

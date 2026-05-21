@@ -158,7 +158,7 @@ pub(super) async fn install(
     let installed = fs_client
         .install_plugin_from_manifest(owner, repository, &manifest, &source, None, upgrade)
         .await?;
-    Output::<Installed>::Notification(Notification { value: Installed { installed } })
+    Output::<Installed>::Notification(Notification { agent_id: None, value: Installed { installed } })
         .emit(handle)
         .await;
     Ok(())
@@ -180,6 +180,7 @@ async fn emit_untrusted_warning(
         level: Level::Warn,
         fatal: false,
         message: message.into(),
+        agent_id: None,
     })
     .emit(handle)
     .await;
@@ -196,7 +197,7 @@ async fn get(
         cli_config.commit_author_email.as_deref(),
     );
     let plugin = fs_client.get_plugin(name).await;
-    Output::<Plugin>::Notification(Notification { value: Plugin { plugin } })
+    Output::<Plugin>::Notification(Notification { agent_id: None, value: Plugin { plugin } })
         .emit(handle)
         .await;
     Ok(())
@@ -214,7 +215,7 @@ async fn list(
         cli_config.commit_author_email.as_deref(),
     );
     let plugins = fs_client.list_plugins(offset, limit).await;
-    Output::<Plugins>::Notification(Notification { value: Plugins { plugins } })
+    Output::<Plugins>::Notification(Notification { agent_id: None, value: Plugins { plugins } })
         .emit(handle)
         .await;
     Ok(())
@@ -272,7 +273,7 @@ pub async fn dispatch_external(
                 Output::<serde_json::Value>::Error(e).emit(handle).await;
             }
             Ok(PluginOutput::Notification(value)) => {
-                Output::<serde_json::Value>::Notification(Notification { value })
+                Output::<serde_json::Value>::Notification(Notification { value, agent_id: None })
                     .emit(handle)
                     .await;
             }
@@ -281,7 +282,7 @@ pub async fn dispatch_external(
             }
             Err(_) => {
                 let value = serde_json::Value::String(trimmed.to_string());
-                Output::<serde_json::Value>::Notification(Notification { value })
+                Output::<serde_json::Value>::Notification(Notification { value, agent_id: None })
                     .emit(handle)
                     .await;
             }

@@ -1,7 +1,6 @@
 mod cli_test_util;
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 fn snapshots_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -27,11 +26,9 @@ fn extract_assistant_content(snapshot: &serde_json::Value) -> String {
 /// lines; we walk the notifications and pluck out the one carrying the
 /// `content` field.
 fn run_cli_text(args: &[&str]) -> String {
-    let mut cmd = Command::new(cli_test_util::cli_binary());
-    cmd.env("CONFIG_BASE_DIR", cli_test_util::tests_dir());
-    cmd.args(args);
-
-    let output = cmd.output().expect("failed to execute CLI binary");
+    let output = cli_test_util::cli_command(args)
+        .output()
+        .expect("failed to execute CLI binary");
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
 
@@ -67,6 +64,10 @@ macro_rules! snapshot_test {
     ($name:ident, $snapshot:expr, $messages_json:expr, $agent_name:expr, $seed:expr $(, $extra_args:expr)*) => {
         #[test]
         fn $name() {
+            if cli_test_util::test_api_address().is_none() {
+                eprintln!("OBJECTIVEAI_TEST_PORT not set — skipping {}", stringify!($name));
+                return;
+            }
             let seed_str = $seed.to_string();
             let agent_str = format!("remote=mock,name={}", $agent_name);
             let instructions_id = cli_test_util::instructions_id(

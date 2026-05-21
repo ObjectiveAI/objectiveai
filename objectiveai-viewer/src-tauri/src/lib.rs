@@ -1,6 +1,4 @@
 #[cfg(feature = "cli")]
-mod api_call;
-#[cfg(feature = "cli")]
 mod cli_command;
 mod plugins;
 #[cfg(test)]
@@ -18,6 +16,5 @@ pub use run::*;
 #[cfg(feature = "cli")]
 #[doc(hidden)]
 pub mod test_internals {
-    pub use crate::api_call::api_call_run_impl;
     pub use crate::cli_command::cli_run_impl;
 }

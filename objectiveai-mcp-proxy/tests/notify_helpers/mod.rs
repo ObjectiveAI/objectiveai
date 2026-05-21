@@ -95,6 +95,22 @@ pub async fn get_notify(
         .expect("get /notify")
 }
 
+/// `GET /notify/queued` — non-draining peek. Returns the raw response so
+/// callers can assert on status and parse the JSON boolean body.
+pub async fn get_notify_queued(
+    client: &reqwest::Client,
+    proxy_url: &str,
+    session_id: &str,
+) -> reqwest::Response {
+    let notify_url = format!("{proxy_url}notify/queued");
+    client
+        .get(&notify_url)
+        .header("Mcp-Session-Id", session_id)
+        .send()
+        .await
+        .expect("get /notify/queued")
+}
+
 /// Issue a `tools/call` against the proxy and return the parsed JSON-RPC
 /// response value.
 pub async fn call_tool(

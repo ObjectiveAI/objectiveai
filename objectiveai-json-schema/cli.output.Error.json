@@ -3,6 +3,18 @@
   "description": "A failure or advisory written to stdout. `fatal: true` means the\nprocess is exiting with a non-zero status; `fatal: false` is a\nnon-blocking warning (e.g. auto-update failed but the requested\ncommand still ran).\n\n`message` is an arbitrary JSON value so producers can emit\nstructured payloads (e.g. `{\"code\": ..., \"detail\": ...}`). Wrap\na plain string as `Value::String(...)` (or use `.into()`) and the\nwire bytes stay identical to the old `String`-only shape.",
   "type": "object",
   "properties": {
+    "agent_id": {
+      "description": "Stamped at emit time by [`super::Handle`] when its `agent_id`\nfield is set; producers leave this `None` and let the handle\nfill it. Serde-skipped when `None`.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "fatal": {
       "type": "boolean"
     },

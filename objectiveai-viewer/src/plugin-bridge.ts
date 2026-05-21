@@ -36,6 +36,7 @@ import { tauriListen as safeListen, tauriInvoke } from "./lib/tauri";
 type IframeHandle = {
   pluginName: string;
   iframe: HTMLIFrameElement;
+  targetOrigin: string;
 };
 
 type InboundPayload = {
@@ -63,9 +64,22 @@ type EventPayload = InboundPayload | CliCommandPayload | ApiCallPayload;
 const iframes = new Map<string, IframeHandle>();
 const tauriUnlisteners = new Map<string, () => void>();
 
+function deriveTargetOrigin(src: string): string {
+  try {
+    return new URL(src).origin;
+  } catch {
+    return "*";
+  }
+}
+
 /** Register a plugin iframe so the bridge can forward events to it. */
-export function registerIframe(pluginName: string, iframe: HTMLIFrameElement): void {
-  iframes.set(pluginName, { pluginName, iframe });
+export function registerIframe(
+  pluginName: string,
+  iframe: HTMLIFrameElement,
+  src: string,
+): void {
+  const targetOrigin = deriveTargetOrigin(src);
+  iframes.set(pluginName, { pluginName, iframe, targetOrigin });
   void subscribeToPluginEvents(pluginName);
   ensureReverseListener();
 }
@@ -95,12 +109,12 @@ async function subscribeToPluginEvents(pluginName: string): Promise<void> {
           sub_type: payload.sub_type,
           value: payload.value,
         },
-        "*",
+        handle.targetOrigin,
       );
     } else if (payload.type === "cli_command") {
       handle.iframe.contentWindow?.postMessage(
         { kind: "plugin-event", type: "cli_command", value: payload.value },
-        "*",
+        handle.targetOrigin,
       );
     } else if (payload.type === "api_call") {
       handle.iframe.contentWindow?.postMessage(
@@ -110,7 +124,7 @@ async function subscribeToPluginEvents(pluginName: string): Promise<void> {
           sub_type: payload.sub_type,
           value: payload.value,
         },
-        "*",
+        handle.targetOrigin,
       );
     }
   });

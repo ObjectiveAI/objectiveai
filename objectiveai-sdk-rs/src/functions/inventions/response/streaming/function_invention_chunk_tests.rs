@@ -13,6 +13,7 @@ fn completion(index: u64, error: Option<crate::error::ResponseError>) -> AgentCo
             upstream: crate::agent::Upstream::Openrouter,
             error,
             continuation: None,
+            messages_queued: None,
         },
     }
 }
@@ -147,6 +148,7 @@ stream_push_test!(
                     upstream: crate::agent::Upstream::Openrouter,
                     error: None,
                     continuation: None,
+                    messages_queued: None,
                 },
             }],
             state: None,
@@ -170,6 +172,7 @@ stream_push_test!(
                     upstream: crate::agent::Upstream::Openrouter,
                     error: None,
                     continuation: None,
+                    messages_queued: None,
                 },
             }],
             state: None,
@@ -195,6 +198,7 @@ stream_push_test!(
                     upstream: crate::agent::Upstream::Openrouter,
                     error: None,
                     continuation: None,
+                    messages_queued: None,
                 },
             },
             AgentCompletionChunk {
@@ -208,6 +212,7 @@ stream_push_test!(
                     upstream: crate::agent::Upstream::Openrouter,
                     error: None,
                     continuation: None,
+                    messages_queued: None,
                 },
             },
         ],

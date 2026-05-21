@@ -4,6 +4,7 @@ import { z } from "zod";
 import { FilesystemConfigAgentsConfigSchema } from "./agentsConfig";
 import { FilesystemConfigApiConfigSchema } from "./apiConfig";
 import { FilesystemConfigFunctionsConfigSchema } from "./functionsConfig";
+import { FilesystemConfigMcpConfigSchema } from "./mcpConfig";
 import { FilesystemConfigSwarmsConfigSchema } from "./swarmsConfig";
 import { FilesystemConfigViewerConfigSchema } from "./viewerConfig";
 
@@ -11,6 +12,7 @@ export const FilesystemConfigConfigSchema = z.object({
   agents: FilesystemConfigAgentsConfigSchema.nullable().meta({ omitempty: true }).optional(),
   api: FilesystemConfigApiConfigSchema.nullable().meta({ omitempty: true }).optional(),
   functions: FilesystemConfigFunctionsConfigSchema.nullable().meta({ omitempty: true }).optional(),
+  mcp: FilesystemConfigMcpConfigSchema.nullable().meta({ omitempty: true }).optional(),
   swarms: FilesystemConfigSwarmsConfigSchema.nullable().meta({ omitempty: true }).optional(),
   viewer: FilesystemConfigViewerConfigSchema.nullable().meta({ omitempty: true }).optional(),
 }).meta({ title: "filesystem.config.Config" });

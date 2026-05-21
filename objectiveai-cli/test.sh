@@ -19,8 +19,19 @@ mkdir -p "$LOG_DIR"
 # Deterministically wipe CLI test artifacts on every exit path (success,
 # failure, or interrupt). Keeps the tests folder free of gitignored runtime
 # state (logs, cached repos, filesystem config) between runs.
+#
+# Also reap the api server we spawned, if any. CLI_TEST_API_PID is set
+# below only when this script spawned the server itself — under the
+# root test.sh harness OBJECTIVEAI_TEST_PORT is pre-set and we leave
+# the parent's server alone.
 CLI_TESTS_SCRATCH="$SCRIPT_DIR/tests/.objectiveai"
-cleanup() { rm -rf "$CLI_TESTS_SCRATCH"; }
+cleanup() {
+  rm -rf "$CLI_TESTS_SCRATCH"
+  if [ -n "${CLI_TEST_API_PID:-}" ]; then
+    kill "$CLI_TEST_API_PID" 2>/dev/null || true
+    wait "$CLI_TEST_API_PID" 2>/dev/null || true
+  fi
+}
 trap cleanup EXIT INT TERM
 cleanup  # start from a clean slate as well
 
@@ -32,6 +43,13 @@ while [[ $# -gt 0 ]]; do
     *)  CARGO_ARGS+=("$1"); shift ;;
   esac
 done
+
+# Spawn the test api server only if not already provided by a parent
+# harness (e.g. the root test.sh). Same pattern as objectiveai-sdk-{py,js,go}.
+if [ -z "${OBJECTIVEAI_TEST_PORT:-}" ]; then
+  read -r PORT CLI_TEST_API_PID < <(bash "$REPO_ROOT/test-spawn-api-server.sh" 2>>"$LOG_FILE")
+  export OBJECTIVEAI_TEST_PORT="$PORT"
+fi
 
 # Run tests, capture all output
 if cargo test --manifest-path "$SCRIPT_DIR/Cargo.toml" "${CARGO_ARGS[@]}" > "$LOG_FILE" 2>&1; then

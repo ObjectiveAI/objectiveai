@@ -109,6 +109,7 @@ impl SDKUserMessage {
                 upstream,
                 error: None,
                 continuation: None,
+                messages_queued: None,
             },
         )
     }

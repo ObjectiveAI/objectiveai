@@ -58,6 +58,8 @@ pub struct HttpClient {
     pub x_commit_author_name: Option<Arc<String>>,
     /// Value for the `X-COMMIT-AUTHOR-EMAIL` header.
     pub x_commit_author_email: Option<Arc<String>>,
+    /// Value for the `X-OBJECTIVEAI-AGENT-ID` header.
+    pub agent_id: Option<Arc<String>>,
 }
 
 impl HttpClient {
@@ -78,6 +80,7 @@ impl HttpClient {
     /// * `x_viewer_address` - Optional X-VIEWER-ADDRESS header value
     /// * `x_commit_author_name` - Optional X-COMMIT-AUTHOR-NAME header value
     /// * `x_commit_author_email` - Optional X-COMMIT-AUTHOR-EMAIL header value
+    /// * `agent_id` - Optional X-OBJECTIVEAI-AGENT-ID header value
     pub fn new(
         http_client: reqwest::Client,
         address: Option<impl Into<String>>,
@@ -92,6 +95,7 @@ impl HttpClient {
         x_viewer_address: Option<impl Into<String>>,
         x_commit_author_name: Option<impl Into<String>>,
         x_commit_author_email: Option<impl Into<String>>,
+        agent_id: Option<impl Into<String>>,
     ) -> Self {
         #[cfg(feature = "env")]
         let env = |name: &str| -> Option<String> { std::env::var(name).ok() };
@@ -128,6 +132,8 @@ impl HttpClient {
                 .or_else(|| { #[cfg(feature = "env")] { env("COMMIT_AUTHOR_NAME").map(Arc::new) } #[cfg(not(feature = "env"))] { None } }),
             x_commit_author_email: x_commit_author_email.map(|v| Arc::new(v.into()))
                 .or_else(|| { #[cfg(feature = "env")] { env("COMMIT_AUTHOR_EMAIL").map(Arc::new) } #[cfg(not(feature = "env"))] { None } }),
+            agent_id: agent_id.map(|v| Arc::new(v.into()))
+                .or_else(|| { #[cfg(feature = "env")] { env("OBJECTIVEAI_AGENT_ID").map(Arc::new) } #[cfg(not(feature = "env"))] { None } }),
         }
     }
 
@@ -181,6 +187,9 @@ impl HttpClient {
         }
         if let Some(email) = &self.x_commit_author_email {
             request = request.header("X-COMMIT-AUTHOR-EMAIL", email.as_str());
+        }
+        if let Some(id) = &self.agent_id {
+            request = request.header("X-OBJECTIVEAI-AGENT-ID", id.as_str());
         }
         if let Some(body) = body {
             request = request.json(&body);

@@ -61,7 +61,7 @@ mod test_util;
 pub mod filesystem;
 
 #[cfg(feature = "http")]
-mod http;
+pub mod http;
 
 #[cfg(feature = "http")]
 pub use http::*;
@@ -74,7 +74,4 @@ pub mod cli;
 
 #[cfg(feature = "viewer")]
 pub mod viewer;
-
-#[cfg(feature = "updater")]
-pub mod updater;
 

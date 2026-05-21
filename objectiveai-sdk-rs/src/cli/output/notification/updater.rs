@@ -1,11 +1,9 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// Wire shapes emitted by `crate::updater::maybe_auto_update`. Every
-/// non-cooldown skip path AND every active step emits one of these.
-/// The ONLY silent path is the 2-hour marker cooldown — when the marker
-/// says we already checked within the time frame, the updater exits
-/// without emission.
+/// Wire shapes emitted by the cli's `update` subcommand (and by
+/// programmatic callers that invoke the cli's updater). Every skip
+/// path AND every active step emits one of these.
 ///
 /// Errors are emitted as `super::super::Output::Error` (level=warn,
 /// fatal=false), not as a variant here.
@@ -17,7 +15,8 @@ use serde::{Deserialize, Serialize};
 #[serde(tag = "event", rename_all = "snake_case")]
 #[schemars(rename = "cli.output.notification.Updater")]
 pub enum Updater {
-    /// Skipped this run for a non-cooldown reason. (Cooldown is silent.)
+    /// Refused to proceed with the update — the `reason` carries why.
+    /// No binaries were modified.
     #[schemars(title = "Skipped")]
     Skipped {
         reason: SkipReason,
@@ -45,9 +44,8 @@ pub enum Updater {
         asset_name: String,
         url: String,
     },
-    /// Swap complete; the next line of output will come from the
-    /// re-exec'd new binary, not this one. Terminal for the current
-    /// process.
+    /// One binary's swap completed. Emitted once per package the
+    /// updater touched (cli, api, viewer, mcp).
     #[schemars(title = "Installed")]
     Installed {
         current_version: String,
@@ -56,8 +54,6 @@ pub enum Updater {
 }
 
 /// Reasons the updater can skip a run *and emit a notification about it*.
-/// The 2-hour marker cooldown is NOT included here because cooldown
-/// skips are silent (no notification emitted).
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[schemars(rename = "cli.output.notification.SkipReason")]
@@ -65,13 +61,13 @@ pub enum SkipReason {
     /// Host OS/arch combination doesn't have a release asset.
     #[schemars(title = "UnsupportedPlatform")]
     UnsupportedPlatform,
-    /// `OBJECTIVEAI_SKIP_UPDATE` env var is set. The updater respects
-    /// this so re-exec'd children don't loop, and so users can disable
-    /// auto-update by setting it.
-    #[schemars(title = "OptedOut")]
-    OptedOut,
     /// Binary is running out of a `target*/` directory — looks like a
     /// dev build (`cargo run`), not an installed binary.
     #[schemars(title = "DevTree")]
     DevTree,
+    /// The latest release is missing one or more of the four expected
+    /// assets for this host triple. No partial updates: refuse the
+    /// whole run.
+    #[schemars(title = "IncompleteRelease")]
+    IncompleteRelease,
 }

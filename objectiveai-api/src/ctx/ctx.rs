@@ -44,6 +44,10 @@ pub struct Context<CTXEXT, PC> {
     commit_author_name: Option<Arc<String>>,
     /// Per-request commit author email.
     commit_author_email: Option<Arc<String>>,
+    /// Per-request caller-supplied agent id (`X-OBJECTIVEAI-AGENT-ID`).
+    /// Plays the role of the *parent* when composing the agent id we
+    /// forward to the MCP proxy inside agent completions.
+    agent_id: Option<Arc<String>>,
     /// Cached resolved OpenRouter authorization (self + ext).
     openrouter_authorization_cached: Arc<OnceCell<Option<Arc<String>>>>,
     /// Cached resolved GitHub authorization (self + ext).
@@ -147,6 +151,7 @@ impl<CTXEXT, PC> Clone for Context<CTXEXT, PC> {
             viewer_address: self.viewer_address.clone(),
             commit_author_name: self.commit_author_name.clone(),
             commit_author_email: self.commit_author_email.clone(),
+            agent_id: self.agent_id.clone(),
             openrouter_authorization_cached: self.openrouter_authorization_cached.clone(),
             github_authorization_cached: self.github_authorization_cached.clone(),
             mcp_authorization_cached: self.mcp_authorization_cached.clone(),
@@ -242,6 +247,12 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
             .and_then(|v| v.to_str().ok())
             .map(|s| Arc::new(s.to_owned()));
 
+        let agent_id = headers
+            .get("X-OBJECTIVEAI-AGENT-ID")
+            .or_else(|| headers.get("OBJECTIVEAI-AGENT-ID"))
+            .and_then(|v| v.to_str().ok())
+            .map(|s| Arc::new(s.to_owned()));
+
         Self {
             ext,
             cost_multiplier,
@@ -255,6 +266,7 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
             viewer_address,
             commit_author_name,
             commit_author_email,
+            agent_id,
             openrouter_authorization_cached: Arc::new(OnceCell::new()),
             github_authorization_cached: Arc::new(OnceCell::new()),
             mcp_authorization_cached: Arc::new(OnceCell::new()),
@@ -276,6 +288,13 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
     /// Returns the per-request ObjectiveAI authorization token, if present.
     pub fn objectiveai_authorization(&self) -> Option<&Arc<String>> {
         self.objectiveai_authorization.as_ref()
+    }
+
+    /// Returns the caller-supplied agent id from `X-OBJECTIVEAI-AGENT-ID`,
+    /// if present. This is the *parent* prefix used when composing the
+    /// agent id we forward to the MCP proxy.
+    pub fn agent_id(&self) -> Option<&str> {
+        self.agent_id.as_deref().map(|s| s.as_str())
     }
 }
 

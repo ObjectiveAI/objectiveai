@@ -277,78 +277,48 @@ var Stream = class _Stream {
 };
 
 // src/viewer/apiCallBridge.ts
-function isInIframe() {
-  return typeof window !== "undefined" && window.parent !== window;
-}
-function buildSubType(method, path) {
-  return `${method}_${path}`;
+function buildCliArgs(method, path, body) {
+  const segments = path.replace(/^\//, "").split("/").filter((s) => s.length > 0);
+  const args = ["objectiveai", "api", ...segments, method.toLowerCase()];
+  if (body !== null && body !== void 0) {
+    args.push("--body-inline", JSON.stringify(body));
+  }
+  return args;
 }
 function viewerApiCallChunks(method, path, body) {
-  if (!isInIframe()) {
-    throw new Error(
-      `ObjectiveAI({ viewer: true }) used outside a viewer iframe; cannot route ${method} ${path} through Tauri. Construct the client with viewer: false (or omit it) when running outside the viewer host.`
-    );
-  }
-  const subType = buildSubType(method, path);
+  const args = buildCliArgs(method, path, body);
+  const cliOutput = invokeCli(args);
   return {
     [Symbol.asyncIterator]() {
-      const queue = [];
-      let resolveNext = null;
-      let done = false;
-      let errored = null;
-      let cleaned = false;
-      const onMessage = (event) => {
-        const msg = event.data;
-        if (!msg || typeof msg !== "object") return;
-        if (msg.kind !== "plugin-event") return;
-        if (msg.type !== "api_call") return;
-        if (msg.sub_type !== subType) return;
-        const env = msg.value;
-        if (!env || typeof env !== "object") return;
-        if (env.type === "begin") ; else if (env.type === "chunk") {
-          queue.push(env.chunk);
-        } else if (env.type === "error") {
-          const raw = env.error;
-          const message = raw && typeof raw === "object" && typeof raw.message === "string" ? raw.message : JSON.stringify(env.error);
-          errored = new ObjectiveAIFetchError(0, message);
-          done = true;
-        } else if (env.type === "end") {
-          done = true;
-        }
-        if (resolveNext) {
-          const r = resolveNext;
-          resolveNext = null;
-          r();
-        }
-      };
-      const cleanup = () => {
-        if (cleaned) return;
-        cleaned = true;
-        if (typeof window !== "undefined") {
-          window.removeEventListener("message", onMessage);
-        }
-      };
-      window.addEventListener("message", onMessage);
-      window.parent.postMessage(
-        { kind: "api-call-invoke", subType, body: body ?? null },
-        "*"
-      );
+      const inner = cliOutput[Symbol.asyncIterator]();
       return {
         async next() {
-          while (queue.length === 0 && !done) {
-            await new Promise((r) => {
-              resolveNext = r;
-            });
+          for (; ; ) {
+            const result = await inner.next();
+            if (result.done) {
+              return { value: void 0, done: true };
+            }
+            const line = result.value;
+            if (!line || typeof line !== "object") continue;
+            switch (line.type) {
+              case "begin":
+              case "end":
+                continue;
+              case "notification":
+                return { value: line.value, done: false };
+              case "error": {
+                const message = typeof line.message === "string" ? line.message : JSON.stringify(line.message ?? line);
+                throw new ObjectiveAIFetchError(0, message);
+              }
+              default:
+                continue;
+            }
           }
-          if (queue.length > 0) {
-            return { value: queue.shift(), done: false };
-          }
-          cleanup();
-          if (errored) throw errored;
-          return { value: void 0, done: true };
         },
         async return() {
-          cleanup();
+          if (inner.return) {
+            await inner.return();
+          }
           return { value: void 0, done: true };
         }
       };
@@ -381,19 +351,7 @@ var JsonValueSchema = zod.z.union([
   zod.z.record(zod.z.string(), zod.z.lazy(() => JsonValueSchema))
 ]);
 
-// src/viewer/apiCallEnvelope.ts
-var ViewerApiCallEnvelopeSchema = zod.z.union([zod.z.object({
-  type: zod.z.literal("begin")
-}).meta({ "variantTitle": "Begin" }), zod.z.object({
-  chunk: JsonValueSchema,
-  type: zod.z.literal("chunk")
-}).meta({ "variantTitle": "Chunk" }), zod.z.object({
-  error: JsonValueSchema,
-  type: zod.z.literal("error")
-}).meta({ "variantTitle": "Error" }), zod.z.object({
-  type: zod.z.literal("end")
-}).meta({ "variantTitle": "End" })]).describe("Wire-format envelope for each value the viewer host emits as\n[`Event::ApiCall.value`](super::Event::ApiCall) while servicing one\n`api-call-invoke` request.\n\nMirrors the cli's [`Output<T>`](crate::cli::output::Output)\nenvelope shape so iframe consumers can apply the same JSONL state\nmachine to both:\n\n1. `Begin` \u2014 exactly one, emitted before any data.\n2. `Chunk { chunk }` \u2014 one per SSE event for streaming endpoints,\n   or one total for unary endpoints (carrying the parsed response\n   body).\n3. `Error { error }` \u2014 only on dispatch failure; replaces any\n   further `Chunk`s for that invocation.\n4. `End` \u2014 exactly one, emitted last; signals the AsyncIterable on\n   the JS side to terminate.").meta({ title: "viewer.ApiCallEnvelope" });
-var ViewerApiCallSubTypeSchema = zod.z.enum(["POST_/agent/completions", "POST_/vector/completions", "POST_/vector/completions/votes", "POST_/vector/completions/cache", "POST_/functions/list", "POST_/functions", "POST_/functions/usage", "POST_/functions/executions", "POST_/functions/profiles/list", "POST_/functions/profiles", "POST_/functions/profiles/usage", "POST_/functions/profiles/pairs/list", "POST_/functions/profiles/pairs/usage", "POST_/functions/inventions", "POST_/functions/inventions/recursive", "POST_/functions/inventions/prompts/list", "POST_/functions/inventions/prompts", "POST_/functions/inventions/prompts/usage", "POST_/functions/inventions/state", "POST_/functions/profiles/compute", "POST_/auth/keys", "POST_/auth/keys/openrouter", "DELETE_/auth/keys", "DELETE_/auth/keys/openrouter", "GET_/auth/keys", "GET_/auth/keys/openrouter", "GET_/auth/credits", "POST_/swarms/list", "POST_/swarms", "POST_/swarms/usage", "POST_/agents/list", "POST_/agents", "POST_/agents/usage", "POST_/error", "POST_/laboratories/executions"]).describe('One `(method, path)` tuple \u2014 one variant per route the\n`objectiveai-api` crate\'s `Router::new()` chain declares.\n\nSerializes as `"<METHOD>_<PATH>"`. The underscore separator (rather\nthan space) keeps the value safe to use as a Tauri event channel\nsuffix and as a JS object key.').meta({ title: "viewer.ApiCallSubType" });
+// src/viewer/event.ts
 var ViewerEventSchema = zod.z.union([zod.z.object({
   destination: zod.z.string(),
   sub_type: zod.z.string(),
@@ -403,16 +361,10 @@ var ViewerEventSchema = zod.z.union([zod.z.object({
   destination: zod.z.string(),
   type: zod.z.literal("cli_command"),
   value: JsonValueSchema
-}).describe("Host \u2192 iframe. One JSON line of cli output emitted by an\nin-process `objectiveai_cli::run()` invocation started by\nthis iframe via `invokeCli`. `value` is the cli's `Output<T>`\nenvelope. No sub_type \u2014 a single invocation produces a single\nstream of lines.").meta({ "variantTitle": "CliCommand" }), zod.z.object({
-  destination: zod.z.string(),
-  sub_type: ViewerApiCallSubTypeSchema,
-  type: zod.z.literal("api_call"),
-  value: JsonValueSchema
-}).describe("Host \u2192 iframe. One value in the response stream of an\nin-process upstream API call started by the iframe via\n`api-call-invoke`. `sub_type` identifies which endpoint the\nstream belongs to (lets the iframe demux multiple concurrent\ncalls to *different* endpoints). `value` is an\n[`ApiCallEnvelope`](super::ApiCallEnvelope) JSON object: one\n`begin`, then one or more `chunk`s (or `error`), then exactly\none `end`.").meta({ "variantTitle": "ApiCall" })]).describe("Every event the viewer emits to the JS side. Serde-tagged on\n`type` so the JS bridge can pattern-match and decide how to\nrepackage each variant for the destination iframe.\n\n`destination` is `\"objectiveai\"` for built-in events, or the\nplugin's repository name otherwise. For `CliCommand` it's the\nrepository name of whichever iframe invoked the CLI \u2014 the bridge\nderives it from `MessageEvent.source`, the plugin author never\nsets it.").meta({ title: "viewer.Event" });
-var ViewerHttpMethodSchema = zod.z.enum(["GET", "POST", "DELETE"]).describe("HTTP method an [`ApiCallSubType`] maps to. Mirrors the methods\n`objectiveai-api`'s router uses (`POST`, `GET`, `DELETE`).").meta({ title: "viewer.HttpMethod" });
+}).describe("Host \u2192 iframe. One JSON line of cli output emitted by an\nin-process `objectiveai_cli::run()` invocation started by\nthis iframe via `invokeCli`. `value` is the cli's `Output<T>`\nenvelope. No sub_type \u2014 a single invocation produces a single\nstream of lines.").meta({ "variantTitle": "CliCommand" })]).describe("Every event the viewer emits to the JS side. Serde-tagged on\n`type` so the JS bridge can pattern-match and decide how to\nrepackage each variant for the destination iframe.\n\n`destination` is `\"objectiveai\"` for built-in events, or the\nplugin's repository name otherwise. For `CliCommand` it's the\nrepository name of whichever iframe invoked the CLI \u2014 the bridge\nderives it from `MessageEvent.source`, the plugin author never\nsets it.").meta({ title: "viewer.Event" });
 
 // src/viewer/index.ts
-function isInIframe2() {
+function isInIframe() {
   return typeof window !== "undefined" && window.parent !== window;
 }
 var inboundListeners = /* @__PURE__ */ new Map();
@@ -438,7 +390,7 @@ function attachInboundHandler() {
   inboundHandlerAttached = true;
 }
 function listen2(sub_type, handler) {
-  if (!isInIframe2()) {
+  if (!isInIframe()) {
     let unlisten = null;
     let cancelled = false;
     void (async () => {
@@ -539,10 +491,7 @@ function __resetForTests() {
   inboundListeners.clear();
 }
 
-exports.ViewerApiCallEnvelopeSchema = ViewerApiCallEnvelopeSchema;
-exports.ViewerApiCallSubTypeSchema = ViewerApiCallSubTypeSchema;
 exports.ViewerEventSchema = ViewerEventSchema;
-exports.ViewerHttpMethodSchema = ViewerHttpMethodSchema;
 exports.__resetForTests = __resetForTests;
 exports.invokeCli = invokeCli;
 exports.listen = listen2;

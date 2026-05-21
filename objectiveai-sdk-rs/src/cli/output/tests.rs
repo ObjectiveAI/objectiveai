@@ -15,28 +15,30 @@ where
 }
 
 fn notif<T>(value: T) -> Output<T> {
-    Output::Notification(Notification { value })
+    Output::Notification(Notification { value, agent_id: None })
 }
 
 #[tokio::test]
 async fn emit_via_stdout_handle() {
-    // Smoke test that `Handle::Stdout` routes emit() without panicking.
-    // We can't intercept stdout from a unit test, so just confirm the
-    // call completes and the future is Send + 'static-safe.
+    // Smoke test that the default Stdout-destination handle routes
+    // emit() without panicking. We can't intercept stdout from a
+    // unit test, so just confirm the call completes and the future
+    // is Send + 'static-safe.
     let out: Output<Ok> = notif(OK);
-    out.emit(&Handle::Stdout).await;
+    out.emit(&Handle::stdout()).await;
 }
 
 #[tokio::test]
 async fn emit_via_collect_handle_appends_to_vec() {
     let vec = Arc::new(Mutex::new(Vec::new()));
-    let handle = Handle::Collect(vec.clone());
+    let handle = Handle::from(HandleDestination::Collect(vec.clone()));
 
     notif(OK).emit(&handle).await;
     Output::<Ok>::Error(Error {
         level: Level::Warn,
         fatal: false,
         message: "heads up".into(),
+        agent_id: None,
     })
     .emit(&handle)
     .await;
@@ -63,6 +65,7 @@ fn error_fatal_wire_shape() {
         level: Level::Error,
         fatal: true,
         message: "favorite not found: foo".into(),
+        agent_id: None,
     });
     let v = roundtrip(&out);
     assert_eq!(v["type"], "error");
@@ -77,6 +80,7 @@ fn error_non_fatal_warn_wire_shape() {
         level: Level::Warn,
         fatal: false,
         message: "auto-update error: ...".into(),
+        agent_id: None,
     });
     let v = roundtrip(&out);
     assert_eq!(v["type"], "error");

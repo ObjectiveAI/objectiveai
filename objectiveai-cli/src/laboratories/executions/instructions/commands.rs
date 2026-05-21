@@ -19,7 +19,7 @@ impl Commands {
                     crate::instructions::InstructionsScope::LaboratoryExecutions,
                     include_str!("../../../../assets/laboratories/executions/instructions/get/INSTRUCTIONS.md"),
                 )?;
-                objectiveai_sdk::cli::output::Output::<Instructions>::Notification(objectiveai_sdk::cli::output::Notification { value: Instructions { instructions } }).emit(handle).await;
+                objectiveai_sdk::cli::output::Output::<Instructions>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: Instructions { instructions } }).emit(handle).await;
                 Ok(())
             },
         }

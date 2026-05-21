@@ -17,6 +17,10 @@ import (
 // a plain string as `Value::String(...)` (or use `.into()`) and the
 // wire bytes stay identical to the old `String`-only shape.
 type CliOutputError struct {
+	// Stamped at emit time by [`super::Handle`] when its `agent_id`
+	// field is set; producers leave this `None` and let the handle
+	// fill it. Serde-skipped when `None`.
+	AgentID *string `json:"agent_id,omitempty"`
 	Fatal bool `json:"fatal"`
 	Level CliOutputLevel `json:"level"`
 	Message JsonValue `json:"message"`

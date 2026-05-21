@@ -243,6 +243,37 @@ impl Connection {
         self.inner.drain_notifications().await
     }
 
+    /// Non-draining peek at the proxy's `pending_notifications` queue
+    /// via `GET /notify/queued`. Returns `true` iff the queue holds at
+    /// least one block. Companion to [`Connection::drain_notifications`]
+    /// for callers that want to know whether queued blocks exist
+    /// without consuming them.
+    ///
+    /// A 404 from the proxy (session unknown — possible after a proxy
+    /// restart) is mapped to `Ok(false)` for the same reason as the
+    /// drain path: callers do not need to distinguish "no
+    /// notifications" from "lost session" at the use site.
+    pub async fn has_pending_notifications(&self) -> Result<bool, super::Error> {
+        self.inner.has_pending_notifications().await
+    }
+
+    /// `POST <self.url>/notify` against the ObjectiveAI MCP proxy.
+    /// Appends `blocks` to the proxy's pending-notifications queue for
+    /// this session; they surface as a user message on the next
+    /// `tools/call` response (wrapped in a `<system-reminder>` block)
+    /// or as the head of the next agent turn when drained between turns.
+    ///
+    /// Mirror of [`Connection::drain_notifications`] / [`Connection::has_pending_notifications`]
+    /// for the inbound side. A 404 from the proxy means the session is
+    /// gone — surfaced as `SessionExpired` so callers can distinguish
+    /// "session lost" from "delivery failed" at the use site.
+    pub async fn enqueue_notifications(
+        &self,
+        blocks: &[super::tool::ContentBlock],
+    ) -> Result<(), super::Error> {
+        self.inner.enqueue_notifications(blocks).await
+    }
+
     /// Reads a resource from the upstream server.
     pub async fn read_resource(
         &self,
@@ -790,6 +821,97 @@ impl ConnectionInner {
             .map_err(|source| super::Error::Request { url, source })
     }
 
+    /// `POST <self.url>/notify` against the ObjectiveAI MCP proxy.
+    /// Appends `blocks` to the proxy's pending-notifications queue for
+    /// this session. Single-attempt — the caller decides whether to
+    /// retry. A 404 (session unknown) surfaces as `SessionExpired`
+    /// rather than `Ok(())` because the caller is asking for delivery
+    /// and a lost session means delivery did not happen.
+    async fn enqueue_notifications(
+        &self,
+        blocks: &[super::tool::ContentBlock],
+    ) -> Result<(), super::Error> {
+        if self.mock {
+            return Ok(());
+        }
+
+        let url = format!("{}/notify", self.url.trim_end_matches('/'));
+        let mut request = self
+            .http_client
+            .post(&url)
+            .timeout(self.call_timeout)
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json")
+            .json(blocks);
+        for (name, value) in &self.headers {
+            request = request.header(name, value);
+        }
+        // Mcp-Session-Id applied last so a same-named entry in `headers`
+        // can never override the connection's own session id — matches
+        // the invariant in `Self::drain_notifications`.
+        request = request.header("Mcp-Session-Id", &self.session_id);
+
+        let response = request.send().await.map_err(|source| super::Error::Request {
+            url: url.clone(),
+            source,
+        })?;
+
+        if response.status() == reqwest::StatusCode::NOT_FOUND {
+            return Err(super::Error::SessionExpired { url });
+        }
+        if !response.status().is_success() {
+            let code = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(super::Error::BadStatus { url, code, body });
+        }
+
+        Ok(())
+    }
+
+    /// `GET <self.url>/notify/queued` against the ObjectiveAI MCP proxy.
+    /// Non-draining peek — returns `true` iff the proxy's
+    /// pending-notifications queue for this session is non-empty.
+    /// A 404 (session unknown) is mapped to `Ok(false)` to match the
+    /// drain path's soft-fallback contract.
+    async fn has_pending_notifications(&self) -> Result<bool, super::Error> {
+        if self.mock {
+            return Ok(false);
+        }
+
+        let url = format!("{}/notify/queued", self.url.trim_end_matches('/'));
+        let mut request = self
+            .http_client
+            .get(&url)
+            .timeout(self.call_timeout)
+            .header("Accept", "application/json");
+        for (name, value) in &self.headers {
+            request = request.header(name, value);
+        }
+        // Mcp-Session-Id applied last so a same-named entry in `headers`
+        // can never override the connection's own session id — matches
+        // the invariant in `Self::drain_notifications`.
+        request = request.header("Mcp-Session-Id", &self.session_id);
+
+        let response = request.send().await.map_err(|source| super::Error::Request {
+            url: url.clone(),
+            source,
+        })?;
+
+        if response.status() == reqwest::StatusCode::NOT_FOUND {
+            return Ok(false);
+        }
+        if !response.status().is_success() {
+            let code = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(super::Error::BadStatus { url, code, body });
+        }
+
+        response
+            .json::<bool>()
+            .await
+            .map_err(|source| super::Error::Request { url, source })
+    }
+
     /// Returns a key identifying this connection for tool namespacing.
     fn tool_key(&self) -> String {
         format!("{}-{}", self.initialize_result.server_info.name, self.url)
@@ -869,8 +991,7 @@ impl ConnectionInner {
         super::Error,
     > {
         use crate::agent::completions::message::{
-            File, ImageUrl, InputAudio, RichContent, RichContentPart,
-            ToolMessage,
+            File, ImageUrl, RichContentPart, ToolMessage,
         };
         use super::shared::ResourceContentsUnion;
         use super::tool::ContentBlock;
@@ -889,16 +1010,16 @@ impl ConnectionInner {
         /// Converts a `ResourceContentsUnion` into one or more rich content
         /// parts. Text resources become text parts. Blob resources with an
         /// image MIME type become image_url parts (data URL); all other blobs
-        /// become file parts.
+        /// become file parts. This conversion is connection-local (the
+        /// `ResourceContentsUnion` shape doesn't exist outside the proxy
+        /// fetch path), so it doesn't go through a generic `From` impl.
         fn resource_contents_to_part(
-            contents: &ResourceContentsUnion,
+            contents: ResourceContentsUnion,
         ) -> RichContentPart {
             match contents {
-                ResourceContentsUnion::Text(text) => {
-                    RichContentPart::Text {
-                        text: text.text.clone(),
-                    }
-                }
+                ResourceContentsUnion::Text(text) => RichContentPart::Text {
+                    text: text.text,
+                },
                 ResourceContentsUnion::Blob(blob) => {
                     let mime = blob
                         .base
@@ -928,7 +1049,7 @@ impl ConnectionInner {
 
                         RichContentPart::File {
                             file: File {
-                                file_data: Some(blob.blob.clone()),
+                                file_data: Some(blob.blob),
                                 filename,
                                 file_id: None,
                                 file_url: None,
@@ -941,69 +1062,42 @@ impl ConnectionInner {
 
         let mut parts: Vec<RichContentPart> = Vec::new();
 
-        for block in &result.content {
+        for block in result.content {
             match block {
-                ContentBlock::Text(text) => {
-                    parts.push(RichContentPart::Text {
-                        text: text.text.clone(),
-                    });
+                // Text / Image / Audio go through the shared
+                // `From<ContentBlock> for RichContentPart` impl so
+                // every call site converges on one mapping.
+                ContentBlock::Text(_)
+                | ContentBlock::Image(_)
+                | ContentBlock::Audio(_) => {
+                    parts.push(block.into());
                 }
-                ContentBlock::Image(image) => {
-                    parts.push(RichContentPart::ImageUrl {
-                        image_url: ImageUrl {
-                            url: format!(
-                                "data:{};base64,{}",
-                                image.mime_type, image.data
-                            ),
-                            detail: None,
-                        },
-                    });
-                }
-                ContentBlock::Audio(audio) => {
-                    parts.push(RichContentPart::InputAudio {
-                        input_audio: InputAudio {
-                            data: audio.data.clone(),
-                            format: audio.mime_type.clone(),
-                        },
-                    });
-                }
+                // EmbeddedResource needs connection-local resolution
+                // into its inlined content shape — can't go through
+                // the stateless `From` impl (which would JSON-text-
+                // fallback instead of inlining).
                 ContentBlock::EmbeddedResource(embedded) => {
-                    parts.push(resource_contents_to_part(
-                        &embedded.resource,
-                    ));
+                    parts.push(resource_contents_to_part(embedded.resource));
                 }
+                // ResourceLink: when the URI is known, fetch + inline;
+                // otherwise delegate to `From<ContentBlock>` which
+                // text-falls-back to the JSON-serialized link.
                 ContentBlock::ResourceLink(link) => {
                     if known_resource_uris.contains(&link.uri) {
-                        // Fetch the resource and inline its contents.
                         let read_result =
                             self.read_resource(&link.uri).await?;
-                        for contents in &read_result.contents {
-                            parts.push(
-                                resource_contents_to_part(contents),
-                            );
+                        for contents in read_result.contents {
+                            parts.push(resource_contents_to_part(contents));
                         }
                     } else {
-                        // Not a known resource; serialize as JSON text.
-                        parts.push(RichContentPart::Text {
-                            text: serde_json::to_string(link)
-                                .unwrap_or_default(),
-                        });
+                        parts.push(ContentBlock::ResourceLink(link).into());
                     }
                 }
             }
         }
 
-        let content = match parts.len() {
-            0 => RichContent::Text(String::new()),
-            1 => match parts.remove(0) {
-                RichContentPart::Text { text } => RichContent::Text(text),
-                other => RichContent::Parts(vec![other]),
-            },
-            _ => RichContent::Parts(parts),
-        };
-
         Ok(ToolMessage {
-            content,
+            content: parts.into(),
             tool_call_id,
         })
     }
@@ -1712,5 +1806,96 @@ mod drain_notifications_tests {
         let conn = Connection::new_mock("http://does-not-matter".into());
         let blocks = conn.drain_notifications().await.expect("mock ok");
         assert!(blocks.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod has_pending_notifications_tests {
+    use super::*;
+    use serde_json::json;
+    use wiremock::matchers::{header, method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    /// Happy path: proxy returns `true` → Ok(true).
+    #[tokio::test]
+    async fn has_pending_notifications_true() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/notify/queued"))
+            .and(header("Mcp-Session-Id", ""))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!(true)))
+            .mount(&server)
+            .await;
+
+        let conn = Connection::new_for_test("t".into(), server.uri());
+        let got = conn.has_pending_notifications().await.expect("peek ok");
+        assert!(got);
+    }
+
+    /// Proxy returns `false` → Ok(false).
+    #[tokio::test]
+    async fn has_pending_notifications_false() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/notify/queued"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!(false)))
+            .mount(&server)
+            .await;
+
+        let conn = Connection::new_for_test("t".into(), server.uri());
+        let got = conn.has_pending_notifications().await.expect("peek ok");
+        assert!(!got);
+    }
+
+    /// 404 (proxy lost the session) → Ok(false). Same soft-fallback
+    /// contract as drain_notifications — peek must never abort a
+    /// request over a missing-session race.
+    #[tokio::test]
+    async fn has_pending_notifications_404_returns_false() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/notify/queued"))
+            .respond_with(ResponseTemplate::new(404))
+            .mount(&server)
+            .await;
+
+        let conn = Connection::new_for_test("t".into(), server.uri());
+        let got = conn
+            .has_pending_notifications()
+            .await
+            .expect("404 → ok(false)");
+        assert!(!got);
+    }
+
+    /// Non-success / non-404 status propagates as `BadStatus`.
+    #[tokio::test]
+    async fn has_pending_notifications_5xx_returns_bad_status() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/notify/queued"))
+            .respond_with(ResponseTemplate::new(500).set_body_string("boom"))
+            .mount(&server)
+            .await;
+
+        let conn = Connection::new_for_test("t".into(), server.uri());
+        let err = conn
+            .has_pending_notifications()
+            .await
+            .expect_err("5xx → err");
+        match err {
+            super::super::Error::BadStatus { code, body, .. } => {
+                assert_eq!(code.as_u16(), 500);
+                assert_eq!(body, "boom");
+            }
+            other => panic!("expected BadStatus, got {other:?}"),
+        }
+    }
+
+    /// Mock connections never hit the network and always return false.
+    #[tokio::test]
+    async fn has_pending_notifications_mock_returns_false() {
+        let conn = Connection::new_mock("http://does-not-matter".into());
+        let got = conn.has_pending_notifications().await.expect("mock ok");
+        assert!(!got);
     }
 }

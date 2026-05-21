@@ -15,6 +15,7 @@ fn agent_completion(error: Option<crate::error::ResponseError>) -> crate::agent:
         upstream: crate::agent::Upstream::Openrouter,
         error,
         continuation: None,
+        messages_queued: None,
     }
 }
 

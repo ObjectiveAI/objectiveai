@@ -45,7 +45,7 @@ from pydantic.fields import FieldInfo
 from pydantic_core import PydanticUndefined
 
 from objectiveai_sdk.json_value import JsonValue
-from test_pydantic_roundtrip_harness import ALL_TITLES, assert_schema_matches
+from .test_pydantic_roundtrip_harness import ALL_TITLES, assert_schema_matches
 
 # Import helpers from the generator so the test stays in sync automatically.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))

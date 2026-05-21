@@ -60,6 +60,12 @@ pub trait UpstreamClient<AGENT, CONTINUATION> {
         invention_step: Option<usize>,
         invention_tasks_min: Option<u64>,
         invention_input_schema: Option<String>,
+        // composite agent id `{parent}/{agent.id}_{index}` (or
+        // `{agent.id}_{index}` with no parent) that the orchestrator
+        // already sends to the MCP proxy. Runner-backed upstreams
+        // forward this as `OBJECTIVEAI_AGENT_ID` in the env they hand
+        // to their child SDK subprocess; openrouter and mock ignore it.
+        agent_id_header: Option<&str>,
     ) -> impl Future<
         Output = Result<
             Self::Stream,
@@ -103,6 +109,7 @@ impl<AGENT, CONTINUATION> UpstreamClient<AGENT, CONTINUATION> for UnimplementedU
         _invention_step: Option<usize>,
         _invention_tasks_min: Option<u64>,
         _invention_input_schema: Option<String>,
+        _agent_id_header: Option<&str>,
     ) -> impl Future<
         Output = Result<
             Self::Stream,

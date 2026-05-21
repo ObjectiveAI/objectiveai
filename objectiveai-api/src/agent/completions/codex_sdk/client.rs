@@ -247,6 +247,7 @@ impl
         _invention_step: Option<usize>,
         _invention_tasks_min: Option<u64>,
         _invention_input_schema: Option<String>,
+        agent_id_header: Option<&str>,
     ) -> impl Future<Output = Result<Self::Stream, Self::Error>> + Send + 'static
     {
         let enabled = self.enabled;
@@ -258,6 +259,7 @@ impl
         let continuation = continuation.map(|c| c.to_vec());
         let request_continuation = request_continuation.cloned();
         let client = self.clone();
+        let agent_id_header = agent_id_header.map(|s| s.to_string());
 
         async move {
             if !enabled {
@@ -325,6 +327,7 @@ impl
                 web_search_enabled: agent.base.web_search_enabled,
                 resume: resume_arg,
                 mcp_servers: &mcp_servers,
+                agent_id: agent_id_header.as_deref(),
             };
 
             // Each agent-completions request gets its own caller-side

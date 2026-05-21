@@ -6,6 +6,7 @@ use crate::agents;
 use crate::swarms;
 use crate::functions;
 use crate::viewer;
+use crate::mcp;
 use crate::schemas;
 use crate::laboratories;
 use crate::logs;
@@ -30,6 +31,8 @@ struct EnvConfigBuilder {
     /// `objectiveai-rs/src/http/client.rs`).
     #[envconfig(from = "GITHUB_AUTHORIZATION")]
     github_authorization: Option<String>,
+    #[envconfig(from = "OBJECTIVEAI_AGENT_ID")]
+    agent_id: Option<String>,
 }
 
 impl EnvConfigBuilder {
@@ -44,6 +47,7 @@ impl EnvConfigBuilder {
             commit_author_name: self.commit_author_name,
             commit_author_email: self.commit_author_email,
             github_authorization: self.github_authorization,
+            agent_id: self.agent_id,
         }
     }
 }
@@ -55,6 +59,7 @@ pub struct ConfigBuilder {
     pub commit_author_name: Option<String>,
     pub commit_author_email: Option<String>,
     pub github_authorization: Option<String>,
+    pub agent_id: Option<String>,
 }
 
 impl Envconfig for ConfigBuilder {
@@ -80,6 +85,7 @@ impl ConfigBuilder {
             commit_author_name: self.commit_author_name,
             commit_author_email: self.commit_author_email,
             github_authorization: self.github_authorization,
+            agent_id: self.agent_id,
         }
     }
 }
@@ -91,6 +97,7 @@ pub struct Config {
     pub commit_author_name: Option<String>,
     pub commit_author_email: Option<String>,
     pub github_authorization: Option<String>,
+    pub agent_id: Option<String>,
 }
 
 #[derive(Parser)]
@@ -132,6 +139,11 @@ enum Commands {
         #[command(subcommand)]
         command: viewer::Commands,
     },
+    /// MCP server management
+    Mcp {
+        #[command(subcommand)]
+        command: mcp::Commands,
+    },
     /// Browse JSON schemas
     Schemas {
         #[command(subcommand)]
@@ -162,6 +174,10 @@ enum Commands {
         #[command(subcommand)]
         command: plugins::Commands,
     },
+    /// Update the cli and all managed binaries (api, viewer, mcp) from
+    /// the latest GitHub release. Refuses to proceed unless all four
+    /// expected assets are present for the host triple.
+    Update,
     /// Run a plugin from `~/.objectiveai/plugins/`. First element is
     /// the plugin name; the rest are forwarded as the plugin's argv.
     /// Captured via clap's external-subcommand mechanism — any first
@@ -182,12 +198,14 @@ impl Commands {
             Commands::Swarms { command } => command.handle(cli_config, handle).await,
             Commands::Functions { command } => command.handle(cli_config, handle).await,
             Commands::Viewer { command } => command.handle(cli_config, handle).await,
+            Commands::Mcp { command } => command.handle(cli_config, handle).await,
             Commands::Schemas { command } => command.handle(handle).await,
             Commands::Laboratories { command } => command.handle(cli_config, handle).await,
             Commands::Vector { command } => command.handle(cli_config, handle).await,
             Commands::Logs { command } => command.handle(cli_config, handle).await,
             Commands::Instructions { command } => command.handle(cli_config, handle).await,
             Commands::Plugins { command } => command.handle(cli_config, handle).await,
+            Commands::Update => crate::updater::run_update(cli_config, handle).await,
             Commands::External(args) => crate::plugins::dispatch_external(args, cli_config, handle).await,
         }
     }
@@ -247,7 +265,7 @@ where
             // stderr-mirror double-print (handle.rs emits fatal errors
             // to both stdout AND stderr so they survive stdout
             // capture), which is wrong for help output.
-            Output::<String>::Notification(Notification {
+            Output::<String>::Notification(Notification { agent_id: None,
                 value: e.to_string(),
             })
             .emit(&handle)
@@ -259,6 +277,7 @@ where
                 level: Level::Error,
                 fatal: true,
                 message: e.to_string().into(),
+                agent_id: None,
             };
             Output::<serde_json::Value>::Error(err).emit(&handle).await;
             1

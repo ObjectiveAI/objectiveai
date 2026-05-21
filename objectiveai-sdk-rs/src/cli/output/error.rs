@@ -16,6 +16,12 @@ pub struct Error {
     pub level: Level,
     pub fatal: bool,
     pub message: serde_json::Value,
+    /// Stamped at emit time by [`super::Handle`] when its `agent_id`
+    /// field is set; producers leave this `None` and let the handle
+    /// fill it. Serde-skipped when `None`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub agent_id: Option<String>,
 }
 
 /// Severity matching the conventions used by bunyan / pino / `log` crate

@@ -38,6 +38,18 @@
         "$ref": "agent.completions.response.unary.Message"
       }
     },
+    "messages_queued": {
+      "description": "`true` when the MCP proxy holds queued messages that were not\ndelivered to the agent via a tool response on this turn. See\n[`super::streaming::AgentCompletionChunk::messages_queued`].",
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "object": {
       "description": "The object type (always \"agent.completion\").",
       "$ref": "agent.completions.response.unary.Object"

@@ -32,70 +32,49 @@ pub fn generate_viewer_secret_signature_pair() -> ViewerSecretSignaturePair {
     ViewerSecretSignaturePair { secret, signature }
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "filesystem.config.ViewerMode")]
-#[serde(rename_all = "snake_case")]
-pub enum ViewerMode {
-    Remote,
-    #[default]
-    Local,
-}
-
 #[derive(Debug, Clone, Default, Serialize, Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "filesystem.config.ViewerConfig")]
 pub struct ViewerConfig {
-    #[serde(default)]
-    pub mode: ViewerMode,
-    #[serde(skip_serializing_if = "ViewerLocalConfig::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub local: Option<ViewerLocalConfig>,
-}
-
-impl ViewerConfig {
-    pub fn is_empty(&self) -> bool {
-        matches!(self.mode, ViewerMode::Local)
-            && self.local.as_ref().is_none_or(|cfg| cfg.is_empty())
-    }
-
-    pub fn is_none(this: &Option<Self>) -> bool {
-        this.as_ref().is_none_or(|cfg| cfg.is_empty())
-    }
-
-    pub fn local(&mut self) -> &mut ViewerLocalConfig {
-        self.local.get_or_insert_with(ViewerLocalConfig::default)
-    }
-
-    pub fn get_mode(&self) -> ViewerMode {
-        self.mode
-    }
-
-    pub fn set_mode(&mut self, mode: ViewerMode) {
-        self.mode = mode;
-    }
-
-    pub fn jq(&self, filter: &str) -> Result<Vec<serde_json::Value>, super::super::Error> {
-        super::super::run_jq(self, filter)
-    }
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "filesystem.config.ViewerLocalConfig")]
-pub struct ViewerLocalConfig {
-    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub port: Option<u16>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub secret: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub signature: Option<String>,
 }
 
-impl ViewerLocalConfig {
+impl ViewerConfig {
     pub fn is_empty(&self) -> bool {
-        self.secret.is_none() && self.signature.is_none()
+        self.address.is_none()
+            && self.port.is_none()
+            && self.secret.is_none()
+            && self.signature.is_none()
     }
 
     pub fn is_none(this: &Option<Self>) -> bool {
         this.as_ref().is_none_or(|cfg| cfg.is_empty())
+    }
+
+    pub fn get_address(&self) -> Option<&str> {
+        self.address.as_deref()
+    }
+
+    pub fn set_address(&mut self, value: impl Into<String>) {
+        self.address = Some(value.into());
+    }
+
+    pub fn get_port(&self) -> Option<u16> {
+        self.port
+    }
+
+    pub fn set_port(&mut self, value: u16) {
+        self.port = Some(value);
     }
 
     pub fn get_secret(&self) -> Option<&str> {

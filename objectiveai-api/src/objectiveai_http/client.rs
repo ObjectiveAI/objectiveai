@@ -108,6 +108,7 @@ impl Client {
                 .or_else(|| self.x_commit_author_name.clone()),
             x_commit_author_email: ctx_commit_author_email
                 .or_else(|| self.x_commit_author_email.clone()),
+            agent_id: ctx.agent_id().map(|s| Arc::new(s.to_string())),
         }
     }
 }

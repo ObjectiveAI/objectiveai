@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from objectiveai_sdk.filesystem.config.agents_config import AgentsConfig
 from objectiveai_sdk.filesystem.config.api_config import ApiConfig
 from objectiveai_sdk.filesystem.config.functions_config import FunctionsConfig
+from objectiveai_sdk.filesystem.config.mcp_config import McpConfig
 from objectiveai_sdk.filesystem.config.swarms_config import SwarmsConfig
 from objectiveai_sdk.filesystem.config.viewer_config import ViewerConfig
 
@@ -16,6 +17,7 @@ class Config(BaseModel):
     agents: Optional[AgentsConfig] = Field(None, json_schema_extra={'omitempty': True})
     api: Optional[ApiConfig] = Field(None, json_schema_extra={'omitempty': True})
     functions: Optional[FunctionsConfig] = Field(None, json_schema_extra={'omitempty': True})
+    mcp: Optional[McpConfig] = Field(None, json_schema_extra={'omitempty': True})
     swarms: Optional[SwarmsConfig] = Field(None, json_schema_extra={'omitempty': True})
     viewer: Optional[ViewerConfig] = Field(None, json_schema_extra={'omitempty': True})
 

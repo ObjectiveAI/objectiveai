@@ -32,6 +32,15 @@ pub struct AgentCompletionChunk {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub continuation: Option<String>,
+    /// `true` when the MCP proxy holds queued messages that were not
+    /// delivered to the agent via a tool response on this turn. Only
+    /// set when `continuation` is also set — the caller acts on it by
+    /// issuing the continuation. Absent when nothing is queued, when
+    /// there is no continuation to act on, or when the peek failed
+    /// (the failure is surfaced via `error`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub messages_queued: Option<bool>,
 }
 
 impl AgentCompletionChunk {
@@ -41,7 +50,7 @@ impl AgentCompletionChunk {
     pub fn push(
         &mut self,
         AgentCompletionChunk {
-            messages, usage, error, continuation, ..
+            messages, usage, error, continuation, messages_queued, ..
         }: &AgentCompletionChunk,
     ) {
         self.push_messages(messages);
@@ -59,6 +68,9 @@ impl AgentCompletionChunk {
         }
         if let Some(continuation) = continuation {
             self.continuation = Some(continuation.clone());
+        }
+        if let Some(mq) = messages_queued {
+            self.messages_queued = Some(*mq);
         }
     }
 
@@ -95,6 +107,7 @@ impl AgentCompletionChunk {
             upstream: self.upstream,
             error: self.error.clone(),
             continuation: Some(String::new()),
+            messages_queued: self.messages_queued,
         };
         let mut root = serde_json::to_value(&shell).unwrap();
         root["messages"] = serde_json::Value::Array(message_refs);

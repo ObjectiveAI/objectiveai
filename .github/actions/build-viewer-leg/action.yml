@@ -9,7 +9,7 @@ inputs:
     description: Name of the mcp-filesystem artifact uploaded by this leg's paired mcp-fs job.
     required: true
   asset:
-    description: Filename of the released asset (e.g. objectiveai-viewer-linux-x86_64).
+    description: Filename of the released asset (e.g. objectiveai-linux-x86_64-viewer).
     required: true
   src_name:
     description: Filename of the built binary inside ~/.objectiveai/ (objectiveai-viewer or objectiveai-viewer.exe).

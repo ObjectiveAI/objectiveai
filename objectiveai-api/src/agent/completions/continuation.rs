@@ -5,18 +5,26 @@ pub enum Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK> {
     Openrouter {
         items: Vec<ContinuationItem<OPENROUTER>>,
         mcp_connection: Option<mcp::Connection>,
+        /// Per-(parent_agent_id, this_agent_id) index allocated when this
+        /// agent run was first opened. Reused across continuation turns
+        /// so the composite X-OBJECTIVEAI-AGENT-ID stays stable for the
+        /// life of a single agent invocation.
+        agent_index: u64,
     },
     ClaudeAgentSdk {
         items: Vec<ContinuationItem<CLAUDEAGENTSDK>>,
         mcp_connection: Option<mcp::Connection>,
+        agent_index: u64,
     },
     CodexSdk {
         items: Vec<ContinuationItem<CODEXSDK>>,
         mcp_connection: Option<mcp::Connection>,
+        agent_index: u64,
     },
     Mock {
         items: Vec<ContinuationItem<MOCK>>,
         mcp_connection: Option<mcp::Connection>,
+        agent_index: u64,
     },
 }
 
@@ -58,6 +66,17 @@ impl<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>
             | Self::ClaudeAgentSdk { mcp_connection, .. }
             | Self::CodexSdk { mcp_connection, .. }
             | Self::Mock { mcp_connection, .. } => mcp_connection.as_ref(),
+        }
+    }
+
+    /// Per-`(parent_agent_id, this_agent_id)` index assigned when this
+    /// run started. See the corresponding doc on the enum variants.
+    pub fn agent_index(&self) -> u64 {
+        match self {
+            Self::Openrouter { agent_index, .. }
+            | Self::ClaudeAgentSdk { agent_index, .. }
+            | Self::CodexSdk { agent_index, .. }
+            | Self::Mock { agent_index, .. } => *agent_index,
         }
     }
 }

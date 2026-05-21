@@ -7,6 +7,7 @@ pub mod cli;
 pub mod error;
 pub mod filesystem;
 pub mod functions;
+pub mod http;
 pub mod laboratories;
 pub mod mcp;
 pub mod swarm;
@@ -56,6 +57,11 @@ pub enum Commands {
     Functions {
         #[command(subcommand)]
         command: functions::Commands,
+    },
+    #[command(name = "http")]
+    Http {
+        #[command(subcommand)]
+        command: http::Commands,
     },
     #[command(name = "laboratories")]
     Laboratories {
@@ -112,9 +118,10 @@ impl Commands {
     pub async fn handle(self, handle: &objectiveai_sdk::cli::output::Handle) -> Result<(), crate::error::Error> {
         match self {
             Commands::List => {
-                const NAMES: &[&str] = &["agent", "auth", "cli", "error", "filesystem", "functions", "laboratories", "mcp", "swarm", "vector", "viewer", "PrefixedUuid", "Remote", "RemotePath", "RemotePathCommitOptional", "Weights", "WeightsEntry"];
+                const NAMES: &[&str] = &["agent", "auth", "cli", "error", "filesystem", "functions", "http", "laboratories", "mcp", "swarm", "vector", "viewer", "PrefixedUuid", "Remote", "RemotePath", "RemotePathCommitOptional", "Weights", "WeightsEntry"];
                 objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Schemas>::Notification(
                     objectiveai_sdk::cli::output::Notification {
+                        agent_id: None,
                         value: objectiveai_sdk::cli::output::Schemas {
                             schemas: NAMES.iter().map(|s| s.to_string()).collect(),
                         },
@@ -128,6 +135,7 @@ impl Commands {
             Commands::Error { command } => command.handle(handle).await,
             Commands::Filesystem { command } => command.handle(handle).await,
             Commands::Functions { command } => command.handle(handle).await,
+            Commands::Http { command } => command.handle(handle).await,
             Commands::Laboratories { command } => command.handle(handle).await,
             Commands::Mcp { command } => command.handle(handle).await,
             Commands::Swarm { command } => command.handle(handle).await,
@@ -139,6 +147,7 @@ impl Commands {
                 ).expect("embedded JSON Schema must parse");
                 objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Schema>::Notification(
                     objectiveai_sdk::cli::output::Notification {
+                        agent_id: None,
                         value: objectiveai_sdk::cli::output::Schema { schema },
                     },
                 ).emit(handle).await;
@@ -150,6 +159,7 @@ impl Commands {
                 ).expect("embedded JSON Schema must parse");
                 objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Schema>::Notification(
                     objectiveai_sdk::cli::output::Notification {
+                        agent_id: None,
                         value: objectiveai_sdk::cli::output::Schema { schema },
                     },
                 ).emit(handle).await;
@@ -161,6 +171,7 @@ impl Commands {
                 ).expect("embedded JSON Schema must parse");
                 objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Schema>::Notification(
                     objectiveai_sdk::cli::output::Notification {
+                        agent_id: None,
                         value: objectiveai_sdk::cli::output::Schema { schema },
                     },
                 ).emit(handle).await;
@@ -172,6 +183,7 @@ impl Commands {
                 ).expect("embedded JSON Schema must parse");
                 objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Schema>::Notification(
                     objectiveai_sdk::cli::output::Notification {
+                        agent_id: None,
                         value: objectiveai_sdk::cli::output::Schema { schema },
                     },
                 ).emit(handle).await;
@@ -183,6 +195,7 @@ impl Commands {
                 ).expect("embedded JSON Schema must parse");
                 objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Schema>::Notification(
                     objectiveai_sdk::cli::output::Notification {
+                        agent_id: None,
                         value: objectiveai_sdk::cli::output::Schema { schema },
                     },
                 ).emit(handle).await;
@@ -194,6 +207,7 @@ impl Commands {
                 ).expect("embedded JSON Schema must parse");
                 objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Schema>::Notification(
                     objectiveai_sdk::cli::output::Notification {
+                        agent_id: None,
                         value: objectiveai_sdk::cli::output::Schema { schema },
                     },
                 ).emit(handle).await;

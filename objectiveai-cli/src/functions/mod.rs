@@ -82,12 +82,12 @@ impl Commands {
                 let handle = handle.clone();
                 crate::api::run(|http_client| async move {
                     let response = objectiveai_sdk::functions::get_function(&http_client, path).await?;
-                    objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Function>::Notification(objectiveai_sdk::cli::output::Notification { value: 
+                    objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Function>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: 
                         objectiveai_sdk::cli::output::Function { function: response },
                      })
                     .emit(&handle).await;
                     Ok(())
-                }, false).await
+                }).await
             }
             Commands::List { source } => {
                 use objectiveai_sdk::functions::request::ListFunctionsSource;
@@ -120,7 +120,7 @@ impl Commands {
                 let sha = objectiveai_sdk::filesystem::publish::publish_function(
                     &fs_client, &repository, &function, &msg, overwrite,
                 ).await?;
-                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Published>::Notification(objectiveai_sdk::cli::output::Notification { value: 
+                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Published>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: 
                     objectiveai_sdk::cli::output::Published { sha },
                  })
                 .emit(handle).await;

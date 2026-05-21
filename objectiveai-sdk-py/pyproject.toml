@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "objectiveai-sdk"
-version = "2.0.8"
+version = "2.0.10"
 description = "ObjectiveAI SDK"
 readme = "README.md"
 license = "MIT"
@@ -43,3 +43,10 @@ manifest-path = "../objectiveai-sdk-rs-pyo3/Cargo.toml"
 python-source = "."
 module-name = "objectiveai_sdk._pyo3"
 features = ["pyo3/extension-module"]
+
+[tool.pytest.ini_options]
+# importlib mode prevents pytest from prepending each test subdirectory
+# to sys.path as a top-level package. Without this, `tests/http/__init__.py`
+# would shadow the stdlib `http` package, breaking any test fixture whose
+# transitive imports pull `urllib.request` -> `http.client`.
+addopts = "--import-mode=importlib"

@@ -6,23 +6,13 @@
 # - Adds ~/.objectiveai to PATH if not already present
 #
 # Usage:
-#   bash objectiveai-cli/install.sh [--no-viewer]
-#
-#   --no-viewer  Build without the embedded Tauri viewer
+#   bash objectiveai-cli/install.sh
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 INSTALL_DIR="$HOME/.objectiveai"
-
-# Parse args
-NO_VIEWER=0
-for arg in "$@"; do
-  case "$arg" in
-    --no-viewer) NO_VIEWER=1 ;;
-  esac
-done
 
 # Detect platform
 case "$(uname -s)" in
@@ -57,32 +47,13 @@ fi
 
 compute_fingerprint() {
   {
-    # Bake build flags into fingerprint so variants don't collide
-    echo "NO_VIEWER=$NO_VIEWER"
-
     # objectiveai-cli sources
     find "$SCRIPT_DIR/src" -type f -name '*.rs' | sort
     echo "$SCRIPT_DIR/Cargo.toml"
 
-    # objectiveai-rs (core SDK)
-    find "$REPO_ROOT/objectiveai-rs/src" -type f -name '*.rs' | sort
-    echo "$REPO_ROOT/objectiveai-rs/Cargo.toml"
-
-    # objectiveai-api (library dep)
-    find "$REPO_ROOT/objectiveai-api/src" -type f -name '*.rs' | sort
-    echo "$REPO_ROOT/objectiveai-api/Cargo.toml"
-
-    # Claude Agent SDK runner (Python — only variant)
-    echo "$REPO_ROOT/objectiveai-claude-agent-sdk-runner/main.py"
-    echo "$REPO_ROOT/objectiveai-claude-agent-sdk-runner/requirements.txt"
-
-    # objectiveai-viewer (embedded binary, unless --no-viewer)
-    if [ "$NO_VIEWER" = "0" ]; then
-      find "$REPO_ROOT/objectiveai-viewer/src-tauri/src" -type f -name '*.rs' | sort
-      echo "$REPO_ROOT/objectiveai-viewer/src-tauri/Cargo.toml"
-      echo "$REPO_ROOT/objectiveai-viewer/src-tauri/tauri.conf.json"
-      find "$REPO_ROOT/objectiveai-viewer/dist" -type f 2>/dev/null | sort
-    fi
+    # objectiveai-sdk-rs (core SDK)
+    find "$REPO_ROOT/objectiveai-sdk-rs/src" -type f -name '*.rs' | sort
+    echo "$REPO_ROOT/objectiveai-sdk-rs/Cargo.toml"
 
     # Shared lockfile
     echo "$REPO_ROOT/Cargo.lock"
@@ -111,47 +82,10 @@ if [ -f "$FINGERPRINT_FILE" ]; then
   fi
 fi
 
-# ── Build embedded binaries ────────────────────────────────────────────
-# The CLI embeds viewer (via build.rs), and objectiveai-api embeds
-# mcp (linux-musl), the claude-agent-sdk-runner, and the codex-sdk-runner.
-
-echo "Building embedded dependencies..."
-
-# claude-agent-sdk-runner (native target, Python)
-bash "$REPO_ROOT/objectiveai-claude-agent-sdk-runner/build.sh" --release
-
-# codex-sdk-runner (native target, Python)
-bash "$REPO_ROOT/objectiveai-codex-sdk-runner/build.sh" --release
-
-# mcp-filesystem (linux-musl, Docker container injection) — embedded by
-# objectiveai-api with orchestrator-bollard. Match the host architecture
-# (ARM hosts embed aarch64, x86_64 hosts embed x86_64) and always target
-# linux-musl. Normalize macOS's `arm64` to Rust's `aarch64` triple.
-# mcp-proxy is NOT built here — objectiveai-api consumes it in-process
-# as a regular cargo path dep, so its build is folded into the api's
-# cargo build that runs as part of the CLI compile below.
-MCP_ARCH=$(uname -m)
-case "$MCP_ARCH" in
-  arm64) MCP_ARCH=aarch64 ;;
-esac
-bash "$REPO_ROOT/objectiveai-mcp-filesystem/build.sh" --target "$MCP_ARCH-unknown-linux-musl" --release
-
-# viewer (native target, unless --no-viewer)
-if [ "$NO_VIEWER" = "0" ]; then
-  bash "$REPO_ROOT/objectiveai-viewer/build.sh" --release
-fi
-
 # ── Build CLI ──────────────────────────────────────────────────────────
 
-# Assemble feature list
-FEATURES="rustpython,systempython,updater"
-if [ "$NO_VIEWER" = "0" ]; then
-  FEATURES="$FEATURES,viewer"
-fi
-
-echo "Building objectiveai-cli (release, features: $FEATURES)..."
-cargo build --release -p objectiveai-cli --no-default-features \
-  --features "$FEATURES" \
+echo "Building objectiveai-cli (release)..."
+cargo build --release -p objectiveai-cli \
   --manifest-path "$REPO_ROOT/Cargo.toml"
 
 SRC="$REPO_ROOT/target/release/$SRC_NAME"
@@ -180,11 +114,15 @@ write_env_file() {
 #!/bin/sh
 # objectiveai shell setup. Source this file from your shell rc, or run
 #   . "$HOME/.objectiveai/env"
-# to put `objectiveai` on PATH for the current shell.
+# to put the objectiveai binaries on PATH for the current shell.
 
 case ":${PATH}:" in
     *:"$HOME/.objectiveai":*) ;;
     *) export PATH="$HOME/.objectiveai:$PATH" ;;
+esac
+case ":${PATH}:" in
+    *:"$HOME/.objectiveai/bin":*) ;;
+    *) export PATH="$HOME/.objectiveai/bin:$PATH" ;;
 esac
 EOF
 }
@@ -206,13 +144,21 @@ write_env_file
 case "$PLATFORM" in
   windows)
     INSTALL_DIR_WIN="$(cygpath -w "$INSTALL_DIR")"
+    BIN_DIR_WIN="$(cygpath -w "$INSTALL_DIR/bin")"
     CURRENT_PATH=$(powershell.exe -NoProfile -Command "[Environment]::GetEnvironmentVariable('Path', 'User')" 2>/dev/null | tr -d '\r')
-    if echo "$CURRENT_PATH" | grep -qiF '.objectiveai'; then
-      echo "PATH already contains $INSTALL_DIR_WIN"
-    else
+    NEED_PREPEND=""
+    if ! echo "$CURRENT_PATH" | grep -qiF "$INSTALL_DIR_WIN"; then
+      NEED_PREPEND="$INSTALL_DIR_WIN;"
+    fi
+    if ! echo "$CURRENT_PATH" | grep -qiF "$BIN_DIR_WIN"; then
+      NEED_PREPEND="$NEED_PREPEND$BIN_DIR_WIN;"
+    fi
+    if [ -n "$NEED_PREPEND" ]; then
       powershell.exe -NoProfile -Command \
-        "[Environment]::SetEnvironmentVariable('Path', '$INSTALL_DIR_WIN;' + [Environment]::GetEnvironmentVariable('Path', 'User'), 'User')" 2>/dev/null
-      echo "Added $INSTALL_DIR_WIN to user PATH (restart cmd/PowerShell to use it)."
+        "[Environment]::SetEnvironmentVariable('Path', '$NEED_PREPEND' + [Environment]::GetEnvironmentVariable('Path', 'User'), 'User')" 2>/dev/null
+      echo "Added $NEED_PREPEND to user PATH (restart cmd/PowerShell to use it)."
+    else
+      echo "PATH already contains $INSTALL_DIR_WIN and $BIN_DIR_WIN"
     fi
     # Also wire up Git Bash / MSYS via the env file.
     if [ -f "$HOME/.bashrc" ]; then

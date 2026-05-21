@@ -20,6 +20,12 @@ pub struct AgentCompletion {
     pub error: Option<crate::error::ResponseError>,
     /// Continuation state for multi-turn conversations.
     pub continuation: Option<String>,
+    /// `true` when the MCP proxy holds queued messages that were not
+    /// delivered to the agent via a tool response on this turn. See
+    /// [`super::streaming::AgentCompletionChunk::messages_queued`].
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub messages_queued: Option<bool>,
 }
 
 impl AgentCompletion {
@@ -72,6 +78,7 @@ impl From<response::streaming::AgentCompletionChunk> for AgentCompletion {
             upstream,
             error,
             continuation,
+            messages_queued,
         }: response::streaming::AgentCompletionChunk,
     ) -> Self {
         Self {
@@ -83,6 +90,7 @@ impl From<response::streaming::AgentCompletionChunk> for AgentCompletion {
             upstream,
             error,
             continuation,
+            messages_queued,
         }
     }
 }

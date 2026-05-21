@@ -852,6 +852,18 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 }
             }),
         )
+        // Agent Completions - notify
+        .route(
+            "/agent/completions/notify",
+            axum::routing::post({
+                let agent_completions_client = agent_completions_client.clone();
+                move |Json(body): Json<
+                    objectiveai_sdk::agent::completions::request::AgentCompletionNotifyParams,
+                >| {
+                    notify_agent_completion(agent_completions_client, body)
+                }
+            }),
+        )
         // Vector Completions - create
         .route(
             "/vector/completions",
@@ -1478,6 +1490,57 @@ async fn create_agent_completion(
             Ok(r) => Json(r).into_response(),
             Err(e) => ResponseError::from(&e).into_response(),
         }
+    }
+}
+
+async fn notify_agent_completion(
+    client: Arc<
+        agent::completions::Client<
+            ctx::DefaultContextExt,
+            impl agent::completions::UpstreamClient<
+                objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::agent::openrouter::Continuation,
+            > + Send
+            + Sync
+            + 'static,
+            impl agent::completions::UpstreamClient<
+                objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation,
+            > + Send
+            + Sync
+            + 'static,
+            impl agent::completions::UpstreamClient<
+                objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation,
+            > + Send
+            + Sync
+            + 'static,
+            impl agent::completions::UpstreamClient<
+                objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
+            > + Send
+            + Sync
+            + 'static,
+            impl retrieval::retrieve::Client<ctx::DefaultContextExt>
+            + Send
+            + Sync
+            + 'static,
+            impl retrieval::retrieve::Client<ctx::DefaultContextExt>
+            + Send
+            + Sync
+            + 'static,
+            impl retrieval::retrieve::Client<ctx::DefaultContextExt>
+            + Send
+            + Sync
+            + 'static,
+            impl agent::completions::usage_handler::UsageHandler<
+                ctx::DefaultContextExt,
+            > + Send
+            + Sync
+            + 'static,
+        >,
+    >,
+    body: objectiveai_sdk::agent::completions::request::AgentCompletionNotifyParams,
+) -> axum::response::Response {
+    match client.notify(body).await {
+        Ok(()) => axum::http::StatusCode::OK.into_response(),
+        Err(e) => ResponseError::from(&e).into_response(),
     }
 }
 

@@ -2,10 +2,10 @@
   "title": "filesystem.config.ViewerConfig",
   "type": "object",
   "properties": {
-    "local": {
+    "address": {
       "anyOf": [
         {
-          "$ref": "filesystem.config.ViewerLocalConfig"
+          "type": "string"
         },
         {
           "type": "null"
@@ -13,9 +13,40 @@
       ],
       "omitempty": true
     },
-    "mode": {
-      "$ref": "filesystem.config.ViewerMode",
-      "default": "local"
+    "port": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "secret": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "signature": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
     }
   }
 }

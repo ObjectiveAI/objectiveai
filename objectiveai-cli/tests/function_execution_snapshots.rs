@@ -19,6 +19,10 @@ macro_rules! snapshot_test {
     ($name:ident, $snapshot:expr, $function:expr, $profile:expr, $seed:expr, $input:tt) => {
         #[test]
         fn $name() {
+            if cli_test_util::test_api_address().is_none() {
+                eprintln!("OBJECTIVEAI_TEST_PORT not set — skipping {}", stringify!($name));
+                return;
+            }
             let input = serde_json::to_string(&serde_json::json!($input)).unwrap();
             let seed_str = $seed.to_string();
 
@@ -93,6 +97,10 @@ snapshot_test!(
 /// top_logprobs=6, equal weights), same input file, same seed.
 #[test]
 fn split_tweet_scorer_10_tweets_seed_42() {
+    if cli_test_util::test_api_address().is_none() {
+        eprintln!("OBJECTIVEAI_TEST_PORT not set — skipping split_tweet_scorer_10_tweets_seed_42");
+        return;
+    }
     let snapshots = snapshots_dir();
     let input_path = snapshots.join("inputs/10_tweets.json");
     let input = std::fs::read_to_string(&input_path)

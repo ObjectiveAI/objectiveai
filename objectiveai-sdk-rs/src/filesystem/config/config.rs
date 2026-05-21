@@ -18,6 +18,9 @@ pub struct Config {
     #[serde(skip_serializing_if = "super::ViewerConfig::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub viewer: Option<super::ViewerConfig>,
+    #[serde(skip_serializing_if = "super::McpConfig::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub mcp: Option<super::McpConfig>,
 }
 
 impl Config {
@@ -39,6 +42,10 @@ impl Config {
 
     pub fn viewer(&mut self) -> &mut super::ViewerConfig {
         self.viewer.get_or_insert_with(super::ViewerConfig::default)
+    }
+
+    pub fn mcp(&mut self) -> &mut super::McpConfig {
+        self.mcp.get_or_insert_with(super::McpConfig::default)
     }
 
     pub fn jq(&self, filter: &str) -> Result<Vec<serde_json::Value>, super::super::Error> {

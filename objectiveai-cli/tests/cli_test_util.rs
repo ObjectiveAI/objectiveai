@@ -4,6 +4,31 @@ use std::sync::{Once, OnceLock};
 
 static BUILD_ONCE: Once = Once::new();
 
+/// Reads `OBJECTIVEAI_TEST_PORT` and returns `http://127.0.0.1:<port>`.
+/// `None` when the env var isn't set — used by the snapshot tests as a
+/// skip-gate so `cargo test -p objectiveai-cli` from a fresh shell
+/// (no shared api server running) doesn't spuriously fail with connect
+/// errors against the upstream URL.
+pub fn test_api_address() -> Option<String> {
+    let port = std::env::var("OBJECTIVEAI_TEST_PORT").ok()?;
+    Some(format!("http://127.0.0.1:{port}"))
+}
+
+/// Build a `Command` for the cli binary with `CONFIG_BASE_DIR` set to
+/// the per-test scratch dir and, when `OBJECTIVEAI_TEST_PORT` is set,
+/// `OBJECTIVEAI_ADDRESS` pointing at the local test server. Every cli
+/// invocation in the test suite must go through this helper so the
+/// env plumbing stays consistent.
+pub fn cli_command(args: &[&str]) -> Command {
+    let mut cmd = Command::new(cli_binary());
+    cmd.env("CONFIG_BASE_DIR", tests_dir());
+    if let Some(addr) = test_api_address() {
+        cmd.env("OBJECTIVEAI_ADDRESS", addr);
+    }
+    cmd.args(args);
+    cmd
+}
+
 /// Issue an Instructions ID for the given scope (e.g. "agents", "functions",
 /// "functions-inventions-recursive") via the corresponding `instructions get`
 /// command. The CLI now requires `--instructions-id <ID>` on every `create`
@@ -12,11 +37,9 @@ static BUILD_ONCE: Once = Once::new();
 pub fn instructions_id(scope: InstructionsScope) -> &'static String {
     let cell = scope.cell();
     cell.get_or_init(|| {
-        let mut cmd = Command::new(cli_binary());
-        cmd.env("CONFIG_BASE_DIR", tests_dir());
-        cmd.args(scope.get_args());
-
-        let output = cmd.output().expect("failed to execute CLI binary");
+        let output = cli_command(scope.get_args())
+            .output()
+            .expect("failed to execute CLI binary");
         if !output.status.success() {
             let stdout = String::from_utf8_lossy(&output.stdout);
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -153,11 +176,9 @@ pub fn rounded(value: &serde_json::Value) -> serde_json::Value {
 /// `<payload>` line, so we skip control markers and `log_stream_ready`
 /// stubs and return the last remaining notification's value.
 pub fn run_cli(args: &[&str]) -> serde_json::Value {
-    let mut cmd = Command::new(cli_binary());
-    cmd.env("CONFIG_BASE_DIR", tests_dir());
-    cmd.args(args);
-
-    let output = cmd.output().expect("failed to execute CLI binary");
+    let output = cli_command(args)
+        .output()
+        .expect("failed to execute CLI binary");
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
 

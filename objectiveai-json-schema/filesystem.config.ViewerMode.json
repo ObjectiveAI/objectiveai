@@ -1,8 +1,0 @@
-{
-  "title": "filesystem.config.ViewerMode",
-  "type": "string",
-  "enum": [
-    "remote",
-    "local"
-  ]
-}

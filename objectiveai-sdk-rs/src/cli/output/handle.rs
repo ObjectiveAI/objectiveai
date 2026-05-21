@@ -1,15 +1,22 @@
 //! Destinations for [`super::Output::emit`].
 //!
-//! - [`Handle::Stdout`] — this process's stdout (with fatal-error
-//!   mirror to stderr).
-//! - [`Handle::Stdin`] — a child process's stdin, for programmatic
-//!   embedders that spawn a subprocess to consume the cli's output.
-//! - [`Handle::Collect`] — an in-memory shared `Vec`, for tests or
-//!   in-process embedders that want the events without a subprocess.
-//! - [`Handle::Stream`] — push each emitted output through an mpsc
-//!   channel. Used by hosts that embed the cli in-process and want
-//!   each [`Output`] line as a typed value (e.g. the viewer bridging
-//!   cli output into Tauri events).
+//! - [`HandleDestination::Stdout`] — this process's stdout (with
+//!   fatal-error mirror to stderr).
+//! - [`HandleDestination::Stdin`] — a child process's stdin, for
+//!   programmatic embedders that spawn a subprocess to consume the
+//!   cli's output.
+//! - [`HandleDestination::Collect`] — an in-memory shared `Vec`, for
+//!   tests or in-process embedders that want the events without a
+//!   subprocess.
+//! - [`HandleDestination::Stream`] — push each emitted output through
+//!   an mpsc channel. Used by hosts that embed the cli in-process and
+//!   want each [`Output`] line as a typed value (e.g. the viewer
+//!   bridging cli output into Tauri events).
+//!
+//! `Handle` is a thin pair of (`destination`, `agent_id`). The cli's
+//! top-level `run()` stamps `agent_id` once at startup; from then on
+//! every emit picks up the same value without any per-call site
+//! threading.
 
 use std::sync::Arc;
 
@@ -27,7 +34,7 @@ use super::{Notification, Output};
 /// (not `std::sync::Mutex`) because we hold the guard across `.await`
 /// boundaries during async writes, which would deadlock with std's.
 #[derive(Clone)]
-pub enum Handle {
+pub enum HandleDestination {
     /// Write each line to this process's stdout; mirror fatal
     /// `Output::Error` lines to stderr.
     Stdout,
@@ -44,28 +51,70 @@ pub enum Handle {
     Stream(mpsc::UnboundedSender<Output<serde_json::Value>>),
 }
 
-impl Default for Handle {
+impl Default for HandleDestination {
     fn default() -> Self {
-        Handle::Stdout
+        HandleDestination::Stdout
+    }
+}
+
+/// Output handle: a destination plus an optional `agent_id` that gets
+/// stamped on every emitted `Notification` and `Error` line.
+///
+/// The `agent_id` field is set once by the cli's `run()` from
+/// `Config.agent_id` (env `OBJECTIVEAI_AGENT_ID`). All emit sites
+/// stay verbatim — `Notification` and `Error` payloads carry their
+/// own `agent_id: Option<String>` field that defaults to `None`, and
+/// `emit` overwrites it with the handle's value before writing.
+#[derive(Clone, Default)]
+pub struct Handle {
+    pub destination: HandleDestination,
+    pub agent_id: Option<String>,
+}
+
+impl From<HandleDestination> for Handle {
+    fn from(destination: HandleDestination) -> Self {
+        Handle { destination, agent_id: None }
     }
 }
 
 impl Handle {
+    /// Sugar for the most common destination — write to this process's
+    /// stdout. Equivalent to `Handle::default()`.
+    pub fn stdout() -> Self {
+        Handle::default()
+    }
+
     /// Emit `output` to this destination. Panics on write failure to
     /// match `println!` semantics.
     pub async fn emit<T: Serialize>(&self, output: &Output<T>) {
-        match self {
-            Handle::Stdout => {
-                let json = serde_json::to_string(output)
-                    .expect("Output<T> serializes when T: Serialize");
+        // Single Value round-trip when we have an agent_id to stamp.
+        // Only `Notification` and `Error` get tagged; `Begin` / `End`
+        // are unit-shaped framing markers and stay as-is.
+        let json = if let Some(id) = self.agent_id.as_deref() {
+            let mut v = serde_json::to_value(output)
+                .expect("Output<T> serializes when T: Serialize");
+            if matches!(output, Output::Notification(_) | Output::Error(_)) {
+                if let Some(obj) = v.as_object_mut() {
+                    obj.insert(
+                        "agent_id".to_string(),
+                        serde_json::Value::String(id.to_string()),
+                    );
+                }
+            }
+            serde_json::to_string(&v)
+                .expect("agent-id-stamped Output<T> reserializes")
+        } else {
+            serde_json::to_string(output)
+                .expect("Output<T> serializes when T: Serialize")
+        };
+        match &self.destination {
+            HandleDestination::Stdout => {
                 println!("{json}");
                 if matches!(output, Output::Error(e) if e.fatal) {
                     eprintln!("{json}");
                 }
             }
-            Handle::Stdin(stdin) => {
-                let json = serde_json::to_string(output)
-                    .expect("Output<T> serializes when T: Serialize");
+            HandleDestination::Stdin(stdin) => {
                 use tokio::io::AsyncWriteExt;
                 let mut guard = stdin.lock().await;
                 guard
@@ -77,29 +126,42 @@ impl Handle {
                     .await
                     .expect("emit to child stdin failed");
             }
-            Handle::Collect(vec) => {
-                vec.lock().await.push(rebuild_as_value(output));
+            HandleDestination::Collect(vec) => {
+                vec.lock().await.push(self.rebuild_as_value(output));
             }
-            Handle::Stream(tx) => {
+            HandleDestination::Stream(tx) => {
                 // Best-effort send: if the receiver dropped (consumer
                 // gone), just drop the message — same semantics as
                 // Stdout where a closed pipe would crash.
-                let _ = tx.send(rebuild_as_value(output));
+                let _ = tx.send(self.rebuild_as_value(output));
             }
         }
     }
-}
 
-/// Rebuild `Output<T>` as `Output<Value>` variant-wise, avoiding a
-/// full serialize→deserialize roundtrip. Used by `Collect` and `Stream`.
-fn rebuild_as_value<T: Serialize>(output: &Output<T>) -> Output<serde_json::Value> {
-    match output {
-        Output::Error(e) => Output::Error(e.clone()),
-        Output::Notification(n) => Output::Notification(Notification {
-            value: serde_json::to_value(&n.value)
-                .expect("T serializes when T: Serialize"),
-        }),
-        Output::Begin => Output::Begin,
-        Output::End => Output::End,
+    /// Rebuild `Output<T>` as `Output<Value>` variant-wise, avoiding a
+    /// full serialize→deserialize roundtrip. Used by `Collect` and
+    /// `Stream`. Picks up the handle's `agent_id` on `Notification`
+    /// and `Error` so in-memory consumers see the same stamped shape
+    /// the wire output carries.
+    fn rebuild_as_value<T: Serialize>(
+        &self,
+        output: &Output<T>,
+    ) -> Output<serde_json::Value> {
+        match output {
+            Output::Error(e) => {
+                let mut e = e.clone();
+                if e.agent_id.is_none() {
+                    e.agent_id = self.agent_id.clone();
+                }
+                Output::Error(e)
+            }
+            Output::Notification(n) => Output::Notification(Notification {
+                value: serde_json::to_value(&n.value)
+                    .expect("T serializes when T: Serialize"),
+                agent_id: n.agent_id.clone().or_else(|| self.agent_id.clone()),
+            }),
+            Output::Begin => Output::Begin,
+            Output::End => Output::End,
+        }
     }
 }

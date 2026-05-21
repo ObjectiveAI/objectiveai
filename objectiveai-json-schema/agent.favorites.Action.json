@@ -1,0 +1,9 @@
+{
+  "title": "agent.favorites.Action",
+  "type": "string",
+  "enum": [
+    "added",
+    "edited",
+    "removed"
+  ]
+}

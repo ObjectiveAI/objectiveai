@@ -186,6 +186,7 @@ impl SDKResultMessage {
             upstream,
             error,
             continuation: None,
+            messages_queued: None,
         }
     }
 }

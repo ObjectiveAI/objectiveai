@@ -16,6 +16,7 @@ export const LaboratoriesExecutionsResponseStreamingEvaluationChunkSchema = z.ob
   id: z.string(),
   index: z.number().int().min(0).max(18446744073709552000).describe("Evaluation index (0-based)."),
   messages: z.array(AgentCompletionsResponseStreamingMessageChunkSchema),
+  messages_queued: z.boolean().nullable().describe("`true` when the MCP proxy holds queued messages that were not\ndelivered to the agent via a tool response on this turn. Only\nset when `continuation` is also set — the caller acts on it by\nissuing the continuation. Absent when nothing is queued, when\nthere is no continuation to act on, or when the peek failed\n(the failure is surfaced via `error`).").meta({ omitempty: true }).optional(),
   object: AgentCompletionsResponseStreamingObjectSchema.describe("The object type (always \"agent.completion.chunk\")."),
   output: FunctionsExpressionInputValueSchema.nullable().meta({ omitempty: true }).optional(),
   upstream: AgentUpstreamSchema.describe("Upstream provider"),

@@ -87,6 +87,7 @@ pub async fn handle(
                                     level: objectiveai_sdk::cli::output::Level::Warn,
                                     fatal: false,
                                     message: serde_json::to_value(&inner).unwrap(),
+                                    agent_id: None,
                                 },
                             )
                             .emit(&handle)
@@ -171,13 +172,12 @@ pub async fn handle(
                 })
                 .collect();
 
-            objectiveai_sdk::cli::output::Output::<Laboratory>::Notification(objectiveai_sdk::cli::output::Notification { value: 
+            objectiveai_sdk::cli::output::Output::<Laboratory>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: 
                 Laboratory { laboratory: results },
              })
             .emit(&handle).await;
             Ok(())
         })),
-        true,
     )
     .await
 }

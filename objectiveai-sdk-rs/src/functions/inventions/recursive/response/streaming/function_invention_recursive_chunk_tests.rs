@@ -16,6 +16,7 @@ fn agent_completion_wrapper(
             upstream: crate::agent::Upstream::Openrouter,
             error,
             continuation: None,
+            messages_queued: None,
         },
     }
 }

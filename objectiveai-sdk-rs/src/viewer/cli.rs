@@ -12,7 +12,7 @@
 use tokio::sync::mpsc;
 
 use super::{Event, EventSender};
-use crate::cli::output::Handle;
+use crate::cli::output::{Handle, HandleDestination};
 
 /// Returns a [`Handle::Stream`] that forwards every emitted cli
 /// `Output<Value>` line onto `events_tx` as
@@ -30,7 +30,7 @@ use crate::cli::output::Handle;
 /// `unwrap_or(Value::Null)` is defensive only.
 pub fn cli_event_sink(events_tx: EventSender, destination: String) -> Handle {
     let (tx, mut rx) = mpsc::unbounded_channel();
-    let handle = Handle::Stream(tx);
+    let handle = Handle::from(HandleDestination::Stream(tx));
     tokio::spawn(async move {
         while let Some(output) = rx.recv().await {
             let value = serde_json::to_value(&output).unwrap_or(serde_json::Value::Null);
@@ -60,7 +60,7 @@ mod tests {
         let handle = cli_event_sink(events_tx, "my_plugin".to_string());
 
         Output::<serde_json::Value>::Begin.emit(&handle).await;
-        Output::<serde_json::Value>::Notification(crate::cli::output::Notification {
+        Output::<serde_json::Value>::Notification(crate::cli::output::Notification { agent_id: None,
             value: json!({"x": 1}),
         })
         .emit(&handle)

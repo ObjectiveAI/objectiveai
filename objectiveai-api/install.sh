@@ -59,12 +59,10 @@ bash "$REPO_ROOT/objectiveai-mcp-filesystem/build.sh" --target "$MCP_ARCH-unknow
 
 # ── Build api ──────────────────────────────────────────────────────────
 
-# Fully-featured: orchestrator-bollard + updater are on by default;
-# explicitly opt into sqlite-persistent-cache so the shipped binary
-# supports both in-memory and SQLite-backed caches. Explicit `updater`
-# beats relying on defaults so this script can't accidentally ship a
-# non-self-updating binary if defaults are ever pruned.
-FEATURES="sqlite-persistent-cache,updater"
+# Fully-featured: orchestrator-bollard is on by default; explicitly
+# opt into sqlite-persistent-cache so the shipped binary supports both
+# in-memory and SQLite-backed caches.
+FEATURES="sqlite-persistent-cache"
 
 echo "Building objectiveai-api (release, features: default + $FEATURES)..."
 cargo build --release -p objectiveai-api \
@@ -78,8 +76,11 @@ if [ ! -f "$SRC" ]; then
 fi
 
 # ── Install ────────────────────────────────────────────────────────────
+# api/viewer/mcp land in <base>/bin/ — the cli manages them from there.
+# (The cli itself stays at <base>/objectiveai{.exe}.)
 
-mkdir -p "$INSTALL_DIR"
-cp "$SRC" "$INSTALL_DIR/$DST_NAME"
-chmod +x "$INSTALL_DIR/$DST_NAME"
-echo "Installed $INSTALL_DIR/$DST_NAME"
+BIN_DIR="$INSTALL_DIR/bin"
+mkdir -p "$BIN_DIR"
+cp "$SRC" "$BIN_DIR/$DST_NAME"
+chmod +x "$BIN_DIR/$DST_NAME"
+echo "Installed $BIN_DIR/$DST_NAME"
