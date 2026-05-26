@@ -21,6 +21,8 @@ import { LogoMark, Wordmark } from "./components/shared/Logo";
 import { RightOverlayPanel, type PanelTab } from "./RightOverlayPanel";
 import { useAgentChat } from "./chat/useAgentChat";
 import type { Entry } from "./types";
+import { isTauri } from "./lib/tauri";
+import { mockEntries } from "./mockEntries";
 
 function Tip({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -44,7 +46,8 @@ const KINDS: { kind: Entry["kind"]; label: string; activeClass: string }[] = [
 ];
 
 function ObjectiveAIView() {
-  const liveEntries = useEntries();
+  const realEntries = useEntries();
+  const liveEntries = !isTauri() && realEntries.length === 0 ? mockEntries : realEntries;
   const apiCalls = useApiCalls();
   const session = useSessionStorage(liveEntries, true);
   const [sessionPickerOpen, setSessionPickerOpen] = useState(false);
@@ -84,7 +87,7 @@ function ObjectiveAIView() {
     ? liveEntries
     : (session.restoredEntries ?? liveEntries);
   const { isCollapsed, toggle, collapseAll, expandAll } = useCollapseState(entries);
-  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(!isTauri() ? "ac-complete-001" : null);
   const [activeKinds, setActiveKinds] = useState<Set<Entry["kind"]>>(
     new Set(KINDS.map((k) => k.kind))
   );
