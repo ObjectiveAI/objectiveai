@@ -249,6 +249,8 @@ class ObjectiveAI:
         """Perform a GET request and return an SSE stream."""
         h = self._build_headers(headers)
         h["Accept"] = "text/event-stream"
+        # The API defaults to WS for streaming endpoints; opt into SSE.
+        h["X-Transport"] = "sse"
 
         http = httpx.AsyncClient(timeout=self.timeout)
         response = await http.send(
@@ -277,6 +279,8 @@ class ObjectiveAI:
         """Perform a POST request and return an SSE stream."""
         h = self._build_headers(headers)
         h["Accept"] = "text/event-stream"
+        # The API defaults to WS for streaming endpoints; opt into SSE.
+        h["X-Transport"] = "sse"
 
         http = httpx.AsyncClient(timeout=self.timeout)
         response = await http.send(
@@ -306,6 +310,8 @@ class ObjectiveAI:
         """Perform a DELETE request and return an SSE stream."""
         h = self._build_headers(headers)
         h["Accept"] = "text/event-stream"
+        # The API defaults to WS for streaming endpoints; opt into SSE.
+        h["X-Transport"] = "sse"
 
         http = httpx.AsyncClient(timeout=self.timeout)
         response = await http.send(

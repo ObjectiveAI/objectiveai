@@ -1,4 +1,5 @@
 use crate::functions;
+use crate::agent::completions::response::streaming::AgentCompletionIds;
 use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
 
@@ -10,6 +11,12 @@ pub struct FunctionInventionChunk {
     #[serde(flatten)]
     pub inner:
         functions::inventions::response::streaming::FunctionInventionChunk,
+}
+
+impl AgentCompletionIds for FunctionInventionChunk {
+    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> {
+        self.inner.agent_completion_ids()
+    }
 }
 
 impl FunctionInventionChunk {

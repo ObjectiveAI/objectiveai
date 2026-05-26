@@ -11,6 +11,12 @@ type AgentCodexSdkContinuation struct {
 	MCPSessions OrderedMap[string, string] `json:"mcp_sessions"`
 	ThreadID string `json:"thread_id"`
 	Upstream AgentCodexSdkUpstream `json:"upstream"`
+	// Per-agent reverse-attach session id baked into this agent's
+	// `client_objectiveai_mcp` proxy URL path segment. Persisted
+	// across continuation resumes so the proxy URLs stored in
+	// `mcp_sessions` keep matching the registered WS reverse-attach
+	// route. `None` when this agent never used `client_objectiveai_mcp`.
+	WsSessionID *string `json:"ws_session_id,omitempty"`
 }
 
 func (AgentCodexSdkContinuation) SchemaTitle() string { return "agent.codex_sdk.Continuation" }

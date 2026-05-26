@@ -21,5 +21,8 @@ func (v *VectorCompletionsResponseStreamingAgentCompletionChunk) Push(other *Vec
 	// continuation: replace
 	v.Continuation = pushReplace(v.Continuation, other.Continuation)
 
+	// messages_queued: replace (latest Some() wins)
+	v.MessagesQueued = pushReplace(v.MessagesQueued, other.MessagesQueued)
+
 	// id, created, object, upstream, index are immutable
 }

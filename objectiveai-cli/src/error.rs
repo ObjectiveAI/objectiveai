@@ -42,6 +42,14 @@ pub enum Error {
     PluginRead(std::io::Error),
     #[error("plugin exited with non-zero status: {0}")]
     PluginExit(i32),
+    #[error("tool not found: {0}")]
+    ToolNotFound(String),
+    #[error("failed to spawn tool: {0}")]
+    ToolSpawn(std::io::Error),
+    #[error("failed to read tool output: {0}")]
+    ToolRead(std::io::Error),
+    #[error("tool exited with non-zero status: {0}")]
+    ToolExit(i32),
     #[error("plugin {owner}/{repository} (commit {commit_sha}, version {version}) is not in the install whitelist; pass --allow-untrusted to install anyway")]
     PluginNotWhitelisted {
         owner: String,

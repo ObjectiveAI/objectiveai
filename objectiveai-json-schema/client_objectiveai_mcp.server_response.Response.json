@@ -1,0 +1,29 @@
+{
+  "title": "client_objectiveai_mcp.server_response.Response",
+  "description": "One HTTP response the calling client's `McpHandler` produces in\nreply to a [`super::super::server_request::Request`]. The API\ntranslates this into the HTTP response it returns to the proxy.\n\nWire shape:\n\n```json\n{\"id\":\"…\",\"status\":200,\"headers\":{\"Content-Type\":\"application/json\"},\"body\":{…}}\n```",
+  "type": "object",
+  "properties": {
+    "body": {
+      "description": "Response body — the JSON-RPC reply envelope. `None` for empty\nresponses (e.g. `202 Accepted` on notifications).",
+      "omitempty": true
+    },
+    "headers": {
+      "description": "Response headers. Typically just `Content-Type` and possibly\n`Mcp-Session-Id` on the `initialize` response.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "omitempty": true
+    },
+    "id": {
+      "description": "Matches the `id` of the\n[`super::super::server_request::Request`] this response is for.",
+      "type": "string"
+    },
+    "status": {
+      "description": "HTTP status code (`200` for success, `4xx` / `5xx` for errors).",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 65535
+    }
+  }
+}

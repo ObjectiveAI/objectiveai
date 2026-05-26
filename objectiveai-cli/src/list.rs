@@ -51,6 +51,7 @@ where
 
 /// Fetches from a single remote source via api::run.
 pub async fn single<F>(
+    cli_config: &crate::Config,
     list_remote: F,
     handle: &Handle,
 ) -> Result<(), crate::error::Error>
@@ -58,7 +59,7 @@ where
     F: FnOnce(objectiveai_sdk::HttpClient) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<objectiveai_sdk::RemotePath>, crate::error::Error>> + Send>> + Send + 'static,
 {
     let handle = handle.clone();
-    crate::api::run(move |http_client| Box::pin(async move {
+    crate::api::run(cli_config, move |http_client| Box::pin(async move {
         let items: Vec<ListItem> = list_remote(http_client).await?
             .into_iter()
             .map(ListItem::Item)
@@ -74,6 +75,7 @@ where
 /// 2. Filesystem items that don't match any favorite
 /// 3. Objectiveai items that don't match any favorite or filesystem item
 pub async fn all<F, Fut, FsF, OaiF>(
+    cli_config: &crate::Config,
     get_favorites: F,
     list_filesystem: FsF,
     list_objectiveai: OaiF,
@@ -88,7 +90,7 @@ where
     // TODO: figure out how to not pre-await this (join with api::run concurrently)
     let favorites = get_favorites().await;
     let handle = handle.clone();
-    crate::api::run(move |http_client| Box::pin(async move {
+    crate::api::run(cli_config, move |http_client| Box::pin(async move {
 
         let (fs_result, oai_result) = tokio::join!(
             list_filesystem(http_client.clone()),
@@ -180,6 +182,7 @@ where
 
 /// Fetches pairs from ObjectiveAI via api::run.
 pub async fn pair_single<F>(
+    cli_config: &crate::Config,
     list_remote: F,
     handle: &Handle,
 ) -> Result<(), crate::error::Error>
@@ -187,7 +190,7 @@ where
     F: FnOnce(objectiveai_sdk::HttpClient) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<objectiveai_sdk::functions::response::ListFunctionProfilePairItem>, crate::error::Error>> + Send>> + Send + 'static,
 {
     let handle = handle.clone();
-    crate::api::run(move |http_client| Box::pin(async move {
+    crate::api::run(cli_config, move |http_client| Box::pin(async move {
         let items: Vec<PairListItem> = list_remote(http_client).await?
             .into_iter()
             .map(PairListItem::Item)
@@ -201,6 +204,7 @@ where
 /// Pairs only support ObjectiveAI source (no filesystem), so de-duplication
 /// is: favorites first, then ObjectiveAI items not matching any favorite.
 pub async fn pair_all<GF, GFut, F>(
+    cli_config: &crate::Config,
     get_favorites: GF,
     list_objectiveai: F,
     handle: &Handle,
@@ -213,7 +217,7 @@ where
     // TODO: figure out how to not pre-await this (join with api::run concurrently)
     let favorites = get_favorites().await;
     let handle = handle.clone();
-    crate::api::run(move |http_client| Box::pin(async move {
+    crate::api::run(cli_config, move |http_client| Box::pin(async move {
         let oai_items = list_objectiveai(http_client).await?;
 
         let mut items: Vec<PairListItem> = Vec::new();

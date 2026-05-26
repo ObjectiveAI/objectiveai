@@ -1,5 +1,5 @@
 name: Build MCP leg and publish to release
-description: Set up the Rust toolchain, build the standalone objectiveai-mcp binary (the MCP server wrapper around the cli, published from the objectiveai-mcp-cli crate) for this leg's platform, upload it as an artifact and append it to the GitHub Release.
+description: Set up the Rust toolchain, build the standalone objectiveai-mcp binary (the MCP server wrapper around the cli, published from the objectiveai-mcp crate) for this leg's platform, upload it as an artifact and append it to the GitHub Release.
 
 inputs:
   asset:
@@ -21,7 +21,7 @@ runs:
     - uses: dtolnay/rust-toolchain@stable
     - name: Build MCP
       shell: bash
-      run: bash objectiveai-mcp-cli/install.sh
+      run: bash objectiveai-mcp/install.sh
     - name: Dump build logs on failure
       if: failure()
       shell: bash

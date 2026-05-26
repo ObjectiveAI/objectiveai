@@ -7,5 +7,6 @@ export const AgentCodexSdkContinuationSchema = z.object({
   mcp_sessions: z.record(z.string(), z.string()),
   thread_id: z.string(),
   upstream: AgentCodexSdkUpstreamSchema,
+  ws_session_id: z.string().nullable().describe("Per-agent reverse-attach session id baked into this agent's\n`client_objectiveai_mcp` proxy URL path segment. Persisted\nacross continuation resumes so the proxy URLs stored in\n`mcp_sessions` keep matching the registered WS reverse-attach\nroute. `None` when this agent never used `client_objectiveai_mcp`.").meta({ omitempty: true }).optional(),
 }).meta({ title: "agent.codex_sdk.Continuation" });
 export type AgentCodexSdkContinuation = z.infer<typeof AgentCodexSdkContinuationSchema>;

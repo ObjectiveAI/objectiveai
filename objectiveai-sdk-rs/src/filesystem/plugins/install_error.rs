@@ -58,4 +58,22 @@ pub enum InstallError {
     ReservedRepositoryName { repository: String },
     #[error("manifest failed validation: {0}")]
     ManifestInvalid(&'static str),
+    /// `owner`, `repository`, or `commit` does not match the
+    /// `^[A-Za-z0-9_.-]{1,128}$` shape required for them to land in a
+    /// usable LLM tool name (Anthropic enforces `^[a-zA-Z0-9_-]{1,128}$`;
+    /// we additionally allow `.` so semver-shaped version strings can
+    /// flow through, with `.` -> `-` substitution applied when the tool
+    /// name is materialized).
+    #[error("invalid {kind}: {value:?} must match ^[A-Za-z0-9_.-]{{1,128}}$")]
+    InvalidIdentifier {
+        kind: &'static str,
+        value: String,
+    },
+    /// The materialized tool name (`{owner}-{name}-{version}` with `.`
+    /// substituted to `-`) is longer than the 100-character budget we
+    /// reserve. Anthropic's hard cap is 128 chars; the 28-char gap
+    /// leaves headroom for the proxy prefix the MCP server stamps on
+    /// (`oai_`, `oaifs_`, etc.) plus any future prefix growth.
+    #[error("tool name {tool_name:?} is {len} chars long; max 100")]
+    ToolNameTooLong { tool_name: String, len: usize },
 }

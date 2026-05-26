@@ -4,6 +4,7 @@
 pub mod agent;
 pub mod auth;
 pub mod cli;
+pub mod client_objectiveai_mcp;
 pub mod error;
 pub mod filesystem;
 pub mod functions;
@@ -42,6 +43,11 @@ pub enum Commands {
     Cli {
         #[command(subcommand)]
         command: cli::Commands,
+    },
+    #[command(name = "client_objectiveai_mcp")]
+    ClientObjectiveaiMcp {
+        #[command(subcommand)]
+        command: client_objectiveai_mcp::Commands,
     },
     #[command(name = "error")]
     Error {
@@ -118,7 +124,7 @@ impl Commands {
     pub async fn handle(self, handle: &objectiveai_sdk::cli::output::Handle) -> Result<(), crate::error::Error> {
         match self {
             Commands::List => {
-                const NAMES: &[&str] = &["agent", "auth", "cli", "error", "filesystem", "functions", "http", "laboratories", "mcp", "swarm", "vector", "viewer", "PrefixedUuid", "Remote", "RemotePath", "RemotePathCommitOptional", "Weights", "WeightsEntry"];
+                const NAMES: &[&str] = &["agent", "auth", "cli", "client_objectiveai_mcp", "error", "filesystem", "functions", "http", "laboratories", "mcp", "swarm", "vector", "viewer", "PrefixedUuid", "Remote", "RemotePath", "RemotePathCommitOptional", "Weights", "WeightsEntry"];
                 objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Schemas>::Notification(
                     objectiveai_sdk::cli::output::Notification {
                         agent_id: None,
@@ -132,6 +138,7 @@ impl Commands {
             Commands::Agent { command } => command.handle(handle).await,
             Commands::Auth { command } => command.handle(handle).await,
             Commands::Cli { command } => command.handle(handle).await,
+            Commands::ClientObjectiveaiMcp { command } => command.handle(handle).await,
             Commands::Error { command } => command.handle(handle).await,
             Commands::Filesystem { command } => command.handle(handle).await,
             Commands::Functions { command } => command.handle(handle).await,

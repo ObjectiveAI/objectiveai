@@ -42,7 +42,7 @@ where
     Resp: serde::de::DeserializeOwned + serde::Serialize + Send + 'static,
 {
     let (_client, mut config) = crate::config::read(cli_config).await?;
-    let mut http = super::client::build_http_client(&mut config);
+    let mut http = super::client::build_http_client(cli_config, &mut config);
     apply_agent_id_arg(&mut http, agent_id_arg);
     let response: Resp = http.send_unary(method, path, body).await?;
     Output::<Resp>::Notification(Notification { agent_id: None, value: response })
@@ -66,7 +66,7 @@ where
     Req: serde::Serialize + Send,
 {
     let (_client, mut config) = crate::config::read(cli_config).await?;
-    let mut http = super::client::build_http_client(&mut config);
+    let mut http = super::client::build_http_client(cli_config, &mut config);
     apply_agent_id_arg(&mut http, agent_id_arg);
     http.send_unary_no_response(method, path, body).await?;
     Output::<serde_json::Value>::Notification(Notification {
@@ -91,10 +91,46 @@ where
     Chunk: serde::de::DeserializeOwned + serde::Serialize + Send + 'static,
 {
     let (_client, mut config) = crate::config::read(cli_config).await?;
-    let mut http = super::client::build_http_client(&mut config);
+    let mut http = super::client::build_http_client(cli_config, &mut config);
     apply_agent_id_arg(&mut http, agent_id_arg);
     let stream = http
         .send_streaming::<Chunk, _, _>(method, path.to_string(), body)
+        .await?;
+    let mut stream = std::pin::pin!(stream);
+    while let Some(result) = stream.next().await {
+        let chunk = result?;
+        Output::<Chunk>::Notification(Notification { agent_id: None, value: chunk })
+            .emit(handle)
+            .await;
+    }
+    Ok(())
+}
+
+/// WS variant of [`call_streaming`]. Opens a WebSocket against the
+/// API endpoint (X-Transport: ws) and hands a `ConduitMcpHandler` for
+/// reverse-attach so the API's MCP proxy can dial back into the
+/// CLI's local MCP. Required for endpoints that depend on
+/// `client_objectiveai_mcp` wiring — the per-agent reverse-attach
+/// URLs only get synthesized when the API request arrived over a
+/// WS with a live reverse channel.
+pub async fn call_streaming_ws<Req, Chunk>(
+    cli_config: &crate::Config,
+    handle: &Handle,
+    method: reqwest::Method,
+    path: &str,
+    body: Req,
+    agent_id_arg: Option<String>,
+) -> Result<(), crate::error::Error>
+where
+    Req: serde::Serialize + Send + 'static,
+    Chunk: serde::de::DeserializeOwned + serde::Serialize + Send + 'static,
+{
+    let (_client, mut config) = crate::config::read(cli_config).await?;
+    let mut http = super::client::build_http_client(cli_config, &mut config);
+    apply_agent_id_arg(&mut http, agent_id_arg);
+    let conduit = super::conduit::build_handler(&mut config);
+    let (stream, _notifier) = http
+        .send_streaming_ws::<Chunk, _, _, _>(method, path.to_string(), body, conduit)
         .await?;
     let mut stream = std::pin::pin!(stream);
     while let Some(result) = stream.next().await {

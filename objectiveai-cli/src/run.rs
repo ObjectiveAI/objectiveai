@@ -11,6 +11,7 @@ use crate::schemas;
 use crate::laboratories;
 use crate::logs;
 use crate::plugins;
+use crate::tools;
 use crate::vector;
 use crate::instructions;
 use crate::error;
@@ -174,6 +175,11 @@ enum Commands {
         #[command(subcommand)]
         command: plugins::Commands,
     },
+    /// Local-filesystem tools — list, get, install (instructions only).
+    Tools {
+        #[command(subcommand)]
+        command: tools::Commands,
+    },
     /// Update the cli and all managed binaries (api, viewer, mcp) from
     /// the latest GitHub release. Refuses to proceed unless all four
     /// expected assets are present for the host triple.
@@ -205,6 +211,7 @@ impl Commands {
             Commands::Logs { command } => command.handle(cli_config, handle).await,
             Commands::Instructions { command } => command.handle(cli_config, handle).await,
             Commands::Plugins { command } => command.handle(cli_config, handle).await,
+            Commands::Tools { command } => command.handle(cli_config, handle).await,
             Commands::Update => crate::updater::run_update(cli_config, handle).await,
             Commands::External(args) => crate::plugins::dispatch_external(args, cli_config, handle).await,
         }
@@ -250,9 +257,13 @@ where
         Ok(cli) => match cli.command.handle(cli_config, &handle).await {
             Ok(()) => 0,
             Err(e) => {
+                let exit_code = match &e {
+                    error::Error::ToolExit(code) => *code,
+                    _ => 1,
+                };
                 let err = e.to_output(Level::Error, true);
                 Output::<serde_json::Value>::Error(err).emit(&handle).await;
-                1
+                exit_code
             }
         },
         Err(e) if is_informational(&e) => {

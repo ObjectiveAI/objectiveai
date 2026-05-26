@@ -9,6 +9,10 @@ import (
 
 // A validated Codex SDK Agent with its computed content-addressed ID.
 type AgentCodexSdkAgent struct {
+	// Client-side ObjectiveAI MCP surface the calling client is
+	// expected to expose locally back to the API (objectiveai
+	// built-in, plus specific plugins / tools by owner+name+version).
+	ClientObjectiveaiMCP *AgentClientObjectiveaiMcp `json:"client_objectiveai_mcp,omitempty"`
 	// Reasoning effort — maps to Codex's `model_reasoning_effort`.
 	Effort *AgentCodexSdkEffort `json:"effort,omitempty"`
 	// The deterministic content-addressed ID (22-character base62 string).

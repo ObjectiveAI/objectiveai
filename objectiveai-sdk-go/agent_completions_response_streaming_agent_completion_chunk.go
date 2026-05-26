@@ -20,6 +20,13 @@ type AgentCompletionsResponseStreamingAgentCompletionChunk struct {
 	Error *ErrorResponseError `json:"error,omitempty"`
 	ID string `json:"id"`
 	Messages []AgentCompletionsResponseStreamingMessageChunk `json:"messages"`
+	// `true` when the MCP proxy holds queued messages that were not
+	// delivered to the agent via a tool response on this turn. Only
+	// set when `continuation` is also set — the caller acts on it by
+	// issuing the continuation. Absent when nothing is queued, when
+	// there is no continuation to act on, or when the peek failed
+	// (the failure is surfaced via `error`).
+	MessagesQueued *bool `json:"messages_queued,omitempty"`
 	// The object type (always "agent.completion.chunk").
 	Object AgentCompletionsResponseStreamingObject `json:"object"`
 	// Upstream provider

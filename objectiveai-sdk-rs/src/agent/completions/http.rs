@@ -1,6 +1,6 @@
 //! HTTP functions for agent completions.
 
-use crate::{HttpClient, HttpError};
+use crate::{HttpClient, HttpError, McpHandler, Notifier};
 use futures::Stream;
 
 /// Creates a agent completion (non-streaming).
@@ -28,58 +28,42 @@ pub async fn create_agent_completion_unary(
 
 /// Creates a streaming agent completion.
 ///
-/// Sends a request to the agent completions endpoint and returns a stream
-/// of response chunks as they arrive via Server-Sent Events.
+/// Opens a WebSocket to the agent completions endpoint, sends `params`
+/// as the body frame, and returns a `(Stream, Notifier)` tuple:
 ///
-/// # Arguments
+/// - The `Stream` yields only `AgentCompletionChunk`s — the same shape
+///   the previous SSE endpoint emitted.
+/// - The `Notifier` provides `notify(...)` for pushing a user message
+///   into the running completion at any point before the stream ends.
 ///
-/// * `client` - The HTTP client to use
-/// * `params` - Agent completion parameters (stream flag will be set to true)
-///
-/// # Returns
-///
-/// A stream of agent completion chunks.
-pub async fn create_agent_completion_streaming(
+/// `handler` is invoked for every inbound objectiveai-mcp
+/// `server_request` (tools/list, tools/call) the API forwards from a
+/// proxy upstream that dialed `/objectiveai-mcp/{session_id}`. Pass
+/// [`crate::http::RejectHandler`] if the calling client doesn't host
+/// objectiveai-mcp — agents that declare `client_objectiveai_mcp`
+/// will then fall through to the next fallback agent server-side.
+pub async fn create_agent_completion_streaming<H: McpHandler>(
     client: &HttpClient,
     mut params: super::request::AgentCompletionCreateParams,
+    handler: H,
 ) -> Result<
-    impl Stream<
-        Item = Result<
-            super::response::streaming::AgentCompletionChunk,
-            HttpError,
-        >,
-    >
-    + Send
-    + 'static
-    + use<>,
+    (
+        impl Stream<
+            Item = Result<
+                super::response::streaming::AgentCompletionChunk,
+                HttpError,
+            >,
+        > + Send
+        + Unpin
+        + 'static
+        + use<H>,
+        Notifier,
+    ),
     HttpError,
 > {
     params.stream = Some(true);
     client
-        .send_streaming(reqwest::Method::POST, "agent/completions", Some(params))
+        .send_streaming_ws(reqwest::Method::POST, "agent/completions", params, handler)
         .await
 }
 
-/// Notifies a running agent completion with a user message.
-///
-/// Pushes a [`super::message::RichContent`] payload at the agent
-/// completion identified by `params.response_id`; the api queues it
-/// and surfaces it to the model on its next natural inspection point.
-/// There is no response body — any 2xx status returns `Ok(())`.
-///
-/// # Arguments
-///
-/// * `client` - The HTTP client to use
-/// * `params` - The notify parameters (`response_id` + `content`)
-pub async fn notify_agent_completion(
-    client: &HttpClient,
-    params: super::request::AgentCompletionNotifyParams,
-) -> Result<(), HttpError> {
-    client
-        .send_unary_no_response(
-            reqwest::Method::POST,
-            "agent/completions/notify",
-            Some(params),
-        )
-        .await
-}

@@ -33,6 +33,13 @@ export function functionsExecutionsResponseStreamingReasoningSummaryChunkMerged(
     continuation = b.continuation;
   }
 
+  // messages_queued: replace (latest non-null wins)
+  let messages_queued = a.messages_queued;
+  if (b.messages_queued != null) {
+    if (b.messages_queued !== a.messages_queued) changed = true;
+    messages_queued = b.messages_queued;
+  }
+
   if (!changed) return [a, false];
   return [{
     id: a.id,
@@ -43,5 +50,6 @@ export function functionsExecutionsResponseStreamingReasoningSummaryChunkMerged(
     upstream: a.upstream,
     ...(error != null ? { error } : {}),
     ...(continuation != null ? { continuation } : {}),
+    ...(messages_queued != null ? { messages_queued } : {}),
   }, true];
 }

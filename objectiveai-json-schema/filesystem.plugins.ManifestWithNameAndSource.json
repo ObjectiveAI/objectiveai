@@ -56,6 +56,10 @@
       "description": "The plugin's identifier — the filename it lives under in the\nplugins directory (e.g. `psyops` for `~/.objectiveai/plugins/psyops`).",
       "type": "string"
     },
+    "owner": {
+      "description": "GitHub `<owner>` segment of the source repo. Authors write\ntheir canonical owner here; the installer overwrites this\nfield with whatever owner it was actually installed from (so\nforks land on disk with the fork's owner, not the upstream's).",
+      "type": "string"
+    },
     "source": {
       "description": "Where this manifest came from — e.g. an absolute filesystem path,\na URL, or a registry reference. Free-form string; the host\njust displays it.",
       "type": "string"

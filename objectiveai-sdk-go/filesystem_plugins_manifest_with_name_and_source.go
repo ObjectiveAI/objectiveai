@@ -51,6 +51,11 @@ type FilesystemPluginsManifestWithNameAndSource struct {
 	// The plugin's identifier — the filename it lives under in the
 	// plugins directory (e.g. `psyops` for `~/.objectiveai/plugins/psyops`).
 	Name string `json:"name"`
+	// GitHub `<owner>` segment of the source repo. Authors write
+	// their canonical owner here; the installer overwrites this
+	// field with whatever owner it was actually installed from (so
+	// forks land on disk with the fork's owner, not the upstream's).
+	Owner string `json:"owner"`
 	// Where this manifest came from — e.g. an absolute filesystem path,
 	// a URL, or a registry reference. Free-form string; the host
 	// just displays it.
@@ -96,7 +101,7 @@ func (v *FilesystemPluginsManifestWithNameAndSource) UnmarshalJSON(data []byte) 
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"binaries", "description", "mobile_ready", "name", "source", "version", "viewer_routes"} {
+	for _, key := range []string{"binaries", "description", "mobile_ready", "name", "owner", "source", "version", "viewer_routes"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("FilesystemPluginsManifestWithNameAndSource: missing required field %q", key)
 		}

@@ -516,8 +516,12 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
         }
         objectiveai_sdk::agent::mock::Continuation {
             upstream: objectiveai_sdk::agent::mock::Upstream::default(),
+            // Stamped by the agent-completions client immediately
+            // after this method returns; empty here is fine.
+            agent_id: String::new(),
             messages: all_messages,
             mcp_sessions,
+            ws_session_id: None,
         }
     }
 }

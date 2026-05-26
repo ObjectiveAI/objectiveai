@@ -57,9 +57,15 @@ where
         objectiveai_sdk::error::ResponseError,
     >{
         let client = self.client.with_authorization(&ctx).await;
-        let stream = objectiveai_sdk::functions::profiles::computations::compute_profile_streaming(
+        // The API server's own forwarding path uses the SDK's WS
+        // streaming with a RejectHandler — no objectiveai-mcp is
+        // available on the API server side; downstream agents that
+        // declare `client_objectiveai_mcp` and hit this path will
+        // fall through to their next fallback (as designed).
+        let (stream, _notifier) = objectiveai_sdk::functions::profiles::computations::compute_profile_streaming(
             &client,
             (*request).clone(),
+            objectiveai_sdk::http::RejectHandler,
         )
         .await
         .map_err(|e| objectiveai_sdk::error::ResponseError::from(&e))?;

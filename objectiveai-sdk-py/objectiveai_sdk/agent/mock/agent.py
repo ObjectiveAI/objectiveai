@@ -3,6 +3,7 @@
 from __future__ import annotations
 from typing import Annotated, Optional
 from pydantic import BaseModel, ConfigDict, Field
+from objectiveai_sdk.agent.client_objectiveai_mcp import ClientObjectiveaiMcp
 from objectiveai_sdk.agent.mcp_server import McpServer
 from objectiveai_sdk.agent.mock.mode import Mode
 from objectiveai_sdk.agent.mock.output_mode import OutputMode
@@ -13,6 +14,7 @@ class Agent(BaseModel):
     """A validated Mock Agent with its computed content-addressed ID."""
     model_config = ConfigDict(title='agent.mock.Agent')
 
+    client_objectiveai_mcp: Optional[ClientObjectiveaiMcp] = Field(None, description='Client-side ObjectiveAI MCP surface the calling client is\nexpected to expose locally back to the API (objectiveai\nbuilt-in, plus specific plugins / tools by owner+name+version).', json_schema_extra={'omitempty': True})
     error: Optional[bool] = Field(None, description='If true, the mock client will return an error instead of a response.', json_schema_extra={'omitempty': True})
     error_probability: Optional[Annotated[int, Field(ge=0, le=255)]] = Field(None, description='Probability (0-100) that the mock returns an error mid-stream.\nRequires `error` to be `Some(true)`.', json_schema_extra={'omitempty': True})
     id: str = Field(..., description='The deterministic content-addressed ID (22-character base62 string).')

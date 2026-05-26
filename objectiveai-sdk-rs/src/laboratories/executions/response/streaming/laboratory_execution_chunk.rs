@@ -1,4 +1,5 @@
 use crate::{agent, error};
+use crate::agent::completions::response::streaming::AgentCompletionIds;
 use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
 
@@ -18,6 +19,15 @@ pub struct LaboratoryExecutionChunk {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub usage: Option<agent::completions::response::Usage>,
+}
+
+impl AgentCompletionIds for LaboratoryExecutionChunk {
+    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> {
+        self.builders
+            .iter()
+            .flat_map(|b| b.agent_completion_ids())
+            .chain(self.evaluations.iter().flat_map(|e| e.agent_completion_ids()))
+    }
 }
 
 impl LaboratoryExecutionChunk {

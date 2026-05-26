@@ -28,12 +28,13 @@ fn get_agent_json(name: &str) -> Option<&'static str> {
         "instruction-logprobs" => Some(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/mock/agents/instruction-logprobs.json"))),
         "invention" => Some(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/mock/agents/invention.json"))),
         "error-probability-50" => Some(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/mock/agents/error-probability-50.json"))),
+        "json-schema-10x-tools" => Some(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/mock/agents/json-schema-10x-tools.json"))),
         _ => None,
     }
 }
 
 /// All mock Agent names.
-const AGENT_REPOSITORIES: &[&str] = &["schema-logprobs", "instruction", "tool-call", "instruction-logprobs", "invention", "error-probability-50"];
+const AGENT_REPOSITORIES: &[&str] = &["schema-logprobs", "instruction", "tool-call", "instruction-logprobs", "invention", "error-probability-50", "json-schema-10x-tools"];
 
 /// Lists all mock Agents.
 pub fn list_agents() -> objectiveai_sdk::agent::response::ListAgentResponse {
@@ -60,12 +61,13 @@ fn get_swarm_json(name: &str) -> Option<&'static str> {
     match name {
         "schema-and-tool" => Some(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/mock/swarms/schema-and-tool.json"))),
         "instruction-duo" => Some(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/mock/swarms/instruction-duo.json"))),
+        "twenty-agents-json-schema-10x-tools" => Some(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/mock/swarms/twenty-agents-json-schema-10x-tools.json"))),
         _ => None,
     }
 }
 
 /// All mock Swarm names.
-const SWARM_REPOSITORIES: &[&str] = &["schema-and-tool", "instruction-duo"];
+const SWARM_REPOSITORIES: &[&str] = &["schema-and-tool", "instruction-duo", "twenty-agents-json-schema-10x-tools"];
 
 /// Lists all mock Swarms.
 pub fn list_swarms() -> objectiveai_sdk::swarm::response::ListSwarmResponse {

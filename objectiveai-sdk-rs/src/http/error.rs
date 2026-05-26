@@ -41,6 +41,33 @@ pub enum HttpError {
     /// The API returned a structured error response.
     #[error(transparent)]
     ApiError(#[from] error::ResponseError),
+
+    /// Failed to upgrade the request to a WebSocket. Used by the
+    /// `send_streaming_ws` path before any frames have flowed.
+    #[error("websocket upgrade failed: {0}")]
+    WsConnect(#[from] tokio_tungstenite::tungstenite::Error),
+
+    /// Failed to serialize the notify request body to JSON.
+    #[error("notify serialize: {0}")]
+    NotifySerialize(serde_json::Error),
+
+    /// Failed to write the notify frame to the WebSocket sink.
+    #[error("notify send: {0}")]
+    NotifySend(tokio_tungstenite::tungstenite::Error),
+
+    /// The WebSocket closed before the matching `client_response`
+    /// arrived. Either the server hung up or the demux task exited.
+    #[error("notify channel closed before response arrived")]
+    NotifyChannelClosed,
+
+    /// The server replied to a notify with `client_response::Error`.
+    /// The most common cause is the notify's `response_id` not
+    /// matching any agent completion this WS produced.
+    #[error("notify rejected: code={code} message={message}")]
+    NotifyRejected {
+        code: u16,
+        message: serde_json::Value,
+    },
 }
 
 impl error::StatusError for HttpError {
@@ -63,6 +90,11 @@ impl error::StatusError for HttpError {
                 e.status().map(|s| s.as_u16()).unwrap_or(500)
             }
             HttpError::ApiError(e) => e.status(),
+            HttpError::WsConnect(_) => 500,
+            HttpError::NotifySerialize(_) => 500,
+            HttpError::NotifySend(_) => 500,
+            HttpError::NotifyChannelClosed => 500,
+            HttpError::NotifyRejected { code, .. } => *code,
         }
     }
 
@@ -97,6 +129,26 @@ impl error::StatusError for HttpError {
                 HttpError::ApiError(e) => serde_json::json!({
                     "kind": "api_error",
                     "error": e.message(),
+                }),
+                HttpError::WsConnect(e) => serde_json::json!({
+                    "kind": "ws_connect",
+                    "error": e.to_string(),
+                }),
+                HttpError::NotifySerialize(e) => serde_json::json!({
+                    "kind": "notify_serialize",
+                    "error": e.to_string(),
+                }),
+                HttpError::NotifySend(e) => serde_json::json!({
+                    "kind": "notify_send",
+                    "error": e.to_string(),
+                }),
+                HttpError::NotifyChannelClosed => serde_json::json!({
+                    "kind": "notify_channel_closed",
+                }),
+                HttpError::NotifyRejected { code, message } => serde_json::json!({
+                    "kind": "notify_rejected",
+                    "code": code,
+                    "message": message,
                 }),
             }
         }))

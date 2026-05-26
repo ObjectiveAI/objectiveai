@@ -54,6 +54,13 @@ pub struct AgentBase {
     #[schemars(extend("omitempty" = true))]
     pub mcp_servers: Option<super::super::McpServers>,
 
+    /// Client-side ObjectiveAI MCP surface the calling client is
+    /// expected to expose locally back to the API (objectiveai
+    /// built-in, plus specific plugins / tools by owner+name+version).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub client_objectiveai_mcp: Option<super::super::ClientObjectiveaiMcp>,
+
     // --- OpenAI-compatible parameters ---
     /// Penalizes tokens based on their frequency in the output so far (-2.0 to 2.0).
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -167,6 +174,10 @@ impl AgentBase {
         };
         self.mcp_servers = match self.mcp_servers.take() {
             Some(mcp_servers) => super::super::mcp::mcp_servers::prepare(mcp_servers),
+            None => None,
+        };
+        self.client_objectiveai_mcp = match self.client_objectiveai_mcp.take() {
+            Some(cm) => super::super::client_objectiveai_mcp::prepare(cm),
             None => None,
         };
         self.frequency_penalty = match self.frequency_penalty {
@@ -291,6 +302,9 @@ impl AgentBase {
         }
         if let Some(mcp_servers) = &self.mcp_servers {
             super::super::mcp::mcp_servers::validate(mcp_servers)?;
+        }
+        if let Some(cm) = &self.client_objectiveai_mcp {
+            super::super::client_objectiveai_mcp::validate(cm)?;
         }
         validate_f64("frequency_penalty", self.frequency_penalty, -2.0, 2.0)?;
         if let Some(logit_bias) = &self.logit_bias {

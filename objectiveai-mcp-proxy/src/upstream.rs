@@ -8,6 +8,13 @@ use objectiveai_sdk::mcp::{Client, Connection};
 
 const SERVERS_HEADER: &str = "X-MCP-Servers";
 const HEADERS_HEADER: &str = "X-MCP-Headers";
+const TOOLS_ALLOW_HEADER: &str = "X-MCP-Tools-Allow";
+/// Per-request header: when present on a `tools/list` or
+/// `resources/list` POST, restricts the fan-out to the single upstream
+/// whose URL matches verbatim. Absent → fan out to every upstream
+/// (existing behavior). Applies to both list operations so a caller
+/// that only knows about one upstream gets a single, focused view.
+pub const LIST_FILTER_HEADER: &str = "X-List-Filter";
 
 /// One upstream MCP server the proxy should connect to for a session.
 #[derive(Debug)]
@@ -77,8 +84,8 @@ pub async fn connect_all_fresh(
     client: &Client,
     http_headers: &HeaderMap,
     agent_id: Option<&str>,
-) -> Result<Vec<(Connection, IndexMap<String, String>)>, BadInit> {
-    let specs = parse_init_headers(http_headers)?;
+) -> Result<(Vec<(Connection, IndexMap<String, String>)>, IndexMap<String, Vec<String>>), BadInit> {
+    let (specs, tool_allowlists) = parse_init_headers(http_headers)?;
     // Capture once; each per-upstream future stamps the same string.
     let agent_id_owned: Option<String> =
         agent_id.filter(|s| !s.is_empty()).map(str::to_owned);
@@ -105,20 +112,21 @@ pub async fn connect_all_fresh(
             if let Some(id) = &agent_id_owned {
                 headers.insert("X-OBJECTIVEAI-AGENT-ID".to_string(), id.clone());
             }
-            let conn = client
+            let conn_result = client
                 .connect(spec.url, session_id, Some(headers))
-                .await
-                .map_err(|source| BadInit::UpstreamConnectFailed {
-                    url: url.clone(),
-                    source,
-                })?;
+                .await;
+            let conn = conn_result.map_err(|source| BadInit::UpstreamConnectFailed {
+                url: url.clone(),
+                source,
+            })?;
             let payload_headers =
                 build_canonical_headers(&headers_for_payload, &conn.session_id);
             Ok::<_, BadInit>((conn, payload_headers))
         }
     });
 
-    try_join_all(attempts).await
+    let connections = try_join_all(attempts).await?;
+    Ok((connections, tool_allowlists))
 }
 
 /// Reconnect to the upstreams encoded in a stale (decoded-but-not-
@@ -161,13 +169,13 @@ pub async fn reconnect_from_payload(
         // `headers` and gets passed straight through to Client::connect.
         let payload_headers = headers.clone();
         async move {
-            let conn = client
+            let conn_result = client
                 .connect(url.clone(), session_id, Some(headers))
-                .await
-                .map_err(|source| BadInit::UpstreamConnectFailed {
-                    url: url.clone(),
-                    source,
-                })?;
+                .await;
+            let conn = conn_result.map_err(|source| BadInit::UpstreamConnectFailed {
+                url: url.clone(),
+                source,
+            })?;
             let canonical = build_canonical_headers(&payload_headers, &conn.session_id);
             Ok::<_, BadInit>((conn, canonical))
         }
@@ -189,7 +197,9 @@ fn build_canonical_headers(
     out
 }
 
-fn parse_init_headers(http_headers: &HeaderMap) -> Result<Vec<UpstreamSpec>, BadInit> {
+fn parse_init_headers(
+    http_headers: &HeaderMap,
+) -> Result<(Vec<UpstreamSpec>, IndexMap<String, Vec<String>>), BadInit> {
     let servers: Vec<String> = match http_headers.get(SERVERS_HEADER) {
         Some(v) => {
             let s = v.to_str().map_err(|_| BadInit::NotUtf8 { header: SERVERS_HEADER })?;
@@ -213,6 +223,22 @@ fn parse_init_headers(http_headers: &HeaderMap) -> Result<Vec<UpstreamSpec>, Bad
             None => IndexMap::new(),
         };
 
+    // `X-MCP-Tools-Allow`: per-URL un-prefixed tool-name allowlist.
+    // Absent header / absent URL ⇒ no filtering for that upstream.
+    let tool_allowlists: IndexMap<String, Vec<String>> =
+        match http_headers.get(TOOLS_ALLOW_HEADER) {
+            Some(v) => {
+                let s = v.to_str().map_err(|_| BadInit::NotUtf8 {
+                    header: TOOLS_ALLOW_HEADER,
+                })?;
+                serde_json::from_str(s).map_err(|source| BadInit::NotJson {
+                    header: TOOLS_ALLOW_HEADER,
+                    source,
+                })?
+            }
+            None => IndexMap::new(),
+        };
+
     let mut seen = std::collections::HashSet::new();
     let mut specs = Vec::with_capacity(servers.len());
     for url in servers {
@@ -228,5 +254,5 @@ fn parse_init_headers(http_headers: &HeaderMap) -> Result<Vec<UpstreamSpec>, Bad
         specs.push(UpstreamSpec { url, headers });
     }
 
-    Ok(specs)
+    Ok((specs, tool_allowlists))
 }

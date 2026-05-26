@@ -16,6 +16,7 @@ pub mod spawn;
 pub mod kill;
 mod run;
 pub mod detach;
+pub mod conduit;
 
 // Shared infrastructure for per-endpoint subcommands.
 pub mod agent_id_arg;

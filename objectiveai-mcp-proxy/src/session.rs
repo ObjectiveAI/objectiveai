@@ -81,6 +81,15 @@ pub struct Session {
     /// `Connection`s rotated their internal state, the id remains
     /// derivable from the immutable per-upstream header set.
     pub payload: crate::session_manager::SessionPayload,
+    /// Per-`server_name` allowlist of un-prefixed tool names. Derived
+    /// once at `Session::new` time from
+    /// [`crate::session_manager::SessionPayload::tool_allowlists`]
+    /// (which is keyed by upstream URL) by walking the live
+    /// connections and remapping URL -> server_name. A server_name
+    /// absent from this map gets no filtering applied on `list_tools`.
+    /// Empty Vec for a server_name => zero tools visible from that
+    /// upstream.
+    tool_allowlists_by_server: IndexMap<String, Vec<String>>,
 }
 
 impl Session {
@@ -116,12 +125,25 @@ impl Session {
             });
         }
 
+        // Remap the payload's URL-keyed tool_allowlists onto our
+        // server_name-keyed connections map. URLs in the allowlist
+        // that don't match any live connection are silently dropped
+        // (the proxy just won't filter for them).
+        let mut tool_allowlists_by_server: IndexMap<String, Vec<String>> = IndexMap::new();
+        for (server_name, connection) in &connections {
+            if let Some(names) = payload.tool_allowlists.get(&connection.url) {
+                tool_allowlists_by_server
+                    .insert(server_name.clone(), names.clone());
+            }
+        }
+
         Self {
             connections,
             outbound,
             in_flight: DashMap::new(),
             pending_notifications: Mutex::new(Vec::new()),
             payload,
+            tool_allowlists_by_server,
         }
     }
 
@@ -196,17 +218,54 @@ impl Session {
     /// order; downstream consumers (e.g. seeded mock agents) rely on
     /// this for deterministic output.
     pub async fn list_tools(&self) -> Result<ListToolsResult, Arc<objectiveai_sdk::mcp::Error>> {
-        let names: Vec<&String> = self.connections.keys().collect();
+        self.list_tools_filtered(None).await
+    }
+
+    /// Per-upstream variant of [`Self::list_tools`]: when `filter_url`
+    /// is `Some`, only fans out to the single upstream whose connection
+    /// `url` matches verbatim. When `None`, behaves identically to the
+    /// no-arg form (fan out to every upstream).
+    ///
+    /// An unmatched `filter_url` returns an empty `ListToolsResult`
+    /// (not an error) — the caller validates whether emptiness is
+    /// acceptable. The per-upstream allowlist (`X-MCP-Tools-Allow`)
+    /// is still applied to whichever upstream(s) participate.
+    pub async fn list_tools_filtered(
+        &self,
+        filter_url: Option<&str>,
+    ) -> Result<ListToolsResult, Arc<objectiveai_sdk::mcp::Error>> {
+        let pairs: Vec<(&String, &Connection)> = match filter_url {
+            Some(url) => self
+                .connections
+                .iter()
+                .filter(|(_, c)| c.url == url)
+                .collect(),
+            None => self.connections.iter().collect(),
+        };
         let results = try_join_all(
-            self.connections
-                .values()
-                .map(|c| async move { c.list_tools().await }),
+            pairs
+                .iter()
+                .map(|(_, c)| async move {
+                    let r = c.list_tools().await;
+                    r
+                }),
         )
         .await?;
 
         let mut tools: Vec<Tool> = Vec::new();
-        for (server_name, arc) in names.into_iter().zip(results) {
+        for ((server_name, _), arc) in pairs.into_iter().zip(results) {
+            let allowlist = self.tool_allowlists_by_server.get(server_name);
             for tool in arc.iter() {
+                // Filter against the per-upstream allowlist if one
+                // was supplied via `X-MCP-Tools-Allow`. Match is on
+                // the un-prefixed name (the name the upstream itself
+                // returned), so callers don't have to know the
+                // `<server_name>_` prefix the proxy stamps.
+                if let Some(names) = allowlist {
+                    if !names.iter().any(|n| n == &tool.name) {
+                        continue;
+                    }
+                }
                 let mut prefixed = tool.clone();
                 prefixed.name = prefix_name(server_name, &tool.name);
                 tools.push(prefixed);
@@ -227,16 +286,41 @@ impl Session {
     /// semantics as [`Session::list_tools`] — the first upstream error
     /// short-circuits and is returned to the caller.
     pub async fn list_resources(&self) -> Result<ListResourcesResult, Arc<objectiveai_sdk::mcp::Error>> {
-        let names: Vec<&String> = self.connections.keys().collect();
+        self.list_resources_filtered(None).await
+    }
+
+    /// Per-upstream variant of [`Self::list_resources`]: when
+    /// `filter_url` is `Some`, only fans out to the single upstream
+    /// whose connection `url` matches verbatim. When `None`, behaves
+    /// identically to the no-arg form (fan out to every upstream).
+    ///
+    /// An unmatched `filter_url` returns an empty `ListResourcesResult`
+    /// (not an error) — the caller validates whether emptiness is
+    /// acceptable.
+    pub async fn list_resources_filtered(
+        &self,
+        filter_url: Option<&str>,
+    ) -> Result<ListResourcesResult, Arc<objectiveai_sdk::mcp::Error>> {
+        let pairs: Vec<(&String, &Connection)> = match filter_url {
+            Some(url) => self
+                .connections
+                .iter()
+                .filter(|(_, c)| c.url == url)
+                .collect(),
+            None => self.connections.iter().collect(),
+        };
         let results = try_join_all(
-            self.connections
-                .values()
-                .map(|c| async move { c.list_resources().await }),
+            pairs
+                .iter()
+                .map(|(_, c)| async move {
+                    let r = c.list_resources().await;
+                    r
+                }),
         )
         .await?;
 
         let mut resources: Vec<Resource> = Vec::new();
-        for (server_name, arc) in names.into_iter().zip(results) {
+        for ((server_name, _), arc) in pairs.into_iter().zip(results) {
             for resource in arc.iter() {
                 let mut prefixed = resource.clone();
                 prefixed.uri = prefix_name(server_name, &resource.uri);
@@ -272,7 +356,8 @@ impl Session {
             task: params.task.clone(),
             _meta: params._meta.clone(),
         };
-        Ok(connection.call_tool(&upstream_params).await?)
+        let r = connection.call_tool(&upstream_params).await;
+        Ok(r?)
     }
 
     /// Forward `resources/read` to whichever upstream owns the URI. Same
@@ -284,7 +369,8 @@ impl Session {
         let (connection, original_uri) = self
             .route(uri)
             .ok_or_else(|| ReadResourceError::ResourceNotFound(uri.to_string()))?;
-        Ok(connection.read_resource(&original_uri).await?)
+        let r = connection.read_resource(&original_uri).await;
+        Ok(r?)
     }
 
     /// Resolve a `<server-name>_<original>` prefixed identifier to the

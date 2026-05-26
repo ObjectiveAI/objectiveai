@@ -1,3 +1,4 @@
+use crate::agent::completions::response::streaming::AgentCompletionIds;
 use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
 
@@ -24,6 +25,12 @@ pub struct FunctionExecutionTaskChunk {
     pub split_index: Option<u64>,
     #[serde(flatten)]
     pub inner: super::FunctionExecutionChunk,
+}
+
+impl AgentCompletionIds for FunctionExecutionTaskChunk {
+    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> {
+        self.inner.agent_completion_ids()
+    }
 }
 
 impl FunctionExecutionTaskChunk {

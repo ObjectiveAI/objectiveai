@@ -1,6 +1,6 @@
 //! HTTP functions for recursive function inventions.
 
-use crate::{HttpClient, HttpError};
+use crate::{HttpClient, HttpError, McpHandler, Notifier};
 use futures::Stream;
 
 /// Creates a recursive function invention (non-streaming).
@@ -18,28 +18,36 @@ pub async fn create_function_invention_recursive_unary(
         .await
 }
 
-/// Creates a streaming recursive function invention.
-pub async fn create_function_invention_recursive_streaming(
+/// Creates a streaming recursive function invention. Returns
+/// `(Stream<Chunk>, Notifier)`; see
+/// [`crate::agent::completions::http::create_agent_completion_streaming`]
+/// for the demux + handler semantics.
+pub async fn create_function_invention_recursive_streaming<H: McpHandler>(
     client: &HttpClient,
     mut params: super::request::FunctionInventionRecursiveCreateParams,
+    handler: H,
 ) -> Result<
-    impl Stream<
-        Item = Result<
-            super::response::streaming::FunctionInventionRecursiveChunk,
-            HttpError,
-        >,
-    >
-    + Send
-    + 'static
-    + use<>,
+    (
+        impl Stream<
+            Item = Result<
+                super::response::streaming::FunctionInventionRecursiveChunk,
+                HttpError,
+            >,
+        > + Send
+        + Unpin
+        + 'static
+        + use<H>,
+        Notifier,
+    ),
     HttpError,
 > {
     params.stream = Some(true);
     client
-        .send_streaming(
+        .send_streaming_ws(
             reqwest::Method::POST,
             "functions/inventions/recursive",
-            Some(params),
+            params,
+            handler,
         )
         .await
 }

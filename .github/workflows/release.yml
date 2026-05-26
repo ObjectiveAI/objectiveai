@@ -19,7 +19,7 @@ permissions:
 # └─→ mcp-<leg>                            (× 5 mcp legs)
 #
 # The cli no longer embeds the viewer binary or the api server. Since
-# objectiveai-mcp-cli depends on the cli (not on api), the mcp legs
+# objectiveai-mcp depends on the cli (not on api), the mcp legs
 # also no longer need a paired mcp-filesystem artifact. Only the api
 # and viewer legs (which DO embed mcp-filesystem for their own use)
 # keep their dedicated `mcp-fs-<leg>` upstreams. 10 mcp-fs jobs total
@@ -466,7 +466,7 @@ jobs:
           repository: ${{ github.repository }}
 
   # ── MCP builders (5 dedicated jobs) ───────────────────────────────────────
-  # objectiveai-mcp-cli no longer transitively pulls in objectiveai-api
+  # objectiveai-mcp no longer transitively pulls in objectiveai-api
   # (because the cli no longer does either), so the mcp legs don't need
   # a paired mcp-filesystem artifact either.
 

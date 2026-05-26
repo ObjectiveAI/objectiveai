@@ -1,0 +1,16 @@
+{
+  "title": "agent.ClientObjectiveaiMcpEntry",
+  "description": "A single `owner` / `name` / `version` reference identifying one\nplugin or one tool inside [`ClientObjectiveaiMcp`].",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    }
+  }
+}

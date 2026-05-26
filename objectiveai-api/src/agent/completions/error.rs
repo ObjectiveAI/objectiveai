@@ -51,6 +51,20 @@ pub enum Error {
     #[error("MCP proxy bootstrap failed: {0}")]
     McpProxyBootstrap(String),
 
+    #[error(
+        "client_objectiveai_mcp declared tool {owner}/{name}@{version} not present in upstream MCP"
+    )]
+    ClientObjectiveaiMcpToolMissing {
+        owner: String,
+        name: String,
+        version: String,
+    },
+
+    #[error(
+        "client_objectiveai_mcp is declared but no reverse-attach is available (request must be over WebSocket)"
+    )]
+    ClientObjectiveaiMcpUnavailable,
+
     #[error("{0}")]
     Fetch(objectiveai_sdk::error::ResponseError),
 
@@ -98,6 +112,8 @@ impl objectiveai_sdk::error::StatusError for Error {
             Self::NotifyNoMcp(_) => 400,
             Self::McpCallTool(_) => 502,
             Self::McpProxyBootstrap(_) => 500,
+            Self::ClientObjectiveaiMcpToolMissing { .. } => 400,
+            Self::ClientObjectiveaiMcpUnavailable => 400,
             Self::Fetch(e) => e.code,
             Self::UpstreamOpenrouter(e)
             | Self::UpstreamClaudeAgentSdk(e)

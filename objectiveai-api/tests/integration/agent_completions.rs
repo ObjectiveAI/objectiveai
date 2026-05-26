@@ -598,8 +598,10 @@ async fn test_multiple_fallback_agents() {
 fn encoded_mock_continuation(messages: Vec<Message>) -> String {
     let cont = objectiveai_sdk::agent::Continuation::Mock(objectiveai_sdk::agent::mock::Continuation {
         upstream: objectiveai_sdk::agent::mock::Upstream::Mock,
+        agent_id: String::new(),
         messages,
         mcp_sessions: indexmap::IndexMap::new(),
+        ws_session_id: None,
     });
     cont.to_string()
 }

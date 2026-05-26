@@ -3,6 +3,7 @@
 from __future__ import annotations
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
+from objectiveai_sdk.agent.client_objectiveai_mcp import ClientObjectiveaiMcp
 from objectiveai_sdk.agent.codex_sdk.effort import Effort
 from objectiveai_sdk.agent.codex_sdk.output_mode import OutputMode
 from objectiveai_sdk.agent.codex_sdk.upstream import Upstream
@@ -14,6 +15,7 @@ class Agent(BaseModel):
     """A validated Codex SDK Agent with its computed content-addressed ID."""
     model_config = ConfigDict(title='agent.codex_sdk.Agent')
 
+    client_objectiveai_mcp: Optional[ClientObjectiveaiMcp] = Field(None, description='Client-side ObjectiveAI MCP surface the calling client is\nexpected to expose locally back to the API (objectiveai\nbuilt-in, plus specific plugins / tools by owner+name+version).', json_schema_extra={'omitempty': True})
     effort: Optional[Effort] = Field(None, description="Reasoning effort — maps to Codex's `model_reasoning_effort`.", json_schema_extra={'omitempty': True})
     id: str = Field(..., description='The deterministic content-addressed ID (22-character base62 string).')
     mcp_servers: Optional[list[McpServer]] = Field(None, description='MCP servers the agent can connect to.', json_schema_extra={'omitempty': True})

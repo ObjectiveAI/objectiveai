@@ -17,6 +17,10 @@ type FunctionsInventionsResponseUnaryAgentCompletion struct {
 	ID string `json:"id"`
 	Index uint64 `json:"index" validate:"min=0,max=18446744073709551615"`
 	Messages []AgentCompletionsResponseUnaryMessage `json:"messages"`
+	// `true` when the MCP proxy holds queued messages that were not
+	// delivered to the agent via a tool response on this turn. See
+	// [`super::streaming::AgentCompletionChunk::messages_queued`].
+	MessagesQueued *bool `json:"messages_queued,omitempty"`
 	// The object type (always "agent.completion").
 	Object AgentCompletionsResponseUnaryObject `json:"object"`
 	// Upstream provider

@@ -43,7 +43,7 @@ WAVE_5=(
   "objectiveai-cli|crates|objectiveai-cli"
 )
 WAVE_6=(
-  "objectiveai-mcp-cli|crates|objectiveai-mcp-cli"
+  "objectiveai-mcp|crates|objectiveai-mcp"
   "objectiveai-cocoindex|pypi|objectiveai-cocoindex"
 )
 

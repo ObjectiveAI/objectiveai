@@ -388,6 +388,8 @@ export class ObjectiveAI {
     }
     const headers = this.buildHeaders(options);
     headers.set("Accept", "text/event-stream");
+    // The API defaults to WS for streaming endpoints; opt into SSE.
+    headers.set("X-Transport", "sse");
 
     const controller = new AbortController();
     const signal = options?.signal;
@@ -423,6 +425,8 @@ export class ObjectiveAI {
     }
     const headers = this.buildHeaders(options);
     headers.set("Accept", "text/event-stream");
+    // The API defaults to WS for streaming endpoints; opt into SSE.
+    headers.set("X-Transport", "sse");
 
     const controller = new AbortController();
     const signal = options?.signal;
@@ -459,6 +463,8 @@ export class ObjectiveAI {
     }
     const headers = this.buildHeaders(options);
     headers.set("Accept", "text/event-stream");
+    // The API defaults to WS for streaming endpoints; opt into SSE.
+    headers.set("X-Transport", "sse");
 
     const controller = new AbortController();
     const signal = options?.signal;

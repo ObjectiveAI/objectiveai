@@ -11,7 +11,7 @@ async fn main() {
     // Stamp the handle's agent_id from cli_config so every emitted
     // notification + error line carries `X-OBJECTIVEAI-AGENT-ID`'s
     // value (env `OBJECTIVEAI_AGENT_ID`). Per-request callers like
-    // objectiveai-mcp-cli build their own Handle and set this from
+    // objectiveai-mcp build their own Handle and set this from
     // the X-OBJECTIVEAI-AGENT-ID request header instead.
     let mut handle = objectiveai_sdk::cli::output::Handle::stdout();
     handle.agent_id = cli_config.agent_id.clone();

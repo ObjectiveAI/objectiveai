@@ -1,6 +1,6 @@
 //! HTTP client functions for vector completions.
 
-use crate::{HttpClient, HttpError};
+use crate::{HttpClient, HttpError, McpHandler, Notifier};
 use futures::Stream;
 
 /// Creates a vector completion and waits for the complete response.
@@ -18,29 +18,35 @@ pub async fn create_vector_completion_unary(
 
 /// Creates a vector completion with streaming response.
 ///
-/// Sets `stream: Some(true)` and returns a stream of chunks that can be
-/// accumulated into a complete response.
-pub async fn create_vector_completion_streaming(
+/// Opens a WebSocket and returns `(Stream<Chunk>, Notifier)`. See
+/// [`crate::agent::completions::http::create_agent_completion_streaming`]
+/// for the full semantics of `handler` and the demux.
+pub async fn create_vector_completion_streaming<H: McpHandler>(
     client: &HttpClient,
     mut params: super::request::VectorCompletionCreateParams,
+    handler: H,
 ) -> Result<
-    impl Stream<
-        Item = Result<
-            super::response::streaming::VectorCompletionChunk,
-            HttpError,
-        >,
-    >
-    + Send
-    + 'static
-    + use<>,
+    (
+        impl Stream<
+            Item = Result<
+                super::response::streaming::VectorCompletionChunk,
+                HttpError,
+            >,
+        > + Send
+        + Unpin
+        + 'static
+        + use<H>,
+        Notifier,
+    ),
     HttpError,
 > {
     params.stream = Some(true);
     client
-        .send_streaming(
+        .send_streaming_ws(
             reqwest::Method::POST,
             "vector/completions",
-            Some(params),
+            params,
+            handler,
         )
         .await
 }

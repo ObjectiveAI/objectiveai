@@ -19,6 +19,7 @@ class ReasoningSummary(BaseModel):
     error: Optional[ResponseError] = None
     id: str
     messages: list[Message]
+    messages_queued: Optional[bool] = Field(None, description='`true` when the MCP proxy holds queued messages that were not\ndelivered to the agent via a tool response on this turn. See\n[`super::streaming::AgentCompletionChunk::messages_queued`].', json_schema_extra={'omitempty': True})
     object: Object = Field(..., description='The object type (always "agent.completion").')
     upstream: Upstream = Field(..., description='Upstream provider')
     usage: Usage

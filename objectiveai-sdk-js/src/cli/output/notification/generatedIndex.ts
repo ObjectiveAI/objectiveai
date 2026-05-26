@@ -20,4 +20,7 @@ export * from "./published";
 export * from "./schema";
 export * from "./schemas";
 export * from "./skipReason";
+export * from "./tool";
+export * from "./toolLine";
+export * from "./tools";
 export * from "./updater";

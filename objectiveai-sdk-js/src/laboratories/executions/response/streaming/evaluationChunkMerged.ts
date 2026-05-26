@@ -39,6 +39,13 @@ export function laboratoriesExecutionsResponseStreamingEvaluationChunkMerged(
     output = b.output;
   }
 
+  // messages_queued: replace (latest non-null wins)
+  let messages_queued = a.messages_queued;
+  if (b.messages_queued != null) {
+    if (b.messages_queued !== a.messages_queued) changed = true;
+    messages_queued = b.messages_queued;
+  }
+
   if (!changed) return [a, false];
   return [{
     index: a.index,
@@ -52,6 +59,7 @@ export function laboratoriesExecutionsResponseStreamingEvaluationChunkMerged(
     ...(error != null ? { error } : {}),
     ...(continuation != null ? { continuation } : {}),
     ...(output != null ? { output } : {}),
+    ...(messages_queued != null ? { messages_queued } : {}),
   }, true];
 }
 

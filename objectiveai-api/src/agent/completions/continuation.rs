@@ -5,26 +5,29 @@ pub enum Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK> {
     Openrouter {
         items: Vec<ContinuationItem<OPENROUTER>>,
         mcp_connection: Option<mcp::Connection>,
-        /// Per-(parent_agent_id, this_agent_id) index allocated when this
-        /// agent run was first opened. Reused across continuation turns
-        /// so the composite X-OBJECTIVEAI-AGENT-ID stays stable for the
-        /// life of a single agent invocation.
-        agent_index: u64,
+        /// Full slash-separated lineage of the agent this continuation
+        /// belongs to (e.g. `A/B/agtcpl-<uuid>-<created>`). Minted on
+        /// the agent's first spawn and preserved verbatim across every
+        /// continuation round — server-side internal retries AND
+        /// client-side resume — so the agent's identity stays stable
+        /// regardless of who resumes the conversation. The trailing
+        /// segment is the local `id` used as `AgentCompletionChunk.id`.
+        agent_id: String,
     },
     ClaudeAgentSdk {
         items: Vec<ContinuationItem<CLAUDEAGENTSDK>>,
         mcp_connection: Option<mcp::Connection>,
-        agent_index: u64,
+        agent_id: String,
     },
     CodexSdk {
         items: Vec<ContinuationItem<CODEXSDK>>,
         mcp_connection: Option<mcp::Connection>,
-        agent_index: u64,
+        agent_id: String,
     },
     Mock {
         items: Vec<ContinuationItem<MOCK>>,
         mcp_connection: Option<mcp::Connection>,
-        agent_index: u64,
+        agent_id: String,
     },
 }
 
@@ -69,14 +72,15 @@ impl<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>
         }
     }
 
-    /// Per-`(parent_agent_id, this_agent_id)` index assigned when this
-    /// run started. See the corresponding doc on the enum variants.
-    pub fn agent_index(&self) -> u64 {
+    /// Full slash-separated lineage of the agent this continuation
+    /// belongs to. Stable across every continuation round. See the
+    /// per-variant field doc.
+    pub fn agent_id(&self) -> &str {
         match self {
-            Self::Openrouter { agent_index, .. }
-            | Self::ClaudeAgentSdk { agent_index, .. }
-            | Self::CodexSdk { agent_index, .. }
-            | Self::Mock { agent_index, .. } => *agent_index,
+            Self::Openrouter { agent_id, .. }
+            | Self::ClaudeAgentSdk { agent_id, .. }
+            | Self::CodexSdk { agent_id, .. }
+            | Self::Mock { agent_id, .. } => agent_id.as_str(),
         }
     }
 }

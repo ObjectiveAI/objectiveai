@@ -21,6 +21,7 @@ class Builder(BaseModel):
     id: str
     index: int = Field(..., description='Builder index (0-based).', ge=0, le=18446744073709551615)
     messages: list[Message]
+    messages_queued: Optional[bool] = Field(None, description='`true` when the MCP proxy holds queued messages that were not\ndelivered to the agent via a tool response on this turn. See\n[`super::streaming::AgentCompletionChunk::messages_queued`].', json_schema_extra={'omitempty': True})
     object: Object = Field(..., description='The object type (always "agent.completion").')
     upstream: Upstream = Field(..., description='Upstream provider')
     usage: Usage

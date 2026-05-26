@@ -228,7 +228,7 @@ impl Client {
         headers: Option<&indexmap::IndexMap<String, String>>,
         upgrade: bool,
     ) -> Result<bool, super::super::Error> {
-        check_repository_name(repository)?;
+        validate_install_inputs(owner, repository, commit_sha)?;
         let manifest = self
             .fetch_plugin_manifest(owner, repository, commit_sha, headers)
             .await?;
@@ -271,7 +271,11 @@ impl Client {
         headers: Option<&indexmap::IndexMap<String, String>>,
         upgrade: bool,
     ) -> Result<bool, super::super::Error> {
-        check_repository_name(repository)?;
+        // `install_plugin_from_manifest` is a public entry — callers
+        // may hand us a manifest with no fetch step ever happening, so
+        // re-validate inputs here. `install_plugin` already validated
+        // before fetching; the second call is cheap and idempotent.
+        validate_install_inputs(owner, repository, None)?;
         self.install_from_manifest_impl(
             "https://github.com",
             owner,
@@ -299,7 +303,7 @@ impl Client {
         headers: Option<&indexmap::IndexMap<String, String>>,
         upgrade: bool,
     ) -> Result<bool, super::super::Error> {
-        check_repository_name(repository)?;
+        validate_install_inputs(owner, repository, commit_sha)?;
         let manifest = self
             .fetch_plugin_manifest_impl(raw_base, owner, repository, commit_sha, headers)
             .await?;
@@ -382,6 +386,19 @@ impl Client {
         headers: Option<&indexmap::IndexMap<String, String>>,
         upgrade: bool,
     ) -> Result<bool, super::super::Error> {
+        // 0. Tool-name budget check. Build the same string
+        //    `Manifest::tool_name` materializes (owner-name-version
+        //    with `.` -> `-`) and reject if longer than the 100-char
+        //    budget we leave under Anthropic's 128-char hard cap.
+        let tool_name = manifest.tool_name(repository);
+        if tool_name.len() > 100 {
+            return Err(super::InstallError::ToolNameTooLong {
+                len: tool_name.len(),
+                tool_name,
+            }
+            .into());
+        }
+
         // 1. Platform match (no disk touches).
         let Some(platform) = super::Platform::current() else {
             return Ok(false);
@@ -477,9 +494,14 @@ impl Client {
         };
 
         let manifest_bytes: Vec<u8> = {
+            // Override the author-claimed `owner` with the GitHub
+            // `<owner>` we were actually installed from — forks land
+            // on disk with the fork's owner, not the upstream's.
+            let mut manifest = manifest.clone();
+            manifest.owner = owner.to_string();
             let bundle = ManifestWithNameAndSource {
                 name: repository.to_string(),
-                manifest: manifest.clone(),
+                manifest,
                 source: source.to_string(),
             };
             serde_json::to_vec_pretty(&bundle).map_err(super::InstallError::ManifestSerialize)?
@@ -568,6 +590,47 @@ fn check_repository_name(repository: &str) -> Result<(), super::InstallError> {
         return Err(super::InstallError::ReservedRepositoryName {
             repository: repository.to_string(),
         });
+    }
+    Ok(())
+}
+
+/// Identifier shape check shared by `owner`, `repository`, and
+/// `commit`: Anthropic's tool-name regex (`^[a-zA-Z0-9_-]{1,128}$`)
+/// plus `.` (so semver-shaped versions and dotted commit refs flow
+/// through cleanly; the `.` -> `-` substitution happens when the tool
+/// name is materialized via [`super::Manifest::tool_name`]).
+#[cfg(feature = "http")]
+fn validate_identifier(kind: &'static str, value: &str) -> Result<(), super::InstallError> {
+    let valid_len = !value.is_empty() && value.len() <= 128;
+    let valid_chars = value
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.'));
+    if !valid_len || !valid_chars {
+        return Err(super::InstallError::InvalidIdentifier {
+            kind,
+            value: value.to_string(),
+        });
+    }
+    Ok(())
+}
+
+/// Combined shape check for the three caller-supplied identifiers
+/// every install entry point takes. Used by `install_plugin`,
+/// `install_plugin_from_manifest`, and the `#[cfg(test)]`
+/// `install_plugin_at`. Calls [`check_repository_name`] first so a
+/// reserved-name failure takes precedence over a generic regex
+/// failure for the same input.
+#[cfg(feature = "http")]
+fn validate_install_inputs(
+    owner: &str,
+    repository: &str,
+    commit_sha: Option<&str>,
+) -> Result<(), super::InstallError> {
+    check_repository_name(repository)?;
+    validate_identifier("owner", owner)?;
+    validate_identifier("repository", repository)?;
+    if let Some(sha) = commit_sha {
+        validate_identifier("commit", sha)?;
     }
     Ok(())
 }

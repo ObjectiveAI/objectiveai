@@ -9,6 +9,10 @@ import (
 
 // The base configuration for a Claude Agent SDK Agent (without computed ID).
 type AgentClaudeAgentSdkAgentBase struct {
+	// Client-side ObjectiveAI MCP surface the calling client is
+	// expected to expose locally back to the API (objectiveai
+	// built-in, plus specific plugins / tools by owner+name+version).
+	ClientObjectiveaiMCP *AgentClientObjectiveaiMcp `json:"client_objectiveai_mcp,omitempty"`
 	// The effort level for model output.
 	Effort *AgentClaudeAgentSdkEffort `json:"effort,omitempty"`
 	// MCP servers the agent can connect to.

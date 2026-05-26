@@ -42,6 +42,11 @@ type FilesystemPluginsManifest struct {
 	// authors specifically design for "no-backend" mode. Defaults
 	// to false (desktop-only).
 	MobileReady bool `json:"mobile_ready"`
+	// GitHub `<owner>` segment of the source repo. Authors write
+	// their canonical owner here; the installer overwrites this
+	// field with whatever owner it was actually installed from (so
+	// forks land on disk with the fork's owner, not the upstream's).
+	Owner string `json:"owner"`
 	// Version string. Semver convention is recommended but not
 	// enforced — the host just displays whatever's here.
 	Version string `json:"version"`
@@ -83,7 +88,7 @@ func (v *FilesystemPluginsManifest) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"binaries", "description", "mobile_ready", "version", "viewer_routes"} {
+	for _, key := range []string{"binaries", "description", "mobile_ready", "owner", "version", "viewer_routes"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("FilesystemPluginsManifest: missing required field %q", key)
 		}

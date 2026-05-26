@@ -76,6 +76,10 @@ pub async fn handle_post(
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
+    let session_in = headers
+        .get(SESSION_ID_HEADER)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
     if let Err(resp) = require_streamable_http_accept(&headers) {
         return resp;
     }
@@ -107,7 +111,9 @@ pub async fn handle_post(
         Err(e) => return parse_error_response(format!("invalid JSON-RPC envelope: {e}")),
     };
 
-    match request.method.as_str() {
+    let method = request.method.clone();
+    let rpc_id_str = format!("{}", request.id);
+    let response = match request.method.as_str() {
         "initialize" => handle_initialize(&state, &headers, request).await,
         "ping" => handle_ping(request),
         "tools/list" => handle_tools_list(&state.sessions, &headers, request).await,
@@ -115,7 +121,8 @@ pub async fn handle_post(
         "resources/list" => handle_resources_list(&state.sessions, &headers, request).await,
         "resources/read" => handle_resources_read(&state.sessions, &headers, request).await,
         other => method_not_found_response(request.id, other),
-    }
+    };
+    response
 }
 
 /// Look up the in-flight token for `params.requestId` and fire it. Quietly
@@ -232,6 +239,11 @@ async fn handle_initialize(
     headers: &HeaderMap,
     request: JsonRpcRequest,
 ) -> Response {
+    let session_in = headers
+        .get(SESSION_ID_HEADER)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    let rpc_id_str = format!("{}", request.id);
     // Validate the client's requested protocolVersion. We don't care
     // about anything else in `params` (clientInfo / capabilities) — they
     // don't change our routing or our advertised feature set.
@@ -307,11 +319,12 @@ async fn handle_initialize(
             return ok_response_resume_sse(request.id);
         }
         // Branch 2 — decrypt and reconnect strictly from the payload.
-        let (connections_with_headers, decoded_agent_id) = match state.sessions.decode_session_id(sid) {
+        let (connections_with_headers, decoded_agent_id, decoded_tool_allowlists) = match state.sessions.decode_session_id(sid) {
             Some(payload) => {
                 let agent_id = payload.agent_id.clone();
+                let tool_allowlists = payload.tool_allowlists.clone();
                 match crate::upstream::reconnect_from_payload(&state.client, &payload).await {
-                    Ok(pairs) => (pairs, agent_id),
+                    Ok(pairs) => (pairs, agent_id, tool_allowlists),
                     Err(e @ BadInit::UpstreamConnectFailed { .. }) => {
                         return internal_error_response(request.id, e.to_string());
                     }
@@ -334,7 +347,11 @@ async fn handle_initialize(
         // id is deterministic and matches what the client already
         // holds; we discard the return value because the resume path
         // doesn't echo the id back.
-        let _ = state.sessions.add(connections_with_headers, decoded_agent_id);
+        let _ = state.sessions.add(
+            connections_with_headers,
+            decoded_agent_id,
+            decoded_tool_allowlists,
+        );
         ok_response_resume_sse(request.id)
     } else {
         // Branch 3 — fresh init. `X-MCP-Servers` / `X-MCP-Headers`
@@ -352,12 +369,12 @@ async fn handle_initialize(
             .or_else(|| headers.get("OBJECTIVEAI-AGENT-ID"))
             .and_then(|v| v.to_str().ok())
             .map(str::to_owned);
-        let connections_with_headers = match crate::upstream::connect_all_fresh(
+        let (connections_with_headers, tool_allowlists) = match crate::upstream::connect_all_fresh(
             &state.client,
             headers,
             agent_id.as_deref(),
         ).await {
-            Ok(pairs) => pairs,
+            Ok(pair) => pair,
             Err(e @ (BadInit::NotUtf8 { .. } | BadInit::NotJson { .. })) => {
                 return invalid_request_response(request.id, e.to_string());
             }
@@ -365,7 +382,7 @@ async fn handle_initialize(
                 return internal_error_response(request.id, e.to_string());
             }
         };
-        let session_id = state.sessions.add(connections_with_headers, agent_id);
+        let session_id = state.sessions.add(connections_with_headers, agent_id, tool_allowlists);
         ok_response_fresh_sse(request.id, session_id)
     }
 }
@@ -532,7 +549,14 @@ async fn handle_tools_list(
         None => return unknown_session_response(),
     };
 
-    match session.list_tools().await {
+    // Optional `X-List-Filter`: scope the fan-out to a single
+    // upstream URL. Absent → fan out to every upstream. Same header
+    // applies to both `tools/list` and `resources/list`.
+    let filter_url = headers
+        .get(crate::upstream::LIST_FILTER_HEADER)
+        .and_then(|v| v.to_str().ok());
+
+    match session.list_tools_filtered(filter_url).await {
         Ok(result) => {
             let body = JsonRpcResponse::Success {
                 jsonrpc: "2.0".into(),
@@ -732,7 +756,14 @@ async fn handle_resources_list(
         None => return unknown_session_response(),
     };
 
-    match session.list_resources().await {
+    // Optional `X-List-Filter`: scope the fan-out to a single
+    // upstream URL. Absent → fan out to every upstream. Same header
+    // semantics as `tools/list`.
+    let filter_url = headers
+        .get(crate::upstream::LIST_FILTER_HEADER)
+        .and_then(|v| v.to_str().ok());
+
+    match session.list_resources_filtered(filter_url).await {
         Ok(result) => {
             let body = JsonRpcResponse::Success {
                 jsonrpc: "2.0".into(),

@@ -218,7 +218,7 @@ CARGO_TOMLS=(
   objectiveai-cli/builder/Cargo.toml
   objectiveai-cli/test-fixtures/hello-plugin/Cargo.toml
   objectiveai-json-schema/builder/Cargo.toml
-  objectiveai-mcp-cli/Cargo.toml
+  objectiveai-mcp/Cargo.toml
   objectiveai-mcp-filesystem/Cargo.toml
   objectiveai-mcp-proxy/Cargo.toml
   objectiveai-mcp-proxy/test-upstream/Cargo.toml

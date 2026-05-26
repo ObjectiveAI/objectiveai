@@ -38,8 +38,13 @@ pub fn resolve_continuation(fields: ContinuationFields) -> Result<Option<String>
         let cont = objectiveai_sdk::agent::Continuation::Openrouter(
             objectiveai_sdk::agent::openrouter::Continuation {
                 upstream: objectiveai_sdk::agent::openrouter::Upstream::Openrouter,
+                // Empty here so the api treats this as a fresh build
+                // and mints a composite from its inbound header on
+                // first entry.
+                agent_id: String::new(),
                 messages,
                 mcp_sessions: Default::default(),
+                ws_session_id: None,
             },
         );
         return Ok(Some(cont.to_string()));
@@ -50,8 +55,13 @@ pub fn resolve_continuation(fields: ContinuationFields) -> Result<Option<String>
         let cont = objectiveai_sdk::agent::Continuation::Openrouter(
             objectiveai_sdk::agent::openrouter::Continuation {
                 upstream: objectiveai_sdk::agent::openrouter::Upstream::Openrouter,
+                // Empty here so the api treats this as a fresh build
+                // and mints a composite from its inbound header on
+                // first entry.
+                agent_id: String::new(),
                 messages,
                 mcp_sessions: Default::default(),
+                ws_session_id: None,
             },
         );
         return Ok(Some(cont.to_string()));
@@ -62,8 +72,13 @@ pub fn resolve_continuation(fields: ContinuationFields) -> Result<Option<String>
         let cont = objectiveai_sdk::agent::Continuation::Openrouter(
             objectiveai_sdk::agent::openrouter::Continuation {
                 upstream: objectiveai_sdk::agent::openrouter::Upstream::Openrouter,
+                // Empty here so the api treats this as a fresh build
+                // and mints a composite from its inbound header on
+                // first entry.
+                agent_id: String::new(),
                 messages,
                 mcp_sessions: Default::default(),
+                ws_session_id: None,
             },
         );
         return Ok(Some(cont.to_string()));
@@ -79,8 +94,13 @@ pub fn resolve_continuation(fields: ContinuationFields) -> Result<Option<String>
         let cont = objectiveai_sdk::agent::Continuation::Mock(
             objectiveai_sdk::agent::mock::Continuation {
                 upstream: objectiveai_sdk::agent::mock::Upstream::Mock,
+                // Empty here so the api treats this as a fresh build
+                // and mints a composite from its inbound header on
+                // first entry.
+                agent_id: String::new(),
                 messages,
                 mcp_sessions: Default::default(),
+                ws_session_id: None,
             },
         );
         return Ok(Some(cont.to_string()));
@@ -91,8 +111,13 @@ pub fn resolve_continuation(fields: ContinuationFields) -> Result<Option<String>
         let cont = objectiveai_sdk::agent::Continuation::Mock(
             objectiveai_sdk::agent::mock::Continuation {
                 upstream: objectiveai_sdk::agent::mock::Upstream::Mock,
+                // Empty here so the api treats this as a fresh build
+                // and mints a composite from its inbound header on
+                // first entry.
+                agent_id: String::new(),
                 messages,
                 mcp_sessions: Default::default(),
+                ws_session_id: None,
             },
         );
         return Ok(Some(cont.to_string()));
@@ -103,8 +128,13 @@ pub fn resolve_continuation(fields: ContinuationFields) -> Result<Option<String>
         let cont = objectiveai_sdk::agent::Continuation::Mock(
             objectiveai_sdk::agent::mock::Continuation {
                 upstream: objectiveai_sdk::agent::mock::Upstream::Mock,
+                // Empty here so the api treats this as a fresh build
+                // and mints a composite from its inbound header on
+                // first entry.
+                agent_id: String::new(),
                 messages,
                 mcp_sessions: Default::default(),
+                ws_session_id: None,
             },
         );
         return Ok(Some(cont.to_string()));
@@ -115,8 +145,13 @@ pub fn resolve_continuation(fields: ContinuationFields) -> Result<Option<String>
         let cont = objectiveai_sdk::agent::Continuation::ClaudeAgentSdk(
             objectiveai_sdk::agent::claude_agent_sdk::Continuation {
                 upstream: objectiveai_sdk::agent::claude_agent_sdk::Upstream::ClaudeAgentSdk,
+                // Empty here so the api treats this as a fresh build
+                // and mints a composite from its inbound header on
+                // first entry.
+                agent_id: String::new(),
                 session_id,
                 mcp_sessions: Default::default(),
+                ws_session_id: None,
             },
         );
         return Ok(Some(cont.to_string()));

@@ -3,6 +3,18 @@
   "description": "A validated Claude Agent SDK Agent with its computed content-addressed ID.",
   "type": "object",
   "properties": {
+    "client_objectiveai_mcp": {
+      "description": "Client-side ObjectiveAI MCP surface the calling client is\nexpected to expose locally back to the API (objectiveai\nbuilt-in, plus specific plugins / tools by owner+name+version).",
+      "anyOf": [
+        {
+          "$ref": "agent.ClientObjectiveaiMcp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "effort": {
       "description": "The effort level for model output.",
       "anyOf": [

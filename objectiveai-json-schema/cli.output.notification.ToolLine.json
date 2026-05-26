@@ -1,0 +1,32 @@
+{
+  "title": "cli.output.notification.ToolLine",
+  "description": "One line of subprocess output from a tool spawned by\n`objectiveai tools <name> <args…>`. Wire shape:\n\n- stdout line: `{\"line\":\"hello\",\"stdout\":true}`\n- stderr line: `{\"line\":\"oops\",\"stderr\":true}`\n\nExactly one of `stdout` / `stderr` is set per emission; the other\nis omitted from the wire shape via `skip_serializing_if`.",
+  "type": "object",
+  "properties": {
+    "line": {
+      "type": "string"
+    },
+    "stderr": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "stdout": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

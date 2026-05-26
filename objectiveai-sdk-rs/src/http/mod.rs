@@ -15,7 +15,11 @@
 
 mod client;
 mod error;
+mod mcp_handler;
+mod notifier;
 pub mod viewer;
 
 pub use client::*;
 pub use error::*;
+pub use mcp_handler::*;
+pub use notifier::*;

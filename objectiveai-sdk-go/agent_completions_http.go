@@ -12,8 +12,4 @@ func AgentCompletionsCreateAgentCompletionStreaming(ctx context.Context, c *Clie
 	return PostStreaming[AgentCompletionsResponseStreamingAgentCompletionChunk](ctx, c, "agent/completions", params)
 }
 
-func AgentCompletionsNotifyAgentCompletion(ctx context.Context, c *Client, params AgentCompletionsRequestAgentCompletionNotifyParams) error {
-	return PostNoResponse(ctx, c, "agent/completions/notify", params)
-}
-
 func ptrBool(v bool) *bool { return &v }

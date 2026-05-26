@@ -27,6 +27,7 @@
 //! - Collections are sorted for deterministic ordering
 
 mod agent;
+mod client_objectiveai_mcp;
 pub mod claude_agent_sdk;
 pub mod codex_sdk;
 pub mod completions;
@@ -41,6 +42,7 @@ pub mod response;
 mod upstream;
 
 pub use agent::*;
+pub use client_objectiveai_mcp::*;
 pub use continuation::*;
 pub use mcp::*;
 pub use output_mode::*;

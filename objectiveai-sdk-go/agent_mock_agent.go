@@ -9,6 +9,10 @@ import (
 
 // A validated Mock Agent with its computed content-addressed ID.
 type AgentMockAgent struct {
+	// Client-side ObjectiveAI MCP surface the calling client is
+	// expected to expose locally back to the API (objectiveai
+	// built-in, plus specific plugins / tools by owner+name+version).
+	ClientObjectiveaiMCP *AgentClientObjectiveaiMcp `json:"client_objectiveai_mcp,omitempty"`
 	// If true, the mock client will return an error instead of a response.
 	Error *bool `json:"error,omitempty"`
 	// Probability (0-100) that the mock returns an error mid-stream.

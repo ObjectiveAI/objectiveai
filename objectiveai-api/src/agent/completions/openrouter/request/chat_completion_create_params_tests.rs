@@ -2257,6 +2257,7 @@ async fn test_request_continuation_messages_come_first() {
 
     let request_continuation = objectiveai_sdk::agent::openrouter::Continuation {
         upstream: objectiveai_sdk::agent::openrouter::Upstream::default(),
+        agent_id: String::new(),
         messages: vec![
             Message::User(UserMessage {
                 content: RichContent::Text("Previous turn".into()),
@@ -2271,6 +2272,7 @@ async fn test_request_continuation_messages_come_first() {
             }),
         ],
         mcp_sessions: indexmap::IndexMap::new(),
+        ws_session_id: None,
     };
 
     let result = ChatCompletionCreateParams::new(

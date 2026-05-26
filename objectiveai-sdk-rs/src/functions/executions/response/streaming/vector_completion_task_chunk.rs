@@ -1,4 +1,5 @@
 use crate::{error, vector};
+use crate::agent::completions::response::streaming::AgentCompletionIds;
 use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
 
@@ -16,6 +17,12 @@ pub struct VectorCompletionTaskChunk {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub error: Option<error::ResponseError>,
+}
+
+impl AgentCompletionIds for VectorCompletionTaskChunk {
+    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> {
+        self.inner.agent_completion_ids()
+    }
 }
 
 impl VectorCompletionTaskChunk {

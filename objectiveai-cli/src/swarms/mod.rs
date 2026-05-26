@@ -62,7 +62,7 @@ impl Commands {
             Commands::Get { args } => {
                 let path = args.resolve(|| get_favorites(cli_config)).await?;
                 let handle = handle.clone();
-                crate::api::run(|http_client| async move {
+                crate::api::run(cli_config, |http_client| async move {
                     let response = objectiveai_sdk::swarm::get_swarm(&http_client, path).await?;
                     objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Swarm>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: 
                         objectiveai_sdk::cli::output::Swarm { swarm: response },
@@ -75,10 +75,11 @@ impl Commands {
                 use objectiveai_sdk::swarm::request::ListSwarmsSource;
                 match source {
                     crate::list::Source::Favorites => crate::list::favorites(|| get_favorites(cli_config), handle).await,
-                    crate::list::Source::Filesystem => crate::list::single(|c| Box::pin(list_source(c, ListSwarmsSource::Filesystem)), handle).await,
-                    crate::list::Source::Objectiveai => crate::list::single(|c| Box::pin(list_source(c, ListSwarmsSource::Objectiveai)), handle).await,
-                    crate::list::Source::Mock => crate::list::single(|c| Box::pin(list_source(c, ListSwarmsSource::Mock)), handle).await,
+                    crate::list::Source::Filesystem => crate::list::single(cli_config, |c| Box::pin(list_source(c, ListSwarmsSource::Filesystem)), handle).await,
+                    crate::list::Source::Objectiveai => crate::list::single(cli_config, |c| Box::pin(list_source(c, ListSwarmsSource::Objectiveai)), handle).await,
+                    crate::list::Source::Mock => crate::list::single(cli_config, |c| Box::pin(list_source(c, ListSwarmsSource::Mock)), handle).await,
                     crate::list::Source::All => crate::list::all(
+                        cli_config,
                         || get_favorites(cli_config),
                         |c| Box::pin(list_source(c, ListSwarmsSource::Filesystem)),
                         |c| Box::pin(list_source(c, ListSwarmsSource::Objectiveai)),

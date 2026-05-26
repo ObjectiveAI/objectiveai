@@ -24,6 +24,7 @@ using the [`push`](Self::push) method."""
     id: str
     index: int = Field(..., ge=0, le=18446744073709551615)
     messages: list[MessageChunk]
+    messages_queued: Optional[bool] = Field(None, description='`true` when the MCP proxy holds queued messages that were not\ndelivered to the agent via a tool response on this turn. Only\nset when `continuation` is also set — the caller acts on it by\nissuing the continuation. Absent when nothing is queued, when\nthere is no continuation to act on, or when the peek failed\n(the failure is surfaced via `error`).', json_schema_extra={'omitempty': True})
     object: Object = Field(..., description='The object type (always "agent.completion.chunk").')
     upstream: Upstream = Field(..., description='Upstream provider')
     usage: Optional[Usage] = Field(None, description='Token usage (only present in the final chunk).', json_schema_extra={'omitempty': True})

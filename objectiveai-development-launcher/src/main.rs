@@ -19,7 +19,7 @@ fn package_for_stem(stem: &str) -> Option<&'static str> {
         "objectiveai" => Some("objectiveai-cli"),
         "objectiveai-api" => Some("objectiveai-api"),
         "objectiveai-viewer" => Some("objectiveai-viewer"),
-        "objectiveai-mcp" => Some("objectiveai-mcp-cli"),
+        "objectiveai-mcp" => Some("objectiveai-mcp"),
         _ => None,
     }
 }

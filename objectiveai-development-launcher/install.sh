@@ -5,7 +5,7 @@
 #   objectiveai{.exe}             -> cargo run -p objectiveai-cli
 #   bin/objectiveai-api{.exe}     -> cargo run -p objectiveai-api
 #   bin/objectiveai-viewer{.exe}  -> cargo run -p objectiveai-viewer
-#   bin/objectiveai-mcp{.exe}     -> cargo run -p objectiveai-mcp-cli
+#   bin/objectiveai-mcp{.exe}     -> cargo run -p objectiveai-mcp
 #
 # After running this script, anything that spawns those binaries
 # (cli `api spawn` / `viewer spawn`, scripts, the viewer's

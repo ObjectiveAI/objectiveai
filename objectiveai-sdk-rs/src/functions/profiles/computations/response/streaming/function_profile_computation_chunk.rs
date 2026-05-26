@@ -2,6 +2,7 @@ use crate::{
     agent,
     functions::{self, profiles::computations::response},
 };
+use crate::agent::completions::response::streaming::AgentCompletionIds;
 use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
 
@@ -29,6 +30,12 @@ pub struct FunctionProfileComputationChunk {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub usage: Option<agent::completions::response::Usage>,
+}
+
+impl AgentCompletionIds for FunctionProfileComputationChunk {
+    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> {
+        self.executions.iter().flat_map(|e| e.agent_completion_ids())
+    }
 }
 
 impl FunctionProfileComputationChunk {

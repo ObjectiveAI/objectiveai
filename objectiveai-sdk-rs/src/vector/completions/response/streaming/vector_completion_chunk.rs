@@ -1,6 +1,7 @@
 //! Streaming vector completion chunk.
 
 use crate::{agent, vector::completions::response};
+use crate::agent::completions::response::streaming::AgentCompletionIds;
 use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
 
@@ -38,6 +39,12 @@ pub struct VectorCompletionChunk {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub usage: Option<agent::completions::response::Usage>,
+}
+
+impl AgentCompletionIds for VectorCompletionChunk {
+    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> {
+        self.completions.iter().flat_map(|c| c.agent_completion_ids())
+    }
 }
 
 impl VectorCompletionChunk {

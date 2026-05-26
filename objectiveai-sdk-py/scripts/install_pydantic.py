@@ -57,8 +57,15 @@ def title_to_path(title: str) -> tuple[str, str]:
 
 
 def _to_snake(name: str) -> str:
-    """Convert PascalCase or camelCase to snake_case."""
-    s = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", name)
+    """Convert PascalCase or camelCase to snake_case.
+
+    Dots (from dotted schema titles like
+    `client_objectiveai_mcp.client_response.Response.Ok`) are
+    treated as word boundaries: collapsed to underscores so the
+    result is a valid Python identifier / module-name component.
+    """
+    s = name.replace(".", "_")
+    s = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", s)
     s = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", s)
     return s.lower()
 
@@ -549,7 +556,11 @@ def _generate_variant_class(
     Returns (code, class_name, refs).
     """
     variant_title = variant_schema["title"]
-    class_name = f"{parent_name}{variant_title}"
+    # Variant titles can carry dotted schema paths (e.g.
+    # `client_objectiveai_mcp.client_response.Response.Ok`).
+    # Strip dots when interpolating into a Python identifier so
+    # `class_name` is a valid Python class name.
+    class_name = f"{parent_name}{variant_title.replace('.', '')}"
     refs: set[str] = set()
     desc = variant_schema.get("description", "")
     safe_desc = desc.replace('"""', '\\"\\"\\"') if desc else ""

@@ -21,5 +21,8 @@ func (v *FunctionsExecutionsResponseStreamingReasoningSummaryChunk) Push(other *
 		v.Usage = other.Usage
 	}
 
+	// messages_queued: replace (latest Some() wins)
+	v.MessagesQueued = pushReplace(v.MessagesQueued, other.MessagesQueued)
+
 	// id, created, object, upstream are immutable
 }

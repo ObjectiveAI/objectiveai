@@ -24,5 +24,8 @@ func (v *LaboratoriesExecutionsResponseStreamingEvaluationChunk) Push(other *Lab
 	// output: replace
 	v.Output = pushReplace(v.Output, other.Output)
 
+	// messages_queued: replace (latest Some() wins)
+	v.MessagesQueued = pushReplace(v.MessagesQueued, other.MessagesQueued)
+
 	// index, agent_index, id, created, object, upstream are immutable
 }

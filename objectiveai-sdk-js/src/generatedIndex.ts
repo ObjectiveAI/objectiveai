@@ -3,6 +3,7 @@
 export * from "./agent/index";
 export * from "./auth/index";
 export * from "./cli/index";
+export * from "./client_objectiveai_mcp/index";
 export * from "./error/index";
 export * from "./filesystem/index";
 export * from "./functions/index";

@@ -15,4 +15,7 @@ from .published import Published  # noqa: F401
 from .schema import Schema  # noqa: F401
 from .schemas import Schemas  # noqa: F401
 from .skip_reason import SkipReason, SkipReasonDevTree, SkipReasonIncompleteRelease, SkipReasonUnsupportedPlatform  # noqa: F401
+from .tool import Tool  # noqa: F401
+from .tool_line import ToolLine  # noqa: F401
+from .tools import Tools  # noqa: F401
 from .updater import Updater, UpdaterChecking, UpdaterFound, UpdaterInstalled, UpdaterSkipped, UpdaterUpToDate  # noqa: F401

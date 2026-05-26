@@ -42,6 +42,13 @@ pub struct AgentBase {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub mcp_servers: Option<super::super::McpServers>,
+
+    /// Client-side ObjectiveAI MCP surface the calling client is
+    /// expected to expose locally back to the API (objectiveai
+    /// built-in, plus specific plugins / tools by owner+name+version).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub client_objectiveai_mcp: Option<super::super::ClientObjectiveaiMcp>,
 }
 
 impl AgentBase {
@@ -65,6 +72,10 @@ impl AgentBase {
             Some(mcp_servers) => super::super::mcp::mcp_servers::prepare(mcp_servers),
             None => None,
         };
+        self.client_objectiveai_mcp = match self.client_objectiveai_mcp.take() {
+            Some(cm) => super::super::client_objectiveai_mcp::prepare(cm),
+            None => None,
+        };
     }
 
     /// Validates the configuration.
@@ -84,6 +95,9 @@ impl AgentBase {
         }
         if let Some(mcp_servers) = &self.mcp_servers {
             super::super::mcp::mcp_servers::validate(mcp_servers)?;
+        }
+        if let Some(cm) = &self.client_objectiveai_mcp {
+            super::super::client_objectiveai_mcp::validate(cm)?;
         }
         if let Some(p) = self.error_probability {
             if p > 100 {

@@ -13,7 +13,7 @@ name: Auto-publish libraries
 #      sdk-py (PyPI) + sdk-js (npm)               — need sdk-rs
 #   4. api (crates)                — needs mcp-proxy
 #   5. cli (crates)                — needs api
-#   6. mcp-cli (crates), cocoindex (PyPI)
+#   6. mcp (crates), cocoindex (PyPI)
 #                                  — need cli / sdk-py respectively
 #
 # Each per-package publish workflow is called as a reusable workflow
@@ -240,9 +240,9 @@ jobs:
           done
           echo "timed out waiting for $NAME@$VERSION in sparse index or sdk@$VERSION on PyPI"; exit 1
 
-  publish-mcp-cli:
+  publish-mcp:
     needs: wait-after-wave-5
-    uses: ./.github/workflows/publish-objectiveai-mcp-cli.yml
+    uses: ./.github/workflows/publish-objectiveai-mcp.yml
     secrets: inherit
 
   publish-cocoindex:

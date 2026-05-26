@@ -19,6 +19,7 @@ fn minimal_manifest_json() -> String {
     serde_json::to_string(&Manifest {
         description: "tiny test plugin".to_string(),
         version: "0.1.0".to_string(),
+        owner: "wiggidy".to_string(),
         author: None,
         homepage: None,
         license: None,

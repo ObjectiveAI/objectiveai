@@ -4,6 +4,7 @@
 pub mod config;
 pub mod logs;
 pub mod plugins;
+pub mod tools;
 
 use clap::Subcommand;
 
@@ -27,13 +28,18 @@ pub enum Commands {
         #[command(subcommand)]
         command: plugins::Commands,
     },
+    #[command(name = "tools")]
+    Tools {
+        #[command(subcommand)]
+        command: tools::Commands,
+    },
 }
 
 impl Commands {
     pub async fn handle(self, handle: &objectiveai_sdk::cli::output::Handle) -> Result<(), crate::error::Error> {
         match self {
             Commands::List => {
-                const NAMES: &[&str] = &["config", "logs", "plugins"];
+                const NAMES: &[&str] = &["config", "logs", "plugins", "tools"];
                 objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Schemas>::Notification(
                     objectiveai_sdk::cli::output::Notification {
                         agent_id: None,
@@ -47,6 +53,7 @@ impl Commands {
             Commands::Config { command } => command.handle(handle).await,
             Commands::Logs { command } => command.handle(handle).await,
             Commands::Plugins { command } => command.handle(handle).await,
+            Commands::Tools { command } => command.handle(handle).await,
         }
     }
 }

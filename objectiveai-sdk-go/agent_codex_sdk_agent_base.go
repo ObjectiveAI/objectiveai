@@ -9,6 +9,10 @@ import (
 
 // The base configuration for a Codex SDK Agent (without computed ID).
 type AgentCodexSdkAgentBase struct {
+	// Client-side ObjectiveAI MCP surface the calling client is
+	// expected to expose locally back to the API (objectiveai
+	// built-in, plus specific plugins / tools by owner+name+version).
+	ClientObjectiveaiMCP *AgentClientObjectiveaiMcp `json:"client_objectiveai_mcp,omitempty"`
 	// Reasoning effort — maps to Codex's `model_reasoning_effort`.
 	Effort *AgentCodexSdkEffort `json:"effort,omitempty"`
 	// MCP servers the agent can connect to.

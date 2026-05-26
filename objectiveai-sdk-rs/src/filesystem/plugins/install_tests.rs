@@ -45,6 +45,7 @@ async fn install_succeeds_when_platform_supported() {
     let manifest_body = json!({
         "description": "test plugin",
         "version": "1.0.0",
+        "owner": "claimed-owner",
         "binaries": {
             platform_key: "asset-bin"
         }
@@ -90,6 +91,9 @@ async fn install_succeeds_when_platform_supported() {
     let bundle: ManifestWithNameAndSource = serde_json::from_slice(&manifest_bytes).unwrap();
     assert_eq!(bundle.name, "repo");
     assert_eq!(bundle.source, format!("{}/owner/repo/HEAD/objectiveai.json", server.uri()));
+    // The manifest claimed `owner: "claimed-owner"`; the installer
+    // overrides it with the actual GitHub URL owner ("owner" here).
+    assert_eq!(bundle.manifest.owner, "owner");
 
     cleanup(&base);
 }
@@ -101,7 +105,8 @@ async fn install_returns_false_when_platform_not_in_binaries() {
 
     let manifest_body = json!({
         "description": "test plugin",
-        "version": "1.0.0"
+        "version": "1.0.0",
+        "owner": "claimed-owner"
         // no binaries field → empty map → current platform absent
     });
 
@@ -140,6 +145,7 @@ async fn install_uses_commit_sha_when_provided() {
     let manifest_body = json!({
         "description": "test plugin",
         "version": "1.0.0",
+        "owner": "claimed-owner",
         "binaries": { platform_key: "asset-bin" }
     });
 
@@ -213,6 +219,7 @@ async fn install_binary_404_returns_binary_bad_status_error() {
     let manifest_body = json!({
         "description": "test plugin",
         "version": "1.0.0",
+        "owner": "claimed-owner",
         "binaries": { platform_key: "asset-bin" }
     });
 
@@ -276,6 +283,7 @@ async fn fetch_plugin_manifest_returns_parsed_manifest() {
     let manifest_body = json!({
         "description": "test plugin",
         "version": "1.2.3",
+        "owner": "claimed-owner",
         "author": "Wiggidy",
         "binaries": { platform_key: "asset-bin" }
     });
@@ -294,6 +302,10 @@ async fn fetch_plugin_manifest_returns_parsed_manifest() {
 
     assert_eq!(manifest.description, "test plugin");
     assert_eq!(manifest.version, "1.2.3");
+    // fetch_plugin_manifest_at does no override — it returns whatever
+    // the repo's objectiveai.json literally contains. The install path
+    // is where `owner` gets overwritten with the real URL owner.
+    assert_eq!(manifest.owner, "claimed-owner");
     assert_eq!(manifest.author.as_deref(), Some("Wiggidy"));
     assert_eq!(manifest.binaries.len(), 1);
 
@@ -309,6 +321,7 @@ async fn install_passes_headers_to_both_requests() {
     let manifest_body = json!({
         "description": "test plugin",
         "version": "1.0.0",
+        "owner": "claimed-owner",
         "binaries": { platform_key: "asset-bin" }
     });
 
@@ -359,6 +372,7 @@ async fn install_makes_plugin_appear_in_list() {
     let manifest_body = json!({
         "description": "installed plugin",
         "version": "1.0.0",
+        "owner": "claimed-owner",
         "author": "tester",
         "binaries": { platform_key: "asset-bin" }
     });
@@ -404,6 +418,7 @@ async fn install_then_get_plugin_returns_persisted_manifest() {
     let manifest_body = json!({
         "description": "installed plugin",
         "version": "1.0.0",
+        "owner": "claimed-owner",
         "binaries": { platform_key: "asset-bin" }
     });
 
@@ -458,6 +473,7 @@ async fn install_extracts_viewer_zip_when_present() {
     let manifest_body = json!({
         "description": "viewer plugin",
         "version": "1.0.0",
+        "owner": "claimed-owner",
         "binaries": { platform_key: "asset-bin" },
         "viewer_zip": "v.zip",
         "viewer_routes": [
@@ -515,6 +531,7 @@ async fn install_skips_viewer_zip_when_absent() {
     let manifest_body = json!({
         "description": "no-viewer plugin",
         "version": "1.0.0",
+        "owner": "claimed-owner",
         "binaries": { platform_key: "asset-bin" }
     });
 
@@ -557,6 +574,7 @@ async fn install_skips_viewer_zip_download_when_viewer_url_set() {
     let manifest_body = json!({
         "description": "url-viewer plugin",
         "version": "1.0.0",
+        "owner": "claimed-owner",
         "binaries": { platform_key: "asset-bin" },
         "viewer_url": "https://plugin.example.com/index.html",
         "viewer_routes": [
@@ -611,6 +629,7 @@ async fn install_rejects_manifest_with_both_viewer_sources() {
     let manifest_body = json!({
         "description": "broken plugin",
         "version": "1.0.0",
+        "owner": "claimed-owner",
         "binaries": { platform_key: "asset-bin" },
         "viewer_zip": "v.zip",
         "viewer_url": "https://plugin.example.com/"
@@ -642,6 +661,7 @@ async fn install_viewer_zip_404_returns_error() {
     let manifest_body = json!({
         "description": "broken viewer plugin",
         "version": "1.0.0",
+        "owner": "claimed-owner",
         "binaries": { platform_key: "asset-bin" },
         "viewer_zip": "missing.zip"
     });
@@ -695,6 +715,7 @@ async fn upgrade_test_server(
     let manifest_body = json!({
         "description": "upgrade test plugin",
         "version": version,
+        "owner": "claimed-owner",
         "binaries": { platform_key: "asset-bin" }
     });
     Mock::given(method("GET"))
@@ -827,6 +848,7 @@ async fn install_network_failure_leaves_disk_untouched_on_fresh() {
     let manifest_body = json!({
         "description": "broken plugin",
         "version": "1.0.0",
+        "owner": "claimed-owner",
         "binaries": { platform_key: "asset-bin" }
     });
 
@@ -875,6 +897,7 @@ async fn install_upgrade_network_failure_leaves_disk_after_cleanup() {
     let manifest_body = json!({
         "description": "broken upgrade",
         "version": "2.0.0",
+        "owner": "claimed-owner",
         "binaries": { platform_key: "asset-bin" }
     });
     Mock::given(method("GET"))

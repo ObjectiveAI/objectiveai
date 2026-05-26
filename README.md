@@ -23,7 +23,7 @@ SDKs published to language-native registries. Pick the one for your stack:
 | Python | [`objectiveai-sdk`](https://pypi.org/project/objectiveai-sdk/) | `pip install objectiveai-sdk` |
 | Go | [`objectiveai-sdk-go`](https://pkg.go.dev/github.com/ObjectiveAI/objectiveai/objectiveai-sdk-go) | `go get github.com/ObjectiveAI/objectiveai/objectiveai-sdk-go` |
 
-Additional crates on crates.io: [`objectiveai-api`](https://crates.io/crates/objectiveai-api), [`objectiveai-cli`](https://crates.io/crates/objectiveai-cli), [`objectiveai-mcp-cli`](https://crates.io/crates/objectiveai-mcp-cli), [`objectiveai-mcp-proxy`](https://crates.io/crates/objectiveai-mcp-proxy), [`objectiveai-mcp-filesystem`](https://crates.io/crates/objectiveai-mcp-filesystem), [`objectiveai-sdk-macros`](https://crates.io/crates/objectiveai-sdk-macros). Additional PyPI package: [`objectiveai-cocoindex`](https://pypi.org/project/objectiveai-cocoindex/).
+Additional crates on crates.io: [`objectiveai-api`](https://crates.io/crates/objectiveai-api), [`objectiveai-cli`](https://crates.io/crates/objectiveai-cli), [`objectiveai-mcp`](https://crates.io/crates/objectiveai-mcp), [`objectiveai-mcp-proxy`](https://crates.io/crates/objectiveai-mcp-proxy), [`objectiveai-mcp-filesystem`](https://crates.io/crates/objectiveai-mcp-filesystem), [`objectiveai-sdk-macros`](https://crates.io/crates/objectiveai-sdk-macros). Additional PyPI package: [`objectiveai-cocoindex`](https://pypi.org/project/objectiveai-cocoindex/).
 
 ## Binaries
 
@@ -538,11 +538,11 @@ Standalone Tauri desktop application. Presents the same UI that the CLI embeds a
 
 ### `objectiveai-mcp`
 
-MCP (Model Context Protocol) server built from `objectiveai-mcp-cli`. Exposes ObjectiveAI's tooling over the streamable-HTTP MCP transport so editors and agents (Claude, Cursor, etc.) can invoke it via the standard MCP protocol. Defaults to `0.0.0.0:3000`; override with `ADDRESS` and `PORT`.
+MCP (Model Context Protocol) server built from `objectiveai-mcp`. Exposes ObjectiveAI's tooling over the streamable-HTTP MCP transport so editors and agents (Claude, Cursor, etc.) can invoke it via the standard MCP protocol. Defaults to `0.0.0.0:3000`; override with `ADDRESS` and `PORT`.
 
 Three crates make up the MCP surface:
 
-- **`objectiveai-mcp-cli`** — the binary shipped as `objectiveai-mcp`. Wraps the CLI as MCP tools over streamable-HTTP.
+- **`objectiveai-mcp`** — the primary MCP surface. Wraps the CLI as MCP tools over streamable-HTTP. What users run locally and expose upstream for distributed agents.
 - **`objectiveai-mcp-proxy`** — a multiplexing sidecar of `objectiveai-api`. Terminates an MCP client connection and forwards tool calls to an upstream MCP server or to ObjectiveAI-native tools. Embedded inside `objectiveai-api` at runtime.
 - **`objectiveai-mcp-filesystem`** — MCP filesystem helpers (read/write/list) adapting the SDK's filesystem layer to MCP tool calls. Docker-injected into laboratory executions so agents running in sandboxed containers can access the ObjectiveAI filesystem layer.
 
@@ -695,7 +695,7 @@ objectiveai/
 │   ├── objectiveai-api/                       # API server (self-hostable or importable)
 │   ├── objectiveai-cli/                       # Command-line interface
 │   ├── objectiveai-viewer/                    # Desktop viewer app (Tauri)
-│   └── objectiveai-mcp-cli/                   # MCP CLI binary (ships as objectiveai-mcp)
+│   └── objectiveai-mcp/                       # MCP server binary (ships as objectiveai-mcp)
 │
 ├── # MCP integration
 │   ├── objectiveai-mcp-proxy/                 # MCP proxy — multiplexes tool calls

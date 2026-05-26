@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-cli"
-version = "2.0.10"
+version = "2.0.11"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
 description = "ObjectiveAI command-line interface and embeddable library"
@@ -18,7 +18,7 @@ rustpython = ["dep:rustpython"]
 systempython = []
 
 [dependencies]
-objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.0.10", default-features = false, features = ["http", "filesystem", "cli"] }
+objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.0.11", default-features = false, features = ["http", "filesystem", "cli", "mcp"] }
 clap = { version = "4.6.0", features = ["derive"] }
 ratatui = "0.30.0"
 tokio = { version = "1.50.0", features = ["full"] }
@@ -37,8 +37,11 @@ base62 = "2.2.4"
 base64 = "0.22.1"
 futures = "0.3.32"
 semver = "1.0.28"
+indexmap = "2.13"
 sysinfo = { version = "0.38.4", default-features = false, features = ["system"] }
+dashmap = "6.1.0"
 
 [dev-dependencies]
 wiremock = "0.6"
 tempfile = "3.10"
+insta = { version = "1.40", features = ["json"] }

@@ -509,8 +509,12 @@ impl
 
         objectiveai_sdk::agent::codex_sdk::Continuation {
             upstream: objectiveai_sdk::agent::codex_sdk::Upstream::default(),
+            // Stamped by the agent-completions client immediately
+            // after this method returns; empty here is fine.
+            agent_id: String::new(),
             thread_id,
             mcp_sessions,
+            ws_session_id: None,
         }
     }
 }

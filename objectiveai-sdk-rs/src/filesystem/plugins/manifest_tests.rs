@@ -5,6 +5,7 @@ fn manifest_minimal_roundtrip() {
     let m = Manifest {
         description: "tiny test plugin".to_string(),
         version: "0.1.0".to_string(),
+        owner: "wiggidy".to_string(),
         author: None,
         homepage: None,
         license: None,
@@ -17,9 +18,10 @@ fn manifest_minimal_roundtrip() {
     let json = serde_json::to_value(&m).unwrap();
     // `skip_serializing_if = "Option::is_none"` keeps the wire shape lean.
     let obj = json.as_object().unwrap();
-    assert_eq!(obj.len(), 2);
+    assert_eq!(obj.len(), 3);
     assert_eq!(obj["description"], "tiny test plugin");
     assert_eq!(obj["version"], "0.1.0");
+    assert_eq!(obj["owner"], "wiggidy");
     // Roundtrip back.
     let back: Manifest = serde_json::from_value(json).unwrap();
     assert_eq!(back.description, "tiny test plugin");
@@ -35,6 +37,7 @@ fn manifest_full_roundtrip() {
     let m = Manifest {
         description: "Generate viral psyops content from a topic spec".to_string(),
         version: "0.3.1".to_string(),
+        owner: "wiggidy".to_string(),
         author: Some("Wiggidy".to_string()),
         homepage: Some("https://github.com/Wiggidy/psychological-operations".to_string()),
         license: Some("MIT".to_string()),
@@ -60,6 +63,7 @@ fn manifest_with_name_and_source_field_order() {
         manifest: Manifest {
             description: "do things".to_string(),
             version: "1.2.3".to_string(),
+            owner: "wiggidy".to_string(),
             author: Some("Wiggidy".to_string()),
             homepage: None,
             license: Some("MIT".to_string()),
@@ -80,6 +84,7 @@ fn manifest_with_name_and_source_field_order() {
         r#""name":"psyops","#,
         r#""description":"do things","#,
         r#""version":"1.2.3","#,
+        r#""owner":"wiggidy","#,
         r#""author":"Wiggidy","#,
         r#""license":"MIT","#,
         r#""source":"/home/user/.objectiveai/plugins/psyops.manifest.json""#,
@@ -103,7 +108,8 @@ fn manifest_with_name_and_source_field_order() {
 fn manifest_deserializes_minimal_json() {
     let json = serde_json::json!({
         "description": "x",
-        "version": "0.1.0"
+        "version": "0.1.0",
+        "owner": "wiggidy"
     });
     let m: Manifest = serde_json::from_value(json).unwrap();
     assert_eq!(m.description, "x");
@@ -129,6 +135,7 @@ fn manifest_with_binaries_roundtrip() {
     let m = Manifest {
         description: "x".to_string(),
         version: "1.0.0".to_string(),
+        owner: "wiggidy".to_string(),
         author: None,
         homepage: None,
         license: None,
@@ -152,6 +159,7 @@ fn manifest_omits_empty_binaries_field() {
     let m = Manifest {
         description: "x".to_string(),
         version: "1.0.0".to_string(),
+        owner: "wiggidy".to_string(),
         author: None,
         homepage: None,
         license: None,
@@ -170,7 +178,8 @@ fn manifest_omits_empty_binaries_field() {
 fn manifest_deserializes_without_binaries_field() {
     let json = serde_json::json!({
         "description": "x",
-        "version": "1.0.0"
+        "version": "1.0.0",
+        "owner": "wiggidy"
     });
     let m: Manifest = serde_json::from_value(json).unwrap();
     assert!(m.binaries.is_empty());
@@ -181,6 +190,7 @@ fn manifest_with_binaries_field_order() {
     let m = Manifest {
         description: "x".to_string(),
         version: "1.0.0".to_string(),
+        owner: "wiggidy".to_string(),
         author: None,
         homepage: None,
         license: None,
@@ -217,6 +227,7 @@ fn manifest_with_sparse_binaries_is_valid() {
     let m = Manifest {
         description: "linux-only plugin".to_string(),
         version: "0.1.0".to_string(),
+        owner: "wiggidy".to_string(),
         author: None,
         homepage: None,
         license: None,
@@ -245,6 +256,7 @@ fn manifest_with_viewer_fields_roundtrip() {
     let m = Manifest {
         description: "viewer plugin".to_string(),
         version: "1.0.0".to_string(),
+        owner: "wiggidy".to_string(),
         author: None,
         homepage: None,
         license: None,
@@ -286,6 +298,7 @@ fn manifest_omits_viewer_fields_when_absent() {
     let m = Manifest {
         description: "x".to_string(),
         version: "1.0.0".to_string(),
+        owner: "wiggidy".to_string(),
         author: None,
         homepage: None,
         license: None,
@@ -306,7 +319,8 @@ fn manifest_omits_viewer_fields_when_absent() {
 fn manifest_deserializes_without_viewer_fields() {
     let json = serde_json::json!({
         "description": "x",
-        "version": "1.0.0"
+        "version": "1.0.0",
+        "owner": "wiggidy"
     });
     let m: Manifest = serde_json::from_value(json).unwrap();
     assert!(m.viewer_zip.is_none());
@@ -337,6 +351,7 @@ fn manifest_without_viewer() -> Manifest {
     Manifest {
         description: "t".to_string(),
         version: "0.0.1".to_string(),
+        owner: "wiggidy".to_string(),
         author: None,
         homepage: None,
         license: None,

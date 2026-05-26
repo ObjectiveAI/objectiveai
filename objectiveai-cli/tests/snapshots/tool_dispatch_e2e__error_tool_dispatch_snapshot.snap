@@ -1,0 +1,13 @@
+---
+source: objectiveai-cli/tests/tool_dispatch_e2e.rs
+expression: summary
+---
+{
+  "exit_code": 7,
+  "stdout": [
+    "wrote to stdout"
+  ],
+  "stderr": [
+    "wrote to stderr"
+  ]
+}

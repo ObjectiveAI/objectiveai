@@ -409,8 +409,12 @@ impl UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::
         }
         objectiveai_sdk::agent::openrouter::Continuation {
             upstream: objectiveai_sdk::agent::openrouter::Upstream::default(),
+            // Stamped by the agent-completions client immediately
+            // after this method returns; empty here is fine.
+            agent_id: String::new(),
             messages: all_messages,
             mcp_sessions,
+            ws_session_id: None,
         }
     }
 }

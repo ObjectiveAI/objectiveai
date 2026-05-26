@@ -507,8 +507,12 @@ impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai
 
         objectiveai_sdk::agent::claude_agent_sdk::Continuation {
             upstream: objectiveai_sdk::agent::claude_agent_sdk::Upstream::default(),
+            // Stamped by the agent-completions client immediately
+            // after this method returns; empty here is fine.
+            agent_id: String::new(),
             session_id,
             mcp_sessions,
+            ws_session_id: None,
         }
     }
 }

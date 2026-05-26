@@ -67,6 +67,13 @@ pub struct SessionPayload {
     pub connections: IndexMap<String, IndexMap<String, String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
+    /// Per-upstream-URL allowlist of un-prefixed tool names. URLs
+    /// present in this map have `tools/list` filtered to only those
+    /// names (the proxy still applies its `<server_name>_` prefix
+    /// downstream). URLs absent → no filtering (every tool visible).
+    /// Empty Vec for a URL → zero tools visible from that upstream.
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    pub tool_allowlists: IndexMap<String, Vec<String>>,
 }
 
 /// Current envelope version byte. Bumping this lets future shape
@@ -122,8 +129,9 @@ impl SessionManager {
         &self,
         connections_with_headers: Vec<(Connection, IndexMap<String, String>)>,
         agent_id: Option<String>,
+        tool_allowlists: IndexMap<String, Vec<String>>,
     ) -> String {
-        let payload = build_payload(&connections_with_headers, agent_id);
+        let payload = build_payload(&connections_with_headers, agent_id, tool_allowlists);
         let id = encrypt_and_encode(&payload, &self.key);
         let connections: Vec<Connection> =
             connections_with_headers.into_iter().map(|(c, _)| c).collect();
@@ -182,6 +190,7 @@ impl SessionManager {
 fn build_payload(
     pairs: &[(Connection, IndexMap<String, String>)],
     agent_id: Option<String>,
+    tool_allowlists: IndexMap<String, Vec<String>>,
 ) -> SessionPayload {
     // Collect (url, sorted headers) pairs, then sort by URL.
     let mut url_entries: Vec<(String, IndexMap<String, String>)> = pairs
@@ -206,7 +215,22 @@ fn build_payload(
     for (url, headers) in url_entries {
         connections.insert(url, headers);
     }
-    SessionPayload { connections, agent_id }
+    // Sort tool_allowlists by URL for byte-stable session-id encoding,
+    // mirroring the per-URL sort applied to `connections` above.
+    let mut allow_entries: Vec<(String, Vec<String>)> =
+        tool_allowlists.into_iter().collect();
+    allow_entries.sort_by(|a, b| a.0.cmp(&b.0));
+    let mut tool_allowlists: IndexMap<String, Vec<String>> =
+        IndexMap::with_capacity(allow_entries.len());
+    for (url, names) in allow_entries {
+        tool_allowlists.insert(url, names);
+    }
+
+    SessionPayload {
+        connections,
+        agent_id,
+        tool_allowlists,
+    }
 }
 
 /// JSON-serialize the payload, AEAD-encrypt with a *deterministic*
@@ -406,7 +430,7 @@ mod tests {
         let mut h_b: IndexMap<String, String> = IndexMap::new();
         h_b.insert("Mcp-Session-Id".into(), "sid-B".into());
         connections.insert("https://upstream-b.example/mcp".into(), h_b);
-        SessionPayload { connections, agent_id: None }
+        SessionPayload { connections, agent_id: None, tool_allowlists: IndexMap::new() }
     }
 
     #[test]
@@ -489,7 +513,7 @@ mod tests {
         for (u, h) in url_entries {
             connections.insert(u, h);
         }
-        let payload = SessionPayload { connections, agent_id: None };
+        let payload = SessionPayload { connections, agent_id: None, tool_allowlists: IndexMap::new() };
 
         let urls: Vec<&String> = payload.connections.keys().collect();
         assert_eq!(urls, vec![&conn_b_url, &conn_a_url]); // a.example before b.example

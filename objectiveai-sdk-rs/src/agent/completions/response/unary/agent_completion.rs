@@ -31,12 +31,38 @@ pub struct AgentCompletion {
 impl AgentCompletion {
     /// Normalize non-deterministic fields for test snapshot comparison.
     pub fn normalize_for_tests(&mut self) {
+        use crate::agent::completions::message::{RichContent, RichContentPart};
+
         self.id = String::new();
         self.created = 0;
         for msg in &mut self.messages {
-            if let super::Message::Assistant(asst) = msg {
-                asst.upstream_id = String::new();
-                asst.created = 0;
+            match msg {
+                super::Message::Assistant(asst) => {
+                    asst.upstream_id = String::new();
+                    asst.created = 0;
+                }
+                super::Message::Tool(tool) => {
+                    // Strip the `agent_id` key the CLI's
+                    // `cli::output::Handle::emit` stamps on every
+                    // emitted JSON line. The value is the racy
+                    // `next_agent_index` counter — the order-of-task
+                    // assignment varies run-to-run, so leaving it in
+                    // would break snapshot determinism. Walk text
+                    // payloads, parse each line, drop `agent_id`,
+                    // re-serialize.
+                    match &mut tool.inner.content {
+                        RichContent::Text(s) => {
+                            *s = strip_agent_id_lines(s);
+                        }
+                        RichContent::Parts(parts) => {
+                            for p in parts {
+                                if let RichContentPart::Text { text } = p {
+                                    *text = strip_agent_id_lines(text);
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -65,6 +91,38 @@ impl AgentCompletion {
             }
         }
     }
+}
+
+/// Private mirror of `cli::output::strip_agent_id_lines` for use inside
+/// `normalize_for_tests`. The shared public copy lives behind the
+/// `cli` feature flag and the SDK core builds without that feature,
+/// so we keep a small local duplicate here. ~15 lines, no shared
+/// state, no drift risk.
+fn strip_agent_id_lines(text: &str) -> String {
+    let mut out: String = text
+        .lines()
+        .map(|line| {
+            // Only rewrite lines that parse as a JSON *object* AND
+            // actually contain an `agent_id` top-level key. See the
+            // sibling helper in `cli::output::strip_agent_id_lines`
+            // for the indentation-preservation rationale.
+            let Ok(serde_json::Value::Object(mut obj)) =
+                serde_json::from_str::<serde_json::Value>(line)
+            else {
+                return line.to_string();
+            };
+            if obj.remove("agent_id").is_none() {
+                return line.to_string();
+            }
+            serde_json::to_string(&serde_json::Value::Object(obj))
+                .unwrap_or_else(|_| line.to_string())
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    if text.ends_with('\n') {
+        out.push('\n');
+    }
+    out
 }
 
 impl From<response::streaming::AgentCompletionChunk> for AgentCompletion {

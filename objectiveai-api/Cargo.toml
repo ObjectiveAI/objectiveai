@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-api"
-version = "2.0.10"
+version = "2.0.11"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
 description = "ObjectiveAI API Server"
@@ -29,8 +29,8 @@ sqlite-persistent-cache = ["dep:rusqlite"]
 orchestrator-bollard = ["dep:bollard", "dep:tar"]
 
 [dependencies]
-objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.0.10", default-features = false, features = ["http", "mcp"] }
-objectiveai-mcp-proxy = { path = "../objectiveai-mcp-proxy", version = "2.0.10" }
+objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.0.11", default-features = false, features = ["http", "mcp"] }
+objectiveai-mcp-proxy = { path = "../objectiveai-mcp-proxy", version = "2.0.11" }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
 serde = { version = "1.0.228", features = ["derive"] }
 indexmap = { version = "2.13.0", features = ["serde"] }
@@ -55,7 +55,7 @@ either = { version = "1.15.0" }
 ahash = { version = "0.8.12" }
 envconfig = { version = "0.11.1" }
 dotenv = { version = "0.15.0" }
-axum = { version = "0.8.8" }
+axum = { version = "0.8.8", features = ["ws"] }
 tower-http = { version = "0.6.8", features = ["cors"] }
 git2 = { version = "0.20.4", default-features = false, features = ["vendored-libgit2"] }
 dirs = "6.0.0"

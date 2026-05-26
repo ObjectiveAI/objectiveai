@@ -31,7 +31,7 @@
 #
 # For a from-source install, clone the repo and run the per-crate
 # install.sh scripts under objectiveai-cli/, objectiveai-api/,
-# objectiveai-viewer/, objectiveai-mcp-cli/.
+# objectiveai-viewer/, objectiveai-mcp/.
 
 set -euo pipefail
 

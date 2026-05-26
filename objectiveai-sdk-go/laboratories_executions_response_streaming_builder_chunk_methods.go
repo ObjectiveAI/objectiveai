@@ -21,5 +21,8 @@ func (v *LaboratoriesExecutionsResponseStreamingBuilderChunk) Push(other *Labora
 	// continuation: replace
 	v.Continuation = pushReplace(v.Continuation, other.Continuation)
 
+	// messages_queued: replace (latest Some() wins)
+	v.MessagesQueued = pushReplace(v.MessagesQueued, other.MessagesQueued)
+
 	// index, agent_index, id, created, object, upstream are immutable
 }

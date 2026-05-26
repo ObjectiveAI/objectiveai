@@ -3,6 +3,19 @@ import { J as JsonValue, S as Stream } from './index-DIrCCbX9.js';
 export { V as ViewerEvent, a as ViewerEventSchema, b as ViewerHttpMethod, _ as __resetForTests, i as invokeCli, l as listen, v as viewerApiCallChunks, c as viewerApiCallStream, d as viewerApiCallUnary, e as viewerApiCallUnaryNoResponse } from './index-DIrCCbX9.js';
 
 declare const AgentClaudeAgentSdkAgentSchema: z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     id: z.ZodString;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -86,6 +99,19 @@ declare const AgentClaudeAgentSdkAgentSchema: z.ZodObject<{
 type AgentClaudeAgentSdkAgent = z.infer<typeof AgentClaudeAgentSdkAgentSchema>;
 
 declare const AgentClaudeAgentSdkAgentBaseSchema: z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
         authorization: z.ZodDefault<z.ZodBoolean>;
@@ -171,6 +197,7 @@ declare const AgentClaudeAgentSdkContinuationSchema: z.ZodObject<{
     mcp_sessions: z.ZodRecord<z.ZodString, z.ZodString>;
     session_id: z.ZodString;
     upstream: z.ZodLiteral<"claude_agent_sdk">;
+    ws_session_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, z.core.$strip>;
 type AgentClaudeAgentSdkContinuation = z.infer<typeof AgentClaudeAgentSdkContinuationSchema>;
 
@@ -184,6 +211,19 @@ declare const AgentClaudeAgentSdkUpstreamSchema: z.ZodLiteral<"claude_agent_sdk"
 type AgentClaudeAgentSdkUpstream = z.infer<typeof AgentClaudeAgentSdkUpstreamSchema>;
 
 declare const AgentCodexSdkAgentSchema: z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
     id: z.ZodString;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -266,6 +306,19 @@ declare const AgentCodexSdkAgentSchema: z.ZodObject<{
 type AgentCodexSdkAgent = z.infer<typeof AgentCodexSdkAgentSchema>;
 
 declare const AgentCodexSdkAgentBaseSchema: z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
         authorization: z.ZodDefault<z.ZodBoolean>;
@@ -350,6 +403,7 @@ declare const AgentCodexSdkContinuationSchema: z.ZodObject<{
     mcp_sessions: z.ZodRecord<z.ZodString, z.ZodString>;
     thread_id: z.ZodString;
     upstream: z.ZodLiteral<"codex_sdk">;
+    ws_session_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, z.core.$strip>;
 type AgentCodexSdkContinuation = z.infer<typeof AgentCodexSdkContinuationSchema>;
 
@@ -1845,6 +1899,19 @@ declare function wasmAgentCompletionsMessagePromptId(prompt: AgentCompletionsMes
 
 declare const AgentCompletionsRequestAgentCompletionCreateParamsSchema: z.ZodObject<{
     agent: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -2305,6 +2372,19 @@ declare const AgentCompletionsRequestAgentCompletionCreateParamsSchema: z.ZodObj
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -2384,6 +2464,19 @@ declare const AgentCompletionsRequestAgentCompletionCreateParamsSchema: z.ZodObj
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -2462,6 +2555,19 @@ declare const AgentCompletionsRequestAgentCompletionCreateParamsSchema: z.ZodObj
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -2479,6 +2585,19 @@ declare const AgentCompletionsRequestAgentCompletionCreateParamsSchema: z.ZodObj
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -2939,6 +3058,19 @@ declare const AgentCompletionsRequestAgentCompletionCreateParamsSchema: z.ZodObj
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -3018,6 +3150,19 @@ declare const AgentCompletionsRequestAgentCompletionCreateParamsSchema: z.ZodObj
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -3096,6 +3241,19 @@ declare const AgentCompletionsRequestAgentCompletionCreateParamsSchema: z.ZodObj
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -4603,6 +4761,19 @@ declare class ObjectiveAI {
 
 declare const AgentCompletionsRequestAgentCompletionCreateParamsStreamingSchema: z$1.ZodObject<{
     agent: z$1.ZodUnion<readonly [z$1.ZodIntersection<z$1.ZodUnion<readonly [z$1.ZodObject<{
+        client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+            objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+            plugins: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+            tools: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+        }, z$1.core.$strip>>>;
         frequency_penalty: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
         logit_bias: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodRecord<z$1.ZodString, z$1.ZodNumber>>>;
         max_completion_tokens: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
@@ -5063,6 +5234,19 @@ declare const AgentCompletionsRequestAgentCompletionCreateParamsStreamingSchema:
         upstream: z$1.ZodLiteral<"openrouter">;
         verbosity: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
     }, z$1.core.$strip>, z$1.ZodObject<{
+        client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+            objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+            plugins: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+            tools: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+        }, z$1.core.$strip>>>;
         effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
         mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
             authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -5142,6 +5326,19 @@ declare const AgentCompletionsRequestAgentCompletionCreateParamsStreamingSchema:
         thinking: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
         upstream: z$1.ZodLiteral<"claude_agent_sdk">;
     }, z$1.core.$strip>, z$1.ZodObject<{
+        client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+            objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+            plugins: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+            tools: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+        }, z$1.core.$strip>>>;
         effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"minimal">, z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">]>>>;
         mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
             authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -5220,6 +5417,19 @@ declare const AgentCompletionsRequestAgentCompletionCreateParamsStreamingSchema:
         upstream: z$1.ZodLiteral<"codex_sdk">;
         web_search_enabled: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
     }, z$1.core.$strip>, z$1.ZodObject<{
+        client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+            objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+            plugins: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+            tools: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+        }, z$1.core.$strip>>>;
         error: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
         error_probability: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
         mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
@@ -5237,6 +5447,19 @@ declare const AgentCompletionsRequestAgentCompletionCreateParamsStreamingSchema:
         upstream: z$1.ZodLiteral<"mock">;
     }, z$1.core.$strip>]>, z$1.ZodObject<{
         fallbacks: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodUnion<readonly [z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             frequency_penalty: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
             logit_bias: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodRecord<z$1.ZodString, z$1.ZodNumber>>>;
             max_completion_tokens: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
@@ -5697,6 +5920,19 @@ declare const AgentCompletionsRequestAgentCompletionCreateParamsStreamingSchema:
             upstream: z$1.ZodLiteral<"openrouter">;
             verbosity: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
         }, z$1.core.$strip>, z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
             mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
                 authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -5776,6 +6012,19 @@ declare const AgentCompletionsRequestAgentCompletionCreateParamsStreamingSchema:
             thinking: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
             upstream: z$1.ZodLiteral<"claude_agent_sdk">;
         }, z$1.core.$strip>, z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"minimal">, z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">]>>>;
             mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
                 authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -5854,6 +6103,19 @@ declare const AgentCompletionsRequestAgentCompletionCreateParamsStreamingSchema:
             upstream: z$1.ZodLiteral<"codex_sdk">;
             web_search_enabled: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
         }, z$1.core.$strip>, z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             error: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
             error_probability: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
             mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
@@ -6085,6 +6347,19 @@ declare const AgentCompletionsRequestAgentCompletionCreateParamsStreamingSchema:
 type AgentCompletionsRequestAgentCompletionCreateParamsStreaming = z$1.infer<typeof AgentCompletionsRequestAgentCompletionCreateParamsStreamingSchema>;
 declare const AgentCompletionsRequestAgentCompletionCreateParamsUnarySchema: z$1.ZodObject<{
     agent: z$1.ZodUnion<readonly [z$1.ZodIntersection<z$1.ZodUnion<readonly [z$1.ZodObject<{
+        client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+            objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+            plugins: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+            tools: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+        }, z$1.core.$strip>>>;
         frequency_penalty: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
         logit_bias: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodRecord<z$1.ZodString, z$1.ZodNumber>>>;
         max_completion_tokens: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
@@ -6545,6 +6820,19 @@ declare const AgentCompletionsRequestAgentCompletionCreateParamsUnarySchema: z$1
         upstream: z$1.ZodLiteral<"openrouter">;
         verbosity: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
     }, z$1.core.$strip>, z$1.ZodObject<{
+        client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+            objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+            plugins: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+            tools: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+        }, z$1.core.$strip>>>;
         effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
         mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
             authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -6624,6 +6912,19 @@ declare const AgentCompletionsRequestAgentCompletionCreateParamsUnarySchema: z$1
         thinking: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
         upstream: z$1.ZodLiteral<"claude_agent_sdk">;
     }, z$1.core.$strip>, z$1.ZodObject<{
+        client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+            objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+            plugins: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+            tools: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+        }, z$1.core.$strip>>>;
         effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"minimal">, z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">]>>>;
         mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
             authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -6702,6 +7003,19 @@ declare const AgentCompletionsRequestAgentCompletionCreateParamsUnarySchema: z$1
         upstream: z$1.ZodLiteral<"codex_sdk">;
         web_search_enabled: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
     }, z$1.core.$strip>, z$1.ZodObject<{
+        client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+            objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+            plugins: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+            tools: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+        }, z$1.core.$strip>>>;
         error: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
         error_probability: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
         mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
@@ -6719,6 +7033,19 @@ declare const AgentCompletionsRequestAgentCompletionCreateParamsUnarySchema: z$1
         upstream: z$1.ZodLiteral<"mock">;
     }, z$1.core.$strip>]>, z$1.ZodObject<{
         fallbacks: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodUnion<readonly [z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             frequency_penalty: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
             logit_bias: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodRecord<z$1.ZodString, z$1.ZodNumber>>>;
             max_completion_tokens: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
@@ -7179,6 +7506,19 @@ declare const AgentCompletionsRequestAgentCompletionCreateParamsUnarySchema: z$1
             upstream: z$1.ZodLiteral<"openrouter">;
             verbosity: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
         }, z$1.core.$strip>, z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
             mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
                 authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -7258,6 +7598,19 @@ declare const AgentCompletionsRequestAgentCompletionCreateParamsUnarySchema: z$1
             thinking: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
             upstream: z$1.ZodLiteral<"claude_agent_sdk">;
         }, z$1.core.$strip>, z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"minimal">, z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">]>>>;
             mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
                 authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -7336,6 +7689,19 @@ declare const AgentCompletionsRequestAgentCompletionCreateParamsUnarySchema: z$1
             upstream: z$1.ZodLiteral<"codex_sdk">;
             web_search_enabled: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
         }, z$1.core.$strip>, z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             error: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
             error_probability: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
             mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
@@ -7567,15 +7933,6 @@ declare const AgentCompletionsRequestAgentCompletionCreateParamsUnarySchema: z$1
 type AgentCompletionsRequestAgentCompletionCreateParamsUnary = z$1.infer<typeof AgentCompletionsRequestAgentCompletionCreateParamsUnarySchema>;
 declare function agentCompletionsCreateAgentCompletion(client: ObjectiveAI, body: AgentCompletionsRequestAgentCompletionCreateParamsStreaming, options?: RequestOptions): Promise<Stream<AgentCompletionsResponseStreamingAgentCompletionChunk>>;
 declare function agentCompletionsCreateAgentCompletion(client: ObjectiveAI, body: AgentCompletionsRequestAgentCompletionCreateParamsUnary, options?: RequestOptions): Promise<AgentCompletionsResponseUnaryAgentCompletion>;
-/**
- * Notify a running agent completion with a user message.
- *
- * Pushes a `RichContent` payload at the agent completion identified
- * by `params.response_id`; the api queues it and surfaces it to the
- * model on its next natural inspection point. There is no response
- * body — any 2xx status is the success signal.
- */
-declare function agentCompletionsNotifyAgentCompletion(client: ObjectiveAI, body: AgentCompletionsRequestAgentCompletionNotifyParams, options?: RequestOptions): Promise<void>;
 
 declare const AgentFavoritesActionSchema: z.ZodEnum<{
     added: "added";
@@ -7595,6 +7952,19 @@ declare const AgentFavoritesChangedNotificationSchema: z.ZodObject<{
 type AgentFavoritesChangedNotification = z.infer<typeof AgentFavoritesChangedNotificationSchema>;
 
 declare const AgentMockAgentSchema: z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     id: z.ZodString;
@@ -7615,6 +7985,19 @@ declare const AgentMockAgentSchema: z.ZodObject<{
 type AgentMockAgent = z.infer<typeof AgentMockAgentSchema>;
 
 declare const AgentMockAgentBaseSchema: z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -7777,6 +8160,7 @@ declare const AgentMockContinuationSchema: z.ZodObject<{
         role: z.ZodLiteral<"tool">;
     }, z.core.$strip>>]>>;
     upstream: z.ZodLiteral<"mock">;
+    ws_session_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, z.core.$strip>;
 type AgentMockContinuation = z.infer<typeof AgentMockContinuationSchema>;
 
@@ -7795,6 +8179,19 @@ declare const AgentMockUpstreamSchema: z.ZodLiteral<"mock">;
 type AgentMockUpstream = z.infer<typeof AgentMockUpstreamSchema>;
 
 declare const AgentOpenrouterAgentSchema: z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     id: z.ZodString;
     logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -8259,6 +8656,19 @@ declare const AgentOpenrouterAgentSchema: z.ZodObject<{
 type AgentOpenrouterAgent = z.infer<typeof AgentOpenrouterAgentSchema>;
 
 declare const AgentOpenrouterAgentBaseSchema: z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
     max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -8865,6 +9275,7 @@ declare const AgentOpenrouterContinuationSchema: z.ZodObject<{
         role: z.ZodLiteral<"tool">;
     }, z.core.$strip>>]>>;
     upstream: z.ZodLiteral<"openrouter">;
+    ws_session_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, z.core.$strip>;
 type AgentOpenrouterContinuation = z.infer<typeof AgentOpenrouterContinuationSchema>;
 
@@ -8908,6 +9319,19 @@ declare const AgentOpenrouterVerbositySchema: z.ZodUnion<readonly [z.ZodLiteral<
 type AgentOpenrouterVerbosity = z.infer<typeof AgentOpenrouterVerbositySchema>;
 
 declare const AgentAgentSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     id: z.ZodString;
     logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -9369,6 +9793,19 @@ declare const AgentAgentSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnio
     upstream: z.ZodLiteral<"openrouter">;
     verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     id: z.ZodString;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -9449,6 +9886,19 @@ declare const AgentAgentSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnio
     thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     upstream: z.ZodLiteral<"claude_agent_sdk">;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
     id: z.ZodString;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -9528,6 +9978,19 @@ declare const AgentAgentSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnio
     upstream: z.ZodLiteral<"codex_sdk">;
     web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     id: z.ZodString;
@@ -9547,6 +10010,19 @@ declare const AgentAgentSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnio
 }, z.core.$strip>]>, z.ZodObject<{
     description: z.ZodString;
 }, z.core.$strip>>, z.ZodUnion<readonly [z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     id: z.ZodString;
     logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -10008,6 +10484,19 @@ declare const AgentAgentSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnio
     upstream: z.ZodLiteral<"openrouter">;
     verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     id: z.ZodString;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -10088,6 +10577,19 @@ declare const AgentAgentSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnio
     thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     upstream: z.ZodLiteral<"claude_agent_sdk">;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
     id: z.ZodString;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -10167,6 +10669,19 @@ declare const AgentAgentSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnio
     upstream: z.ZodLiteral<"codex_sdk">;
     web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     id: z.ZodString;
@@ -10187,6 +10702,19 @@ declare const AgentAgentSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnio
 type AgentAgent = z.infer<typeof AgentAgentSchema>;
 
 declare const AgentAgentBaseSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
     max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -10647,6 +11175,19 @@ declare const AgentAgentBaseSchema: z.ZodUnion<readonly [z.ZodIntersection<z.Zod
     upstream: z.ZodLiteral<"openrouter">;
     verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
         authorization: z.ZodDefault<z.ZodBoolean>;
@@ -10726,6 +11267,19 @@ declare const AgentAgentBaseSchema: z.ZodUnion<readonly [z.ZodIntersection<z.Zod
     thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     upstream: z.ZodLiteral<"claude_agent_sdk">;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
         authorization: z.ZodDefault<z.ZodBoolean>;
@@ -10804,6 +11358,19 @@ declare const AgentAgentBaseSchema: z.ZodUnion<readonly [z.ZodIntersection<z.Zod
     upstream: z.ZodLiteral<"codex_sdk">;
     web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -10822,6 +11389,19 @@ declare const AgentAgentBaseSchema: z.ZodUnion<readonly [z.ZodIntersection<z.Zod
 }, z.core.$strip>]>, z.ZodObject<{
     description: z.ZodString;
 }, z.core.$strip>>, z.ZodUnion<readonly [z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
     max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -11282,6 +11862,19 @@ declare const AgentAgentBaseSchema: z.ZodUnion<readonly [z.ZodIntersection<z.Zod
     upstream: z.ZodLiteral<"openrouter">;
     verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
         authorization: z.ZodDefault<z.ZodBoolean>;
@@ -11361,6 +11954,19 @@ declare const AgentAgentBaseSchema: z.ZodUnion<readonly [z.ZodIntersection<z.Zod
     thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     upstream: z.ZodLiteral<"claude_agent_sdk">;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
         authorization: z.ZodDefault<z.ZodBoolean>;
@@ -11439,6 +12045,19 @@ declare const AgentAgentBaseSchema: z.ZodUnion<readonly [z.ZodIntersection<z.Zod
     upstream: z.ZodLiteral<"codex_sdk">;
     web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -11458,6 +12077,19 @@ declare const AgentAgentBaseSchema: z.ZodUnion<readonly [z.ZodIntersection<z.Zod
 type AgentAgentBase = z.infer<typeof AgentAgentBaseSchema>;
 
 declare const AgentAgentWithFallbacksSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     id: z.ZodString;
     logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -11919,6 +12551,19 @@ declare const AgentAgentWithFallbacksSchema: z.ZodUnion<readonly [z.ZodIntersect
     upstream: z.ZodLiteral<"openrouter">;
     verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     id: z.ZodString;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -11999,6 +12644,19 @@ declare const AgentAgentWithFallbacksSchema: z.ZodUnion<readonly [z.ZodIntersect
     thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     upstream: z.ZodLiteral<"claude_agent_sdk">;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
     id: z.ZodString;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -12078,6 +12736,19 @@ declare const AgentAgentWithFallbacksSchema: z.ZodUnion<readonly [z.ZodIntersect
     upstream: z.ZodLiteral<"codex_sdk">;
     web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     id: z.ZodString;
@@ -12096,6 +12767,19 @@ declare const AgentAgentWithFallbacksSchema: z.ZodUnion<readonly [z.ZodIntersect
     upstream: z.ZodLiteral<"mock">;
 }, z.core.$strip>]>, z.ZodObject<{
     fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         id: z.ZodString;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -12557,6 +13241,19 @@ declare const AgentAgentWithFallbacksSchema: z.ZodUnion<readonly [z.ZodIntersect
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         id: z.ZodString;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -12637,6 +13334,19 @@ declare const AgentAgentWithFallbacksSchema: z.ZodUnion<readonly [z.ZodIntersect
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         id: z.ZodString;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -12716,6 +13426,19 @@ declare const AgentAgentWithFallbacksSchema: z.ZodUnion<readonly [z.ZodIntersect
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         id: z.ZodString;
@@ -12736,6 +13459,19 @@ declare const AgentAgentWithFallbacksSchema: z.ZodUnion<readonly [z.ZodIntersect
 }, z.core.$strip>>, z.ZodObject<{
     description: z.ZodString;
 }, z.core.$strip>>, z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     id: z.ZodString;
     logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -13197,6 +13933,19 @@ declare const AgentAgentWithFallbacksSchema: z.ZodUnion<readonly [z.ZodIntersect
     upstream: z.ZodLiteral<"openrouter">;
     verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     id: z.ZodString;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -13277,6 +14026,19 @@ declare const AgentAgentWithFallbacksSchema: z.ZodUnion<readonly [z.ZodIntersect
     thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     upstream: z.ZodLiteral<"claude_agent_sdk">;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
     id: z.ZodString;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -13356,6 +14118,19 @@ declare const AgentAgentWithFallbacksSchema: z.ZodUnion<readonly [z.ZodIntersect
     upstream: z.ZodLiteral<"codex_sdk">;
     web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     id: z.ZodString;
@@ -13374,6 +14149,19 @@ declare const AgentAgentWithFallbacksSchema: z.ZodUnion<readonly [z.ZodIntersect
     upstream: z.ZodLiteral<"mock">;
 }, z.core.$strip>]>, z.ZodObject<{
     fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         id: z.ZodString;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -13835,6 +14623,19 @@ declare const AgentAgentWithFallbacksSchema: z.ZodUnion<readonly [z.ZodIntersect
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         id: z.ZodString;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -13915,6 +14716,19 @@ declare const AgentAgentWithFallbacksSchema: z.ZodUnion<readonly [z.ZodIntersect
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         id: z.ZodString;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -13994,6 +14808,19 @@ declare const AgentAgentWithFallbacksSchema: z.ZodUnion<readonly [z.ZodIntersect
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         id: z.ZodString;
@@ -14015,6 +14842,19 @@ declare const AgentAgentWithFallbacksSchema: z.ZodUnion<readonly [z.ZodIntersect
 type AgentAgentWithFallbacks = z.infer<typeof AgentAgentWithFallbacksSchema>;
 
 declare const AgentAgentWithFallbacksWithCountSchema: z.ZodIntersection<z.ZodUnion<readonly [z.ZodIntersection<z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     id: z.ZodString;
     logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -14476,6 +15316,19 @@ declare const AgentAgentWithFallbacksWithCountSchema: z.ZodIntersection<z.ZodUni
     upstream: z.ZodLiteral<"openrouter">;
     verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     id: z.ZodString;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -14556,6 +15409,19 @@ declare const AgentAgentWithFallbacksWithCountSchema: z.ZodIntersection<z.ZodUni
     thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     upstream: z.ZodLiteral<"claude_agent_sdk">;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
     id: z.ZodString;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -14635,6 +15501,19 @@ declare const AgentAgentWithFallbacksWithCountSchema: z.ZodIntersection<z.ZodUni
     upstream: z.ZodLiteral<"codex_sdk">;
     web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     id: z.ZodString;
@@ -14653,6 +15532,19 @@ declare const AgentAgentWithFallbacksWithCountSchema: z.ZodIntersection<z.ZodUni
     upstream: z.ZodLiteral<"mock">;
 }, z.core.$strip>]>, z.ZodObject<{
     fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         id: z.ZodString;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -15114,6 +16006,19 @@ declare const AgentAgentWithFallbacksWithCountSchema: z.ZodIntersection<z.ZodUni
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         id: z.ZodString;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -15194,6 +16099,19 @@ declare const AgentAgentWithFallbacksWithCountSchema: z.ZodIntersection<z.ZodUni
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         id: z.ZodString;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -15273,6 +16191,19 @@ declare const AgentAgentWithFallbacksWithCountSchema: z.ZodIntersection<z.ZodUni
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         id: z.ZodString;
@@ -15293,6 +16224,19 @@ declare const AgentAgentWithFallbacksWithCountSchema: z.ZodIntersection<z.ZodUni
 }, z.core.$strip>>, z.ZodObject<{
     description: z.ZodString;
 }, z.core.$strip>>, z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     id: z.ZodString;
     logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -15754,6 +16698,19 @@ declare const AgentAgentWithFallbacksWithCountSchema: z.ZodIntersection<z.ZodUni
     upstream: z.ZodLiteral<"openrouter">;
     verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     id: z.ZodString;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -15834,6 +16791,19 @@ declare const AgentAgentWithFallbacksWithCountSchema: z.ZodIntersection<z.ZodUni
     thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     upstream: z.ZodLiteral<"claude_agent_sdk">;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
     id: z.ZodString;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -15913,6 +16883,19 @@ declare const AgentAgentWithFallbacksWithCountSchema: z.ZodIntersection<z.ZodUni
     upstream: z.ZodLiteral<"codex_sdk">;
     web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     id: z.ZodString;
@@ -15931,6 +16914,19 @@ declare const AgentAgentWithFallbacksWithCountSchema: z.ZodIntersection<z.ZodUni
     upstream: z.ZodLiteral<"mock">;
 }, z.core.$strip>]>, z.ZodObject<{
     fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         id: z.ZodString;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -16392,6 +17388,19 @@ declare const AgentAgentWithFallbacksWithCountSchema: z.ZodIntersection<z.ZodUni
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         id: z.ZodString;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -16472,6 +17481,19 @@ declare const AgentAgentWithFallbacksWithCountSchema: z.ZodIntersection<z.ZodUni
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         id: z.ZodString;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -16551,6 +17573,19 @@ declare const AgentAgentWithFallbacksWithCountSchema: z.ZodIntersection<z.ZodUni
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         id: z.ZodString;
@@ -16572,6 +17607,28 @@ declare const AgentAgentWithFallbacksWithCountSchema: z.ZodIntersection<z.ZodUni
     count: z.ZodDefault<z.ZodNumber>;
 }, z.core.$strip>>;
 type AgentAgentWithFallbacksWithCount = z.infer<typeof AgentAgentWithFallbacksWithCountSchema>;
+
+declare const AgentClientObjectiveaiMcpSchema: z.ZodObject<{
+    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+    plugins: z.ZodArray<z.ZodObject<{
+        name: z.ZodString;
+        owner: z.ZodString;
+        version: z.ZodString;
+    }, z.core.$strip>>;
+    tools: z.ZodArray<z.ZodObject<{
+        name: z.ZodString;
+        owner: z.ZodString;
+        version: z.ZodString;
+    }, z.core.$strip>>;
+}, z.core.$strip>;
+type AgentClientObjectiveaiMcp = z.infer<typeof AgentClientObjectiveaiMcpSchema>;
+
+declare const AgentClientObjectiveaiMcpEntrySchema: z.ZodObject<{
+    name: z.ZodString;
+    owner: z.ZodString;
+    version: z.ZodString;
+}, z.core.$strip>;
+type AgentClientObjectiveaiMcpEntry = z.infer<typeof AgentClientObjectiveaiMcpEntrySchema>;
 
 declare const AgentContinuationSchema: z.ZodUnion<readonly [z.ZodObject<{
     mcp_sessions: z.ZodRecord<z.ZodString, z.ZodString>;
@@ -16717,14 +17774,17 @@ declare const AgentContinuationSchema: z.ZodUnion<readonly [z.ZodObject<{
         role: z.ZodLiteral<"tool">;
     }, z.core.$strip>>]>>;
     upstream: z.ZodLiteral<"openrouter">;
+    ws_session_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, z.core.$strip>, z.ZodObject<{
     mcp_sessions: z.ZodRecord<z.ZodString, z.ZodString>;
     session_id: z.ZodString;
     upstream: z.ZodLiteral<"claude_agent_sdk">;
+    ws_session_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, z.core.$strip>, z.ZodObject<{
     mcp_sessions: z.ZodRecord<z.ZodString, z.ZodString>;
     thread_id: z.ZodString;
     upstream: z.ZodLiteral<"codex_sdk">;
+    ws_session_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, z.core.$strip>, z.ZodObject<{
     mcp_sessions: z.ZodRecord<z.ZodString, z.ZodString>;
     messages: z.ZodArray<z.ZodUnion<readonly [z.ZodIntersection<z.ZodObject<{
@@ -16869,6 +17929,7 @@ declare const AgentContinuationSchema: z.ZodUnion<readonly [z.ZodObject<{
         role: z.ZodLiteral<"tool">;
     }, z.core.$strip>>]>>;
     upstream: z.ZodLiteral<"mock">;
+    ws_session_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, z.core.$strip>]>;
 type AgentContinuation = z.infer<typeof AgentContinuationSchema>;
 
@@ -16889,6 +17950,19 @@ declare const AgentGetAgentResponseSchema: z.ZodIntersection<z.ZodUnion<readonly
 type AgentGetAgentResponse = z.infer<typeof AgentGetAgentResponseSchema>;
 
 declare const AgentInlineAgentSchema: z.ZodUnion<readonly [z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     id: z.ZodString;
     logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -17350,6 +18424,19 @@ declare const AgentInlineAgentSchema: z.ZodUnion<readonly [z.ZodObject<{
     upstream: z.ZodLiteral<"openrouter">;
     verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     id: z.ZodString;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -17430,6 +18517,19 @@ declare const AgentInlineAgentSchema: z.ZodUnion<readonly [z.ZodObject<{
     thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     upstream: z.ZodLiteral<"claude_agent_sdk">;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
     id: z.ZodString;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -17509,6 +18609,19 @@ declare const AgentInlineAgentSchema: z.ZodUnion<readonly [z.ZodObject<{
     upstream: z.ZodLiteral<"codex_sdk">;
     web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     id: z.ZodString;
@@ -17529,6 +18642,19 @@ declare const AgentInlineAgentSchema: z.ZodUnion<readonly [z.ZodObject<{
 type AgentInlineAgent = z.infer<typeof AgentInlineAgentSchema>;
 
 declare const AgentInlineAgentBaseSchema: z.ZodUnion<readonly [z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
     max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -17989,6 +19115,19 @@ declare const AgentInlineAgentBaseSchema: z.ZodUnion<readonly [z.ZodObject<{
     upstream: z.ZodLiteral<"openrouter">;
     verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
         authorization: z.ZodDefault<z.ZodBoolean>;
@@ -18068,6 +19207,19 @@ declare const AgentInlineAgentBaseSchema: z.ZodUnion<readonly [z.ZodObject<{
     thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     upstream: z.ZodLiteral<"claude_agent_sdk">;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
         authorization: z.ZodDefault<z.ZodBoolean>;
@@ -18146,6 +19298,19 @@ declare const AgentInlineAgentBaseSchema: z.ZodUnion<readonly [z.ZodObject<{
     upstream: z.ZodLiteral<"codex_sdk">;
     web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -18165,6 +19330,19 @@ declare const AgentInlineAgentBaseSchema: z.ZodUnion<readonly [z.ZodObject<{
 type AgentInlineAgentBase = z.infer<typeof AgentInlineAgentBaseSchema>;
 
 declare const AgentInlineAgentBaseWithFallbacksSchema: z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
     max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -18625,6 +19803,19 @@ declare const AgentInlineAgentBaseWithFallbacksSchema: z.ZodIntersection<z.ZodUn
     upstream: z.ZodLiteral<"openrouter">;
     verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
         authorization: z.ZodDefault<z.ZodBoolean>;
@@ -18704,6 +19895,19 @@ declare const AgentInlineAgentBaseWithFallbacksSchema: z.ZodIntersection<z.ZodUn
     thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     upstream: z.ZodLiteral<"claude_agent_sdk">;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
         authorization: z.ZodDefault<z.ZodBoolean>;
@@ -18782,6 +19986,19 @@ declare const AgentInlineAgentBaseWithFallbacksSchema: z.ZodIntersection<z.ZodUn
     upstream: z.ZodLiteral<"codex_sdk">;
     web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -18799,6 +20016,19 @@ declare const AgentInlineAgentBaseWithFallbacksSchema: z.ZodIntersection<z.ZodUn
     upstream: z.ZodLiteral<"mock">;
 }, z.core.$strip>]>, z.ZodObject<{
     fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -19259,6 +20489,19 @@ declare const AgentInlineAgentBaseWithFallbacksSchema: z.ZodIntersection<z.ZodUn
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -19338,6 +20581,19 @@ declare const AgentInlineAgentBaseWithFallbacksSchema: z.ZodIntersection<z.ZodUn
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -19416,6 +20672,19 @@ declare const AgentInlineAgentBaseWithFallbacksSchema: z.ZodIntersection<z.ZodUn
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -19436,6 +20705,19 @@ declare const AgentInlineAgentBaseWithFallbacksSchema: z.ZodIntersection<z.ZodUn
 type AgentInlineAgentBaseWithFallbacks = z.infer<typeof AgentInlineAgentBaseWithFallbacksSchema>;
 
 declare const AgentInlineAgentBaseWithFallbacksOrRemoteSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
     max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -19896,6 +21178,19 @@ declare const AgentInlineAgentBaseWithFallbacksOrRemoteSchema: z.ZodUnion<readon
     upstream: z.ZodLiteral<"openrouter">;
     verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
         authorization: z.ZodDefault<z.ZodBoolean>;
@@ -19975,6 +21270,19 @@ declare const AgentInlineAgentBaseWithFallbacksOrRemoteSchema: z.ZodUnion<readon
     thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     upstream: z.ZodLiteral<"claude_agent_sdk">;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
         authorization: z.ZodDefault<z.ZodBoolean>;
@@ -20053,6 +21361,19 @@ declare const AgentInlineAgentBaseWithFallbacksOrRemoteSchema: z.ZodUnion<readon
     upstream: z.ZodLiteral<"codex_sdk">;
     web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -20070,6 +21391,19 @@ declare const AgentInlineAgentBaseWithFallbacksOrRemoteSchema: z.ZodUnion<readon
     upstream: z.ZodLiteral<"mock">;
 }, z.core.$strip>]>, z.ZodObject<{
     fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -20530,6 +21864,19 @@ declare const AgentInlineAgentBaseWithFallbacksOrRemoteSchema: z.ZodUnion<readon
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -20609,6 +21956,19 @@ declare const AgentInlineAgentBaseWithFallbacksOrRemoteSchema: z.ZodUnion<readon
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -20687,6 +22047,19 @@ declare const AgentInlineAgentBaseWithFallbacksOrRemoteSchema: z.ZodUnion<readon
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -20720,6 +22093,19 @@ declare const AgentInlineAgentBaseWithFallbacksOrRemoteSchema: z.ZodUnion<readon
 type AgentInlineAgentBaseWithFallbacksOrRemote = z.infer<typeof AgentInlineAgentBaseWithFallbacksOrRemoteSchema>;
 
 declare const AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
     max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -21180,6 +22566,19 @@ declare const AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema: z.Z
     upstream: z.ZodLiteral<"openrouter">;
     verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
         authorization: z.ZodDefault<z.ZodBoolean>;
@@ -21259,6 +22658,19 @@ declare const AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema: z.Z
     thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     upstream: z.ZodLiteral<"claude_agent_sdk">;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
         authorization: z.ZodDefault<z.ZodBoolean>;
@@ -21337,6 +22749,19 @@ declare const AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema: z.Z
     upstream: z.ZodLiteral<"codex_sdk">;
     web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -21354,6 +22779,19 @@ declare const AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema: z.Z
     upstream: z.ZodLiteral<"mock">;
 }, z.core.$strip>]>, z.ZodObject<{
     fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -21814,6 +23252,19 @@ declare const AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema: z.Z
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -21893,6 +23344,19 @@ declare const AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema: z.Z
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -21971,6 +23435,19 @@ declare const AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema: z.Z
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -22004,6 +23481,19 @@ declare const AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema: z.Z
 type AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptional = z.infer<typeof AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema>;
 
 declare const AgentInlineAgentBaseWithFallbacksOrRemoteWithCountSchema: z.ZodIntersection<z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
     max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -22464,6 +23954,19 @@ declare const AgentInlineAgentBaseWithFallbacksOrRemoteWithCountSchema: z.ZodInt
     upstream: z.ZodLiteral<"openrouter">;
     verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
         authorization: z.ZodDefault<z.ZodBoolean>;
@@ -22543,6 +24046,19 @@ declare const AgentInlineAgentBaseWithFallbacksOrRemoteWithCountSchema: z.ZodInt
     thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     upstream: z.ZodLiteral<"claude_agent_sdk">;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
         authorization: z.ZodDefault<z.ZodBoolean>;
@@ -22621,6 +24137,19 @@ declare const AgentInlineAgentBaseWithFallbacksOrRemoteWithCountSchema: z.ZodInt
     upstream: z.ZodLiteral<"codex_sdk">;
     web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -22638,6 +24167,19 @@ declare const AgentInlineAgentBaseWithFallbacksOrRemoteWithCountSchema: z.ZodInt
     upstream: z.ZodLiteral<"mock">;
 }, z.core.$strip>]>, z.ZodObject<{
     fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -23098,6 +24640,19 @@ declare const AgentInlineAgentBaseWithFallbacksOrRemoteWithCountSchema: z.ZodInt
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -23177,6 +24732,19 @@ declare const AgentInlineAgentBaseWithFallbacksOrRemoteWithCountSchema: z.ZodInt
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -23255,6 +24823,19 @@ declare const AgentInlineAgentBaseWithFallbacksOrRemoteWithCountSchema: z.ZodInt
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -23290,6 +24871,19 @@ declare const AgentInlineAgentBaseWithFallbacksOrRemoteWithCountSchema: z.ZodInt
 type AgentInlineAgentBaseWithFallbacksOrRemoteWithCount = z.infer<typeof AgentInlineAgentBaseWithFallbacksOrRemoteWithCountSchema>;
 
 declare const AgentInlineAgentWithFallbacksSchema: z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     id: z.ZodString;
     logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -23751,6 +25345,19 @@ declare const AgentInlineAgentWithFallbacksSchema: z.ZodIntersection<z.ZodUnion<
     upstream: z.ZodLiteral<"openrouter">;
     verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     id: z.ZodString;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -23831,6 +25438,19 @@ declare const AgentInlineAgentWithFallbacksSchema: z.ZodIntersection<z.ZodUnion<
     thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     upstream: z.ZodLiteral<"claude_agent_sdk">;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
     id: z.ZodString;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -23910,6 +25530,19 @@ declare const AgentInlineAgentWithFallbacksSchema: z.ZodIntersection<z.ZodUnion<
     upstream: z.ZodLiteral<"codex_sdk">;
     web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     id: z.ZodString;
@@ -23928,6 +25561,19 @@ declare const AgentInlineAgentWithFallbacksSchema: z.ZodIntersection<z.ZodUnion<
     upstream: z.ZodLiteral<"mock">;
 }, z.core.$strip>]>, z.ZodObject<{
     fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         id: z.ZodString;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -24389,6 +26035,19 @@ declare const AgentInlineAgentWithFallbacksSchema: z.ZodIntersection<z.ZodUnion<
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         id: z.ZodString;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -24469,6 +26128,19 @@ declare const AgentInlineAgentWithFallbacksSchema: z.ZodIntersection<z.ZodUnion<
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         id: z.ZodString;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -24548,6 +26220,19 @@ declare const AgentInlineAgentWithFallbacksSchema: z.ZodIntersection<z.ZodUnion<
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         id: z.ZodString;
@@ -24588,18 +26273,18 @@ type AgentListAgentResponse = z.infer<typeof AgentListAgentResponseSchema>;
 
 declare const AgentListAgentsRequestSchema: z.ZodObject<{
     source: z.ZodOptional<z.ZodNullable<z.ZodEnum<{
+        objectiveai: "objectiveai";
         mock: "mock";
         filesystem: "filesystem";
-        objectiveai: "objectiveai";
         all: "all";
     }>>>;
 }, z.core.$strip>;
 type AgentListAgentsRequest = z.infer<typeof AgentListAgentsRequestSchema>;
 
 declare const AgentListAgentsSourceSchema: z.ZodEnum<{
+    objectiveai: "objectiveai";
     mock: "mock";
     filesystem: "filesystem";
-    objectiveai: "objectiveai";
     all: "all";
 }>;
 type AgentListAgentsSource = z.infer<typeof AgentListAgentsSourceSchema>;
@@ -24614,6 +26299,19 @@ declare const AgentOutputModeSchema: z.ZodUnion<readonly [z.ZodLiteral<"instruct
 type AgentOutputMode = z.infer<typeof AgentOutputModeSchema>;
 
 declare const AgentRemoteAgentSchema: z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     id: z.ZodString;
     logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -25075,6 +26773,19 @@ declare const AgentRemoteAgentSchema: z.ZodIntersection<z.ZodUnion<readonly [z.Z
     upstream: z.ZodLiteral<"openrouter">;
     verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     id: z.ZodString;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -25155,6 +26866,19 @@ declare const AgentRemoteAgentSchema: z.ZodIntersection<z.ZodUnion<readonly [z.Z
     thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     upstream: z.ZodLiteral<"claude_agent_sdk">;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
     id: z.ZodString;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -25234,6 +26958,19 @@ declare const AgentRemoteAgentSchema: z.ZodIntersection<z.ZodUnion<readonly [z.Z
     upstream: z.ZodLiteral<"codex_sdk">;
     web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     id: z.ZodString;
@@ -25256,6 +26993,19 @@ declare const AgentRemoteAgentSchema: z.ZodIntersection<z.ZodUnion<readonly [z.Z
 type AgentRemoteAgent = z.infer<typeof AgentRemoteAgentSchema>;
 
 declare const AgentRemoteAgentBaseSchema: z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
     max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -25716,6 +27466,19 @@ declare const AgentRemoteAgentBaseSchema: z.ZodIntersection<z.ZodUnion<readonly 
     upstream: z.ZodLiteral<"openrouter">;
     verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
         authorization: z.ZodDefault<z.ZodBoolean>;
@@ -25795,6 +27558,19 @@ declare const AgentRemoteAgentBaseSchema: z.ZodIntersection<z.ZodUnion<readonly 
     thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     upstream: z.ZodLiteral<"claude_agent_sdk">;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
         authorization: z.ZodDefault<z.ZodBoolean>;
@@ -25873,6 +27649,19 @@ declare const AgentRemoteAgentBaseSchema: z.ZodIntersection<z.ZodUnion<readonly 
     upstream: z.ZodLiteral<"codex_sdk">;
     web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -25894,6 +27683,19 @@ declare const AgentRemoteAgentBaseSchema: z.ZodIntersection<z.ZodUnion<readonly 
 type AgentRemoteAgentBase = z.infer<typeof AgentRemoteAgentBaseSchema>;
 
 declare const AgentRemoteAgentBaseWithFallbacksSchema: z.ZodIntersection<z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
     max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -26354,6 +28156,19 @@ declare const AgentRemoteAgentBaseWithFallbacksSchema: z.ZodIntersection<z.ZodIn
     upstream: z.ZodLiteral<"openrouter">;
     verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
         authorization: z.ZodDefault<z.ZodBoolean>;
@@ -26433,6 +28248,19 @@ declare const AgentRemoteAgentBaseWithFallbacksSchema: z.ZodIntersection<z.ZodIn
     thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     upstream: z.ZodLiteral<"claude_agent_sdk">;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
         authorization: z.ZodDefault<z.ZodBoolean>;
@@ -26511,6 +28339,19 @@ declare const AgentRemoteAgentBaseWithFallbacksSchema: z.ZodIntersection<z.ZodIn
     upstream: z.ZodLiteral<"codex_sdk">;
     web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -26528,6 +28369,19 @@ declare const AgentRemoteAgentBaseWithFallbacksSchema: z.ZodIntersection<z.ZodIn
     upstream: z.ZodLiteral<"mock">;
 }, z.core.$strip>]>, z.ZodObject<{
     fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -26988,6 +28842,19 @@ declare const AgentRemoteAgentBaseWithFallbacksSchema: z.ZodIntersection<z.ZodIn
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -27067,6 +28934,19 @@ declare const AgentRemoteAgentBaseWithFallbacksSchema: z.ZodIntersection<z.ZodIn
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -27145,6 +29025,19 @@ declare const AgentRemoteAgentBaseWithFallbacksSchema: z.ZodIntersection<z.ZodIn
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -27167,6 +29060,19 @@ declare const AgentRemoteAgentBaseWithFallbacksSchema: z.ZodIntersection<z.ZodIn
 type AgentRemoteAgentBaseWithFallbacks = z.infer<typeof AgentRemoteAgentBaseWithFallbacksSchema>;
 
 declare const AgentRemoteAgentWithFallbacksSchema: z.ZodIntersection<z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     id: z.ZodString;
     logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -27628,6 +29534,19 @@ declare const AgentRemoteAgentWithFallbacksSchema: z.ZodIntersection<z.ZodInters
     upstream: z.ZodLiteral<"openrouter">;
     verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     id: z.ZodString;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -27708,6 +29627,19 @@ declare const AgentRemoteAgentWithFallbacksSchema: z.ZodIntersection<z.ZodInters
     thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     upstream: z.ZodLiteral<"claude_agent_sdk">;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
     id: z.ZodString;
     mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -27787,6 +29719,19 @@ declare const AgentRemoteAgentWithFallbacksSchema: z.ZodIntersection<z.ZodInters
     upstream: z.ZodLiteral<"codex_sdk">;
     web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
 }, z.core.$strip>, z.ZodObject<{
+    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        plugins: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+        tools: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            owner: z.ZodString;
+            version: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     id: z.ZodString;
@@ -27805,6 +29750,19 @@ declare const AgentRemoteAgentWithFallbacksSchema: z.ZodIntersection<z.ZodInters
     upstream: z.ZodLiteral<"mock">;
 }, z.core.$strip>]>, z.ZodObject<{
     fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         id: z.ZodString;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -28266,6 +30224,19 @@ declare const AgentRemoteAgentWithFallbacksSchema: z.ZodIntersection<z.ZodInters
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         id: z.ZodString;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -28346,6 +30317,19 @@ declare const AgentRemoteAgentWithFallbacksSchema: z.ZodIntersection<z.ZodInters
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         id: z.ZodString;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -28425,6 +30409,19 @@ declare const AgentRemoteAgentWithFallbacksSchema: z.ZodIntersection<z.ZodInters
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         id: z.ZodString;
@@ -28766,6 +30763,19 @@ type CliOutputNotificationFunctionsFunction = z.infer<typeof CliOutputNotificati
 declare const CliOutputNotificationLaboratoriesExecutionsLaboratorySchema: z.ZodObject<{
     laboratory: z.ZodArray<z.ZodObject<{
         agent: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -29226,6 +31236,19 @@ declare const CliOutputNotificationLaboratoriesExecutionsLaboratorySchema: z.Zod
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -29305,6 +31328,19 @@ declare const CliOutputNotificationLaboratoriesExecutionsLaboratorySchema: z.Zod
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -29383,6 +31419,19 @@ declare const CliOutputNotificationLaboratoriesExecutionsLaboratorySchema: z.Zod
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -29400,6 +31449,19 @@ declare const CliOutputNotificationLaboratoriesExecutionsLaboratorySchema: z.Zod
             upstream: z.ZodLiteral<"mock">;
         }, z.core.$strip>]>, z.ZodObject<{
             fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
                 frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
                 logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
                 max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -29860,6 +31922,19 @@ declare const CliOutputNotificationLaboratoriesExecutionsLaboratorySchema: z.Zod
                 upstream: z.ZodLiteral<"openrouter">;
                 verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
                 effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
                 mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                     authorization: z.ZodDefault<z.ZodBoolean>;
@@ -29939,6 +32014,19 @@ declare const CliOutputNotificationLaboratoriesExecutionsLaboratorySchema: z.Zod
                 thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
                 upstream: z.ZodLiteral<"claude_agent_sdk">;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
                 effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
                 mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                     authorization: z.ZodDefault<z.ZodBoolean>;
@@ -30017,6 +32105,19 @@ declare const CliOutputNotificationLaboratoriesExecutionsLaboratorySchema: z.Zod
                 upstream: z.ZodLiteral<"codex_sdk">;
                 web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
                 error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
                 error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
                 mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -30054,6 +32155,19 @@ type CliOutputNotificationLaboratoriesExecutionsLaboratory = z.infer<typeof CliO
 
 declare const CliOutputNotificationLaboratoriesExecutionsLabResultItemSchema: z.ZodObject<{
     agent: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -30514,6 +32628,19 @@ declare const CliOutputNotificationLaboratoriesExecutionsLabResultItemSchema: z.
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -30593,6 +32720,19 @@ declare const CliOutputNotificationLaboratoriesExecutionsLabResultItemSchema: z.
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -30671,6 +32811,19 @@ declare const CliOutputNotificationLaboratoriesExecutionsLabResultItemSchema: z.
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -30688,6 +32841,19 @@ declare const CliOutputNotificationLaboratoriesExecutionsLabResultItemSchema: z.
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -31148,6 +33314,19 @@ declare const CliOutputNotificationLaboratoriesExecutionsLabResultItemSchema: z.
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -31227,6 +33406,19 @@ declare const CliOutputNotificationLaboratoriesExecutionsLabResultItemSchema: z.
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -31305,6 +33497,19 @@ declare const CliOutputNotificationLaboratoriesExecutionsLabResultItemSchema: z.
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -31505,6 +33710,7 @@ declare const CliOutputNotificationPluginSchema: z.ZodObject<{
         license: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         mobile_ready: z.ZodBoolean;
         name: z.ZodString;
+        owner: z.ZodString;
         source: z.ZodString;
         version: z.ZodString;
         viewer_routes: z.ZodArray<z.ZodObject<{
@@ -31540,6 +33746,7 @@ declare const CliOutputNotificationPluginsSchema: z.ZodObject<{
         license: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         mobile_ready: z.ZodBoolean;
         name: z.ZodString;
+        owner: z.ZodString;
         source: z.ZodString;
         version: z.ZodString;
         viewer_routes: z.ZodArray<z.ZodObject<{
@@ -31576,6 +33783,37 @@ type CliOutputNotificationSchemas = z.infer<typeof CliOutputNotificationSchemasS
 
 declare const CliOutputNotificationSkipReasonSchema: z.ZodUnion<readonly [z.ZodLiteral<"unsupported_platform">, z.ZodLiteral<"dev_tree">, z.ZodLiteral<"incomplete_release">]>;
 type CliOutputNotificationSkipReason = z.infer<typeof CliOutputNotificationSkipReasonSchema>;
+
+declare const CliOutputNotificationToolSchema: z.ZodObject<{
+    tool: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        description: z.ZodString;
+        exec: z.ZodString;
+        name: z.ZodString;
+        owner: z.ZodString;
+        source: z.ZodString;
+        version: z.ZodString;
+    }, z.core.$strip>>>;
+}, z.core.$strip>;
+type CliOutputNotificationTool = z.infer<typeof CliOutputNotificationToolSchema>;
+
+declare const CliOutputNotificationToolLineSchema: z.ZodObject<{
+    line: z.ZodString;
+    stderr: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+    stdout: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+}, z.core.$strip>;
+type CliOutputNotificationToolLine = z.infer<typeof CliOutputNotificationToolLineSchema>;
+
+declare const CliOutputNotificationToolsSchema: z.ZodObject<{
+    tools: z.ZodArray<z.ZodObject<{
+        description: z.ZodString;
+        exec: z.ZodString;
+        name: z.ZodString;
+        owner: z.ZodString;
+        source: z.ZodString;
+        version: z.ZodString;
+    }, z.core.$strip>>;
+}, z.core.$strip>;
+type CliOutputNotificationTools = z.infer<typeof CliOutputNotificationToolsSchema>;
 
 declare const CliOutputNotificationUpdaterSchema: z.ZodUnion<readonly [z.ZodObject<{
     event: z.ZodLiteral<"skipped">;
@@ -31644,6 +33882,115 @@ declare const CliPluginsPluginOutputSchema: z.ZodUnion<readonly [z.ZodIntersecti
     type: z.ZodLiteral<"command">;
 }, z.core.$strip>]>;
 type CliPluginsPluginOutput = z.infer<typeof CliPluginsPluginOutputSchema>;
+
+declare const ClientObjectiveaiMcpClientRequestPayloadSchema: z.ZodIntersection<z.ZodObject<{
+    content: z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+        text: z.ZodString;
+        type: z.ZodLiteral<"text">;
+    }, z.core.$strip>, z.ZodObject<{
+        image_url: z.ZodObject<{
+            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+            url: z.ZodString;
+        }, z.core.$strip>;
+        type: z.ZodLiteral<"image_url">;
+    }, z.core.$strip>, z.ZodObject<{
+        input_audio: z.ZodObject<{
+            data: z.ZodString;
+            format: z.ZodString;
+        }, z.core.$strip>;
+        type: z.ZodLiteral<"input_audio">;
+    }, z.core.$strip>, z.ZodObject<{
+        type: z.ZodLiteral<"input_video">;
+        video_url: z.ZodObject<{
+            url: z.ZodString;
+        }, z.core.$strip>;
+    }, z.core.$strip>, z.ZodObject<{
+        type: z.ZodLiteral<"video_url">;
+        video_url: z.ZodObject<{
+            url: z.ZodString;
+        }, z.core.$strip>;
+    }, z.core.$strip>, z.ZodObject<{
+        file: z.ZodObject<{
+            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        }, z.core.$strip>;
+        type: z.ZodLiteral<"file">;
+    }, z.core.$strip>]>>]>;
+    response_id: z.ZodString;
+}, z.core.$strip>, z.ZodObject<{
+    type: z.ZodLiteral<"agent_completion_notify">;
+}, z.core.$strip>>;
+type ClientObjectiveaiMcpClientRequestPayload = z.infer<typeof ClientObjectiveaiMcpClientRequestPayloadSchema>;
+
+declare const ClientObjectiveaiMcpClientRequestRequestSchema: z.ZodIntersection<z.ZodObject<{
+    content: z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+        text: z.ZodString;
+        type: z.ZodLiteral<"text">;
+    }, z.core.$strip>, z.ZodObject<{
+        image_url: z.ZodObject<{
+            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+            url: z.ZodString;
+        }, z.core.$strip>;
+        type: z.ZodLiteral<"image_url">;
+    }, z.core.$strip>, z.ZodObject<{
+        input_audio: z.ZodObject<{
+            data: z.ZodString;
+            format: z.ZodString;
+        }, z.core.$strip>;
+        type: z.ZodLiteral<"input_audio">;
+    }, z.core.$strip>, z.ZodObject<{
+        type: z.ZodLiteral<"input_video">;
+        video_url: z.ZodObject<{
+            url: z.ZodString;
+        }, z.core.$strip>;
+    }, z.core.$strip>, z.ZodObject<{
+        type: z.ZodLiteral<"video_url">;
+        video_url: z.ZodObject<{
+            url: z.ZodString;
+        }, z.core.$strip>;
+    }, z.core.$strip>, z.ZodObject<{
+        file: z.ZodObject<{
+            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        }, z.core.$strip>;
+        type: z.ZodLiteral<"file">;
+    }, z.core.$strip>]>>]>;
+    response_id: z.ZodString;
+}, z.core.$strip>, z.ZodObject<{
+    type: z.ZodLiteral<"agent_completion_notify">;
+}, z.core.$strip>>;
+type ClientObjectiveaiMcpClientRequestRequest = z.infer<typeof ClientObjectiveaiMcpClientRequestRequestSchema>;
+
+declare const ClientObjectiveaiMcpClientResponseResponseSchema: z.ZodUnion<readonly [z.ZodObject<{
+    id: z.ZodString;
+    type: z.ZodLiteral<"ok">;
+}, z.core.$strip>, z.ZodObject<{
+    code: z.ZodNumber;
+    id: z.ZodString;
+    message: z.ZodType<JsonValue, unknown, z.core.$ZodTypeInternals<JsonValue, unknown>>;
+    type: z.ZodLiteral<"error">;
+}, z.core.$strip>]>;
+type ClientObjectiveaiMcpClientResponseResponse = z.infer<typeof ClientObjectiveaiMcpClientResponseResponseSchema>;
+
+declare const ClientObjectiveaiMcpServerRequestRequestSchema: z.ZodObject<{
+    body: z.ZodType<JsonValue, unknown, z.core.$ZodTypeInternals<JsonValue, unknown>>;
+    headers: z.ZodRecord<z.ZodString, z.ZodString>;
+    id: z.ZodString;
+    method: z.ZodString;
+}, z.core.$strip>;
+type ClientObjectiveaiMcpServerRequestRequest = z.infer<typeof ClientObjectiveaiMcpServerRequestRequestSchema>;
+
+declare const ClientObjectiveaiMcpServerResponseResponseSchema: z.ZodObject<{
+    body: z.ZodType<JsonValue, unknown, z.core.$ZodTypeInternals<JsonValue, unknown>>;
+    headers: z.ZodRecord<z.ZodString, z.ZodString>;
+    id: z.ZodString;
+    status: z.ZodNumber;
+}, z.core.$strip>;
+type ClientObjectiveaiMcpServerResponseResponse = z.infer<typeof ClientObjectiveaiMcpServerResponseResponseSchema>;
 
 declare const ErrorErrorCreateParamsSchema: z.ZodObject<{
     seed: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -32161,6 +34508,7 @@ declare const FilesystemPluginsManifestSchema: z.ZodObject<{
     homepage: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     license: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     mobile_ready: z.ZodBoolean;
+    owner: z.ZodString;
     version: z.ZodString;
     viewer_routes: z.ZodArray<z.ZodObject<{
         method: z.ZodEnum<{
@@ -32193,6 +34541,7 @@ declare const FilesystemPluginsManifestWithNameAndSourceSchema: z.ZodObject<{
     license: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     mobile_ready: z.ZodBoolean;
     name: z.ZodString;
+    owner: z.ZodString;
     source: z.ZodString;
     version: z.ZodString;
     viewer_routes: z.ZodArray<z.ZodObject<{
@@ -32241,6 +34590,24 @@ declare const FilesystemPluginsWhitelistEntrySchema: z.ZodObject<{
     version: z.ZodString;
 }, z.core.$strip>;
 type FilesystemPluginsWhitelistEntry = z.infer<typeof FilesystemPluginsWhitelistEntrySchema>;
+
+declare const FilesystemToolsManifestSchema: z.ZodObject<{
+    description: z.ZodString;
+    exec: z.ZodString;
+    owner: z.ZodString;
+    version: z.ZodString;
+}, z.core.$strip>;
+type FilesystemToolsManifest = z.infer<typeof FilesystemToolsManifestSchema>;
+
+declare const FilesystemToolsManifestWithNameAndSourceSchema: z.ZodObject<{
+    description: z.ZodString;
+    exec: z.ZodString;
+    name: z.ZodString;
+    owner: z.ZodString;
+    source: z.ZodString;
+    version: z.ZodString;
+}, z.core.$strip>;
+type FilesystemToolsManifestWithNameAndSource = z.infer<typeof FilesystemToolsManifestWithNameAndSourceSchema>;
 
 declare const FunctionsAlphaScalarBranchTaskExpressionSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
     commit: z.ZodString;
@@ -35393,6 +37760,19 @@ declare const FunctionsExecutionsRequestFunctionExecutionCreateParamsSchema: z.Z
     }, z.core.$strip>>>;
     reasoning: z.ZodOptional<z.ZodNullable<z.ZodObject<{
         agent: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -35853,6 +38233,19 @@ declare const FunctionsExecutionsRequestFunctionExecutionCreateParamsSchema: z.Z
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -35932,6 +38325,19 @@ declare const FunctionsExecutionsRequestFunctionExecutionCreateParamsSchema: z.Z
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -36010,6 +38416,19 @@ declare const FunctionsExecutionsRequestFunctionExecutionCreateParamsSchema: z.Z
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -36027,6 +38446,19 @@ declare const FunctionsExecutionsRequestFunctionExecutionCreateParamsSchema: z.Z
             upstream: z.ZodLiteral<"mock">;
         }, z.core.$strip>]>, z.ZodObject<{
             fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
                 frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
                 logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
                 max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -36487,6 +38919,19 @@ declare const FunctionsExecutionsRequestFunctionExecutionCreateParamsSchema: z.Z
                 upstream: z.ZodLiteral<"openrouter">;
                 verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
                 effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
                 mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                     authorization: z.ZodDefault<z.ZodBoolean>;
@@ -36566,6 +39011,19 @@ declare const FunctionsExecutionsRequestFunctionExecutionCreateParamsSchema: z.Z
                 thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
                 upstream: z.ZodLiteral<"claude_agent_sdk">;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
                 effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
                 mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                     authorization: z.ZodDefault<z.ZodBoolean>;
@@ -36644,6 +39102,19 @@ declare const FunctionsExecutionsRequestFunctionExecutionCreateParamsSchema: z.Z
                 upstream: z.ZodLiteral<"codex_sdk">;
                 web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
                 error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
                 error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
                 mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -36691,6 +39162,19 @@ type FunctionsExecutionsRequestFunctionExecutionCreateParams = z.infer<typeof Fu
 
 declare const FunctionsExecutionsRequestReasoningSchema: z.ZodObject<{
     agent: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -37151,6 +39635,19 @@ declare const FunctionsExecutionsRequestReasoningSchema: z.ZodObject<{
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -37230,6 +39727,19 @@ declare const FunctionsExecutionsRequestReasoningSchema: z.ZodObject<{
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -37308,6 +39818,19 @@ declare const FunctionsExecutionsRequestReasoningSchema: z.ZodObject<{
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -37325,6 +39848,19 @@ declare const FunctionsExecutionsRequestReasoningSchema: z.ZodObject<{
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -37785,6 +40321,19 @@ declare const FunctionsExecutionsRequestReasoningSchema: z.ZodObject<{
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -37864,6 +40413,19 @@ declare const FunctionsExecutionsRequestReasoningSchema: z.ZodObject<{
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -37942,6 +40504,19 @@ declare const FunctionsExecutionsRequestReasoningSchema: z.ZodObject<{
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -39703,18 +42278,18 @@ type FunctionsInventionsPromptsListPromptResponse = z.infer<typeof FunctionsInve
 
 declare const FunctionsInventionsPromptsListPromptsRequestSchema: z.ZodObject<{
     source: z.ZodOptional<z.ZodNullable<z.ZodEnum<{
+        objectiveai: "objectiveai";
         mock: "mock";
         filesystem: "filesystem";
-        objectiveai: "objectiveai";
         all: "all";
     }>>>;
 }, z.core.$strip>;
 type FunctionsInventionsPromptsListPromptsRequest = z.infer<typeof FunctionsInventionsPromptsListPromptsRequestSchema>;
 
 declare const FunctionsInventionsPromptsListPromptsSourceSchema: z.ZodEnum<{
+    objectiveai: "objectiveai";
     mock: "mock";
     filesystem: "filesystem";
-    objectiveai: "objectiveai";
     all: "all";
 }>;
 type FunctionsInventionsPromptsListPromptsSource = z.infer<typeof FunctionsInventionsPromptsListPromptsSourceSchema>;
@@ -39996,6 +42571,19 @@ declare function functionsInventionsPromptsGetPromptUsage(client: ObjectiveAI, p
 
 declare const FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParamsSchema: z.ZodObject<{
     agent: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -40456,6 +43044,19 @@ declare const FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreat
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -40535,6 +43136,19 @@ declare const FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreat
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -40613,6 +43227,19 @@ declare const FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreat
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -40630,6 +43257,19 @@ declare const FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreat
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -41090,6 +43730,19 @@ declare const FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreat
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -41169,6 +43822,19 @@ declare const FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreat
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -41247,6 +43913,19 @@ declare const FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreat
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -50971,6 +53650,19 @@ type FunctionsInventionsRecursiveResponseUnaryObject = z.infer<typeof FunctionsI
 
 declare const FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParamsStreamingSchema: z$1.ZodObject<{
     agent: z$1.ZodUnion<readonly [z$1.ZodIntersection<z$1.ZodUnion<readonly [z$1.ZodObject<{
+        client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+            objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+            plugins: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+            tools: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+        }, z$1.core.$strip>>>;
         frequency_penalty: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
         logit_bias: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodRecord<z$1.ZodString, z$1.ZodNumber>>>;
         max_completion_tokens: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
@@ -51431,6 +54123,19 @@ declare const FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreat
         upstream: z$1.ZodLiteral<"openrouter">;
         verbosity: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
     }, z$1.core.$strip>, z$1.ZodObject<{
+        client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+            objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+            plugins: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+            tools: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+        }, z$1.core.$strip>>>;
         effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
         mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
             authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -51510,6 +54215,19 @@ declare const FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreat
         thinking: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
         upstream: z$1.ZodLiteral<"claude_agent_sdk">;
     }, z$1.core.$strip>, z$1.ZodObject<{
+        client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+            objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+            plugins: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+            tools: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+        }, z$1.core.$strip>>>;
         effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"minimal">, z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">]>>>;
         mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
             authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -51588,6 +54306,19 @@ declare const FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreat
         upstream: z$1.ZodLiteral<"codex_sdk">;
         web_search_enabled: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
     }, z$1.core.$strip>, z$1.ZodObject<{
+        client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+            objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+            plugins: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+            tools: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+        }, z$1.core.$strip>>>;
         error: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
         error_probability: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
         mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
@@ -51605,6 +54336,19 @@ declare const FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreat
         upstream: z$1.ZodLiteral<"mock">;
     }, z$1.core.$strip>]>, z$1.ZodObject<{
         fallbacks: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodUnion<readonly [z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             frequency_penalty: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
             logit_bias: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodRecord<z$1.ZodString, z$1.ZodNumber>>>;
             max_completion_tokens: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
@@ -52065,6 +54809,19 @@ declare const FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreat
             upstream: z$1.ZodLiteral<"openrouter">;
             verbosity: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
         }, z$1.core.$strip>, z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
             mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
                 authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -52144,6 +54901,19 @@ declare const FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreat
             thinking: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
             upstream: z$1.ZodLiteral<"claude_agent_sdk">;
         }, z$1.core.$strip>, z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"minimal">, z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">]>>>;
             mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
                 authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -52222,6 +54992,19 @@ declare const FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreat
             upstream: z$1.ZodLiteral<"codex_sdk">;
             web_search_enabled: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
         }, z$1.core.$strip>, z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             error: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
             error_probability: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
             mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
@@ -52742,6 +55525,19 @@ declare const FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreat
 type FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParamsStreaming = z$1.infer<typeof FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParamsStreamingSchema>;
 declare const FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParamsUnarySchema: z$1.ZodObject<{
     agent: z$1.ZodUnion<readonly [z$1.ZodIntersection<z$1.ZodUnion<readonly [z$1.ZodObject<{
+        client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+            objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+            plugins: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+            tools: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+        }, z$1.core.$strip>>>;
         frequency_penalty: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
         logit_bias: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodRecord<z$1.ZodString, z$1.ZodNumber>>>;
         max_completion_tokens: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
@@ -53202,6 +55998,19 @@ declare const FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreat
         upstream: z$1.ZodLiteral<"openrouter">;
         verbosity: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
     }, z$1.core.$strip>, z$1.ZodObject<{
+        client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+            objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+            plugins: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+            tools: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+        }, z$1.core.$strip>>>;
         effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
         mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
             authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -53281,6 +56090,19 @@ declare const FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreat
         thinking: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
         upstream: z$1.ZodLiteral<"claude_agent_sdk">;
     }, z$1.core.$strip>, z$1.ZodObject<{
+        client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+            objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+            plugins: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+            tools: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+        }, z$1.core.$strip>>>;
         effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"minimal">, z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">]>>>;
         mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
             authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -53359,6 +56181,19 @@ declare const FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreat
         upstream: z$1.ZodLiteral<"codex_sdk">;
         web_search_enabled: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
     }, z$1.core.$strip>, z$1.ZodObject<{
+        client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+            objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+            plugins: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+            tools: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+        }, z$1.core.$strip>>>;
         error: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
         error_probability: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
         mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
@@ -53376,6 +56211,19 @@ declare const FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreat
         upstream: z$1.ZodLiteral<"mock">;
     }, z$1.core.$strip>]>, z$1.ZodObject<{
         fallbacks: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodUnion<readonly [z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             frequency_penalty: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
             logit_bias: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodRecord<z$1.ZodString, z$1.ZodNumber>>>;
             max_completion_tokens: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
@@ -53836,6 +56684,19 @@ declare const FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreat
             upstream: z$1.ZodLiteral<"openrouter">;
             verbosity: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
         }, z$1.core.$strip>, z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
             mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
                 authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -53915,6 +56776,19 @@ declare const FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreat
             thinking: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
             upstream: z$1.ZodLiteral<"claude_agent_sdk">;
         }, z$1.core.$strip>, z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"minimal">, z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">]>>>;
             mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
                 authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -53993,6 +56867,19 @@ declare const FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreat
             upstream: z$1.ZodLiteral<"codex_sdk">;
             web_search_enabled: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
         }, z$1.core.$strip>, z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             error: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
             error_probability: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
             mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
@@ -54516,6 +57403,19 @@ declare function functionsInventionsRecursiveCreateFunctionInventionRecursive(cl
 
 declare const FunctionsInventionsRequestFunctionInventionCreateParamsSchema: z.ZodObject<{
     agent: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -54976,6 +57876,19 @@ declare const FunctionsInventionsRequestFunctionInventionCreateParamsSchema: z.Z
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -55055,6 +57968,19 @@ declare const FunctionsInventionsRequestFunctionInventionCreateParamsSchema: z.Z
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -55133,6 +58059,19 @@ declare const FunctionsInventionsRequestFunctionInventionCreateParamsSchema: z.Z
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -55150,6 +58089,19 @@ declare const FunctionsInventionsRequestFunctionInventionCreateParamsSchema: z.Z
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -55610,6 +58562,19 @@ declare const FunctionsInventionsRequestFunctionInventionCreateParamsSchema: z.Z
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -55689,6 +58654,19 @@ declare const FunctionsInventionsRequestFunctionInventionCreateParamsSchema: z.Z
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -55767,6 +58745,19 @@ declare const FunctionsInventionsRequestFunctionInventionCreateParamsSchema: z.Z
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -62769,6 +65760,19 @@ type FunctionsInventionsVectorLeafTaskObject = z.infer<typeof FunctionsInvention
 
 declare const FunctionsInventionsRequestFunctionInventionCreateParamsStreamingSchema: z$1.ZodObject<{
     agent: z$1.ZodUnion<readonly [z$1.ZodIntersection<z$1.ZodUnion<readonly [z$1.ZodObject<{
+        client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+            objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+            plugins: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+            tools: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+        }, z$1.core.$strip>>>;
         frequency_penalty: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
         logit_bias: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodRecord<z$1.ZodString, z$1.ZodNumber>>>;
         max_completion_tokens: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
@@ -63229,6 +66233,19 @@ declare const FunctionsInventionsRequestFunctionInventionCreateParamsStreamingSc
         upstream: z$1.ZodLiteral<"openrouter">;
         verbosity: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
     }, z$1.core.$strip>, z$1.ZodObject<{
+        client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+            objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+            plugins: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+            tools: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+        }, z$1.core.$strip>>>;
         effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
         mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
             authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -63308,6 +66325,19 @@ declare const FunctionsInventionsRequestFunctionInventionCreateParamsStreamingSc
         thinking: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
         upstream: z$1.ZodLiteral<"claude_agent_sdk">;
     }, z$1.core.$strip>, z$1.ZodObject<{
+        client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+            objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+            plugins: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+            tools: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+        }, z$1.core.$strip>>>;
         effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"minimal">, z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">]>>>;
         mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
             authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -63386,6 +66416,19 @@ declare const FunctionsInventionsRequestFunctionInventionCreateParamsStreamingSc
         upstream: z$1.ZodLiteral<"codex_sdk">;
         web_search_enabled: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
     }, z$1.core.$strip>, z$1.ZodObject<{
+        client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+            objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+            plugins: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+            tools: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+        }, z$1.core.$strip>>>;
         error: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
         error_probability: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
         mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
@@ -63403,6 +66446,19 @@ declare const FunctionsInventionsRequestFunctionInventionCreateParamsStreamingSc
         upstream: z$1.ZodLiteral<"mock">;
     }, z$1.core.$strip>]>, z$1.ZodObject<{
         fallbacks: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodUnion<readonly [z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             frequency_penalty: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
             logit_bias: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodRecord<z$1.ZodString, z$1.ZodNumber>>>;
             max_completion_tokens: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
@@ -63863,6 +66919,19 @@ declare const FunctionsInventionsRequestFunctionInventionCreateParamsStreamingSc
             upstream: z$1.ZodLiteral<"openrouter">;
             verbosity: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
         }, z$1.core.$strip>, z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
             mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
                 authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -63942,6 +67011,19 @@ declare const FunctionsInventionsRequestFunctionInventionCreateParamsStreamingSc
             thinking: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
             upstream: z$1.ZodLiteral<"claude_agent_sdk">;
         }, z$1.core.$strip>, z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"minimal">, z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">]>>>;
             mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
                 authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -64020,6 +67102,19 @@ declare const FunctionsInventionsRequestFunctionInventionCreateParamsStreamingSc
             upstream: z$1.ZodLiteral<"codex_sdk">;
             web_search_enabled: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
         }, z$1.core.$strip>, z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             error: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
             error_probability: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
             mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
@@ -64540,6 +67635,19 @@ declare const FunctionsInventionsRequestFunctionInventionCreateParamsStreamingSc
 type FunctionsInventionsRequestFunctionInventionCreateParamsStreaming = z$1.infer<typeof FunctionsInventionsRequestFunctionInventionCreateParamsStreamingSchema>;
 declare const FunctionsInventionsRequestFunctionInventionCreateParamsUnarySchema: z$1.ZodObject<{
     agent: z$1.ZodUnion<readonly [z$1.ZodIntersection<z$1.ZodUnion<readonly [z$1.ZodObject<{
+        client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+            objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+            plugins: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+            tools: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+        }, z$1.core.$strip>>>;
         frequency_penalty: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
         logit_bias: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodRecord<z$1.ZodString, z$1.ZodNumber>>>;
         max_completion_tokens: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
@@ -65000,6 +68108,19 @@ declare const FunctionsInventionsRequestFunctionInventionCreateParamsUnarySchema
         upstream: z$1.ZodLiteral<"openrouter">;
         verbosity: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
     }, z$1.core.$strip>, z$1.ZodObject<{
+        client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+            objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+            plugins: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+            tools: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+        }, z$1.core.$strip>>>;
         effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
         mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
             authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -65079,6 +68200,19 @@ declare const FunctionsInventionsRequestFunctionInventionCreateParamsUnarySchema
         thinking: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
         upstream: z$1.ZodLiteral<"claude_agent_sdk">;
     }, z$1.core.$strip>, z$1.ZodObject<{
+        client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+            objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+            plugins: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+            tools: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+        }, z$1.core.$strip>>>;
         effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"minimal">, z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">]>>>;
         mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
             authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -65157,6 +68291,19 @@ declare const FunctionsInventionsRequestFunctionInventionCreateParamsUnarySchema
         upstream: z$1.ZodLiteral<"codex_sdk">;
         web_search_enabled: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
     }, z$1.core.$strip>, z$1.ZodObject<{
+        client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+            objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+            plugins: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+            tools: z$1.ZodArray<z$1.ZodObject<{
+                name: z$1.ZodString;
+                owner: z$1.ZodString;
+                version: z$1.ZodString;
+            }, z$1.core.$strip>>;
+        }, z$1.core.$strip>>>;
         error: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
         error_probability: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
         mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
@@ -65174,6 +68321,19 @@ declare const FunctionsInventionsRequestFunctionInventionCreateParamsUnarySchema
         upstream: z$1.ZodLiteral<"mock">;
     }, z$1.core.$strip>]>, z$1.ZodObject<{
         fallbacks: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodUnion<readonly [z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             frequency_penalty: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
             logit_bias: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodRecord<z$1.ZodString, z$1.ZodNumber>>>;
             max_completion_tokens: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
@@ -65634,6 +68794,19 @@ declare const FunctionsInventionsRequestFunctionInventionCreateParamsUnarySchema
             upstream: z$1.ZodLiteral<"openrouter">;
             verbosity: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
         }, z$1.core.$strip>, z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
             mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
                 authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -65713,6 +68886,19 @@ declare const FunctionsInventionsRequestFunctionInventionCreateParamsUnarySchema
             thinking: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
             upstream: z$1.ZodLiteral<"claude_agent_sdk">;
         }, z$1.core.$strip>, z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"minimal">, z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">]>>>;
             mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
                 authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -65791,6 +68977,19 @@ declare const FunctionsInventionsRequestFunctionInventionCreateParamsUnarySchema
             upstream: z$1.ZodLiteral<"codex_sdk">;
             web_search_enabled: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
         }, z$1.core.$strip>, z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             error: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
             error_probability: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
             mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
@@ -68064,6 +71263,19 @@ declare const FunctionsProfilesComputationsRequestFunctionProfileComputationCrea
     stream: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     swarm: z.ZodUnion<readonly [z.ZodObject<{
         agents: z.ZodArray<z.ZodIntersection<z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -68524,6 +71736,19 @@ declare const FunctionsProfilesComputationsRequestFunctionProfileComputationCrea
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -68603,6 +71828,19 @@ declare const FunctionsProfilesComputationsRequestFunctionProfileComputationCrea
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -68681,6 +71919,19 @@ declare const FunctionsProfilesComputationsRequestFunctionProfileComputationCrea
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -68698,6 +71949,19 @@ declare const FunctionsProfilesComputationsRequestFunctionProfileComputationCrea
             upstream: z.ZodLiteral<"mock">;
         }, z.core.$strip>]>, z.ZodObject<{
             fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
                 frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
                 logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
                 max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -69158,6 +72422,19 @@ declare const FunctionsProfilesComputationsRequestFunctionProfileComputationCrea
                 upstream: z.ZodLiteral<"openrouter">;
                 verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
                 effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
                 mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                     authorization: z.ZodDefault<z.ZodBoolean>;
@@ -69237,6 +72514,19 @@ declare const FunctionsProfilesComputationsRequestFunctionProfileComputationCrea
                 thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
                 upstream: z.ZodLiteral<"claude_agent_sdk">;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
                 effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
                 mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                     authorization: z.ZodDefault<z.ZodBoolean>;
@@ -69315,6 +72605,19 @@ declare const FunctionsProfilesComputationsRequestFunctionProfileComputationCrea
                 upstream: z.ZodLiteral<"codex_sdk">;
                 web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
                 error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
                 error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
                 mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -69636,6 +72939,19 @@ type FunctionsProfilesComputationsResponseStreamingFunctionExecutionChunk = z.in
 
 declare const SwarmInlineSwarmBaseSchema: z.ZodObject<{
     agents: z.ZodArray<z.ZodIntersection<z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -70096,6 +73412,19 @@ declare const SwarmInlineSwarmBaseSchema: z.ZodObject<{
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -70175,6 +73504,19 @@ declare const SwarmInlineSwarmBaseSchema: z.ZodObject<{
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -70253,6 +73595,19 @@ declare const SwarmInlineSwarmBaseSchema: z.ZodObject<{
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -70270,6 +73625,19 @@ declare const SwarmInlineSwarmBaseSchema: z.ZodObject<{
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -70730,6 +74098,19 @@ declare const SwarmInlineSwarmBaseSchema: z.ZodObject<{
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -70809,6 +74190,19 @@ declare const SwarmInlineSwarmBaseSchema: z.ZodObject<{
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -70887,6 +74281,19 @@ declare const SwarmInlineSwarmBaseSchema: z.ZodObject<{
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -71880,18 +75287,18 @@ type FunctionsProfilesListProfileResponse = z.infer<typeof FunctionsProfilesList
 
 declare const FunctionsProfilesListProfilesRequestSchema: z.ZodObject<{
     source: z.ZodOptional<z.ZodNullable<z.ZodEnum<{
+        objectiveai: "objectiveai";
         mock: "mock";
         filesystem: "filesystem";
-        objectiveai: "objectiveai";
         all: "all";
     }>>>;
 }, z.core.$strip>;
 type FunctionsProfilesListProfilesRequest = z.infer<typeof FunctionsProfilesListProfilesRequestSchema>;
 
 declare const FunctionsProfilesListProfilesSourceSchema: z.ZodEnum<{
+    objectiveai: "objectiveai";
     mock: "mock";
     filesystem: "filesystem";
-    objectiveai: "objectiveai";
     all: "all";
 }>;
 type FunctionsProfilesListProfilesSource = z.infer<typeof FunctionsProfilesListProfilesSourceSchema>;
@@ -85979,18 +89386,18 @@ type FunctionsListFunctionResponse = z.infer<typeof FunctionsListFunctionRespons
 
 declare const FunctionsListFunctionsRequestSchema: z.ZodObject<{
     source: z.ZodOptional<z.ZodNullable<z.ZodEnum<{
+        objectiveai: "objectiveai";
         mock: "mock";
         filesystem: "filesystem";
-        objectiveai: "objectiveai";
         all: "all";
     }>>>;
 }, z.core.$strip>;
 type FunctionsListFunctionsRequest = z.infer<typeof FunctionsListFunctionsRequestSchema>;
 
 declare const FunctionsListFunctionsSourceSchema: z.ZodEnum<{
+    objectiveai: "objectiveai";
     mock: "mock";
     filesystem: "filesystem";
-    objectiveai: "objectiveai";
     all: "all";
 }>;
 type FunctionsListFunctionsSource = z.infer<typeof FunctionsListFunctionsSourceSchema>;
@@ -86133,6 +89540,19 @@ declare const FunctionsProfileSchema: z.ZodUnion<readonly [z.ZodUnion<readonly [
     description: z.ZodString;
 }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
     agents: z.ZodArray<z.ZodIntersection<z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -86593,6 +90013,19 @@ declare const FunctionsProfileSchema: z.ZodUnion<readonly [z.ZodUnion<readonly [
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -86672,6 +90105,19 @@ declare const FunctionsProfileSchema: z.ZodUnion<readonly [z.ZodUnion<readonly [
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -86750,6 +90196,19 @@ declare const FunctionsProfileSchema: z.ZodUnion<readonly [z.ZodUnion<readonly [
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -86767,6 +90226,19 @@ declare const FunctionsProfileSchema: z.ZodUnion<readonly [z.ZodUnion<readonly [
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -87227,6 +90699,19 @@ declare const FunctionsProfileSchema: z.ZodUnion<readonly [z.ZodUnion<readonly [
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -87306,6 +90791,19 @@ declare const FunctionsProfileSchema: z.ZodUnion<readonly [z.ZodUnion<readonly [
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -87384,6 +90882,19 @@ declare const FunctionsProfileSchema: z.ZodUnion<readonly [z.ZodUnion<readonly [
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -88855,6 +92366,19 @@ declare const FunctionsRemoteProfileSchema: z.ZodUnion<readonly [z.ZodIntersecti
     description: z.ZodString;
 }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
     agents: z.ZodArray<z.ZodIntersection<z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -89315,6 +92839,19 @@ declare const FunctionsRemoteProfileSchema: z.ZodUnion<readonly [z.ZodIntersecti
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -89394,6 +92931,19 @@ declare const FunctionsRemoteProfileSchema: z.ZodUnion<readonly [z.ZodIntersecti
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -89472,6 +93022,19 @@ declare const FunctionsRemoteProfileSchema: z.ZodUnion<readonly [z.ZodIntersecti
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -89489,6 +93052,19 @@ declare const FunctionsRemoteProfileSchema: z.ZodUnion<readonly [z.ZodIntersecti
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -89949,6 +93525,19 @@ declare const FunctionsRemoteProfileSchema: z.ZodUnion<readonly [z.ZodIntersecti
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -90028,6 +93617,19 @@ declare const FunctionsRemoteProfileSchema: z.ZodUnion<readonly [z.ZodIntersecti
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -90106,6 +93708,19 @@ declare const FunctionsRemoteProfileSchema: z.ZodUnion<readonly [z.ZodIntersecti
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -92016,6 +95631,19 @@ declare function wasmFunctionsAlphaCheckBranchVectorFunction(fn: FunctionsAlphaV
 
 declare const HttpViewerAgentCompletionCreateParamsSchema: z.ZodObject<{
     agent: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -92476,6 +96104,19 @@ declare const HttpViewerAgentCompletionCreateParamsSchema: z.ZodObject<{
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -92555,6 +96196,19 @@ declare const HttpViewerAgentCompletionCreateParamsSchema: z.ZodObject<{
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -92633,6 +96287,19 @@ declare const HttpViewerAgentCompletionCreateParamsSchema: z.ZodObject<{
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -92650,6 +96317,19 @@ declare const HttpViewerAgentCompletionCreateParamsSchema: z.ZodObject<{
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -93110,6 +96790,19 @@ declare const HttpViewerAgentCompletionCreateParamsSchema: z.ZodObject<{
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -93189,6 +96882,19 @@ declare const HttpViewerAgentCompletionCreateParamsSchema: z.ZodObject<{
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -93267,6 +96973,19 @@ declare const HttpViewerAgentCompletionCreateParamsSchema: z.ZodObject<{
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -93500,6 +97219,19 @@ type HttpViewerAgentCompletionCreateParams = z.infer<typeof HttpViewerAgentCompl
 
 declare const HttpViewerAgentCompletionRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
     agent: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -93960,6 +97692,19 @@ declare const HttpViewerAgentCompletionRequestSchema: z.ZodUnion<readonly [z.Zod
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -94039,6 +97784,19 @@ declare const HttpViewerAgentCompletionRequestSchema: z.ZodUnion<readonly [z.Zod
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -94117,6 +97875,19 @@ declare const HttpViewerAgentCompletionRequestSchema: z.ZodUnion<readonly [z.Zod
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -94134,6 +97905,19 @@ declare const HttpViewerAgentCompletionRequestSchema: z.ZodUnion<readonly [z.Zod
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -94594,6 +98378,19 @@ declare const HttpViewerAgentCompletionRequestSchema: z.ZodUnion<readonly [z.Zod
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -94673,6 +98470,19 @@ declare const HttpViewerAgentCompletionRequestSchema: z.ZodUnion<readonly [z.Zod
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -94751,6 +98561,19 @@ declare const HttpViewerAgentCompletionRequestSchema: z.ZodUnion<readonly [z.Zod
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -96899,6 +100722,19 @@ declare const HttpViewerFunctionExecutionCreateParamsSchema: z.ZodObject<{
     }, z.core.$strip>>>;
     reasoning: z.ZodOptional<z.ZodNullable<z.ZodObject<{
         agent: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -97359,6 +101195,19 @@ declare const HttpViewerFunctionExecutionCreateParamsSchema: z.ZodObject<{
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -97438,6 +101287,19 @@ declare const HttpViewerFunctionExecutionCreateParamsSchema: z.ZodObject<{
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -97516,6 +101378,19 @@ declare const HttpViewerFunctionExecutionCreateParamsSchema: z.ZodObject<{
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -97533,6 +101408,19 @@ declare const HttpViewerFunctionExecutionCreateParamsSchema: z.ZodObject<{
             upstream: z.ZodLiteral<"mock">;
         }, z.core.$strip>]>, z.ZodObject<{
             fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
                 frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
                 logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
                 max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -97993,6 +101881,19 @@ declare const HttpViewerFunctionExecutionCreateParamsSchema: z.ZodObject<{
                 upstream: z.ZodLiteral<"openrouter">;
                 verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
                 effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
                 mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                     authorization: z.ZodDefault<z.ZodBoolean>;
@@ -98072,6 +101973,19 @@ declare const HttpViewerFunctionExecutionCreateParamsSchema: z.ZodObject<{
                 thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
                 upstream: z.ZodLiteral<"claude_agent_sdk">;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
                 effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
                 mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                     authorization: z.ZodDefault<z.ZodBoolean>;
@@ -98150,6 +102064,19 @@ declare const HttpViewerFunctionExecutionCreateParamsSchema: z.ZodObject<{
                 upstream: z.ZodLiteral<"codex_sdk">;
                 web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
                 error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
                 error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
                 mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -99932,6 +103859,19 @@ declare const HttpViewerFunctionExecutionRequestSchema: z.ZodUnion<readonly [z.Z
     }, z.core.$strip>>>;
     reasoning: z.ZodOptional<z.ZodNullable<z.ZodObject<{
         agent: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -100392,6 +104332,19 @@ declare const HttpViewerFunctionExecutionRequestSchema: z.ZodUnion<readonly [z.Z
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -100471,6 +104424,19 @@ declare const HttpViewerFunctionExecutionRequestSchema: z.ZodUnion<readonly [z.Z
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -100549,6 +104515,19 @@ declare const HttpViewerFunctionExecutionRequestSchema: z.ZodUnion<readonly [z.Z
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -100566,6 +104545,19 @@ declare const HttpViewerFunctionExecutionRequestSchema: z.ZodUnion<readonly [z.Z
             upstream: z.ZodLiteral<"mock">;
         }, z.core.$strip>]>, z.ZodObject<{
             fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
                 frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
                 logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
                 max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -101026,6 +105018,19 @@ declare const HttpViewerFunctionExecutionRequestSchema: z.ZodUnion<readonly [z.Z
                 upstream: z.ZodLiteral<"openrouter">;
                 verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
                 effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
                 mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                     authorization: z.ZodDefault<z.ZodBoolean>;
@@ -101105,6 +105110,19 @@ declare const HttpViewerFunctionExecutionRequestSchema: z.ZodUnion<readonly [z.Z
                 thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
                 upstream: z.ZodLiteral<"claude_agent_sdk">;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
                 effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
                 mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                     authorization: z.ZodDefault<z.ZodBoolean>;
@@ -101183,6 +105201,19 @@ declare const HttpViewerFunctionExecutionRequestSchema: z.ZodUnion<readonly [z.Z
                 upstream: z.ZodLiteral<"codex_sdk">;
                 web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
                 error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
                 error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
                 mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -101481,6 +105512,19 @@ type HttpViewerFunctionExecutionRequest = z.infer<typeof HttpViewerFunctionExecu
 
 declare const HttpViewerFunctionInventionRecursiveCreateParamsSchema: z.ZodObject<{
     agent: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -101941,6 +105985,19 @@ declare const HttpViewerFunctionInventionRecursiveCreateParamsSchema: z.ZodObjec
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -102020,6 +106077,19 @@ declare const HttpViewerFunctionInventionRecursiveCreateParamsSchema: z.ZodObjec
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -102098,6 +106168,19 @@ declare const HttpViewerFunctionInventionRecursiveCreateParamsSchema: z.ZodObjec
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -102115,6 +106198,19 @@ declare const HttpViewerFunctionInventionRecursiveCreateParamsSchema: z.ZodObjec
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -102575,6 +106671,19 @@ declare const HttpViewerFunctionInventionRecursiveCreateParamsSchema: z.ZodObjec
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -102654,6 +106763,19 @@ declare const HttpViewerFunctionInventionRecursiveCreateParamsSchema: z.ZodObjec
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -102732,6 +106854,19 @@ declare const HttpViewerFunctionInventionRecursiveCreateParamsSchema: z.ZodObjec
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -103254,6 +107389,19 @@ type HttpViewerFunctionInventionRecursiveCreateParams = z.infer<typeof HttpViewe
 
 declare const HttpViewerFunctionInventionRecursiveRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
     agent: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -103714,6 +107862,19 @@ declare const HttpViewerFunctionInventionRecursiveRequestSchema: z.ZodUnion<read
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -103793,6 +107954,19 @@ declare const HttpViewerFunctionInventionRecursiveRequestSchema: z.ZodUnion<read
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -103871,6 +108045,19 @@ declare const HttpViewerFunctionInventionRecursiveRequestSchema: z.ZodUnion<read
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -103888,6 +108075,19 @@ declare const HttpViewerFunctionInventionRecursiveRequestSchema: z.ZodUnion<read
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -104348,6 +108548,19 @@ declare const HttpViewerFunctionInventionRecursiveRequestSchema: z.ZodUnion<read
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -104427,6 +108640,19 @@ declare const HttpViewerFunctionInventionRecursiveRequestSchema: z.ZodUnion<read
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -104505,6 +108731,19 @@ declare const HttpViewerFunctionInventionRecursiveRequestSchema: z.ZodUnion<read
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -107337,6 +111576,19 @@ type HttpViewerFunctionInventionRecursiveRequest = z.infer<typeof HttpViewerFunc
 
 declare const HttpViewerLaboratoryExecutionCreateParamsSchema: z.ZodObject<{
     builder_agents: z.ZodArray<z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -107797,6 +112049,19 @@ declare const HttpViewerLaboratoryExecutionCreateParamsSchema: z.ZodObject<{
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -107876,6 +112141,19 @@ declare const HttpViewerLaboratoryExecutionCreateParamsSchema: z.ZodObject<{
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -107954,6 +112232,19 @@ declare const HttpViewerLaboratoryExecutionCreateParamsSchema: z.ZodObject<{
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -107971,6 +112262,19 @@ declare const HttpViewerLaboratoryExecutionCreateParamsSchema: z.ZodObject<{
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -108431,6 +112735,19 @@ declare const HttpViewerLaboratoryExecutionCreateParamsSchema: z.ZodObject<{
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -108510,6 +112827,19 @@ declare const HttpViewerLaboratoryExecutionCreateParamsSchema: z.ZodObject<{
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -108588,6 +112918,19 @@ declare const HttpViewerLaboratoryExecutionCreateParamsSchema: z.ZodObject<{
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -108762,6 +113105,19 @@ declare const HttpViewerLaboratoryExecutionCreateParamsSchema: z.ZodObject<{
     }, z.core.$strip>>]>>;
     docker_image: z.ZodString;
     evaluation_agent: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -109222,6 +113578,19 @@ declare const HttpViewerLaboratoryExecutionCreateParamsSchema: z.ZodObject<{
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -109301,6 +113670,19 @@ declare const HttpViewerLaboratoryExecutionCreateParamsSchema: z.ZodObject<{
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -109379,6 +113761,19 @@ declare const HttpViewerLaboratoryExecutionCreateParamsSchema: z.ZodObject<{
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -109396,6 +113791,19 @@ declare const HttpViewerLaboratoryExecutionCreateParamsSchema: z.ZodObject<{
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -109856,6 +114264,19 @@ declare const HttpViewerLaboratoryExecutionCreateParamsSchema: z.ZodObject<{
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -109935,6 +114356,19 @@ declare const HttpViewerLaboratoryExecutionCreateParamsSchema: z.ZodObject<{
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -110013,6 +114447,19 @@ declare const HttpViewerLaboratoryExecutionCreateParamsSchema: z.ZodObject<{
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -110212,6 +114659,19 @@ type HttpViewerLaboratoryExecutionCreateParams = z.infer<typeof HttpViewerLabora
 
 declare const HttpViewerLaboratoryExecutionRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
     builder_agents: z.ZodArray<z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -110672,6 +115132,19 @@ declare const HttpViewerLaboratoryExecutionRequestSchema: z.ZodUnion<readonly [z
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -110751,6 +115224,19 @@ declare const HttpViewerLaboratoryExecutionRequestSchema: z.ZodUnion<readonly [z
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -110829,6 +115315,19 @@ declare const HttpViewerLaboratoryExecutionRequestSchema: z.ZodUnion<readonly [z
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -110846,6 +115345,19 @@ declare const HttpViewerLaboratoryExecutionRequestSchema: z.ZodUnion<readonly [z
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -111306,6 +115818,19 @@ declare const HttpViewerLaboratoryExecutionRequestSchema: z.ZodUnion<readonly [z
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -111385,6 +115910,19 @@ declare const HttpViewerLaboratoryExecutionRequestSchema: z.ZodUnion<readonly [z
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -111463,6 +116001,19 @@ declare const HttpViewerLaboratoryExecutionRequestSchema: z.ZodUnion<readonly [z
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -111637,6 +116188,19 @@ declare const HttpViewerLaboratoryExecutionRequestSchema: z.ZodUnion<readonly [z
     }, z.core.$strip>>]>>;
     docker_image: z.ZodString;
     evaluation_agent: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -112097,6 +116661,19 @@ declare const HttpViewerLaboratoryExecutionRequestSchema: z.ZodUnion<readonly [z
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -112176,6 +116753,19 @@ declare const HttpViewerLaboratoryExecutionRequestSchema: z.ZodUnion<readonly [z
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -112254,6 +116844,19 @@ declare const HttpViewerLaboratoryExecutionRequestSchema: z.ZodUnion<readonly [z
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -112271,6 +116874,19 @@ declare const HttpViewerLaboratoryExecutionRequestSchema: z.ZodUnion<readonly [z
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -112731,6 +117347,19 @@ declare const HttpViewerLaboratoryExecutionRequestSchema: z.ZodUnion<readonly [z
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -112810,6 +117439,19 @@ declare const HttpViewerLaboratoryExecutionRequestSchema: z.ZodUnion<readonly [z
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -112888,6 +117530,19 @@ declare const HttpViewerLaboratoryExecutionRequestSchema: z.ZodUnion<readonly [z
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -113481,6 +118136,19 @@ type HttpViewerLaboratoryExecutionRequest = z.infer<typeof HttpViewerLaboratoryE
 
 declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly [z.ZodObject<{
     agent: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -113941,6 +118609,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -114020,6 +118701,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -114098,6 +118792,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -114115,6 +118822,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -114575,6 +119295,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -114654,6 +119387,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -114732,6 +119478,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -116877,6 +121636,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
     }, z.core.$strip>>>;
     reasoning: z.ZodOptional<z.ZodNullable<z.ZodObject<{
         agent: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -117337,6 +122109,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -117416,6 +122201,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -117494,6 +122292,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -117511,6 +122322,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
             upstream: z.ZodLiteral<"mock">;
         }, z.core.$strip>]>, z.ZodObject<{
             fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
                 frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
                 logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
                 max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -117971,6 +122795,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
                 upstream: z.ZodLiteral<"openrouter">;
                 verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
                 effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
                 mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                     authorization: z.ZodDefault<z.ZodBoolean>;
@@ -118050,6 +122887,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
                 thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
                 upstream: z.ZodLiteral<"claude_agent_sdk">;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
                 effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
                 mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                     authorization: z.ZodDefault<z.ZodBoolean>;
@@ -118128,6 +122978,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
                 upstream: z.ZodLiteral<"codex_sdk">;
                 web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
                 error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
                 error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
                 mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -118423,6 +123286,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
     message: z.ZodType<JsonValue, unknown, z.core.$ZodTypeInternals<JsonValue, unknown>>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
     agent: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -118883,6 +123759,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -118962,6 +123851,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -119040,6 +123942,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -119057,6 +123972,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -119517,6 +124445,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -119596,6 +124537,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -119674,6 +124628,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -122503,6 +127470,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
     message: z.ZodType<JsonValue, unknown, z.core.$ZodTypeInternals<JsonValue, unknown>>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
     builder_agents: z.ZodArray<z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -122963,6 +127943,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -123042,6 +128035,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -123120,6 +128126,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -123137,6 +128156,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -123597,6 +128629,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -123676,6 +128721,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -123754,6 +128812,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -123928,6 +128999,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
     }, z.core.$strip>>]>>;
     docker_image: z.ZodString;
     evaluation_agent: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -124388,6 +129472,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -124467,6 +129564,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -124545,6 +129655,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -124562,6 +129685,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -125022,6 +130158,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -125101,6 +130250,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -125179,6 +130341,19 @@ declare const HttpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -125786,6 +130961,19 @@ type HttpViewerResponseError = z.infer<typeof HttpViewerResponseErrorSchema>;
 
 declare const LaboratoriesExecutionsRequestLaboratoryExecutionCreateParamsSchema: z.ZodObject<{
     builder_agents: z.ZodArray<z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -126246,6 +131434,19 @@ declare const LaboratoriesExecutionsRequestLaboratoryExecutionCreateParamsSchema
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -126325,6 +131526,19 @@ declare const LaboratoriesExecutionsRequestLaboratoryExecutionCreateParamsSchema
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -126403,6 +131617,19 @@ declare const LaboratoriesExecutionsRequestLaboratoryExecutionCreateParamsSchema
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -126420,6 +131647,19 @@ declare const LaboratoriesExecutionsRequestLaboratoryExecutionCreateParamsSchema
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -126880,6 +132120,19 @@ declare const LaboratoriesExecutionsRequestLaboratoryExecutionCreateParamsSchema
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -126959,6 +132212,19 @@ declare const LaboratoriesExecutionsRequestLaboratoryExecutionCreateParamsSchema
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -127037,6 +132303,19 @@ declare const LaboratoriesExecutionsRequestLaboratoryExecutionCreateParamsSchema
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -127211,6 +132490,19 @@ declare const LaboratoriesExecutionsRequestLaboratoryExecutionCreateParamsSchema
     }, z.core.$strip>>]>>;
     docker_image: z.ZodString;
     evaluation_agent: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -127671,6 +132963,19 @@ declare const LaboratoriesExecutionsRequestLaboratoryExecutionCreateParamsSchema
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -127750,6 +133055,19 @@ declare const LaboratoriesExecutionsRequestLaboratoryExecutionCreateParamsSchema
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -127828,6 +133146,19 @@ declare const LaboratoriesExecutionsRequestLaboratoryExecutionCreateParamsSchema
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -127845,6 +133176,19 @@ declare const LaboratoriesExecutionsRequestLaboratoryExecutionCreateParamsSchema
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -128305,6 +133649,19 @@ declare const LaboratoriesExecutionsRequestLaboratoryExecutionCreateParamsSchema
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -128384,6 +133741,19 @@ declare const LaboratoriesExecutionsRequestLaboratoryExecutionCreateParamsSchema
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -128462,6 +133832,19 @@ declare const LaboratoriesExecutionsRequestLaboratoryExecutionCreateParamsSchema
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -130960,6 +136343,19 @@ type SwarmGetSwarmResponse = z.infer<typeof SwarmGetSwarmResponseSchema>;
 
 declare const SwarmInlineSwarmSchema: z.ZodObject<{
     agents: z.ZodArray<z.ZodIntersection<z.ZodUnion<readonly [z.ZodIntersection<z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         id: z.ZodString;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -131421,6 +136817,19 @@ declare const SwarmInlineSwarmSchema: z.ZodObject<{
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         id: z.ZodString;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -131501,6 +136910,19 @@ declare const SwarmInlineSwarmSchema: z.ZodObject<{
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         id: z.ZodString;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -131580,6 +137002,19 @@ declare const SwarmInlineSwarmSchema: z.ZodObject<{
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         id: z.ZodString;
@@ -131598,6 +137033,19 @@ declare const SwarmInlineSwarmSchema: z.ZodObject<{
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             id: z.ZodString;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -132059,6 +137507,19 @@ declare const SwarmInlineSwarmSchema: z.ZodObject<{
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             id: z.ZodString;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -132139,6 +137600,19 @@ declare const SwarmInlineSwarmSchema: z.ZodObject<{
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             id: z.ZodString;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -132218,6 +137692,19 @@ declare const SwarmInlineSwarmSchema: z.ZodObject<{
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             id: z.ZodString;
@@ -132238,6 +137725,19 @@ declare const SwarmInlineSwarmSchema: z.ZodObject<{
     }, z.core.$strip>>, z.ZodObject<{
         description: z.ZodString;
     }, z.core.$strip>>, z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         id: z.ZodString;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -132699,6 +138199,19 @@ declare const SwarmInlineSwarmSchema: z.ZodObject<{
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         id: z.ZodString;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -132779,6 +138292,19 @@ declare const SwarmInlineSwarmSchema: z.ZodObject<{
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         id: z.ZodString;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -132858,6 +138384,19 @@ declare const SwarmInlineSwarmSchema: z.ZodObject<{
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         id: z.ZodString;
@@ -132876,6 +138415,19 @@ declare const SwarmInlineSwarmSchema: z.ZodObject<{
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             id: z.ZodString;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -133337,6 +138889,19 @@ declare const SwarmInlineSwarmSchema: z.ZodObject<{
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             id: z.ZodString;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -133417,6 +138982,19 @@ declare const SwarmInlineSwarmSchema: z.ZodObject<{
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             id: z.ZodString;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -133496,6 +139074,19 @@ declare const SwarmInlineSwarmSchema: z.ZodObject<{
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             id: z.ZodString;
@@ -133526,6 +139117,19 @@ type SwarmInlineSwarm = z.infer<typeof SwarmInlineSwarmSchema>;
 
 declare const SwarmInlineSwarmBaseOrRemoteSchema: z.ZodUnion<readonly [z.ZodObject<{
     agents: z.ZodArray<z.ZodIntersection<z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -133986,6 +139590,19 @@ declare const SwarmInlineSwarmBaseOrRemoteSchema: z.ZodUnion<readonly [z.ZodObje
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -134065,6 +139682,19 @@ declare const SwarmInlineSwarmBaseOrRemoteSchema: z.ZodUnion<readonly [z.ZodObje
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -134143,6 +139773,19 @@ declare const SwarmInlineSwarmBaseOrRemoteSchema: z.ZodUnion<readonly [z.ZodObje
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -134160,6 +139803,19 @@ declare const SwarmInlineSwarmBaseOrRemoteSchema: z.ZodUnion<readonly [z.ZodObje
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -134620,6 +140276,19 @@ declare const SwarmInlineSwarmBaseOrRemoteSchema: z.ZodUnion<readonly [z.ZodObje
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -134699,6 +140368,19 @@ declare const SwarmInlineSwarmBaseOrRemoteSchema: z.ZodUnion<readonly [z.ZodObje
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -134777,6 +140459,19 @@ declare const SwarmInlineSwarmBaseOrRemoteSchema: z.ZodUnion<readonly [z.ZodObje
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -134831,6 +140526,19 @@ type SwarmInlineSwarmBaseOrRemote = z.infer<typeof SwarmInlineSwarmBaseOrRemoteS
 
 declare const SwarmInlineSwarmBaseOrRemoteCommitOptionalSchema: z.ZodUnion<readonly [z.ZodObject<{
     agents: z.ZodArray<z.ZodIntersection<z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -135291,6 +140999,19 @@ declare const SwarmInlineSwarmBaseOrRemoteCommitOptionalSchema: z.ZodUnion<reado
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -135370,6 +141091,19 @@ declare const SwarmInlineSwarmBaseOrRemoteCommitOptionalSchema: z.ZodUnion<reado
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -135448,6 +141182,19 @@ declare const SwarmInlineSwarmBaseOrRemoteCommitOptionalSchema: z.ZodUnion<reado
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -135465,6 +141212,19 @@ declare const SwarmInlineSwarmBaseOrRemoteCommitOptionalSchema: z.ZodUnion<reado
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -135925,6 +141685,19 @@ declare const SwarmInlineSwarmBaseOrRemoteCommitOptionalSchema: z.ZodUnion<reado
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -136004,6 +141777,19 @@ declare const SwarmInlineSwarmBaseOrRemoteCommitOptionalSchema: z.ZodUnion<reado
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -136082,6 +141868,19 @@ declare const SwarmInlineSwarmBaseOrRemoteCommitOptionalSchema: z.ZodUnion<reado
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -136154,24 +141953,37 @@ type SwarmListSwarmResponse = z.infer<typeof SwarmListSwarmResponseSchema>;
 
 declare const SwarmListSwarmsRequestSchema: z.ZodObject<{
     source: z.ZodOptional<z.ZodNullable<z.ZodEnum<{
+        objectiveai: "objectiveai";
         mock: "mock";
         filesystem: "filesystem";
-        objectiveai: "objectiveai";
         all: "all";
     }>>>;
 }, z.core.$strip>;
 type SwarmListSwarmsRequest = z.infer<typeof SwarmListSwarmsRequestSchema>;
 
 declare const SwarmListSwarmsSourceSchema: z.ZodEnum<{
+    objectiveai: "objectiveai";
     mock: "mock";
     filesystem: "filesystem";
-    objectiveai: "objectiveai";
     all: "all";
 }>;
 type SwarmListSwarmsSource = z.infer<typeof SwarmListSwarmsSourceSchema>;
 
 declare const SwarmRemoteSwarmSchema: z.ZodIntersection<z.ZodObject<{
     agents: z.ZodArray<z.ZodIntersection<z.ZodUnion<readonly [z.ZodIntersection<z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         id: z.ZodString;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -136633,6 +142445,19 @@ declare const SwarmRemoteSwarmSchema: z.ZodIntersection<z.ZodObject<{
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         id: z.ZodString;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -136713,6 +142538,19 @@ declare const SwarmRemoteSwarmSchema: z.ZodIntersection<z.ZodObject<{
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         id: z.ZodString;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -136792,6 +142630,19 @@ declare const SwarmRemoteSwarmSchema: z.ZodIntersection<z.ZodObject<{
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         id: z.ZodString;
@@ -136810,6 +142661,19 @@ declare const SwarmRemoteSwarmSchema: z.ZodIntersection<z.ZodObject<{
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             id: z.ZodString;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -137271,6 +143135,19 @@ declare const SwarmRemoteSwarmSchema: z.ZodIntersection<z.ZodObject<{
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             id: z.ZodString;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -137351,6 +143228,19 @@ declare const SwarmRemoteSwarmSchema: z.ZodIntersection<z.ZodObject<{
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             id: z.ZodString;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -137430,6 +143320,19 @@ declare const SwarmRemoteSwarmSchema: z.ZodIntersection<z.ZodObject<{
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             id: z.ZodString;
@@ -137450,6 +143353,19 @@ declare const SwarmRemoteSwarmSchema: z.ZodIntersection<z.ZodObject<{
     }, z.core.$strip>>, z.ZodObject<{
         description: z.ZodString;
     }, z.core.$strip>>, z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         id: z.ZodString;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -137911,6 +143827,19 @@ declare const SwarmRemoteSwarmSchema: z.ZodIntersection<z.ZodObject<{
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         id: z.ZodString;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -137991,6 +143920,19 @@ declare const SwarmRemoteSwarmSchema: z.ZodIntersection<z.ZodObject<{
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         id: z.ZodString;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -138070,6 +144012,19 @@ declare const SwarmRemoteSwarmSchema: z.ZodIntersection<z.ZodObject<{
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         id: z.ZodString;
@@ -138088,6 +144043,19 @@ declare const SwarmRemoteSwarmSchema: z.ZodIntersection<z.ZodObject<{
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             id: z.ZodString;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -138549,6 +144517,19 @@ declare const SwarmRemoteSwarmSchema: z.ZodIntersection<z.ZodObject<{
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             id: z.ZodString;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -138629,6 +144610,19 @@ declare const SwarmRemoteSwarmSchema: z.ZodIntersection<z.ZodObject<{
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             id: z.ZodString;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -138708,6 +144702,19 @@ declare const SwarmRemoteSwarmSchema: z.ZodIntersection<z.ZodObject<{
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             id: z.ZodString;
@@ -138740,6 +144747,19 @@ type SwarmRemoteSwarm = z.infer<typeof SwarmRemoteSwarmSchema>;
 
 declare const SwarmRemoteSwarmBaseSchema: z.ZodIntersection<z.ZodObject<{
     agents: z.ZodArray<z.ZodIntersection<z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -139200,6 +145220,19 @@ declare const SwarmRemoteSwarmBaseSchema: z.ZodIntersection<z.ZodObject<{
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -139279,6 +145312,19 @@ declare const SwarmRemoteSwarmBaseSchema: z.ZodIntersection<z.ZodObject<{
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -139357,6 +145403,19 @@ declare const SwarmRemoteSwarmBaseSchema: z.ZodIntersection<z.ZodObject<{
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -139374,6 +145433,19 @@ declare const SwarmRemoteSwarmBaseSchema: z.ZodIntersection<z.ZodObject<{
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -139834,6 +145906,19 @@ declare const SwarmRemoteSwarmBaseSchema: z.ZodIntersection<z.ZodObject<{
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -139913,6 +145998,19 @@ declare const SwarmRemoteSwarmBaseSchema: z.ZodIntersection<z.ZodObject<{
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -139991,6 +146089,19 @@ declare const SwarmRemoteSwarmBaseSchema: z.ZodIntersection<z.ZodObject<{
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -140034,6 +146145,19 @@ type SwarmRemoteSwarmBase = z.infer<typeof SwarmRemoteSwarmBaseSchema>;
 
 declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObject<{
     agents: z.ZodArray<z.ZodIntersection<z.ZodUnion<readonly [z.ZodIntersection<z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         id: z.ZodString;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -140495,6 +146619,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         id: z.ZodString;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -140575,6 +146712,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         id: z.ZodString;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -140654,6 +146804,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         id: z.ZodString;
@@ -140672,6 +146835,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             id: z.ZodString;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -141133,6 +147309,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             id: z.ZodString;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -141213,6 +147402,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             id: z.ZodString;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -141292,6 +147494,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             id: z.ZodString;
@@ -141312,6 +147527,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
     }, z.core.$strip>>, z.ZodObject<{
         description: z.ZodString;
     }, z.core.$strip>>, z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         id: z.ZodString;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -141773,6 +148001,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         id: z.ZodString;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -141853,6 +148094,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         id: z.ZodString;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -141932,6 +148186,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         id: z.ZodString;
@@ -141950,6 +148217,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             id: z.ZodString;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -142411,6 +148691,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             id: z.ZodString;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -142491,6 +148784,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             id: z.ZodString;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -142570,6 +148876,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             id: z.ZodString;
@@ -142599,6 +148918,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
     description: z.ZodString;
 }, z.core.$strip>>, z.ZodObject<{
     agents: z.ZodArray<z.ZodIntersection<z.ZodUnion<readonly [z.ZodIntersection<z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         id: z.ZodString;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -143060,6 +149392,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         id: z.ZodString;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -143140,6 +149485,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         id: z.ZodString;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -143219,6 +149577,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         id: z.ZodString;
@@ -143237,6 +149608,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             id: z.ZodString;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -143698,6 +150082,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             id: z.ZodString;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -143778,6 +150175,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             id: z.ZodString;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -143857,6 +150267,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             id: z.ZodString;
@@ -143877,6 +150300,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
     }, z.core.$strip>>, z.ZodObject<{
         description: z.ZodString;
     }, z.core.$strip>>, z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         id: z.ZodString;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -144338,6 +150774,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         id: z.ZodString;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -144418,6 +150867,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         id: z.ZodString;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -144497,6 +150959,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         id: z.ZodString;
@@ -144515,6 +150990,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             id: z.ZodString;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
@@ -144976,6 +151464,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             id: z.ZodString;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -145056,6 +151557,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             id: z.ZodString;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -145135,6 +151649,19 @@ declare const SwarmSwarmSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObje
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             id: z.ZodString;
@@ -145165,6 +151692,19 @@ type SwarmSwarm = z.infer<typeof SwarmSwarmSchema>;
 
 declare const SwarmSwarmBaseSchema: z.ZodUnion<readonly [z.ZodIntersection<z.ZodObject<{
     agents: z.ZodArray<z.ZodIntersection<z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -145625,6 +152165,19 @@ declare const SwarmSwarmBaseSchema: z.ZodUnion<readonly [z.ZodIntersection<z.Zod
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -145704,6 +152257,19 @@ declare const SwarmSwarmBaseSchema: z.ZodUnion<readonly [z.ZodIntersection<z.Zod
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -145782,6 +152348,19 @@ declare const SwarmSwarmBaseSchema: z.ZodUnion<readonly [z.ZodIntersection<z.Zod
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -145799,6 +152378,19 @@ declare const SwarmSwarmBaseSchema: z.ZodUnion<readonly [z.ZodIntersection<z.Zod
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -146259,6 +152851,19 @@ declare const SwarmSwarmBaseSchema: z.ZodUnion<readonly [z.ZodIntersection<z.Zod
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -146338,6 +152943,19 @@ declare const SwarmSwarmBaseSchema: z.ZodUnion<readonly [z.ZodIntersection<z.Zod
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -146416,6 +153034,19 @@ declare const SwarmSwarmBaseSchema: z.ZodUnion<readonly [z.ZodIntersection<z.Zod
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -146456,6 +153087,19 @@ declare const SwarmSwarmBaseSchema: z.ZodUnion<readonly [z.ZodIntersection<z.Zod
     description: z.ZodString;
 }, z.core.$strip>>, z.ZodObject<{
     agents: z.ZodArray<z.ZodIntersection<z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -146916,6 +153560,19 @@ declare const SwarmSwarmBaseSchema: z.ZodUnion<readonly [z.ZodIntersection<z.Zod
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -146995,6 +153652,19 @@ declare const SwarmSwarmBaseSchema: z.ZodUnion<readonly [z.ZodIntersection<z.Zod
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -147073,6 +153743,19 @@ declare const SwarmSwarmBaseSchema: z.ZodUnion<readonly [z.ZodIntersection<z.Zod
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -147090,6 +153773,19 @@ declare const SwarmSwarmBaseSchema: z.ZodUnion<readonly [z.ZodIntersection<z.Zod
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -147550,6 +154246,19 @@ declare const SwarmSwarmBaseSchema: z.ZodUnion<readonly [z.ZodIntersection<z.Zod
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -147629,6 +154338,19 @@ declare const SwarmSwarmBaseSchema: z.ZodUnion<readonly [z.ZodIntersection<z.Zod
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -147707,6 +154429,19 @@ declare const SwarmSwarmBaseSchema: z.ZodUnion<readonly [z.ZodIntersection<z.Zod
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -147777,6 +154512,19 @@ type VectorCompletionsCacheCacheVote = z.infer<typeof VectorCompletionsCacheCach
 
 declare const VectorCompletionsCacheCacheVoteRequestSchema: z.ZodObject<{
     agent: z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
         max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -148237,6 +154985,19 @@ declare const VectorCompletionsCacheCacheVoteRequestSchema: z.ZodObject<{
         upstream: z.ZodLiteral<"openrouter">;
         verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -148316,6 +155077,19 @@ declare const VectorCompletionsCacheCacheVoteRequestSchema: z.ZodObject<{
         thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         upstream: z.ZodLiteral<"claude_agent_sdk">;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             authorization: z.ZodDefault<z.ZodBoolean>;
@@ -148394,6 +155168,19 @@ declare const VectorCompletionsCacheCacheVoteRequestSchema: z.ZodObject<{
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
         error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -148411,6 +155198,19 @@ declare const VectorCompletionsCacheCacheVoteRequestSchema: z.ZodObject<{
         upstream: z.ZodLiteral<"mock">;
     }, z.core.$strip>]>, z.ZodObject<{
         fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -148871,6 +155671,19 @@ declare const VectorCompletionsCacheCacheVoteRequestSchema: z.ZodObject<{
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -148950,6 +155763,19 @@ declare const VectorCompletionsCacheCacheVoteRequestSchema: z.ZodObject<{
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -149028,6 +155854,19 @@ declare const VectorCompletionsCacheCacheVoteRequestSchema: z.ZodObject<{
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -149458,6 +156297,19 @@ declare const VectorCompletionsRequestVectorCompletionCreateParamsSchema: z.ZodO
     stream: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     swarm: z.ZodUnion<readonly [z.ZodObject<{
         agents: z.ZodArray<z.ZodIntersection<z.ZodUnion<readonly [z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
             max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -149918,6 +156770,19 @@ declare const VectorCompletionsRequestVectorCompletionCreateParamsSchema: z.ZodO
             upstream: z.ZodLiteral<"openrouter">;
             verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -149997,6 +156862,19 @@ declare const VectorCompletionsRequestVectorCompletionCreateParamsSchema: z.ZodO
             thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             upstream: z.ZodLiteral<"claude_agent_sdk">;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 authorization: z.ZodDefault<z.ZodBoolean>;
@@ -150075,6 +156953,19 @@ declare const VectorCompletionsRequestVectorCompletionCreateParamsSchema: z.ZodO
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
             error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -150092,6 +156983,19 @@ declare const VectorCompletionsRequestVectorCompletionCreateParamsSchema: z.ZodO
             upstream: z.ZodLiteral<"mock">;
         }, z.core.$strip>]>, z.ZodObject<{
             fallbacks: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
                 frequency_penalty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
                 logit_bias: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNumber>>>;
                 max_completion_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -150552,6 +157456,19 @@ declare const VectorCompletionsRequestVectorCompletionCreateParamsSchema: z.ZodO
                 upstream: z.ZodLiteral<"openrouter">;
                 verbosity: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
                 effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">, z.ZodLiteral<"max">]>>>;
                 mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                     authorization: z.ZodDefault<z.ZodBoolean>;
@@ -150631,6 +157548,19 @@ declare const VectorCompletionsRequestVectorCompletionCreateParamsSchema: z.ZodO
                 thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
                 upstream: z.ZodLiteral<"claude_agent_sdk">;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
                 effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"minimal">, z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
                 mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                     authorization: z.ZodDefault<z.ZodBoolean>;
@@ -150709,6 +157639,19 @@ declare const VectorCompletionsRequestVectorCompletionCreateParamsSchema: z.ZodO
                 upstream: z.ZodLiteral<"codex_sdk">;
                 web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
                 error: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
                 error_probability: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
                 mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -151839,6 +158782,19 @@ declare const VectorCompletionsRequestVectorCompletionCreateParamsStreamingSchem
     seed: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
     swarm: z$1.ZodUnion<readonly [z$1.ZodObject<{
         agents: z$1.ZodArray<z$1.ZodIntersection<z$1.ZodUnion<readonly [z$1.ZodIntersection<z$1.ZodUnion<readonly [z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             frequency_penalty: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
             logit_bias: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodRecord<z$1.ZodString, z$1.ZodNumber>>>;
             max_completion_tokens: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
@@ -152299,6 +159255,19 @@ declare const VectorCompletionsRequestVectorCompletionCreateParamsStreamingSchem
             upstream: z$1.ZodLiteral<"openrouter">;
             verbosity: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
         }, z$1.core.$strip>, z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
             mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
                 authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -152378,6 +159347,19 @@ declare const VectorCompletionsRequestVectorCompletionCreateParamsStreamingSchem
             thinking: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
             upstream: z$1.ZodLiteral<"claude_agent_sdk">;
         }, z$1.core.$strip>, z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"minimal">, z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">]>>>;
             mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
                 authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -152456,6 +159438,19 @@ declare const VectorCompletionsRequestVectorCompletionCreateParamsStreamingSchem
             upstream: z$1.ZodLiteral<"codex_sdk">;
             web_search_enabled: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
         }, z$1.core.$strip>, z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             error: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
             error_probability: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
             mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
@@ -152473,6 +159468,19 @@ declare const VectorCompletionsRequestVectorCompletionCreateParamsStreamingSchem
             upstream: z$1.ZodLiteral<"mock">;
         }, z$1.core.$strip>]>, z$1.ZodObject<{
             fallbacks: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodUnion<readonly [z$1.ZodObject<{
+                client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                    objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                    plugins: z$1.ZodArray<z$1.ZodObject<{
+                        name: z$1.ZodString;
+                        owner: z$1.ZodString;
+                        version: z$1.ZodString;
+                    }, z$1.core.$strip>>;
+                    tools: z$1.ZodArray<z$1.ZodObject<{
+                        name: z$1.ZodString;
+                        owner: z$1.ZodString;
+                        version: z$1.ZodString;
+                    }, z$1.core.$strip>>;
+                }, z$1.core.$strip>>>;
                 frequency_penalty: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
                 logit_bias: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodRecord<z$1.ZodString, z$1.ZodNumber>>>;
                 max_completion_tokens: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
@@ -152933,6 +159941,19 @@ declare const VectorCompletionsRequestVectorCompletionCreateParamsStreamingSchem
                 upstream: z$1.ZodLiteral<"openrouter">;
                 verbosity: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
             }, z$1.core.$strip>, z$1.ZodObject<{
+                client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                    objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                    plugins: z$1.ZodArray<z$1.ZodObject<{
+                        name: z$1.ZodString;
+                        owner: z$1.ZodString;
+                        version: z$1.ZodString;
+                    }, z$1.core.$strip>>;
+                    tools: z$1.ZodArray<z$1.ZodObject<{
+                        name: z$1.ZodString;
+                        owner: z$1.ZodString;
+                        version: z$1.ZodString;
+                    }, z$1.core.$strip>>;
+                }, z$1.core.$strip>>>;
                 effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
                 mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
                     authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -153012,6 +160033,19 @@ declare const VectorCompletionsRequestVectorCompletionCreateParamsStreamingSchem
                 thinking: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
                 upstream: z$1.ZodLiteral<"claude_agent_sdk">;
             }, z$1.core.$strip>, z$1.ZodObject<{
+                client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                    objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                    plugins: z$1.ZodArray<z$1.ZodObject<{
+                        name: z$1.ZodString;
+                        owner: z$1.ZodString;
+                        version: z$1.ZodString;
+                    }, z$1.core.$strip>>;
+                    tools: z$1.ZodArray<z$1.ZodObject<{
+                        name: z$1.ZodString;
+                        owner: z$1.ZodString;
+                        version: z$1.ZodString;
+                    }, z$1.core.$strip>>;
+                }, z$1.core.$strip>>>;
                 effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"minimal">, z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">]>>>;
                 mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
                     authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -153090,6 +160124,19 @@ declare const VectorCompletionsRequestVectorCompletionCreateParamsStreamingSchem
                 upstream: z$1.ZodLiteral<"codex_sdk">;
                 web_search_enabled: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
             }, z$1.core.$strip>, z$1.ZodObject<{
+                client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                    objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                    plugins: z$1.ZodArray<z$1.ZodObject<{
+                        name: z$1.ZodString;
+                        owner: z$1.ZodString;
+                        version: z$1.ZodString;
+                    }, z$1.core.$strip>>;
+                    tools: z$1.ZodArray<z$1.ZodObject<{
+                        name: z$1.ZodString;
+                        owner: z$1.ZodString;
+                        version: z$1.ZodString;
+                    }, z$1.core.$strip>>;
+                }, z$1.core.$strip>>>;
                 error: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
                 error_probability: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
                 mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
@@ -153341,6 +160388,19 @@ declare const VectorCompletionsRequestVectorCompletionCreateParamsUnarySchema: z
     seed: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
     swarm: z$1.ZodUnion<readonly [z$1.ZodObject<{
         agents: z$1.ZodArray<z$1.ZodIntersection<z$1.ZodUnion<readonly [z$1.ZodIntersection<z$1.ZodUnion<readonly [z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             frequency_penalty: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
             logit_bias: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodRecord<z$1.ZodString, z$1.ZodNumber>>>;
             max_completion_tokens: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
@@ -153801,6 +160861,19 @@ declare const VectorCompletionsRequestVectorCompletionCreateParamsUnarySchema: z
             upstream: z$1.ZodLiteral<"openrouter">;
             verbosity: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
         }, z$1.core.$strip>, z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
             mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
                 authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -153880,6 +160953,19 @@ declare const VectorCompletionsRequestVectorCompletionCreateParamsUnarySchema: z
             thinking: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
             upstream: z$1.ZodLiteral<"claude_agent_sdk">;
         }, z$1.core.$strip>, z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"minimal">, z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">]>>>;
             mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
                 authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -153958,6 +161044,19 @@ declare const VectorCompletionsRequestVectorCompletionCreateParamsUnarySchema: z
             upstream: z$1.ZodLiteral<"codex_sdk">;
             web_search_enabled: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
         }, z$1.core.$strip>, z$1.ZodObject<{
+            client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                plugins: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+                tools: z$1.ZodArray<z$1.ZodObject<{
+                    name: z$1.ZodString;
+                    owner: z$1.ZodString;
+                    version: z$1.ZodString;
+                }, z$1.core.$strip>>;
+            }, z$1.core.$strip>>>;
             error: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
             error_probability: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
             mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
@@ -153975,6 +161074,19 @@ declare const VectorCompletionsRequestVectorCompletionCreateParamsUnarySchema: z
             upstream: z$1.ZodLiteral<"mock">;
         }, z$1.core.$strip>]>, z$1.ZodObject<{
             fallbacks: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodUnion<readonly [z$1.ZodObject<{
+                client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                    objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                    plugins: z$1.ZodArray<z$1.ZodObject<{
+                        name: z$1.ZodString;
+                        owner: z$1.ZodString;
+                        version: z$1.ZodString;
+                    }, z$1.core.$strip>>;
+                    tools: z$1.ZodArray<z$1.ZodObject<{
+                        name: z$1.ZodString;
+                        owner: z$1.ZodString;
+                        version: z$1.ZodString;
+                    }, z$1.core.$strip>>;
+                }, z$1.core.$strip>>>;
                 frequency_penalty: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
                 logit_bias: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodRecord<z$1.ZodString, z$1.ZodNumber>>>;
                 max_completion_tokens: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
@@ -154435,6 +161547,19 @@ declare const VectorCompletionsRequestVectorCompletionCreateParamsUnarySchema: z
                 upstream: z$1.ZodLiteral<"openrouter">;
                 verbosity: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
             }, z$1.core.$strip>, z$1.ZodObject<{
+                client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                    objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                    plugins: z$1.ZodArray<z$1.ZodObject<{
+                        name: z$1.ZodString;
+                        owner: z$1.ZodString;
+                        version: z$1.ZodString;
+                    }, z$1.core.$strip>>;
+                    tools: z$1.ZodArray<z$1.ZodObject<{
+                        name: z$1.ZodString;
+                        owner: z$1.ZodString;
+                        version: z$1.ZodString;
+                    }, z$1.core.$strip>>;
+                }, z$1.core.$strip>>>;
                 effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">, z$1.ZodLiteral<"max">]>>>;
                 mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
                     authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -154514,6 +161639,19 @@ declare const VectorCompletionsRequestVectorCompletionCreateParamsUnarySchema: z
                 thinking: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
                 upstream: z$1.ZodLiteral<"claude_agent_sdk">;
             }, z$1.core.$strip>, z$1.ZodObject<{
+                client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                    objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                    plugins: z$1.ZodArray<z$1.ZodObject<{
+                        name: z$1.ZodString;
+                        owner: z$1.ZodString;
+                        version: z$1.ZodString;
+                    }, z$1.core.$strip>>;
+                    tools: z$1.ZodArray<z$1.ZodObject<{
+                        name: z$1.ZodString;
+                        owner: z$1.ZodString;
+                        version: z$1.ZodString;
+                    }, z$1.core.$strip>>;
+                }, z$1.core.$strip>>>;
                 effort: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodUnion<readonly [z$1.ZodLiteral<"minimal">, z$1.ZodLiteral<"low">, z$1.ZodLiteral<"medium">, z$1.ZodLiteral<"high">]>>>;
                 mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
                     authorization: z$1.ZodDefault<z$1.ZodBoolean>;
@@ -154592,6 +161730,19 @@ declare const VectorCompletionsRequestVectorCompletionCreateParamsUnarySchema: z
                 upstream: z$1.ZodLiteral<"codex_sdk">;
                 web_search_enabled: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
             }, z$1.core.$strip>, z$1.ZodObject<{
+                client_objectiveai_mcp: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodObject<{
+                    objectiveai: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
+                    plugins: z$1.ZodArray<z$1.ZodObject<{
+                        name: z$1.ZodString;
+                        owner: z$1.ZodString;
+                        version: z$1.ZodString;
+                    }, z$1.core.$strip>>;
+                    tools: z$1.ZodArray<z$1.ZodObject<{
+                        name: z$1.ZodString;
+                        owner: z$1.ZodString;
+                        version: z$1.ZodString;
+                    }, z$1.core.$strip>>;
+                }, z$1.core.$strip>>>;
                 error: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodBoolean>>;
                 error_probability: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
                 mcp_servers: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodObject<{
@@ -154707,4 +161858,4 @@ declare function merge<T extends {}>(a: T | null | undefined, b: T | null | unde
 declare function mergedString(a: string, b: string): [string, boolean];
 declare function mergedNumberArray(a: number[], b: number[]): [number[], boolean];
 
-export { type AgentAgent, type AgentAgentBase, AgentAgentBaseSchema, AgentAgentSchema, type AgentAgentWithFallbacks, AgentAgentWithFallbacksSchema, type AgentAgentWithFallbacksWithCount, AgentAgentWithFallbacksWithCountSchema, type AgentClaudeAgentSdkAgent, type AgentClaudeAgentSdkAgentBase, AgentClaudeAgentSdkAgentBaseSchema, AgentClaudeAgentSdkAgentSchema, type AgentClaudeAgentSdkContinuation, AgentClaudeAgentSdkContinuationSchema, type AgentClaudeAgentSdkEffort, AgentClaudeAgentSdkEffortSchema, type AgentClaudeAgentSdkOutputMode, AgentClaudeAgentSdkOutputModeSchema, type AgentClaudeAgentSdkUpstream, AgentClaudeAgentSdkUpstreamSchema, type AgentCodexSdkAgent, type AgentCodexSdkAgentBase, AgentCodexSdkAgentBaseSchema, AgentCodexSdkAgentSchema, type AgentCodexSdkContinuation, AgentCodexSdkContinuationSchema, type AgentCodexSdkEffort, AgentCodexSdkEffortSchema, type AgentCodexSdkOutputMode, AgentCodexSdkOutputModeSchema, type AgentCodexSdkUpstream, AgentCodexSdkUpstreamSchema, type AgentCompletionsMessageAssistantMessage, type AgentCompletionsMessageAssistantMessageExpression, AgentCompletionsMessageAssistantMessageExpressionSchema, AgentCompletionsMessageAssistantMessageSchema, type AgentCompletionsMessageAssistantToolCall, type AgentCompletionsMessageAssistantToolCallDelta, AgentCompletionsMessageAssistantToolCallDeltaSchema, type AgentCompletionsMessageAssistantToolCallExpression, AgentCompletionsMessageAssistantToolCallExpressionSchema, type AgentCompletionsMessageAssistantToolCallFunction, type AgentCompletionsMessageAssistantToolCallFunctionDelta, AgentCompletionsMessageAssistantToolCallFunctionDeltaSchema, type AgentCompletionsMessageAssistantToolCallFunctionExpression, AgentCompletionsMessageAssistantToolCallFunctionExpressionSchema, AgentCompletionsMessageAssistantToolCallFunctionSchema, AgentCompletionsMessageAssistantToolCallSchema, type AgentCompletionsMessageAssistantToolCallType, AgentCompletionsMessageAssistantToolCallTypeSchema, type AgentCompletionsMessageDeveloperMessage, type AgentCompletionsMessageDeveloperMessageExpression, AgentCompletionsMessageDeveloperMessageExpressionSchema, AgentCompletionsMessageDeveloperMessageSchema, type AgentCompletionsMessageFile, AgentCompletionsMessageFileSchema, type AgentCompletionsMessageImageUrl, type AgentCompletionsMessageImageUrlDetail, AgentCompletionsMessageImageUrlDetailSchema, AgentCompletionsMessageImageUrlSchema, type AgentCompletionsMessageInputAudio, AgentCompletionsMessageInputAudioSchema, type AgentCompletionsMessageMessage, type AgentCompletionsMessageMessageExpression, AgentCompletionsMessageMessageExpressionSchema, AgentCompletionsMessageMessageSchema, type AgentCompletionsMessageRichContent, type AgentCompletionsMessageRichContentExpression, AgentCompletionsMessageRichContentExpressionSchema, type AgentCompletionsMessageRichContentPart, type AgentCompletionsMessageRichContentPartExpression, AgentCompletionsMessageRichContentPartExpressionSchema, AgentCompletionsMessageRichContentPartSchema, AgentCompletionsMessageRichContentSchema, type AgentCompletionsMessageSimpleContent, type AgentCompletionsMessageSimpleContentExpression, AgentCompletionsMessageSimpleContentExpressionSchema, type AgentCompletionsMessageSimpleContentPart, type AgentCompletionsMessageSimpleContentPartExpression, AgentCompletionsMessageSimpleContentPartExpressionSchema, AgentCompletionsMessageSimpleContentPartSchema, AgentCompletionsMessageSimpleContentSchema, type AgentCompletionsMessageSystemMessage, type AgentCompletionsMessageSystemMessageExpression, AgentCompletionsMessageSystemMessageExpressionSchema, AgentCompletionsMessageSystemMessageSchema, type AgentCompletionsMessageToolMessage, type AgentCompletionsMessageToolMessageExpression, AgentCompletionsMessageToolMessageExpressionSchema, AgentCompletionsMessageToolMessageSchema, type AgentCompletionsMessageUserMessage, type AgentCompletionsMessageUserMessageExpression, AgentCompletionsMessageUserMessageExpressionSchema, AgentCompletionsMessageUserMessageSchema, type AgentCompletionsMessageVideoUrl, AgentCompletionsMessageVideoUrlSchema, type AgentCompletionsRequestAgentCompletionCreateParams, AgentCompletionsRequestAgentCompletionCreateParamsSchema, type AgentCompletionsRequestAgentCompletionCreateParamsStreaming, AgentCompletionsRequestAgentCompletionCreateParamsStreamingSchema, type AgentCompletionsRequestAgentCompletionCreateParamsUnary, AgentCompletionsRequestAgentCompletionCreateParamsUnarySchema, type AgentCompletionsRequestAgentCompletionNotifyParams, AgentCompletionsRequestAgentCompletionNotifyParamsSchema, type AgentCompletionsRequestProvider, type AgentCompletionsRequestProviderDataCollection, AgentCompletionsRequestProviderDataCollectionSchema, type AgentCompletionsRequestProviderMaxPrice, AgentCompletionsRequestProviderMaxPriceSchema, AgentCompletionsRequestProviderSchema, type AgentCompletionsRequestProviderSort, AgentCompletionsRequestProviderSortSchema, type AgentCompletionsRequestResponseFormat, type AgentCompletionsRequestResponseFormatParam, AgentCompletionsRequestResponseFormatParamSchema, AgentCompletionsRequestResponseFormatSchema, type AgentCompletionsResponseAssistantRole, AgentCompletionsResponseAssistantRoleSchema, type AgentCompletionsResponseCompletionTokensDetails, AgentCompletionsResponseCompletionTokensDetailsSchema, type AgentCompletionsResponseCostDetails, AgentCompletionsResponseCostDetailsSchema, type AgentCompletionsResponseFinishReason, AgentCompletionsResponseFinishReasonSchema, type AgentCompletionsResponseLogprob, AgentCompletionsResponseLogprobSchema, type AgentCompletionsResponseLogprobs, AgentCompletionsResponseLogprobsSchema, type AgentCompletionsResponsePromptTokensDetails, AgentCompletionsResponsePromptTokensDetailsSchema, type AgentCompletionsResponseStreamingAgentCompletionChunk, AgentCompletionsResponseStreamingAgentCompletionChunkSchema, type AgentCompletionsResponseStreamingAssistantResponseChunk, AgentCompletionsResponseStreamingAssistantResponseChunkSchema, type AgentCompletionsResponseStreamingMessageChunk, AgentCompletionsResponseStreamingMessageChunkSchema, type AgentCompletionsResponseStreamingObject, AgentCompletionsResponseStreamingObjectSchema, type AgentCompletionsResponseToolResponse, AgentCompletionsResponseToolResponseSchema, type AgentCompletionsResponseToolRole, AgentCompletionsResponseToolRoleSchema, type AgentCompletionsResponseTopLogprob, AgentCompletionsResponseTopLogprobSchema, type AgentCompletionsResponseUnaryAgentCompletion, AgentCompletionsResponseUnaryAgentCompletionSchema, type AgentCompletionsResponseUnaryAssistantResponse, AgentCompletionsResponseUnaryAssistantResponseSchema, type AgentCompletionsResponseUnaryMessage, AgentCompletionsResponseUnaryMessageSchema, type AgentCompletionsResponseUnaryObject, AgentCompletionsResponseUnaryObjectSchema, type AgentCompletionsResponseUpstreamUsage, AgentCompletionsResponseUpstreamUsageSchema, type AgentCompletionsResponseUsage, AgentCompletionsResponseUsageSchema, type AgentContinuation, AgentContinuationSchema, type AgentFavoritesAction, AgentFavoritesActionSchema, type AgentFavoritesChangedNotification, AgentFavoritesChangedNotificationSchema, type AgentGetAgentResponse, AgentGetAgentResponseSchema, type AgentInlineAgent, type AgentInlineAgentBase, AgentInlineAgentBaseSchema, type AgentInlineAgentBaseWithFallbacks, type AgentInlineAgentBaseWithFallbacksOrRemote, type AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptional, AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema, AgentInlineAgentBaseWithFallbacksOrRemoteSchema, type AgentInlineAgentBaseWithFallbacksOrRemoteWithCount, AgentInlineAgentBaseWithFallbacksOrRemoteWithCountSchema, AgentInlineAgentBaseWithFallbacksSchema, AgentInlineAgentSchema, type AgentInlineAgentWithFallbacks, AgentInlineAgentWithFallbacksSchema, type AgentListAgentResponse, AgentListAgentResponseSchema, type AgentListAgentsRequest, AgentListAgentsRequestSchema, type AgentListAgentsSource, AgentListAgentsSourceSchema, type AgentMcpServer, AgentMcpServerSchema, type AgentMockAgent, type AgentMockAgentBase, AgentMockAgentBaseSchema, AgentMockAgentSchema, type AgentMockContinuation, AgentMockContinuationSchema, type AgentMockMode, AgentMockModeSchema, type AgentMockOutputMode, AgentMockOutputModeSchema, type AgentMockUpstream, AgentMockUpstreamSchema, type AgentOpenrouterAgent, type AgentOpenrouterAgentBase, AgentOpenrouterAgentBaseSchema, AgentOpenrouterAgentSchema, type AgentOpenrouterContinuation, AgentOpenrouterContinuationSchema, type AgentOpenrouterOutputMode, AgentOpenrouterOutputModeSchema, type AgentOpenrouterProvider, type AgentOpenrouterProviderQuantization, AgentOpenrouterProviderQuantizationSchema, AgentOpenrouterProviderSchema, type AgentOpenrouterReasoning, type AgentOpenrouterReasoningEffort, AgentOpenrouterReasoningEffortSchema, AgentOpenrouterReasoningSchema, type AgentOpenrouterReasoningSummaryVerbosity, AgentOpenrouterReasoningSummaryVerbositySchema, type AgentOpenrouterStop, AgentOpenrouterStopSchema, type AgentOpenrouterUpstream, AgentOpenrouterUpstreamSchema, type AgentOpenrouterVerbosity, AgentOpenrouterVerbositySchema, type AgentOutputMode, AgentOutputModeSchema, type AgentRemoteAgent, type AgentRemoteAgentBase, AgentRemoteAgentBaseSchema, type AgentRemoteAgentBaseWithFallbacks, AgentRemoteAgentBaseWithFallbacksSchema, AgentRemoteAgentSchema, type AgentRemoteAgentWithFallbacks, AgentRemoteAgentWithFallbacksSchema, type AgentUpstream, AgentUpstreamSchema, type AgentUsageAgentResponse, AgentUsageAgentResponseSchema, type AuthApiKeyWithMetadata, AuthApiKeyWithMetadataSchema, type AuthCreateApiKeyRequest, AuthCreateApiKeyRequestSchema, type AuthCreateOpenRouterByokApiKeyRequest, AuthCreateOpenRouterByokApiKeyRequestSchema, type AuthDisableApiKeyRequest, AuthDisableApiKeyRequestSchema, type AuthGetCreditsResponse, AuthGetCreditsResponseSchema, type AuthGetOpenRouterByokApiKeyResponse, AuthGetOpenRouterByokApiKeyResponseSchema, type AuthListApiKeyItem, AuthListApiKeyItemSchema, type AuthListApiKeyResponse, AuthListApiKeyResponseSchema, type CliOutputError, CliOutputErrorSchema, type CliOutputLevel, CliOutputLevelSchema, type CliOutputNotificationAgentsAgent, CliOutputNotificationAgentsAgentSchema, type CliOutputNotificationAgentsCompletionsContent, CliOutputNotificationAgentsCompletionsContentSchema, type CliOutputNotificationApiDetached, CliOutputNotificationApiDetachedSchema, type CliOutputNotificationCleared, CliOutputNotificationClearedSchema, type CliOutputNotificationFunctionsExecutionsExecution, type CliOutputNotificationFunctionsExecutionsExecutionResult, CliOutputNotificationFunctionsExecutionsExecutionResultSchema, CliOutputNotificationFunctionsExecutionsExecutionSchema, type CliOutputNotificationFunctionsFunction, CliOutputNotificationFunctionsFunctionSchema, type CliOutputNotificationFunctionsInventionsRecursiveInventionResultItem, CliOutputNotificationFunctionsInventionsRecursiveInventionResultItemSchema, type CliOutputNotificationFunctionsInventionsRecursiveInventions, CliOutputNotificationFunctionsInventionsRecursiveInventionsSchema, type CliOutputNotificationFunctionsInventionsState, CliOutputNotificationFunctionsInventionsStateSchema, type CliOutputNotificationFunctionsProfilesFunctionProfilePair, CliOutputNotificationFunctionsProfilesFunctionProfilePairSchema, type CliOutputNotificationFunctionsProfilesPair, CliOutputNotificationFunctionsProfilesPairSchema, type CliOutputNotificationFunctionsProfilesProfile, CliOutputNotificationFunctionsProfilesProfileSchema, type CliOutputNotificationInstalled, CliOutputNotificationInstalledSchema, type CliOutputNotificationInstructions, CliOutputNotificationInstructionsSchema, type CliOutputNotificationJqResults, CliOutputNotificationJqResultsSchema, type CliOutputNotificationLaboratoriesExecutionsLabResultItem, CliOutputNotificationLaboratoriesExecutionsLabResultItemSchema, type CliOutputNotificationLaboratoriesExecutionsLaboratory, CliOutputNotificationLaboratoriesExecutionsLaboratorySchema, type CliOutputNotificationListItem, CliOutputNotificationListItemSchema, type CliOutputNotificationLogContent, CliOutputNotificationLogContentSchema, type CliOutputNotificationLogStreamReady, CliOutputNotificationLogStreamReadySchema, type CliOutputNotificationOk, CliOutputNotificationOkSchema, type CliOutputNotificationPairListItem, CliOutputNotificationPairListItemSchema, type CliOutputNotificationPlugin, CliOutputNotificationPluginSchema, type CliOutputNotificationPlugins, CliOutputNotificationPluginsSchema, type CliOutputNotificationPublished, CliOutputNotificationPublishedSchema, type CliOutputNotificationSchema, CliOutputNotificationSchemaSchema, type CliOutputNotificationSchemas, CliOutputNotificationSchemasSchema, type CliOutputNotificationSkipReason, CliOutputNotificationSkipReasonSchema, type CliOutputNotificationSwarmsSwarm, CliOutputNotificationSwarmsSwarmSchema, type CliOutputNotificationUpdater, CliOutputNotificationUpdaterSchema, type CliPluginsPluginOutput, CliPluginsPluginOutputSchema, type ErrorErrorCreateParams, ErrorErrorCreateParamsSchema, type ErrorErrorCreateParamsStreaming, ErrorErrorCreateParamsStreamingSchema, type ErrorErrorCreateParamsUnary, ErrorErrorCreateParamsUnarySchema, type ErrorErrorResponse, ErrorErrorResponseSchema, type ErrorResponseError, ErrorResponseErrorSchema, type FilesystemConfigAgentsConfig, FilesystemConfigAgentsConfigSchema, type FilesystemConfigApiConfig, FilesystemConfigApiConfigSchema, type FilesystemConfigConfig, FilesystemConfigConfigSchema, type FilesystemConfigFavorite, FilesystemConfigFavoriteSchema, type FilesystemConfigFunctionsConfig, FilesystemConfigFunctionsConfigSchema, type FilesystemConfigFunctionsInventionsConfig, FilesystemConfigFunctionsInventionsConfigSchema, type FilesystemConfigFunctionsProfilesConfig, FilesystemConfigFunctionsProfilesConfigSchema, type FilesystemConfigFunctionsProfilesPairsConfig, FilesystemConfigFunctionsProfilesPairsConfigSchema, type FilesystemConfigMcpConfig, FilesystemConfigMcpConfigSchema, type FilesystemConfigPairFavorite, FilesystemConfigPairFavoriteSchema, type FilesystemConfigSwarmsConfig, FilesystemConfigSwarmsConfigSchema, type FilesystemConfigViewerConfig, FilesystemConfigViewerConfigSchema, type FilesystemConfigViewerSecretSignaturePair, FilesystemConfigViewerSecretSignaturePairSchema, type FilesystemLogsListItem, FilesystemLogsListItemSchema, type FilesystemPluginsBinaries, FilesystemPluginsBinariesSchema, type FilesystemPluginsHttpMethod, FilesystemPluginsHttpMethodSchema, type FilesystemPluginsManifest, FilesystemPluginsManifestSchema, type FilesystemPluginsManifestWithNameAndSource, FilesystemPluginsManifestWithNameAndSourceSchema, type FilesystemPluginsPlatform, FilesystemPluginsPlatformSchema, type FilesystemPluginsViewerRoute, FilesystemPluginsViewerRouteSchema, type FilesystemPluginsWhitelistEntry, FilesystemPluginsWhitelistEntrySchema, type FunctionsAlphaInlineFunction, FunctionsAlphaInlineFunctionSchema, type FunctionsAlphaRemoteFunction, FunctionsAlphaRemoteFunctionSchema, type FunctionsAlphaScalarBranchTaskExpression, FunctionsAlphaScalarBranchTaskExpressionSchema, type FunctionsAlphaScalarInlineFunction, FunctionsAlphaScalarInlineFunctionSchema, type FunctionsAlphaScalarLeafTaskExpression, FunctionsAlphaScalarLeafTaskExpressionSchema, type FunctionsAlphaScalarPartialPlaceholderBranchTaskExpression, FunctionsAlphaScalarPartialPlaceholderBranchTaskExpressionSchema, type FunctionsAlphaScalarPartialPlaceholderScalarFunctionTaskExpression, FunctionsAlphaScalarPartialPlaceholderScalarFunctionTaskExpressionSchema, type FunctionsAlphaScalarPlaceholderScalarFunctionTaskExpression, FunctionsAlphaScalarPlaceholderScalarFunctionTaskExpressionSchema, type FunctionsAlphaScalarRemoteFunction, FunctionsAlphaScalarRemoteFunctionSchema, type FunctionsAlphaScalarScalarFunctionTaskExpression, FunctionsAlphaScalarScalarFunctionTaskExpressionSchema, type FunctionsAlphaScalarVectorCompletionTaskExpression, FunctionsAlphaScalarVectorCompletionTaskExpressionSchema, type FunctionsAlphaVectorBranchTaskExpression, FunctionsAlphaVectorBranchTaskExpressionSchema, type FunctionsAlphaVectorExpressionVectorFunctionInputSchema, FunctionsAlphaVectorExpressionVectorFunctionInputSchemaSchema, type FunctionsAlphaVectorExpressionVectorFunctionInputValue, type FunctionsAlphaVectorExpressionVectorFunctionInputValueExpression, FunctionsAlphaVectorExpressionVectorFunctionInputValueExpressionSchema, FunctionsAlphaVectorExpressionVectorFunctionInputValueSchema, type FunctionsAlphaVectorInlineFunction, FunctionsAlphaVectorInlineFunctionSchema, type FunctionsAlphaVectorLeafTaskExpression, FunctionsAlphaVectorLeafTaskExpressionSchema, type FunctionsAlphaVectorPartialPlaceholderBranchTaskExpression, FunctionsAlphaVectorPartialPlaceholderBranchTaskExpressionSchema, type FunctionsAlphaVectorPartialPlaceholderScalarFunctionTaskExpression, FunctionsAlphaVectorPartialPlaceholderScalarFunctionTaskExpressionSchema, type FunctionsAlphaVectorPartialPlaceholderVectorFunctionTaskExpression, FunctionsAlphaVectorPartialPlaceholderVectorFunctionTaskExpressionSchema, type FunctionsAlphaVectorPlaceholderScalarFunctionTaskExpression, FunctionsAlphaVectorPlaceholderScalarFunctionTaskExpressionSchema, type FunctionsAlphaVectorPlaceholderVectorFunctionTaskExpression, FunctionsAlphaVectorPlaceholderVectorFunctionTaskExpressionSchema, type FunctionsAlphaVectorRemoteFunction, FunctionsAlphaVectorRemoteFunctionSchema, type FunctionsAlphaVectorScalarFunctionTaskExpression, FunctionsAlphaVectorScalarFunctionTaskExpressionSchema, type FunctionsAlphaVectorVectorCompletionTaskExpression, FunctionsAlphaVectorVectorCompletionTaskExpressionSchema, type FunctionsAlphaVectorVectorFunctionTaskExpression, FunctionsAlphaVectorVectorFunctionTaskExpressionSchema, type FunctionsCheckScalarFieldsValidation, FunctionsCheckScalarFieldsValidationSchema, type FunctionsCheckVectorFieldsValidation, FunctionsCheckVectorFieldsValidationSchema, type FunctionsCompiledTask, FunctionsCompiledTaskSchema, type FunctionsExecutionsRequestFunctionExecutionCreateParams, FunctionsExecutionsRequestFunctionExecutionCreateParamsSchema, type FunctionsExecutionsRequestReasoning, FunctionsExecutionsRequestReasoningSchema, type FunctionsExecutionsRequestStrategy, FunctionsExecutionsRequestStrategySchema, type FunctionsExecutionsResponseOutput, FunctionsExecutionsResponseOutputSchema, type FunctionsExecutionsResponseStreamingFunctionExecutionChunk, FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema, type FunctionsExecutionsResponseStreamingFunctionExecutionTaskChunk, FunctionsExecutionsResponseStreamingFunctionExecutionTaskChunkSchema, type FunctionsExecutionsResponseStreamingInnerError, FunctionsExecutionsResponseStreamingInnerErrorSchema, type FunctionsExecutionsResponseStreamingObject, FunctionsExecutionsResponseStreamingObjectSchema, type FunctionsExecutionsResponseStreamingReasoningSummaryChunk, FunctionsExecutionsResponseStreamingReasoningSummaryChunkSchema, type FunctionsExecutionsResponseStreamingTaskChunk, FunctionsExecutionsResponseStreamingTaskChunkSchema, type FunctionsExecutionsResponseStreamingVectorCompletionTaskChunk, FunctionsExecutionsResponseStreamingVectorCompletionTaskChunkSchema, type FunctionsExecutionsResponseUnaryFunctionExecution, FunctionsExecutionsResponseUnaryFunctionExecutionSchema, type FunctionsExecutionsResponseUnaryFunctionExecutionTask, FunctionsExecutionsResponseUnaryFunctionExecutionTaskSchema, type FunctionsExecutionsResponseUnaryObject, FunctionsExecutionsResponseUnaryObjectSchema, type FunctionsExecutionsResponseUnaryReasoningSummary, FunctionsExecutionsResponseUnaryReasoningSummarySchema, type FunctionsExecutionsResponseUnaryTask, FunctionsExecutionsResponseUnaryTaskSchema, type FunctionsExecutionsResponseUnaryVectorCompletionTask, FunctionsExecutionsResponseUnaryVectorCompletionTaskSchema, type FunctionsExecutionsRetryToken, FunctionsExecutionsRetryTokenSchema, type FunctionsExpressionAnyOfInputSchema, FunctionsExpressionAnyOfInputSchemaSchema, type FunctionsExpressionArrayInputSchema, FunctionsExpressionArrayInputSchemaSchema, type FunctionsExpressionArrayInputSchemaType, FunctionsExpressionArrayInputSchemaTypeSchema, type FunctionsExpressionAudioInputSchema, FunctionsExpressionAudioInputSchemaSchema, type FunctionsExpressionAudioInputSchemaType, FunctionsExpressionAudioInputSchemaTypeSchema, type FunctionsExpressionBooleanInputSchema, FunctionsExpressionBooleanInputSchemaSchema, type FunctionsExpressionBooleanInputSchemaType, FunctionsExpressionBooleanInputSchemaTypeSchema, type FunctionsExpressionExpression, FunctionsExpressionExpressionSchema, type FunctionsExpressionFileInputSchema, FunctionsExpressionFileInputSchemaSchema, type FunctionsExpressionFileInputSchemaType, FunctionsExpressionFileInputSchemaTypeSchema, type FunctionsExpressionImageInputSchema, FunctionsExpressionImageInputSchemaSchema, type FunctionsExpressionImageInputSchemaType, FunctionsExpressionImageInputSchemaTypeSchema, type FunctionsExpressionInputSchema, FunctionsExpressionInputSchemaSchema, type FunctionsExpressionInputValue, type FunctionsExpressionInputValueExpression, type FunctionsExpressionInputValueExpressionObject, FunctionsExpressionInputValueExpressionSchema, type FunctionsExpressionInputValueObject, FunctionsExpressionInputValueSchema, type FunctionsExpressionIntegerInputSchema, FunctionsExpressionIntegerInputSchemaSchema, type FunctionsExpressionIntegerInputSchemaType, FunctionsExpressionIntegerInputSchemaTypeSchema, type FunctionsExpressionNumberInputSchema, FunctionsExpressionNumberInputSchemaSchema, type FunctionsExpressionNumberInputSchemaType, FunctionsExpressionNumberInputSchemaTypeSchema, type FunctionsExpressionObjectInputSchema, FunctionsExpressionObjectInputSchemaSchema, type FunctionsExpressionObjectInputSchemaType, FunctionsExpressionObjectInputSchemaTypeSchema, type FunctionsExpressionParams, FunctionsExpressionParamsSchema, type FunctionsExpressionSpecial, FunctionsExpressionSpecialSchema, type FunctionsExpressionStringInputSchema, FunctionsExpressionStringInputSchemaSchema, type FunctionsExpressionStringInputSchemaType, FunctionsExpressionStringInputSchemaTypeSchema, type FunctionsExpressionTaskOutput, FunctionsExpressionTaskOutputSchema, type FunctionsExpressionVideoInputSchema, FunctionsExpressionVideoInputSchemaSchema, type FunctionsExpressionVideoInputSchemaType, FunctionsExpressionVideoInputSchemaTypeSchema, type FunctionsFullFunction, FunctionsFullFunctionSchema, type FunctionsFullInlineFunction, type FunctionsFullInlineFunctionOrRemoteCommitOptional, FunctionsFullInlineFunctionOrRemoteCommitOptionalSchema, FunctionsFullInlineFunctionSchema, type FunctionsFullRemoteFunction, FunctionsFullRemoteFunctionSchema, type FunctionsFunction, FunctionsFunctionSchema, type FunctionsFunctionType, FunctionsFunctionTypeSchema, type FunctionsGetFunctionProfilePairResponse, FunctionsGetFunctionProfilePairResponseSchema, type FunctionsGetFunctionProfilePairUsageRequest, FunctionsGetFunctionProfilePairUsageRequestSchema, type FunctionsGetFunctionResponse, FunctionsGetFunctionResponseSchema, type FunctionsInlineFunction, FunctionsInlineFunctionSchema, type FunctionsInlineProfile, type FunctionsInlineProfileOrRemoteCommitOptional, FunctionsInlineProfileOrRemoteCommitOptionalSchema, FunctionsInlineProfileSchema, type FunctionsInlineTasksProfile, FunctionsInlineTasksProfileSchema, type FunctionsInventionsDescriptionObject, FunctionsInventionsDescriptionObjectSchema, type FunctionsInventionsEssayObject, FunctionsInventionsEssayObjectSchema, type FunctionsInventionsEssayTasksObject, FunctionsInventionsEssayTasksObjectSchema, type FunctionsInventionsIndexObject, FunctionsInventionsIndexObjectSchema, type FunctionsInventionsPromptsGetPromptResponse, FunctionsInventionsPromptsGetPromptResponseSchema, type FunctionsInventionsPromptsInlinePrompt, type FunctionsInventionsPromptsInlinePromptOrRemoteCommitOptional, FunctionsInventionsPromptsInlinePromptOrRemoteCommitOptionalSchema, FunctionsInventionsPromptsInlinePromptSchema, type FunctionsInventionsPromptsListPromptResponse, FunctionsInventionsPromptsListPromptResponseSchema, type FunctionsInventionsPromptsListPromptsRequest, FunctionsInventionsPromptsListPromptsRequestSchema, type FunctionsInventionsPromptsListPromptsSource, FunctionsInventionsPromptsListPromptsSourceSchema, type FunctionsInventionsPromptsPrompt, FunctionsInventionsPromptsPromptSchema, type FunctionsInventionsPromptsRemotePrompt, FunctionsInventionsPromptsRemotePromptSchema, type FunctionsInventionsPromptsStepPromptExpression, FunctionsInventionsPromptsStepPromptExpressionSchema, type FunctionsInventionsPromptsStepPromptType, FunctionsInventionsPromptsStepPromptTypeSchema, type FunctionsInventionsPromptsUsagePromptResponse, FunctionsInventionsPromptsUsagePromptResponseSchema, type FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParams, FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParamsSchema, type FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParamsStreaming, FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParamsStreamingSchema, type FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParamsUnary, FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParamsUnarySchema, type FunctionsInventionsRecursiveResponseStreamingFunctionInventionChunk, FunctionsInventionsRecursiveResponseStreamingFunctionInventionChunkSchema, type FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunk, FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkSchema, type FunctionsInventionsRecursiveResponseStreamingInnerError, FunctionsInventionsRecursiveResponseStreamingInnerErrorSchema, type FunctionsInventionsRecursiveResponseStreamingObject, FunctionsInventionsRecursiveResponseStreamingObjectSchema, type FunctionsInventionsRecursiveResponseUnaryFunctionInvention, type FunctionsInventionsRecursiveResponseUnaryFunctionInventionRecursive, FunctionsInventionsRecursiveResponseUnaryFunctionInventionRecursiveSchema, FunctionsInventionsRecursiveResponseUnaryFunctionInventionSchema, type FunctionsInventionsRecursiveResponseUnaryObject, FunctionsInventionsRecursiveResponseUnaryObjectSchema, type FunctionsInventionsRequestFunctionInventionCreateParams, FunctionsInventionsRequestFunctionInventionCreateParamsSchema, type FunctionsInventionsRequestFunctionInventionCreateParamsStreaming, FunctionsInventionsRequestFunctionInventionCreateParamsStreamingSchema, type FunctionsInventionsRequestFunctionInventionCreateParamsUnary, FunctionsInventionsRequestFunctionInventionCreateParamsUnarySchema, type FunctionsInventionsResponseStreamingAgentCompletionChunk, FunctionsInventionsResponseStreamingAgentCompletionChunkSchema, type FunctionsInventionsResponseStreamingFunctionInventionChunk, FunctionsInventionsResponseStreamingFunctionInventionChunkSchema, type FunctionsInventionsResponseStreamingInnerError, FunctionsInventionsResponseStreamingInnerErrorSchema, type FunctionsInventionsResponseStreamingObject, FunctionsInventionsResponseStreamingObjectSchema, type FunctionsInventionsResponseUnaryAgentCompletion, FunctionsInventionsResponseUnaryAgentCompletionSchema, type FunctionsInventionsResponseUnaryFunctionInvention, FunctionsInventionsResponseUnaryFunctionInventionSchema, type FunctionsInventionsResponseUnaryObject, FunctionsInventionsResponseUnaryObjectSchema, type FunctionsInventionsScalarBranchTaskObject, FunctionsInventionsScalarBranchTaskObjectSchema, type FunctionsInventionsScalarInputSchemaObject, FunctionsInventionsScalarInputSchemaObjectSchema, type FunctionsInventionsScalarLeafTaskObject, FunctionsInventionsScalarLeafTaskObjectSchema, type FunctionsInventionsStateAlphaScalarBranchState, FunctionsInventionsStateAlphaScalarBranchStateSchema, type FunctionsInventionsStateAlphaScalarLeafState, FunctionsInventionsStateAlphaScalarLeafStateSchema, type FunctionsInventionsStateAlphaScalarState, FunctionsInventionsStateAlphaScalarStateSchema, type FunctionsInventionsStateAlphaVectorBranchState, FunctionsInventionsStateAlphaVectorBranchStateSchema, type FunctionsInventionsStateAlphaVectorLeafState, FunctionsInventionsStateAlphaVectorLeafStateSchema, type FunctionsInventionsStateAlphaVectorState, FunctionsInventionsStateAlphaVectorStateSchema, type FunctionsInventionsStateGetFunctionInventionStateResponse, FunctionsInventionsStateGetFunctionInventionStateResponseSchema, type FunctionsInventionsStateInputSchema, FunctionsInventionsStateInputSchemaSchema, type FunctionsInventionsStateParams, FunctionsInventionsStateParamsSchema, type FunctionsInventionsStateParamsState, type FunctionsInventionsStateParamsStateOrRemoteCommitOptional, FunctionsInventionsStateParamsStateOrRemoteCommitOptionalSchema, FunctionsInventionsStateParamsStateSchema, type FunctionsInventionsStateState, FunctionsInventionsStateStateSchema, type FunctionsInventionsTasksLengthObject, FunctionsInventionsTasksLengthObjectSchema, type FunctionsInventionsVectorBranchTaskObject, FunctionsInventionsVectorBranchTaskObjectSchema, type FunctionsInventionsVectorInputSchemaObject, FunctionsInventionsVectorInputSchemaObjectSchema, type FunctionsInventionsVectorLeafTaskObject, FunctionsInventionsVectorLeafTaskObjectSchema, type FunctionsListFunctionProfilePairItem, FunctionsListFunctionProfilePairItemSchema, type FunctionsListFunctionProfilePairResponse, FunctionsListFunctionProfilePairResponseSchema, type FunctionsListFunctionProfilePairsRequest, FunctionsListFunctionProfilePairsRequestSchema, type FunctionsListFunctionProfilePairsSource, FunctionsListFunctionProfilePairsSourceSchema, type FunctionsListFunctionResponse, FunctionsListFunctionResponseSchema, type FunctionsListFunctionsRequest, FunctionsListFunctionsRequestSchema, type FunctionsListFunctionsSource, FunctionsListFunctionsSourceSchema, type FunctionsPlaceholderScalarFunctionTask, type FunctionsPlaceholderScalarFunctionTaskExpression, FunctionsPlaceholderScalarFunctionTaskExpressionSchema, FunctionsPlaceholderScalarFunctionTaskSchema, type FunctionsPlaceholderVectorFunctionTask, type FunctionsPlaceholderVectorFunctionTaskExpression, FunctionsPlaceholderVectorFunctionTaskExpressionSchema, FunctionsPlaceholderVectorFunctionTaskSchema, type FunctionsProfile, FunctionsProfileSchema, type FunctionsProfilesComputationsRequestDatasetItem, FunctionsProfilesComputationsRequestDatasetItemSchema, type FunctionsProfilesComputationsRequestFunctionProfileComputationCreateParams, FunctionsProfilesComputationsRequestFunctionProfileComputationCreateParamsSchema, type FunctionsProfilesComputationsRequestTarget, FunctionsProfilesComputationsRequestTargetSchema, type FunctionsProfilesComputationsResponseFittingStats, FunctionsProfilesComputationsResponseFittingStatsSchema, type FunctionsProfilesComputationsResponseStreamingFunctionExecutionChunk, FunctionsProfilesComputationsResponseStreamingFunctionExecutionChunkSchema, type FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunk, FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkSchema, type FunctionsProfilesComputationsResponseStreamingObject, FunctionsProfilesComputationsResponseStreamingObjectSchema, type FunctionsProfilesComputationsResponseUnaryFunctionExecution, FunctionsProfilesComputationsResponseUnaryFunctionExecutionSchema, type FunctionsProfilesComputationsResponseUnaryFunctionProfileComputation, FunctionsProfilesComputationsResponseUnaryFunctionProfileComputationSchema, type FunctionsProfilesComputationsResponseUnaryObject, FunctionsProfilesComputationsResponseUnaryObjectSchema, type FunctionsProfilesComputationsRetryToken, FunctionsProfilesComputationsRetryTokenSchema, type FunctionsProfilesGetProfileResponse, FunctionsProfilesGetProfileResponseSchema, type FunctionsProfilesListProfileResponse, FunctionsProfilesListProfileResponseSchema, type FunctionsProfilesListProfilesRequest, FunctionsProfilesListProfilesRequestSchema, type FunctionsProfilesListProfilesSource, FunctionsProfilesListProfilesSourceSchema, type FunctionsProfilesUsageProfileResponse, FunctionsProfilesUsageProfileResponseSchema, type FunctionsRemoteFunction, FunctionsRemoteFunctionSchema, type FunctionsRemoteProfile, FunctionsRemoteProfileSchema, type FunctionsRemoteTasksProfile, FunctionsRemoteTasksProfileSchema, type FunctionsScalarFunctionTask, type FunctionsScalarFunctionTaskExpression, FunctionsScalarFunctionTaskExpressionSchema, FunctionsScalarFunctionTaskSchema, type FunctionsTask, type FunctionsTaskExpression, FunctionsTaskExpressionSchema, type FunctionsTaskProfile, FunctionsTaskProfileSchema, FunctionsTaskSchema, type FunctionsUsageFunctionProfilePairResponse, FunctionsUsageFunctionProfilePairResponseSchema, type FunctionsUsageFunctionResponse, FunctionsUsageFunctionResponseSchema, type FunctionsVectorCompletionTask, type FunctionsVectorCompletionTaskExpression, FunctionsVectorCompletionTaskExpressionSchema, FunctionsVectorCompletionTaskSchema, type FunctionsVectorFunctionTask, type FunctionsVectorFunctionTaskExpression, FunctionsVectorFunctionTaskExpressionSchema, FunctionsVectorFunctionTaskSchema, type HttpViewerAgentCompletionCreateParams, HttpViewerAgentCompletionCreateParamsSchema, type HttpViewerAgentCompletionRequest, HttpViewerAgentCompletionRequestSchema, type HttpViewerFunctionExecutionCreateParams, HttpViewerFunctionExecutionCreateParamsSchema, type HttpViewerFunctionExecutionRequest, HttpViewerFunctionExecutionRequestSchema, type HttpViewerFunctionInventionRecursiveCreateParams, HttpViewerFunctionInventionRecursiveCreateParamsSchema, type HttpViewerFunctionInventionRecursiveRequest, HttpViewerFunctionInventionRecursiveRequestSchema, type HttpViewerLaboratoryExecutionCreateParams, HttpViewerLaboratoryExecutionCreateParamsSchema, type HttpViewerLaboratoryExecutionRequest, HttpViewerLaboratoryExecutionRequestSchema, type HttpViewerRequest, HttpViewerRequestSchema, type HttpViewerResponseError, HttpViewerResponseErrorSchema, type LaboratoriesExecutionsRequestLaboratoryExecutionCreateParams, LaboratoriesExecutionsRequestLaboratoryExecutionCreateParamsSchema, type LaboratoriesExecutionsResponseStreamingBuilderChunk, LaboratoriesExecutionsResponseStreamingBuilderChunkSchema, type LaboratoriesExecutionsResponseStreamingEvaluationChunk, LaboratoriesExecutionsResponseStreamingEvaluationChunkSchema, type LaboratoriesExecutionsResponseStreamingInnerError, LaboratoriesExecutionsResponseStreamingInnerErrorSchema, type LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunk, LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunkSchema, type LaboratoriesExecutionsResponseStreamingObject, LaboratoriesExecutionsResponseStreamingObjectSchema, type LaboratoriesExecutionsResponseUnaryBuilder, LaboratoriesExecutionsResponseUnaryBuilderSchema, type LaboratoriesExecutionsResponseUnaryEvaluation, LaboratoriesExecutionsResponseUnaryEvaluationSchema, type LaboratoriesExecutionsResponseUnaryLaboratoryExecution, LaboratoriesExecutionsResponseUnaryLaboratoryExecutionSchema, type LaboratoriesExecutionsResponseUnaryObject, LaboratoriesExecutionsResponseUnaryObjectSchema, type McpCompletionsCapability, McpCompletionsCapabilitySchema, type McpImplementation, McpImplementationSchema, type McpInitializeResult, McpInitializeResultSchema, type McpJsonRpcError, McpJsonRpcErrorSchema, type McpJsonRpcNotification, McpJsonRpcNotificationSchema, type McpJsonRpcRequest, McpJsonRpcRequestSchema, type McpLoggingCapability, McpLoggingCapabilitySchema, type McpPromptsCapability, McpPromptsCapabilitySchema, type McpResourceListResourcesRequest, McpResourceListResourcesRequestSchema, type McpResourceListResourcesResult, McpResourceListResourcesResultSchema, type McpResourceReadResourceRequestParams, McpResourceReadResourceRequestParamsSchema, type McpResourceReadResourceResult, McpResourceReadResourceResultSchema, type McpResourceResource, McpResourceResourceSchema, type McpResourcesCapability, McpResourcesCapabilitySchema, type McpServerCapabilities, McpServerCapabilitiesSchema, type McpSharedAnnotations, McpSharedAnnotationsSchema, type McpSharedBlobResourceContents, McpSharedBlobResourceContentsSchema, type McpSharedIcon, McpSharedIconSchema, type McpSharedIconTheme, McpSharedIconThemeSchema, type McpSharedResourceContents, McpSharedResourceContentsSchema, type McpSharedResourceContentsUnion, McpSharedResourceContentsUnionSchema, type McpSharedRole, McpSharedRoleSchema, type McpSharedTextResourceContents, McpSharedTextResourceContentsSchema, type McpTasksCancelCapability, McpTasksCancelCapabilitySchema, type McpTasksCapability, McpTasksCapabilitySchema, type McpTasksListCapability, McpTasksListCapabilitySchema, type McpTasksRequestsCapability, McpTasksRequestsCapabilitySchema, type McpTasksToolsCallCapability, McpTasksToolsCallCapabilitySchema, type McpTasksToolsCapability, McpTasksToolsCapabilitySchema, type McpToolAudioContent, McpToolAudioContentSchema, type McpToolCallToolRequestParams, McpToolCallToolRequestParamsSchema, type McpToolCallToolResult, McpToolCallToolResultSchema, type McpToolContentBlock, McpToolContentBlockSchema, type McpToolEmbeddedResource, McpToolEmbeddedResourceSchema, type McpToolImageContent, McpToolImageContentSchema, type McpToolListToolsRequest, McpToolListToolsRequestSchema, type McpToolListToolsResult, McpToolListToolsResultSchema, type McpToolResourceLink, McpToolResourceLinkSchema, type McpToolTaskMetadata, McpToolTaskMetadataSchema, type McpToolTaskSupport, McpToolTaskSupportSchema, type McpToolTextContent, McpToolTextContentSchema, type McpToolTool, type McpToolToolAnnotations, McpToolToolAnnotationsSchema, type McpToolToolExecution, McpToolToolExecutionSchema, type McpToolToolResultContent, McpToolToolResultContentSchema, McpToolToolSchema, type McpToolToolSchemaObject, McpToolToolSchemaObjectSchema, type McpToolToolSchemaType, McpToolToolSchemaTypeSchema, type McpToolToolUseContent, McpToolToolUseContentSchema, type McpToolsCapability, McpToolsCapabilitySchema, ObjectiveAI, ObjectiveAIFetchError, type ObjectiveAIOptions, ObjectiveAIOptionsSchema, type PrefixedUuid, PrefixedUuidSchema, type Remote, type RemotePath, type RemotePathCommitOptional, RemotePathCommitOptionalSchema, RemotePathSchema, RemoteSchema, type RequestOptions, RequestOptionsSchema, Stream, type SwarmGetSwarmResponse, SwarmGetSwarmResponseSchema, type SwarmInlineSwarm, type SwarmInlineSwarmBase, type SwarmInlineSwarmBaseOrRemote, type SwarmInlineSwarmBaseOrRemoteCommitOptional, SwarmInlineSwarmBaseOrRemoteCommitOptionalSchema, SwarmInlineSwarmBaseOrRemoteSchema, SwarmInlineSwarmBaseSchema, SwarmInlineSwarmSchema, type SwarmListSwarmResponse, SwarmListSwarmResponseSchema, type SwarmListSwarmsRequest, SwarmListSwarmsRequestSchema, type SwarmListSwarmsSource, SwarmListSwarmsSourceSchema, type SwarmRemoteSwarm, type SwarmRemoteSwarmBase, SwarmRemoteSwarmBaseSchema, SwarmRemoteSwarmSchema, type SwarmSwarm, type SwarmSwarmBase, SwarmSwarmBaseSchema, SwarmSwarmSchema, type SwarmUsageSwarmResponse, SwarmUsageSwarmResponseSchema, type VectorCompletionsCacheCacheVote, type VectorCompletionsCacheCacheVoteRequest, VectorCompletionsCacheCacheVoteRequestSchema, VectorCompletionsCacheCacheVoteSchema, type VectorCompletionsCacheCompletionVotes, VectorCompletionsCacheCompletionVotesSchema, type VectorCompletionsCacheGetCompletionVotesRequest, VectorCompletionsCacheGetCompletionVotesRequestSchema, type VectorCompletionsRequestVectorCompletionCreateParams, VectorCompletionsRequestVectorCompletionCreateParamsSchema, type VectorCompletionsRequestVectorCompletionCreateParamsStreaming, VectorCompletionsRequestVectorCompletionCreateParamsStreamingSchema, type VectorCompletionsRequestVectorCompletionCreateParamsUnary, VectorCompletionsRequestVectorCompletionCreateParamsUnarySchema, type VectorCompletionsResponseStreamingAgentCompletionChunk, VectorCompletionsResponseStreamingAgentCompletionChunkSchema, type VectorCompletionsResponseStreamingInnerError, VectorCompletionsResponseStreamingInnerErrorSchema, type VectorCompletionsResponseStreamingObject, VectorCompletionsResponseStreamingObjectSchema, type VectorCompletionsResponseStreamingVectorCompletionChunk, VectorCompletionsResponseStreamingVectorCompletionChunkSchema, type VectorCompletionsResponseUnaryAgentCompletion, VectorCompletionsResponseUnaryAgentCompletionSchema, type VectorCompletionsResponseUnaryObject, VectorCompletionsResponseUnaryObjectSchema, type VectorCompletionsResponseUnaryVectorCompletion, VectorCompletionsResponseUnaryVectorCompletionSchema, type VectorCompletionsResponseVote, VectorCompletionsResponseVoteSchema, type VectorCompletionsVectorResponses, VectorCompletionsVectorResponsesSchema, type Weights, type WeightsEntry, WeightsEntrySchema, WeightsSchema, agentCompletionsCreateAgentCompletion, agentCompletionsMessageAssistantToolCallDeltaMerged, agentCompletionsMessageAssistantToolCallDeltaMergedList, agentCompletionsMessageAssistantToolCallFunctionDeltaMerged, agentCompletionsMessageRichContentMerged, agentCompletionsNotifyAgentCompletion, agentCompletionsResponseCompletionTokensDetailsMerged, agentCompletionsResponseCostDetailsMerged, agentCompletionsResponseLogprobsMerged, agentCompletionsResponsePromptTokensDetailsMerged, agentCompletionsResponseStreamingAgentCompletionChunkMerged, agentCompletionsResponseStreamingAssistantResponseChunkMerged, agentCompletionsResponseStreamingMessageChunkMerged, agentCompletionsResponseStreamingMessageChunkMergedList, agentCompletionsResponseUpstreamUsageMerged, agentCompletionsResponseUsageMerged, agentGetAgent, agentGetAgentUsage, agentListAgents, authCreateApiKey, authCreateOpenrouterByokApiKey, authDeleteOpenrouterByokApiKey, authDisableApiKey, authGetCredits, authGetOpenrouterByokApiKey, authListApiKeys, errorCreateError, functionsExecutionsCreateFunctionExecution, functionsExecutionsResponseStreamingFunctionExecutionChunkMerged, functionsExecutionsResponseStreamingReasoningSummaryChunkMerged, functionsExecutionsResponseStreamingTaskChunkMerged, functionsExecutionsResponseStreamingTaskChunkMergedList, functionsExecutionsResponseStreamingVectorCompletionTaskChunkMerged, functionsGetFunction, functionsGetFunctionProfilePairUsage, functionsGetFunctionUsage, functionsInventionsCreateFunctionInvention, functionsInventionsPromptsGetPrompt, functionsInventionsPromptsGetPromptUsage, functionsInventionsPromptsListPrompts, functionsInventionsRecursiveCreateFunctionInventionRecursive, functionsInventionsRecursiveResponseStreamingFunctionInventionChunkMerged, functionsInventionsRecursiveResponseStreamingFunctionInventionChunkMergedList, functionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkMerged, functionsInventionsResponseStreamingAgentCompletionChunkMerged, functionsInventionsResponseStreamingAgentCompletionChunkMergedList, functionsInventionsResponseStreamingFunctionInventionChunkMerged, functionsInventionsStateGetFunctionInventionState, functionsListFunctionProfilePairs, functionsListFunctions, functionsProfilesComputationsComputeProfile, functionsProfilesComputationsResponseStreamingFunctionExecutionChunkMerged, functionsProfilesComputationsResponseStreamingFunctionExecutionChunkMergedList, functionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkMerged, functionsProfilesGetProfile, functionsProfilesGetProfileUsage, functionsProfilesListProfiles, isResponseError, laboratoriesExecutionsCreateLaboratoryExecution, laboratoriesExecutionsResponseStreamingBuilderChunkMerged, laboratoriesExecutionsResponseStreamingBuilderChunkMergedList, laboratoriesExecutionsResponseStreamingEvaluationChunkMerged, laboratoriesExecutionsResponseStreamingEvaluationChunkMergedList, laboratoriesExecutionsResponseStreamingLaboratoryExecutionChunkMerged, merge, mergedNumberArray, mergedString, numberIsEmpty, swarmGetSwarm, swarmGetSwarmUsage, swarmListSwarms, vectorCompletionsCacheGetCacheVote, vectorCompletionsCacheGetCompletionVotes, vectorCompletionsCreateVectorCompletion, vectorCompletionsResponseStreamingAgentCompletionChunkMerged, vectorCompletionsResponseStreamingAgentCompletionChunkMergedList, vectorCompletionsResponseStreamingVectorCompletionChunkMerged, vectorCompletionsResponseVoteMergedList, wasmAgentCompletionsMessagePromptId, wasmAgentCompletionsResponseStreamingAgentCompletionChunkMerged, wasmAgentCompletionsResponseStreamingAgentCompletionChunkNormalized, wasmAgentCompletionsResponseStreamingAgentCompletionChunkToUnary, wasmAgentCompletionsResponseStreamingGenerateAgentCompletionChunk, wasmAgentCompletionsResponseStreamingNormalizeAgentCompletionForTests, wasmAgentValidateAgent, wasmFunctionsAlphaCheckBranchScalarFunction, wasmFunctionsAlphaCheckBranchVectorFunction, wasmFunctionsAlphaCheckLeafScalarFunction, wasmFunctionsAlphaCheckLeafVectorFunction, wasmFunctionsCheckCheckScalarFields, wasmFunctionsCheckCheckVectorFields, wasmFunctionsCompileFunctionInputMerge, wasmFunctionsCompileFunctionInputSplit, wasmFunctionsCompileFunctionOutputLength, wasmFunctionsCompileFunctionTasks, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkMerged, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkNormalized, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkToUnary, wasmFunctionsExecutionsResponseStreamingGenerateFunctionExecutionChunk, wasmFunctionsExecutionsResponseStreamingNormalizeFunctionExecutionForTests, wasmFunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkMerged, wasmFunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkNormalized, wasmFunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkToUnary, wasmFunctionsInventionsRecursiveResponseStreamingGenerateFunctionInventionRecursiveChunk, wasmFunctionsInventionsRecursiveResponseStreamingNormalizeFunctionInventionRecursiveForTests, wasmFunctionsInventionsResponseStreamingFunctionInventionChunkMerged, wasmFunctionsInventionsResponseStreamingFunctionInventionChunkNormalized, wasmFunctionsInventionsResponseStreamingFunctionInventionChunkToUnary, wasmFunctionsInventionsResponseStreamingGenerateFunctionInventionChunk, wasmFunctionsInventionsResponseStreamingNormalizeFunctionInventionForTests, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkMerged, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkNormalized, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkToUnary, wasmFunctionsProfilesComputationsResponseStreamingGenerateFunctionProfileComputationChunk, wasmFunctionsProfilesComputationsResponseStreamingNormalizeFunctionProfileComputationForTests, wasmFunctionsValidateFunctionInput, wasmLaboratoriesExecutionsResponseStreamingGenerateLaboratoryExecutionChunk, wasmLaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunkMerged, wasmLaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunkNormalized, wasmLaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunkToUnary, wasmLaboratoriesExecutionsResponseStreamingNormalizeLaboratoryExecutionForTests, wasmSwarmValidateSwarm, wasmVectorCompletionsResponseStreamingGenerateVectorCompletionChunk, wasmVectorCompletionsResponseStreamingNormalizeVectorCompletionForTests, wasmVectorCompletionsResponseStreamingVectorCompletionChunkMerged, wasmVectorCompletionsResponseStreamingVectorCompletionChunkNormalized, wasmVectorCompletionsResponseStreamingVectorCompletionChunkToUnary, wasmVectorCompletionsVectorResponseId };
+export { type AgentAgent, type AgentAgentBase, AgentAgentBaseSchema, AgentAgentSchema, type AgentAgentWithFallbacks, AgentAgentWithFallbacksSchema, type AgentAgentWithFallbacksWithCount, AgentAgentWithFallbacksWithCountSchema, type AgentClaudeAgentSdkAgent, type AgentClaudeAgentSdkAgentBase, AgentClaudeAgentSdkAgentBaseSchema, AgentClaudeAgentSdkAgentSchema, type AgentClaudeAgentSdkContinuation, AgentClaudeAgentSdkContinuationSchema, type AgentClaudeAgentSdkEffort, AgentClaudeAgentSdkEffortSchema, type AgentClaudeAgentSdkOutputMode, AgentClaudeAgentSdkOutputModeSchema, type AgentClaudeAgentSdkUpstream, AgentClaudeAgentSdkUpstreamSchema, type AgentClientObjectiveaiMcp, type AgentClientObjectiveaiMcpEntry, AgentClientObjectiveaiMcpEntrySchema, AgentClientObjectiveaiMcpSchema, type AgentCodexSdkAgent, type AgentCodexSdkAgentBase, AgentCodexSdkAgentBaseSchema, AgentCodexSdkAgentSchema, type AgentCodexSdkContinuation, AgentCodexSdkContinuationSchema, type AgentCodexSdkEffort, AgentCodexSdkEffortSchema, type AgentCodexSdkOutputMode, AgentCodexSdkOutputModeSchema, type AgentCodexSdkUpstream, AgentCodexSdkUpstreamSchema, type AgentCompletionsMessageAssistantMessage, type AgentCompletionsMessageAssistantMessageExpression, AgentCompletionsMessageAssistantMessageExpressionSchema, AgentCompletionsMessageAssistantMessageSchema, type AgentCompletionsMessageAssistantToolCall, type AgentCompletionsMessageAssistantToolCallDelta, AgentCompletionsMessageAssistantToolCallDeltaSchema, type AgentCompletionsMessageAssistantToolCallExpression, AgentCompletionsMessageAssistantToolCallExpressionSchema, type AgentCompletionsMessageAssistantToolCallFunction, type AgentCompletionsMessageAssistantToolCallFunctionDelta, AgentCompletionsMessageAssistantToolCallFunctionDeltaSchema, type AgentCompletionsMessageAssistantToolCallFunctionExpression, AgentCompletionsMessageAssistantToolCallFunctionExpressionSchema, AgentCompletionsMessageAssistantToolCallFunctionSchema, AgentCompletionsMessageAssistantToolCallSchema, type AgentCompletionsMessageAssistantToolCallType, AgentCompletionsMessageAssistantToolCallTypeSchema, type AgentCompletionsMessageDeveloperMessage, type AgentCompletionsMessageDeveloperMessageExpression, AgentCompletionsMessageDeveloperMessageExpressionSchema, AgentCompletionsMessageDeveloperMessageSchema, type AgentCompletionsMessageFile, AgentCompletionsMessageFileSchema, type AgentCompletionsMessageImageUrl, type AgentCompletionsMessageImageUrlDetail, AgentCompletionsMessageImageUrlDetailSchema, AgentCompletionsMessageImageUrlSchema, type AgentCompletionsMessageInputAudio, AgentCompletionsMessageInputAudioSchema, type AgentCompletionsMessageMessage, type AgentCompletionsMessageMessageExpression, AgentCompletionsMessageMessageExpressionSchema, AgentCompletionsMessageMessageSchema, type AgentCompletionsMessageRichContent, type AgentCompletionsMessageRichContentExpression, AgentCompletionsMessageRichContentExpressionSchema, type AgentCompletionsMessageRichContentPart, type AgentCompletionsMessageRichContentPartExpression, AgentCompletionsMessageRichContentPartExpressionSchema, AgentCompletionsMessageRichContentPartSchema, AgentCompletionsMessageRichContentSchema, type AgentCompletionsMessageSimpleContent, type AgentCompletionsMessageSimpleContentExpression, AgentCompletionsMessageSimpleContentExpressionSchema, type AgentCompletionsMessageSimpleContentPart, type AgentCompletionsMessageSimpleContentPartExpression, AgentCompletionsMessageSimpleContentPartExpressionSchema, AgentCompletionsMessageSimpleContentPartSchema, AgentCompletionsMessageSimpleContentSchema, type AgentCompletionsMessageSystemMessage, type AgentCompletionsMessageSystemMessageExpression, AgentCompletionsMessageSystemMessageExpressionSchema, AgentCompletionsMessageSystemMessageSchema, type AgentCompletionsMessageToolMessage, type AgentCompletionsMessageToolMessageExpression, AgentCompletionsMessageToolMessageExpressionSchema, AgentCompletionsMessageToolMessageSchema, type AgentCompletionsMessageUserMessage, type AgentCompletionsMessageUserMessageExpression, AgentCompletionsMessageUserMessageExpressionSchema, AgentCompletionsMessageUserMessageSchema, type AgentCompletionsMessageVideoUrl, AgentCompletionsMessageVideoUrlSchema, type AgentCompletionsRequestAgentCompletionCreateParams, AgentCompletionsRequestAgentCompletionCreateParamsSchema, type AgentCompletionsRequestAgentCompletionCreateParamsStreaming, AgentCompletionsRequestAgentCompletionCreateParamsStreamingSchema, type AgentCompletionsRequestAgentCompletionCreateParamsUnary, AgentCompletionsRequestAgentCompletionCreateParamsUnarySchema, type AgentCompletionsRequestAgentCompletionNotifyParams, AgentCompletionsRequestAgentCompletionNotifyParamsSchema, type AgentCompletionsRequestProvider, type AgentCompletionsRequestProviderDataCollection, AgentCompletionsRequestProviderDataCollectionSchema, type AgentCompletionsRequestProviderMaxPrice, AgentCompletionsRequestProviderMaxPriceSchema, AgentCompletionsRequestProviderSchema, type AgentCompletionsRequestProviderSort, AgentCompletionsRequestProviderSortSchema, type AgentCompletionsRequestResponseFormat, type AgentCompletionsRequestResponseFormatParam, AgentCompletionsRequestResponseFormatParamSchema, AgentCompletionsRequestResponseFormatSchema, type AgentCompletionsResponseAssistantRole, AgentCompletionsResponseAssistantRoleSchema, type AgentCompletionsResponseCompletionTokensDetails, AgentCompletionsResponseCompletionTokensDetailsSchema, type AgentCompletionsResponseCostDetails, AgentCompletionsResponseCostDetailsSchema, type AgentCompletionsResponseFinishReason, AgentCompletionsResponseFinishReasonSchema, type AgentCompletionsResponseLogprob, AgentCompletionsResponseLogprobSchema, type AgentCompletionsResponseLogprobs, AgentCompletionsResponseLogprobsSchema, type AgentCompletionsResponsePromptTokensDetails, AgentCompletionsResponsePromptTokensDetailsSchema, type AgentCompletionsResponseStreamingAgentCompletionChunk, AgentCompletionsResponseStreamingAgentCompletionChunkSchema, type AgentCompletionsResponseStreamingAssistantResponseChunk, AgentCompletionsResponseStreamingAssistantResponseChunkSchema, type AgentCompletionsResponseStreamingMessageChunk, AgentCompletionsResponseStreamingMessageChunkSchema, type AgentCompletionsResponseStreamingObject, AgentCompletionsResponseStreamingObjectSchema, type AgentCompletionsResponseToolResponse, AgentCompletionsResponseToolResponseSchema, type AgentCompletionsResponseToolRole, AgentCompletionsResponseToolRoleSchema, type AgentCompletionsResponseTopLogprob, AgentCompletionsResponseTopLogprobSchema, type AgentCompletionsResponseUnaryAgentCompletion, AgentCompletionsResponseUnaryAgentCompletionSchema, type AgentCompletionsResponseUnaryAssistantResponse, AgentCompletionsResponseUnaryAssistantResponseSchema, type AgentCompletionsResponseUnaryMessage, AgentCompletionsResponseUnaryMessageSchema, type AgentCompletionsResponseUnaryObject, AgentCompletionsResponseUnaryObjectSchema, type AgentCompletionsResponseUpstreamUsage, AgentCompletionsResponseUpstreamUsageSchema, type AgentCompletionsResponseUsage, AgentCompletionsResponseUsageSchema, type AgentContinuation, AgentContinuationSchema, type AgentFavoritesAction, AgentFavoritesActionSchema, type AgentFavoritesChangedNotification, AgentFavoritesChangedNotificationSchema, type AgentGetAgentResponse, AgentGetAgentResponseSchema, type AgentInlineAgent, type AgentInlineAgentBase, AgentInlineAgentBaseSchema, type AgentInlineAgentBaseWithFallbacks, type AgentInlineAgentBaseWithFallbacksOrRemote, type AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptional, AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema, AgentInlineAgentBaseWithFallbacksOrRemoteSchema, type AgentInlineAgentBaseWithFallbacksOrRemoteWithCount, AgentInlineAgentBaseWithFallbacksOrRemoteWithCountSchema, AgentInlineAgentBaseWithFallbacksSchema, AgentInlineAgentSchema, type AgentInlineAgentWithFallbacks, AgentInlineAgentWithFallbacksSchema, type AgentListAgentResponse, AgentListAgentResponseSchema, type AgentListAgentsRequest, AgentListAgentsRequestSchema, type AgentListAgentsSource, AgentListAgentsSourceSchema, type AgentMcpServer, AgentMcpServerSchema, type AgentMockAgent, type AgentMockAgentBase, AgentMockAgentBaseSchema, AgentMockAgentSchema, type AgentMockContinuation, AgentMockContinuationSchema, type AgentMockMode, AgentMockModeSchema, type AgentMockOutputMode, AgentMockOutputModeSchema, type AgentMockUpstream, AgentMockUpstreamSchema, type AgentOpenrouterAgent, type AgentOpenrouterAgentBase, AgentOpenrouterAgentBaseSchema, AgentOpenrouterAgentSchema, type AgentOpenrouterContinuation, AgentOpenrouterContinuationSchema, type AgentOpenrouterOutputMode, AgentOpenrouterOutputModeSchema, type AgentOpenrouterProvider, type AgentOpenrouterProviderQuantization, AgentOpenrouterProviderQuantizationSchema, AgentOpenrouterProviderSchema, type AgentOpenrouterReasoning, type AgentOpenrouterReasoningEffort, AgentOpenrouterReasoningEffortSchema, AgentOpenrouterReasoningSchema, type AgentOpenrouterReasoningSummaryVerbosity, AgentOpenrouterReasoningSummaryVerbositySchema, type AgentOpenrouterStop, AgentOpenrouterStopSchema, type AgentOpenrouterUpstream, AgentOpenrouterUpstreamSchema, type AgentOpenrouterVerbosity, AgentOpenrouterVerbositySchema, type AgentOutputMode, AgentOutputModeSchema, type AgentRemoteAgent, type AgentRemoteAgentBase, AgentRemoteAgentBaseSchema, type AgentRemoteAgentBaseWithFallbacks, AgentRemoteAgentBaseWithFallbacksSchema, AgentRemoteAgentSchema, type AgentRemoteAgentWithFallbacks, AgentRemoteAgentWithFallbacksSchema, type AgentUpstream, AgentUpstreamSchema, type AgentUsageAgentResponse, AgentUsageAgentResponseSchema, type AuthApiKeyWithMetadata, AuthApiKeyWithMetadataSchema, type AuthCreateApiKeyRequest, AuthCreateApiKeyRequestSchema, type AuthCreateOpenRouterByokApiKeyRequest, AuthCreateOpenRouterByokApiKeyRequestSchema, type AuthDisableApiKeyRequest, AuthDisableApiKeyRequestSchema, type AuthGetCreditsResponse, AuthGetCreditsResponseSchema, type AuthGetOpenRouterByokApiKeyResponse, AuthGetOpenRouterByokApiKeyResponseSchema, type AuthListApiKeyItem, AuthListApiKeyItemSchema, type AuthListApiKeyResponse, AuthListApiKeyResponseSchema, type CliOutputError, CliOutputErrorSchema, type CliOutputLevel, CliOutputLevelSchema, type CliOutputNotificationAgentsAgent, CliOutputNotificationAgentsAgentSchema, type CliOutputNotificationAgentsCompletionsContent, CliOutputNotificationAgentsCompletionsContentSchema, type CliOutputNotificationApiDetached, CliOutputNotificationApiDetachedSchema, type CliOutputNotificationCleared, CliOutputNotificationClearedSchema, type CliOutputNotificationFunctionsExecutionsExecution, type CliOutputNotificationFunctionsExecutionsExecutionResult, CliOutputNotificationFunctionsExecutionsExecutionResultSchema, CliOutputNotificationFunctionsExecutionsExecutionSchema, type CliOutputNotificationFunctionsFunction, CliOutputNotificationFunctionsFunctionSchema, type CliOutputNotificationFunctionsInventionsRecursiveInventionResultItem, CliOutputNotificationFunctionsInventionsRecursiveInventionResultItemSchema, type CliOutputNotificationFunctionsInventionsRecursiveInventions, CliOutputNotificationFunctionsInventionsRecursiveInventionsSchema, type CliOutputNotificationFunctionsInventionsState, CliOutputNotificationFunctionsInventionsStateSchema, type CliOutputNotificationFunctionsProfilesFunctionProfilePair, CliOutputNotificationFunctionsProfilesFunctionProfilePairSchema, type CliOutputNotificationFunctionsProfilesPair, CliOutputNotificationFunctionsProfilesPairSchema, type CliOutputNotificationFunctionsProfilesProfile, CliOutputNotificationFunctionsProfilesProfileSchema, type CliOutputNotificationInstalled, CliOutputNotificationInstalledSchema, type CliOutputNotificationInstructions, CliOutputNotificationInstructionsSchema, type CliOutputNotificationJqResults, CliOutputNotificationJqResultsSchema, type CliOutputNotificationLaboratoriesExecutionsLabResultItem, CliOutputNotificationLaboratoriesExecutionsLabResultItemSchema, type CliOutputNotificationLaboratoriesExecutionsLaboratory, CliOutputNotificationLaboratoriesExecutionsLaboratorySchema, type CliOutputNotificationListItem, CliOutputNotificationListItemSchema, type CliOutputNotificationLogContent, CliOutputNotificationLogContentSchema, type CliOutputNotificationLogStreamReady, CliOutputNotificationLogStreamReadySchema, type CliOutputNotificationOk, CliOutputNotificationOkSchema, type CliOutputNotificationPairListItem, CliOutputNotificationPairListItemSchema, type CliOutputNotificationPlugin, CliOutputNotificationPluginSchema, type CliOutputNotificationPlugins, CliOutputNotificationPluginsSchema, type CliOutputNotificationPublished, CliOutputNotificationPublishedSchema, type CliOutputNotificationSchema, CliOutputNotificationSchemaSchema, type CliOutputNotificationSchemas, CliOutputNotificationSchemasSchema, type CliOutputNotificationSkipReason, CliOutputNotificationSkipReasonSchema, type CliOutputNotificationSwarmsSwarm, CliOutputNotificationSwarmsSwarmSchema, type CliOutputNotificationTool, type CliOutputNotificationToolLine, CliOutputNotificationToolLineSchema, CliOutputNotificationToolSchema, type CliOutputNotificationTools, CliOutputNotificationToolsSchema, type CliOutputNotificationUpdater, CliOutputNotificationUpdaterSchema, type CliPluginsPluginOutput, CliPluginsPluginOutputSchema, type ClientObjectiveaiMcpClientRequestPayload, ClientObjectiveaiMcpClientRequestPayloadSchema, type ClientObjectiveaiMcpClientRequestRequest, ClientObjectiveaiMcpClientRequestRequestSchema, type ClientObjectiveaiMcpClientResponseResponse, ClientObjectiveaiMcpClientResponseResponseSchema, type ClientObjectiveaiMcpServerRequestRequest, ClientObjectiveaiMcpServerRequestRequestSchema, type ClientObjectiveaiMcpServerResponseResponse, ClientObjectiveaiMcpServerResponseResponseSchema, type ErrorErrorCreateParams, ErrorErrorCreateParamsSchema, type ErrorErrorCreateParamsStreaming, ErrorErrorCreateParamsStreamingSchema, type ErrorErrorCreateParamsUnary, ErrorErrorCreateParamsUnarySchema, type ErrorErrorResponse, ErrorErrorResponseSchema, type ErrorResponseError, ErrorResponseErrorSchema, type FilesystemConfigAgentsConfig, FilesystemConfigAgentsConfigSchema, type FilesystemConfigApiConfig, FilesystemConfigApiConfigSchema, type FilesystemConfigConfig, FilesystemConfigConfigSchema, type FilesystemConfigFavorite, FilesystemConfigFavoriteSchema, type FilesystemConfigFunctionsConfig, FilesystemConfigFunctionsConfigSchema, type FilesystemConfigFunctionsInventionsConfig, FilesystemConfigFunctionsInventionsConfigSchema, type FilesystemConfigFunctionsProfilesConfig, FilesystemConfigFunctionsProfilesConfigSchema, type FilesystemConfigFunctionsProfilesPairsConfig, FilesystemConfigFunctionsProfilesPairsConfigSchema, type FilesystemConfigMcpConfig, FilesystemConfigMcpConfigSchema, type FilesystemConfigPairFavorite, FilesystemConfigPairFavoriteSchema, type FilesystemConfigSwarmsConfig, FilesystemConfigSwarmsConfigSchema, type FilesystemConfigViewerConfig, FilesystemConfigViewerConfigSchema, type FilesystemConfigViewerSecretSignaturePair, FilesystemConfigViewerSecretSignaturePairSchema, type FilesystemLogsListItem, FilesystemLogsListItemSchema, type FilesystemPluginsBinaries, FilesystemPluginsBinariesSchema, type FilesystemPluginsHttpMethod, FilesystemPluginsHttpMethodSchema, type FilesystemPluginsManifest, FilesystemPluginsManifestSchema, type FilesystemPluginsManifestWithNameAndSource, FilesystemPluginsManifestWithNameAndSourceSchema, type FilesystemPluginsPlatform, FilesystemPluginsPlatformSchema, type FilesystemPluginsViewerRoute, FilesystemPluginsViewerRouteSchema, type FilesystemPluginsWhitelistEntry, FilesystemPluginsWhitelistEntrySchema, type FilesystemToolsManifest, FilesystemToolsManifestSchema, type FilesystemToolsManifestWithNameAndSource, FilesystemToolsManifestWithNameAndSourceSchema, type FunctionsAlphaInlineFunction, FunctionsAlphaInlineFunctionSchema, type FunctionsAlphaRemoteFunction, FunctionsAlphaRemoteFunctionSchema, type FunctionsAlphaScalarBranchTaskExpression, FunctionsAlphaScalarBranchTaskExpressionSchema, type FunctionsAlphaScalarInlineFunction, FunctionsAlphaScalarInlineFunctionSchema, type FunctionsAlphaScalarLeafTaskExpression, FunctionsAlphaScalarLeafTaskExpressionSchema, type FunctionsAlphaScalarPartialPlaceholderBranchTaskExpression, FunctionsAlphaScalarPartialPlaceholderBranchTaskExpressionSchema, type FunctionsAlphaScalarPartialPlaceholderScalarFunctionTaskExpression, FunctionsAlphaScalarPartialPlaceholderScalarFunctionTaskExpressionSchema, type FunctionsAlphaScalarPlaceholderScalarFunctionTaskExpression, FunctionsAlphaScalarPlaceholderScalarFunctionTaskExpressionSchema, type FunctionsAlphaScalarRemoteFunction, FunctionsAlphaScalarRemoteFunctionSchema, type FunctionsAlphaScalarScalarFunctionTaskExpression, FunctionsAlphaScalarScalarFunctionTaskExpressionSchema, type FunctionsAlphaScalarVectorCompletionTaskExpression, FunctionsAlphaScalarVectorCompletionTaskExpressionSchema, type FunctionsAlphaVectorBranchTaskExpression, FunctionsAlphaVectorBranchTaskExpressionSchema, type FunctionsAlphaVectorExpressionVectorFunctionInputSchema, FunctionsAlphaVectorExpressionVectorFunctionInputSchemaSchema, type FunctionsAlphaVectorExpressionVectorFunctionInputValue, type FunctionsAlphaVectorExpressionVectorFunctionInputValueExpression, FunctionsAlphaVectorExpressionVectorFunctionInputValueExpressionSchema, FunctionsAlphaVectorExpressionVectorFunctionInputValueSchema, type FunctionsAlphaVectorInlineFunction, FunctionsAlphaVectorInlineFunctionSchema, type FunctionsAlphaVectorLeafTaskExpression, FunctionsAlphaVectorLeafTaskExpressionSchema, type FunctionsAlphaVectorPartialPlaceholderBranchTaskExpression, FunctionsAlphaVectorPartialPlaceholderBranchTaskExpressionSchema, type FunctionsAlphaVectorPartialPlaceholderScalarFunctionTaskExpression, FunctionsAlphaVectorPartialPlaceholderScalarFunctionTaskExpressionSchema, type FunctionsAlphaVectorPartialPlaceholderVectorFunctionTaskExpression, FunctionsAlphaVectorPartialPlaceholderVectorFunctionTaskExpressionSchema, type FunctionsAlphaVectorPlaceholderScalarFunctionTaskExpression, FunctionsAlphaVectorPlaceholderScalarFunctionTaskExpressionSchema, type FunctionsAlphaVectorPlaceholderVectorFunctionTaskExpression, FunctionsAlphaVectorPlaceholderVectorFunctionTaskExpressionSchema, type FunctionsAlphaVectorRemoteFunction, FunctionsAlphaVectorRemoteFunctionSchema, type FunctionsAlphaVectorScalarFunctionTaskExpression, FunctionsAlphaVectorScalarFunctionTaskExpressionSchema, type FunctionsAlphaVectorVectorCompletionTaskExpression, FunctionsAlphaVectorVectorCompletionTaskExpressionSchema, type FunctionsAlphaVectorVectorFunctionTaskExpression, FunctionsAlphaVectorVectorFunctionTaskExpressionSchema, type FunctionsCheckScalarFieldsValidation, FunctionsCheckScalarFieldsValidationSchema, type FunctionsCheckVectorFieldsValidation, FunctionsCheckVectorFieldsValidationSchema, type FunctionsCompiledTask, FunctionsCompiledTaskSchema, type FunctionsExecutionsRequestFunctionExecutionCreateParams, FunctionsExecutionsRequestFunctionExecutionCreateParamsSchema, type FunctionsExecutionsRequestReasoning, FunctionsExecutionsRequestReasoningSchema, type FunctionsExecutionsRequestStrategy, FunctionsExecutionsRequestStrategySchema, type FunctionsExecutionsResponseOutput, FunctionsExecutionsResponseOutputSchema, type FunctionsExecutionsResponseStreamingFunctionExecutionChunk, FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema, type FunctionsExecutionsResponseStreamingFunctionExecutionTaskChunk, FunctionsExecutionsResponseStreamingFunctionExecutionTaskChunkSchema, type FunctionsExecutionsResponseStreamingInnerError, FunctionsExecutionsResponseStreamingInnerErrorSchema, type FunctionsExecutionsResponseStreamingObject, FunctionsExecutionsResponseStreamingObjectSchema, type FunctionsExecutionsResponseStreamingReasoningSummaryChunk, FunctionsExecutionsResponseStreamingReasoningSummaryChunkSchema, type FunctionsExecutionsResponseStreamingTaskChunk, FunctionsExecutionsResponseStreamingTaskChunkSchema, type FunctionsExecutionsResponseStreamingVectorCompletionTaskChunk, FunctionsExecutionsResponseStreamingVectorCompletionTaskChunkSchema, type FunctionsExecutionsResponseUnaryFunctionExecution, FunctionsExecutionsResponseUnaryFunctionExecutionSchema, type FunctionsExecutionsResponseUnaryFunctionExecutionTask, FunctionsExecutionsResponseUnaryFunctionExecutionTaskSchema, type FunctionsExecutionsResponseUnaryObject, FunctionsExecutionsResponseUnaryObjectSchema, type FunctionsExecutionsResponseUnaryReasoningSummary, FunctionsExecutionsResponseUnaryReasoningSummarySchema, type FunctionsExecutionsResponseUnaryTask, FunctionsExecutionsResponseUnaryTaskSchema, type FunctionsExecutionsResponseUnaryVectorCompletionTask, FunctionsExecutionsResponseUnaryVectorCompletionTaskSchema, type FunctionsExecutionsRetryToken, FunctionsExecutionsRetryTokenSchema, type FunctionsExpressionAnyOfInputSchema, FunctionsExpressionAnyOfInputSchemaSchema, type FunctionsExpressionArrayInputSchema, FunctionsExpressionArrayInputSchemaSchema, type FunctionsExpressionArrayInputSchemaType, FunctionsExpressionArrayInputSchemaTypeSchema, type FunctionsExpressionAudioInputSchema, FunctionsExpressionAudioInputSchemaSchema, type FunctionsExpressionAudioInputSchemaType, FunctionsExpressionAudioInputSchemaTypeSchema, type FunctionsExpressionBooleanInputSchema, FunctionsExpressionBooleanInputSchemaSchema, type FunctionsExpressionBooleanInputSchemaType, FunctionsExpressionBooleanInputSchemaTypeSchema, type FunctionsExpressionExpression, FunctionsExpressionExpressionSchema, type FunctionsExpressionFileInputSchema, FunctionsExpressionFileInputSchemaSchema, type FunctionsExpressionFileInputSchemaType, FunctionsExpressionFileInputSchemaTypeSchema, type FunctionsExpressionImageInputSchema, FunctionsExpressionImageInputSchemaSchema, type FunctionsExpressionImageInputSchemaType, FunctionsExpressionImageInputSchemaTypeSchema, type FunctionsExpressionInputSchema, FunctionsExpressionInputSchemaSchema, type FunctionsExpressionInputValue, type FunctionsExpressionInputValueExpression, type FunctionsExpressionInputValueExpressionObject, FunctionsExpressionInputValueExpressionSchema, type FunctionsExpressionInputValueObject, FunctionsExpressionInputValueSchema, type FunctionsExpressionIntegerInputSchema, FunctionsExpressionIntegerInputSchemaSchema, type FunctionsExpressionIntegerInputSchemaType, FunctionsExpressionIntegerInputSchemaTypeSchema, type FunctionsExpressionNumberInputSchema, FunctionsExpressionNumberInputSchemaSchema, type FunctionsExpressionNumberInputSchemaType, FunctionsExpressionNumberInputSchemaTypeSchema, type FunctionsExpressionObjectInputSchema, FunctionsExpressionObjectInputSchemaSchema, type FunctionsExpressionObjectInputSchemaType, FunctionsExpressionObjectInputSchemaTypeSchema, type FunctionsExpressionParams, FunctionsExpressionParamsSchema, type FunctionsExpressionSpecial, FunctionsExpressionSpecialSchema, type FunctionsExpressionStringInputSchema, FunctionsExpressionStringInputSchemaSchema, type FunctionsExpressionStringInputSchemaType, FunctionsExpressionStringInputSchemaTypeSchema, type FunctionsExpressionTaskOutput, FunctionsExpressionTaskOutputSchema, type FunctionsExpressionVideoInputSchema, FunctionsExpressionVideoInputSchemaSchema, type FunctionsExpressionVideoInputSchemaType, FunctionsExpressionVideoInputSchemaTypeSchema, type FunctionsFullFunction, FunctionsFullFunctionSchema, type FunctionsFullInlineFunction, type FunctionsFullInlineFunctionOrRemoteCommitOptional, FunctionsFullInlineFunctionOrRemoteCommitOptionalSchema, FunctionsFullInlineFunctionSchema, type FunctionsFullRemoteFunction, FunctionsFullRemoteFunctionSchema, type FunctionsFunction, FunctionsFunctionSchema, type FunctionsFunctionType, FunctionsFunctionTypeSchema, type FunctionsGetFunctionProfilePairResponse, FunctionsGetFunctionProfilePairResponseSchema, type FunctionsGetFunctionProfilePairUsageRequest, FunctionsGetFunctionProfilePairUsageRequestSchema, type FunctionsGetFunctionResponse, FunctionsGetFunctionResponseSchema, type FunctionsInlineFunction, FunctionsInlineFunctionSchema, type FunctionsInlineProfile, type FunctionsInlineProfileOrRemoteCommitOptional, FunctionsInlineProfileOrRemoteCommitOptionalSchema, FunctionsInlineProfileSchema, type FunctionsInlineTasksProfile, FunctionsInlineTasksProfileSchema, type FunctionsInventionsDescriptionObject, FunctionsInventionsDescriptionObjectSchema, type FunctionsInventionsEssayObject, FunctionsInventionsEssayObjectSchema, type FunctionsInventionsEssayTasksObject, FunctionsInventionsEssayTasksObjectSchema, type FunctionsInventionsIndexObject, FunctionsInventionsIndexObjectSchema, type FunctionsInventionsPromptsGetPromptResponse, FunctionsInventionsPromptsGetPromptResponseSchema, type FunctionsInventionsPromptsInlinePrompt, type FunctionsInventionsPromptsInlinePromptOrRemoteCommitOptional, FunctionsInventionsPromptsInlinePromptOrRemoteCommitOptionalSchema, FunctionsInventionsPromptsInlinePromptSchema, type FunctionsInventionsPromptsListPromptResponse, FunctionsInventionsPromptsListPromptResponseSchema, type FunctionsInventionsPromptsListPromptsRequest, FunctionsInventionsPromptsListPromptsRequestSchema, type FunctionsInventionsPromptsListPromptsSource, FunctionsInventionsPromptsListPromptsSourceSchema, type FunctionsInventionsPromptsPrompt, FunctionsInventionsPromptsPromptSchema, type FunctionsInventionsPromptsRemotePrompt, FunctionsInventionsPromptsRemotePromptSchema, type FunctionsInventionsPromptsStepPromptExpression, FunctionsInventionsPromptsStepPromptExpressionSchema, type FunctionsInventionsPromptsStepPromptType, FunctionsInventionsPromptsStepPromptTypeSchema, type FunctionsInventionsPromptsUsagePromptResponse, FunctionsInventionsPromptsUsagePromptResponseSchema, type FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParams, FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParamsSchema, type FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParamsStreaming, FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParamsStreamingSchema, type FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParamsUnary, FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParamsUnarySchema, type FunctionsInventionsRecursiveResponseStreamingFunctionInventionChunk, FunctionsInventionsRecursiveResponseStreamingFunctionInventionChunkSchema, type FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunk, FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkSchema, type FunctionsInventionsRecursiveResponseStreamingInnerError, FunctionsInventionsRecursiveResponseStreamingInnerErrorSchema, type FunctionsInventionsRecursiveResponseStreamingObject, FunctionsInventionsRecursiveResponseStreamingObjectSchema, type FunctionsInventionsRecursiveResponseUnaryFunctionInvention, type FunctionsInventionsRecursiveResponseUnaryFunctionInventionRecursive, FunctionsInventionsRecursiveResponseUnaryFunctionInventionRecursiveSchema, FunctionsInventionsRecursiveResponseUnaryFunctionInventionSchema, type FunctionsInventionsRecursiveResponseUnaryObject, FunctionsInventionsRecursiveResponseUnaryObjectSchema, type FunctionsInventionsRequestFunctionInventionCreateParams, FunctionsInventionsRequestFunctionInventionCreateParamsSchema, type FunctionsInventionsRequestFunctionInventionCreateParamsStreaming, FunctionsInventionsRequestFunctionInventionCreateParamsStreamingSchema, type FunctionsInventionsRequestFunctionInventionCreateParamsUnary, FunctionsInventionsRequestFunctionInventionCreateParamsUnarySchema, type FunctionsInventionsResponseStreamingAgentCompletionChunk, FunctionsInventionsResponseStreamingAgentCompletionChunkSchema, type FunctionsInventionsResponseStreamingFunctionInventionChunk, FunctionsInventionsResponseStreamingFunctionInventionChunkSchema, type FunctionsInventionsResponseStreamingInnerError, FunctionsInventionsResponseStreamingInnerErrorSchema, type FunctionsInventionsResponseStreamingObject, FunctionsInventionsResponseStreamingObjectSchema, type FunctionsInventionsResponseUnaryAgentCompletion, FunctionsInventionsResponseUnaryAgentCompletionSchema, type FunctionsInventionsResponseUnaryFunctionInvention, FunctionsInventionsResponseUnaryFunctionInventionSchema, type FunctionsInventionsResponseUnaryObject, FunctionsInventionsResponseUnaryObjectSchema, type FunctionsInventionsScalarBranchTaskObject, FunctionsInventionsScalarBranchTaskObjectSchema, type FunctionsInventionsScalarInputSchemaObject, FunctionsInventionsScalarInputSchemaObjectSchema, type FunctionsInventionsScalarLeafTaskObject, FunctionsInventionsScalarLeafTaskObjectSchema, type FunctionsInventionsStateAlphaScalarBranchState, FunctionsInventionsStateAlphaScalarBranchStateSchema, type FunctionsInventionsStateAlphaScalarLeafState, FunctionsInventionsStateAlphaScalarLeafStateSchema, type FunctionsInventionsStateAlphaScalarState, FunctionsInventionsStateAlphaScalarStateSchema, type FunctionsInventionsStateAlphaVectorBranchState, FunctionsInventionsStateAlphaVectorBranchStateSchema, type FunctionsInventionsStateAlphaVectorLeafState, FunctionsInventionsStateAlphaVectorLeafStateSchema, type FunctionsInventionsStateAlphaVectorState, FunctionsInventionsStateAlphaVectorStateSchema, type FunctionsInventionsStateGetFunctionInventionStateResponse, FunctionsInventionsStateGetFunctionInventionStateResponseSchema, type FunctionsInventionsStateInputSchema, FunctionsInventionsStateInputSchemaSchema, type FunctionsInventionsStateParams, FunctionsInventionsStateParamsSchema, type FunctionsInventionsStateParamsState, type FunctionsInventionsStateParamsStateOrRemoteCommitOptional, FunctionsInventionsStateParamsStateOrRemoteCommitOptionalSchema, FunctionsInventionsStateParamsStateSchema, type FunctionsInventionsStateState, FunctionsInventionsStateStateSchema, type FunctionsInventionsTasksLengthObject, FunctionsInventionsTasksLengthObjectSchema, type FunctionsInventionsVectorBranchTaskObject, FunctionsInventionsVectorBranchTaskObjectSchema, type FunctionsInventionsVectorInputSchemaObject, FunctionsInventionsVectorInputSchemaObjectSchema, type FunctionsInventionsVectorLeafTaskObject, FunctionsInventionsVectorLeafTaskObjectSchema, type FunctionsListFunctionProfilePairItem, FunctionsListFunctionProfilePairItemSchema, type FunctionsListFunctionProfilePairResponse, FunctionsListFunctionProfilePairResponseSchema, type FunctionsListFunctionProfilePairsRequest, FunctionsListFunctionProfilePairsRequestSchema, type FunctionsListFunctionProfilePairsSource, FunctionsListFunctionProfilePairsSourceSchema, type FunctionsListFunctionResponse, FunctionsListFunctionResponseSchema, type FunctionsListFunctionsRequest, FunctionsListFunctionsRequestSchema, type FunctionsListFunctionsSource, FunctionsListFunctionsSourceSchema, type FunctionsPlaceholderScalarFunctionTask, type FunctionsPlaceholderScalarFunctionTaskExpression, FunctionsPlaceholderScalarFunctionTaskExpressionSchema, FunctionsPlaceholderScalarFunctionTaskSchema, type FunctionsPlaceholderVectorFunctionTask, type FunctionsPlaceholderVectorFunctionTaskExpression, FunctionsPlaceholderVectorFunctionTaskExpressionSchema, FunctionsPlaceholderVectorFunctionTaskSchema, type FunctionsProfile, FunctionsProfileSchema, type FunctionsProfilesComputationsRequestDatasetItem, FunctionsProfilesComputationsRequestDatasetItemSchema, type FunctionsProfilesComputationsRequestFunctionProfileComputationCreateParams, FunctionsProfilesComputationsRequestFunctionProfileComputationCreateParamsSchema, type FunctionsProfilesComputationsRequestTarget, FunctionsProfilesComputationsRequestTargetSchema, type FunctionsProfilesComputationsResponseFittingStats, FunctionsProfilesComputationsResponseFittingStatsSchema, type FunctionsProfilesComputationsResponseStreamingFunctionExecutionChunk, FunctionsProfilesComputationsResponseStreamingFunctionExecutionChunkSchema, type FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunk, FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkSchema, type FunctionsProfilesComputationsResponseStreamingObject, FunctionsProfilesComputationsResponseStreamingObjectSchema, type FunctionsProfilesComputationsResponseUnaryFunctionExecution, FunctionsProfilesComputationsResponseUnaryFunctionExecutionSchema, type FunctionsProfilesComputationsResponseUnaryFunctionProfileComputation, FunctionsProfilesComputationsResponseUnaryFunctionProfileComputationSchema, type FunctionsProfilesComputationsResponseUnaryObject, FunctionsProfilesComputationsResponseUnaryObjectSchema, type FunctionsProfilesComputationsRetryToken, FunctionsProfilesComputationsRetryTokenSchema, type FunctionsProfilesGetProfileResponse, FunctionsProfilesGetProfileResponseSchema, type FunctionsProfilesListProfileResponse, FunctionsProfilesListProfileResponseSchema, type FunctionsProfilesListProfilesRequest, FunctionsProfilesListProfilesRequestSchema, type FunctionsProfilesListProfilesSource, FunctionsProfilesListProfilesSourceSchema, type FunctionsProfilesUsageProfileResponse, FunctionsProfilesUsageProfileResponseSchema, type FunctionsRemoteFunction, FunctionsRemoteFunctionSchema, type FunctionsRemoteProfile, FunctionsRemoteProfileSchema, type FunctionsRemoteTasksProfile, FunctionsRemoteTasksProfileSchema, type FunctionsScalarFunctionTask, type FunctionsScalarFunctionTaskExpression, FunctionsScalarFunctionTaskExpressionSchema, FunctionsScalarFunctionTaskSchema, type FunctionsTask, type FunctionsTaskExpression, FunctionsTaskExpressionSchema, type FunctionsTaskProfile, FunctionsTaskProfileSchema, FunctionsTaskSchema, type FunctionsUsageFunctionProfilePairResponse, FunctionsUsageFunctionProfilePairResponseSchema, type FunctionsUsageFunctionResponse, FunctionsUsageFunctionResponseSchema, type FunctionsVectorCompletionTask, type FunctionsVectorCompletionTaskExpression, FunctionsVectorCompletionTaskExpressionSchema, FunctionsVectorCompletionTaskSchema, type FunctionsVectorFunctionTask, type FunctionsVectorFunctionTaskExpression, FunctionsVectorFunctionTaskExpressionSchema, FunctionsVectorFunctionTaskSchema, type HttpViewerAgentCompletionCreateParams, HttpViewerAgentCompletionCreateParamsSchema, type HttpViewerAgentCompletionRequest, HttpViewerAgentCompletionRequestSchema, type HttpViewerFunctionExecutionCreateParams, HttpViewerFunctionExecutionCreateParamsSchema, type HttpViewerFunctionExecutionRequest, HttpViewerFunctionExecutionRequestSchema, type HttpViewerFunctionInventionRecursiveCreateParams, HttpViewerFunctionInventionRecursiveCreateParamsSchema, type HttpViewerFunctionInventionRecursiveRequest, HttpViewerFunctionInventionRecursiveRequestSchema, type HttpViewerLaboratoryExecutionCreateParams, HttpViewerLaboratoryExecutionCreateParamsSchema, type HttpViewerLaboratoryExecutionRequest, HttpViewerLaboratoryExecutionRequestSchema, type HttpViewerRequest, HttpViewerRequestSchema, type HttpViewerResponseError, HttpViewerResponseErrorSchema, type LaboratoriesExecutionsRequestLaboratoryExecutionCreateParams, LaboratoriesExecutionsRequestLaboratoryExecutionCreateParamsSchema, type LaboratoriesExecutionsResponseStreamingBuilderChunk, LaboratoriesExecutionsResponseStreamingBuilderChunkSchema, type LaboratoriesExecutionsResponseStreamingEvaluationChunk, LaboratoriesExecutionsResponseStreamingEvaluationChunkSchema, type LaboratoriesExecutionsResponseStreamingInnerError, LaboratoriesExecutionsResponseStreamingInnerErrorSchema, type LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunk, LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunkSchema, type LaboratoriesExecutionsResponseStreamingObject, LaboratoriesExecutionsResponseStreamingObjectSchema, type LaboratoriesExecutionsResponseUnaryBuilder, LaboratoriesExecutionsResponseUnaryBuilderSchema, type LaboratoriesExecutionsResponseUnaryEvaluation, LaboratoriesExecutionsResponseUnaryEvaluationSchema, type LaboratoriesExecutionsResponseUnaryLaboratoryExecution, LaboratoriesExecutionsResponseUnaryLaboratoryExecutionSchema, type LaboratoriesExecutionsResponseUnaryObject, LaboratoriesExecutionsResponseUnaryObjectSchema, type McpCompletionsCapability, McpCompletionsCapabilitySchema, type McpImplementation, McpImplementationSchema, type McpInitializeResult, McpInitializeResultSchema, type McpJsonRpcError, McpJsonRpcErrorSchema, type McpJsonRpcNotification, McpJsonRpcNotificationSchema, type McpJsonRpcRequest, McpJsonRpcRequestSchema, type McpLoggingCapability, McpLoggingCapabilitySchema, type McpPromptsCapability, McpPromptsCapabilitySchema, type McpResourceListResourcesRequest, McpResourceListResourcesRequestSchema, type McpResourceListResourcesResult, McpResourceListResourcesResultSchema, type McpResourceReadResourceRequestParams, McpResourceReadResourceRequestParamsSchema, type McpResourceReadResourceResult, McpResourceReadResourceResultSchema, type McpResourceResource, McpResourceResourceSchema, type McpResourcesCapability, McpResourcesCapabilitySchema, type McpServerCapabilities, McpServerCapabilitiesSchema, type McpSharedAnnotations, McpSharedAnnotationsSchema, type McpSharedBlobResourceContents, McpSharedBlobResourceContentsSchema, type McpSharedIcon, McpSharedIconSchema, type McpSharedIconTheme, McpSharedIconThemeSchema, type McpSharedResourceContents, McpSharedResourceContentsSchema, type McpSharedResourceContentsUnion, McpSharedResourceContentsUnionSchema, type McpSharedRole, McpSharedRoleSchema, type McpSharedTextResourceContents, McpSharedTextResourceContentsSchema, type McpTasksCancelCapability, McpTasksCancelCapabilitySchema, type McpTasksCapability, McpTasksCapabilitySchema, type McpTasksListCapability, McpTasksListCapabilitySchema, type McpTasksRequestsCapability, McpTasksRequestsCapabilitySchema, type McpTasksToolsCallCapability, McpTasksToolsCallCapabilitySchema, type McpTasksToolsCapability, McpTasksToolsCapabilitySchema, type McpToolAudioContent, McpToolAudioContentSchema, type McpToolCallToolRequestParams, McpToolCallToolRequestParamsSchema, type McpToolCallToolResult, McpToolCallToolResultSchema, type McpToolContentBlock, McpToolContentBlockSchema, type McpToolEmbeddedResource, McpToolEmbeddedResourceSchema, type McpToolImageContent, McpToolImageContentSchema, type McpToolListToolsRequest, McpToolListToolsRequestSchema, type McpToolListToolsResult, McpToolListToolsResultSchema, type McpToolResourceLink, McpToolResourceLinkSchema, type McpToolTaskMetadata, McpToolTaskMetadataSchema, type McpToolTaskSupport, McpToolTaskSupportSchema, type McpToolTextContent, McpToolTextContentSchema, type McpToolTool, type McpToolToolAnnotations, McpToolToolAnnotationsSchema, type McpToolToolExecution, McpToolToolExecutionSchema, type McpToolToolResultContent, McpToolToolResultContentSchema, McpToolToolSchema, type McpToolToolSchemaObject, McpToolToolSchemaObjectSchema, type McpToolToolSchemaType, McpToolToolSchemaTypeSchema, type McpToolToolUseContent, McpToolToolUseContentSchema, type McpToolsCapability, McpToolsCapabilitySchema, ObjectiveAI, ObjectiveAIFetchError, type ObjectiveAIOptions, ObjectiveAIOptionsSchema, type PrefixedUuid, PrefixedUuidSchema, type Remote, type RemotePath, type RemotePathCommitOptional, RemotePathCommitOptionalSchema, RemotePathSchema, RemoteSchema, type RequestOptions, RequestOptionsSchema, Stream, type SwarmGetSwarmResponse, SwarmGetSwarmResponseSchema, type SwarmInlineSwarm, type SwarmInlineSwarmBase, type SwarmInlineSwarmBaseOrRemote, type SwarmInlineSwarmBaseOrRemoteCommitOptional, SwarmInlineSwarmBaseOrRemoteCommitOptionalSchema, SwarmInlineSwarmBaseOrRemoteSchema, SwarmInlineSwarmBaseSchema, SwarmInlineSwarmSchema, type SwarmListSwarmResponse, SwarmListSwarmResponseSchema, type SwarmListSwarmsRequest, SwarmListSwarmsRequestSchema, type SwarmListSwarmsSource, SwarmListSwarmsSourceSchema, type SwarmRemoteSwarm, type SwarmRemoteSwarmBase, SwarmRemoteSwarmBaseSchema, SwarmRemoteSwarmSchema, type SwarmSwarm, type SwarmSwarmBase, SwarmSwarmBaseSchema, SwarmSwarmSchema, type SwarmUsageSwarmResponse, SwarmUsageSwarmResponseSchema, type VectorCompletionsCacheCacheVote, type VectorCompletionsCacheCacheVoteRequest, VectorCompletionsCacheCacheVoteRequestSchema, VectorCompletionsCacheCacheVoteSchema, type VectorCompletionsCacheCompletionVotes, VectorCompletionsCacheCompletionVotesSchema, type VectorCompletionsCacheGetCompletionVotesRequest, VectorCompletionsCacheGetCompletionVotesRequestSchema, type VectorCompletionsRequestVectorCompletionCreateParams, VectorCompletionsRequestVectorCompletionCreateParamsSchema, type VectorCompletionsRequestVectorCompletionCreateParamsStreaming, VectorCompletionsRequestVectorCompletionCreateParamsStreamingSchema, type VectorCompletionsRequestVectorCompletionCreateParamsUnary, VectorCompletionsRequestVectorCompletionCreateParamsUnarySchema, type VectorCompletionsResponseStreamingAgentCompletionChunk, VectorCompletionsResponseStreamingAgentCompletionChunkSchema, type VectorCompletionsResponseStreamingInnerError, VectorCompletionsResponseStreamingInnerErrorSchema, type VectorCompletionsResponseStreamingObject, VectorCompletionsResponseStreamingObjectSchema, type VectorCompletionsResponseStreamingVectorCompletionChunk, VectorCompletionsResponseStreamingVectorCompletionChunkSchema, type VectorCompletionsResponseUnaryAgentCompletion, VectorCompletionsResponseUnaryAgentCompletionSchema, type VectorCompletionsResponseUnaryObject, VectorCompletionsResponseUnaryObjectSchema, type VectorCompletionsResponseUnaryVectorCompletion, VectorCompletionsResponseUnaryVectorCompletionSchema, type VectorCompletionsResponseVote, VectorCompletionsResponseVoteSchema, type VectorCompletionsVectorResponses, VectorCompletionsVectorResponsesSchema, type Weights, type WeightsEntry, WeightsEntrySchema, WeightsSchema, agentCompletionsCreateAgentCompletion, agentCompletionsMessageAssistantToolCallDeltaMerged, agentCompletionsMessageAssistantToolCallDeltaMergedList, agentCompletionsMessageAssistantToolCallFunctionDeltaMerged, agentCompletionsMessageRichContentMerged, agentCompletionsResponseCompletionTokensDetailsMerged, agentCompletionsResponseCostDetailsMerged, agentCompletionsResponseLogprobsMerged, agentCompletionsResponsePromptTokensDetailsMerged, agentCompletionsResponseStreamingAgentCompletionChunkMerged, agentCompletionsResponseStreamingAssistantResponseChunkMerged, agentCompletionsResponseStreamingMessageChunkMerged, agentCompletionsResponseStreamingMessageChunkMergedList, agentCompletionsResponseUpstreamUsageMerged, agentCompletionsResponseUsageMerged, agentGetAgent, agentGetAgentUsage, agentListAgents, authCreateApiKey, authCreateOpenrouterByokApiKey, authDeleteOpenrouterByokApiKey, authDisableApiKey, authGetCredits, authGetOpenrouterByokApiKey, authListApiKeys, errorCreateError, functionsExecutionsCreateFunctionExecution, functionsExecutionsResponseStreamingFunctionExecutionChunkMerged, functionsExecutionsResponseStreamingReasoningSummaryChunkMerged, functionsExecutionsResponseStreamingTaskChunkMerged, functionsExecutionsResponseStreamingTaskChunkMergedList, functionsExecutionsResponseStreamingVectorCompletionTaskChunkMerged, functionsGetFunction, functionsGetFunctionProfilePairUsage, functionsGetFunctionUsage, functionsInventionsCreateFunctionInvention, functionsInventionsPromptsGetPrompt, functionsInventionsPromptsGetPromptUsage, functionsInventionsPromptsListPrompts, functionsInventionsRecursiveCreateFunctionInventionRecursive, functionsInventionsRecursiveResponseStreamingFunctionInventionChunkMerged, functionsInventionsRecursiveResponseStreamingFunctionInventionChunkMergedList, functionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkMerged, functionsInventionsResponseStreamingAgentCompletionChunkMerged, functionsInventionsResponseStreamingAgentCompletionChunkMergedList, functionsInventionsResponseStreamingFunctionInventionChunkMerged, functionsInventionsStateGetFunctionInventionState, functionsListFunctionProfilePairs, functionsListFunctions, functionsProfilesComputationsComputeProfile, functionsProfilesComputationsResponseStreamingFunctionExecutionChunkMerged, functionsProfilesComputationsResponseStreamingFunctionExecutionChunkMergedList, functionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkMerged, functionsProfilesGetProfile, functionsProfilesGetProfileUsage, functionsProfilesListProfiles, isResponseError, laboratoriesExecutionsCreateLaboratoryExecution, laboratoriesExecutionsResponseStreamingBuilderChunkMerged, laboratoriesExecutionsResponseStreamingBuilderChunkMergedList, laboratoriesExecutionsResponseStreamingEvaluationChunkMerged, laboratoriesExecutionsResponseStreamingEvaluationChunkMergedList, laboratoriesExecutionsResponseStreamingLaboratoryExecutionChunkMerged, merge, mergedNumberArray, mergedString, numberIsEmpty, swarmGetSwarm, swarmGetSwarmUsage, swarmListSwarms, vectorCompletionsCacheGetCacheVote, vectorCompletionsCacheGetCompletionVotes, vectorCompletionsCreateVectorCompletion, vectorCompletionsResponseStreamingAgentCompletionChunkMerged, vectorCompletionsResponseStreamingAgentCompletionChunkMergedList, vectorCompletionsResponseStreamingVectorCompletionChunkMerged, vectorCompletionsResponseVoteMergedList, wasmAgentCompletionsMessagePromptId, wasmAgentCompletionsResponseStreamingAgentCompletionChunkMerged, wasmAgentCompletionsResponseStreamingAgentCompletionChunkNormalized, wasmAgentCompletionsResponseStreamingAgentCompletionChunkToUnary, wasmAgentCompletionsResponseStreamingGenerateAgentCompletionChunk, wasmAgentCompletionsResponseStreamingNormalizeAgentCompletionForTests, wasmAgentValidateAgent, wasmFunctionsAlphaCheckBranchScalarFunction, wasmFunctionsAlphaCheckBranchVectorFunction, wasmFunctionsAlphaCheckLeafScalarFunction, wasmFunctionsAlphaCheckLeafVectorFunction, wasmFunctionsCheckCheckScalarFields, wasmFunctionsCheckCheckVectorFields, wasmFunctionsCompileFunctionInputMerge, wasmFunctionsCompileFunctionInputSplit, wasmFunctionsCompileFunctionOutputLength, wasmFunctionsCompileFunctionTasks, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkMerged, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkNormalized, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkToUnary, wasmFunctionsExecutionsResponseStreamingGenerateFunctionExecutionChunk, wasmFunctionsExecutionsResponseStreamingNormalizeFunctionExecutionForTests, wasmFunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkMerged, wasmFunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkNormalized, wasmFunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkToUnary, wasmFunctionsInventionsRecursiveResponseStreamingGenerateFunctionInventionRecursiveChunk, wasmFunctionsInventionsRecursiveResponseStreamingNormalizeFunctionInventionRecursiveForTests, wasmFunctionsInventionsResponseStreamingFunctionInventionChunkMerged, wasmFunctionsInventionsResponseStreamingFunctionInventionChunkNormalized, wasmFunctionsInventionsResponseStreamingFunctionInventionChunkToUnary, wasmFunctionsInventionsResponseStreamingGenerateFunctionInventionChunk, wasmFunctionsInventionsResponseStreamingNormalizeFunctionInventionForTests, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkMerged, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkNormalized, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkToUnary, wasmFunctionsProfilesComputationsResponseStreamingGenerateFunctionProfileComputationChunk, wasmFunctionsProfilesComputationsResponseStreamingNormalizeFunctionProfileComputationForTests, wasmFunctionsValidateFunctionInput, wasmLaboratoriesExecutionsResponseStreamingGenerateLaboratoryExecutionChunk, wasmLaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunkMerged, wasmLaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunkNormalized, wasmLaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunkToUnary, wasmLaboratoriesExecutionsResponseStreamingNormalizeLaboratoryExecutionForTests, wasmSwarmValidateSwarm, wasmVectorCompletionsResponseStreamingGenerateVectorCompletionChunk, wasmVectorCompletionsResponseStreamingNormalizeVectorCompletionForTests, wasmVectorCompletionsResponseStreamingVectorCompletionChunkMerged, wasmVectorCompletionsResponseStreamingVectorCompletionChunkNormalized, wasmVectorCompletionsResponseStreamingVectorCompletionChunkToUnary, wasmVectorCompletionsVectorResponseId };

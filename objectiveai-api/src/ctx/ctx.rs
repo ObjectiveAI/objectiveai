@@ -48,6 +48,19 @@ pub struct Context<CTXEXT, PC> {
     /// Plays the role of the *parent* when composing the agent id we
     /// forward to the MCP proxy inside agent completions.
     agent_id: Option<Arc<String>>,
+    /// Local TCP port the API process is bound on. Used to synthesize
+    /// `http://127.0.0.1:{api_port}/objectiveai-mcp/{ws_session_id}`
+    /// reverse-attach URLs when an agent declares `client_objectiveai_mcp`.
+    /// `None` on HTTP/SSE requests (no reverse-attach possible) and
+    /// when running outside a bound server.
+    api_port: Option<u16>,
+    /// Handle for registering per-agent `ws_session_id`s against the
+    /// current WS reverse channel. Set on WS-attached requests by the
+    /// streaming handlers; `None` on HTTP/SSE. Many ids may register
+    /// against the same handle — one per swarm agent that declares
+    /// `client_objectiveai_mcp` — all cleaned up when the owning
+    /// [`crate::streaming_ws::ReverseAttachGuard`] drops at WS close.
+    reverse_attach: Option<Arc<crate::streaming_ws::ReverseAttachHandle>>,
     /// Cached resolved OpenRouter authorization (self + ext).
     openrouter_authorization_cached: Arc<OnceCell<Option<Arc<String>>>>,
     /// Cached resolved GitHub authorization (self + ext).
@@ -152,6 +165,8 @@ impl<CTXEXT, PC> Clone for Context<CTXEXT, PC> {
             commit_author_name: self.commit_author_name.clone(),
             commit_author_email: self.commit_author_email.clone(),
             agent_id: self.agent_id.clone(),
+            api_port: self.api_port,
+            reverse_attach: self.reverse_attach.clone(),
             openrouter_authorization_cached: self.openrouter_authorization_cached.clone(),
             github_authorization_cached: self.github_authorization_cached.clone(),
             mcp_authorization_cached: self.mcp_authorization_cached.clone(),
@@ -267,6 +282,8 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
             commit_author_name,
             commit_author_email,
             agent_id,
+            api_port: None,
+            reverse_attach: None,
             openrouter_authorization_cached: Arc::new(OnceCell::new()),
             github_authorization_cached: Arc::new(OnceCell::new()),
             mcp_authorization_cached: Arc::new(OnceCell::new()),
@@ -295,6 +312,38 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
     /// agent id we forward to the MCP proxy.
     pub fn agent_id(&self) -> Option<&str> {
         self.agent_id.as_deref().map(|s| s.as_str())
+    }
+
+    /// Returns the local TCP port the API process is bound on, if a
+    /// streaming WS handler stamped one on this context.
+    pub fn api_port(&self) -> Option<u16> {
+        self.api_port
+    }
+
+    /// Returns the shared reverse-attach handle for registering
+    /// per-agent `ws_session_id`s against the current WS, if a
+    /// streaming WS handler stamped one.
+    pub fn reverse_attach(
+        &self,
+    ) -> Option<&Arc<crate::streaming_ws::ReverseAttachHandle>> {
+        self.reverse_attach.as_ref()
+    }
+
+    /// Stamps the local TCP port (from `ReverseAttachConfig.api_port`)
+    /// on the context. Returns the modified context for chaining.
+    pub fn with_api_port(mut self, port: u16) -> Self {
+        self.api_port = Some(port);
+        self
+    }
+
+    /// Stamps the shared reverse-attach handle on the context.
+    /// Returns the modified context for chaining.
+    pub fn with_reverse_attach(
+        mut self,
+        handle: Arc<crate::streaming_ws::ReverseAttachHandle>,
+    ) -> Self {
+        self.reverse_attach = Some(handle);
+        self
     }
 }
 

@@ -3,6 +3,18 @@
   "description": "The base configuration for an OpenRouter Agent (without computed ID).",
   "type": "object",
   "properties": {
+    "client_objectiveai_mcp": {
+      "description": "Client-side ObjectiveAI MCP surface the calling client is\nexpected to expose locally back to the API (objectiveai\nbuilt-in, plus specific plugins / tools by owner+name+version).",
+      "anyOf": [
+        {
+          "$ref": "agent.ClientObjectiveaiMcp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "frequency_penalty": {
       "description": "Penalizes tokens based on their frequency in the output so far (-2.0 to 2.0).",
       "anyOf": [

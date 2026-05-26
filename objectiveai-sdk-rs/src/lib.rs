@@ -69,6 +69,13 @@ pub use http::*;
 #[cfg(feature = "mcp")]
 pub mod mcp;
 
+// `client_objectiveai_mcp` is pure type definitions (request /
+// response envelopes for the reverse-attach protocol); the `http`
+// transport layer uses it without needing the full `mcp` client.
+// Gating it behind `mcp` would force `http` consumers to also pull
+// in the heavier mcp deps for no benefit.
+pub mod client_objectiveai_mcp;
+
 #[cfg(feature = "cli")]
 pub mod cli;
 

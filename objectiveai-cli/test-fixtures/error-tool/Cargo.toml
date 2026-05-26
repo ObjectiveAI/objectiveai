@@ -1,0 +1,9 @@
+[package]
+name = "error-tool"
+version = "2.0.10"
+edition = "2024"
+publish = false
+
+[[bin]]
+name = "error-tool"
+path = "src/main.rs"

@@ -1,3 +1,4 @@
+use crate::agent::completions::response::streaming::AgentCompletionIds;
 use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
 
@@ -9,6 +10,18 @@ pub enum TaskChunk {
     FunctionExecution(super::FunctionExecutionTaskChunk),
     #[schemars(title = "VectorCompletion")]
     VectorCompletion(super::VectorCompletionTaskChunk),
+}
+
+impl AgentCompletionIds for TaskChunk {
+    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> {
+        // Enum dispatch: each variant's own impl returns its own concrete
+        // iterator type. We type-erase via Box<dyn ...> to unify them.
+        let iter: Box<dyn Iterator<Item = &str> + '_> = match self {
+            TaskChunk::FunctionExecution(c) => Box::new(c.agent_completion_ids()),
+            TaskChunk::VectorCompletion(c) => Box::new(c.agent_completion_ids()),
+        };
+        iter
+    }
 }
 
 impl TaskChunk {

@@ -49,6 +49,10 @@ impl InlineAgentBase {
         self.as_ref().mcp_servers()
     }
 
+    pub fn client_objectiveai_mcp(&self) -> Option<&super::ClientObjectiveaiMcp> {
+        self.as_ref().client_objectiveai_mcp()
+    }
+
     pub fn prepare(&mut self) {
         match self {
             InlineAgentBase::Openrouter(b) => b.prepare(),
@@ -124,6 +128,10 @@ impl RemoteAgentBase {
         self.inner.mcp_servers()
     }
 
+    pub fn client_objectiveai_mcp(&self) -> Option<&super::ClientObjectiveaiMcp> {
+        self.inner.client_objectiveai_mcp()
+    }
+
     pub fn prepare(&mut self) {
         self.inner.prepare()
     }
@@ -189,6 +197,13 @@ impl AgentBase {
         match self {
             AgentBase::Remote(r) => r.mcp_servers(),
             AgentBase::Inline(i) => i.mcp_servers(),
+        }
+    }
+
+    pub fn client_objectiveai_mcp(&self) -> Option<&super::ClientObjectiveaiMcp> {
+        match self {
+            AgentBase::Remote(r) => r.client_objectiveai_mcp(),
+            AgentBase::Inline(i) => i.client_objectiveai_mcp(),
         }
     }
 
@@ -278,6 +293,15 @@ impl<'a> InlineAgentRef<'a> {
             InlineAgentRef::ClaudeAgentSdk(b) => b.mcp_servers.as_ref(),
             InlineAgentRef::CodexSdk(b) => b.mcp_servers.as_ref(),
             InlineAgentRef::Mock(b) => b.mcp_servers.as_ref(),
+        }
+    }
+
+    pub fn client_objectiveai_mcp(&self) -> Option<&'a super::ClientObjectiveaiMcp> {
+        match self {
+            InlineAgentRef::Openrouter(b) => b.client_objectiveai_mcp.as_ref(),
+            InlineAgentRef::ClaudeAgentSdk(b) => b.client_objectiveai_mcp.as_ref(),
+            InlineAgentRef::CodexSdk(b) => b.client_objectiveai_mcp.as_ref(),
+            InlineAgentRef::Mock(b) => b.client_objectiveai_mcp.as_ref(),
         }
     }
 

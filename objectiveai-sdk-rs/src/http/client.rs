@@ -2,9 +2,10 @@
 
 use crate::error;
 use eventsource_stream::Event as MessageEvent;
-use futures::{Stream, StreamExt};
+use futures::{Stream, StreamExt, SinkExt};
 use reqwest_eventsource::{Event, RequestBuilderExt};
 use std::sync::Arc;
+use tokio_tungstenite::tungstenite;
 
 /// HTTP client for making requests to the ObjectiveAI API.
 ///
@@ -326,8 +327,11 @@ impl HttpClient {
         // Stop the stream at [DONE] to prevent reqwest_eventsource from
         // auto-reconnecting. Uses take_while on the raw SSE events, then
         // maps/filters the remaining events into typed chunks.
+        // Stamps X-Transport: sse so the API's transport dispatcher
+        // routes this to the SSE branch (the API default is WS).
         Ok(
             self.request(method, path.as_ref(), body)
+                .header("X-Transport", "sse")
                 .eventsource()?
                 .take_while(|result| {
                     let dominated = matches!(
@@ -389,5 +393,262 @@ impl HttpClient {
                 })
                 .filter_map(|x| async { x }),
         )
+    }
+
+    /// WebSocket variant of [`Self::send_streaming`]. Opens a WS to
+    /// the configured `address`, sends `body` as the first text
+    /// frame, then demultiplexes inbound frames into:
+    ///
+    /// - Chunk frames (yielded on the returned [`Stream`]).
+    /// - [`client_response::Response`](crate::client_objectiveai_mcp::client_response::Response)
+    ///   frames (routed to the [`super::Notifier`]'s pending-id map).
+    /// - [`server_request::Request`](crate::client_objectiveai_mcp::server_request::Request)
+    ///   frames (dispatched to `handler`; the result is written back
+    ///   as a `server_response::Response` echoing the request id).
+    ///
+    /// Both the returned `Stream` and the returned [`super::Notifier`]
+    /// share the underlying WebSocket: dropping both stops the demux
+    /// task and closes the connection cleanly. Dropping only one
+    /// keeps the WS alive — useful when a caller wants to send
+    /// notifies after the chunk stream has finished, or vice-versa.
+    pub async fn send_streaming_ws<Chunk, B, H, P>(
+        &self,
+        method: reqwest::Method,
+        path: P,
+        body: B,
+        handler: H,
+    ) -> Result<
+        (
+            impl Stream<Item = Result<Chunk, super::HttpError>>
+                + Send
+                + Unpin
+                + 'static
+                + use<Chunk, B, H, P>,
+            super::Notifier,
+        ),
+        super::HttpError,
+    >
+    where
+        Chunk: serde::de::DeserializeOwned + Send + 'static,
+        B: serde::Serialize + Send + 'static,
+        H: super::McpHandler,
+        P: AsRef<str>,
+    {
+        use crate::client_objectiveai_mcp::{
+            client_response::Response as ClientResponse,
+            server_request::Request as ServerRequest,
+        };
+        use futures::stream::SplitStream;
+        use tokio::net::TcpStream;
+        use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
+
+        // Translate the configured `address` (http(s)://...) into a
+        // ws(s):// URL. Path is appended directly.
+        let url = format!(
+            "{}/{}",
+            self.address.trim_end_matches('/'),
+            path.as_ref().trim_start_matches('/')
+        );
+        let ws_url = if let Some(rest) = url.strip_prefix("https://") {
+            format!("wss://{rest}")
+        } else if let Some(rest) = url.strip_prefix("http://") {
+            format!("ws://{rest}")
+        } else {
+            url.clone()
+        };
+        let _ = method; // axum's WS route is `any(...)`, method is ignored on the wire.
+
+        // Build the upgrade request manually so we can apply the
+        // same auth + custom headers `request()` does for HTTP.
+        let mut req = tungstenite::handshake::client::Request::builder()
+            .method("GET")
+            .uri(&ws_url)
+            .header("Host", reqwest::Url::parse(&url).ok().and_then(|u| u.host_str().map(str::to_owned)).unwrap_or_default())
+            .header("Upgrade", "websocket")
+            .header("Connection", "Upgrade")
+            .header(
+                "Sec-WebSocket-Key",
+                tungstenite::handshake::client::generate_key(),
+            )
+            .header("Sec-WebSocket-Version", "13")
+            .header("X-Transport", "ws");
+        if let Some(authorization) = &self.authorization {
+            let key = authorization
+                .strip_prefix("Bearer ")
+                .unwrap_or(authorization.as_str());
+            req = req.header("authorization", format!("Bearer {}", key));
+        }
+        if let Some(ua) = &self.user_agent {
+            req = req.header("user-agent", ua);
+        }
+        if let Some(x_title) = &self.x_title {
+            req = req.header("x-title", x_title);
+        }
+        if let Some(http_referer) = &self.http_referer {
+            req = req.header("referer", http_referer);
+            req = req.header("http-referer", http_referer);
+        }
+        if let Some(token) = &self.x_github_authorization {
+            req = req.header("X-GITHUB-AUTHORIZATION", token.as_str());
+        }
+        if let Some(token) = &self.x_openrouter_authorization {
+            req = req.header("X-OPENROUTER-AUTHORIZATION", token.as_str());
+        }
+        if let Some(headers) = &self.x_mcp_authorization {
+            if let Ok(json) = serde_json::to_string(headers.as_ref()) {
+                req = req.header("X-MCP-AUTHORIZATION", json);
+            }
+        }
+        if let Some(sig) = &self.x_viewer_signature {
+            req = req.header("X-VIEWER-SIGNATURE", sig.as_str());
+        }
+        if let Some(addr) = &self.x_viewer_address {
+            req = req.header("X-VIEWER-ADDRESS", addr.as_str());
+        }
+        if let Some(name) = &self.x_commit_author_name {
+            req = req.header("X-COMMIT-AUTHOR-NAME", name.as_str());
+        }
+        if let Some(email) = &self.x_commit_author_email {
+            req = req.header("X-COMMIT-AUTHOR-EMAIL", email.as_str());
+        }
+        if let Some(id) = &self.agent_id {
+            req = req.header("X-OBJECTIVEAI-AGENT-ID", id.as_str());
+        }
+        let req = req
+            .body(())
+            .map_err(|e| super::HttpError::WsConnect(tungstenite::Error::Http(
+                tungstenite::http::Response::builder()
+                    .status(400)
+                    .body(Some(e.to_string().into_bytes()))
+                    .unwrap(),
+            )))?;
+
+        let (ws_stream, _resp) = tokio_tungstenite::connect_async(req).await?;
+        let (mut sink, rx_stream): (
+            _,
+            SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
+        ) = ws_stream.split();
+
+        // Send the body as the first text frame.
+        let body_frame = serde_json::to_string(&body)
+            .map_err(super::HttpError::NotifySerialize)?;
+        sink.send(tungstenite::Message::Text(body_frame.into()))
+            .await
+            .map_err(super::HttpError::NotifySend)?;
+
+        // Build the per-connection state shared with Notifier + demux.
+        let sink: super::notifier::SharedSink = Arc::new(tokio::sync::Mutex::new(sink));
+        let pending: super::notifier::PendingNotifies =
+            Arc::new(dashmap::DashMap::new());
+
+        // mpsc the demux task pushes chunks (or terminal errors) into.
+        // Use futures::channel::mpsc so the rx side is `impl Stream`
+        // without pulling in tokio-stream.
+        let (chunk_tx, chunk_rx) =
+            futures::channel::mpsc::unbounded::<Result<Chunk, super::HttpError>>();
+
+        let demux_sink = sink.clone();
+        let demux_pending = pending.clone();
+        let handler = Arc::new(handler);
+        tokio::spawn(async move {
+            let mut rx_stream = rx_stream;
+            let mut chunk_tx = chunk_tx;
+            loop {
+                let msg = match rx_stream.next().await {
+                    Some(m) => m,
+                    None => {
+                        break;
+                    }
+                };
+                let text = match msg {
+                    Ok(tungstenite::Message::Text(t)) => {
+                        let s = t.to_string();
+                        s
+                    }
+                    Ok(tungstenite::Message::Binary(_)) => {
+                        continue;
+                    }
+                    Ok(
+                        tungstenite::Message::Ping(_) | tungstenite::Message::Pong(_),
+                    ) => continue,
+                    Ok(tungstenite::Message::Close(_)) => {
+                        break;
+                    }
+                    Ok(tungstenite::Message::Frame(_)) => continue,
+                    Err(_) => {
+                        break;
+                    }
+                };
+
+                // Classification: try client_response, then
+                // server_request, then chunk. Order matters — chunks
+                // tend to have many fields; the envelopes have a
+                // distinctive `id` + tagged `type`.
+                if let Ok(response) = serde_json::from_str::<ClientResponse>(&text) {
+                    let id = response.id().to_string();
+                    if let Some((_, tx)) = demux_pending.remove(&id) {
+                        let _ = tx.send(response);
+                    }
+                    continue;
+                }
+                if let Ok(request) = serde_json::from_str::<ServerRequest>(&text) {
+                    let id = request.id.clone();
+                    let method = request
+                        .body
+                        .as_ref()
+                        .and_then(|v| v.get("method"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let handler = handler.clone();
+                    let demux_sink = demux_sink.clone();
+                    tokio::spawn(async move {
+                        let id = id;
+                        // Handler returns the full response (incl.
+                        // matching id); we just frame + write it.
+                        let response = handler.handle(request).await;
+                        let frame = match serde_json::to_string(&response) {
+                            Ok(s) => s,
+                            Err(_) => {
+                                return;
+                            }
+                        };
+                        let mut guard = demux_sink.lock().await;
+                        let send_result = guard
+                            .send(tungstenite::Message::Text(frame.into()))
+                            .await;
+                    });
+                    continue;
+                }
+
+                // Chunk path.
+                let mut de = serde_json::Deserializer::from_str(&text);
+                match serde_path_to_error::deserialize::<_, Chunk>(&mut de) {
+                    Ok(chunk) => {
+                        if chunk_tx.unbounded_send(Ok(chunk)).is_err() {
+                            break;
+                        }
+                    }
+                    Err(e) => {
+                        // Try to parse as a ResponseError before
+                        // surfacing the deserialization failure.
+                        let err = match serde_json::from_str::<error::ResponseError>(&text) {
+                            Ok(api_err) => super::HttpError::ApiError(api_err),
+                            Err(_) => super::HttpError::DeserializationError(e),
+                        };
+                        let _ = chunk_tx.unbounded_send(Err(err));
+                        break;
+                    }
+                }
+            }
+            // Make sure any awaiting Notifier futures unblock when
+            // we exit — dropping the dashmap fires every oneshot
+            // Sender's drop, which causes the rx side to error.
+            drop(demux_pending);
+            drop(chunk_tx);
+        });
+
+        let notifier = super::Notifier::new(sink, pending);
+        Ok((chunk_rx, notifier))
     }
 }

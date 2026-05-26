@@ -9,6 +9,10 @@ import (
 
 // A validated Claude Agent SDK Agent with its computed content-addressed ID.
 type AgentClaudeAgentSdkAgent struct {
+	// Client-side ObjectiveAI MCP surface the calling client is
+	// expected to expose locally back to the API (objectiveai
+	// built-in, plus specific plugins / tools by owner+name+version).
+	ClientObjectiveaiMCP *AgentClientObjectiveaiMcp `json:"client_objectiveai_mcp,omitempty"`
 	// The effort level for model output.
 	Effort *AgentClaudeAgentSdkEffort `json:"effort,omitempty"`
 	// The deterministic content-addressed ID (22-character base62 string).

@@ -52,6 +52,10 @@
       "description": "Plugin author opts in to mobile viewer support by setting\nthis. Mobile viewer builds only surface plugins with this\nflag true — mobile has no local backend binary, so plugin\nUIs that require a backend will misbehave unless their\nauthors specifically design for \"no-backend\" mode. Defaults\nto false (desktop-only).",
       "type": "boolean"
     },
+    "owner": {
+      "description": "GitHub `<owner>` segment of the source repo. Authors write\ntheir canonical owner here; the installer overwrites this\nfield with whatever owner it was actually installed from (so\nforks land on disk with the fork's owner, not the upstream's).",
+      "type": "string"
+    },
     "version": {
       "description": "Version string. Semver convention is recommended but not\nenforced — the host just displays whatever's here.",
       "type": "string"

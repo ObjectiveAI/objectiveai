@@ -165,3 +165,46 @@ impl Handle {
         }
     }
 }
+
+/// Reverse of [`Handle::emit`]'s `agent_id` stamping: walks each
+/// newline-delimited line in `text`, tries to parse it as a JSON
+/// object, and removes the top-level `"agent_id"` key. Lines that
+/// aren't valid JSON pass through unchanged. Preserves the trailing
+/// newline if the original had one (the emit envelope always ends
+/// with `\n`, so matching that keeps re-stripped bodies stable).
+///
+/// Used by test-mode response collectors (e.g. the MCP server's
+/// `TEST_MODE` strip) and snapshot normalizers to keep the racy
+/// `agent_id` counter out of test artefacts. **Never use this on
+/// production wire output** — callers depend on the agent_id stamp
+/// for cross-process correlation.
+pub fn strip_agent_id_lines(text: &str) -> String {
+    let mut out: String = text
+        .lines()
+        .map(|line| {
+            // Only rewrite lines that parse as a JSON *object* AND
+            // actually contain an `agent_id` top-level key. Other
+            // JSON-valid lines (strings, numbers, arrays, or
+            // objects without agent_id) pass through verbatim —
+            // otherwise we'd re-serialize an indented JSON-string
+            // line like `    "object"` (a schema's enum value) as
+            // `"object"`, destroying the surrounding pretty-printed
+            // indentation that downstream consumers depend on.
+            let Ok(serde_json::Value::Object(mut obj)) =
+                serde_json::from_str::<serde_json::Value>(line)
+            else {
+                return line.to_string();
+            };
+            if obj.remove("agent_id").is_none() {
+                return line.to_string();
+            }
+            serde_json::to_string(&serde_json::Value::Object(obj))
+                .unwrap_or_else(|_| line.to_string())
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    if text.ends_with('\n') {
+        out.push('\n');
+    }
+    out
+}

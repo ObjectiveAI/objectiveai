@@ -51,7 +51,7 @@ impl Commands {
             Commands::Get { args } => {
                 let (function_path, profile_path) = args.resolve(|| get_favorites(cli_config)).await?;
                 let handle = handle.clone();
-                crate::api::run(|http_client| async move {
+                crate::api::run(cli_config, |http_client| async move {
                     let (function, profile) = tokio::join!(
                         objectiveai_sdk::functions::get_function(&http_client, function_path),
                         objectiveai_sdk::functions::profiles::get_profile(&http_client, profile_path),
@@ -69,9 +69,10 @@ impl Commands {
                 match source {
                     crate::list::Source::Favorites => crate::list::pair_favorites(|| get_favorites(cli_config), handle).await,
                     crate::list::Source::Filesystem => Err(crate::error::Error::PairsSourceNotSupported("filesystem")),
-                    crate::list::Source::Objectiveai => crate::list::pair_single(|c| Box::pin(list_objectiveai(c)), handle).await,
+                    crate::list::Source::Objectiveai => crate::list::pair_single(cli_config, |c| Box::pin(list_objectiveai(c)), handle).await,
                     crate::list::Source::Mock => Err(crate::error::Error::PairsSourceNotSupported("mock")),
                     crate::list::Source::All => crate::list::pair_all(
+                        cli_config,
                         || get_favorites(cli_config),
                         |c| Box::pin(list_objectiveai(c)),
                         handle,

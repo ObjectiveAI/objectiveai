@@ -18,6 +18,12 @@ pub struct Manifest {
     /// enforced — the host just displays whatever's here.
     pub version: String,
 
+    /// GitHub `<owner>` segment of the source repo. Authors write
+    /// their canonical owner here; the installer overwrites this
+    /// field with whatever owner it was actually installed from (so
+    /// forks land on disk with the fork's owner, not the upstream's).
+    pub owner: String,
+
     /// Author or authors of the plugin. Free-form string.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
@@ -100,6 +106,12 @@ impl Manifest {
     /// [`Self::viewer_url`] — is set.
     pub fn has_viewer(&self) -> bool {
         self.viewer_zip.is_some() || self.viewer_url.is_some()
+    }
+
+    /// LLM-visible tool name. See
+    /// [`crate::agent::materialize_tool_name`].
+    pub fn tool_name(&self, name: &str) -> String {
+        crate::agent::materialize_tool_name(&self.owner, name, &self.version)
     }
 
     /// Validate fields that can't be enforced by serde alone:
@@ -284,4 +296,12 @@ pub struct ManifestWithNameAndSource {
     /// a URL, or a registry reference. Free-form string; the host
     /// just displays it.
     pub source: String,
+}
+
+impl ManifestWithNameAndSource {
+    /// LLM-visible tool name. See [`Manifest::tool_name`] — this
+    /// helper supplies the `name` field automatically.
+    pub fn tool_name(&self) -> String {
+        self.manifest.tool_name(&self.name)
+    }
 }

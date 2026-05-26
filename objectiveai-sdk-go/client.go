@@ -302,6 +302,8 @@ type Stream[T any] struct {
 func PostStreaming[T any](ctx context.Context, c *Client, path string, body any) (*Stream[T], error) {
 	extra := http.Header{}
 	extra.Set("Accept", "text/event-stream")
+	// API defaults to WS for streaming endpoints; opt into SSE.
+	extra.Set("X-Transport", "sse")
 
 	resp, err := c.doRequest(ctx, "POST", path, body, extra)
 	if err != nil {

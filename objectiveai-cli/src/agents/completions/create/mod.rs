@@ -96,9 +96,9 @@ impl Commands {
         let log_writer = fs_client.write_agent_completion();
 
         let handle = handle.clone();
-        crate::api::run(Box::new(|http_client| Box::pin(async move {
-            let stream = objectiveai_sdk::agent::completions::create_agent_completion_streaming(
-                &http_client, params,
+        crate::api::run_with_conduit(cli_config, Box::new(|http_client, conduit| Box::pin(async move {
+            let (stream, _notifier) = objectiveai_sdk::agent::completions::create_agent_completion_streaming(
+                &http_client, params, conduit,
             ).await?;
 
             let mut accumulated = crate::log_stream::consume_with_coalesced_writes(

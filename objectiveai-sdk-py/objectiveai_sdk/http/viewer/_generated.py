@@ -8,5 +8,5 @@ from .function_invention_recursive_create_params import FunctionInventionRecursi
 from .function_invention_recursive_request import FunctionInventionRecursiveRequest, FunctionInventionRecursiveRequestBegin, FunctionInventionRecursiveRequestContinue, FunctionInventionRecursiveRequestError  # noqa: F401
 from .laboratory_execution_create_params import LaboratoryExecutionCreateParams  # noqa: F401
 from .laboratory_execution_request import LaboratoryExecutionRequest, LaboratoryExecutionRequestBegin, LaboratoryExecutionRequestContinue, LaboratoryExecutionRequestError  # noqa: F401
-from .request import Request, RequestAgentCompletion, RequestFunctionExecution, RequestFunctionInventionRecursive, RequestLaboratoryExecution  # noqa: F401
+from .request import Request, RequestAgentCompletion, RequestAgentsFavoritesChanged, RequestFunctionExecution, RequestFunctionInventionRecursive, RequestLaboratoryExecution  # noqa: F401
 from .response_error import ResponseError  # noqa: F401

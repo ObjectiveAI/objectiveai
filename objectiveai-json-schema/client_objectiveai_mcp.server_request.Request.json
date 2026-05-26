@@ -1,0 +1,27 @@
+{
+  "title": "client_objectiveai_mcp.server_request.Request",
+  "description": "One HTTP request the proxy made against the API's\n`/objectiveai-mcp/{session_id}` route, forwarded verbatim down\nthe reverse-attach WS to the calling client. The client returns\na matching [`super::super::server_response::Response`] echoing\nthe request `id`.\n\nWire shape:\n\n```json\n{\"id\":\"…\",\"method\":\"POST\",\"headers\":{\"Mcp-Session-Id\":\"…\"},\"body\":{…}}\n```",
+  "type": "object",
+  "properties": {
+    "body": {
+      "description": "Request body. `None` for `GET` and `DELETE`. For `POST`,\nthis is the JSON-RPC envelope the proxy sent.",
+      "omitempty": true
+    },
+    "headers": {
+      "description": "Verbatim copy of the headers the proxy sent on its HTTP\nrequest to the API. The handler stamps these on its own\nrequest to the local objectiveai-mcp, with `Accept` always\nforced to `application/json` so no SSE flows on the handler\nleg.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "omitempty": true
+    },
+    "id": {
+      "description": "Server-minted correlation id. Echoed by the matching\n[`super::super::server_response::Response`].",
+      "type": "string"
+    },
+    "method": {
+      "description": "HTTP method (`POST`, `GET`, `DELETE`).",
+      "type": "string"
+    }
+  }
+}

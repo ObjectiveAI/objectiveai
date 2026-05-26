@@ -15,6 +15,10 @@ type FunctionsExecutionsResponseUnaryReasoningSummary struct {
 	Error *ErrorResponseError `json:"error"`
 	ID string `json:"id"`
 	Messages []AgentCompletionsResponseUnaryMessage `json:"messages"`
+	// `true` when the MCP proxy holds queued messages that were not
+	// delivered to the agent via a tool response on this turn. See
+	// [`super::streaming::AgentCompletionChunk::messages_queued`].
+	MessagesQueued *bool `json:"messages_queued,omitempty"`
 	// The object type (always "agent.completion").
 	Object AgentCompletionsResponseUnaryObject `json:"object"`
 	// Upstream provider

@@ -1,0 +1,12 @@
+---
+source: objectiveai-cli/tests/tool_dispatch_e2e.rs
+expression: summary
+---
+{
+  "exit_code": 0,
+  "stdout": [
+    "hello, world",
+    "hi again"
+  ],
+  "stderr": []
+}

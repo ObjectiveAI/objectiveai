@@ -1,0 +1,19 @@
+{
+  "description": "JsonSchema agent declaring 10 tools via client_objectiveai_mcp. No plugins; `objectiveai` field omitted. Used by the `twenty-agents-json-schema-10x-tools` mock swarm for the CLI vector-completion snapshot test that exercises content-hash inclusion of client_objectiveai_mcp.tools at scale with single-pass JsonSchema vote extraction.",
+  "upstream": "mock",
+  "output_mode": "json_schema",
+  "client_objectiveai_mcp": {
+    "tools": [
+      {"owner": "testorg", "name": "tool0", "version": "1.0.0"},
+      {"owner": "testorg", "name": "tool1", "version": "1.0.0"},
+      {"owner": "testorg", "name": "tool2", "version": "1.0.0"},
+      {"owner": "testorg", "name": "tool3", "version": "1.0.0"},
+      {"owner": "testorg", "name": "tool4", "version": "1.0.0"},
+      {"owner": "testorg", "name": "tool5", "version": "1.0.0"},
+      {"owner": "testorg", "name": "tool6", "version": "1.0.0"},
+      {"owner": "testorg", "name": "tool7", "version": "1.0.0"},
+      {"owner": "testorg", "name": "tool8", "version": "1.0.0"},
+      {"owner": "testorg", "name": "tool9", "version": "1.0.0"}
+    ]
+  }
+}

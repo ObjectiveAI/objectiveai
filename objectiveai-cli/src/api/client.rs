@@ -1,10 +1,13 @@
 //! Builds the SDK `HttpClient` for endpoint subcommands.
 //!
-//! Precedence for every field is `env var → config file → SDK default`.
-//! The cli disabled the SDK's `env` feature, so this module re-implements
-//! the env-var lookup itself and chains it with the on-disk `ApiConfig`
-//! / `ViewerConfig` before handing the resolved values to
-//! `objectiveai_sdk::HttpClient::new`.
+//! Precedence for every field is `env var → config file → SDK default`,
+//! except `agent_id` which is sourced from the top-level `cli::Config`
+//! (already env-populated by `EnvConfigBuilder` at startup) so per-
+//! request overrides — e.g. the MCP server's per-call header stamp —
+//! flow through to outbound HTTP. The cli disabled the SDK's `env`
+//! feature, so this module re-implements the env-var lookup itself and
+//! chains it with the on-disk `ApiConfig` / `ViewerConfig` before
+//! handing the resolved values to `objectiveai_sdk::HttpClient::new`.
 
 /// Compose `(addr, port)` into a base URL, ensuring an explicit scheme.
 ///
@@ -32,6 +35,7 @@ fn env(name: &str) -> Option<String> {
 }
 
 pub fn build_http_client(
+    cli_config: &crate::Config,
     config: &mut objectiveai_sdk::filesystem::config::Config,
 ) -> objectiveai_sdk::HttpClient {
     let address = env("OBJECTIVEAI_ADDRESS").or_else(|| {
@@ -81,7 +85,15 @@ pub fn build_http_client(
     let x_commit_author_email = env("COMMIT_AUTHOR_EMAIL")
         .or_else(|| config.api().get_commit_author_email().map(String::from));
 
-    let agent_id = env("OBJECTIVEAI_AGENT_ID");
+    // Source from the top-level cli::Config rather than re-reading the
+    // env: `EnvConfigBuilder` already loads OBJECTIVEAI_AGENT_ID into
+    // cli_config.agent_id at startup, and per-request overrides
+    // (notably the MCP server's per-call X-OBJECTIVEAI-AGENT-ID stamp
+    // in objectiveai-mcp/src/objectiveai.rs::run_cli_and_collect) mutate
+    // this clone of cli_config — reading from env here would silently
+    // drop those overrides and truncate the agent lineage at every
+    // MCP-spawn boundary.
+    let agent_id = cli_config.agent_id.clone();
 
     objectiveai_sdk::HttpClient::new(
         reqwest::Client::new(),

@@ -45,6 +45,12 @@ pub mod viewer;
 pub mod laboratories;
 /// Server runner
 mod run;
+/// WebSocket transport helpers for the streaming endpoints.
+mod streaming_ws;
+/// WebSocket variants of the 8 streaming endpoint handlers.
+mod streaming_ws_handlers;
+/// Streamable-HTTP MCP endpoint backed by reverse WS forwarding.
+mod objectiveai_mcp_endpoint;
 
 pub use run::*;
 

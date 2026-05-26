@@ -4,10 +4,12 @@ import { z } from "zod";
 import { AgentClaudeAgentSdkEffortSchema } from "./effort";
 import { AgentClaudeAgentSdkOutputModeSchema } from "./outputMode";
 import { AgentClaudeAgentSdkUpstreamSchema } from "./upstream";
+import { AgentClientObjectiveaiMcpSchema } from "../clientObjectiveaiMcp";
 import { AgentCompletionsMessageRichContentSchema } from "../completions/message/richContent";
 import { AgentMcpServerSchema } from "../mcpServer";
 
 export const AgentClaudeAgentSdkAgentSchema = z.object({
+  client_objectiveai_mcp: AgentClientObjectiveaiMcpSchema.nullable().describe("Client-side ObjectiveAI MCP surface the calling client is\nexpected to expose locally back to the API (objectiveai\nbuilt-in, plus specific plugins / tools by owner+name+version).").meta({ omitempty: true }).optional(),
   effort: AgentClaudeAgentSdkEffortSchema.nullable().describe("The effort level for model output.").meta({ omitempty: true }).optional(),
   id: z.string().describe("The deterministic content-addressed ID (22-character base62 string)."),
   mcp_servers: z.array(AgentMcpServerSchema).nullable().describe("MCP servers the agent can connect to.").meta({ omitempty: true }).optional(),
