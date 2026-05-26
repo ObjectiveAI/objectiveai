@@ -1,0 +1,10 @@
+/* Map @objectiveai/function-tree CSS variables to copper spectrum */
+.ft-container {
+  --ft-bg: var(--ground-surface);
+  --ft-text: var(--info-bright);
+  --ft-text-secondary: var(--info-dim);
+  --ft-accent: var(--copper-mid);
+  --ft-border: var(--node-border);
+  --ft-node-bg: var(--ground-raised);
+  --ft-panel-bg: var(--ground-raised);
+}
