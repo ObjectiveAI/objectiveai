@@ -17,7 +17,10 @@ members = [
     "objectiveai-cli/test-fixtures/hello-tool",
     "objectiveai-cli/test-fixtures/error-tool",
     "objectiveai-cli/test-fixtures/echo-arglen",
+    "objectiveai-cli/test-fixtures/count-tool",
+    "objectiveai-cli/test-fixtures/test-mcp-plugin",
     "objectiveai-viewer/src-tauri",
+    "objectiveai-tests",
 ]
 
 [workspace.metadata.tools]

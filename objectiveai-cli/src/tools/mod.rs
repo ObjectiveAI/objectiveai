@@ -76,7 +76,7 @@ async fn get(
         cli_config.commit_author_email.as_deref(),
     );
     let tool = fs_client.get_tool(name).await;
-    Output::<Tool>::Notification(Notification { agent_id: None, value: Tool { tool } })
+    Output::Notification(Notification { agent_id: None, value: (Tool { tool }).into() })
         .emit(handle)
         .await;
     Ok(())
@@ -94,7 +94,7 @@ async fn list(
         cli_config.commit_author_email.as_deref(),
     );
     let tools = fs_client.list_tools(offset, limit).await;
-    Output::<Tools>::Notification(Notification { agent_id: None, value: Tools { tools } })
+    Output::Notification(Notification { agent_id: None, value: (Tools { tools }).into() })
         .emit(handle)
         .await;
     Ok(())
@@ -126,11 +126,27 @@ pub async fn dispatch_tool(
         None => return Err(crate::error::Error::ToolNotFound(name)),
     };
 
-    let mut child = tokio::process::Command::new(&exe)
-        .args(&rest)
+    let mut cmd = tokio::process::Command::new(&exe);
+    cmd.args(&rest)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+    // Forward the per-invocation lineage and MCP session to the tool
+    // subprocess. Tools that key per-session state (e.g. count files,
+    // caches) read these from env; tools that don't need them ignore
+    // them. Inherit-everything-else stays; we only add to the env.
+    cmd.env("OBJECTIVEAI_AGENT_ID", &cli_config.agent_id);
+    if let Some(session_id) = cli_config.mcp_session_id.as_deref() {
+        cmd.env(
+            objectiveai_sdk::mcp::MCP_SESSION_ID_ENV,
+            session_id,
+        );
+    }
+    if cli_config.mcp {
+        cmd.env(objectiveai_sdk::mcp::OBJECTIVEAI_MCP_ENV, "true");
+    }
+
+    let mut child = cmd
         .spawn()
         .map_err(crate::error::Error::ToolSpawn)?;
 
@@ -188,9 +204,9 @@ where
                         stderr: Some(true),
                     },
                 };
-                Output::<ToolLine>::Notification(Notification {
+                Output::Notification(Notification {
                     agent_id: None,
-                    value,
+                    value: value.into(),
                 })
                 .emit(handle)
                 .await;

@@ -41,3 +41,13 @@ fn command_wire_shape() {
     assert_eq!(v["type"], "command");
     assert_eq!(v["command"], "ping");
 }
+
+#[test]
+fn mcp_wire_shape() {
+    let out = PluginOutput::Mcp(Mcp {
+        url: "https://example.com/mcp".into(),
+    });
+    let v = roundtrip(&out);
+    assert_eq!(v["type"], "mcp");
+    assert_eq!(v["url"], "https://example.com/mcp");
+}

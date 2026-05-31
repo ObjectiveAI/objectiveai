@@ -10,6 +10,22 @@ use starlark::values::dict::DictRef as StarlarkDictRef;
 use starlark::values::{UnpackValue, Value as StarlarkValue};
 use schemars::JsonSchema;
 
+/// Vendor-extension metadata attached to a tool response. The
+/// `objectiveai-mcp-proxy` populates known keys (currently
+/// `notifications`); the SDK lossy-decodes the MCP `_meta` bag into
+/// this typed shape. Unknown keys are dropped.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[schemars(rename = "agent.completions.message.ToolResponseMetadata")]
+pub struct ToolResponseMetadata {
+    /// Count of pending notifications the proxy drained and prepended
+    /// to the tool response's `content` before returning. Only set
+    /// when at least one notification was drained.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    #[arbitrary(with = crate::arbitrary_util::arbitrary_option_u64)]
+    pub notifications: Option<u64>,
+}
+
 /// A tool message containing the result of a tool call.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
 #[schemars(rename = "agent.completions.message.ToolMessage")]
@@ -18,12 +34,40 @@ pub struct ToolMessage {
     pub content: RichContent,
     /// The ID of the tool call this message responds to.
     pub tool_call_id: String,
+    /// Optional vendor-extension metadata, populated by
+    /// `objectiveai-mcp-proxy` via MCP's `_meta` extension bag.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub metadata: Option<ToolResponseMetadata>,
 }
 
 impl ToolMessage {
     /// Prepares the message by normalizing its content.
     pub fn prepare(&mut self) {
         self.content.prepare();
+    }
+
+    /// Extract this message's content into per-leaf log files,
+    /// returning a [`super::ToolMessageLog`] (with
+    /// [`super::RichContentLog`] in place of `content`) plus the
+    /// [`crate::filesystem::logs::LogFile`]s the caller writes.
+    /// `tool_call_id` + `metadata` stay inline.
+    #[cfg(feature = "filesystem")]
+    pub fn extract(
+        self,
+        route_base: &str,
+        id: &str,
+        message_index: u64,
+    ) -> (super::ToolMessageLog, Vec<crate::filesystem::logs::LogFile>) {
+        let (content, files) = self.content.extract_media(&format!("{route_base}/messages"), id, message_index);
+        (
+            super::ToolMessageLog {
+                content,
+                tool_call_id: self.tool_call_id,
+                metadata: self.metadata,
+            },
+            files,
+        )
     }
 }
 
@@ -72,6 +116,7 @@ impl FromStarlarkValue for ToolMessage {
                     "ToolMessage: missing tool_call_id".into(),
                 )
             })?,
+            metadata: None,
         })
     }
 }
@@ -97,6 +142,7 @@ impl ToolMessageExpression {
         Ok(ToolMessage {
             content,
             tool_call_id,
+            metadata: None,
         })
     }
 }

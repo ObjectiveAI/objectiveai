@@ -1,0 +1,11 @@
+{
+  "title": "cli.output.notification.agents.MessageDelivered",
+  "description": "Live-delivery success.\n\nWire: `{\"type\":\"notification\",\"value\":{\"kind\":\"message_delivered\",\"agent_id\":\"<id>\"}}`.",
+  "type": "object",
+  "properties": {
+    "agent_id": {
+      "description": "Full lineage agent_id the message was delivered to.",
+      "type": "string"
+    }
+  }
+}

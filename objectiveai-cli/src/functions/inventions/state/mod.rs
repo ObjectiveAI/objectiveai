@@ -22,8 +22,7 @@ impl Commands {
                 let handle = handle.clone();
                 crate::api::run(cli_config, |http_client| async move {
                     let response = objectiveai_sdk::functions::inventions::state::get_function_invention_state(&http_client, path).await?;
-                    objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::State>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: 
-                        objectiveai_sdk::cli::output::State { state: response },
+                    objectiveai_sdk::cli::output::Output::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: (objectiveai_sdk::cli::output::State { state: response }).into(),
                      })
                     .emit(&handle).await;
                     Ok(())

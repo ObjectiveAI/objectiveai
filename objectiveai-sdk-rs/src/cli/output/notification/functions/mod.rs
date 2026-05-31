@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 /// Result of `functions get`.
 ///
 /// Wire: `{"type":"notification","function":{...GetFunctionResponse...}}`.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[schemars(rename = "cli.output.notification.functions.Function")]
 pub struct Function {
     pub function: crate::functions::response::GetFunctionResponse,

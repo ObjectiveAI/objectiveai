@@ -41,6 +41,21 @@ impl DeveloperMessage {
             self.name = None;
         }
     }
+
+    /// Extract this message's content into per-leaf log files,
+    /// returning a [`super::DeveloperMessageLog`] (with
+    /// [`super::SimpleContentLog`] in place of `content`) plus the
+    /// [`crate::filesystem::logs::LogFile`]s the caller writes.
+    #[cfg(feature = "filesystem")]
+    pub fn extract(
+        self,
+        route_base: &str,
+        id: &str,
+        message_index: u64,
+    ) -> (super::DeveloperMessageLog, Vec<crate::filesystem::logs::LogFile>) {
+        let (content, files) = self.content.extract_media(&format!("{route_base}/messages"), id, message_index);
+        (super::DeveloperMessageLog { content, name: self.name }, files)
+    }
 }
 
 impl FromStarlarkValue for DeveloperMessage {

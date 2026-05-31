@@ -1,0 +1,17 @@
+{
+  "title": "filesystem.logs.queue.Content",
+  "description": "Either a single file (one text part or one media part) or a\nlist of files (multi-part content). Untagged: distinguishable on\nthe wire because [`Id`] is an integer and `Vec<Id>` is an array.",
+  "anyOf": [
+    {
+      "title": "One",
+      "$ref": "filesystem.logs.queue.Id"
+    },
+    {
+      "title": "Many",
+      "type": "array",
+      "items": {
+        "$ref": "filesystem.logs.queue.Id"
+      }
+    }
+  ]
+}

@@ -8,12 +8,10 @@ use crate::functions;
 use crate::viewer;
 use crate::mcp;
 use crate::schemas;
-use crate::laboratories;
 use crate::logs;
 use crate::plugins;
 use crate::tools;
 use crate::vector;
-use crate::instructions;
 use crate::error;
 
 #[derive(Envconfig)]
@@ -34,6 +32,18 @@ struct EnvConfigBuilder {
     github_authorization: Option<String>,
     #[envconfig(from = "OBJECTIVEAI_AGENT_ID")]
     agent_id: Option<String>,
+    /// MCP session id, propagated by `objectiveai-mcp` when it
+    /// invokes this cli to run a tool, and by the cli further
+    /// into every tool subprocess it spawns. Same string as the
+    /// `Mcp-Session-Id` HTTP header.
+    #[envconfig(from = "MCP_SESSION_ID")]
+    mcp_session_id: Option<String>,
+    /// Boolean marker set by `objectiveai-mcp` at startup. When true,
+    /// every plugin / tool subprocess this cli spawns also gets the
+    /// flag in its env so descendants can tell they're under MCP.
+    /// Constant: `objectiveai_sdk::mcp::OBJECTIVEAI_MCP_ENV`.
+    #[envconfig(from = "OBJECTIVEAI_MCP")]
+    mcp: Option<String>,
 }
 
 impl EnvConfigBuilder {
@@ -49,6 +59,8 @@ impl EnvConfigBuilder {
             commit_author_email: self.commit_author_email,
             github_authorization: self.github_authorization,
             agent_id: self.agent_id,
+            mcp_session_id: self.mcp_session_id,
+            mcp: self.mcp.map(|s| parse_bool(&s)),
         }
     }
 }
@@ -61,6 +73,8 @@ pub struct ConfigBuilder {
     pub commit_author_email: Option<String>,
     pub github_authorization: Option<String>,
     pub agent_id: Option<String>,
+    pub mcp_session_id: Option<String>,
+    pub mcp: Option<bool>,
 }
 
 impl Envconfig for ConfigBuilder {
@@ -86,7 +100,9 @@ impl ConfigBuilder {
             commit_author_name: self.commit_author_name,
             commit_author_email: self.commit_author_email,
             github_authorization: self.github_authorization,
-            agent_id: self.agent_id,
+            agent_id: self.agent_id.unwrap_or_else(|| "cli".to_string()),
+            mcp_session_id: self.mcp_session_id,
+            mcp: self.mcp.unwrap_or(false),
         }
     }
 }
@@ -98,7 +114,15 @@ pub struct Config {
     pub commit_author_name: Option<String>,
     pub commit_author_email: Option<String>,
     pub github_authorization: Option<String>,
-    pub agent_id: Option<String>,
+    /// Always populated. Defaults to `"cli"` for direct CLI invocations
+    /// (the `ConfigBuilder` fills it in if `OBJECTIVEAI_AGENT_ID` is
+    /// unset). Programmatic embedders that build a `Config` directly
+    /// (e.g. `objectiveai-mcp`) supply their own default — `"mcp"`
+    /// for MCP-routed calls, then per-request overridden from the
+    /// `X-OBJECTIVEAI-AGENT-ID` header.
+    pub agent_id: String,
+    pub mcp_session_id: Option<String>,
+    pub mcp: bool,
 }
 
 #[derive(Parser)]
@@ -150,11 +174,6 @@ enum Commands {
         #[command(subcommand)]
         command: schemas::Commands,
     },
-    /// Laboratories management
-    Laboratories {
-        #[command(subcommand)]
-        command: laboratories::Commands,
-    },
     /// Vector completions
     Vector {
         #[command(subcommand)]
@@ -164,11 +183,6 @@ enum Commands {
     Logs {
         #[command(subcommand)]
         command: logs::Commands,
-    },
-    /// Manage Instructions IDs across all streaming `create` scopes
-    Instructions {
-        #[command(subcommand)]
-        command: instructions::Commands,
     },
     /// Plugins management
     Plugins {
@@ -206,10 +220,8 @@ impl Commands {
             Commands::Viewer { command } => command.handle(cli_config, handle).await,
             Commands::Mcp { command } => command.handle(cli_config, handle).await,
             Commands::Schemas { command } => command.handle(handle).await,
-            Commands::Laboratories { command } => command.handle(cli_config, handle).await,
             Commands::Vector { command } => command.handle(cli_config, handle).await,
             Commands::Logs { command } => command.handle(cli_config, handle).await,
-            Commands::Instructions { command } => command.handle(cli_config, handle).await,
             Commands::Plugins { command } => command.handle(cli_config, handle).await,
             Commands::Tools { command } => command.handle(cli_config, handle).await,
             Commands::Update => crate::updater::run_update(cli_config, handle).await,
@@ -251,8 +263,6 @@ where
 {
     use objectiveai_sdk::cli::output::{Error as OutputError, Level, Notification, Output};
 
-    Output::<serde_json::Value>::Begin.emit(&handle).await;
-
     let code = match Cli::try_parse_from(args) {
         Ok(cli) => match cli.command.handle(cli_config, &handle).await {
             Ok(()) => 0,
@@ -262,7 +272,7 @@ where
                     _ => 1,
                 };
                 let err = e.to_output(Level::Error, true);
-                Output::<serde_json::Value>::Error(err).emit(&handle).await;
+                Output::Error(err).emit(&handle).await;
                 exit_code
             }
         },
@@ -276,8 +286,8 @@ where
             // stderr-mirror double-print (handle.rs emits fatal errors
             // to both stdout AND stderr so they survive stdout
             // capture), which is wrong for help output.
-            Output::<String>::Notification(Notification { agent_id: None,
-                value: e.to_string(),
+            Output::Notification(Notification { agent_id: None,
+                value: objectiveai_sdk::cli::output::Help { help: e.to_string() }.into(),
             })
             .emit(&handle)
             .await;
@@ -290,12 +300,11 @@ where
                 message: e.to_string().into(),
                 agent_id: None,
             };
-            Output::<serde_json::Value>::Error(err).emit(&handle).await;
+            Output::Error(err).emit(&handle).await;
             1
         }
     };
 
-    Output::<serde_json::Value>::End.emit(&handle).await;
     code
 }
 

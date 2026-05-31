@@ -100,11 +100,11 @@ describe("invokeCli in iframe context", () => {
   afterEach(teardownIframeContext);
 
   it("posts a cli-invoke message to window.parent with the args", () => {
-    const iter = invokeCli(["agents", "completions", "create"])[Symbol.asyncIterator]();
+    const iter = invokeCli(["agents", "spawn"])[Symbol.asyncIterator]();
     // Trigger the postMessage path by entering the iterator.
     void iter.next();
     expect(ctx.parentMessages).toEqual([
-      { kind: "cli-invoke", args: ["agents", "completions", "create"] },
+      { kind: "cli-invoke", args: ["agents", "spawn"] },
     ]);
   });
 

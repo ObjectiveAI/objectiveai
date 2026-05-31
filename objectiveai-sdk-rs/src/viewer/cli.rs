@@ -24,10 +24,9 @@ use crate::cli::output::{Handle, HandleDestination};
 /// `events_tx.send` calls (receiver dropped) silently break the loop —
 /// same semantics as `Handle::Stdout` writing to a closed pipe.
 ///
-/// `value` is the cli's `Output<Value>` envelope as a
-/// `serde_json::Value` (`{"type": "begin"|"end"|"error"|"notification", ...}`).
-/// JSON encoding cannot fail for `Output<Value>`; the
-/// `unwrap_or(Value::Null)` is defensive only.
+/// `value` is the cli's `Output` envelope as a `serde_json::Value`
+/// (`{"type": "error"|"notification", ...}`). JSON encoding cannot
+/// fail for `Output`; the `unwrap_or(Value::Null)` is defensive only.
 pub fn cli_event_sink(events_tx: EventSender, destination: String) -> Handle {
     let (tx, mut rx) = mpsc::unbounded_channel();
     let handle = Handle::from(HandleDestination::Stream(tx));
@@ -51,21 +50,25 @@ pub fn cli_event_sink(events_tx: EventSender, destination: String) -> Handle {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cli::output::Output;
-    use serde_json::json;
+    use crate::cli::output::{Notification, NotificationValue, Ok, Output, OK};
 
     #[tokio::test]
     async fn forwards_each_output_as_cli_command_event() {
         let (events_tx, mut events_rx) = mpsc::unbounded_channel();
         let handle = cli_event_sink(events_tx, "my_plugin".to_string());
 
-        Output::<serde_json::Value>::Begin.emit(&handle).await;
-        Output::<serde_json::Value>::Notification(crate::cli::output::Notification { agent_id: None,
-            value: json!({"x": 1}),
+        Output::Notification(Notification {
+            agent_id: None,
+            value: NotificationValue::Ok(OK),
         })
         .emit(&handle)
         .await;
-        Output::<serde_json::Value>::End.emit(&handle).await;
+        Output::Notification(Notification {
+            agent_id: None,
+            value: NotificationValue::Ok(Ok { ok: false }),
+        })
+        .emit(&handle)
+        .await;
 
         // Drop the handle so the forwarder loop exits cleanly.
         drop(handle);
@@ -75,7 +78,7 @@ mod tests {
             received.push(event);
         }
 
-        assert_eq!(received.len(), 3);
+        assert_eq!(received.len(), 2);
         for event in &received {
             match event {
                 Event::CliCommand { destination, .. } => {
@@ -85,22 +88,18 @@ mod tests {
             }
         }
 
-        // Check the wire shape of each forwarded value.
         let Event::CliCommand { value: v0, .. } = &received[0] else {
             unreachable!()
         };
-        assert_eq!(v0["type"], "begin");
+        assert_eq!(v0["type"], "notification");
+        assert_eq!(v0["value"]["kind"], "ok");
+        assert_eq!(v0["value"]["ok"], true);
 
         let Event::CliCommand { value: v1, .. } = &received[1] else {
             unreachable!()
         };
         assert_eq!(v1["type"], "notification");
-        assert_eq!(v1["value"], json!({"x": 1}));
-
-        let Event::CliCommand { value: v2, .. } = &received[2] else {
-            unreachable!()
-        };
-        assert_eq!(v2["type"], "end");
+        assert_eq!(v1["value"]["ok"], false);
     }
 
     #[tokio::test]
@@ -112,7 +111,12 @@ mod tests {
         drop(events_rx);
 
         // Push one output to trigger a send attempt; the forwarder breaks out.
-        Output::<serde_json::Value>::End.emit(&handle).await;
+        Output::Notification(Notification {
+            agent_id: None,
+            value: NotificationValue::Ok(OK),
+        })
+        .emit(&handle)
+        .await;
         // Dropping the handle would also close the loop, but we want to
         // exercise the send-error path. Give the spawned task a tick.
         tokio::task::yield_now().await;

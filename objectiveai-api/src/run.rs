@@ -711,9 +711,15 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
     // handlers populate this on upgrade; the MCP endpoint route reads
     // it when a proxy upstream dials in for a session.
     let reverse_channels = streaming_ws::new_reverse_channel_registry();
+    // SSE listener registry: per-(ws_session_id, mcp_session_id)
+    // broadcast feeding the MCP GET notifications stream. The conduit
+    // WS recv loop publishes here when the CLI pushes `McpListChanged`;
+    // the GET handler subscribes from here.
+    let mcp_listeners = crate::objectiveai_mcp::McpListenerRegistry::new();
     let reverse_attach = streaming_ws::ReverseAttachConfig {
         registry: reverse_channels.clone(),
         api_port: port,
+        mcp_listeners: mcp_listeners.clone(),
     };
 
     // Vector Completions Client
@@ -1503,31 +1509,16 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 }
             }),
         )
-        // ObjectiveAI-MCP endpoint (reverse-attach Streamable HTTP).
-        // Pure HTTP-to-WS bridge: every method (POST/GET/DELETE) is
-        // forwarded verbatim to the calling client's McpHandler.
-        .route(
-            "/objectiveai-mcp/{session_id}",
-            axum::routing::any({
-                let reverse_channels = reverse_channels.clone();
-                move |axum::extract::Path(session_id): axum::extract::Path<String>,
-                      method: axum::http::Method,
-                      headers: axum::http::HeaderMap,
-                      body: axum::body::Bytes| {
-                    let reverse_channels = reverse_channels.clone();
-                    async move {
-                        crate::objectiveai_mcp_endpoint::handle_request(
-                            session_id,
-                            method,
-                            reverse_channels,
-                            headers,
-                            body,
-                        )
-                        .await
-                    }
-                }
-            }),
-        )
+        // ObjectiveAI-MCP server — Streamable HTTP MCP + the
+        // `/notify` extensions. Six routes total (POST/GET/DELETE
+        // on the root, POST/GET on `/notify`, GET on
+        // `/notify/queued`). Every leaf delegate is `todo!()` at
+        // the moment; dispatch + envelope framing is real. See
+        // `objectiveai_mcp::router`.
+        .merge(crate::objectiveai_mcp::router(
+            reverse_channels.clone(),
+            mcp_listeners.clone(),
+        ))
         // CORS
         .layer(
             tower_http::cors::CorsLayer::new()

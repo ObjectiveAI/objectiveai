@@ -1,0 +1,70 @@
+{
+  "title": "functions.executions.response.streaming.function_execution_task_log_reference.LogReference",
+  "type": "object",
+  "properties": {
+    "index": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "path": {
+      "type": "string",
+      "omitempty": true
+    },
+    "split_index": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "swiss_pool_index": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "swiss_round": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "task_index": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "task_path": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 18446744073709551615
+      }
+    },
+    "type": {
+      "$ref": "filesystem.logs.LogReferenceTag"
+    }
+  }
+}

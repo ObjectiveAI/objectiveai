@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
 
 /// Response from retrieving a function invention state.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "functions.inventions.state.GetFunctionInventionStateResponse")]
 pub struct GetFunctionInventionStateResponse {
     #[serde(flatten)]

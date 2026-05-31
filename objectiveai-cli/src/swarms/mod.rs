@@ -64,8 +64,7 @@ impl Commands {
                 let handle = handle.clone();
                 crate::api::run(cli_config, |http_client| async move {
                     let response = objectiveai_sdk::swarm::get_swarm(&http_client, path).await?;
-                    objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Swarm>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: 
-                        objectiveai_sdk::cli::output::Swarm { swarm: response },
+                    objectiveai_sdk::cli::output::Output::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: (objectiveai_sdk::cli::output::Swarm { swarm: response }).into(),
                      })
                     .emit(&handle).await;
                     Ok(())
@@ -100,8 +99,7 @@ impl Commands {
                 let sha = objectiveai_sdk::filesystem::publish::publish_swarm(
                     &fs_client, &repository, &swarm, &msg, overwrite,
                 ).await?;
-                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Published>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: 
-                    objectiveai_sdk::cli::output::Published { sha },
+                objectiveai_sdk::cli::output::Output::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: (objectiveai_sdk::cli::output::Published { sha }).into(),
                  })
                 .emit(handle).await;
                 Ok(())

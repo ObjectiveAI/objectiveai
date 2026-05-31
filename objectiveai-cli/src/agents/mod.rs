@@ -1,6 +1,10 @@
 pub mod completions;
 pub mod config;
 pub mod favorites;
+pub mod list_active;
+pub mod message;
+pub mod read;
+pub mod spawn;
 
 use clap::Subcommand;
 
@@ -44,6 +48,20 @@ pub enum Commands {
         #[arg(long)]
         overwrite: bool,
     },
+    /// Read queue items
+    Read {
+        #[command(subcommand)]
+        command: read::Commands,
+    },
+    /// List direct-child agents + the time of their most recent assistant response
+    ListActive(list_active::CommandArgs),
+    /// Deliver a message to a running spawned agent (or resume its most
+    /// recent completion via continuation if it's dormant)
+    Message(message::CommandArgs),
+    /// Spawn an agent completion (open a streaming run as a child of this caller)
+    Spawn(spawn::CommandArgs),
+    /// Return the configured self agent id
+    Me,
 }
 
 async fn get_favorites(cli_config: &crate::Config) -> Vec<objectiveai_sdk::filesystem::config::Favorite> {
@@ -70,8 +88,7 @@ impl Commands {
                 let handle = handle.clone();
                 crate::api::run(cli_config, |http_client| async move {
                     let response = objectiveai_sdk::agent::get_agent(&http_client, path).await?;
-                    objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Agent>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: 
-                        objectiveai_sdk::cli::output::Agent { agent: response },
+                    objectiveai_sdk::cli::output::Output::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: (objectiveai_sdk::cli::output::Agent { agent: response }).into(),
                      })
                     .emit(&handle).await;
                     Ok(())
@@ -96,6 +113,24 @@ impl Commands {
             Commands::Completions { command } => command.handle(cli_config, handle).await,
             Commands::Config { command } => command.handle(cli_config, handle).await,
             Commands::Favorites { command } => command.handle(cli_config, handle).await,
+            Commands::Read { command } => command.handle(cli_config, handle).await,
+            Commands::ListActive(args) => list_active::handle(args, cli_config, handle).await,
+            Commands::Message(args) => message::handle(args, cli_config, handle).await,
+            Commands::Spawn(args) => spawn::handle(args, cli_config, handle).await,
+            Commands::Me => {
+                objectiveai_sdk::cli::output::Output::Notification(
+                    objectiveai_sdk::cli::output::Notification {
+                        agent_id: None,
+                        value: objectiveai_sdk::cli::output::Me {
+                            agent_id: cli_config.agent_id.clone(),
+                        }
+                        .into(),
+                    },
+                )
+                .emit(handle)
+                .await;
+                Ok(())
+            }
             Commands::Publish { repository, body, message, overwrite } => {
                 let agent: objectiveai_sdk::agent::RemoteAgentBaseWithFallbacks = body.resolve()?;
                 let msg = message.resolve()?;
@@ -107,8 +142,7 @@ impl Commands {
                 let sha = objectiveai_sdk::filesystem::publish::publish_agent(
                     &fs_client, &repository, &agent, &msg, overwrite,
                 ).await?;
-                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Published>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: 
-                    objectiveai_sdk::cli::output::Published { sha },
+                objectiveai_sdk::cli::output::Output::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: (objectiveai_sdk::cli::output::Published { sha }).into(),
                  })
                 .emit(handle).await;
                 Ok(())

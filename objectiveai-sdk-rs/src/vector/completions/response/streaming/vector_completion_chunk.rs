@@ -48,6 +48,18 @@ impl AgentCompletionIds for VectorCompletionChunk {
 }
 
 impl VectorCompletionChunk {
+    /// Flat-maps inner agent-completion message rows. Lazy.
+    #[cfg(feature = "filesystem")]
+    pub fn produce_message_rows(
+        &self,
+    ) -> impl Iterator<Item = crate::filesystem::db::schema::MessageRow> + Send + '_ {
+        self.completions
+            .iter()
+            .flat_map(|c| c.produce_message_rows())
+    }
+}
+
+impl VectorCompletionChunk {
     /// Creates a default chunk with uniform scores for the given number of responses.
     pub fn default_from_request_responses_len(
         request_responses_len: usize,
@@ -152,9 +164,11 @@ impl VectorCompletionChunk {
     /// `{"type": "reference", "path": ...}` JSON value.
     /// All paths are relative to the `logs/` root directory.
     #[cfg(feature = "filesystem")]
-    pub fn produce_files(&self) -> Option<(serde_json::Value, Vec<crate::filesystem::logs::LogFile>)> {
-        use crate::filesystem::logs::LogFile;
-        const ROUTE: &str = "vector/completions";
+    pub fn produce_files(
+        &self,
+    ) -> Option<(crate::filesystem::logs::LogReference, Vec<crate::filesystem::logs::LogFile>)> {
+        use crate::filesystem::logs::{LogFile, LogReference};
+        const ROUTE: &str = "vector/completions/response";
 
         let id = &self.id;
         if id.is_empty() {
@@ -162,7 +176,8 @@ impl VectorCompletionChunk {
         }
 
         let mut files: Vec<LogFile> = Vec::new();
-        let mut completion_refs: Vec<serde_json::Value> = Vec::new();
+        let mut completion_refs:
+            Vec<crate::filesystem::logs::indexed_reference::LogReference> = Vec::new();
 
         for completion in &self.completions {
             let (reference, completion_files) = completion.produce_files();
@@ -170,10 +185,9 @@ impl VectorCompletionChunk {
             files.extend(completion_files);
         }
 
-        // Serialize a shell without completions to avoid double-serialization
-        let shell = VectorCompletionChunk {
+        let log = super::VectorCompletionChunkLog {
             id: self.id.clone(),
-            completions: Vec::new(),
+            completions: completion_refs,
             votes: self.votes.clone(),
             scores: self.scores.clone(),
             weights: self.weights.clone(),
@@ -182,8 +196,6 @@ impl VectorCompletionChunk {
             object: self.object,
             usage: self.usage.clone(),
         };
-        let mut root = serde_json::to_value(&shell).unwrap();
-        root["completions"] = serde_json::Value::Array(completion_refs);
 
         let root_file = LogFile {
             route: ROUTE.to_string(),
@@ -191,9 +203,9 @@ impl VectorCompletionChunk {
             message_index: None,
             media_index: None,
             extension: "json".to_string(),
-            content: serde_json::to_vec_pretty(&root).unwrap(),
+            content: serde_json::to_vec_pretty(&log).unwrap(),
         };
-        let reference = serde_json::json!({ "type": "reference", "path": root_file.path() });
+        let reference = LogReference::new(root_file.path());
         files.push(root_file);
 
         Some((reference, files))

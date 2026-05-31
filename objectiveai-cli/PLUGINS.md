@@ -114,10 +114,6 @@ Internally tagged on `"type"` (snake_case). Defined in [`objectiveai-sdk-rs/src/
 
 Unparseable lines (anything that isn't valid JSON or doesn't match a `PluginOutput` variant) are forwarded as string-valued notifications to the host's output — they still appear in the stream rather than being silently dropped.
 
-### Begin/End markers
-
-The host wraps its own output with `{"type":"begin"}` and `{"type":"end"}` lines. Plugins do **not** emit these — they're added by the host's outer `run()` function for every cli invocation.
-
 ### Smallest compliant plugin
 
 [`objectiveai-cli/test-fixtures/hello-plugin/`](test-fixtures/hello-plugin/) is the minimal example: a single `main.rs` that reads `argv[1]` and emits one `{"type":"notification","hello":"<arg>"}` line. Used by the cli's e2e dispatch test.

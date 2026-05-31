@@ -95,6 +95,7 @@ impl SDKUserMessage {
                         content_str,
                     ),
                     tool_call_id,
+                    metadata: None,
                 },
             },
         );

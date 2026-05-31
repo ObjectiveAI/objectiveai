@@ -61,6 +61,10 @@ pub struct HttpClient {
     pub x_commit_author_email: Option<Arc<String>>,
     /// Value for the `X-OBJECTIVEAI-AGENT-ID` header.
     pub agent_id: Option<Arc<String>>,
+    /// Value for the `Mcp-Session-Id` header — propagated through to
+    /// `objectiveai-mcp` so server-side tool invocations see a stable
+    /// per-session id. See `objectiveai_sdk::mcp::MCP_SESSION_ID_HEADER`.
+    pub mcp_session_id: Option<Arc<String>>,
 }
 
 impl HttpClient {
@@ -82,6 +86,7 @@ impl HttpClient {
     /// * `x_commit_author_name` - Optional X-COMMIT-AUTHOR-NAME header value
     /// * `x_commit_author_email` - Optional X-COMMIT-AUTHOR-EMAIL header value
     /// * `agent_id` - Optional X-OBJECTIVEAI-AGENT-ID header value
+    /// * `mcp_session_id` - Optional Mcp-Session-Id header value
     pub fn new(
         http_client: reqwest::Client,
         address: Option<impl Into<String>>,
@@ -97,6 +102,7 @@ impl HttpClient {
         x_commit_author_name: Option<impl Into<String>>,
         x_commit_author_email: Option<impl Into<String>>,
         agent_id: Option<impl Into<String>>,
+        mcp_session_id: Option<impl Into<String>>,
     ) -> Self {
         #[cfg(feature = "env")]
         let env = |name: &str| -> Option<String> { std::env::var(name).ok() };
@@ -135,6 +141,8 @@ impl HttpClient {
                 .or_else(|| { #[cfg(feature = "env")] { env("COMMIT_AUTHOR_EMAIL").map(Arc::new) } #[cfg(not(feature = "env"))] { None } }),
             agent_id: agent_id.map(|v| Arc::new(v.into()))
                 .or_else(|| { #[cfg(feature = "env")] { env("OBJECTIVEAI_AGENT_ID").map(Arc::new) } #[cfg(not(feature = "env"))] { None } }),
+            mcp_session_id: mcp_session_id.map(|v| Arc::new(v.into()))
+                .or_else(|| { #[cfg(feature = "env")] { env(crate::mcp::MCP_SESSION_ID_ENV).map(Arc::new) } #[cfg(not(feature = "env"))] { None } }),
         }
     }
 
@@ -191,6 +199,9 @@ impl HttpClient {
         }
         if let Some(id) = &self.agent_id {
             request = request.header("X-OBJECTIVEAI-AGENT-ID", id.as_str());
+        }
+        if let Some(s) = &self.mcp_session_id {
+            request = request.header(crate::mcp::MCP_SESSION_ID_HEADER, s.as_str());
         }
         if let Some(body) = body {
             request = request.json(&body);
@@ -514,6 +525,9 @@ impl HttpClient {
         if let Some(id) = &self.agent_id {
             req = req.header("X-OBJECTIVEAI-AGENT-ID", id.as_str());
         }
+        if let Some(s) = &self.mcp_session_id {
+            req = req.header(crate::mcp::MCP_SESSION_ID_HEADER, s.as_str());
+        }
         let req = req
             .body(())
             .map_err(|e| super::HttpError::WsConnect(tungstenite::Error::Http(
@@ -556,9 +570,7 @@ impl HttpClient {
             loop {
                 let msg = match rx_stream.next().await {
                     Some(m) => m,
-                    None => {
-                        break;
-                    }
+                    None => break,
                 };
                 let text = match msg {
                     Ok(tungstenite::Message::Text(t)) => {

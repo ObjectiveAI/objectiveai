@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 /// prior `"Logs ID: ..."` plaintext sentinel.
 ///
 /// Wire: `{"type":"notification","log_stream_ready":"<id>"}`.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[schemars(rename = "cli.output.notification.LogStreamReady")]
 pub struct LogStreamReady {
     pub log_stream_ready: String,

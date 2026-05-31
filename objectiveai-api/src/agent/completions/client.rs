@@ -12,8 +12,7 @@ pub type TransformMessages = HashMap<
 >;
 
 pub fn response_id(created: u64) -> String {
-    let uuid = uuid::Uuid::new_v4();
-    format!("agtcpl-{}-{created}", uuid.simple())
+    crate::util::response_id(None, created)
 }
 
 /// Per-response-id target set for `agent/completions/notify`. The
@@ -699,22 +698,21 @@ where
                 urls.extend(extra_mcp_servers.iter().map(|s| s.url.clone()));
 
                 // If the agent declares `client_objectiveai_mcp`,
-                // append a synthetic URL that points back at this
-                // very API process's `/objectiveai-mcp/{ws_session_id}`
-                // endpoint. The proxy will dial it; the API forwards
-                // each request over the WS reverse channel registered
-                // under that ws_session_id; the CLI conduit on the
-                // other side picks per-agent MCP connections out of
-                // its `Mcp-Session-Id` DashMap.
-                let client_mcp_synthetic_url: Option<String> = match (
-                    agent_ws_session_id.as_deref(),
-                    api_port_for_synth,
-                ) {
-                    (Some(ws_session_id), Some(api_port)) => Some(format!(
-                        "http://127.0.0.1:{api_port}/objectiveai-mcp/{ws_session_id}"
-                    )),
-                    _ => None,
-                };
+                // append a synthetic URL that points back at this very
+                // API process's `/objectiveai-mcp` endpoint. The proxy
+                // will dial it, stamping the per-URL headers (built
+                // below) on every request — including the
+                // `X-OBJECTIVEAI-RESPONSE-ID` that the API routes off
+                // to find the matching WS reverse channel. The CLI
+                // conduit on the other side picks per-agent MCP
+                // connections out of its `Mcp-Session-Id` DashMap.
+                let client_mcp_synthetic_url: Option<String> =
+                    match (agent_ws_session_id.as_deref(), api_port_for_synth) {
+                        (Some(_), Some(api_port)) => Some(format!(
+                            "http://127.0.0.1:{api_port}/objectiveai-mcp"
+                        )),
+                        _ => None,
+                    };
                 if let Some(ref url) = client_mcp_synthetic_url {
                     urls.push(url.clone());
                 }
@@ -769,50 +767,108 @@ where
                         }
                     }
                 }
-                // For the synthetic `client_objectiveai_mcp` URL,
-                // attach the declaration as a header so the CLI's
-                // conduit (or any real client) can see what tools
-                // the agent expects the calling client to expose.
-                // Encoded as base64url-no-pad to keep it header-safe.
-                if let (Some(url), Some(client_mcp)) = (
-                    client_mcp_synthetic_url.as_ref(),
-                    agent.base().client_objectiveai_mcp(),
-                ) {
-                    use base64::Engine;
-                    let serialized = serde_json::to_string(client_mcp).unwrap_or_default();
-                    let encoded = base64::engine::general_purpose::URL_SAFE_NO_PAD
-                        .encode(serialized);
+                // For the synthetic `client_objectiveai_mcp` URL, stamp
+                // three headers the API needs on every proxy-originated
+                // request:
+                //
+                // - `X-OBJECTIVEAI-RESPONSE-ID` — the `ws_session_id`
+                //   the API's MCP router uses to look up the matching
+                //   WS reverse channel. Same value formerly carried in
+                //   the URL path; now header-shaped so a single WS can
+                //   host many MCP sessions without overloading
+                //   `Mcp-Session-Id` (which is reserved for whatever
+                //   upstream MCP server sits behind the CLI conduit).
+                // - `X-Objectiveai-Client-Mcp` — the agent's declared
+                //   `client_objectiveai_mcp` spec, base64url-no-pad
+                //   encoded so the CLI's conduit (or any real client)
+                //   can see what tools the agent expects exposed.
+                // - `X-OBJECTIVEAI-MCP-CONFIG` — the JSON control
+                //   surface the CLI uses for both `tools/list`
+                //   filtering AND plugin-MCP-server selection. Fields:
+                //     * `names`: allow-listed primary-upstream tool
+                //       names (bare `tools[].name` ∪
+                //       executable `plugins[].name`).
+                //     * `objectiveai_builtins`: mirror of
+                //       `client_objectiveai_mcp.objectiveai`.
+                //     * `mcp_servers`: `(plugin, mcp_name)` pairs the
+                //       CLI should make active for this
+                //       ws_session_id — drives `tools/list`
+                //       aggregation and `list_changed` fan-out from
+                //       each `plugins[i].mcp_servers` selection.
+                if let Some(url) = client_mcp_synthetic_url.as_ref() {
                     let entry = per_url_headers
                         .entry(url.clone())
                         .or_insert_with(|| extra_mcp_headers.clone());
-                    entry.insert(
-                        "X-Objectiveai-Client-Mcp".to_string(),
-                        encoded,
-                    );
+                    if let Some(ws_session_id) = agent_ws_session_id.as_deref() {
+                        entry.insert(
+                            "X-OBJECTIVEAI-RESPONSE-ID".to_string(),
+                            ws_session_id.to_string(),
+                        );
+                    }
+                    if let Some(client_mcp) = agent.base().client_objectiveai_mcp() {
+                        use base64::Engine;
+                        let serialized =
+                            serde_json::to_string(client_mcp).unwrap_or_default();
+                        let encoded = base64::engine::general_purpose::URL_SAFE_NO_PAD
+                            .encode(serialized);
+                        entry.insert(
+                            "X-Objectiveai-Client-Mcp".to_string(),
+                            encoded,
+                        );
+
+                        #[derive(serde::Serialize)]
+                        struct McpConfig<'a> {
+                            names: Vec<&'a str>,
+                            objectiveai_builtins: bool,
+                            mcp_servers: Vec<(&'a str, &'a str)>,
+                        }
+                        let config = McpConfig {
+                            names: client_mcp
+                                .plugins
+                                .iter()
+                                // Only `executable` plugins
+                                // contribute a tool name to the
+                                // allow-list — non-executable plugin
+                                // entries are present purely for
+                                // their declared `mcp_servers`.
+                                .filter(|e| e.executable)
+                                .map(|e| e.name.as_str())
+                                .chain(client_mcp.tools.iter().map(|e| e.name.as_str()))
+                                .collect(),
+                            objectiveai_builtins: client_mcp
+                                .objectiveai
+                                .unwrap_or(false),
+                            mcp_servers: client_mcp
+                                .plugins
+                                .iter()
+                                .flat_map(|plugin| {
+                                    plugin
+                                        .mcp_servers
+                                        .as_deref()
+                                        .unwrap_or(&[])
+                                        .iter()
+                                        .map(move |name| {
+                                            (plugin.name.as_str(), name.as_str())
+                                        })
+                                })
+                                .collect(),
+                        };
+                        let config_json = serde_json::to_string(&config).unwrap_or_default();
+                        let config_encoded = base64::engine::general_purpose::URL_SAFE_NO_PAD
+                            .encode(config_json);
+                        entry.insert(
+                            "X-OBJECTIVEAI-MCP-CONFIG".to_string(),
+                            config_encoded,
+                        );
+                    }
                 }
 
-                let mut proxy_request_headers: indexmap::IndexMap<String, String> =
+                let proxy_request_headers: indexmap::IndexMap<String, String> =
                     indexmap::indexmap! {
                         "X-MCP-Servers".to_string() => serde_json::to_string(&urls).unwrap(),
                         "X-MCP-Headers".to_string() => serde_json::to_string(&per_url_headers).unwrap(),
                         "X-OBJECTIVEAI-AGENT-ID".to_string() => agent_id.clone(),
                     };
-                // When the agent declares `client_objectiveai_mcp`, we
-                // want the post-connect `list_tools()` call to return
-                // ONLY the tools that came from the synthetic
-                // reverse-attach upstream (not the union with the
-                // agent's other declared `mcp_servers`). The proxy
-                // honors this per-request via the `X-List-Filter`
-                // header (applies to both `tools/list` and
-                // `resources/list`), baked into the agent's
-                // `Connection` headers so it's stamped on every
-                // request — but only the list operations consult it.
-                if let Some(ref url) = client_mcp_synthetic_url {
-                    proxy_request_headers.insert(
-                        "X-List-Filter".to_string(),
-                        url.clone(),
-                    );
-                }
 
                 let mcp_client = self.mcp_client.clone();
                 let proxy_url = proxy_url.clone();
@@ -827,14 +883,18 @@ where
                 // with only `mcp_servers` / `extra_mcp_servers` skip
                 // it and pay one fewer round-trip.
                 let needs_list_tools = agent.base().client_objectiveai_mcp().is_some();
-                // Combine connect + list_tools into one spawned task:
-                // every agent's task runs concurrently with every
-                // other agent's, so connects fan out in parallel
-                // AND (for agents that need it) list_tools fan out
-                // in parallel too — each task pipelines list_tools
-                // immediately after its own connect completes. The
-                // filter-url header scopes the returned tools to the
-                // synthetic upstream only.
+                // Per-agent spawn: connect → optionally list_tools.
+                // Every agent's task runs concurrently with every
+                // other agent's, so the proxy `initialize` round-trips
+                // fan out in parallel. The list_tools result is the
+                // union across every declared upstream; the CLI's
+                // conduit applies its `X-OBJECTIVEAI-MCP-CONFIG`
+                // filter to the synthetic-upstream slice.
+                //
+                // Plugin MCP upstreams are NOT dialed here — the CLI
+                // dials them inside its `initialize` handler so each
+                // upstream gets the proxy-supplied aggregate session
+                // id for resume on continuation.
                 //
                 // Error type is `Arc<mcp::Error>` because the SDK's
                 // `list_tools` returns shared-ref errors (the cached
@@ -922,9 +982,9 @@ where
                 // initialize round-trips overlap; awaiting individual
                 // handles here is cheap on later retry iterations. The
                 // spawned task also calls `list_tools()` on the new
-                // connection (scoped by `X-MCP-Tools-Filter-Url` to the
-                // synthetic `client_objectiveai_mcp` upstream only), so
-                // we can immediately validate the agent's declared
+                // connection — the union list returned across every
+                // upstream — so we can immediately validate the
+                // agent's declared
                 // tools without an extra round-trip.
                 if !attempt_connect_done[idx] {
                     attempt_connect_done[idx] = true;
@@ -978,7 +1038,9 @@ where
                                     }
                                 }
                             }
-                            Err(e) => errors.push(super::Error::McpConnectionArc(e)),
+                            Err(e) => {
+                                errors.push(super::Error::McpConnectionArc(e));
+                            }
                         }
                     }
                 }
@@ -1253,14 +1315,16 @@ where
         // --- Merge messages, drain proxy-queued notifications, prepare,
         // and apply transform. ---
         //
-        // The drain happens *before* `prepare` so the appended user
-        // message is folded into the single normalization pass (consecutive
-        // same-role messages get consolidated) and `transform_messages`
-        // sees the drained content like any other message. The proxy's
-        // tool-response path still drains in-flight notifications during
-        // a turn; this init-time drain covers the gap *between* turns —
-        // i.e. when the previous turn ended without a tool call, or when
-        // the user is starting a fresh continuation.
+        // The drained-notifications user message is inserted at the FRONT
+        // of `messages` (index 0) so the notifications lead the prompt —
+        // ahead of any system / developer / user content from the caller.
+        // The prepare pass that follows still folds redundant consecutive
+        // same-role messages, and `transform_messages` sees the drained
+        // content like any other message. The proxy's tool-response path
+        // still drains in-flight notifications during a turn; this
+        // init-time drain covers the gap *between* turns — i.e. when the
+        // previous turn ended without a tool call, or when the user is
+        // starting a fresh continuation.
         let mut messages = agent_base.merged_messages(params.messages.clone());
 
         if let Some(conn) = &mcp_connection {
@@ -1271,7 +1335,8 @@ where
                 }
             })?;
             if !blocks.is_empty() {
-                messages.push(
+                messages.insert(
+                    0,
                     objectiveai_sdk::agent::completions::message::Message::User(
                         build_drain_user_message(blocks),
                     ),

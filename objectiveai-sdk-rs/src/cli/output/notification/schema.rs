@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 /// open recursive structure.
 ///
 /// Wire: `{"type":"notification","schema":{...JSON Schema...}}`.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[schemars(rename = "cli.output.notification.Schema")]
 pub struct Schema {
     pub schema: serde_json::Value,
@@ -16,7 +16,7 @@ pub struct Schema {
 /// `schemas list` and per-category `schemas <category> list` commands.
 ///
 /// Wire: `{"type":"notification","schemas":["name1","name2",...]}`.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[schemars(rename = "cli.output.notification.Schemas")]
 pub struct Schemas {
     pub schemas: Vec<String>,

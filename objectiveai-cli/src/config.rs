@@ -35,7 +35,7 @@ pub async fn emit_jq(
         1 => results.into_iter().next().unwrap(),
         _ => serde_json::Value::Array(results),
     };
-    Output::<JqResults>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: JqResults { jq } })
+    Output::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: (JqResults { jq }).into() })
         .emit(handle)
         .await;
     Ok(())
@@ -43,7 +43,7 @@ pub async fn emit_jq(
 
 /// Emit a typed config value as `{"type":"notification","value":<v>}`.
 pub async fn emit_value<V: serde::Serialize>(v: V, handle: &Handle) {
-    Output::<Value<V>>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: Value { value: v } })
+    Output::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: objectiveai_sdk::cli::output::NotificationValue::other(&(Value { value: v })) })
         .emit(handle)
         .await;
 }

@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 /// structured payloads (e.g. `{"code": ..., "detail": ...}`). Wrap
 /// a plain string as `Value::String(...)` (or use `.into()`) and the
 /// wire bytes stay identical to the old `String`-only shape.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[schemars(rename = "cli.output.Error")]
 pub struct Error {
     pub level: Level,

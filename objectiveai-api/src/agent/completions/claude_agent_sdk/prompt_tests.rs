@@ -393,6 +393,7 @@ fn test_error_tool_message() {
     let messages = vec![Message::Tool(ToolMessage {
         content: RichContent::Text("result".to_string()),
         tool_call_id: "tc_1".to_string(),
+        metadata: None,
     })];
 
     assert_eq!(
@@ -456,6 +457,7 @@ fn test_error_tool_after_state_in_continuation() {
         ContinuationItem::ToolMessage(ToolMessage {
             content: RichContent::Text("result".to_string()),
             tool_call_id: "tc1".to_string(),
+            metadata: None,
         }),
     ];
 

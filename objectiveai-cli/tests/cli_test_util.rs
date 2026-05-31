@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::{Once, OnceLock};
+use std::sync::Once;
 
 static BUILD_ONCE: Once = Once::new();
 
@@ -27,76 +27,6 @@ pub fn cli_command(args: &[&str]) -> Command {
     }
     cmd.args(args);
     cmd
-}
-
-/// Issue an Instructions ID for the given scope (e.g. "agents", "functions",
-/// "functions-inventions-recursive") via the corresponding `instructions get`
-/// command. The CLI now requires `--instructions-id <ID>` on every `create`
-/// streaming command; tests run that subcommand once per scope and cache the
-/// returned id.
-pub fn instructions_id(scope: InstructionsScope) -> &'static String {
-    let cell = scope.cell();
-    cell.get_or_init(|| {
-        let output = cli_command(scope.get_args())
-            .output()
-            .expect("failed to execute CLI binary");
-        if !output.status.success() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            panic!(
-                "CLI {:?} exited with {}\nstdout: {stdout}\nstderr: {stderr}",
-                scope.get_args(), output.status,
-            );
-        }
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        // The CLI wraps its output in JSONL: `{begin}` / `{notification, value: {instructions: "...\n\n Instructions ID: <id>"}}` / `{end}`.
-        // Find the notification and pluck the id out of the embedded markdown.
-        let needle = "Instructions ID: ";
-        let idx = stdout.find(needle).unwrap_or_else(|| {
-            panic!("`Instructions ID: <id>` not found in output: {stdout}")
-        });
-        stdout[idx + needle.len()..]
-            .split(|c: char| c.is_whitespace() || c == '"' || c == '\\')
-            .next()
-            .unwrap_or_else(|| panic!("empty Instructions ID in output: {stdout}"))
-            .to_string()
-    })
-}
-
-#[derive(Clone, Copy)]
-pub enum InstructionsScope {
-    AgentCompletions,
-    FunctionExecutions,
-    FunctionInventionsRecursive,
-}
-
-impl InstructionsScope {
-    fn cell(self) -> &'static OnceLock<String> {
-        match self {
-            Self::AgentCompletions => {
-                static CELL: OnceLock<String> = OnceLock::new();
-                &CELL
-            }
-            Self::FunctionExecutions => {
-                static CELL: OnceLock<String> = OnceLock::new();
-                &CELL
-            }
-            Self::FunctionInventionsRecursive => {
-                static CELL: OnceLock<String> = OnceLock::new();
-                &CELL
-            }
-        }
-    }
-
-    fn get_args(self) -> &'static [&'static str] {
-        match self {
-            Self::AgentCompletions => &["agents", "completions", "instructions", "get"],
-            Self::FunctionExecutions => &["functions", "executions", "instructions", "get"],
-            Self::FunctionInventionsRecursive => &[
-                "functions", "inventions", "recursive", "instructions", "get",
-            ],
-        }
-    }
 }
 
 pub fn test_target_dir() -> PathBuf {

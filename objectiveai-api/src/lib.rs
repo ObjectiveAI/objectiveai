@@ -49,8 +49,11 @@ mod run;
 mod streaming_ws;
 /// WebSocket variants of the 8 streaming endpoint handlers.
 mod streaming_ws_handlers;
-/// Streamable-HTTP MCP endpoint backed by reverse WS forwarding.
-mod objectiveai_mcp_endpoint;
+/// Streamable-HTTP MCP server — JSON-RPC dispatch over the API's
+/// `/objectiveai-mcp` route, routed by the `X-OBJECTIVEAI-RESPONSE-ID`
+/// header. Forwards every request over the matching WS reverse
+/// channel registered by the CLI conduit on upgrade.
+mod objectiveai_mcp;
 
 pub use run::*;
 

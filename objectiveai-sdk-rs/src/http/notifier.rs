@@ -60,13 +60,37 @@ impl Notifier {
         &self,
         params: crate::agent::completions::request::AgentCompletionNotifyParams,
     ) -> Result<(), super::HttpError> {
+        self.send(client_request::Payload::AgentCompletionNotify(params))
+            .await
+    }
+
+    /// Forward a `notifications/{tools,resources}/list_changed`
+    /// observation from an upstream `mcp::Connection` up to the API,
+    /// which will fan it out as an SSE event on every matching
+    /// `/objectiveai-mcp/{ws_session_id}` GET stream subscribed to
+    /// the same `mcp_session_id`.
+    ///
+    /// Same ack semantics as [`Self::notify`].
+    pub async fn notify_list_changed(
+        &self,
+        change: client_request::McpListChanged,
+    ) -> Result<(), super::HttpError> {
+        self.send(client_request::Payload::McpListChanged(change))
+            .await
+    }
+
+    /// Common send-and-await-ack body shared by every `notify_*` method.
+    async fn send(
+        &self,
+        payload: client_request::Payload,
+    ) -> Result<(), super::HttpError> {
         let id = uuid::Uuid::new_v4().to_string();
         let (tx, rx) = oneshot::channel();
         self.pending.insert(id.clone(), tx);
 
         let request = client_request::Request {
             id: id.clone(),
-            payload: client_request::Payload::AgentCompletionNotify(params),
+            payload,
         };
         let frame = match serde_json::to_string(&request) {
             Ok(s) => s,

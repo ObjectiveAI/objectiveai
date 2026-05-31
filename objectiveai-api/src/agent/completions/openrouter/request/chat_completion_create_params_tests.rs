@@ -1107,6 +1107,7 @@ async fn test_seed_passthrough() {
                     "Sunny, 72F".into(),
                 ),
                 tool_call_id: "call_1".into(),
+                metadata: None,
             },
         ),
     ];
@@ -2032,6 +2033,7 @@ async fn test_continuation_mixed_items() {
                     "Sunny, 72F".to_string(),
                 ),
                 tool_call_id: "call_abc".to_string(),
+                metadata: None,
             },
         ),
         // User follow-up
@@ -2087,6 +2089,7 @@ async fn test_continuation_mixed_items() {
                         "Sunny, 72F".to_string(),
                     ),
                     tool_call_id: "call_abc".to_string(),
+                    metadata: None,
                 },
             ),
             objectiveai_sdk::agent::completions::message::Message::User(

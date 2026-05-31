@@ -29,13 +29,6 @@ struct EnvConfigBuilder {
     commit_author_name: Option<String>,
     #[envconfig(from = "COMMIT_AUTHOR_EMAIL")]
     commit_author_email: Option<String>,
-    /// When set (1/true/yes/on), strip `agent_id` from every tool-result
-    /// body in `run_cli_and_collect`. Used by the snapshot test harness
-    /// to keep the racy `next_agent_index` counter (stamped on each
-    /// emitted output line by the CLI's `Handle::emit`) out of test
-    /// artefacts. Off by default; production wire output is untouched.
-    #[envconfig(from = "TEST_MODE")]
-    test_mode: Option<String>,
 }
 
 impl EnvConfigBuilder {
@@ -49,9 +42,6 @@ impl EnvConfigBuilder {
             config_base_dir: self.config_base_dir,
             commit_author_name: self.commit_author_name,
             commit_author_email: self.commit_author_email,
-            test_mode: self.test_mode.map(|v| {
-                matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on")
-            }),
         }
     }
 }
@@ -64,7 +54,6 @@ pub struct ConfigBuilder {
     pub config_base_dir: Option<String>,
     pub commit_author_name: Option<String>,
     pub commit_author_email: Option<String>,
-    pub test_mode: Option<bool>,
 }
 
 impl Envconfig for ConfigBuilder {
@@ -93,7 +82,6 @@ impl ConfigBuilder {
             config_base_dir: self.config_base_dir,
             commit_author_name: self.commit_author_name,
             commit_author_email: self.commit_author_email,
-            test_mode: self.test_mode.unwrap_or(false),
         }
     }
 }
@@ -105,7 +93,6 @@ pub struct Config {
     pub config_base_dir: Option<String>,
     pub commit_author_name: Option<String>,
     pub commit_author_email: Option<String>,
-    pub test_mode: bool,
 }
 
 pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, axum::Router)> {
@@ -116,7 +103,6 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
         config_base_dir,
         commit_author_name,
         commit_author_email,
-        test_mode,
     } = config;
 
     let cli_config = Arc::new(objectiveai_cli::Config {
@@ -125,7 +111,12 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
         commit_author_name: commit_author_name.clone(),
         commit_author_email: commit_author_email.clone(),
         github_authorization: None,
-        agent_id: None,
+        // Server-wide default. Per-request, `run_cli_and_collect`
+        // overrides this with the `X-OBJECTIVEAI-AGENT-ID` header
+        // when present; otherwise the call stays stamped as `"mcp"`.
+        agent_id: "mcp".to_string(),
+        mcp_session_id: None,
+        mcp: true,
     });
 
     let fs_client = objectiveai_sdk::filesystem::Client::new(
@@ -138,7 +129,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
         fs_client.list_tools(0, usize::MAX),
     );
 
-    let server = ObjectiveAiMcpCli::with_plugins_and_tools(cli_config, plugins, tools, test_mode);
+    let server = ObjectiveAiMcpCli::with_plugins_and_tools(cli_config, plugins, tools);
     let ct = CancellationToken::new();
 
     let service: StreamableHttpService<ObjectiveAiMcpCli, LocalSessionManager> =

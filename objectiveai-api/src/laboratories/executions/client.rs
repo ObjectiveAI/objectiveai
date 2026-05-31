@@ -32,8 +32,7 @@ type Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK> =
     >;
 
 pub fn response_id(created: u64) -> String {
-    let uuid = uuid::Uuid::new_v4();
-    format!("lbexec-{}-{created}", uuid.simple())
+    crate::util::response_id(Some("lbexec"), created)
 }
 
 /// Laboratory client that runs builder agents in orchestrated environments

@@ -1,0 +1,415 @@
+{
+  "title": "cli.output.notification.NotificationValue",
+  "description": "One emitted notification payload. The `kind` tag discriminates\nthe variant. See module-level docs for the wire shape.",
+  "anyOf": [
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.agents.ActiveAgent",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "active_agent"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.agents.Agent",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "agent"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.agents.AgentItems",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "agent_items"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.agents.MessageDelivered",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "message_delivered"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.agents.MessageQueued",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "message_queued"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.agents.Spawned",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "spawned"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.api.Detached",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "detached"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.functions.executions.Execution",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "execution"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.functions.Function",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "function"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.functions.inventions.recursive.Inventions",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "inventions"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.functions.profiles.Pair",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "pair"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.functions.profiles.Profile",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "profile"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.functions.inventions.State",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "state"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.laboratories.executions.Laboratory",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "laboratory"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.swarms.Swarm",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "swarm"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.Cleared",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "cleared"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.Help",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "help"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.Installed",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "installed"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.Instructions",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "instructions"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.JqResults",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "jq_results"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.LogContent",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "log_content"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.LogStreamReady",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "log_stream_ready"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.Ok",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "ok"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.Plugin",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "plugin"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.Plugins",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "plugins"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.Published",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "published"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.Schema",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "schema"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.Schemas",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "schemas"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.Tool",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "tool"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.ToolLine",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "tool_line"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.Tools",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "tools"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.Updater",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "updater"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "$ref": "cli.output.notification.ViewerSendResult",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "viewer_send_result"
+          ]
+        }
+      }
+    },
+    {
+      "description": "Single catch-all for anything that doesn't get a typed\nvariant: generic emits (`Items<T>`, `Value<V>`),\napi/call.rs passthrough (`Resp`, `Chunk`), and raw\n`serde_json::Value`. The map's keys flatten directly\nalongside `kind` — there is no inner field wrapping.\n\nConstruct via [`NotificationValue::other`]. The payload\nmust serialize to a JSON object (so its entries can sit at\nthe same level as `kind`), and its keys cannot include\n`\"kind\"` (would collide with the discriminator).\n\nWire examples:\n  `{\"kind\":\"other\",\"items\":[…]}`        (Items<T>)\n  `{\"kind\":\"other\",\"value\":<V>}`        (Value<V>)",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "other"
+          ]
+        }
+      },
+      "additionalProperties": true
+    }
+  ]
+}

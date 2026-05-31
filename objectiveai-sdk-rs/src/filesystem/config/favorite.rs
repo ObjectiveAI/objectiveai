@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "filesystem.config.Favorite")]
 pub struct Favorite {
     name: String,
@@ -46,7 +46,7 @@ impl Favorite {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "filesystem.config.PairFavorite")]
 pub struct PairFavorite {
     name: String,

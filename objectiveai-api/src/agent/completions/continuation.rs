@@ -6,7 +6,7 @@ pub enum Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK> {
         items: Vec<ContinuationItem<OPENROUTER>>,
         mcp_connection: Option<mcp::Connection>,
         /// Full slash-separated lineage of the agent this continuation
-        /// belongs to (e.g. `A/B/agtcpl-<uuid>-<created>`). Minted on
+        /// belongs to (e.g. `A/B/<11-char-rand-b62><base62-created>`). Minted on
         /// the agent's first spawn and preserved verbatim across every
         /// continuation round — server-side internal retries AND
         /// client-side resume — so the agent's identity stays stable

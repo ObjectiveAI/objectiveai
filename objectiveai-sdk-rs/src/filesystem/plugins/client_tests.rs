@@ -28,6 +28,7 @@ fn minimal_manifest_json() -> String {
         viewer_url: None,
         viewer_routes: vec![],
         mobile_ready: false,
+        mcp_servers: Vec::new(),
     })
     .unwrap()
 }

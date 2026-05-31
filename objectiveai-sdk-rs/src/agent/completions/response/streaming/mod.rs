@@ -5,14 +5,22 @@
 //! of the full response.
 
 mod agent_completion_chunk;
+#[cfg(feature = "filesystem")]
+mod agent_completion_chunk_log;
 mod agent_completion_ids;
 mod assistant_response_chunk;
+#[cfg(feature = "filesystem")]
+mod assistant_response_chunk_log;
 mod message_chunk;
 mod object;
 
 pub use agent_completion_chunk::*;
+#[cfg(feature = "filesystem")]
+pub use agent_completion_chunk_log::*;
 pub use agent_completion_ids::*;
 pub use assistant_response_chunk::*;
+#[cfg(feature = "filesystem")]
+pub use assistant_response_chunk_log::*;
 pub use message_chunk::*;
 pub use object::*;
 

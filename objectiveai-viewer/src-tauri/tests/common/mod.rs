@@ -45,47 +45,27 @@ impl ViewerTestEnv {
         Self { events_tx, events_rx }
     }
 
-    /// Drain `events_rx` until `is_end(event) == true` for one of
-    /// the received events, then return everything collected so far
-    /// (inclusive of the terminator). Times out and panics if the
-    /// terminator doesn't arrive within `deadline` — keeps a stuck
-    /// test from hanging the suite.
-    pub async fn drain_until_end<F>(
-        &mut self,
-        is_end: F,
-        deadline: Duration,
-    ) -> Vec<Event>
-    where
-        F: Fn(&Event) -> bool,
-    {
-        let rx = &mut self.events_rx;
-        let collect = async move {
+    /// Drain `events_rx` until the channel closes (every sender
+    /// clone dropped) and return everything collected. Drops the
+    /// harness's own sender first so the only remaining clone is
+    /// whichever one the cli task is holding — once the cli
+    /// finishes and its handle drops, recv returns `None`.
+    /// Times out and panics if recv doesn't close within
+    /// `deadline`.
+    pub async fn drain_until_close(mut self, deadline: Duration) -> Vec<Event> {
+        drop(self.events_tx);
+        let collect = async {
             let mut events: Vec<Event> = Vec::new();
-            while let Some(event) = rx.recv().await {
-                let end = is_end(&event);
+            while let Some(event) = self.events_rx.recv().await {
                 events.push(event);
-                if end {
-                    break;
-                }
             }
             events
         };
         match timeout(deadline, collect).await {
             Ok(events) => events,
             Err(_) => panic!(
-                "drain_until_end timed out after {deadline:?} without receiving an end marker"
+                "drain_until_close timed out after {deadline:?} without the channel closing"
             ),
         }
     }
-}
-
-/// True when `event` is an `Event::CliCommand` whose value is the
-/// `{"type":"end"}` cli output line — terminator for a cli_command
-/// flow.
-pub fn is_cli_command_end(event: &Event) -> bool {
-    matches!(
-        event,
-        Event::CliCommand { value, .. }
-            if value.get("type").and_then(|t| t.as_str()) == Some("end")
-    )
 }

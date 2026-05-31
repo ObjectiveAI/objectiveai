@@ -1,0 +1,15 @@
+{
+  "title": "filesystem.logs.LogReference",
+  "description": "Plain on-disk pointer (`type` + `path` only).",
+  "type": "object",
+  "properties": {
+    "path": {
+      "description": "Relative on-disk path of the referenced file (under\n`${config_base_dir}/logs/`). Skipped when empty — the\nno-data sentinel case used by some wrappers when the inner\nchunk has no content to log.",
+      "type": "string",
+      "omitempty": true
+    },
+    "type": {
+      "$ref": "filesystem.logs.LogReferenceTag"
+    }
+  }
+}

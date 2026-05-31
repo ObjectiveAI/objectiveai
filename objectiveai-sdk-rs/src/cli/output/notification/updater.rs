@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 /// Wire (in combination with `super::super::Output::Notification` +
 /// `super::Notification`'s `value` wrapper):
 ///   `{"type":"notification","value":{"event":"checking",...}}`.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(tag = "event", rename_all = "snake_case")]
 #[schemars(rename = "cli.output.notification.Updater")]
 pub enum Updater {
@@ -54,7 +54,7 @@ pub enum Updater {
 }
 
 /// Reasons the updater can skip a run *and emit a notification about it*.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[schemars(rename = "cli.output.notification.SkipReason")]
 pub enum SkipReason {

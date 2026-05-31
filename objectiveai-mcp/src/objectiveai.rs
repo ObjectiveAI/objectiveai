@@ -17,6 +17,8 @@ use rmcp::{
     schemars, tool, tool_handler, tool_router,
 };
 
+use crate::format::{OutputMode, format_outputs};
+
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct ObjectiveAiRequest {
     #[schemars(description = "The command arguments to pass to the ObjectiveAI CLI (e.g. [\"agents\", \"list\"] or [\"functions\", \"executions\", \"create\", \"--help\"])")]
@@ -39,10 +41,6 @@ pub struct ToolRequest {
 pub struct ObjectiveAiMcpCli {
     pub tool_router: ToolRouter<Self>,
     pub cli_config: Arc<objectiveai_cli::Config>,
-    /// When `true`, [`run_cli_and_collect`] strips `agent_id` from
-    /// every JSON line in the response body. Set via the `TEST_MODE`
-    /// env var at startup. Off in production.
-    pub test_mode: bool,
 }
 
 #[tool_router]
@@ -62,7 +60,6 @@ impl ObjectiveAiMcpCli {
         cli_config: Arc<objectiveai_cli::Config>,
         plugins: Vec<PluginManifest>,
         tools: Vec<ToolManifest>,
-        test_mode: bool,
     ) -> Self {
         let mut tool_router = Self::tool_router();
         for plugin in plugins {
@@ -93,7 +90,13 @@ impl ObjectiveAiMcpCli {
                             .into_iter()
                             .chain(req.args.into_iter())
                             .collect();
-                    let buf = run_cli_and_collect(&cli_config, &parts, args, test_mode).await;
+                    let buf = run_cli_and_collect(
+                        &cli_config,
+                        &parts,
+                        args,
+                        OutputMode::Plugin,
+                    )
+                    .await;
                     Ok(CallToolResult::success(vec![Content::text(buf)]))
                 }
                 .boxed()
@@ -123,11 +126,17 @@ impl ObjectiveAiMcpCli {
                         .cloned()
                         .unwrap_or_else(|| http::Request::new(()).into_parts().0);
                     let args: Vec<String> =
-                        ["objectiveai".to_string(), "tools".to_string(), tool_name]
+                        ["objectiveai".to_string(), "tools".to_string(), tool_name.clone()]
                             .into_iter()
                             .chain(req.args.into_iter())
                             .collect();
-                    let buf = run_cli_and_collect(&cli_config, &parts, args, test_mode).await;
+                    let buf = run_cli_and_collect(
+                        &cli_config,
+                        &parts,
+                        args,
+                        OutputMode::Tool,
+                    )
+                    .await;
                     Ok(CallToolResult::success(vec![Content::text(buf)]))
                 }
                 .boxed()
@@ -136,7 +145,6 @@ impl ObjectiveAiMcpCli {
         Self {
             tool_router,
             cli_config,
-            test_mode,
         }
     }
 
@@ -152,41 +160,71 @@ impl ObjectiveAiMcpCli {
         let args: Vec<String> = std::iter::once("objectiveai".to_string())
             .chain(req.command)
             .collect();
-        run_cli_and_collect(&self.cli_config, &parts, args, self.test_mode).await
+        // Catch-all dispatches arbitrary `objectiveai …` commands.
+        // Plugin mode preserves the most structure (full
+        // NotificationValue rather than extracting ToolLine.line),
+        // which is the safer default when the underlying command
+        // is unknown.
+        run_cli_and_collect(
+            &self.cli_config,
+            &parts,
+            args,
+            OutputMode::Plugin,
+        )
+        .await
     }
 }
 
 /// Run the ObjectiveAI CLI in-process with `args`, collecting every
-/// JSONL `Output` into a single response body. Applies the
-/// per-request `X-OBJECTIVEAI-AGENT-ID` header override (clones the
-/// server-wide `cli_config` so concurrent requests stay independent).
+/// emitted `Output`, and format the result for the MCP response.
+/// Applies the per-request `X-OBJECTIVEAI-AGENT-ID` header override
+/// (clones the server-wide `cli_config` so concurrent requests stay
+/// independent).
 ///
-/// When `test_mode` is `true`, the final body has `agent_id`
-/// scrubbed from every JSON line — gated so production callers
-/// still see the cross-process correlation stamp. See the
-/// `TEST_MODE` env var in `run.rs`.
+/// `mode` selects plugin vs. tool rendering — see [`crate::format`]
+/// for the full dispatch table. The formatter always strips
+/// `agent_id` from the response body regardless of any env vars.
 async fn run_cli_and_collect(
     cli_config: &Arc<objectiveai_cli::Config>,
     parts: &Parts,
     args: Vec<String>,
-    test_mode: bool,
+    mode: OutputMode,
 ) -> String {
-    // Per-request: if the caller sent X-OBJECTIVEAI-AGENT-ID,
-    // override the server-wide cli_config.agent_id for this
-    // invocation only. Clone-then-mutate-then-Arc so concurrent
-    // requests see independent values.
-    let cli_config: Arc<objectiveai_cli::Config> = match parts
+    // Per-request: stamp agent_id + mcp_session_id from headers so
+    // every cli invocation (and every tool subprocess the cli spawns
+    // transitively) sees the values relevant to *this* request.
+    // Clone-then-mutate-then-Arc so concurrent requests see
+    // independent values.
+    //
+    // The MCP session id is read from `Mcp-Session-Id` (the rmcp
+    // transport's standard header). When the upstream MCP client
+    // doesn't actually manage sessions, fall back to the per-agent
+    // lineage id from `X-OBJECTIVEAI-AGENT-ID` — stable per agent and
+    // unique across agents, which is exactly what session-keyed tool
+    // state (e.g. per-session counters) wants.
+    let mut cfg = (**cli_config).clone();
+    let header_agent_id = parts
         .headers
         .get("X-OBJECTIVEAI-AGENT-ID")
-        .and_then(|h| h.to_str().ok())
-    {
-        Some(agent_id) => {
-            let mut cfg = (**cli_config).clone();
-            cfg.agent_id = Some(agent_id.to_string());
-            Arc::new(cfg)
-        }
-        None => cli_config.clone(),
+        .and_then(|h| h.to_str().ok());
+    // Always populate agent_id for MCP-routed calls. When the upstream
+    // MCP client didn't send the header, default to "MCP" so
+    // `agents me` (and any other code reading the field) reports
+    // the call's actual origin instead of inheriting the server-wide
+    // default ("CLI") — which would be misleading.
+    cfg.agent_id = header_agent_id.unwrap_or("mcp").to_string();
+    let header_session_id = parts
+        .headers
+        .get(objectiveai_sdk::mcp::MCP_SESSION_ID_HEADER)
+        .and_then(|h| h.to_str().ok());
+    // session_id falls back to the *header-provided* agent_id only —
+    // not the "MCP" default — so the per-session tool state key stays
+    // meaningful when the client doesn't actually manage sessions.
+    cfg.mcp_session_id = match header_session_id {
+        Some(s) => Some(s.to_string()),
+        None => header_agent_id.map(str::to_string),
     };
+    let cli_config: Arc<objectiveai_cli::Config> = Arc::new(cfg);
 
     let collected = Arc::new(tokio::sync::Mutex::new(Vec::new()));
     // Per-request handle: stamp the agent_id from the per-request
@@ -196,23 +234,12 @@ async fn run_cli_and_collect(
     // Vec the runner reassembles below.
     let handle = objectiveai_sdk::cli::output::Handle {
         destination: objectiveai_sdk::cli::output::HandleDestination::Collect(collected.clone()),
-        agent_id: cli_config.agent_id.clone(),
+        agent_id: Some(cli_config.agent_id.clone()),
     };
     let _ = objectiveai_cli::run(args, &cli_config, handle).await;
 
     let outputs = collected.lock().await;
-    let mut buf = String::new();
-    for output in outputs.iter() {
-        match serde_json::to_string(output) {
-            Ok(line) => buf.push_str(&line),
-            Err(e) => buf.push_str(&format!("error serializing output: {e}")),
-        }
-        buf.push('\n');
-    }
-    if test_mode {
-        buf = objectiveai_sdk::cli::output::strip_agent_id_lines(&buf);
-    }
-    buf
+    format_outputs(mode, &outputs)
 }
 
 #[tool_handler]

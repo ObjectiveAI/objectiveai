@@ -164,9 +164,9 @@ console.log(result.output); // { Vector: [0.91, 0.07, 0.01, 0.01] }
 Spawn a single agent to do work:
 
 ```bash
-objectiveai agents completions create standard \
+objectiveai agents spawn \
   --agent remote=github,owner=your-org,repository=writer-agent \
-  --messages-inline '[{"role":"user","content":"Write a haiku about ocean waves."}]'
+  --inline '[{"role":"user","content":"Write a haiku about ocean waves."}]'
 ```
 
 Spawn builder agents in a Docker sandbox with persistent filesystem access:
@@ -272,7 +272,7 @@ The Agent is supplied by remote reference. Messages can include images, audio, a
 }
 ```
 
-CLI: `objectiveai agents completions create standard --agent remote=github,owner=...,repository=... --messages-inline '...'`. SDK: `agentsCompletionsCreateAgentCompletion` (JS) / `create_agent_completion` (Python) / `agent::completions::http::create_agent_completion` (Rust).
+CLI: `objectiveai agents spawn --agent remote=github,owner=...,repository=... --inline '...'`. SDK: `agentsCompletionsCreateAgentCompletion` (JS) / `create_agent_completion` (Python) / `agent::completions::http::create_agent_completion` (Rust).
 
 ### Function executions
 
@@ -502,7 +502,7 @@ The primary user-facing binary. Built with `clap` derive macros and emits newlin
 
 ```bash
 objectiveai agents list
-objectiveai agents completions create standard --agent remote=github,owner=...,repository=... --messages-inline '...'
+objectiveai agents spawn --agent remote=github,owner=...,repository=... --inline '...'
 objectiveai functions executions create standard --function remote=github,owner=...,repository=... --profile remote=github,owner=...,repository=... --input-inline '{...}'
 objectiveai laboratories executions create --docker-image ... --builder-agent remote=github,owner=...,repository=... --builder-messages-inline '...'
 objectiveai plugins install github --owner ObjectiveAI --repository my-plugin

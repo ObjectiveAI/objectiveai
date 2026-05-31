@@ -1,6 +1,6 @@
 {
   "title": "cli.output.notification.Instructions",
-  "description": "Wire shape for `<scope> instructions get` (and the global\n`instructions get`). The body is the instruction text the user is\nmeant to follow plus the generated instructions ID line.",
+  "description": "Markdown instructions rendered to the JSONL stream by\n`objectiveai plugins install` and `objectiveai tools install`\n— text the caller is meant to read before continuing.\n\nWire: `{\"type\":\"notification\",\"value\":{\"kind\":\"instructions\",\"instructions\":\"…markdown…\"}}`.",
   "type": "object",
   "properties": {
     "instructions": {

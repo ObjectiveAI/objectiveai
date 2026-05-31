@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 /// Result of `functions inventions recursive create`.
 ///
 /// Wire: `{"type":"notification","inventions":[...InventionResultItem...]}`.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[schemars(rename = "cli.output.notification.functions.inventions.recursive.Inventions")]
 pub struct Inventions {
     pub inventions: Vec<InventionResultItem>,
@@ -15,7 +15,7 @@ pub struct Inventions {
 /// the invention successfully resolved to a remote definition
 /// (`None` if it failed). Per-invention failures surface live via
 /// `Output::Error` notifications during streaming, not on this struct.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[schemars(rename = "cli.output.notification.functions.inventions.recursive.InventionResultItem")]
 pub struct InventionResultItem {
     pub name: String,

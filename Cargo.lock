@@ -1085,6 +1085,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "count-tool"
+version = "2.0.10"
+
+[[package]]
 name = "cpufeatures"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4266,6 +4270,7 @@ dependencies = [
  "futures",
  "indexmap 2.13.0",
  "insta",
+ "interprocess",
  "objectiveai-sdk",
  "ratatui",
  "regex",
@@ -4295,6 +4300,7 @@ dependencies = [
 name = "objectiveai-cli-stream"
 version = "2.0.11"
 dependencies = [
+ "base64 0.22.1",
  "clap 4.6.0",
  "dashmap",
  "futures",
@@ -4435,6 +4441,7 @@ dependencies = [
  "sha2",
  "starlark",
  "syn 2.0.117",
+ "tempfile",
  "thiserror 2.0.18",
  "tokio",
  "tokio-tungstenite 0.24.0",
@@ -4488,6 +4495,15 @@ dependencies = [
  "serde-wasm-bindgen",
  "serde_json",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "objectiveai-tests"
+version = "2.0.11"
+dependencies = [
+ "git2",
+ "serde_json",
+ "toml 0.8.2",
 ]
 
 [[package]]
@@ -7727,6 +7743,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "test-mcp-plugin"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "rmcp",
+ "schemars 0.8.22",
+ "serde",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
 name = "test-upstream"
 version = "2.0.11"
 dependencies = [
@@ -7931,6 +7959,7 @@ dependencies = [
  "futures-core",
  "pin-project-lite",
  "tokio",
+ "tokio-util",
 ]
 
 [[package]]

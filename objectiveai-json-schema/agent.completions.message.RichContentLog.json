@@ -1,0 +1,16 @@
+{
+  "title": "agent.completions.message.RichContentLog",
+  "anyOf": [
+    {
+      "title": "Reference",
+      "$ref": "filesystem.logs.LogReference"
+    },
+    {
+      "title": "Parts",
+      "type": "array",
+      "items": {
+        "$ref": "filesystem.logs.LogReference"
+      }
+    }
+  ]
+}

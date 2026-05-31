@@ -10,11 +10,12 @@ async fn main() {
     //
     // Stamp the handle's agent_id from cli_config so every emitted
     // notification + error line carries `X-OBJECTIVEAI-AGENT-ID`'s
-    // value (env `OBJECTIVEAI_AGENT_ID`). Per-request callers like
-    // objectiveai-mcp build their own Handle and set this from
-    // the X-OBJECTIVEAI-AGENT-ID request header instead.
+    // value (env `OBJECTIVEAI_AGENT_ID`, or `"cli"` per the
+    // ConfigBuilder default). Per-request callers like objectiveai-mcp
+    // build their own Handle and set this from the
+    // `X-OBJECTIVEAI-AGENT-ID` request header instead.
     let mut handle = objectiveai_sdk::cli::output::Handle::stdout();
-    handle.agent_id = cli_config.agent_id.clone();
+    handle.agent_id = Some(cli_config.agent_id.clone());
     let code = objectiveai_cli::run(args, &cli_config, handle).await;
     std::process::exit(code);
 }

@@ -11,8 +11,7 @@ use std::{collections::HashMap, hash::Hasher, sync::Arc, time};
 
 /// Generates a unique response ID for a vector completion.
 pub fn response_id(created: u64) -> String {
-    let uuid = uuid::Uuid::new_v4();
-    format!("vctcpl-{}-{}", uuid.simple(), created)
+    crate::util::response_id(Some("vctcpl"), created)
 }
 
 pub(super) fn invert_and_l1_normalize(mut xs: Vec<Decimal>) -> Vec<Decimal> {

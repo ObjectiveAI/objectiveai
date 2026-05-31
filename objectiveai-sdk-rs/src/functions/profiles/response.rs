@@ -15,7 +15,7 @@ pub struct ListProfileResponse {
 /// A profile in a list response.
 pub type ListProfileItem = crate::RemotePath;
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "functions.profiles.GetProfileResponse")]
 pub struct GetProfileResponse {
     #[serde(flatten)]

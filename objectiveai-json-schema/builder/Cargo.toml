@@ -6,4 +6,4 @@ edition = "2024"
 [dependencies]
 objectiveai-sdk = { path = "../../objectiveai-sdk-rs" }
 schemars = "1.2.1"
-serde_json = "1.0.149"
+serde_json = { version = "1.0.149", features = ["preserve_order"] }

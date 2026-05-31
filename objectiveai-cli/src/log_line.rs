@@ -1,29 +1,26 @@
-//! Streaming "log file is ready" handshake between the streaming `create`
-//! commands and the `--detach` parent process. The parent watches the
-//! child's stdout for a [`LogStreamReady`] JSONL notification and exits
-//! cleanly once it sees one.
+//! Streaming "log file is ready" handshake helpers + log-content
+//! emission shared between the `logs` subcommands and `detach.rs`.
+//!
+//! The actual `emit_log_stream_ready` lives in `objectiveai-cli-stream`
+//! now; the cli only PARSES the handshake (via [`parse_log_stream_ready`])
+//! when its `detach.rs` parent watches an orphan's stdout for the
+//! ready-line.
 
-use objectiveai_sdk::cli::output::{Cleared, Handle, Items, LogContent, LogStreamReady, Output};
-
-/// Emit the log-stream-ready notification with the given log id.
-pub async fn emit_log_stream_ready(id: &str, handle: &Handle) {
-    Output::<LogStreamReady>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: LogStreamReady {
-        log_stream_ready: id.to_string(),
-    } })
-    .emit(handle)
-    .await;
-}
+use objectiveai_sdk::cli::output::{
+    Cleared, Handle, Items, LogContent, LogStreamReady, Notification, NotificationValue,
+    Output,
+};
 
 /// Returns the log id if `line` is a log-stream-ready notification.
 pub fn parse_log_stream_ready(line: &str) -> Option<String> {
     let trimmed = line.trim();
-    let parsed: Output<LogStreamReady> = serde_json::from_str(trimmed).ok()?;
+    let parsed: Output = serde_json::from_str(trimmed).ok()?;
     match parsed {
-        Output::Notification(objectiveai_sdk::cli::output::Notification {
-            value: LogStreamReady { log_stream_ready },
+        Output::Notification(Notification {
+            value: NotificationValue::LogStreamReady(LogStreamReady { log_stream_ready }),
             ..
         }) => Some(log_stream_ready),
-        Output::Error(_) | Output::Begin | Output::End => None,
+        _ => None,
     }
 }
 
@@ -36,7 +33,7 @@ pub async fn emit_log_content(content: objectiveai_sdk::filesystem::logs::LogCon
             content_data_url: s,
         },
     };
-    Output::<LogContent>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: wire }).emit(handle).await;
+    Output::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: (wire).into() }).emit(handle).await;
 }
 
 /// Emit a list of log directory entries as `Items<LogListItem>`.
@@ -44,14 +41,14 @@ pub async fn emit_log_list(
     items: Vec<objectiveai_sdk::filesystem::logs::ListItem>,
     handle: &Handle,
 ) {
-    Output::<Items<objectiveai_sdk::filesystem::logs::ListItem>>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: Items { items } })
+    Output::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: objectiveai_sdk::cli::output::NotificationValue::other(&(Items { items })) })
         .emit(handle)
         .await;
 }
 
 /// Emit the count of cleared log files as `Cleared`.
 pub async fn emit_log_clear_count(count: u64, handle: &Handle) {
-    Output::<Cleared>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: Cleared { cleared: count } })
+    Output::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: (Cleared { cleared: count }).into() })
         .emit(handle)
         .await;
 }

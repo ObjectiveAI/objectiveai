@@ -4,22 +4,56 @@
 //! has a role (system, user, assistant, tool, or developer) and content.
 
 mod assistant_message;
+#[cfg(feature = "filesystem")]
+mod assistant_message_log;
 mod developer_message;
+#[cfg(feature = "filesystem")]
+mod developer_message_log;
 mod file_content;
+#[cfg(feature = "filesystem")]
+mod message_log;
+mod pipe_ack;
 mod rich_content;
+#[cfg(feature = "filesystem")]
+mod rich_content_log;
 mod simple_content;
+#[cfg(feature = "filesystem")]
+mod simple_content_log;
 mod system_message;
+#[cfg(feature = "filesystem")]
+mod system_message_log;
 mod tool_message;
+#[cfg(feature = "filesystem")]
+mod tool_message_log;
 mod user_message;
+#[cfg(feature = "filesystem")]
+mod user_message_log;
 
 pub use assistant_message::*;
+#[cfg(feature = "filesystem")]
+pub use assistant_message_log::*;
 pub use developer_message::*;
+#[cfg(feature = "filesystem")]
+pub use developer_message_log::*;
 pub use file_content::*;
+#[cfg(feature = "filesystem")]
+pub use message_log::*;
+pub use pipe_ack::*;
 pub use rich_content::*;
+#[cfg(feature = "filesystem")]
+pub use rich_content_log::*;
 pub use simple_content::*;
+#[cfg(feature = "filesystem")]
+pub use simple_content_log::*;
 pub use system_message::*;
+#[cfg(feature = "filesystem")]
+pub use system_message_log::*;
 pub use tool_message::*;
+#[cfg(feature = "filesystem")]
+pub use tool_message_log::*;
 pub use user_message::*;
+#[cfg(feature = "filesystem")]
+pub use user_message_log::*;
 
 #[cfg(test)]
 mod assistant_message_tests;
@@ -139,6 +173,43 @@ impl Message {
             Message::User(msg) => msg.prepare(),
             Message::Assistant(msg) => msg.prepare(),
             Message::Tool(msg) => msg.prepare(),
+        }
+    }
+
+    /// Extract this message's content into per-leaf log files,
+    /// returning a [`MessageLog`] (with the per-role `*MessageLog`
+    /// inside) plus the [`crate::filesystem::logs::LogFile`]s the
+    /// caller writes. Dispatches per role to the per-role `extract`
+    /// method, which delegates to the appropriate `SimpleContent` /
+    /// `RichContent` extractor.
+    #[cfg(feature = "filesystem")]
+    pub fn extract(
+        self,
+        route_base: &str,
+        id: &str,
+        message_index: u64,
+    ) -> (MessageLog, Vec<crate::filesystem::logs::LogFile>) {
+        match self {
+            Message::Developer(msg) => {
+                let (log, files) = msg.extract(route_base, id, message_index);
+                (MessageLog::Developer(log), files)
+            }
+            Message::System(msg) => {
+                let (log, files) = msg.extract(route_base, id, message_index);
+                (MessageLog::System(log), files)
+            }
+            Message::User(msg) => {
+                let (log, files) = msg.extract(route_base, id, message_index);
+                (MessageLog::User(log), files)
+            }
+            Message::Assistant(msg) => {
+                let (log, files) = msg.extract(route_base, id, message_index);
+                (MessageLog::Assistant(log), files)
+            }
+            Message::Tool(msg) => {
+                let (log, files) = msg.extract(route_base, id, message_index);
+                (MessageLog::Tool(log), files)
+            }
         }
     }
 }

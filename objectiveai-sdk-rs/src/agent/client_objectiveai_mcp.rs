@@ -15,7 +15,9 @@ use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
 
 /// A single `owner` / `name` / `version` reference identifying one
-/// plugin or one tool inside [`ClientObjectiveaiMcp`].
+/// tool inside [`ClientObjectiveaiMcp::tools`]. Plugin references
+/// use the larger [`ClientObjectiveaiMcpPluginEntry`] — they carry
+/// extra `executable` / `mcp_servers` fields tools don't have.
 #[derive(
     Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, JsonSchema, arbitrary::Arbitrary,
 )]
@@ -47,6 +49,77 @@ impl ClientObjectiveaiMcpEntry {
     }
 }
 
+/// Plugin reference inside [`ClientObjectiveaiMcp::plugins`].
+///
+/// - `owner` / `name` / `version` identify the plugin (same shape as
+///   [`ClientObjectiveaiMcpEntry`]).
+/// - `executable` controls whether this plugin contributes a tool
+///   to the agent's surface (`true`, default) or is loaded purely
+///   for its declared MCP servers (`false`). The API's
+///   `X-OBJECTIVEAI-TOOLS-ALLOWED` construction honors this: only
+///   `executable = true` plugin entries contribute their `name` to
+///   the allow-list.
+/// - `mcp_servers` selects which of the plugin's manifest-declared
+///   `filesystem::plugins::Manifest::mcp_servers` entries should be
+///   exposed to the agent, by `name`. `None` ⇒ none of them.
+#[derive(
+    Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, JsonSchema, arbitrary::Arbitrary,
+)]
+#[schemars(rename = "agent.ClientObjectiveaiMcpPluginEntry")]
+pub struct ClientObjectiveaiMcpPluginEntry {
+    pub owner: String,
+    pub name: String,
+    pub version: String,
+    /// `true`: spawn the plugin binary and surface its tools the
+    /// usual way. `false`: don't run the plugin; only consume its
+    /// declared MCP servers (`mcp_servers` below). Defaults to
+    /// `true` so existing declarations keep their current behavior.
+    #[serde(default = "default_true")]
+    pub executable: bool,
+    /// Subset of the plugin's manifest `mcp_servers` to expose, by
+    /// `name`. `None` ⇒ none. Names that aren't present in the
+    /// plugin's manifest are rejected when the API asks the CLI to
+    /// begin them; declarations themselves don't validate the
+    /// referent (the plugin may not be installed at declaration
+    /// time).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub mcp_servers: Option<Vec<String>>,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+impl ClientObjectiveaiMcpPluginEntry {
+    /// `owner`, `name`, and `version` must all be non-empty; any
+    /// `mcp_servers[i]` must also be non-empty.
+    pub fn validate(&self) -> Result<(), String> {
+        if self.owner.is_empty() {
+            return Err("`owner` cannot be empty".into());
+        }
+        if self.name.is_empty() {
+            return Err("`name` cannot be empty".into());
+        }
+        if self.version.is_empty() {
+            return Err("`version` cannot be empty".into());
+        }
+        if let Some(names) = self.mcp_servers.as_ref() {
+            for n in names {
+                if n.is_empty() {
+                    return Err("`mcp_servers[i]` cannot be empty".into());
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// LLM-visible tool name. See [`materialize_tool_name`].
+    pub fn tool_name(&self) -> String {
+        materialize_tool_name(&self.owner, &self.name, &self.version)
+    }
+}
+
 /// Materialize the LLM-visible tool name for an `owner` / `name` /
 /// `version` triple: `{owner}-{name}-{version}` with every `.`
 /// substituted to `-`. The substitution keeps the result
@@ -65,7 +138,8 @@ pub fn materialize_tool_name(owner: &str, name: &str, version: &str) -> String {
 /// - `objectiveai`: whether the calling client exposes the built-in
 ///   `objectiveai-mcp`. `None` means unspecified; `Some(true)` /
 ///   `Some(false)` explicitly opt in / out.
-/// - `plugins`: specific plugins (by `owner` / `name` / `version`).
+/// - `plugins`: specific plugins (by `owner` / `name` / `version`)
+///   plus per-plugin `executable` + `mcp_servers`.
 /// - `tools`: specific tools (by `owner` / `name` / `version`).
 #[derive(
     Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema, arbitrary::Arbitrary, Default,
@@ -78,7 +152,7 @@ pub struct ClientObjectiveaiMcp {
 
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     #[schemars(extend("omitempty" = true))]
-    pub plugins: Vec<ClientObjectiveaiMcpEntry>,
+    pub plugins: Vec<ClientObjectiveaiMcpPluginEntry>,
 
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     #[schemars(extend("omitempty" = true))]
@@ -87,7 +161,7 @@ pub struct ClientObjectiveaiMcp {
 
 /// Validates the configuration. Each entry's fields must be
 /// non-empty, and the `plugins` / `tools` lists each contain no
-/// duplicates. Free-function counterpart to
+/// `(owner, name, version)` duplicates. Free-function counterpart to
 /// [`super::mcp_servers::validate`].
 pub fn validate(this: &ClientObjectiveaiMcp) -> Result<(), String> {
     for entry in &this.plugins {
@@ -98,7 +172,7 @@ pub fn validate(this: &ClientObjectiveaiMcp) -> Result<(), String> {
     }
     for (i, a) in this.plugins.iter().enumerate() {
         for b in &this.plugins[i + 1..] {
-            if a == b {
+            if a.owner == b.owner && a.name == b.name && a.version == b.version {
                 return Err(format!(
                     "`client_objectiveai_mcp.plugins` contains duplicate entry: \"{}/{}@{}\"",
                     a.owner, a.name, a.version,

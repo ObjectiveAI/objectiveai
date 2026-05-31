@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 /// Declarative metadata a local tool ships with. The wire shape is
 /// JSON: `<base_dir>/tools/<name>.json`. Companion executable lives
 /// alongside in `<base_dir>/tools/<exec>`.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "filesystem.tools.Manifest")]
 pub struct Manifest {
     /// One-line description of what the tool does. Surfaced to
@@ -39,7 +39,7 @@ impl Manifest {
 /// A [`Manifest`] enriched with the tool's identifying `name` and the
 /// `source` it was loaded from. Same shape and ordering convention
 /// as `filesystem::plugins::ManifestWithNameAndSource`.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "filesystem.tools.ManifestWithNameAndSource")]
 pub struct ManifestWithNameAndSource {
     /// The tool's identifier — the filename it lives under in the

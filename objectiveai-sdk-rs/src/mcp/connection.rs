@@ -351,10 +351,18 @@ pub struct ConnectionInner {
     next_id: AtomicU64,
 
     /// All tools from the server, populated by background pagination.
-    tools: RwLock<Result<Arc<Vec<super::tool::Tool>>, Arc<super::Error>>>,
+    ///
+    /// `None` = cache cleared — either pre-populate (between
+    /// [`Self::new`] and the first `refresh_tools_signaling`) or
+    /// post-drop (the listener empties this the moment its SSE
+    /// stream ends so `list_tools` will re-paginate against the
+    /// upstream rather than return stale state). `Some(_)` = last
+    /// known result, `Ok` or `Err`.
+    tools: RwLock<Option<Result<Arc<Vec<super::tool::Tool>>, Arc<super::Error>>>>,
     /// All resources from the server, populated by background pagination.
+    /// Same `None`/`Some` semantics as [`Self::tools`].
     resources:
-        RwLock<Result<Arc<Vec<super::resource::Resource>>, Arc<super::Error>>>,
+        RwLock<Option<Result<Arc<Vec<super::resource::Resource>>, Arc<super::Error>>>>,
 
     /// Cancellation token for the long-lived `listen_for_list_changes`
     /// task. The listener selects this against every blocking await
@@ -432,8 +440,11 @@ impl ConnectionInner {
             },
             mock: true,
             next_id: AtomicU64::new(2),
-            tools: RwLock::new(Ok(Arc::new(Vec::new()))),
-            resources: RwLock::new(Ok(Arc::new(Vec::new()))),
+            // Mock has no listener and never refreshes; seed with an
+            // empty Ok so `list_tools` returns immediately instead of
+            // trying to paginate over a non-existent upstream.
+            tools: RwLock::new(Some(Ok(Arc::new(Vec::new())))),
+            resources: RwLock::new(Some(Ok(Arc::new(Vec::new())))),
             _listener_cancel_guard: None,
             on_tools_list_changed: CallbackSlot::new(),
             on_resources_list_changed: CallbackSlot::new(),
@@ -482,8 +493,10 @@ impl ConnectionInner {
             },
             mock: false,
             next_id: AtomicU64::new(2),
-            tools: RwLock::new(Ok(Arc::new(Vec::new()))),
-            resources: RwLock::new(Ok(Arc::new(Vec::new()))),
+            // Test connection has no listener and never refreshes; seed
+            // with an empty Ok so `list_tools` doesn't try to paginate.
+            tools: RwLock::new(Some(Ok(Arc::new(Vec::new())))),
+            resources: RwLock::new(Some(Ok(Arc::new(Vec::new())))),
             _listener_cancel_guard: None,
             on_tools_list_changed: CallbackSlot::new(),
             on_resources_list_changed: CallbackSlot::new(),
@@ -540,8 +553,11 @@ impl ConnectionInner {
             initialize_result,
             mock: false,
             next_id: AtomicU64::new(2),
-            tools: RwLock::new(Ok(Arc::new(Vec::new()))),
-            resources: RwLock::new(Ok(Arc::new(Vec::new()))),
+            // Start empty; `refresh_tools_signaling` below installs
+            // `Some(_)` before `new` returns (the lock-handoff oneshot
+            // gates the return on the writer holding the lock).
+            tools: RwLock::new(None),
+            resources: RwLock::new(None),
             _listener_cancel_guard: Some(listener_cancel.drop_guard()),
             on_tools_list_changed: CallbackSlot::new(),
             on_resources_list_changed: CallbackSlot::new(),
@@ -940,11 +956,29 @@ impl ConnectionInner {
     /// Returns all tools from the server.
     ///
     /// Blocks until background pagination completes, then returns a
-    /// cheap `Arc` clone of the result.
+    /// cheap `Arc` clone of the result. If the cache is currently
+    /// empty (e.g. because the listener detected its SSE stream drop
+    /// and cleared it) this paginates inline against the upstream —
+    /// the caller gets fresh data on the happy path, or the live
+    /// upstream error if the connection is genuinely down, rather
+    /// than stale pre-drop tools.
     async fn list_tools(
         &self,
     ) -> Result<Arc<Vec<super::tool::Tool>>, Arc<super::Error>> {
-        self.tools.read().await.clone()
+        if let Some(cached) = self.tools.read().await.as_ref() {
+            return cached.clone();
+        }
+        // Cache cleared; refresh inline. Concurrent callers may each
+        // refresh — wasteful, but the proxy fans out across distinct
+        // upstreams so a single Connection rarely sees concurrent
+        // `list_tools` calls.
+        self.refresh_tools(None).await;
+        self.tools
+            .read()
+            .await
+            .as_ref()
+            .expect("refresh_tools installs Some")
+            .clone()
     }
 
     /// Calls a tool on the MCP server.
@@ -991,7 +1025,7 @@ impl ConnectionInner {
         super::Error,
     > {
         use crate::agent::completions::message::{
-            File, ImageUrl, RichContentPart, ToolMessage,
+            File, ImageUrl, RichContentPart, ToolMessage, ToolResponseMetadata,
         };
         use super::shared::ResourceContentsUnion;
         use super::tool::ContentBlock;
@@ -1096,9 +1130,21 @@ impl ConnectionInner {
             }
         }
 
+        // Lossy-decode the MCP `_meta` extension bag into our typed
+        // `ToolResponseMetadata`. Unknown keys (set by non-objectiveai
+        // upstreams) are silently dropped. Decoding failure leaves
+        // metadata as `None`.
+        let metadata = result._meta.as_ref().and_then(|m| {
+            serde_json::from_value::<ToolResponseMetadata>(
+                serde_json::to_value(m).ok()?,
+            )
+            .ok()
+        });
+
         Ok(ToolMessage {
             content: parts.into(),
             tool_call_id,
+            metadata,
         })
     }
 
@@ -1119,12 +1165,22 @@ impl ConnectionInner {
 
     /// Returns all resources from the server.
     ///
-    /// Blocks until background pagination completes, then returns a
-    /// cheap `Arc` clone of the result.
+    /// Same cache-or-refresh semantics as [`Self::list_tools`]: a
+    /// cleared cache (post-drop or pre-populate) triggers an inline
+    /// paginate against the upstream.
     async fn list_resources(
         &self,
     ) -> Result<Arc<Vec<super::resource::Resource>>, Arc<super::Error>> {
-        self.resources.read().await.clone()
+        if let Some(cached) = self.resources.read().await.as_ref() {
+            return cached.clone();
+        }
+        self.refresh_resources(None).await;
+        self.resources
+            .read()
+            .await
+            .as_ref()
+            .expect("refresh_resources installs Some")
+            .clone()
     }
 
     /// Returns the cached tool list as soon as it differs from `current`,
@@ -1150,7 +1206,11 @@ impl ConnectionInner {
         tokio::pin!(notified);
         notified.as_mut().enable();
 
-        let initial = self.tools.read().await.clone();
+        // `list_tools` handles a cleared cache (post-drop) by
+        // paginating inline. A `None` initial state can't be
+        // compared to the caller's snapshot meaningfully — promote
+        // to whatever the refresh installs.
+        let initial = self.list_tools().await;
         match &initial {
             Ok(arc) if arc.as_slice() == current => {}
             _ => return initial,
@@ -1158,7 +1218,7 @@ impl ConnectionInner {
 
         let _ = tokio::time::timeout(timeout, notified).await;
 
-        self.tools.read().await.clone()
+        self.list_tools().await
     }
 
     /// Resource counterpart of [`Self::subscribe_tools`].
@@ -1171,7 +1231,7 @@ impl ConnectionInner {
         tokio::pin!(notified);
         notified.as_mut().enable();
 
-        let initial = self.resources.read().await.clone();
+        let initial = self.list_resources().await;
         match &initial {
             Ok(arc) if arc.as_slice() == current => {}
             _ => return initial,
@@ -1179,7 +1239,7 @@ impl ConnectionInner {
 
         let _ = tokio::time::timeout(timeout, notified).await;
 
-        self.resources.read().await.clone()
+        self.list_resources().await
     }
 
     /// Reads a resource from the MCP server.
@@ -1229,7 +1289,7 @@ impl ConnectionInner {
             self.tools.write(),
             self.paginate_tools(),
         );
-        *guard = result;
+        *guard = Some(result);
         self.tools_changed.notify_waiters();
         if let Some(cb) = on_change {
             cb();
@@ -1294,7 +1354,7 @@ impl ConnectionInner {
                 Err(e) => break Err(Arc::new(e)),
             }
         };
-        *guard = result;
+        *guard = Some(result);
     }
 
     /// Re-fetches all resources from the server, replacing the cached list.
@@ -1308,7 +1368,7 @@ impl ConnectionInner {
             self.resources.write(),
             self.paginate_resources(),
         );
-        *guard = result;
+        *guard = Some(result);
         self.resources_changed.notify_waiters();
         if let Some(cb) = on_change {
             cb();
@@ -1363,7 +1423,7 @@ impl ConnectionInner {
                 Err(e) => break Err(Arc::new(e)),
             }
         };
-        *guard = result;
+        *guard = Some(result);
     }
 
     /// Builds a GET request to the MCP endpoint for receiving server
@@ -1545,6 +1605,17 @@ impl ConnectionInner {
                 }
             }
 
+            // Stream dropped — empty the per-Connection caches so the
+            // next `list_tools` / `list_resources` paginates inline
+            // against the (possibly still-dead) upstream rather than
+            // returning whatever was cached before the drop. The
+            // `is_reconnect` catch-up at the top of the next outer
+            // iteration will repopulate `Some(_)` if the reconnect
+            // succeeds; if the reconnect keeps failing, the cache
+            // stays `None` and `list_*` callers paginate themselves.
+            *this.tools.write().await = None;
+            *this.resources.write().await = None;
+
             // Stream ended — drop the strong ref before sleeping so the
             // next iteration's weak-upgrade can detect liveness honestly.
             drop(this);
@@ -1584,7 +1655,7 @@ mod subscribe_tests {
     #[tokio::test]
     async fn subscribe_tools_returns_immediately_when_cache_differs() {
         let conn = Connection::new_for_test("t".into(), "http://x".into());
-        *conn.inner.tools.write().await = Ok(Arc::new(vec![tool("a")]));
+        *conn.inner.tools.write().await = Some(Ok(Arc::new(vec![tool("a")])));
 
         let start = std::time::Instant::now();
         let got = conn
@@ -1603,7 +1674,7 @@ mod subscribe_tests {
             url: "http://x".into(),
             body: String::new(),
         };
-        *conn.inner.tools.write().await = Err(Arc::new(err));
+        *conn.inner.tools.write().await = Some(Err(Arc::new(err)));
 
         let start = std::time::Instant::now();
         let got = conn
@@ -1619,7 +1690,7 @@ mod subscribe_tests {
     #[tokio::test]
     async fn subscribe_tools_wakes_on_change_and_reads_post_swap() {
         let conn = Connection::new_for_test("t".into(), "http://x".into());
-        *conn.inner.tools.write().await = Ok(Arc::new(vec![tool("a")]));
+        *conn.inner.tools.write().await = Some(Ok(Arc::new(vec![tool("a")])));
 
         let conn_for_subscriber = conn.clone();
         let subscriber = tokio::spawn(async move {
@@ -1643,7 +1714,7 @@ mod subscribe_tests {
             // Hold briefly to make absolutely sure the subscriber is
             // racing the read lock against our drop.
             tokio::time::sleep(Duration::from_millis(20)).await;
-            *guard = Ok(Arc::new(vec![tool("b")]));
+            *guard = Some(Ok(Arc::new(vec![tool("b")])));
         }
 
         let got = tokio::time::timeout(Duration::from_secs(2), subscriber)
@@ -1658,7 +1729,7 @@ mod subscribe_tests {
     #[tokio::test]
     async fn subscribe_tools_times_out_and_returns_unchanged_list() {
         let conn = Connection::new_for_test("t".into(), "http://x".into());
-        *conn.inner.tools.write().await = Ok(Arc::new(vec![tool("a")]));
+        *conn.inner.tools.write().await = Some(Ok(Arc::new(vec![tool("a")])));
 
         let start = std::time::Instant::now();
         let got = conn
@@ -1676,7 +1747,7 @@ mod subscribe_tests {
     #[tokio::test]
     async fn subscribe_tools_supports_concurrent_subscribers() {
         let conn = Connection::new_for_test("t".into(), "http://x".into());
-        *conn.inner.tools.write().await = Ok(Arc::new(vec![tool("a")]));
+        *conn.inner.tools.write().await = Some(Ok(Arc::new(vec![tool("a")])));
 
         let c1 = conn.clone();
         let c2 = conn.clone();
@@ -1696,7 +1767,7 @@ mod subscribe_tests {
         {
             let mut guard = conn.inner.tools.write().await;
             conn.inner.tools_changed.notify_waiters();
-            *guard = Ok(Arc::new(vec![tool("c")]));
+            *guard = Some(Ok(Arc::new(vec![tool("c")])));
         }
 
         let (r1, r2) = tokio::join!(s1, s2);

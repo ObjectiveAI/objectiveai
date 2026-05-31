@@ -158,12 +158,12 @@ fn generate_module(node: &TreeNode, dir: &Path, depth: usize) {
         write!(code, "\"{name}\"").unwrap();
     }
     code.push_str("];\n");
-    code.push_str("                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Schemas>::Notification(\n");
+    code.push_str("                objectiveai_sdk::cli::output::Output::Notification(\n");
     code.push_str("                    objectiveai_sdk::cli::output::Notification {\n");
     code.push_str("                        agent_id: None,\n");
     code.push_str("                        value: objectiveai_sdk::cli::output::Schemas {\n");
     code.push_str("                            schemas: NAMES.iter().map(|s| s.to_string()).collect(),\n");
-    code.push_str("                        },\n");
+    code.push_str("                        }.into(),\n");
     code.push_str("                    },\n");
     code.push_str("                ).emit(handle).await;\n");
     code.push_str("                Ok(())\n");
@@ -183,10 +183,10 @@ fn generate_module(node: &TreeNode, dir: &Path, depth: usize) {
         writeln!(code, "                let schema: serde_json::Value = serde_json::from_str(").unwrap();
         writeln!(code, "                    include_str!(\"{schema_rel}/{filename}\"),").unwrap();
         writeln!(code, "                ).expect(\"embedded JSON Schema must parse\");").unwrap();
-        writeln!(code, "                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Schema>::Notification(").unwrap();
+        writeln!(code, "                objectiveai_sdk::cli::output::Output::Notification(").unwrap();
         writeln!(code, "                    objectiveai_sdk::cli::output::Notification {{").unwrap();
         writeln!(code, "                        agent_id: None,").unwrap();
-        writeln!(code, "                        value: objectiveai_sdk::cli::output::Schema {{ schema }},").unwrap();
+        writeln!(code, "                        value: objectiveai_sdk::cli::output::Schema {{ schema }}.into(),").unwrap();
         writeln!(code, "                    }},").unwrap();
         writeln!(code, "                ).emit(handle).await;").unwrap();
         writeln!(code, "                Ok(())").unwrap();

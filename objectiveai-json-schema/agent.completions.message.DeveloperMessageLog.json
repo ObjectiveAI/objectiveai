@@ -1,0 +1,20 @@
+{
+  "title": "agent.completions.message.DeveloperMessageLog",
+  "type": "object",
+  "properties": {
+    "content": {
+      "$ref": "agent.completions.message.SimpleContentLog"
+    },
+    "name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

@@ -1,5 +1,4 @@
 use clap::{Args, Subcommand};
-use futures::StreamExt;
 
 crate::define_inline_or_ref!(AgentArg, "agent", objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional, Remote);
 
@@ -65,8 +64,6 @@ pub enum Commands {
         agent: AgentArg,
         #[command(flatten)]
         continuation: crate::continuation::ContinuationArgs,
-        #[command(flatten)]
-        instructions: crate::instructions::InstructionsIdArg,
         /// Seed for deterministic mock responses
         #[arg(long)]
         seed: Option<i64>,
@@ -82,8 +79,6 @@ pub enum Commands {
         agent: AgentArg,
         #[command(flatten)]
         continuation: crate::continuation::ContinuationArgs,
-        #[command(flatten)]
-        instructions: crate::instructions::InstructionsIdArg,
         /// Seed for deterministic mock responses
         #[arg(long)]
         seed: Option<i64>,
@@ -103,8 +98,6 @@ pub enum Commands {
         agent: AgentArg,
         #[command(flatten)]
         continuation: crate::continuation::ContinuationArgs,
-        #[command(flatten)]
-        instructions: crate::instructions::InstructionsIdArg,
         /// Seed for deterministic mock responses
         #[arg(long)]
         seed: Option<i64>,
@@ -116,26 +109,26 @@ pub enum Commands {
 
 impl Commands {
     pub async fn handle(self, cli_config: &crate::Config, handle: &objectiveai_sdk::cli::output::Handle) -> Result<(), crate::error::Error> {
-        let (agent_ref, continuation_args, instructions, seed, state, detach) = match self {
-            Commands::AlphaScalar { params, agent, continuation, instructions, seed, detach } => {
+        let (agent_ref, continuation_args, seed, state, detach) = match self {
+            Commands::AlphaScalar { params, agent, continuation, seed, detach } => {
                 let p = params.into_params();
                 let state = objectiveai_sdk::functions::inventions::ParamsStateOrRemoteCommitOptional::Inline(
                     objectiveai_sdk::functions::inventions::ParamsState::AlphaScalar(
                         objectiveai_sdk::functions::inventions::state::AlphaScalarState { params: p, input_schema: None },
                     ),
                 );
-                (agent, continuation, instructions, seed, state, detach)
+                (agent, continuation, seed, state, detach)
             }
-            Commands::AlphaVector { params, agent, continuation, instructions, seed, detach } => {
+            Commands::AlphaVector { params, agent, continuation, seed, detach } => {
                 let p = params.into_params();
                 let state = objectiveai_sdk::functions::inventions::ParamsStateOrRemoteCommitOptional::Inline(
                     objectiveai_sdk::functions::inventions::ParamsState::AlphaVector(
                         objectiveai_sdk::functions::inventions::state::AlphaVectorState { params: p, input_schema: None },
                     ),
                 );
-                (agent, continuation, instructions, seed, state, detach)
+                (agent, continuation, seed, state, detach)
             }
-            Commands::Remote { state, state_inline, agent, continuation, instructions, seed, detach } => {
+            Commands::Remote { state, state_inline, agent, continuation, seed, detach } => {
                 let state = if let Some(inline) = state_inline {
                     let mut de = serde_json::Deserializer::from_str(&inline);
                     let parsed: objectiveai_sdk::functions::inventions::ParamsState =
@@ -146,11 +139,9 @@ impl Commands {
                     let remote_path = state.expect("clap ensures one is set").resolve()?;
                     objectiveai_sdk::functions::inventions::ParamsStateOrRemoteCommitOptional::Remote(remote_path)
                 };
-                (agent, continuation, instructions, seed, state, detach)
+                (agent, continuation, seed, state, detach)
             }
         };
-
-        instructions.verify(cli_config, crate::instructions::InstructionsScope::FunctionInventionsRecursive)?;
 
         if detach {
             crate::api::detach::detach(handle).await;
@@ -181,63 +172,36 @@ impl Commands {
             continuation,
         };
 
-        let fs_client = objectiveai_sdk::filesystem::Client::new(cli_config.config_base_dir.as_deref(), None::<String>, None::<String>);
-        let log_writer = fs_client.write_function_invention_recursive();
+        // Delegate to cli-stream. Per-invention inner errors stream
+        // out as Output::Error(Warn) via the closure below.
+        let aggregate = crate::api::stream_subprocess::run::<
+            objectiveai_sdk::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk,
+        >(
+            cli_config,
+            &["functions", "inventions", "recursive", "create"],
+            &request,
+            handle,
+            |chunk| chunk.inner_errors().map(|e| serde_json::to_value(&e).unwrap()).collect(),
+            |agg, c| agg.push(c),
+        ).await?;
+        let chunk = aggregate.ok_or(crate::error::Error::EmptyStream)?;
 
-        let handle = handle.clone();
-        crate::api::run_with_conduit(cli_config, Box::new(|http_client, conduit| Box::pin(async move {
-            let (stream, _notifier) = objectiveai_sdk::functions::inventions::recursive::create_function_invention_recursive_streaming(
-                &http_client, request, conduit,
-            ).await?;
-
-            // Emit each chunk's inner errors live (Warn) before pushing.
-            let emit_handle = handle.clone();
-            let stream = stream.then(move |result| {
-                let handle = emit_handle.clone();
-                async move {
-                    if let Ok(chunk) = &result {
-                        for inner in chunk.inner_errors() {
-                            objectiveai_sdk::cli::output::Output::<serde_json::Value>::Error(
-                                objectiveai_sdk::cli::output::Error {
-                                    level: objectiveai_sdk::cli::output::Level::Warn,
-                                    fatal: false,
-                                    message: serde_json::to_value(&inner).unwrap(),
-                                    agent_id: None,
-                                },
-                            )
-                            .emit(&handle)
-                            .await;
-                        }
-                    }
-                    result.map_err(crate::error::Error::from)
-                }
-            });
-
-            let chunk = crate::log_stream::consume_with_coalesced_writes(
-                stream,
-                log_writer,
-                |agg: &mut objectiveai_sdk::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk, c| agg.push(c),
-                handle.clone(),
-            ).await?;
-
-            // Build result: one item per invention that has state.
-            // Per-invention errors already streamed as Output::Error;
-            // `path: None` indicates failure (or no resolved path yet).
-            let results: Vec<InventionResultItem> = chunk.inventions.iter()
-                .filter_map(|inv| {
-                    let state = inv.inner.state.as_ref()?;
-                    Some(InventionResultItem {
-                        name: state_name(state).to_string(),
-                        path: inv.inner.path.clone(),
-                    })
+        // Build result: one item per invention that has state.
+        // Per-invention errors already streamed as Output::Error;
+        // `path: None` indicates failure (or no resolved path yet).
+        let results: Vec<InventionResultItem> = chunk.inventions.iter()
+            .filter_map(|inv| {
+                let state = inv.inner.state.as_ref()?;
+                Some(InventionResultItem {
+                    name: state_name(state).to_string(),
+                    path: inv.inner.path.clone(),
                 })
-                .collect();
+            })
+            .collect();
 
-            objectiveai_sdk::cli::output::Output::<Inventions>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value:
-                Inventions { inventions: results },
-             })
-            .emit(&handle).await;
-            Ok(())
-        }))).await
+        objectiveai_sdk::cli::output::Output::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: (Inventions { inventions: results }).into(),
+         })
+        .emit(handle).await;
+        Ok(())
     }
 }

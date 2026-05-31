@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 /// Result of `swarms get`.
 ///
 /// Wire: `{"type":"notification","swarm":{...GetSwarmResponse...}}`.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[schemars(rename = "cli.output.notification.swarms.Swarm")]
 pub struct Swarm {
     pub swarm: crate::swarm::response::GetSwarmResponse,

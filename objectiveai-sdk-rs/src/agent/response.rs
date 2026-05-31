@@ -15,7 +15,7 @@ pub struct ListAgentResponse {
 pub type ListAgentItem = crate::RemotePath;
 
 /// Response containing a single Agent with creation timestamp.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "agent.GetAgentResponse")]
 pub struct GetAgentResponse {
     #[serde(flatten)]

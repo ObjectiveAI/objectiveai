@@ -16,42 +16,52 @@ impl ToolResponse {
     /// Produces log files for this tool message.
     ///
     /// Returns `(reference, files)` where `reference` is a
-    /// `{"type": "reference", "path": ...}` JSON value, and `files`
-    /// contains all produced [`LogFile`]s including the message itself and
-    /// extracted media.
+    /// [`LogReference`] pointing to this message's file, and `files`
+    /// contains all produced [`LogFile`]s including the message itself
+    /// and extracted media.
     #[cfg(feature = "filesystem")]
-    pub fn produce_files(&self, id: &str, route_base: &str) -> (serde_json::Value, Vec<crate::filesystem::logs::LogFile>) {
-        use crate::filesystem::logs::LogFile;
+    pub fn produce_files(
+        &self,
+        id: &str,
+        route_base: &str,
+    ) -> (crate::filesystem::logs::LogReference, Vec<crate::filesystem::logs::LogFile>) {
+        use crate::filesystem::logs::{LogFile, LogReference};
 
         let mut files = Vec::new();
 
-        // Serialize a shell without content to avoid double-serialization
-        let shell = ToolResponse {
-            role: self.role,
-            index: self.index,
-            inner: agent::completions::message::ToolMessage {
-                content: agent::completions::message::RichContent::Text(String::new()),
-                tool_call_id: self.inner.tool_call_id.clone(),
-            },
-        };
-        let mut msg_json = serde_json::to_value(&shell).unwrap();
-
-        // Extract media from content (flattened, so "content" is at root)
+        // Extract media from content (flattened on disk via the
+        // wire chunk's `serde(flatten)` on `inner`). Routed under the
+        // kind-specific subdir so the (response_id, index) stems don't
+        // collide with an assistant message at the same index.
         let mut content = self.inner.content.clone();
         content.prepare();
-        let (content_json, media_files) = content.extract_media(route_base, id, self.index);
-        msg_json["content"] = content_json;
+        let (content_log, media_files) = content.extract_media(
+            &format!("{route_base}/messages/tool"),
+            id,
+            self.index,
+        );
         files.extend(media_files);
 
+        let log = super::ToolResponseLog {
+            role: self.role,
+            index: self.index,
+            content: content_log,
+            tool_call_id: self.inner.tool_call_id.clone(),
+            metadata: self.inner.metadata.clone(),
+        };
+
         let msg_file = LogFile {
-            route: format!("{route_base}/messages"),
+            // Kind-specific subdir so this file can't collide with an
+            // assistant message at the same (response_id, index) —
+            // see `MessageKind::file_path` for the reader-side mirror.
+            route: format!("{route_base}/messages/tool"),
             id: id.to_string(),
             message_index: Some(self.index),
             media_index: None,
             extension: "json".to_string(),
-            content: serde_json::to_vec_pretty(&msg_json).unwrap(),
+            content: serde_json::to_vec_pretty(&log).unwrap(),
         };
-        let reference = serde_json::json!({ "type": "reference", "path": msg_file.path() });
+        let reference = LogReference::new(msg_file.path());
         files.push(msg_file);
 
         (reference, files)

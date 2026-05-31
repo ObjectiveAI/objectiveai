@@ -7,7 +7,7 @@ use super::Platform;
 /// JSON; the on-disk convention (sibling file, embedded resource,
 /// `--manifest` flag, …) is deliberately out of scope of this struct
 /// and will be settled in a follow-up.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "filesystem.plugins.Manifest")]
 pub struct Manifest {
     /// One-line description of what the plugin does. Surfaced in
@@ -98,6 +98,17 @@ pub struct Manifest {
     /// to false (desktop-only).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub mobile_ready: bool,
+
+    /// MCP servers the plugin wants the host to expose. Each entry
+    /// has a `name` (the identifier agents reference via
+    /// [`crate::agent::ClientObjectiveaiMcpPluginEntry::mcp_servers`])
+    /// plus the same `url` + `authorization` shape
+    /// [`crate::agent::McpServer`] uses. Auth-requiring entries flag
+    /// `authorization = true`; credentials are resolved by the host
+    /// (env vars / config), not the manifest.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[schemars(extend("omitempty" = true))]
+    pub mcp_servers: Vec<McpServer>,
 }
 
 impl Manifest {
@@ -126,6 +137,28 @@ impl Manifest {
         }
         if let Some(url) = self.viewer_url.as_deref() {
             validate_viewer_url(url)?;
+        }
+        // Each MCP-server entry: non-empty name + url; the list as a
+        // whole must have no `name` duplicates (since agents reference
+        // by name) AND no `url` duplicates (no point declaring two
+        // entries pointing at the same upstream).
+        for entry in &self.mcp_servers {
+            if entry.name.is_empty() {
+                return Err("mcp_servers[i].name cannot be empty");
+            }
+            if entry.url.is_empty() {
+                return Err("mcp_servers[i].url cannot be empty");
+            }
+        }
+        for (i, a) in self.mcp_servers.iter().enumerate() {
+            for b in &self.mcp_servers[i + 1..] {
+                if a.name == b.name {
+                    return Err("mcp_servers contains duplicate name");
+                }
+                if a.url == b.url {
+                    return Err("mcp_servers contains duplicate url");
+                }
+            }
         }
         Ok(())
     }
@@ -238,12 +271,32 @@ impl Binaries {
     }
 }
 
+/// MCP server entry inside [`Manifest::mcp_servers`]. Same `url` +
+/// `authorization` semantics as [`crate::agent::McpServer`] plus a
+/// `name` field that agent declarations reference (via
+/// [`crate::agent::ClientObjectiveaiMcpPluginEntry::mcp_servers`]).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
+#[schemars(rename = "filesystem.plugins.McpServer")]
+pub struct McpServer {
+    /// Author-chosen identifier. Unique per plugin manifest. Agents
+    /// declare which subset of the plugin's MCP servers they want
+    /// exposed by listing names here.
+    pub name: String,
+    /// Upstream MCP server URL.
+    pub url: String,
+    /// Whether the host should attach an `Authorization` header
+    /// when dialing this upstream. Credentials are resolved by the
+    /// host (env vars / config), not the manifest.
+    #[serde(default)]
+    pub authorization: bool,
+}
+
 /// One HTTP route a plugin's viewer registers on the host viewer's
 /// embedded axum server. The full path served is
 /// `/plugin/<repository>/<self.path>`; on a hit, the body is
 /// JSON-decoded and forwarded as a `PluginRequest { type: self.type,
 /// value: body }` event to the frontend.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "filesystem.plugins.ViewerRoute")]
 pub struct ViewerRoute {
     /// Path relative to the plugin's namespace. Must start with `/`;
@@ -284,7 +337,7 @@ pub enum HttpMethod {
 /// one flat JSON object — `serde_json`'s `preserve_order` feature
 /// keeps the declared field order, so consumers see `name` first
 /// and `source` last.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "filesystem.plugins.ManifestWithNameAndSource")]
 pub struct ManifestWithNameAndSource {
     /// The plugin's identifier — the filename it lives under in the

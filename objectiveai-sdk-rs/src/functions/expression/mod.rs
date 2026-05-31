@@ -27,6 +27,8 @@ mod error;
 mod expression;
 mod input_schema;
 mod input_value;
+#[cfg(feature = "filesystem")]
+mod input_value_log;
 mod params;
 mod runtime;
 mod special;
@@ -36,6 +38,8 @@ pub use error::*;
 pub use expression::*;
 pub use input_schema::*;
 pub use input_value::*;
+#[cfg(feature = "filesystem")]
+pub use input_value_log::*;
 pub use params::*;
 pub use runtime::*;
 pub use special::{FromSpecial, Special};

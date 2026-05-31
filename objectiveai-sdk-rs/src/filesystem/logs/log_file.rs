@@ -3,7 +3,7 @@
 /// Instead of opaque path strings, each file carries semantic fields
 /// (route, id, optional indices) from which the on-disk path is derived.
 pub struct LogFile {
-    /// Directory route, e.g. `"agents/completions/messages/image"`.
+    /// Directory route, e.g. `"agents/completions/response/messages/image"`.
     pub route: String,
     /// Chunk ID, e.g. `"acc-1"`.
     pub id: String,
@@ -32,7 +32,7 @@ impl LogFile {
         format!("{}.{}", self.stem(), self.extension)
     }
 
-    /// The full relative path, e.g. `"agents/completions/messages/image/acc-1_0_2.png"`.
+    /// The full relative path, e.g. `"agents/completions/response/messages/image/acc-1_0_2.png"`.
     pub fn path(&self) -> String {
         format!("{}/{}", self.route, self.filename())
     }

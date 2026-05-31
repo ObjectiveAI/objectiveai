@@ -25,17 +25,33 @@ impl AgentCompletionChunk {
 
     /// Produces log files for this agent completion within a function invention.
     ///
-    /// Returns `(reference, files)` where `reference` includes `"index"`.
-    /// Files are written under `agent/completions/`.
+    /// Returns `(reference, files)` where `reference` is an
+    /// [`indexed_reference::LogReference`] carrying `index`. Files
+    /// are written under `agent/completions/`.
+    ///
+    /// [`indexed_reference::LogReference`]: crate::filesystem::logs::indexed_reference::LogReference
     #[cfg(feature = "filesystem")]
-    pub fn produce_files(&self) -> (serde_json::Value, Vec<crate::filesystem::logs::LogFile>) {
-        let (mut reference, files) = match self.inner.produce_files() {
-            Some((reference, files)) => (reference, files),
-            None => return (serde_json::json!({ "type": "reference", "index": self.index }), Vec::new()),
+    pub fn produce_files(
+        &self,
+    ) -> (
+        crate::filesystem::logs::indexed_reference::LogReference,
+        Vec<crate::filesystem::logs::LogFile>,
+    ) {
+        let (path, files) = match self.inner.produce_files() {
+            Some((inner_ref, files)) => (inner_ref.path, files),
+            None => (String::new(), Vec::new()),
         };
-        if let Some(map) = reference.as_object_mut() {
-            map.insert("index".to_string(), serde_json::json!(self.index));
-        }
-        (reference, files)
+        (
+            crate::filesystem::logs::indexed_reference::LogReference::new(path, self.index),
+            files,
+        )
+    }
+
+    /// Delegates to the inner agent completion's message-row extractor.
+    #[cfg(feature = "filesystem")]
+    pub fn produce_message_rows(
+        &self,
+    ) -> impl Iterator<Item = crate::filesystem::db::schema::MessageRow> + Send + '_ {
+        self.inner.produce_message_rows()
     }
 }

@@ -82,18 +82,13 @@ impl Commands {
     }
 }
 
-#[derive(serde::Serialize)]
-struct Instructions {
-    instructions: String,
-}
-
 async fn emit_instructions(handle: &Handle) -> Result<(), crate::error::Error> {
     let instructions = include_str!(
         "../../assets/plugins/install/filesystem/INSTRUCTIONS.md"
     )
     .to_string();
-    Output::<Instructions>::Notification(Notification { agent_id: None,
-        value: Instructions { instructions },
+    Output::Notification(Notification { agent_id: None,
+        value: objectiveai_sdk::cli::output::Instructions { instructions }.into(),
     })
     .emit(handle)
     .await;

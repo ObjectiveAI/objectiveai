@@ -16,6 +16,8 @@ pub enum Error {
     PythonNotFound,
     #[error("failed to read python file {0}: {1}")]
     PythonFileRead(std::path::PathBuf, std::io::Error),
+    #[error("failed to read prompt file {0}: {1}")]
+    PromptFileRead(std::path::PathBuf, std::io::Error),
     #[error("python exception:\n{0}")]
     PythonException(String),
     #[error("python output deserialization failed: {0}")]
@@ -30,8 +32,6 @@ pub enum Error {
     ConfigSetForbidden,
     #[error("log writer task panicked or was cancelled")]
     WriterPanic,
-    #[error("unknown --instructions-id: run the matching `instructions` subcommand to get one")]
-    UnknownInstructionsId,
     #[error("subscribe timed out")]
     LogSubscribeTimedOut,
     #[error("plugin not found: {0}")]
@@ -77,6 +77,12 @@ pub enum Error {
     SpawnNoListeningLine { name: String },
     #[error("spawn {0}: {1}")]
     Spawn(String, std::io::Error),
+    #[error("cli-stream subprocess exited with code {code}:\n{stderr_tail}")]
+    CliStreamSubprocess { code: i32, stderr_tail: String },
+    #[error("no prior agent_completion_request for agent {agent_id:?}; spawn the agent first with `agents spawn`")]
+    AgentNoPriorRequest { agent_id: String },
+    #[error("agent {agent_id:?} has no continuations available across {request_count} prior request(s); the most recent turn may still be streaming, or none have finished. Cannot fall back without a continuation.")]
+    AgentNoContinuation { agent_id: String, request_count: usize },
 }
 
 impl Error {

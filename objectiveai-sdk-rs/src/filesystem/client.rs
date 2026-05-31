@@ -7,11 +7,11 @@ pub struct Client {
     pub commit_author_name: String,
     pub commit_author_email: String,
     /// Lazily-initialised SQLite connection shared across clones of this
-    /// `Client`. Populated on first call to `db()` (see
-    /// `filesystem::config::db`). Wrapped in `Arc<Mutex<Option<…>>>` so
-    /// every clone sees the same connection once one exists, and so
-    /// init failures don't poison the slot — a failed attempt leaves
-    /// the inner `Option::None` intact and later calls can retry.
+    /// `Client`. Populated on first call to `filesystem::db::connection::connection`.
+    /// Wrapped in `Arc<Mutex<Option<…>>>` so every clone sees the same
+    /// connection once one exists, and so init failures don't poison
+    /// the slot — a failed attempt leaves the inner `Option::None`
+    /// intact and later calls can retry.
     db_conn: Arc<Mutex<Option<Arc<Mutex<rusqlite::Connection>>>>>,
 }
 
@@ -55,7 +55,7 @@ impl Client {
     }
 
     pub fn db_path(&self) -> PathBuf {
-        self.base_dir.join("config.sqlite")
+        self.base_dir.join("db.sqlite")
     }
 
     pub fn logs_dir(&self) -> PathBuf {
@@ -63,7 +63,7 @@ impl Client {
     }
 
     /// Internal accessor to the lazy-init slot. Used by
-    /// `filesystem::config::db` to open the connection on first use.
+    /// `filesystem::db::connection` to open the connection on first use.
     pub(crate) fn db_conn_slot(&self) -> &Mutex<Option<Arc<Mutex<rusqlite::Connection>>>> {
         &self.db_conn
     }

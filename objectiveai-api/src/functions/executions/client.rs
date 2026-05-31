@@ -11,8 +11,7 @@ use std::{collections::HashMap, hash::Hasher, sync::Arc, time};
 
 /// Generates a unique response ID for Function executions.
 pub fn response_id(created: u64) -> String {
-    let uuid = uuid::Uuid::new_v4();
-    format!("fnexec-{}-{}", uuid.simple(), created)
+    crate::util::response_id(Some("fnexec"), created)
 }
 
 /// Inverts a single `TaskOutputOwned` in place.

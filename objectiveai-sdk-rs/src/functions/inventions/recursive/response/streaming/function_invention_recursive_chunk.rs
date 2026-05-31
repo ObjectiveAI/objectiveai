@@ -26,6 +26,18 @@ impl AgentCompletionIds for FunctionInventionRecursiveChunk {
 }
 
 impl FunctionInventionRecursiveChunk {
+    /// Flat-maps message rows from every wrapped non-recursive invention. Lazy.
+    #[cfg(feature = "filesystem")]
+    pub fn produce_message_rows(
+        &self,
+    ) -> impl Iterator<Item = crate::filesystem::db::schema::MessageRow> + Send + '_ {
+        self.inventions
+            .iter()
+            .flat_map(|i| i.produce_message_rows())
+    }
+}
+
+impl FunctionInventionRecursiveChunk {
     /// Yields each inner error from the recursive chunk's wrapped
     /// non-recursive `FunctionInventionChunk`s.
     ///
@@ -116,9 +128,11 @@ impl FunctionInventionRecursiveChunk {
     ///
     /// Returns `(reference, files)`. All paths relative to `logs/`.
     #[cfg(feature = "filesystem")]
-    pub fn produce_files(&self) -> Option<(serde_json::Value, Vec<crate::filesystem::logs::LogFile>)> {
-        use crate::filesystem::logs::LogFile;
-        const ROUTE: &str = "functions/inventions/recursive";
+    pub fn produce_files(
+        &self,
+    ) -> Option<(crate::filesystem::logs::LogReference, Vec<crate::filesystem::logs::LogFile>)> {
+        use crate::filesystem::logs::{LogFile, LogReference};
+        const ROUTE: &str = "functions/inventions/recursive/response";
 
         let id = &self.id;
         if id.is_empty() {
@@ -126,7 +140,8 @@ impl FunctionInventionRecursiveChunk {
         }
 
         let mut files: Vec<LogFile> = Vec::new();
-        let mut invention_refs: Vec<serde_json::Value> = Vec::new();
+        let mut invention_refs:
+            Vec<crate::filesystem::logs::indexed_reference::LogReference> = Vec::new();
 
         for invention in &self.inventions {
             let (reference, invention_files) = invention.produce_files();
@@ -134,17 +149,14 @@ impl FunctionInventionRecursiveChunk {
             files.extend(invention_files);
         }
 
-        // Serialize a shell without inventions to avoid double-serialization
-        let shell = FunctionInventionRecursiveChunk {
+        let log = super::FunctionInventionRecursiveChunkLog {
             id: self.id.clone(),
-            inventions: Vec::new(),
+            inventions: invention_refs,
             inventions_errors: self.inventions_errors,
             created: self.created,
             object: self.object,
             usage: self.usage.clone(),
         };
-        let mut root = serde_json::to_value(&shell).unwrap();
-        root["inventions"] = serde_json::Value::Array(invention_refs);
 
         let root_file = LogFile {
             route: ROUTE.to_string(),
@@ -152,9 +164,9 @@ impl FunctionInventionRecursiveChunk {
             message_index: None,
             media_index: None,
             extension: "json".to_string(),
-            content: serde_json::to_vec_pretty(&root).unwrap(),
+            content: serde_json::to_vec_pretty(&log).unwrap(),
         };
-        let reference = serde_json::json!({ "type": "reference", "path": root_file.path() });
+        let reference = LogReference::new(root_file.path());
         files.push(root_file);
 
         Some((reference, files))

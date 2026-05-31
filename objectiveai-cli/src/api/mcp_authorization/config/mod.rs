@@ -21,13 +21,13 @@ impl Commands {
             Commands::Add { key, value } => {
                 config.api().add_mcp_authorization(key, value);
                 crate::config::write(&client, &config, cli_config).await?;
-                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Ok>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: objectiveai_sdk::cli::output::OK }).emit(handle).await;
+                objectiveai_sdk::cli::output::Output::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: (objectiveai_sdk::cli::output::OK).into() }).emit(handle).await;
                 Ok(())
             }
             Commands::Del { key } => {
                 config.api().del_mcp_authorization(&key);
                 crate::config::write(&client, &config, cli_config).await?;
-                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Ok>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: objectiveai_sdk::cli::output::OK }).emit(handle).await;
+                objectiveai_sdk::cli::output::Output::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: (objectiveai_sdk::cli::output::OK).into() }).emit(handle).await;
                 Ok(())
             }
         }

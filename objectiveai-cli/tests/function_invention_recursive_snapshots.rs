@@ -67,15 +67,11 @@ fn valid_schema_valid_tasks_scalar_leaf() {
         eprintln!("OBJECTIVEAI_TEST_PORT not set — skipping valid_schema_valid_tasks_scalar_leaf");
         return;
     }
-    let id = cli_test_util::instructions_id(
-        cli_test_util::InstructionsScope::FunctionInventionsRecursive,
-    );
     let result = cli_test_util::run_cli(&[
         "functions", "inventions", "recursive", "create", "remote",
         "--state", "remote=mock,name=inv-good-sl",
         "--agent", "remote=mock,name=invention",
         "--seed", "5300",
-        "--instructions-id", id.as_str(),
     ]);
     assert_invention_snapshot("valid_schema_valid_tasks_scalar_leaf", &result);
 }
@@ -88,15 +84,11 @@ fn valid_vector_schema_valid_tasks() {
         eprintln!("OBJECTIVEAI_TEST_PORT not set — skipping valid_vector_schema_valid_tasks");
         return;
     }
-    let id = cli_test_util::instructions_id(
-        cli_test_util::InstructionsScope::FunctionInventionsRecursive,
-    );
     let result = cli_test_util::run_cli(&[
         "functions", "inventions", "recursive", "create", "remote",
         "--state", "remote=mock,name=inv-good-vl",
         "--agent", "remote=mock,name=invention",
         "--seed", "5400",
-        "--instructions-id", id.as_str(),
     ]);
     assert_invention_snapshot("valid_vector_schema_valid_tasks", &result);
 }
@@ -109,15 +101,11 @@ fn valid_schema_no_tasks_with_essay() {
         eprintln!("OBJECTIVEAI_TEST_PORT not set — skipping valid_schema_no_tasks_with_essay");
         return;
     }
-    let id = cli_test_util::instructions_id(
-        cli_test_util::InstructionsScope::FunctionInventionsRecursive,
-    );
     let result = cli_test_util::run_cli(&[
         "functions", "inventions", "recursive", "create", "remote",
         "--state", "remote=mock,name=inv-schema-only",
         "--agent", "remote=mock,name=invention",
         "--seed", "5900",
-        "--instructions-id", id.as_str(),
     ]);
     assert_invention_snapshot("valid_schema_no_tasks_with_essay", &result);
 }

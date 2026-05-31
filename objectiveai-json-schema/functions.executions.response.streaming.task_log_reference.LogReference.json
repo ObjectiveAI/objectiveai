@@ -1,0 +1,13 @@
+{
+  "title": "functions.executions.response.streaming.task_log_reference.LogReference",
+  "anyOf": [
+    {
+      "title": "FunctionExecution",
+      "$ref": "functions.executions.response.streaming.function_execution_task_log_reference.LogReference"
+    },
+    {
+      "title": "VectorCompletion",
+      "$ref": "functions.executions.response.streaming.vector_completion_task_log_reference.LogReference"
+    }
+  ]
+}

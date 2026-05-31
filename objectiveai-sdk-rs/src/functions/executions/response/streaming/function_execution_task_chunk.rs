@@ -40,30 +40,40 @@ impl FunctionExecutionTaskChunk {
 
     /// Produces log files for this nested function execution task.
     ///
-    /// Returns `(reference, files)` where `reference` includes
-    /// `"index"`, `"task_index"`, `"task_path"`, and optionally
-    /// `"swiss_pool_index"` and `"swiss_round"`.
+    /// Returns `(reference, files)` where `reference` is a
+    /// [`super::function_execution_task_log_reference::LogReference`]
+    /// carrying `index`, `task_index`, `task_path`, and optionally
+    /// `swiss_pool_index`, `swiss_round`, `split_index`.
     /// Files under `functions/executions/`.
     #[cfg(feature = "filesystem")]
-    pub fn produce_files(&self) -> (serde_json::Value, Vec<crate::filesystem::logs::LogFile>) {
-        let (mut reference, files) = match self.inner.produce_files() {
-            Some((reference, files)) => (reference, files),
-            None => return (serde_json::json!({ "type": "reference", "index": self.index, "task_index": self.task_index, "task_path": self.task_path }), Vec::new()),
+    pub fn produce_files(
+        &self,
+    ) -> (
+        super::function_execution_task_log_reference::LogReference,
+        Vec<crate::filesystem::logs::LogFile>,
+    ) {
+        let (path, files) = match self.inner.produce_files() {
+            Some((inner_ref, files)) => (inner_ref.path, files),
+            None => (String::new(), Vec::new()),
         };
-        if let Some(map) = reference.as_object_mut() {
-            map.insert("index".to_string(), serde_json::json!(self.index));
-            map.insert("task_index".to_string(), serde_json::json!(self.task_index));
-            map.insert("task_path".to_string(), serde_json::json!(self.task_path));
-            if let Some(v) = self.swiss_pool_index {
-                map.insert("swiss_pool_index".to_string(), serde_json::json!(v));
-            }
-            if let Some(v) = self.swiss_round {
-                map.insert("swiss_round".to_string(), serde_json::json!(v));
-            }
-            if let Some(v) = self.split_index {
-                map.insert("split_index".to_string(), serde_json::json!(v));
-            }
-        }
+        let mut reference = super::function_execution_task_log_reference::LogReference::new(
+            path,
+            self.index,
+            self.task_index,
+            self.task_path.clone(),
+        );
+        reference.swiss_pool_index = self.swiss_pool_index;
+        reference.swiss_round = self.swiss_round;
+        reference.split_index = self.split_index;
         (reference, files)
+    }
+
+    /// Delegates to the inner function execution. Returns a boxed
+    /// iterator to match the inner's type.
+    #[cfg(feature = "filesystem")]
+    pub fn produce_message_rows(
+        &self,
+    ) -> Box<dyn Iterator<Item = crate::filesystem::db::schema::MessageRow> + Send + '_> {
+        self.inner.produce_message_rows()
     }
 }

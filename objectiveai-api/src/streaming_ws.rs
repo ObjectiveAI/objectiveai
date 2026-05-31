@@ -37,51 +37,25 @@ use axum::extract::ws::{CloseCode, CloseFrame, Message, WebSocket, close_code};
 use axum::http::request::Parts;
 use axum::response::Response;
 use futures::{SinkExt, StreamExt};
-use futures::stream::{SplitSink, SplitStream};
+use futures::stream::SplitStream;
 use objectiveai_sdk::error::ResponseError;
 use serde::Serialize;
-use tokio::sync::{Mutex, oneshot};
+use tokio::sync::oneshot;
 
 use crate::error::ResponseErrorExt;
 
-/// Shared sender half of a split WebSocket, wrapped under a tokio
-/// mutex so the send-side (chunk forwarder) and recv-side (notify
-/// responder) can both write frames safely. Locks are short-lived —
-/// only held across a single `send`.
-pub type SharedSink = Arc<Mutex<SplitSink<WebSocket, Message>>>;
-
-/// Per-WS-connection tracker of agent-completion `response_id`s
-/// emitted by this stream. Populated on the send side as each chunk
-/// flows out (via [`AgentCompletionIds`]) and read on the recv side
-/// to validate incoming notify requests' `response_id`. Notifies
-/// targeting an id not in this tracker are rejected with 404.
-pub struct SessionTracker {
-    ids: dashmap::DashSet<String>,
-}
-
-impl SessionTracker {
-    pub fn new() -> Arc<Self> {
-        Arc::new(Self {
-            ids: dashmap::DashSet::new(),
-        })
-    }
-
-    /// Extend the tracker with every agent-completion id this chunk
-    /// carries. Borrows into the chunk; no allocation beyond the
-    /// `insert` itself.
-    pub fn observe<C>(&self, chunk: &C)
-    where
-        C: objectiveai_sdk::agent::completions::response::streaming::AgentCompletionIds,
-    {
-        for id in chunk.agent_completion_ids() {
-            self.ids.insert(id.to_string());
-        }
-    }
-
-    pub fn contains(&self, id: &str) -> bool {
-        self.ids.contains(id)
-    }
-}
+// The reverse-attach / session-tracker / pending-request types are
+// now canonical in `crate::objectiveai_mcp`. The `pub use` shims
+// keep `crate::streaming_ws::SharedSink`,
+// `crate::streaming_ws::SessionTracker`, etc. resolving for every
+// existing call site in the api — the underlying type IS the
+// objectiveai_mcp one.
+pub use crate::objectiveai_mcp::{
+    PendingRequests, ReverseAttachConfig, ReverseAttachGuard,
+    ReverseAttachHandle, ReverseChannel, ReverseChannelRegistry,
+    SessionTracker, SharedSink, new_pending_requests,
+    new_reverse_channel_registry,
+};
 
 /// Transport the client wants. Inferred from the request itself: an
 /// `Upgrade: websocket` header → [`Transport::WebSocket`], anything
@@ -117,17 +91,6 @@ where
     }
 }
 
-/// Render a `400 Bad Request` response with the given message in a
-/// JSON `ResponseError` envelope. Used by the transport dispatcher
-/// when the client's combination of method + headers + body doesn't
-/// match the transport they asked for.
-pub fn bad_request(message: &str) -> Response {
-    ResponseError {
-        code: 400,
-        message: serde_json::Value::String(message.to_string()),
-    }
-    .into_response()
-}
 use serde::de::DeserializeOwned;
 
 /// Read exactly one text frame from `socket` and deserialize it as `T`.
@@ -196,18 +159,11 @@ pub async fn send_error_and_close(socket: &mut WebSocket, err: &ResponseError, c
         .await;
 }
 
-/// Close the socket with `Close(1011)` after sending the given
-/// `ResponseError` as a text frame. Used when setup (e.g.
-/// `create_streaming_handle_usage`) fails before any chunk has been
-/// produced.
-pub async fn fatal_setup_error(socket: &mut WebSocket, err: &ResponseError) {
-    send_error_and_close(socket, err, close_code::ERROR).await;
-}
-
-/// Split-sink variant of [`fatal_setup_error`]. Used after the
-/// socket has already been split (which is the order the WS
-/// handlers now use so the reverse-attach guard can be built
-/// before stream creation).
+/// Split-sink variant. Used after the socket has already been split
+/// (which is the order the WS handlers now use so the reverse-attach
+/// guard can be built before stream creation). Closes the socket
+/// with `Close(1011)` after sending `err` as a text frame; used when
+/// setup fails before any chunk has been produced.
 pub async fn fatal_setup_error_split(sink: &SharedSink, err: &ResponseError) {
     let frame = serde_json::to_string(err).unwrap_or_else(|_| String::from("{}"));
     {
@@ -249,170 +205,11 @@ pub async fn send_close_split(sink: &SharedSink, code: CloseCode) {
         .await;
 }
 
-/// Per-WS-connection registry of outstanding
-/// [`server_request::Request`](objectiveai_sdk::client_objectiveai_mcp::server_request::Request)s
-/// the API has emitted and is awaiting a matching
-/// [`server_response::Response`](objectiveai_sdk::client_objectiveai_mcp::server_response::Response)
-/// for. Keys are the API-minted `id`; values are the oneshot the
-/// awaiting future is parked on. The recv side of the WS drains
-/// `server_response` frames, looks up `id`, and fulfills the oneshot
-/// with the full response (status + headers + body).
-pub type PendingRequests = Arc<
-    dashmap::DashMap<
-        String,
-        oneshot::Sender<objectiveai_sdk::client_objectiveai_mcp::server_response::Response>,
-    >,
->;
-
-pub fn new_pending_requests() -> PendingRequests {
-    Arc::new(dashmap::DashMap::new())
-}
-
-/// Reverse-attach handle for the API's MCP endpoint to forward proxy
-/// traffic over an in-flight agent-completion WS. Holds both halves
-/// of the per-connection state: the sink to write `server_request`
-/// frames out, and the registry to park awaits for matching
-/// `server_response` frames coming back.
-#[derive(Clone)]
-pub struct ReverseChannel {
-    pub sink: SharedSink,
-    pub pending: PendingRequests,
-}
-
-/// Process-wide registry of live [`ReverseChannel`]s keyed by an
-/// opaque session id minted on WS upgrade. Populated by the `_ws`
-/// handlers; consulted by the `/objectiveai-mcp/<session_id>` route
-/// and by the agent-completion verification probe.
-pub type ReverseChannelRegistry = Arc<dashmap::DashMap<String, ReverseChannel>>;
-
-pub fn new_reverse_channel_registry() -> ReverseChannelRegistry {
-    Arc::new(dashmap::DashMap::new())
-}
-
-/// Bundle of the things each `_ws` handler needs to wire up the
-/// reverse-attach: the global [`ReverseChannelRegistry`] (so it can
-/// insert/remove its session) plus the API's own listening port (so
-/// the agent client can build a `http://127.0.0.1:<port>/objectiveai-mcp/<session>`
-/// URL the proxy will dial).
-#[derive(Clone)]
-pub struct ReverseAttachConfig {
-    pub registry: ReverseChannelRegistry,
-    pub api_port: u16,
-}
-
-/// Arc-shareable handle the agent client uses to register per-agent
-/// `ws_session_id`s against the current WS [`ReverseChannel`]. Many
-/// ids may map to one channel — one CLI WS upgrade can serve a swarm
-/// of N agents, each declaring `client_objectiveai_mcp` with its own
-/// stable `ws_session_id` (minted fresh for new agents, recovered
-/// from continuation for resuming ones). The owning
-/// [`ReverseAttachGuard`] removes every registered id on drop.
-pub struct ReverseAttachHandle {
-    registry: ReverseChannelRegistry,
-    channel: ReverseChannel,
-    registered: std::sync::Mutex<Vec<String>>,
-}
-
-impl std::fmt::Debug for ReverseAttachHandle {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let count = self
-            .registered
-            .try_lock()
-            .map(|g| g.len())
-            .unwrap_or(usize::MAX);
-        f.debug_struct("ReverseAttachHandle")
-            .field("registered_count", &count)
-            .finish_non_exhaustive()
-    }
-}
-
-impl ReverseAttachHandle {
-    /// Inserts `id -> channel` into the registry and tracks the id
-    /// for cleanup when the owning guard drops. Calling with the same
-    /// id twice is harmless (the registry just overwrites).
-    pub fn register(&self, id: String) {
-        self.registry
-            .insert(id.clone(), self.channel.clone());
-        self.registered.lock().unwrap().push(id);
-    }
-}
-
-/// RAII guard for one CLI WS upgrade. Owns the registration handle;
-/// when it drops, every id registered via the handle is removed from
-/// the [`ReverseChannelRegistry`]. `Arc` clones of the handle may
-/// outlive the guard (e.g. background usage-tracker tasks holding
-/// onto a copy of the ctx) — they observe a drained registration
-/// list and any further `register()` calls leak harmlessly until the
-/// last `Arc` drops.
-pub struct ReverseAttachGuard {
-    handle: Arc<ReverseAttachHandle>,
-}
-
-impl ReverseAttachGuard {
-    pub fn new(
-        registry: ReverseChannelRegistry,
-        sink: SharedSink,
-        pending: PendingRequests,
-    ) -> Self {
-        let handle = Arc::new(ReverseAttachHandle {
-            registry,
-            channel: ReverseChannel { sink, pending },
-            registered: std::sync::Mutex::new(Vec::new()),
-        });
-        Self { handle }
-    }
-
-    /// Returns the shared handle the agent client should stamp on
-    /// the per-request `Context` so it can register ids from inside
-    /// the swarm-iteration site.
-    pub fn handle(&self) -> Arc<ReverseAttachHandle> {
-        self.handle.clone()
-    }
-}
-
-impl Drop for ReverseAttachGuard {
-    fn drop(&mut self) {
-        let ids = std::mem::take(&mut *self.handle.registered.lock().unwrap());
-        for id in ids {
-            self.handle.registry.remove(&id);
-        }
-    }
-}
-
-/// Register a oneshot under `request.id`, write the request as a
-/// text frame, and return the receiver. The caller is responsible
-/// for minting the id (and putting it on the request) and applying
-/// a timeout (via `tokio::time::timeout`) on the await. On
-/// connection drop the recv loop returns and pending oneshots are
-/// dropped — receivers observe the close as `Err(RecvError)`.
-pub async fn send_server_request(
-    sink: &SharedSink,
-    pending: &PendingRequests,
-    request: objectiveai_sdk::client_objectiveai_mcp::server_request::Request,
-) -> Result<
-    oneshot::Receiver<objectiveai_sdk::client_objectiveai_mcp::server_response::Response>,
-    (),
-> {
-    let id = request.id.clone();
-    let (tx, rx) = oneshot::channel();
-    pending.insert(id.clone(), tx);
-
-    let frame = match serde_json::to_string(&request) {
-        Ok(s) => s,
-        Err(_) => {
-            pending.remove(&id);
-            return Err(());
-        }
-    };
-    let mut guard = sink.lock().await;
-    let send_result = guard.send(Message::Text(frame.into())).await;
-    if send_result.is_err() {
-        drop(guard);
-        pending.remove(&id);
-        return Err(());
-    }
-    Ok(rx)
-}
+// PendingRequests, ReverseChannel, ReverseChannelRegistry,
+// ReverseAttachConfig, ReverseAttachGuard, ReverseAttachHandle and
+// the `new_*` constructors are re-exported at the top of this file
+// from `crate::objectiveai_mcp`. `send_server_request` (used by the
+// MCP route layer) also lives there as `objectiveai_mcp::send`.
 
 /// Recv loop: drain the split stream, parse each text frame, and
 /// dispatch based on shape.
@@ -435,6 +232,8 @@ pub async fn recv_loop<F, Fut>(
     tracker: Arc<SessionTracker>,
     sink: SharedSink,
     pending: PendingRequests,
+    mcp_listeners: crate::objectiveai_mcp::McpListenerRegistry,
+    attach_handle: Arc<ReverseAttachHandle>,
     notify_fn: F,
 ) where
     F: Fn(objectiveai_sdk::agent::completions::request::AgentCompletionNotifyParams) -> Fut
@@ -524,6 +323,33 @@ pub async fn recv_loop<F, Fut>(
                             Ok(s) => s,
                             Err(_) => return,
                         };
+                        let mut guard = sink.lock().await;
+                        let _ = guard.send(Message::Text(frame.into())).await;
+                    });
+                    continue;
+                }
+                // McpListChanged dispatch: fan out to every
+                // (ws_session_id, mcp_session_id) keyed under this WS.
+                // The GET-SSE subscriber for whichever agent's
+                // response_id is currently active will receive the
+                // event; idle keys publish to a no-op broadcast.
+                // Always Ok the ack — publish to a broadcast can't
+                // fail in a way the CLI should care about.
+                ClientPayload::McpListChanged(change) => {
+                    for ws_session_id in attach_handle.registered_ids() {
+                        mcp_listeners.publish(
+                            &ws_session_id,
+                            &change.mcp_session_id,
+                            change.kind,
+                        );
+                    }
+                    let response = ClientResponse::Ok { id };
+                    let frame = match serde_json::to_string(&response) {
+                        Ok(s) => s,
+                        Err(_) => continue,
+                    };
+                    let sink = sink.clone();
+                    tokio::spawn(async move {
                         let mut guard = sink.lock().await;
                         let _ = guard.send(Message::Text(frame.into())).await;
                     });

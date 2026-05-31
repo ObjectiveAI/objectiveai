@@ -60,7 +60,7 @@ impl Commands {
                         function: function?,
                         profile: profile?,
                     };
-                    objectiveai_sdk::cli::output::Output::<Pair>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: Pair { pair } })
+                    objectiveai_sdk::cli::output::Output::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: (Pair { pair }).into() })
                         .emit(&handle).await;
                     Ok(())
                 }).await

@@ -12,6 +12,18 @@
       "minimum": 0,
       "maximum": 18446744073709551615
     },
+    "metadata": {
+      "description": "Optional vendor-extension metadata, populated by\n`objectiveai-mcp-proxy` via MCP's `_meta` extension bag.",
+      "anyOf": [
+        {
+          "$ref": "agent.completions.message.ToolResponseMetadata"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "role": {
       "$ref": "agent.completions.response.ToolRole"
     },

@@ -76,10 +76,6 @@ pub async fn handle_post(
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
-    let session_in = headers
-        .get(SESSION_ID_HEADER)
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
     if let Err(resp) = require_streamable_http_accept(&headers) {
         return resp;
     }
@@ -619,6 +615,7 @@ async fn handle_tools_call(
             // queued after this drain rides the *next* tool call.
             let pending = session.drain_notifications().await;
             if !pending.is_empty() {
+                let count = pending.len() as u64;
                 let mut prefixed = Vec::with_capacity(2 + pending.len() + result.content.len());
                 prefixed.push(ContentBlock::Text(TextContent {
                     text: SYSTEM_REMINDER_PREFIX.to_string(),
@@ -633,6 +630,15 @@ async fn handle_tools_call(
                 }));
                 prefixed.append(&mut result.content);
                 result.content = prefixed;
+                // Surface the drained count as `_meta.notifications`
+                // so downstream consumers (the SDK's
+                // `call_tool_as_message`) can read it structurally
+                // without parsing the prepended content blocks.
+                let meta = result._meta.get_or_insert_with(indexmap::IndexMap::new);
+                meta.insert(
+                    "notifications".to_string(),
+                    serde_json::Value::Number(count.into()),
+                );
             }
             let body = JsonRpcResponse::Success {
                 jsonrpc: "2.0".into(),

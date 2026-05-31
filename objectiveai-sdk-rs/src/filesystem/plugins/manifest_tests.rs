@@ -14,6 +14,7 @@ fn manifest_minimal_roundtrip() {
         viewer_url: None,
         viewer_routes: vec![],
         mobile_ready: false,
+        mcp_servers: Vec::new(),
     };
     let json = serde_json::to_value(&m).unwrap();
     // `skip_serializing_if = "Option::is_none"` keeps the wire shape lean.
@@ -46,6 +47,7 @@ fn manifest_full_roundtrip() {
         viewer_url: None,
         viewer_routes: vec![],
         mobile_ready: false,
+        mcp_servers: Vec::new(),
     };
     let json = serde_json::to_value(&m).unwrap();
     let back: Manifest = serde_json::from_value(json).unwrap();
@@ -72,6 +74,7 @@ fn manifest_with_name_and_source_field_order() {
             viewer_url: None,
             viewer_routes: vec![],
             mobile_ready: false,
+            mcp_servers: Vec::new(),
         },
         source: "/home/user/.objectiveai/plugins/psyops.manifest.json".to_string(),
     };
@@ -144,6 +147,7 @@ fn manifest_with_binaries_roundtrip() {
         viewer_url: None,
         viewer_routes: vec![],
         mobile_ready: false,
+        mcp_servers: Vec::new(),
     };
     let json = serde_json::to_value(&m).unwrap();
     let back: Manifest = serde_json::from_value(json).unwrap();
@@ -168,6 +172,7 @@ fn manifest_omits_empty_binaries_field() {
         viewer_url: None,
         viewer_routes: vec![],
         mobile_ready: false,
+        mcp_servers: Vec::new(),
     };
     let json = serde_json::to_value(&m).unwrap();
     let obj = json.as_object().unwrap();
@@ -199,6 +204,7 @@ fn manifest_with_binaries_field_order() {
         viewer_url: None,
         viewer_routes: vec![],
         mobile_ready: false,
+        mcp_servers: Vec::new(),
     };
     let s = serde_json::to_string(&m).unwrap();
     // Field declaration order on `Binaries`: linux_x86_64, linux_aarch64,
@@ -239,6 +245,7 @@ fn manifest_with_sparse_binaries_is_valid() {
         viewer_url: None,
         viewer_routes: vec![],
         mobile_ready: false,
+        mcp_servers: Vec::new(),
     };
     let s = serde_json::to_string(&m).unwrap();
     let back: Manifest = serde_json::from_str(&s).unwrap();
@@ -276,6 +283,7 @@ fn manifest_with_viewer_fields_roundtrip() {
             },
         ],
         mobile_ready: true,
+        mcp_servers: Vec::new(),
     };
     let json = serde_json::to_value(&m).unwrap();
     let back: Manifest = serde_json::from_value(json.clone()).unwrap();
@@ -307,6 +315,7 @@ fn manifest_omits_viewer_fields_when_absent() {
         viewer_url: None,
         viewer_routes: vec![],
         mobile_ready: false,
+        mcp_servers: Vec::new(),
     };
     let json = serde_json::to_value(&m).unwrap();
     let obj = json.as_object().unwrap();
@@ -360,6 +369,7 @@ fn manifest_without_viewer() -> Manifest {
         viewer_url: None,
         viewer_routes: vec![],
         mobile_ready: false,
+        mcp_servers: Vec::new(),
     }
 }
 

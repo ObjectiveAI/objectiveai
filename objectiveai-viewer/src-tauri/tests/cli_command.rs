@@ -8,7 +8,7 @@ mod common;
 
 use std::time::Duration;
 
-use common::{ViewerTestEnv, is_cli_command_end, snapshot, test_api_address};
+use common::{ViewerTestEnv, snapshot, test_api_address};
 
 const SNAPSHOT_PATH: &str =
     concat!(env!("CARGO_MANIFEST_DIR"), "/tests/snapshots/cli_command_schemas_list.jsonl");
@@ -19,7 +19,7 @@ async fn cli_command_schemas_list() {
         eprintln!("OBJECTIVEAI_TEST_PORT not set — skipping");
         return;
     }
-    let mut env = ViewerTestEnv::new();
+    let env = ViewerTestEnv::new();
 
     // Pick an offline cli command that emits a small, deterministic
     // JSONL stream: `schemas viewer list` enumerates the JSON schema
@@ -39,9 +39,7 @@ async fn cli_command_schemas_list() {
     .await
     .expect("cli_run_impl returned an error");
 
-    let events = env
-        .drain_until_end(is_cli_command_end, Duration::from_secs(30))
-        .await;
+    let events = env.drain_until_close(Duration::from_secs(30)).await;
 
     let actual = snapshot::events_to_jsonl(&events);
     snapshot::assert_snapshot(&actual, SNAPSHOT_PATH, include_str!("snapshots/cli_command_schemas_list.jsonl"));

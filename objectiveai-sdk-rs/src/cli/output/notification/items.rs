@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 /// `pairs list`, `Items<crate::filesystem::config::Favorite>` for
 /// favorites listings, `Items<crate::filesystem::logs::ListItem>`
 /// for log listings).
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[schemars(rename = "cli.output.notification.Items.{T}")]
 pub struct Items<T> {
     pub items: Vec<T>,
@@ -16,7 +16,7 @@ pub struct Items<T> {
 /// One entry in a non-pair resource listing — either a favorite that
 /// matches a remote resource or a resolved remote path. Untagged so the
 /// wire shape is whichever underlying object matches.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(untagged)]
 #[schemars(rename = "cli.output.notification.ListItem")]
 pub enum ListItem {
@@ -27,7 +27,7 @@ pub enum ListItem {
 }
 
 /// One entry in a function-profile pair listing.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(untagged)]
 #[schemars(rename = "cli.output.notification.PairListItem")]
 pub enum PairListItem {

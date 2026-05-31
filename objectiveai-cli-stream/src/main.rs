@@ -5,23 +5,25 @@
 //! on-disk config — so the binary is self-contained for use as a
 //! per-call spawn target. Args are grouped into `HttpArgs` (HTTP
 //! client construction) and `PipeArgs` (MCP conduit + per-agent
-//! named-pipe directory).
+//! named-pipe directory + log root).
 //!
-//! Today this binary serves the `functions executions` streaming
-//! endpoint. Future endpoints (agent completions, vector completions,
-//! function inventions, laboratories executions, etc.) plug in as
-//! new modules under [`endpoints`]; pipe lifecycle, chunk emission,
+//! Today this binary serves the `functions executions create`
+//! streaming endpoint. Future endpoints (agent completions, vector
+//! completions, function inventions, laboratories executions, etc.)
+//! follow the same `<top>/<sub>/<verb>/mod.rs` filesystem layout as
+//! `objectiveai-cli`; pipe lifecycle, chunk emission, log writing,
 //! and the MCP conduit are factored into shared modules already.
 
-mod args;
-mod conduit;
-mod endpoints;
+mod agents;
+mod api;
+mod functions;
 mod pipes;
 mod streaming;
 
 use clap::{Parser, Subcommand};
+use objectiveai_sdk::cli::output::Handle;
 
-use crate::args::{BodySource, HttpArgs, PipeArgs};
+use crate::api::{HttpArgs, PipeArgs};
 
 /// Per-stream subprocess runner for the ObjectiveAI CLI.
 #[derive(Parser, Debug)]
@@ -38,30 +40,35 @@ struct Cli {
     pipes: PipeArgs,
 
     #[command(subcommand)]
-    command: TopCommand,
+    command: Commands,
 }
 
 #[derive(Subcommand, Debug)]
-enum TopCommand {
-    /// Function-related streaming endpoints.
+enum Commands {
+    /// Agents management
+    Agents {
+        #[command(subcommand)]
+        command: agents::Commands,
+    },
+    /// Functions management
     Functions {
         #[command(subcommand)]
-        command: FunctionsCommand,
+        command: functions::Commands,
     },
 }
 
-#[derive(Subcommand, Debug)]
-enum FunctionsCommand {
-    /// Stream `/functions/executions`. The streaming chunks are
-    /// emitted one-per-NDJSON-line on stdout. Per-agent named pipes
-    /// appear under `${config_base_dir}/pipes/<agent_id>` for as
-    /// long as that agent is in flight; external processes can
-    /// connect and write NDJSON `RichContent` lines to push
-    /// notifications at the agent.
-    Executions {
-        #[command(flatten)]
-        body: BodySource,
-    },
+impl Commands {
+    async fn handle(
+        self,
+        http: &HttpArgs,
+        pipes: &PipeArgs,
+        handle: &Handle,
+    ) -> Result<(), String> {
+        match self {
+            Commands::Agents { command } => command.handle(http, pipes, handle).await,
+            Commands::Functions { command } => command.handle(http, pipes, handle).await,
+        }
+    }
 }
 
 #[tokio::main]
@@ -70,12 +77,8 @@ async fn main() -> Result<(), String> {
     // Stamp the handle's agent_id from --objectiveai-agent-id so
     // every emitted Notification/Error line carries it — mirrors
     // objectiveai-cli/src/main.rs:16-17.
-    let mut handle = objectiveai_sdk::cli::output::Handle::stdout();
+    let mut handle = Handle::stdout();
     handle.agent_id = cli.http.objectiveai_agent_id.clone();
 
-    match cli.command {
-        TopCommand::Functions {
-            command: FunctionsCommand::Executions { body },
-        } => endpoints::functions_executions::run(&cli.http, &cli.pipes, body, &handle).await,
-    }
+    cli.command.handle(&cli.http, &cli.pipes, &handle).await
 }

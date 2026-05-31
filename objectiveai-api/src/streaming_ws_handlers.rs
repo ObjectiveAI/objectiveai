@@ -194,6 +194,8 @@ pub(crate) async fn create_agent_completion_ws(
             tracker,
             sink,
             pending,
+            reverse_attach.mcp_listeners.clone(),
+            _attach_guard.handle(),
             notify_fn_for(notify_client),
         );
 
@@ -318,6 +320,8 @@ where
             tracker,
             sink,
             pending,
+            reverse_attach.mcp_listeners.clone(),
+            _attach_guard.handle(),
             notify_fn_for(agent_completions_client),
         );
 
@@ -439,6 +443,8 @@ where
             tracker,
             sink,
             pending,
+            reverse_attach.mcp_listeners.clone(),
+            _attach_guard.handle(),
             notify_fn_for(agent_completions_client),
         );
 
@@ -547,6 +553,8 @@ where
             tracker,
             sink,
             pending,
+            reverse_attach.mcp_listeners.clone(),
+            _attach_guard.handle(),
             notify_fn_for(agent_completions_client),
         );
 
@@ -667,6 +675,8 @@ where
             tracker,
             sink,
             pending,
+            reverse_attach.mcp_listeners.clone(),
+            _attach_guard.handle(),
             notify_fn_for(agent_completions_client),
         );
 
@@ -788,6 +798,8 @@ where
             tracker,
             sink,
             pending,
+            reverse_attach.mcp_listeners.clone(),
+            _attach_guard.handle(),
             notify_fn_for(agent_completions_client),
         );
 
@@ -891,6 +903,8 @@ where
             tracker,
             sink,
             pending,
+            reverse_attach.mcp_listeners.clone(),
+            _attach_guard.handle(),
             notify_fn_for(agent_completions_client),
         );
 
@@ -1012,6 +1026,8 @@ where
             tracker,
             sink,
             pending,
+            reverse_attach.mcp_listeners.clone(),
+            _attach_guard.handle(),
             notify_fn_for(agent_completions_client),
         );
 

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 /// Emitted by `objectiveai tools list`. One entry per `.json`
 /// manifest discovered in `<base_dir>/tools/`; failures during
 /// discovery are silently dropped (see `Client::list_tools`).
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[schemars(rename = "cli.output.notification.Tools")]
 pub struct Tools {
     pub tools: Vec<ManifestWithNameAndSource>,
@@ -17,7 +17,7 @@ pub struct Tools {
 /// resolved `ManifestWithNameAndSource` when the manifest file exists
 /// and parses, or JSON `null` when it doesn't (same silent-skip policy
 /// as `list`).
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[schemars(rename = "cli.output.notification.Tool")]
 pub struct Tool {
     pub tool: Option<ManifestWithNameAndSource>,
@@ -31,7 +31,7 @@ pub struct Tool {
 ///
 /// Exactly one of `stdout` / `stderr` is set per emission; the other
 /// is omitted from the wire shape via `skip_serializing_if`.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[schemars(rename = "cli.output.notification.ToolLine")]
 pub struct ToolLine {
     pub line: String,

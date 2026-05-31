@@ -48,6 +48,25 @@ impl AgentCompletionIds for FunctionExecutionChunk {
 }
 
 impl FunctionExecutionChunk {
+    /// Flat-maps message rows from every task (mirrors
+    /// `agent_completion_ids()`'s traversal). Reasoning summary rows
+    /// are also included via the reasoning chunk's delegation. Lazy
+    /// and `Box<dyn Iterator>`-erased at this boundary because tasks
+    /// and reasoning have different concrete iterator types.
+    #[cfg(feature = "filesystem")]
+    pub fn produce_message_rows(
+        &self,
+    ) -> Box<dyn Iterator<Item = crate::filesystem::db::schema::MessageRow> + Send + '_> {
+        let task_rows = self.tasks.iter().flat_map(|t| t.produce_message_rows());
+        let reasoning_rows = self
+            .reasoning
+            .iter()
+            .flat_map(|r| r.produce_message_rows());
+        Box::new(task_rows.chain(reasoning_rows))
+    }
+}
+
+impl FunctionExecutionChunk {
     /// Yields every inner error reachable from this chunk: nested function-task
     /// failures, vector-completion task failures (own + per-agent), and
     /// reasoning agent-completion failures. Each item carries the full
@@ -212,9 +231,11 @@ impl FunctionExecutionChunk {
     ///
     /// Returns `(reference, files)`. All paths relative to `logs/`.
     #[cfg(feature = "filesystem")]
-    pub fn produce_files(&self) -> Option<(serde_json::Value, Vec<crate::filesystem::logs::LogFile>)> {
-        use crate::filesystem::logs::LogFile;
-        const ROUTE: &str = "functions/executions";
+    pub fn produce_files(
+        &self,
+    ) -> Option<(crate::filesystem::logs::LogReference, Vec<crate::filesystem::logs::LogFile>)> {
+        use crate::filesystem::logs::{LogFile, LogReference};
+        const ROUTE: &str = "functions/executions/response";
 
         let id = &self.id;
         if id.is_empty() {
@@ -222,7 +243,7 @@ impl FunctionExecutionChunk {
         }
 
         let mut files: Vec<LogFile> = Vec::new();
-        let mut task_refs: Vec<serde_json::Value> = Vec::new();
+        let mut task_refs: Vec<super::task_log_reference::LogReference> = Vec::new();
 
         for task in &self.tasks {
             let (reference, task_files) = task.produce_files();
@@ -230,36 +251,13 @@ impl FunctionExecutionChunk {
             files.extend(task_files);
         }
 
-        // Extract reasoning summary
         let reasoning_ref = self.reasoning.as_ref().map(|r| {
             let (reference, reasoning_files) = r.produce_files();
             files.extend(reasoning_files);
             reference
         });
 
-        // Serialize a shell without tasks/reasoning to avoid double-serialization
-        let shell = FunctionExecutionChunk {
-            id: self.id.clone(),
-            tasks: Vec::new(),
-            tasks_errors: self.tasks_errors,
-            reasoning: None,
-            output: self.output.clone(),
-            error: self.error.clone(),
-            retry_token: Some(String::new()),
-            created: self.created,
-            function: self.function.clone(),
-            profile: self.profile.clone(),
-            object: self.object,
-            usage: self.usage.clone(),
-        };
-        let mut root = serde_json::to_value(&shell).unwrap();
-        root["tasks"] = serde_json::Value::Array(task_refs);
-        if let Some(reasoning_ref) = reasoning_ref {
-            root["reasoning"] = reasoning_ref;
-        }
-
-        // Extract retry token to a separate file, or remove placeholder
-        if let Some(retry_token) = &self.retry_token {
+        let retry_token_ref = self.retry_token.as_ref().map(|retry_token| {
             let rt_file = LogFile {
                 route: format!("{ROUTE}/retry_token"),
                 id: id.clone(),
@@ -268,14 +266,25 @@ impl FunctionExecutionChunk {
                 extension: "json".to_string(),
                 content: serde_json::to_vec_pretty(retry_token).unwrap(),
             };
-            root["retry_token"] = serde_json::json!({
-                "type": "reference",
-                "path": rt_file.path(),
-            });
+            let r = LogReference::new(rt_file.path());
             files.push(rt_file);
-        } else if let Some(map) = root.as_object_mut() {
-            map.remove("retry_token");
-        }
+            r
+        });
+
+        let log = super::FunctionExecutionChunkLog {
+            id: self.id.clone(),
+            tasks: task_refs,
+            tasks_errors: self.tasks_errors,
+            output: self.output.clone(),
+            error: self.error.clone(),
+            retry_token: retry_token_ref,
+            created: self.created,
+            function: self.function.clone(),
+            profile: self.profile.clone(),
+            object: self.object,
+            usage: self.usage.clone(),
+            reasoning: reasoning_ref,
+        };
 
         let root_file = LogFile {
             route: ROUTE.to_string(),
@@ -283,9 +292,9 @@ impl FunctionExecutionChunk {
             message_index: None,
             media_index: None,
             extension: "json".to_string(),
-            content: serde_json::to_vec_pretty(&root).unwrap(),
+            content: serde_json::to_vec_pretty(&log).unwrap(),
         };
-        let reference = serde_json::json!({ "type": "reference", "path": root_file.path() });
+        let reference = LogReference::new(root_file.path());
         files.push(root_file);
 
         Some((reference, files))

@@ -453,7 +453,7 @@ mod imp {
 }
 
 async fn emit_notification(handle: &Handle, value: Updater) {
-    let output: Output<Updater> = Output::Notification(Notification { value, agent_id: None });
+    let output = Output::Notification(Notification { value: value.into(), agent_id: None });
     output.emit(handle).await;
 }
 
@@ -464,7 +464,7 @@ async fn emit_warn(handle: &Handle, message: &str) {
         message: serde_json::Value::String(message.to_string()),
         agent_id: None,
     };
-    let output: Output<serde_json::Value> = Output::Error(err);
+    let output = Output::Error(err);
     output.emit(handle).await;
 }
 

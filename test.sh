@@ -43,6 +43,7 @@ for suite in \
   objectiveai-sdk-py \
   objectiveai-sdk-go \
   objectiveai-viewer \
+  objectiveai-tests \
 ; do
   bash "$REPO_ROOT/$suite/test.sh" &
   PIDS+=($!)

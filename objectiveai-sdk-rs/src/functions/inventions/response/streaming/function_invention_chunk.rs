@@ -37,6 +37,18 @@ impl AgentCompletionIds for FunctionInventionChunk {
 }
 
 impl FunctionInventionChunk {
+    /// Flat-maps message rows from every inner agent completion. Lazy.
+    #[cfg(feature = "filesystem")]
+    pub fn produce_message_rows(
+        &self,
+    ) -> impl Iterator<Item = crate::filesystem::db::schema::MessageRow> + Send + '_ {
+        self.completions
+            .iter()
+            .flat_map(|c| c.produce_message_rows())
+    }
+}
+
+impl FunctionInventionChunk {
     /// Yields each inner error from this chunk's per-agent completions,
     /// tagged with the failing completion's `index`.
     ///
@@ -124,9 +136,11 @@ impl FunctionInventionChunk {
     ///
     /// Returns `(reference, files)`. All paths relative to `logs/`.
     #[cfg(feature = "filesystem")]
-    pub fn produce_files(&self) -> Option<(serde_json::Value, Vec<crate::filesystem::logs::LogFile>)> {
-        use crate::filesystem::logs::LogFile;
-        const ROUTE: &str = "functions/inventions";
+    pub fn produce_files(
+        &self,
+    ) -> Option<(crate::filesystem::logs::LogReference, Vec<crate::filesystem::logs::LogFile>)> {
+        use crate::filesystem::logs::{LogFile, LogReference};
+        const ROUTE: &str = "functions/inventions/response";
 
         let id = &self.id;
         if id.is_empty() {
@@ -134,7 +148,8 @@ impl FunctionInventionChunk {
         }
 
         let mut files: Vec<LogFile> = Vec::new();
-        let mut completion_refs: Vec<serde_json::Value> = Vec::new();
+        let mut completion_refs:
+            Vec<crate::filesystem::logs::indexed_reference::LogReference> = Vec::new();
 
         for completion in &self.completions {
             let (reference, completion_files) = completion.produce_files();
@@ -142,10 +157,9 @@ impl FunctionInventionChunk {
             files.extend(completion_files);
         }
 
-        // Serialize a shell without completions to avoid double-serialization
-        let shell = FunctionInventionChunk {
+        let log = super::FunctionInventionChunkLog {
             id: self.id.clone(),
-            completions: Vec::new(),
+            completions: completion_refs,
             state: self.state.clone(),
             path: self.path.clone(),
             function: self.function.clone(),
@@ -154,8 +168,6 @@ impl FunctionInventionChunk {
             usage: self.usage.clone(),
             error: self.error.clone(),
         };
-        let mut root = serde_json::to_value(&shell).unwrap();
-        root["completions"] = serde_json::Value::Array(completion_refs);
 
         let root_file = LogFile {
             route: ROUTE.to_string(),
@@ -163,9 +175,9 @@ impl FunctionInventionChunk {
             message_index: None,
             media_index: None,
             extension: "json".to_string(),
-            content: serde_json::to_vec_pretty(&root).unwrap(),
+            content: serde_json::to_vec_pretty(&log).unwrap(),
         };
-        let reference = serde_json::json!({ "type": "reference", "path": root_file.path() });
+        let reference = LogReference::new(root_file.path());
         files.push(root_file);
 
         Some((reference, files))

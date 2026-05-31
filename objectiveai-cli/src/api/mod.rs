@@ -16,7 +16,7 @@ pub mod spawn;
 pub mod kill;
 mod run;
 pub mod detach;
-pub mod conduit;
+pub mod stream_subprocess;
 
 // Shared infrastructure for per-endpoint subcommands.
 pub mod agent_id_arg;
@@ -34,7 +34,6 @@ pub mod auth;
 pub mod swarms;
 pub mod agents;
 pub mod error;
-pub mod laboratories;
 
 pub use run::*;
 
@@ -147,11 +146,6 @@ pub enum Commands {
         #[command(subcommand)]
         command: error::Commands,
     },
-    /// `/laboratories/*` endpoints
-    Laboratories {
-        #[command(subcommand)]
-        command: laboratories::Commands,
-    },
     /// Spawn the `objectiveai-api` server in the background.
     /// Errors if it's already running.
     Spawn,
@@ -184,7 +178,6 @@ impl Commands {
             Commands::Swarms { command } => command.handle(cli_config, handle).await,
             Commands::Agents { command } => command.handle(cli_config, handle).await,
             Commands::Error { command } => command.handle(cli_config, handle).await,
-            Commands::Laboratories { command } => command.handle(cli_config, handle).await,
             Commands::Spawn => spawn::handle(cli_config, handle).await,
             Commands::Kill => kill::handle(cli_config, handle).await,
         }

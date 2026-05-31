@@ -11,13 +11,7 @@
 //! fire-and-forget — this command needs a synchronous send so the caller
 //! can see the viewer's response.
 
-use objectiveai_sdk::cli::output::{Handle, Notification, Output};
-
-#[derive(serde::Serialize)]
-struct ViewerSendResult {
-    status: u16,
-    body: serde_json::Value,
-}
+use objectiveai_sdk::cli::output::{Handle, Notification, Output, ViewerSendResult};
 
 pub async fn run(
     cli_config: &crate::Config,
@@ -84,11 +78,12 @@ async fn do_post(
         .unwrap_or_else(|_| serde_json::Value::String(response_text));
 
     if status.is_success() {
-        Output::<ViewerSendResult>::Notification(Notification { agent_id: None,
+        Output::Notification(Notification { agent_id: None,
             value: ViewerSendResult {
                 status: status.as_u16(),
                 body: response_body,
-            },
+            }
+            .into(),
         })
         .emit(handle)
         .await;

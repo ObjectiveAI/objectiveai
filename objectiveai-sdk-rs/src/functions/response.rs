@@ -15,7 +15,7 @@ pub struct ListFunctionResponse {
 /// A function in a list response.
 pub type ListFunctionItem = crate::RemotePath;
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "functions.GetFunctionResponse")]
 pub struct GetFunctionResponse {
     #[serde(flatten)]
@@ -51,7 +51,7 @@ pub struct ListFunctionProfilePairResponse {
 }
 
 /// A function-profile pair in a list response.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "functions.ListFunctionProfilePairItem")]
 pub struct ListFunctionProfilePairItem {
     /// The function.

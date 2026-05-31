@@ -71,10 +71,10 @@ async fn notify(
 }
 
 async fn emit_ok(handle: &objectiveai_sdk::cli::output::Handle) {
-    objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Ok>::Notification(
+    objectiveai_sdk::cli::output::Output::Notification(
         objectiveai_sdk::cli::output::Notification {
             agent_id: None,
-            value: objectiveai_sdk::cli::output::OK,
+            value: (objectiveai_sdk::cli::output::OK).into(),
         },
     )
     .emit(handle)

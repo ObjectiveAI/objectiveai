@@ -135,8 +135,10 @@ export function listen<T = unknown>(
  * Invoke `objectiveai-cli` in-process on the host with `args`.
  * Returns an `AsyncIterable<unknown>` over the JSONL output lines
  * the cli emits. Each yielded value is the parsed cli output
- * envelope (e.g. `{"type":"begin"}`, `{"type":"notification","value":...}`,
- * `{"type":"end"}`); the iterator terminates after the `end` line.
+ * envelope: either `{"type":"error",…}` or
+ * `{"type":"notification","value":{"kind":"<variant>",…}}`. The
+ * inner `kind` discriminator selects a `NotificationValue` variant
+ * (see the schemas under `cli.output.notification.*`).
  *
  * The plugin author never specifies `destination` — the host bridge
  * derives it from the iframe's identity. To run multiple cli

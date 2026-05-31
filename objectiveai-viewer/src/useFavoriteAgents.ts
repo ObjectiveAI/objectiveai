@@ -12,10 +12,12 @@ import {
 
 // Wire shape of the `agents favorites config get` cli-output
 // notification. The cli emits via `emit_value(&favorites, ...)`
-// which wraps as {"type":"notification","value":{"value":[<Favorite>, ...]}}.
+// which routes through `NotificationValue::Other`, so the wire shape
+// is {"type":"notification","value":{"kind":"other","value":[<Favorite>, ...]}}.
 const FavoritesListNotificationSchema = z.object({
   type: z.literal("notification"),
   value: z.object({
+    kind: z.literal("other"),
     value: z.array(FilesystemConfigFavoriteSchema),
   }),
 });
@@ -46,8 +48,6 @@ export function useFavoriteAgents() {
             const line = parsed.data.value as { type?: string };
             if (line?.type === "error") {
               reject(new Error(JSON.stringify(line)));
-            } else if (line?.type === "end") {
-              resolve([]);
             }
           })
             .then((fn) => {

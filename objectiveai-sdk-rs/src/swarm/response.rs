@@ -15,7 +15,7 @@ pub struct ListSwarmResponse {
 pub type ListSwarmItem = crate::RemotePath;
 
 /// Response containing a single Swarm.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "swarm.GetSwarmResponse")]
 pub struct GetSwarmResponse {
     #[serde(flatten)]

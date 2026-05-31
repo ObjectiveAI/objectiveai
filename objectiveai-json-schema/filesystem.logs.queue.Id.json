@@ -1,0 +1,7 @@
+{
+  "title": "filesystem.logs.queue.Id",
+  "description": "Stable integer id of a logged file.",
+  "type": "integer",
+  "minimum": -9223372036854775808,
+  "maximum": 9223372036854775807
+}

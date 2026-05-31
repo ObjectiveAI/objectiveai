@@ -160,74 +160,133 @@ impl AssistantResponseChunk {
     /// Produces log files for this assistant message.
     ///
     /// Returns `(reference, files)` where `reference` is a
-    /// `{"type": "reference", "path": ...}` JSON value pointing to this
-    /// message's file, and `files` contains all produced [`LogFile`]s including
-    /// the message itself, logprobs, and extracted media.
+    /// [`LogReference`] pointing to this message's file, and `files`
+    /// contains all produced [`LogFile`]s including the message itself,
+    /// logprobs, and extracted media.
     #[cfg(feature = "filesystem")]
-    pub fn produce_files(&self, id: &str, route_base: &str) -> (serde_json::Value, Vec<crate::filesystem::logs::LogFile>) {
-        use crate::filesystem::logs::LogFile;
+    pub fn produce_files(
+        &self,
+        id: &str,
+        route_base: &str,
+    ) -> (crate::filesystem::logs::LogReference, Vec<crate::filesystem::logs::LogFile>) {
+        use crate::filesystem::logs::{LogFile, LogReference};
 
         let mut files = Vec::new();
 
-        // Serialize a shell without content/logprobs to avoid double-serialization
-        let shell = AssistantResponseChunk {
-            role: self.role,
-            index: self.index,
-            created: self.created,
-            agent: self.agent.clone(),
-            model: self.model.clone(),
-            upstream_id: self.upstream_id.clone(),
-            reasoning: self.reasoning.clone(),
-            tool_calls: self.tool_calls.clone(),
-            content: Some(message::RichContent::Text(String::new())),
-            refusal: self.refusal.clone(),
-            finish_reason: self.finish_reason.clone(),
-            logprobs: Some(response::Logprobs::default()),
-            service_tier: self.service_tier.clone(),
-            system_fingerprint: self.system_fingerprint.clone(),
-            provider: self.provider.clone(),
-            usage: self.usage.clone(),
-        };
-        let mut msg_json = serde_json::to_value(&shell).unwrap();
+        // All assistant-only extracts live under the kind subdir so
+        // every reference from the parent assistant message log file
+        // points strictly inside its own directory subtree — see the
+        // nested-sub-folder rule on `LogReference`.
 
-        // Extract logprobs to a separate file, or remove placeholder
-        if let Some(logprobs) = &self.logprobs {
+        // Extract logprobs to a separate file (if present).
+        let logprobs_ref = self.logprobs.as_ref().map(|logprobs| {
             let logprobs_file = LogFile {
-                route: format!("{route_base}/messages/logprobs"),
+                route: format!("{route_base}/messages/assistant/logprobs"),
                 id: id.to_string(),
                 message_index: Some(self.index),
                 media_index: None,
                 extension: "json".to_string(),
                 content: serde_json::to_vec_pretty(logprobs).unwrap(),
             };
-            msg_json["logprobs"] = serde_json::json!({
-                "type": "reference",
-                "path": logprobs_file.path(),
-            });
+            let r = LogReference::new(logprobs_file.path());
             files.push(logprobs_file);
-        } else if let Some(map) = msg_json.as_object_mut() {
-            map.remove("logprobs");
-        }
+            r
+        });
 
-        // Extract media from content, or remove placeholder
-        if let Some(mut content) = self.content.clone() {
+        // Extract reasoning to its own file (if present).
+        let reasoning_ref = self.reasoning.as_ref().map(|reasoning| {
+            let f = LogFile {
+                route: format!("{route_base}/messages/assistant/reasoning"),
+                id: id.to_string(),
+                message_index: Some(self.index),
+                media_index: None,
+                extension: "json".to_string(),
+                content: serde_json::to_vec_pretty(reasoning).unwrap(),
+            };
+            let r = LogReference::new(f.path());
+            files.push(f);
+            r
+        });
+
+        // Extract refusal to its own file (if present).
+        let refusal_ref = self.refusal.as_ref().map(|refusal| {
+            let f = LogFile {
+                route: format!("{route_base}/messages/assistant/refusal"),
+                id: id.to_string(),
+                message_index: Some(self.index),
+                media_index: None,
+                extension: "json".to_string(),
+                content: serde_json::to_vec_pretty(refusal).unwrap(),
+            };
+            let r = LogReference::new(f.path());
+            files.push(f);
+            r
+        });
+
+        // Extract each tool_call to its own file (if present).
+        let tool_call_refs = self.tool_calls.as_ref().map(|tcs| {
+            tcs.iter()
+                .map(|tc| {
+                    let f = LogFile {
+                        route: format!("{route_base}/messages/assistant/tool_calls"),
+                        id: id.to_string(),
+                        message_index: Some(self.index),
+                        media_index: Some(tc.index),
+                        extension: "json".to_string(),
+                        content: serde_json::to_vec_pretty(tc).unwrap(),
+                    };
+                    let r = LogReference::new(f.path());
+                    files.push(f);
+                    r
+                })
+                .collect::<Vec<_>>()
+        });
+
+        // Extract media from content (if present). Routed under the
+        // kind-specific subdir so the (response_id, index) stems don't
+        // collide with a tool message at the same index.
+        let content_log = self.content.clone().map(|mut content| {
             content.prepare();
-            let (content_json, media_files) = content.extract_media(route_base, id, self.index);
-            msg_json["content"] = content_json;
+            let (content_log, media_files) = content.extract_media(
+                &format!("{route_base}/messages/assistant"),
+                id,
+                self.index,
+            );
             files.extend(media_files);
-        } else if let Some(map) = msg_json.as_object_mut() {
-            map.remove("content");
-        }
+            content_log
+        });
+
+        let log = super::AssistantResponseChunkLog {
+            role: self.role,
+            index: self.index,
+            created: self.created,
+            agent: self.agent.clone(),
+            model: self.model.clone(),
+            upstream_id: self.upstream_id.clone(),
+            reasoning: reasoning_ref,
+            tool_calls: tool_call_refs,
+            content: content_log,
+            refusal: refusal_ref,
+            finish_reason: self.finish_reason.clone(),
+            logprobs: logprobs_ref,
+            service_tier: self.service_tier.clone(),
+            system_fingerprint: self.system_fingerprint.clone(),
+            provider: self.provider.clone(),
+            usage: self.usage.clone(),
+        };
 
         let msg_file = LogFile {
-            route: format!("{route_base}/messages"),
+            // Kind-specific subdir so this file can't collide with a
+            // tool message at the same (response_id, index) — see
+            // `MessageKind::file_path` for the reader-side mirror.
+            route: format!("{route_base}/messages/assistant"),
             id: id.to_string(),
             message_index: Some(self.index),
             media_index: None,
             extension: "json".to_string(),
-            content: serde_json::to_vec_pretty(&msg_json).unwrap(),
+            content: serde_json::to_vec_pretty(&log).unwrap(),
         };
-        let reference = serde_json::json!({ "type": "reference", "path": msg_file.path() });
+        let reference = LogReference::new(msg_file.path());
         files.push(msg_file);
 
         (reference, files)

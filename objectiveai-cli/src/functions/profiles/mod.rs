@@ -70,8 +70,7 @@ impl Commands {
                 let handle = handle.clone();
                 crate::api::run(cli_config, |http_client| async move {
                     let response = objectiveai_sdk::functions::profiles::get_profile(&http_client, path).await?;
-                    objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Profile>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: 
-                        objectiveai_sdk::cli::output::Profile { profile: response },
+                    objectiveai_sdk::cli::output::Output::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: (objectiveai_sdk::cli::output::Profile { profile: response }).into(),
                      })
                     .emit(&handle).await;
                     Ok(())
@@ -107,8 +106,7 @@ impl Commands {
                 let sha = objectiveai_sdk::filesystem::publish::publish_profile(
                     &fs_client, &repository, &profile, &msg, overwrite,
                 ).await?;
-                objectiveai_sdk::cli::output::Output::<objectiveai_sdk::cli::output::Published>::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: 
-                    objectiveai_sdk::cli::output::Published { sha },
+                objectiveai_sdk::cli::output::Output::Notification(objectiveai_sdk::cli::output::Notification { agent_id: None, value: (objectiveai_sdk::cli::output::Published { sha }).into(),
                  })
                 .emit(handle).await;
                 Ok(())

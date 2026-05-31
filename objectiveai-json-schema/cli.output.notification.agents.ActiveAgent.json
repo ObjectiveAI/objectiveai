@@ -1,0 +1,17 @@
+{
+  "title": "cli.output.notification.agents.ActiveAgent",
+  "description": "One direct-child agent of the parent `agents list-active` was\ncalled with, plus the unix-seconds timestamp of its most recent\n`assistant_response` row in the `messages` table.\n\nDirect children only — deeper descendants don't appear in the\nlist. See [`crate::filesystem::Client::list_active`].",
+  "type": "object",
+  "properties": {
+    "agent_id": {
+      "description": "Sub-portion of the composite agent id — the trailing\nsegment(s) past the parent the caller asked about, with\nthe `{parent}/` prefix stripped. Paste this verbatim into\ncommands that re-prepend the parent (e.g. `agents\nread pending`).",
+      "type": "string"
+    },
+    "last_log": {
+      "description": "Unix-seconds timestamp of this agent's most recent\n`assistant_response` row.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    }
+  }
+}

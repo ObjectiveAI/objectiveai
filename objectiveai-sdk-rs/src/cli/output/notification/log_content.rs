@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 /// Wire shapes:
 ///   `{"type":"notification","content":<value>}`
 ///   `{"type":"notification","content_data_url":"data:..."}`
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(untagged)]
 #[schemars(rename = "cli.output.notification.LogContent")]
 pub enum LogContent {

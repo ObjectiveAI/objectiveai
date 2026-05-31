@@ -25,7 +25,6 @@ impl Commands {
                     Box::pin(client.clear_function_execution_retry_tokens()),
                     Box::pin(client.clear_function_inventions()),
                     Box::pin(client.clear_function_inventions_recursive()),
-                    Box::pin(client.clear_laboratory_executions()),
                 ]).await?;
                 {
                 crate::log_line::emit_log_clear_count(counts.into_iter().sum(), handle).await;

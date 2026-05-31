@@ -1,10 +1,12 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// Wire shape for `<scope> instructions get` (and the global
-/// `instructions get`). The body is the instruction text the user is
-/// meant to follow plus the generated instructions ID line.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+/// Markdown instructions rendered to the JSONL stream by
+/// `objectiveai plugins install` and `objectiveai tools install`
+/// — text the caller is meant to read before continuing.
+///
+/// Wire: `{"type":"notification","value":{"kind":"instructions","instructions":"…markdown…"}}`.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[schemars(rename = "cli.output.notification.Instructions")]
 pub struct Instructions {
     pub instructions: String,

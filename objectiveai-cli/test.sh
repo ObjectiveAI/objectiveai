@@ -16,13 +16,6 @@ LOG_FILE="$LOG_DIR/$MODULE.txt"
 
 mkdir -p "$LOG_DIR"
 
-# Diagnostic cross-layer log: PROXY/API/CLI components all append
-# event lines to this file when the env var is set. Truncated at the
-# start of every run. Children (api server, cli binary subprocess)
-# inherit this env so all three layers write to the same file.
-export OBJECTIVEAI_DIAGNOSTIC_LOG="$LOG_DIR/diagnostic.log"
-: > "$OBJECTIVEAI_DIAGNOSTIC_LOG"
-
 # Deterministically wipe CLI test artifacts on every exit path (success,
 # failure, or interrupt). Keeps the tests folder free of gitignored runtime
 # state (logs, cached repos, filesystem config) between runs.

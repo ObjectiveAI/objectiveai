@@ -19,9 +19,9 @@ use objectiveai_sdk::viewer::{cli_event_sink, EventSender};
 ///
 /// Returns immediately after spawning the cli + forwarder tasks; the
 /// iframe sees output asynchronously via the events channel. When the
-/// cli's `run()` completes, the `Handle::Stream` sender is dropped,
-/// the forwarder loop exits, and any handler waiting on the stream
-/// terminates naturally on the `{"type":"end"}` line.
+/// cli's `run()` completes the `Handle::Stream` sender is dropped;
+/// any consumer holding only a reader on the channel sees `None`
+/// once every other sender clone has also been dropped.
 #[tauri::command]
 pub async fn cli_run(
     events_tx: tauri::State<'_, EventSender>,
