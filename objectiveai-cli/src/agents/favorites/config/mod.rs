@@ -61,7 +61,7 @@ impl Commands {
 }
 
 async fn notify(
-    config: &mut objectiveai_sdk::filesystem::config::Config,
+    config: &mut crate::filesystem::config::Config,
     action: Action,
     name: String,
 ) {

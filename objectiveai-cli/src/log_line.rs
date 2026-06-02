@@ -39,7 +39,7 @@ pub async fn emit_log_content(content: LogContent, handle: &Handle) {
 
 /// Emit a list of log directory entries as `Items<LogListItem>`.
 pub async fn emit_log_list(
-    items: Vec<objectiveai_sdk::filesystem::logs::ListItem>,
+    items: Vec<crate::filesystem::logs::ListItem>,
     handle: &Handle,
 ) {
     Output::Notification(objectiveai_sdk::cli::output::Notification {

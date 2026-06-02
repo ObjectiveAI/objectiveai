@@ -19,7 +19,7 @@ pub async fn run(
     path: &str,
     body: &str,
 ) -> Result<(), crate::error::Error> {
-    let fs_client = objectiveai_sdk::filesystem::Client::new(
+    let fs_client = crate::filesystem::Client::new(
         cli_config.config_base_dir.as_deref(),
         cli_config.commit_author_name.as_deref(),
         cli_config.commit_author_email.as_deref(),

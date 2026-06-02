@@ -41,7 +41,7 @@ use objectiveai_sdk::Notifier;
 use objectiveai_sdk::agent::completions::message::{PipeAck, RichContent};
 use objectiveai_sdk::agent::completions::request::AgentCompletionNotifyParams;
 use objectiveai_sdk::cli::output::{Error, Handle, Level, Output};
-use objectiveai_sdk::filesystem::logs::SubscribeEvent;
+use crate::filesystem::logs::SubscribeEvent;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
 use tokio::sync::{broadcast, oneshot};
 

@@ -15,7 +15,7 @@ impl GetArgs {
     ) -> Result<objectiveai_sdk::RemotePathCommitOptional, crate::error::Error>
     where
         F: FnOnce() -> Fut,
-        Fut: std::future::Future<Output = Vec<objectiveai_sdk::filesystem::config::Favorite>>,
+        Fut: std::future::Future<Output = Vec<crate::filesystem::config::Favorite>>,
     {
         self.path.resolve(get_favorites).await
     }
@@ -48,7 +48,7 @@ impl GetPairArgs {
     >
     where
         F: FnOnce() -> Fut,
-        Fut: std::future::Future<Output = Vec<objectiveai_sdk::filesystem::config::PairFavorite>>,
+        Fut: std::future::Future<Output = Vec<crate::filesystem::config::PairFavorite>>,
     {
         if let Some(name) = self.favorite {
             let favorites = get_favorites().await;

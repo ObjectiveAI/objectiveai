@@ -16,9 +16,9 @@ pub struct AddFavorite {
 impl AddFavorite {
     pub fn into_favorite(
         self,
-    ) -> Result<objectiveai_sdk::filesystem::config::Favorite, crate::error::Error> {
+    ) -> Result<crate::filesystem::config::Favorite, crate::error::Error> {
         let path = self.path.resolve()?;
-        Ok(objectiveai_sdk::filesystem::config::Favorite::new(
+        Ok(crate::filesystem::config::Favorite::new(
             self.name, path, self.note,
         )?)
     }
@@ -42,8 +42,8 @@ pub struct EditFavorite {
 impl EditFavorite {
     pub fn apply(
         self,
-        favorite: &mut objectiveai_sdk::filesystem::config::Favorite,
-    ) -> Result<(), objectiveai_sdk::filesystem::Error> {
+        favorite: &mut crate::filesystem::config::Favorite,
+    ) -> Result<(), crate::filesystem::Error> {
         if let Some(note) = self.note {
             favorite.set_note(note)?;
         }
@@ -89,10 +89,10 @@ pub struct AddPairFavorite {
 impl AddPairFavorite {
     pub fn into_pair_favorite(
         self,
-    ) -> Result<objectiveai_sdk::filesystem::config::PairFavorite, crate::error::Error> {
+    ) -> Result<crate::filesystem::config::PairFavorite, crate::error::Error> {
         let function = self.function.resolve()?;
         let profile = self.profile.resolve()?;
-        Ok(objectiveai_sdk::filesystem::config::PairFavorite::new(
+        Ok(crate::filesystem::config::PairFavorite::new(
             self.name, function, profile, self.note,
         )?)
     }
@@ -122,8 +122,8 @@ pub struct EditPairFavorite {
 impl EditPairFavorite {
     pub fn apply(
         self,
-        favorite: &mut objectiveai_sdk::filesystem::config::PairFavorite,
-    ) -> Result<(), objectiveai_sdk::filesystem::Error> {
+        favorite: &mut crate::filesystem::config::PairFavorite,
+    ) -> Result<(), crate::filesystem::Error> {
         if let Some(note) = self.note {
             favorite.set_note(note)?;
         }

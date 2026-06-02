@@ -273,7 +273,7 @@ async fn fall_back_to_continuation(
     cli_seed: Option<i64>,
     handle: &Handle,
 ) -> Result<(), crate::error::Error> {
-    let fs_client = objectiveai_sdk::filesystem::Client::new(
+    let fs_client = crate::filesystem::Client::new(
         cli_config.config_base_dir.as_deref(),
         cli_config.commit_author_name.as_deref(),
         cli_config.commit_author_email.as_deref(),
@@ -283,7 +283,7 @@ async fn fall_back_to_continuation(
     // Walk-back is in the SDK helper — it tries each request newest-
     // first and returns the most recent one whose continuation file
     // exists, only erroring if NONE have one.
-    use objectiveai_sdk::filesystem::logs::LatestContinuationOutcome;
+    use crate::filesystem::logs::LatestContinuationOutcome;
     let latest = match fs_client.read_latest_continuation(full_agent_instance_hierarchy).await? {
         LatestContinuationOutcome::Found(l) => l,
         LatestContinuationOutcome::NoRequests => {

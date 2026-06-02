@@ -51,8 +51,8 @@ use interprocess::local_socket::traits::tokio::Stream as _;
 use interprocess::local_socket::{GenericFilePath, ToFsName};
 use objectiveai_sdk::cli::output::notification::agents::{AgentItems, Inactive};
 use objectiveai_sdk::cli::output::{Handle, Notification, Output};
-use objectiveai_sdk::filesystem::db::schema::MessageKind;
-use objectiveai_sdk::filesystem::logs::{SubscribeEvent, queue::QueueItem};
+use crate::filesystem::db::schema::MessageKind;
+use crate::filesystem::logs::{SubscribeEvent, queue::QueueItem};
 use tokio::io::{AsyncBufReadExt, BufReader};
 
 #[derive(Args)]
@@ -108,7 +108,7 @@ pub async fn handle(
     handle: &Handle,
 ) -> Result<(), crate::error::Error> {
     let kind_filter = args.kind.map(MessageKind::from);
-    let client = objectiveai_sdk::filesystem::Client::new(
+    let client = crate::filesystem::Client::new(
         cli_config.config_base_dir.as_deref(),
         None::<String>,
         None::<String>,
@@ -131,7 +131,7 @@ pub async fn handle(
 /// The recursive driver. Boxed because clippy/rustc demand it for
 /// async-recursion.
 fn subscribe_recursive(
-    client: objectiveai_sdk::filesystem::Client,
+    client: crate::filesystem::Client,
     pipes_dir: PathBuf,
     caller: String,
     spawned: String,

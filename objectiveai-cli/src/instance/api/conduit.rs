@@ -321,7 +321,7 @@ async fn dial_plugin_upstream(
         return Err(fail("filesystem unavailable (no config_base_dir)".into()));
     };
     let fs =
-        objectiveai_sdk::filesystem::Client::new(Some(base_dir), None::<String>, None::<String>);
+        crate::filesystem::Client::new(Some(base_dir), None::<String>, None::<String>);
 
     let Some(plugin) = fs.get_plugin(&plugin_name).await else {
         return Err(fail(format!("plugin {plugin_name:?} not installed")));
@@ -1755,7 +1755,7 @@ async fn load_installed_names(inner: &Arc<Inner>) -> HashSet<String> {
         return names;
     };
     let fs =
-        objectiveai_sdk::filesystem::Client::new(Some(base_dir), None::<String>, None::<String>);
+        crate::filesystem::Client::new(Some(base_dir), None::<String>, None::<String>);
     for entry in fs.list_plugins(0, usize::MAX).await {
         names.insert(entry.name);
     }

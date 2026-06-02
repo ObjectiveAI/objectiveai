@@ -1,6 +1,6 @@
 use objectiveai_sdk::cli::output::{Handle, JqResults, Output, Value};
-use objectiveai_sdk::filesystem::Client;
-use objectiveai_sdk::filesystem::config::Config;
+use crate::filesystem::Client;
+use crate::filesystem::config::Config;
 
 pub fn filter(f: Option<String>) -> String {
     f.unwrap_or_else(|| ".".to_string())
@@ -30,7 +30,7 @@ pub async fn write(
 
 /// Emit a user-supplied jq filter's results as a single `Notification::Jq`.
 pub async fn emit_jq(
-    results: Result<Vec<serde_json::Value>, objectiveai_sdk::filesystem::Error>,
+    results: Result<Vec<serde_json::Value>, crate::filesystem::Error>,
     handle: &Handle,
 ) -> Result<(), crate::error::Error> {
     let results = results?;

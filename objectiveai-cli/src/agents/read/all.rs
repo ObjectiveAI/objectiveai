@@ -32,7 +32,7 @@ pub async fn handle(
     cli_config: &crate::Config,
     handle: &Handle,
 ) -> Result<(), crate::error::Error> {
-    let client = objectiveai_sdk::filesystem::Client::new(
+    let client = crate::filesystem::Client::new(
         cli_config.config_base_dir.as_deref(),
         None::<String>,
         None::<String>,

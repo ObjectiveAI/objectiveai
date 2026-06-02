@@ -11,7 +11,7 @@ pub enum Commands {
 
 async fn get_favorites(
     cli_config: &crate::Config,
-) -> Vec<objectiveai_sdk::filesystem::config::Favorite> {
+) -> Vec<crate::filesystem::config::Favorite> {
     let (_, mut config) = crate::config::read(cli_config).await.unwrap();
     config.functions().get_favorites().to_vec()
 }

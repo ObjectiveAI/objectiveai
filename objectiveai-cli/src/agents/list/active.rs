@@ -3,7 +3,7 @@
 //! `assistant_response` row.
 //!
 //! Thin wrapper around
-//! [`objectiveai_sdk::filesystem::Client::list_active`]. Direct
+//! [`crate::filesystem::Client::list_active`]. Direct
 //! children only; deeper descendants (composite ids with more
 //! than one segment past the parent) are excluded.
 
@@ -23,7 +23,7 @@ pub async fn handle(
     cli_config: &crate::Config,
     handle: &Handle,
 ) -> Result<(), crate::error::Error> {
-    let client = objectiveai_sdk::filesystem::Client::new(
+    let client = crate::filesystem::Client::new(
         cli_config.config_base_dir.as_deref(),
         None::<String>,
         None::<String>,

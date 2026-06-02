@@ -48,7 +48,7 @@ pub enum Commands {
 
 async fn get_favorites(
     cli_config: &crate::Config,
-) -> Vec<objectiveai_sdk::filesystem::config::Favorite> {
+) -> Vec<crate::filesystem::config::Favorite> {
     let (_, mut config) = crate::config::read(cli_config).await.unwrap();
     config.functions().profiles().get_favorites().to_vec()
 }
@@ -146,12 +146,12 @@ impl Commands {
             } => {
                 let profile: objectiveai_sdk::functions::RemoteProfile = body.resolve()?;
                 let msg = message.resolve()?;
-                let fs_client = objectiveai_sdk::filesystem::Client::new(
+                let fs_client = crate::filesystem::Client::new(
                     cli_config.config_base_dir.as_deref(),
                     cli_config.commit_author_name.as_deref(),
                     cli_config.commit_author_email.as_deref(),
                 );
-                let sha = objectiveai_sdk::filesystem::publish::publish_profile(
+                let sha = crate::filesystem::publish::publish_profile(
                     &fs_client,
                     &repository,
                     &profile,

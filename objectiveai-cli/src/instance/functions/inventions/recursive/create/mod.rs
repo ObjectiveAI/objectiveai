@@ -25,7 +25,7 @@ pub async fn handle(
     let registry = crate::instance::pipes::PipeRegistry::new();
     pipes.try_eager_acquire(&registry, handle).await?;
 
-    let fs_client = objectiveai_sdk::filesystem::Client::new(
+    let fs_client = crate::filesystem::Client::new(
         Some(config_base_dir),
         None::<String>,
         None::<String>,

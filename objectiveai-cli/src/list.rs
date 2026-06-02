@@ -33,7 +33,7 @@ async fn emit_pair_items(items: Vec<PairListItem>, handle: &Handle) {
 
 /// Returns true if a favorite matches a remote path.
 fn favorite_matches(
-    fav: &objectiveai_sdk::filesystem::config::Favorite,
+    fav: &crate::filesystem::config::Favorite,
     path: &objectiveai_sdk::RemotePath,
 ) -> bool {
     favorite_matches_path(fav.path(), path)
@@ -43,7 +43,7 @@ fn favorite_matches(
 pub async fn favorites<F, Fut>(get_favorites: F, handle: &Handle) -> Result<(), crate::error::Error>
 where
     F: FnOnce() -> Fut,
-    Fut: std::future::Future<Output = Vec<objectiveai_sdk::filesystem::config::Favorite>>,
+    Fut: std::future::Future<Output = Vec<crate::filesystem::config::Favorite>>,
 {
     let items: Vec<ListItem> = get_favorites()
         .await
@@ -101,7 +101,7 @@ pub async fn all<F, Fut, FsF, OaiF>(
 ) -> Result<(), crate::error::Error>
 where
     F: FnOnce() -> Fut,
-    Fut: std::future::Future<Output = Vec<objectiveai_sdk::filesystem::config::Favorite>>,
+    Fut: std::future::Future<Output = Vec<crate::filesystem::config::Favorite>>,
     FsF: FnOnce(
             objectiveai_sdk::HttpClient,
         ) -> std::pin::Pin<
@@ -210,7 +210,7 @@ fn favorite_matches_path(
 
 /// Returns true if a pair favorite matches a pair item (both function and profile match).
 fn pair_favorite_matches(
-    fav: &objectiveai_sdk::filesystem::config::PairFavorite,
+    fav: &crate::filesystem::config::PairFavorite,
     item: &objectiveai_sdk::functions::response::ListFunctionProfilePairItem,
 ) -> bool {
     favorite_matches_path(&fav.function, &item.function)
@@ -224,7 +224,7 @@ pub async fn pair_favorites<F, Fut>(
 ) -> Result<(), crate::error::Error>
 where
     F: FnOnce() -> Fut,
-    Fut: std::future::Future<Output = Vec<objectiveai_sdk::filesystem::config::PairFavorite>>,
+    Fut: std::future::Future<Output = Vec<crate::filesystem::config::PairFavorite>>,
 {
     let items: Vec<PairListItem> = get_favorites()
         .await
@@ -282,7 +282,7 @@ pub async fn pair_all<GF, GFut, F>(
 ) -> Result<(), crate::error::Error>
 where
     GF: FnOnce() -> GFut,
-    GFut: std::future::Future<Output = Vec<objectiveai_sdk::filesystem::config::PairFavorite>>,
+    GFut: std::future::Future<Output = Vec<crate::filesystem::config::PairFavorite>>,
     F: FnOnce(
             objectiveai_sdk::HttpClient,
         ) -> std::pin::Pin<

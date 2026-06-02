@@ -70,7 +70,7 @@ async fn get(
     handle: &Handle,
     name: &str,
 ) -> Result<(), crate::error::Error> {
-    let fs_client = objectiveai_sdk::filesystem::Client::new(
+    let fs_client = crate::filesystem::Client::new(
         cli_config.config_base_dir.as_deref(),
         cli_config.commit_author_name.as_deref(),
         cli_config.commit_author_email.as_deref(),
@@ -90,7 +90,7 @@ async fn list(
     offset: usize,
     limit: usize,
 ) -> Result<(), crate::error::Error> {
-    let fs_client = objectiveai_sdk::filesystem::Client::new(
+    let fs_client = crate::filesystem::Client::new(
         cli_config.config_base_dir.as_deref(),
         cli_config.commit_author_name.as_deref(),
         cli_config.commit_author_email.as_deref(),
@@ -120,7 +120,7 @@ pub async fn dispatch_tool(
         .ok_or(crate::error::Error::MissingArgs("tool name"))?;
     let rest: Vec<String> = iter.collect();
 
-    let fs_client = objectiveai_sdk::filesystem::Client::new(
+    let fs_client = crate::filesystem::Client::new(
         cli_config.config_base_dir.as_deref(),
         cli_config.commit_author_name.as_deref(),
         cli_config.commit_author_email.as_deref(),

@@ -4,7 +4,7 @@
 //! each carrying the sub-id plus that agent's drained items
 //! (possibly empty).
 //!
-//! Wraps [`objectiveai_sdk::filesystem::Client::read_new_from_queue`]:
+//! Wraps [`crate::filesystem::Client::read_new_from_queue`]:
 //! atomically advances the per-(caller, spawned) watermark in
 //! `messages_queue` and returns each unread row as a typed
 //! `QueueItem`. The caller id is taken from `cli_config.agent_instance_hierarchy`
@@ -38,7 +38,7 @@ pub async fn handle(
     cli_config: &crate::Config,
     handle: &Handle,
 ) -> Result<(), crate::error::Error> {
-    let client = objectiveai_sdk::filesystem::Client::new(
+    let client = crate::filesystem::Client::new(
         cli_config.config_base_dir.as_deref(),
         None::<String>,
         None::<String>,

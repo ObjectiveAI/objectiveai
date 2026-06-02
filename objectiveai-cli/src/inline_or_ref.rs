@@ -51,7 +51,7 @@ macro_rules! define_inline_or_ref {
             ) -> Result<$output_ty, crate::error::Error>
             where
                 F: FnOnce() -> Fut,
-                Fut: std::future::Future<Output = Vec<objectiveai_sdk::filesystem::config::Favorite>>,
+                Fut: std::future::Future<Output = Vec<crate::filesystem::config::Favorite>>,
             {
                 if let Some(json) = self.inline {
                     let mut de = serde_json::Deserializer::from_str(&json);

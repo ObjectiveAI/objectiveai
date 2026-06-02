@@ -117,14 +117,14 @@ pub enum Commands {
 
 async fn fn_favorites(
     cli_config: &crate::Config,
-) -> Vec<objectiveai_sdk::filesystem::config::Favorite> {
+) -> Vec<crate::filesystem::config::Favorite> {
     let (_, mut config) = crate::config::read(cli_config).await.unwrap();
     config.functions().get_favorites().to_vec()
 }
 
 async fn profile_favorites(
     cli_config: &crate::Config,
-) -> Vec<objectiveai_sdk::filesystem::config::Favorite> {
+) -> Vec<crate::filesystem::config::Favorite> {
     let (_, mut config) = crate::config::read(cli_config).await.unwrap();
     config.functions().profiles().get_favorites().to_vec()
 }

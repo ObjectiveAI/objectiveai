@@ -44,9 +44,9 @@ use objectiveai_sdk::Notifier;
 use objectiveai_sdk::agent::completions::message::RichContent;
 use objectiveai_sdk::agent::completions::response::streaming::AgentCompletionIds;
 use objectiveai_sdk::cli::output::{Handle, LogStreamReady, Notification, Output};
-use objectiveai_sdk::filesystem::db::pending::PendingNotification;
-use objectiveai_sdk::filesystem::db::schema::MessageKind;
-use objectiveai_sdk::filesystem::logs::{LogWriter, SubscribeEvent};
+use crate::filesystem::db::pending::PendingNotification;
+use crate::filesystem::db::schema::MessageKind;
+use crate::filesystem::logs::{LogWriter, SubscribeEvent};
 use serde::Serialize;
 
 use crate::instance::pipes::{BindStatus, PipeRegistry};
@@ -301,7 +301,7 @@ async fn writer_loop<Chunk, F>(
     push: F,
     handle: Handle,
     registry: PipeRegistry,
-) -> Result<(), objectiveai_sdk::filesystem::Error>
+) -> Result<(), crate::filesystem::Error>
 where
     F: Fn(&mut Chunk, &Chunk),
     Chunk: objectiveai_sdk::agent::completions::response::streaming::AgentCompletionIds + Clone,

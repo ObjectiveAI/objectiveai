@@ -1,7 +1,7 @@
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("{0}")]
-    Filesystem(#[from] objectiveai_sdk::filesystem::Error),
+    Filesystem(#[from] crate::filesystem::Error),
     #[error("{}", format_http_error(.0))]
     Http(#[from] objectiveai_sdk::HttpError),
     #[error("{0}")]

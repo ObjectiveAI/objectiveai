@@ -40,7 +40,7 @@ pub async fn handle(
     // = `${base_dir}/logs`, so this lands at
     // `${config_base_dir}/logs/functions/executions/<fexc-id>/...` —
     // byte-identical to `objectiveai-cli functions executions create`.
-    let fs_client = objectiveai_sdk::filesystem::Client::new(
+    let fs_client = crate::filesystem::Client::new(
         Some(config_base_dir),
         None::<String>,
         None::<String>,

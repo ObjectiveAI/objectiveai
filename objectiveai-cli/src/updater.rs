@@ -6,7 +6,7 @@
 //! Other binaries no longer self-update.
 //!
 //! **Layout on disk** (resolved through
-//! [`objectiveai_sdk::filesystem::Client::base_dir`]):
+//! [`crate::filesystem::Client::base_dir`]):
 //!
 //! ```text
 //! <base_dir>/objectiveai{.exe}        ← cli
@@ -32,7 +32,7 @@ use std::time::Duration;
 
 use objectiveai_sdk::cli::output::notification::{Notification, SkipReason, Updater};
 use objectiveai_sdk::cli::output::{Handle, Output};
-use objectiveai_sdk::filesystem::Client;
+use crate::filesystem::Client;
 
 const RELEASES_API: &str = "https://api.github.com/repos/ObjectiveAI/objectiveai/releases/latest";
 const METADATA_TIMEOUT: Duration = Duration::from_secs(10);

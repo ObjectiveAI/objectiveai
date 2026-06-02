@@ -30,7 +30,7 @@ impl AgentRef {
     >
     where
         F: FnOnce() -> Fut,
-        Fut: std::future::Future<Output = Vec<objectiveai_sdk::filesystem::config::Favorite>>,
+        Fut: std::future::Future<Output = Vec<crate::filesystem::config::Favorite>>,
     {
         let path = self.0.resolve(get_favorites).await?;
         Ok(

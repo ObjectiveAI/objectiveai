@@ -27,7 +27,7 @@ impl Commands {
         cli_config: &crate::Config,
         handle: &objectiveai_sdk::cli::output::Handle,
     ) -> Result<(), crate::error::Error> {
-        let client = objectiveai_sdk::filesystem::Client::new(
+        let client = crate::filesystem::Client::new(
             cli_config.config_base_dir.as_deref(),
             None::<String>,
             None::<String>,
@@ -41,7 +41,7 @@ impl Commands {
                 let content = client
                     .read_agent_completion_message_image(&id, message_index, media_index)
                     .await
-                    .map(objectiveai_sdk::filesystem::logs::LogContent::image)?;
+                    .map(crate::filesystem::logs::LogContent::image)?;
                 {
                     crate::log_line::emit_log_content(content, handle).await;
                     Ok(())
@@ -64,7 +64,7 @@ impl Commands {
                     )
                     .await;
                 {
-                    match result.map(objectiveai_sdk::filesystem::logs::LogContent::image) {
+                    match result.map(crate::filesystem::logs::LogContent::image) {
                         Some(content) => {
                             crate::log_line::emit_log_content(content, handle).await;
                             Ok(())

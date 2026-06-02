@@ -5,7 +5,7 @@
 //! 1. The built-in `plugins` subcommand tree ([`Commands`]):
 //!    - `plugins list` — enumerate every manifest in
 //!      `~/.objectiveai/plugins/` via
-//!      [`objectiveai_sdk::filesystem::Client::list_plugins`].
+//!      [`crate::filesystem::Client::list_plugins`].
 //!    - `plugins <name> <args…>` — dispatch to plugin `<name>` with
 //!      `<args…>` forwarded verbatim (the [`Commands::Run`] external
 //!      subcommand). Identical behaviour to the top-level catch-all
@@ -137,7 +137,7 @@ pub(super) async fn install(
     allow_untrusted: bool,
     upgrade: bool,
 ) -> Result<(), crate::error::Error> {
-    let fs_client = objectiveai_sdk::filesystem::Client::new(
+    let fs_client = crate::filesystem::Client::new(
         cli_config.config_base_dir.as_deref(),
         cli_config.commit_author_name.as_deref(),
         cli_config.commit_author_email.as_deref(),
@@ -151,8 +151,8 @@ pub(super) async fn install(
 
     // Step 2: whitelist check.
     let effective_sha = commit_sha.unwrap_or("HEAD");
-    let whitelist = objectiveai_sdk::filesystem::plugins::default_whitelist();
-    let allowed = objectiveai_sdk::filesystem::plugins::check_plugin_whitelist(
+    let whitelist = crate::filesystem::plugins::default_whitelist();
+    let allowed = crate::filesystem::plugins::check_plugin_whitelist(
         owner,
         repository,
         effective_sha,
@@ -177,7 +177,7 @@ pub(super) async fn install(
     // URL persisted alongside the binary is the raw GitHub URL the
     // manifest came from.
     let source =
-        objectiveai_sdk::filesystem::plugins::raw_manifest_url(owner, repository, commit_sha);
+        crate::filesystem::plugins::raw_manifest_url(owner, repository, commit_sha);
     let installed = fs_client
         .install_plugin_from_manifest(owner, repository, &manifest, &source, None, upgrade)
         .await?;
@@ -217,7 +217,7 @@ async fn get(
     handle: &Handle,
     name: &str,
 ) -> Result<(), crate::error::Error> {
-    let fs_client = objectiveai_sdk::filesystem::Client::new(
+    let fs_client = crate::filesystem::Client::new(
         cli_config.config_base_dir.as_deref(),
         cli_config.commit_author_name.as_deref(),
         cli_config.commit_author_email.as_deref(),
@@ -237,7 +237,7 @@ async fn list(
     offset: usize,
     limit: usize,
 ) -> Result<(), crate::error::Error> {
-    let fs_client = objectiveai_sdk::filesystem::Client::new(
+    let fs_client = crate::filesystem::Client::new(
         cli_config.config_base_dir.as_deref(),
         cli_config.commit_author_name.as_deref(),
         cli_config.commit_author_email.as_deref(),
@@ -262,7 +262,7 @@ pub async fn dispatch_external(
         .ok_or(crate::error::Error::MissingArgs("plugin name"))?;
     let rest: Vec<String> = iter.collect();
 
-    let fs_client = objectiveai_sdk::filesystem::Client::new(
+    let fs_client = crate::filesystem::Client::new(
         cli_config.config_base_dir.as_deref(),
         cli_config.commit_author_name.as_deref(),
         cli_config.commit_author_email.as_deref(),
