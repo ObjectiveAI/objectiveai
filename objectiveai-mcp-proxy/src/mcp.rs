@@ -319,14 +319,25 @@ async fn handle_initialize(
             connections_with_headers,
             decoded_agent_instance_hierarchy,
             decoded_agent_id,
+            decoded_agent_full_id,
+            decoded_agent_remote,
             decoded_tool_allowlists,
         ) = match state.sessions.decode_session_id(sid) {
             Some(payload) => {
                 let agent_instance_hierarchy = payload.agent_instance_hierarchy.clone();
                 let agent_id = payload.agent_id.clone();
+                let agent_full_id = payload.agent_full_id.clone();
+                let agent_remote = payload.agent_remote.clone();
                 let tool_allowlists = payload.tool_allowlists.clone();
                 match crate::upstream::reconnect_from_payload(&state.client, &payload).await {
-                    Ok(pairs) => (pairs, agent_instance_hierarchy, agent_id, tool_allowlists),
+                    Ok(pairs) => (
+                        pairs,
+                        agent_instance_hierarchy,
+                        agent_id,
+                        agent_full_id,
+                        agent_remote,
+                        tool_allowlists,
+                    ),
                     Err(e @ BadInit::UpstreamConnectFailed { .. }) => {
                         return internal_error_response(request.id, e.to_string());
                     }
@@ -353,6 +364,8 @@ async fn handle_initialize(
             connections_with_headers,
             decoded_agent_instance_hierarchy,
             decoded_agent_id,
+            decoded_agent_full_id,
+            decoded_agent_remote,
             decoded_tool_allowlists,
         );
         ok_response_resume_sse(request.id)
