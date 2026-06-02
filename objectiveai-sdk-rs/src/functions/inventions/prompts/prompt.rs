@@ -65,9 +65,6 @@ pub enum InlinePromptOrRemoteCommitOptional {
     Inline(InlinePrompt),
     #[schemars(title = "Remote")]
     Remote(crate::RemotePathCommitOptional),
-    /// A bare favorite name. Resolves at handler time.
-    #[schemars(title = "Favorite")]
-    Favorite(String),
 }
 
 /// A Prompt definition, either remote or inline.

@@ -228,9 +228,6 @@ pub enum InlineSwarmBaseOrRemote {
     SwarmBase(InlineSwarmBase),
     #[schemars(title = "Remote")]
     Remote(crate::RemotePath),
-    /// A bare favorite name. Resolves at handler time.
-    #[schemars(title = "Favorite")]
-    Favorite(String),
 }
 
 /// Like [`InlineSwarmBaseOrRemote`] but with optional commit.
@@ -243,9 +240,6 @@ pub enum InlineSwarmBaseOrRemoteCommitOptional {
     SwarmBase(InlineSwarmBase),
     #[schemars(title = "Remote")]
     Remote(crate::RemotePathCommitOptional),
-    /// A bare favorite name. Resolves at handler time.
-    #[schemars(title = "Favorite")]
-    Favorite(String),
 }
 
 // ── Private helpers ────────────────────────────────────────────────
