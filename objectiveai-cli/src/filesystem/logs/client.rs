@@ -474,7 +474,8 @@ impl Client {
         Ok(super::LogWriter::new(
             self.logs_dir(),
             |chunk: &FunctionInventionChunk| {
-                chunk.produce_files().map(|(_, files)| files)
+                crate::logs::functions::inventions::response::streaming::function_invention_chunk::produce_files(chunk)
+                    .map(|(_, files)| files)
             },
         )
         .with_request("functions/inventions/request", request)?
