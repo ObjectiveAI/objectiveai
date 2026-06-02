@@ -13,18 +13,29 @@ type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     let offset = request.offset.unwrap_or(0);
     let limit = request.limit.unwrap_or(usize::MAX);
-    let manifests = ctx.filesystem.list_plugins(offset, limit).await;
-    let items: Result<Vec<ResponseItem>, Error> = manifests
-        .into_iter()
-        .map(|m| {
-            // Field-identical on-disk shape — JSON round-trip avoids a
-            // hand-coded per-field copy.
-            let value = serde_json::to_value(&m)
-                .map_err(|e| Error::InlineDeserialize(e.into()))?;
-            serde_json::from_value(value).map_err(|e| Error::InlineDeserialize(e.into()))
-        })
-        .collect();
-    Ok(Box::pin(futures::stream::iter(items?.into_iter().map(Ok))))
+    let fs = ctx.filesystem.clone();
+    let stream = async_stream::stream! {
+        let manifests = fs.list_plugins(offset, limit).await;
+        for m in manifests {
+            // Field-identical on-disk shape — JSON round-trip avoids
+            // a hand-coded per-field copy.
+            let value = match serde_json::to_value(&m) {
+                Ok(v) => v,
+                Err(e) => {
+                    yield Err(Error::InlineDeserialize(e.into()));
+                    return;
+                }
+            };
+            match serde_json::from_value::<ResponseItem>(value) {
+                Ok(item) => yield Ok(item),
+                Err(e) => {
+                    yield Err(Error::InlineDeserialize(e.into()));
+                    return;
+                }
+            }
+        }
+    };
+    Ok(Box::pin(stream))
 }
 
 pub mod request_schema {
