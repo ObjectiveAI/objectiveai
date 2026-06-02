@@ -22,25 +22,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
 
-static BUILD_CLI_STREAM_ONCE: Once = Once::new();
 static BUILD_COUNT_TOOL_ONCE: Once = Once::new();
-
-fn ensure_cli_stream_built() {
-    BUILD_CLI_STREAM_ONCE.call_once(|| {
-        let target_dir = cli_test_util::test_target_dir();
-        let status = Command::new("cargo")
-            .args([
-                "build",
-                "-p",
-                "objectiveai-cli-stream",
-                "--target-dir",
-                target_dir.to_str().unwrap(),
-            ])
-            .status()
-            .expect("spawn cargo build cli-stream");
-        assert!(status.success(), "cli-stream build failed");
-    });
-}
 
 /// Build the `count-tool` fixture binary into the shared per-test
 /// target dir, then return its path. Reads `CARGO_TARGET_DIR` only
@@ -290,7 +272,6 @@ async fn two_agents_continuations_count_persists_per_session() {
         );
         return;
     }
-    ensure_cli_stream_built();
 
     // Use the SHARED test scratch dir so the MCP server (which is
     // pinned to `objectiveai-cli/tests/.objectiveai` by

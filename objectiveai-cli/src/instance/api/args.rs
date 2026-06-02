@@ -157,7 +157,7 @@ pub struct PipeArgs {
     /// stream — by binding the per-agent inbound listener at
     /// `${config_base_dir}/pipes/<bind_agent_instance_hierarchy>/socket`. On bind
     /// conflict (path already owned by a live listener) cli-stream
-    /// exits with [`SLOT_TAKEN_EXIT_CODE`](crate::api::SLOT_TAKEN_EXIT_CODE);
+    /// exits with [`SLOT_TAKEN_EXIT_CODE`](crate::instance::api::SLOT_TAKEN_EXIT_CODE);
     /// the wrapper `objectiveai-cli` then recursively retries the
     /// dispatch entry. Used today only by `agents message`'s
     /// continuation fallback (the only spawn path that targets a
@@ -174,8 +174,8 @@ impl PipeArgs {
     /// `tools/list` filter consults `config_base_dir` to recognize
     /// `objectiveai-mcp` built-ins by elimination — `None` keeps the
     /// filter pure-explicit-names.
-    pub fn build_conduit(&self) -> crate::api::conduit::ConduitMcpHandler {
-        crate::api::conduit::ConduitMcpHandler::new(
+    pub fn build_conduit(&self) -> crate::instance::api::conduit::ConduitMcpHandler {
+        crate::instance::api::conduit::ConduitMcpHandler::new(
             self.mcp_address.clone(),
             self.config_base_dir.clone(),
         )
@@ -198,7 +198,7 @@ impl PipeArgs {
     }
 
     /// Run the eager admission probe against `registry` when
-    /// `--bind-agent-instance-hierarchy` is set. On [`crate::pipes::BindStatus::Live`]
+    /// `--bind-agent-instance-hierarchy` is set. On [`crate::instance::pipes::BindStatus::Live`]
     /// the process exits with [`super::SLOT_TAKEN_EXIT_CODE`] —
     /// **does not return**. On success the listener is stashed in
     /// `registry.pending_listeners` and the matching per-chunk
@@ -207,7 +207,7 @@ impl PipeArgs {
     /// stream continue and fall through to lazy bind.
     pub async fn try_eager_acquire(
         &self,
-        registry: &crate::pipes::PipeRegistry,
+        registry: &crate::instance::pipes::PipeRegistry,
         handle: &objectiveai_sdk::cli::output::Handle,
     ) -> Result<(), String> {
         let Some(bind_agent_instance_hierarchy) = self.bind_agent_instance_hierarchy.as_deref() else {
@@ -219,10 +219,10 @@ impl PipeArgs {
             .await
         {
             Ok(()) => Ok(()),
-            Err(crate::pipes::BindStatus::Live) => {
+            Err(crate::instance::pipes::BindStatus::Live) => {
                 std::process::exit(super::SLOT_TAKEN_EXIT_CODE);
             }
-            Err(crate::pipes::BindStatus::Io) => Ok(()),
+            Err(crate::instance::pipes::BindStatus::Io) => Ok(()),
         }
     }
 }

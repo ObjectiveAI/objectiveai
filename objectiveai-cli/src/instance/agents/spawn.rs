@@ -6,8 +6,8 @@ use objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams;
 use objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk;
 use objectiveai_sdk::cli::output::Handle;
 
-use crate::api::{BodySource, HttpArgs, PipeArgs};
-use crate::streaming;
+use crate::instance::api::{BodySource, HttpArgs, PipeArgs};
+use crate::instance::streaming;
 
 pub async fn handle(
     http: &HttpArgs,
@@ -25,7 +25,7 @@ pub async fn handle(
     // is set) and the per-chunk binds inside `run_chunk_loop`. The
     // eager probe stashes its `Listener` here; the chunk loop's
     // first matching `ensure_pipe` consumes it.
-    let registry = crate::pipes::PipeRegistry::new();
+    let registry = crate::instance::pipes::PipeRegistry::new();
     pipes.try_eager_acquire(&registry, handle).await?;
 
     let fs_client = objectiveai_sdk::filesystem::Client::new(

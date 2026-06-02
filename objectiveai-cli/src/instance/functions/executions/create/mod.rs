@@ -6,8 +6,8 @@ use objectiveai_sdk::cli::output::Handle;
 use objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams;
 use objectiveai_sdk::functions::executions::response::streaming::FunctionExecutionChunk;
 
-use crate::api::{BodySource, HttpArgs, PipeArgs};
-use crate::streaming;
+use crate::instance::api::{BodySource, HttpArgs, PipeArgs};
+use crate::instance::streaming;
 
 /// Run a function execution stream end-to-end.
 ///
@@ -33,7 +33,7 @@ pub async fn handle(
     let client = http.build_http_client()?;
     let conduit = pipes.build_conduit();
 
-    let registry = crate::pipes::PipeRegistry::new();
+    let registry = crate::instance::pipes::PipeRegistry::new();
     pipes.try_eager_acquire(&registry, handle).await?;
 
     // Build the on-disk log writer. `filesystem::Client::logs_dir()`

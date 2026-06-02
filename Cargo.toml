@@ -12,7 +12,6 @@ members = [
     "objectiveai-sdk-rs-macros",
     "objectiveai-sdk-rs-pyo3",
     "objectiveai-sdk-rs-cffi", "objectiveai-cli", "objectiveai-cli/builder",
-    "objectiveai-cli-stream",
     "objectiveai-cli/test-fixtures/hello-plugin",
     "objectiveai-cli/test-fixtures/hello-tool",
     "objectiveai-cli/test-fixtures/error-tool",

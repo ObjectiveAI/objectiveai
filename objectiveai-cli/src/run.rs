@@ -5,6 +5,7 @@ use crate::agents;
 use crate::api;
 use crate::error;
 use crate::functions;
+use crate::instance;
 use crate::logs;
 use crate::mcp;
 use crate::plugins;
@@ -216,6 +217,19 @@ enum Commands {
     /// the latest GitHub release. Refuses to proceed unless all four
     /// expected assets are present for the host triple.
     Update,
+    /// Per-agent-instance subprocess runner. Spawned internally by
+    /// streaming endpoints (`agents spawn`, `functions executions
+    /// create`, …) as `objectiveai-cli instance …`; hidden from
+    /// `--help` since end users never invoke it directly.
+    #[command(hide = true)]
+    Instance {
+        #[command(flatten)]
+        http: instance::HttpArgs,
+        #[command(flatten)]
+        pipes: instance::PipeArgs,
+        #[command(subcommand)]
+        command: instance::Commands,
+    },
     /// Run a plugin from `~/.objectiveai/plugins/`. First element is
     /// the plugin name; the rest are forwarded as the plugin's argv.
     /// Captured via clap's external-subcommand mechanism — any first
@@ -243,6 +257,10 @@ impl Commands {
             Commands::Plugins { command } => command.handle(cli_config, handle).await,
             Commands::Tools { command } => command.handle(cli_config, handle).await,
             Commands::Update => crate::updater::run_update(cli_config, handle).await,
+            Commands::Instance { http, pipes, command } => command
+                .handle(&http, &pipes, handle)
+                .await
+                .map_err(error::Error::Instance),
             Commands::External(args) => {
                 crate::plugins::dispatch_external(args, cli_config, handle).await
             }

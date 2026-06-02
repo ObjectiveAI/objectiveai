@@ -7,8 +7,8 @@ use objectiveai_sdk::cli::output::Handle;
 use objectiveai_sdk::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams;
 use objectiveai_sdk::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk;
 
-use crate::api::{BodySource, HttpArgs, PipeArgs};
-use crate::streaming;
+use crate::instance::api::{BodySource, HttpArgs, PipeArgs};
+use crate::instance::streaming;
 
 pub async fn handle(
     http: &HttpArgs,
@@ -22,7 +22,7 @@ pub async fn handle(
     let client = http.build_http_client()?;
     let conduit = pipes.build_conduit();
 
-    let registry = crate::pipes::PipeRegistry::new();
+    let registry = crate::instance::pipes::PipeRegistry::new();
     pipes.try_eager_acquire(&registry, handle).await?;
 
     let fs_client = objectiveai_sdk::filesystem::Client::new(

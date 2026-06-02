@@ -75,6 +75,8 @@ pub enum Error {
     ViewerSendBadStatus { status: u16, body: String },
     #[error("updater: {0}")]
     Updater(String),
+    #[error("instance runner: {0}")]
+    Instance(String),
     #[error("{name} is already running (pids: {pids:?})")]
     AlreadyRunning { name: String, pids: Vec<u32> },
     #[error("{name} did not announce \"listening\" on stderr before exiting")]

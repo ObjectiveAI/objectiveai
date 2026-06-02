@@ -1,7 +1,7 @@
 use clap::Subcommand;
 use objectiveai_sdk::cli::output::Handle;
 
-use crate::api::{HttpArgs, PipeArgs};
+use crate::instance::api::{HttpArgs, PipeArgs};
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {

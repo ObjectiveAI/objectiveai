@@ -18,33 +18,6 @@ use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
 
-/// `cli_test_util::cli_binary` only builds `objectiveai-cli`. Streaming
-/// flows (every spawn / continuation completion) re-exec
-/// `objectiveai-cli-stream` next to the cli, so this test needs that
-/// binary present in the same `target/test-cli/debug/` dir. Build it
-/// once per test-binary lifetime.
-static BUILD_CLI_STREAM_ONCE: Once = Once::new();
-
-fn ensure_cli_stream_built() {
-    BUILD_CLI_STREAM_ONCE.call_once(|| {
-        let target_dir = cli_test_util::test_target_dir();
-        let status = Command::new("cargo")
-            .args([
-                "build",
-                "-p",
-                "objectiveai-cli-stream",
-                "--target-dir",
-                target_dir.to_str().unwrap(),
-            ])
-            .status()
-            .expect("failed to spawn cargo build for objectiveai-cli-stream");
-        assert!(
-            status.success(),
-            "cargo build of objectiveai-cli-stream failed"
-        );
-    });
-}
-
 /// `cli_test_util::cli_command` pins `CONFIG_BASE_DIR` to the shared
 /// `tests/.objectiveai` scratch dir; this test needs a fresh tempdir
 /// per run so the spawn doesn't trip on stale state. Same env plumbing
@@ -103,7 +76,6 @@ async fn spawn_then_message_propagates_response_continuation() {
         return;
     }
 
-    ensure_cli_stream_built();
 
     let tmp = tempfile::tempdir().expect("tempdir");
     let base_dir = tmp.path();

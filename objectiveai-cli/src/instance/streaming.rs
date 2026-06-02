@@ -13,7 +13,7 @@
 //!
 //! ## Notifications
 //!
-//! The per-agent pipe readers (in [`crate::pipes`]) forward each
+//! The per-agent pipe readers (in [`crate::instance::pipes`]) forward each
 //! received `RichContent` line into the writer task via a side-channel
 //! mpsc, in addition to the existing fan-out to the API server via
 //! `notifier`. The writer task owns a local `Vec<PendingNotification>`:
@@ -49,7 +49,7 @@ use objectiveai_sdk::filesystem::db::schema::MessageKind;
 use objectiveai_sdk::filesystem::logs::{LogWriter, SubscribeEvent};
 use serde::Serialize;
 
-use crate::pipes::{BindStatus, PipeRegistry};
+use crate::instance::pipes::{BindStatus, PipeRegistry};
 
 /// Outcome of consuming a stream: the accumulated chunk (None when
 /// the stream produced zero items) + the count of chunks consumed.
@@ -178,7 +178,7 @@ where
                             // wrapper recursively retries. We do
                             // NOT touch the API stream further
                             // (drop on exit cancels it server-side).
-                            std::process::exit(crate::api::SLOT_TAKEN_EXIT_CODE);
+                            std::process::exit(crate::instance::api::SLOT_TAKEN_EXIT_CODE);
                         }
                         Err(BindStatus::Io) => {
                             // Bind-only IO error — warning already

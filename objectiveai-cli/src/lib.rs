@@ -8,6 +8,7 @@ mod favorite;
 pub mod favorite_ref;
 mod functions;
 mod get;
+pub mod instance;
 mod inline_or_ref;
 mod list;
 mod log_line;
