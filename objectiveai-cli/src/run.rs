@@ -8,7 +8,6 @@ use crate::instance;
 use crate::logs;
 use crate::mcp;
 use crate::plugins;
-use crate::schemas;
 use crate::swarms;
 use crate::tools;
 use crate::vector;
@@ -182,11 +181,6 @@ enum Commands {
         #[command(subcommand)]
         command: mcp::Commands,
     },
-    /// Browse JSON schemas
-    Schemas {
-        #[command(subcommand)]
-        command: schemas::Commands,
-    },
     /// Vector completions
     Vector {
         #[command(subcommand)]
@@ -244,7 +238,6 @@ impl Commands {
             Commands::Functions { command } => command.handle(cli_config, handle).await,
             Commands::Viewer { command } => command.handle(cli_config, handle).await,
             Commands::Mcp { command } => command.handle(cli_config, handle).await,
-            Commands::Schemas { command } => command.handle(handle).await,
             Commands::Vector { command } => command.handle(cli_config, handle).await,
             Commands::Logs { command } => command.handle(cli_config, handle).await,
             Commands::Plugins { command } => command.handle(cli_config, handle).await,

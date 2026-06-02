@@ -22,7 +22,6 @@ mod publish;
 mod python;
 mod remote;
 mod response_format;
-mod schemas;
 mod source_resolver;
 mod spawn;
 mod streaming;
