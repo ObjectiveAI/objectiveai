@@ -1,1 +1,35 @@
 //! `swarms favorites config edit` — async handler stub.
+
+use crate::cli::command::IntoCommand;
+
+pub struct Request {
+    pub name: String,
+    pub note: Option<String>,
+    pub commit: Option<RequestCommitChange>,
+}
+
+pub enum RequestCommitChange {
+    Set(String),
+    Remove,
+}
+
+impl IntoCommand for Request {
+    fn into_command(&self) -> Vec<String> {
+        let mut argv = vec!["swarms".to_string(), "favorites".to_string(), "config".to_string(), "edit".to_string(), self.name.clone()];
+        if let Some(note) = &self.note {
+            argv.push("--note".to_string());
+            argv.push(note.clone());
+        }
+        match &self.commit {
+            Some(RequestCommitChange::Set(c)) => {
+                argv.push("--commit".to_string());
+                argv.push(c.clone());
+            }
+            Some(RequestCommitChange::Remove) => {
+                argv.push("--remove-commit".to_string());
+            }
+            None => {}
+        }
+        argv
+    }
+}

@@ -1,1 +1,11 @@
 //! `mcp kill` — async handler stub.
+
+use crate::cli::command::IntoCommand;
+
+pub struct Request;
+
+impl IntoCommand for Request {
+    fn into_command(&self) -> Vec<String> {
+        vec!["mcp".to_string(), "kill".to_string()]
+    }
+}
