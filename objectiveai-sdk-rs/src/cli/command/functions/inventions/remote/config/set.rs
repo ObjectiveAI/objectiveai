@@ -11,3 +11,5 @@ impl IntoCommand for Request {
         vec!["functions".to_string(), "inventions".to_string(), "remote".to_string(), "config".to_string(), "set".to_string(), self.value.clone()]
     }
 }
+
+pub use crate::cli::command::Ok as Response;

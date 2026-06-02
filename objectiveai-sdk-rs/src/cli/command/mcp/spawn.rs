@@ -9,3 +9,8 @@ impl IntoCommand for Request {
         vec!["mcp".to_string(), "spawn".to_string()]
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Response {
+    pub listening: String,
+}

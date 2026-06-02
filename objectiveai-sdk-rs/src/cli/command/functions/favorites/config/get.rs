@@ -9,3 +9,13 @@ impl IntoCommand for Request {
         vec!["functions".to_string(), "favorites".to_string(), "config".to_string(), "get".to_string()]
     }
 }
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ResponseFavorite {
+    pub name: String,
+    #[serde(flatten)]
+    pub path: crate::RemotePathCommitOptional,
+    pub note: String,
+}
+
+pub type Response = Vec<ResponseFavorite>;

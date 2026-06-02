@@ -9,3 +9,8 @@ impl IntoCommand for Request {
         vec!["plugins".to_string(), "install".to_string(), "filesystem".to_string()]
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Response {
+    pub instructions: String,
+}

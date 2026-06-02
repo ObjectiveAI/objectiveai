@@ -15,3 +15,15 @@ impl IntoCommand for Request {
         argv
     }
 }
+
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct Response {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub port: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub secret: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub signature: Option<String>,
+}

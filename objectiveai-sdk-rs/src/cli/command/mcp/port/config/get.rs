@@ -15,3 +15,8 @@ impl IntoCommand for Request {
         argv
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Response {
+    pub port: u16,
+}

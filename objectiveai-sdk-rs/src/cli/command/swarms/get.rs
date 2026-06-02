@@ -11,3 +11,5 @@ impl IntoCommand for Request {
         vec!["swarms".to_string(), "get".to_string(), "--path".to_string(), self.path.clone()]
     }
 }
+
+pub use crate::swarm::RemoteSwarmBase as Response;

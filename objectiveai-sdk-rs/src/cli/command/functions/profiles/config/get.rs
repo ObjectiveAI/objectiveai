@@ -15,3 +15,9 @@ impl IntoCommand for Request {
         argv
     }
 }
+
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct Response {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub favorites: Option<Vec<super::favorites::config::get::ResponseFavorite>>,
+}

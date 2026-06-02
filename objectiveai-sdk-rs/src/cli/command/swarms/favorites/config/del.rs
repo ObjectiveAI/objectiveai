@@ -11,3 +11,5 @@ impl IntoCommand for Request {
         vec!["swarms".to_string(), "favorites".to_string(), "config".to_string(), "del".to_string(), self.name.clone()]
     }
 }
+
+pub use crate::cli::command::Ok as Response;

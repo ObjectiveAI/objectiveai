@@ -58,3 +58,5 @@ impl IntoCommand for Request {
         argv
     }
 }
+
+pub use crate::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk as ResponseItem;

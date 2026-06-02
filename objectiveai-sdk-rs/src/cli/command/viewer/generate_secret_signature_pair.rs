@@ -9,3 +9,9 @@ impl IntoCommand for Request {
         vec!["viewer".to_string(), "generate-secret-signature-pair".to_string()]
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Response {
+    pub secret: String,
+    pub signature: String,
+}

@@ -11,3 +11,5 @@ impl IntoCommand for Request {
         vec!["mcp".to_string(), "port".to_string(), "config".to_string(), "set".to_string(), self.value.to_string()]
     }
 }
+
+pub use crate::cli::command::Ok as Response;

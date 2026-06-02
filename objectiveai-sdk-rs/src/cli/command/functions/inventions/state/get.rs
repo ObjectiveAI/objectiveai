@@ -15,3 +15,5 @@ impl IntoCommand for Request {
         argv
     }
 }
+
+pub type Response = serde_json::Value;

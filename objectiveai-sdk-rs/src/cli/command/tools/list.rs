@@ -21,3 +21,5 @@ impl IntoCommand for Request {
         argv
     }
 }
+
+pub type Response = Vec<serde_json::Value>;

@@ -17,3 +17,9 @@ impl IntoCommand for Request {
         ]
     }
 }
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Response {
+    pub status: u16,
+    pub body: serde_json::Value,
+}

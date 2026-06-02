@@ -30,3 +30,8 @@ impl IntoCommand for Request {
         argv
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Response {
+    pub installed: bool,
+}

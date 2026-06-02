@@ -89,3 +89,5 @@ impl IntoCommand for Request {
         argv
     }
 }
+
+pub use crate::functions::executions::response::streaming::FunctionExecutionChunk as ResponseItem;

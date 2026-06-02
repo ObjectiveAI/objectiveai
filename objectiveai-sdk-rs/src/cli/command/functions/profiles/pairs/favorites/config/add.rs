@@ -21,3 +21,5 @@ impl IntoCommand for Request {
         ]
     }
 }
+
+pub use crate::cli::command::Ok as Response;
