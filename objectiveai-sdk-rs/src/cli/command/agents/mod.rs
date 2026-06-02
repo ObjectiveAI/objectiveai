@@ -5,3 +5,29 @@ pub mod message;
 pub mod publish;
 pub mod read;
 pub mod spawn;
+
+#[derive(clap::Subcommand)]
+pub enum Command {
+    /// Get an agent by remote path or favorite name.
+    Get(get::Args),
+    /// List agents — `active` (direct children of the calling agent) or
+    /// `available` (remote agents by source).
+    List {
+        #[command(subcommand)]
+        command: list::Command,
+    },
+    /// Return the configured self agent id.
+    Me(me::Args),
+    /// Deliver a message to a running spawned agent (or resume its most
+    /// recent completion via continuation if it's dormant).
+    Message(message::Args),
+    /// Publish an agent to the local filesystem.
+    Publish(publish::Args),
+    /// Read queue items.
+    Read {
+        #[command(subcommand)]
+        command: read::Command,
+    },
+    /// Spawn an agent completion (open a streaming run as a child of this caller).
+    Spawn(spawn::Args),
+}
