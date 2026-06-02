@@ -2,7 +2,6 @@ use clap::{Parser, Subcommand};
 use envconfig::Envconfig;
 
 use crate::agents;
-use crate::api;
 use crate::error;
 use crate::functions;
 use crate::instance;
@@ -158,11 +157,6 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// API configuration and operations
-    Api {
-        #[command(subcommand)]
-        command: api::Commands,
-    },
     /// Agents management
     Agents {
         #[command(subcommand)]
@@ -245,7 +239,6 @@ impl Commands {
         handle: &objectiveai_sdk::cli::output::Handle,
     ) -> Result<(), error::Error> {
         match self {
-            Commands::Api { command } => command.handle(cli_config, handle).await,
             Commands::Agents { command } => command.handle(cli_config, handle).await,
             Commands::Swarms { command } => command.handle(cli_config, handle).await,
             Commands::Functions { command } => command.handle(cli_config, handle).await,

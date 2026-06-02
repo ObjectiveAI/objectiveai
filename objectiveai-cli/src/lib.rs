@@ -1,6 +1,5 @@
 pub mod agent_ref;
 mod agents;
-mod api;
 mod config;
 mod continuation;
 pub mod error;
