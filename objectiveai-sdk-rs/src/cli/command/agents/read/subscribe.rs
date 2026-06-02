@@ -168,6 +168,17 @@ pub enum Schema {
     ResponseSchema(response_schema::Args),
 }
 
+impl TryFrom<Args> for Request {
+    type Error = crate::cli::command::FromArgsError;
+    fn try_from(args: Args) -> Result<Self, Self::Error> {
+        Ok(Self {
+            agent_instance_hierarchy: args.agent_instance_hierarchy,
+            kind: args.kind,
+            jq: args.jq,
+        })
+    }
+}
+
 pub mod request_schema {
     use crate::cli::command::CommandRequest;
 
