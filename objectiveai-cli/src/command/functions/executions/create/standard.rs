@@ -25,66 +25,46 @@ use crate::streaming::{InstanceItem, instance_subprocess_stream};
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
-    let ctx = ctx.clone();
-    let stream = async_stream::stream! {
-        let resolved = tokio::try_join!(
-            super::resolve_function(&ctx, request.function),
-            super::resolve_profile(&ctx, request.profile),
-        );
-        let (function, profile) = match resolved {
-            Ok(v) => v,
-            Err(e) => { yield Err(e); return; }
-        };
-        let input = match request.input {
-            RequestInput::Inline(v) => v,
-            RequestInput::PythonInline(code) => {
-                match super::resolve_input_python_inline(code) {
-                    Ok(v) => v,
-                    Err(e) => { yield Err(e); return; }
-                }
-            }
-            RequestInput::PythonFile(path) => {
-                match super::resolve_input_python_file(path) {
-                    Ok(v) => v,
-                    Err(e) => { yield Err(e); return; }
-                }
-            }
-        };
-
-        let params = FunctionExecutionCreateParams {
-            function,
-            profile,
-            retry_token: request.retry_token,
-            from_cache: None,
-            reasoning: None,
-            strategy: Some(Strategy::Default),
-            input,
-            split: if request.split { Some(true) } else { None },
-            invert: if request.invert { Some(true) } else { None },
-            provider: None,
-            seed: request.seed,
-            stream: Some(true),
-            continuation: request.continuation,
-        };
-
-        let follow = request
-            .dangerous_advanced
-            .as_ref()
-            .and_then(|a| a.stream)
-            .unwrap_or(false);
-
-        let mut raw = instance_subprocess_stream(
-            &ctx,
-            &["functions", "executions", "create", "standard"],
-            &params,
-            None,
-            follow,
-        );
-        while let Some(item) = raw.next().await {
-            yield map_item(item);
-        }
+    let (function, profile) = tokio::try_join!(
+        super::resolve_function(ctx, request.function),
+        super::resolve_profile(ctx, request.profile),
+    )?;
+    let input = match request.input {
+        RequestInput::Inline(v) => v,
+        RequestInput::PythonInline(code) => super::resolve_input_python_inline(code)?,
+        RequestInput::PythonFile(path) => super::resolve_input_python_file(path)?,
     };
-    Ok(Box::pin(stream))
+
+    let params = FunctionExecutionCreateParams {
+        function,
+        profile,
+        retry_token: request.retry_token,
+        from_cache: None,
+        reasoning: None,
+        strategy: Some(Strategy::Default),
+        input,
+        split: if request.split { Some(true) } else { None },
+        invert: if request.invert { Some(true) } else { None },
+        provider: None,
+        seed: request.seed,
+        stream: Some(true),
+        continuation: request.continuation,
+    };
+
+    let stream = request
+        .dangerous_advanced
+        .as_ref()
+        .and_then(|a| a.stream)
+        .unwrap_or(false);
+
+    let raw = instance_subprocess_stream(
+        ctx,
+        &["functions", "executions", "create", "standard"],
+        &params,
+        None,
+        stream,
+    );
+    Ok(Box::pin(raw.map(map_item)))
 }
 
 fn map_item(item: Result<InstanceItem, Error>) -> Result<ResponseItem, Error> {

@@ -17,7 +17,6 @@ use objectiveai_sdk::HttpClient;
 use crate::filesystem;
 use crate::run::Config;
 
-#[derive(Clone)]
 pub struct Context {
     pub config: Config,
     pub filesystem: filesystem::Client,
