@@ -19,7 +19,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[schemars(rename = "cli.output.Error")]
 pub struct Error {
-    #[serde(rename = "type", default)]
     pub r#type: ErrorType,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub level: Option<Level>,
@@ -31,7 +30,6 @@ pub struct Error {
 /// Single-variant discriminator for [`Error`]'s `type` field.
 /// Always `"error"` on the wire.
 #[derive(
-    Default,
     Serialize,
     Deserialize,
     Debug,
@@ -44,7 +42,6 @@ pub struct Error {
 #[serde(rename_all = "snake_case")]
 #[schemars(rename = "cli.output.ErrorType")]
 pub enum ErrorType {
-    #[default]
     Error,
 }
 
