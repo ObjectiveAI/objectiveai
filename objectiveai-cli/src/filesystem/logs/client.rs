@@ -491,7 +491,7 @@ impl Client {
         let conn = super::super::db::connection::connection(self)?;
         let queue =
             super::super::db::messages::Queue::new(conn, self.logs_dir());
-        Ok(super::LogWriter::new(self.logs_dir(), |chunk: &FunctionInventionRecursiveChunk| chunk.produce_files().map(|(_, files)| files))
+        Ok(super::LogWriter::new(self.logs_dir(), |chunk: &FunctionInventionRecursiveChunk| crate::logs::functions::inventions::recursive::response::streaming::function_invention_recursive_chunk::produce_files(chunk).map(|(_, files)| files))
             .with_request("functions/inventions/recursive/request", request)?
             .with_queue(
                 queue,
