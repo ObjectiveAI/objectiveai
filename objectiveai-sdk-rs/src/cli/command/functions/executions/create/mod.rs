@@ -1,6 +1,34 @@
 pub mod standard;
 pub mod swiss_system;
 
+/// CLI-surface form for the `--function-inline` argument: either a fully
+/// resolved inline-or-remote spec, or a bare favorite name that the CLI
+/// resolves to one of those at handler time. Untagged: an inline function
+/// object or remote-path object lands on `Resolved`; a bare JSON string
+/// lands on `Favorite`.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
+pub enum FunctionSpec {
+    #[schemars(title = "Resolved")]
+    Resolved(crate::functions::FullInlineFunctionOrRemoteCommitOptional),
+    #[schemars(title = "Favorite")]
+    Favorite(String),
+}
+
+/// CLI-surface form for the `--profile-inline` argument: either a fully
+/// resolved inline-or-remote spec, or a bare favorite name that the CLI
+/// resolves to one of those at handler time. Untagged: an inline profile
+/// object or remote-path object lands on `Resolved`; a bare JSON string
+/// lands on `Favorite`.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
+pub enum ProfileSpec {
+    #[schemars(title = "Resolved")]
+    Resolved(crate::functions::InlineProfileOrRemoteCommitOptional),
+    #[schemars(title = "Favorite")]
+    Favorite(String),
+}
+
 #[derive(clap::Subcommand)]
 pub enum Command {
     Standard(standard::Command),

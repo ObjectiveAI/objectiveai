@@ -1,13 +1,13 @@
 //! `functions inventions recursive create remote` — async handler stub.
 
-use crate::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use crate::cli::command::CommandRequest;
+use crate::cli::command::agents::spawn::AgentSpec;
 use crate::functions::inventions::state::ParamsState;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
     pub state: RequestState,
-    pub agent: InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
+    pub agent: AgentSpec,
     pub continuation: Option<String>,
     pub seed: Option<i64>,
     pub detach: bool,

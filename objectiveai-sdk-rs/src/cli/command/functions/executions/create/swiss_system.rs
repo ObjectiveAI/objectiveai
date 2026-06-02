@@ -1,14 +1,13 @@
 //! `functions executions create swiss-system` — async handler stub.
 
 use crate::cli::command::CommandRequest;
-use crate::functions::FullInlineFunctionOrRemoteCommitOptional;
-use crate::functions::InlineProfileOrRemoteCommitOptional;
 use crate::functions::expression::InputValue;
+use super::{FunctionSpec, ProfileSpec};
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
-    pub function: FullInlineFunctionOrRemoteCommitOptional,
-    pub profile: InlineProfileOrRemoteCommitOptional,
+    pub function: FunctionSpec,
+    pub profile: ProfileSpec,
     pub input: RequestInput,
     pub continuation: Option<String>,
     pub retry_token: Option<String>,

@@ -7,10 +7,24 @@ use crate::cli::command::CommandRequest;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
     pub prompt: RequestPrompt,
-    pub agent: InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
+    pub agent: AgentSpec,
     pub seed: Option<i64>,
     pub dangerous_advanced: Option<RequestDangerousAdvanced>,
     pub jq: Option<String>,
+}
+
+/// CLI-surface form for the `--agent` / `--agent-inline` argument: either
+/// a fully resolved inline-or-remote spec, or a bare favorite name that
+/// the CLI resolves to one of those at handler time. Untagged: an inline
+/// agent object or a remote-path object deserializes into `Resolved`; a
+/// bare JSON string lands on `Favorite`.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
+pub enum AgentSpec {
+    #[schemars(title = "Resolved")]
+    Resolved(InlineAgentBaseWithFallbacksOrRemoteCommitOptional),
+    #[schemars(title = "Favorite")]
+    Favorite(String),
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -64,8 +78,7 @@ impl CommandRequest for Request {
         // round-trips identically for both Inline and Remote variants.
         argv.push("--agent-inline".to_string());
         argv.push(
-            serde_json::to_string(&self.agent)
-                .expect("InlineAgentBaseWithFallbacksOrRemoteCommitOptional serializes"),
+            serde_json::to_string(&self.agent).expect("AgentSpec serializes"),
         );
         if let Some(seed) = self.seed {
             argv.push("--seed".to_string());
@@ -199,9 +212,7 @@ impl TryFrom<Args> for Request {
                 }
             })?
         } else {
-            crate::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::Favorite(
-                args.agent.agent.unwrap(),
-            )
+            AgentSpec::Favorite(args.agent.agent.unwrap())
         };
         let dangerous_advanced = if let Some(s) = args.dangerous_advanced {
             let mut de = serde_json::Deserializer::from_str(&s);

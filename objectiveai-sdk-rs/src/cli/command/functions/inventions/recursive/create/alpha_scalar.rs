@@ -1,12 +1,12 @@
 //! `functions inventions recursive create alpha-scalar` — async handler stub.
 
-use crate::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use crate::cli::command::CommandRequest;
+use crate::cli::command::agents::spawn::AgentSpec;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
     pub params: RequestParams,
-    pub agent: InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
+    pub agent: AgentSpec,
     pub continuation: Option<String>,
     pub seed: Option<i64>,
     pub detach: bool,
