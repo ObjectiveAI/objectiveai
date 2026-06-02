@@ -1,6 +1,8 @@
 pub mod agent_ref;
 mod agents;
+pub mod command;
 mod config;
+mod context;
 mod continuation;
 pub mod error;
 mod favorite;
