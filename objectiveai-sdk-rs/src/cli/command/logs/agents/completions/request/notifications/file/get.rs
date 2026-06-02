@@ -27,6 +27,36 @@ impl CommandRequest for Request {
 
 pub type Response = crate::agent::completions::message::File;
 
+#[derive(clap::Args)]
+pub struct Args {
+    /// Identifier of the parent response log.
+    pub response_id: String,
+    /// Index within the parent collection.
+    pub index: u64,
+    /// Index of the media item.
+    pub media_index: u64,
+    /// jq filter applied to the JSON output.
+    #[arg(long)]
+    pub jq: Option<String>,
+}
+
+#[derive(clap::Args)]
+#[command(args_conflicts_with_subcommands = true)]
+pub struct Command {
+    #[command(flatten)]
+    pub args: Args,
+    #[command(subcommand)]
+    pub schema: Option<Schema>,
+}
+
+#[derive(clap::Subcommand)]
+pub enum Schema {
+    /// Emit the JSON Schema for this leaf's `Request` type and exit.
+    RequestSchema(request_schema::Args),
+    /// Emit the JSON Schema for this leaf's `Response` type and exit.
+    ResponseSchema(response_schema::Args),
+}
+
 pub mod request_schema {
     use crate::cli::command::CommandRequest;
 
@@ -37,7 +67,7 @@ pub mod request_schema {
 
     impl CommandRequest for Request {
         fn into_command(&self) -> Vec<String> {
-            let mut argv: Vec<String> = vec!["logs", "agents", "completions", "request", "notifications", "file", "get", "--request-schema"].into_iter().map(String::from).collect();
+            let mut argv: Vec<String> = vec!["logs", "agents", "completions", "request", "notifications", "file", "get", "request-schema"].into_iter().map(String::from).collect();
             if let Some(jq) = &self.jq {
                 argv.push("--jq".to_string());
                 argv.push(jq.clone());
@@ -60,7 +90,7 @@ pub mod response_schema {
 
     impl CommandRequest for Request {
         fn into_command(&self) -> Vec<String> {
-            let mut argv: Vec<String> = vec!["logs", "agents", "completions", "request", "notifications", "file", "get", "--response-schema"].into_iter().map(String::from).collect();
+            let mut argv: Vec<String> = vec!["logs", "agents", "completions", "request", "notifications", "file", "get", "response-schema"].into_iter().map(String::from).collect();
             if let Some(jq) = &self.jq {
                 argv.push("--jq".to_string());
                 argv.push(jq.clone());
