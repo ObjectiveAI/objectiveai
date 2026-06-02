@@ -51,17 +51,22 @@ impl IntoCommand for Request {
     fn into_command(&self) -> Vec<String> {
         let mut argv = vec!["agents".to_string(), "spawn".to_string()];
         self.prompt.push_flags(&mut argv);
-        // TODO: serialize the agent field to whatever flag-set the cli's
-        // `AgentArg` macro accepts (--inline / --remote / variants).
-        // Deferred — fix during the next compile-pass batch.
-        todo!("agents spawn: emit agent flags");
-        #[allow(unreachable_code)]
-        {
-            if let Some(seed) = self.seed {
-                argv.push("--seed".to_string());
-                argv.push(seed.to_string());
-            }
-            argv
+        // The cli's `AgentArg` (from `define_inline_or_ref!`) accepts
+        // either `--agent <REFERENCE>` (a `FavoriteRef` wire form, then
+        // resolved to the `Remote` variant) or `--agent-inline <JSON>`
+        // (deserialized directly into the SDK type). We always emit the
+        // inline form because the Request already holds the resolved
+        // typed value — the cli's resolve hits the inline branch and
+        // round-trips identically for both Inline and Remote variants.
+        argv.push("--agent-inline".to_string());
+        argv.push(
+            serde_json::to_string(&self.agent)
+                .expect("InlineAgentBaseWithFallbacksOrRemoteCommitOptional serializes"),
+        );
+        if let Some(seed) = self.seed {
+            argv.push("--seed".to_string());
+            argv.push(seed.to_string());
         }
+        argv
     }
 }
