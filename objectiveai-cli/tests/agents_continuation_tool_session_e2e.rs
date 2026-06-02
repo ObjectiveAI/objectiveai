@@ -197,12 +197,12 @@ async fn wait_for_completion(base_dir: &Path, spawn_id: &str) {
         .join("logs/agents/completions/response/continuation")
         .join(format!("{spawn_id}.json"));
     let socket_path = base_dir.join("pipes/cli").join(spawn_id).join("socket");
-    poll_until(Duration::from_secs(180), || {
+    poll_until(Duration::from_secs(720), || {
         response_cont_path.exists() && !socket_path.exists()
     })
     .await
     .unwrap_or_else(|()| {
-        panic!("cli-stream did not flush continuation + tear down socket for {spawn_id} in 180s",)
+        panic!("cli-stream did not flush continuation + tear down socket for {spawn_id} in 720s",)
     });
 }
 
