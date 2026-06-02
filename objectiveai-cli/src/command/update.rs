@@ -1,12 +1,19 @@
-//! `update` — bare-naked handler stub.
+//! `update` — bare-naked streaming handler. Refreshes all four shipped
+//! binaries from the latest GitHub release, emitting one `ResponseItem`
+//! per (asset, stage) pair as the update progresses.
 
-use objectiveai_sdk::cli::command::update::{Request, Response};
+use std::pin::Pin;
+
+use futures::Stream;
+use objectiveai_sdk::cli::command::update::{Request, ResponseItem};
 
 use crate::context::Context;
 use crate::error::Error;
 
-pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-    todo!("update execute")
+type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
+
+pub async fn execute(_ctx: &Context, _request: Request) -> Result<ItemStream, Error> {
+    todo!("update execute — port from src/updater.rs (legacy emits Notification::Updater events through Handle; rewrite to emit ResponseItem events through a channel-backed Stream)")
 }
 
 pub mod request_schema {

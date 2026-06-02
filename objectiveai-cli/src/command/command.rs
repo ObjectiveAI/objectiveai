@@ -63,8 +63,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             Box::pin(inner.map(|r| r.map(ResponseItem::Tools)))
         }
         Request::Update(req) => {
-            let value = super::update::execute(ctx, req).await?;
-            once(Ok(ResponseItem::Update(value)))
+            let inner = super::update::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Update)))
         }
         Request::UpdateRequestSchema(req) => {
             let value = super::update::request_schema::execute(ctx, req).await?;

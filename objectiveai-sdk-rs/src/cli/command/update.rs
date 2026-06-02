@@ -17,9 +17,12 @@ impl CommandRequest for Request {
     }
 }
 
+/// Per-stage update event. Update is a streaming leaf — one
+/// `ResponseItem` per (asset, stage) pair as the update progresses
+/// through the four shipped binaries (cli, api, viewer, mcp).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
-pub enum Response {
+pub enum ResponseItem {
     Checking {
         asset_name: String,
         current_version: String,
@@ -41,6 +44,14 @@ pub enum Response {
         current_version: String,
         remote_version: String,
     },
+}
+
+/// All-at-once view of an update run. Used only for schema generation
+/// (`response-schema`); the leaf's `execute` returns
+/// `Stream<ResponseItem>` rather than building a `Response`.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub struct Response {
+    pub items: Vec<ResponseItem>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -86,9 +97,9 @@ impl TryFrom<Args> for Request {
 pub async fn execute<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     mut request: Request,
-) -> Result<Response, E::Error> {
+) -> Result<E::Stream<ResponseItem>, E::Error> {
     request.jq = None;
-    executor.execute_one(request).await
+    executor.execute(request).await
 }
 
 #[cfg(feature = "cli-executor")]
@@ -96,9 +107,9 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     mut request: Request,
     jq: String,
-) -> Result<serde_json::Value, E::Error> {
+) -> Result<E::Stream<serde_json::Value>, E::Error> {
     request.jq = Some(jq);
-    executor.execute_one(request).await
+    executor.execute(request).await
 }
 
 pub mod request_schema {

@@ -69,7 +69,7 @@ pub enum ResponseItem {
     Plugins(super::plugins::ResponseItem),
     Swarms(super::swarms::ResponseItem),
     Tools(super::tools::ResponseItem),
-    Update(super::update::Response),
+    Update(super::update::ResponseItem),
     UpdateRequestSchema(super::update::request_schema::Response),
     UpdateResponseSchema(super::update::response_schema::Response),
     Viewer(super::viewer::Response),
@@ -171,8 +171,8 @@ pub async fn execute<E: super::CommandExecutor>(
                 Box::pin(inner.map(|r| r.map(ResponseItem::Tools)))
             }
             Request::Update(req) => {
-                let value = super::update::execute(executor, req).await?;
-                Box::pin(super::StreamOnce::new(Ok(ResponseItem::Update(value))))
+                let inner = super::update::execute(executor, req).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Update)))
             }
             Request::UpdateRequestSchema(req) => {
                 let value = super::update::request_schema::execute(executor, req).await?;
@@ -234,8 +234,8 @@ pub async fn execute_jq<E: super::CommandExecutor>(
                 Box::pin(inner)
             }
             Request::Update(req) => {
-                let value = super::update::execute_jq(executor, req, jq).await?;
-                Box::pin(super::StreamOnce::new(Ok(value)))
+                let inner = super::update::execute_jq(executor, req, jq).await?;
+                Box::pin(inner)
             }
             Request::UpdateRequestSchema(req) => {
                 let value = super::update::request_schema::execute_jq(executor, req, jq).await?;
