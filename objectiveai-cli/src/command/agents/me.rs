@@ -5,8 +5,10 @@ use objectiveai_sdk::cli::command::agents::me::{Request, Response};
 use crate::context::Context;
 use crate::error::Error;
 
-pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-    todo!("agents me execute")
+pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error> {
+    Ok(Response {
+        agent_instance_hierarchy: ctx.config.agent_instance_hierarchy.clone(),
+    })
 }
 
 pub mod request_schema {
