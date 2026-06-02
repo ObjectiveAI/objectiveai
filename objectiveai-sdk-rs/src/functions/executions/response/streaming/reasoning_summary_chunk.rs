@@ -38,12 +38,4 @@ impl ReasoningSummaryChunk {
         }
     }
 
-    /// Delegates to the inner agent completion's message-row extractor.
-    #[cfg(feature = "filesystem")]
-    pub fn produce_message_rows(
-        &self,
-    ) -> impl Iterator<Item = crate::filesystem::db::schema::MessageRow> + Send + '_
-    {
-        self.inner.produce_message_rows()
-    }
 }

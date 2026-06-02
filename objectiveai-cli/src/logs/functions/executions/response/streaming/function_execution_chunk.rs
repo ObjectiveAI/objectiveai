@@ -1,4 +1,5 @@
-//! Free-function port of `FunctionExecutionChunk::produce_files`.
+//! Free-function ports of `FunctionExecutionChunk::produce_files` and
+//! `FunctionExecutionChunk::produce_message_rows`.
 
 use objectiveai_sdk::functions::executions::response::streaming::{
     FunctionExecutionChunk, FunctionExecutionChunkLog, task_log_reference,
@@ -6,6 +7,7 @@ use objectiveai_sdk::functions::executions::response::streaming::{
 
 use objectiveai_sdk::logs::LogReference;
 
+use crate::filesystem::db::schema::MessageRow;
 use crate::filesystem::logs::LogFile;
 
 /// Produce the [`LogFile`]s for a function execution chunk. Returns
@@ -77,4 +79,23 @@ pub fn produce_files(
     files.push(root_file);
 
     Some((reference, files))
+}
+
+/// Flat-maps message rows from every task (mirrors
+/// `agent_completion_ids()`'s traversal). Reasoning summary rows are
+/// also included via the reasoning chunk's delegation. Lazy and
+/// `Box<dyn Iterator>`-erased at this boundary because tasks and
+/// reasoning have different concrete iterator types.
+pub fn produce_message_rows(
+    c: &FunctionExecutionChunk,
+) -> Box<dyn Iterator<Item = MessageRow> + Send + '_> {
+    let task_rows = c
+        .tasks
+        .iter()
+        .flat_map(|t| super::task_chunk::produce_message_rows(t));
+    let reasoning_rows = c
+        .reasoning
+        .iter()
+        .flat_map(|r| super::reasoning_summary_chunk::produce_message_rows(r));
+    Box::new(task_rows.chain(reasoning_rows))
 }

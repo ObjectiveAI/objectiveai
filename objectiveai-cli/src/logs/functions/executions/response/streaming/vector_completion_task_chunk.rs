@@ -1,9 +1,11 @@
-//! Free-function port of `VectorCompletionTaskChunk::produce_files`.
+//! Free-function ports of `VectorCompletionTaskChunk::produce_files`
+//! and `VectorCompletionTaskChunk::produce_message_rows`.
 
 use objectiveai_sdk::functions::executions::response::streaming::{
     VectorCompletionTaskChunk, vector_completion_task_log_reference,
 };
 
+use crate::filesystem::db::schema::MessageRow;
 use crate::filesystem::logs::LogFile;
 
 /// Produce log files for a vector completion task. Returns
@@ -28,4 +30,11 @@ pub fn produce_files(
         reference.error = Some(serde_json::to_value(error).unwrap());
     }
     (reference, files)
+}
+
+/// Delegates to the inner vector completion.
+pub fn produce_message_rows(
+    c: &VectorCompletionTaskChunk,
+) -> impl Iterator<Item = MessageRow> + Send + '_ {
+    crate::logs::vector::completions::response::streaming::vector_completion_chunk::produce_message_rows(&c.inner)
 }

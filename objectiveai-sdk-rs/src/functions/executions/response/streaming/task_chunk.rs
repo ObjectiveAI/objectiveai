@@ -93,24 +93,4 @@ impl TaskChunk {
         }
     }
 
-    /// Delegates to whichever variant the task is. Erased to
-    /// `Box<dyn Iterator>` because the two variants' iterators have
-    /// different concrete types.
-    #[cfg(feature = "filesystem")]
-    pub fn produce_message_rows(
-        &self,
-    ) -> Box<
-        dyn Iterator<Item = crate::filesystem::db::schema::MessageRow>
-            + Send
-            + '_,
-    > {
-        match self {
-            TaskChunk::FunctionExecution(chunk) => {
-                Box::new(chunk.produce_message_rows())
-            }
-            TaskChunk::VectorCompletion(chunk) => {
-                Box::new(chunk.produce_message_rows())
-            }
-        }
-    }
 }

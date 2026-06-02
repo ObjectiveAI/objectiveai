@@ -48,16 +48,4 @@ impl FunctionExecutionTaskChunk {
         self.inner.push(&other.inner);
     }
 
-    /// Delegates to the inner function execution. Returns a boxed
-    /// iterator to match the inner's type.
-    #[cfg(feature = "filesystem")]
-    pub fn produce_message_rows(
-        &self,
-    ) -> Box<
-        dyn Iterator<Item = crate::filesystem::db::schema::MessageRow>
-            + Send
-            + '_,
-    > {
-        self.inner.produce_message_rows()
-    }
 }

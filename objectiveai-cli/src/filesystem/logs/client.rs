@@ -461,7 +461,7 @@ impl Client {
             Some(
                 super::super::db::schema::MessageKind::FunctionExecutionRequest,
             ),
-            |chunk: &FunctionExecutionChunk| chunk.produce_message_rows(),
+            |chunk: &FunctionExecutionChunk| crate::logs::functions::executions::response::streaming::function_execution_chunk::produce_message_rows(chunk),
         ))
     }
     pub fn write_function_invention(
