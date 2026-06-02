@@ -19,10 +19,9 @@ impl IntoCommand for Request {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
 pub enum ResponseItem {
-    Error(crate::cli::Error),
     Stdout(String),
-    Stderr(String),
+    Stderr(crate::cli::Error),
 }
