@@ -23,3 +23,14 @@ impl IntoCommand for Request {
 }
 
 pub type Response = crate::vector::completions::response::streaming::VectorCompletionChunkLog;
+
+pub mod request_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}
+
+
+pub mod response_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}

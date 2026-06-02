@@ -14,3 +14,8 @@ impl IntoCommand for Request {
 pub struct Response {
     pub agent_instance_hierarchy: String,
 }
+
+pub mod response_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}

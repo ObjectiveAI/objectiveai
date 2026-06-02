@@ -43,3 +43,8 @@ pub enum ResponseSkipReason {
     UnsupportedPlatform,
     IncompleteRelease,
 }
+
+pub mod response_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}

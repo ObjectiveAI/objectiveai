@@ -98,3 +98,14 @@ pub struct ResponseItem {
     pub agent_id: String,
     pub items: Vec<ResponseQueueItem>,
 }
+
+pub mod request_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}
+
+
+pub mod response_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}

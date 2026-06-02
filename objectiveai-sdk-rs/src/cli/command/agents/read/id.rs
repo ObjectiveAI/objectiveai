@@ -28,3 +28,14 @@ pub enum Response {
     Video { video_url: crate::agent::completions::message::VideoUrl },
     File { file: crate::agent::completions::message::File },
 }
+
+pub mod request_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}
+
+
+pub mod response_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}

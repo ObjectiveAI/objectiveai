@@ -26,3 +26,14 @@ pub struct ResponseItem {
     pub agent_id: String,
     pub last_log: u64,
 }
+
+pub mod request_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}
+
+
+pub mod response_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}

@@ -100,3 +100,14 @@ pub struct ResponseMcpServer {
     pub url: String,
     pub authorization: bool,
 }
+
+pub mod request_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}
+
+
+pub mod response_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}

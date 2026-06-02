@@ -55,3 +55,14 @@ pub enum Response {
     Mock(Vec<crate::RemotePath>),
     All(Vec<crate::RemotePath>),
 }
+
+pub mod request_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}
+
+
+pub mod response_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}

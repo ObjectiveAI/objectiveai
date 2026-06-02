@@ -24,3 +24,14 @@ pub struct ResponseManifest {
 }
 
 pub type Response = Option<ResponseManifest>;
+
+pub mod request_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}
+
+
+pub mod response_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}

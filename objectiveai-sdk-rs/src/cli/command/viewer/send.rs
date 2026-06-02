@@ -24,3 +24,14 @@ pub struct Response {
     pub status: u16,
     pub body: serde_json::Value,
 }
+
+pub mod request_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}
+
+
+pub mod response_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}

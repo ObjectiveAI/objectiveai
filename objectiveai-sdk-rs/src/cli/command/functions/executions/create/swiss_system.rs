@@ -112,3 +112,14 @@ pub enum ResponseItem {
     Chunk(crate::functions::executions::response::streaming::FunctionExecutionChunk),
     Id(String),
 }
+
+pub mod request_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}
+
+
+pub mod response_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}

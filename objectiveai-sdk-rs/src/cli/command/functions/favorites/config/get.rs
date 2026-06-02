@@ -17,3 +17,8 @@ pub struct ResponseItem {
     pub path: crate::RemotePathCommitOptional,
     pub note: String,
 }
+
+pub mod response_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}

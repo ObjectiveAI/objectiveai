@@ -21,3 +21,14 @@ impl IntoCommand for Request {
 pub struct Response {
     pub port: u16,
 }
+
+pub mod request_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}
+
+
+pub mod response_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}

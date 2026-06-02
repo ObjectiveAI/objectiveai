@@ -32,3 +32,14 @@ pub struct ResponseItem {
     pub exec: String,
     pub source: String,
 }
+
+pub mod request_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}
+
+
+pub mod response_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}

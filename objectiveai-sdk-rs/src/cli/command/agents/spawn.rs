@@ -93,3 +93,14 @@ pub enum ResponseItem {
     Chunk(crate::agent::completions::response::streaming::AgentCompletionChunk),
     Id(String),
 }
+
+pub mod request_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}
+
+
+pub mod response_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}

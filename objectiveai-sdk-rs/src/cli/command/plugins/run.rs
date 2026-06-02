@@ -40,3 +40,14 @@ pub enum ResponseTyped {
     },
     Error(crate::cli::Error),
 }
+
+pub mod request_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}
+
+
+pub mod response_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}

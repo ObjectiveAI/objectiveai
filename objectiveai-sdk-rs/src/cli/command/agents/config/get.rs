@@ -26,3 +26,14 @@ pub struct Response {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub favorites: Option<Vec<super::favorites::config::get::ResponseItem>>,
 }
+
+pub mod request_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}
+
+
+pub mod response_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}

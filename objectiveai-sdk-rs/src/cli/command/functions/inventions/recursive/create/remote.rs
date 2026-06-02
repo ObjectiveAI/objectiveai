@@ -81,3 +81,14 @@ pub enum ResponseItem {
     Chunk(crate::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk),
     Id(String),
 }
+
+pub mod request_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}
+
+
+pub mod response_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}

@@ -70,3 +70,14 @@ pub enum Response {
     Delivered { agent_id: String },
     Queued { agent_id: String, response_id: String },
 }
+
+pub mod request_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}
+
+
+pub mod response_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}

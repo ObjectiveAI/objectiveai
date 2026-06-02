@@ -15,3 +15,8 @@ pub struct Response {
     pub secret: String,
     pub signature: String,
 }
+
+pub mod response_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}

@@ -131,3 +131,14 @@ pub enum ResponseItem {
         agent_id: String,
     },
 }
+
+pub mod request_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}
+
+
+pub mod response_schema {
+    pub struct Request;
+    pub type Response = schemars::Schema;
+}
