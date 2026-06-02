@@ -350,6 +350,12 @@ impl
             let id_for_chunks = id.clone();
             let model = agent.base.model.clone();
             let initial_thread_id = prompt.thread_id.clone();
+            // Clones for the outer error-mapping closure, taken before
+            // `internal_stream` moves the originals into its generator.
+            let agent_instance_hierarchy_for_stream = agent_instance_hierarchy.clone();
+            let agent_id_for_stream = agent_id.clone();
+            let agent_full_id_for_stream = agent_full_id.clone();
+            let agent_remote_for_stream = agent_remote.clone();
 
             let internal_stream = async_stream::stream! {
                 // Move the cwd TempDir into the stream task so it
@@ -466,10 +472,6 @@ impl
                 Some(Err(e)) => Err(e),
                 Some(Ok(first)) => {
                     let id_for_stream = id.clone();
-                    let agent_instance_hierarchy_for_stream = agent_instance_hierarchy.clone();
-                    let agent_id_for_stream = agent_id.clone();
-                    let agent_full_id_for_stream = agent_full_id.clone();
-                    let agent_remote_for_stream = agent_remote.clone();
                     let rest = stream.map(move |item| match item {
                         Ok(si) => si,
                         Err(e) => {

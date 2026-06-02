@@ -332,6 +332,12 @@ impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai
 
             let id_for_chunks = id.clone();
             let agent_instance_hierarchy = agent.id.clone();
+            // Clones for the outer error-mapping closure, taken before
+            // `internal_stream` moves the originals into its generator.
+            let agent_instance_hierarchy_for_stream = agent_instance_hierarchy.clone();
+            let agent_id_for_stream = agent_id.clone();
+            let agent_full_id_for_stream = agent_full_id.clone();
+            let agent_remote_for_stream = agent_remote.clone();
 
             let internal_stream = async_stream::stream! {
                 // RunnerStream's Drop handles cancellation automatically.
@@ -468,10 +474,6 @@ impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai
                 Some(Err(e)) => Err(e),
                 Some(Ok(first)) => {
                     let id_for_stream = id.clone();
-                    let agent_instance_hierarchy_for_stream = agent_instance_hierarchy.clone();
-                    let agent_id_for_stream = agent_id.clone();
-                    let agent_full_id_for_stream = agent_full_id.clone();
-                    let agent_remote_for_stream = agent_remote.clone();
                     let rest = stream.map(move |item| match item {
                         Ok(si) => si,
                         Err(e) => {

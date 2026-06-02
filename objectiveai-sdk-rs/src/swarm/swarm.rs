@@ -42,7 +42,7 @@ impl InlineSwarmBase {
     pub fn convert(
         self,
         remote_agents: Option<
-            &HashMap<String, agent::RemoteAgentBaseWithFallbacks>,
+            &HashMap<String, (agent::RemoteAgentBaseWithFallbacks, crate::RemotePath)>,
         >,
     ) -> Result<InlineSwarm, String> {
         convert_base(self.agents, self.weights, remote_agents)
@@ -67,7 +67,7 @@ impl RemoteSwarmBase {
     pub fn convert(
         self,
         remote_agents: Option<
-            &HashMap<String, agent::RemoteAgentBaseWithFallbacks>,
+            &HashMap<String, (agent::RemoteAgentBaseWithFallbacks, crate::RemotePath)>,
         >,
     ) -> Result<RemoteSwarm, String> {
         Ok(RemoteSwarm {
@@ -93,7 +93,7 @@ impl SwarmBase {
     pub fn convert(
         self,
         remote_agents: Option<
-            &HashMap<String, agent::RemoteAgentBaseWithFallbacks>,
+            &HashMap<String, (agent::RemoteAgentBaseWithFallbacks, crate::RemotePath)>,
         >,
     ) -> Result<Swarm, String> {
         match self {
@@ -277,7 +277,7 @@ fn validate_agent_fallbacks(
 fn convert_agent_slot(
     slot: agent::InlineAgentBaseWithFallbacksOrRemote,
     remote_agents: Option<
-        &HashMap<String, agent::RemoteAgentBaseWithFallbacks>,
+        &HashMap<String, (agent::RemoteAgentBaseWithFallbacks, crate::RemotePath)>,
     >,
 ) -> Result<agent::AgentWithFallbacks, String> {
     match slot {
@@ -297,8 +297,11 @@ fn convert_agent_slot(
             let agent_base = remote_agents.get(&key).ok_or_else(|| {
                 format!("remote agent '{}' not found in agents hashmap", key)
             })?;
+            // `.0` is the agent base; `.1` is the source `RemotePath`,
+            // which the converted agent has no field to hold (callers use
+            // it separately to populate `agent_remote`).
             Ok(agent::AgentWithFallbacks::Remote(
-                agent_base.clone().convert()?,
+                agent_base.0.clone().convert()?,
             ))
         }
     }
@@ -311,7 +314,7 @@ fn convert_base(
     agents: Vec<agent::InlineAgentBaseWithFallbacksOrRemoteWithCount>,
     weights: Option<Weights>,
     remote_agents: Option<
-        &HashMap<String, agent::RemoteAgentBaseWithFallbacks>,
+        &HashMap<String, (agent::RemoteAgentBaseWithFallbacks, crate::RemotePath)>,
     >,
 ) -> Result<InlineSwarm, String> {
     // Resolve weights: use provided or default to uniform
