@@ -21,5 +21,5 @@ pub trait CommandExecutor {
     ) -> impl Future<Output = Result<Self::Stream<T>, Self::Error>> + Send
     where
         R: CommandRequest + Send,
-        T: Send + 'static;
+        T: serde::de::DeserializeOwned + Send + 'static;
 }
