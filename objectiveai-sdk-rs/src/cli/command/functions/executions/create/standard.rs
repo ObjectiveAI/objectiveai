@@ -21,6 +21,7 @@ pub struct Request {
     pub invert: bool,
     pub detach: bool,
     pub dangerous_advanced: Option<RequestDangerousAdvanced>,
+    pub jq: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -89,6 +90,10 @@ impl CommandRequest for Request {
                 serde_json::to_string(advanced)
                     .expect("RequestDangerousAdvanced serializes"),
             );
+        }
+        if let Some(jq) = &self.jq {
+            argv.push("--jq".to_string());
+            argv.push(jq.clone());
         }
         argv
     }

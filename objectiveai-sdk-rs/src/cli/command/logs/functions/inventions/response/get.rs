@@ -5,6 +5,7 @@ use crate::cli::command::CommandRequest;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
     pub id: String,
+    pub jq: Option<String>,
 }
 
 impl CommandRequest for Request {
@@ -12,6 +13,10 @@ impl CommandRequest for Request {
         let mut argv: Vec<String> = vec!["logs", "functions", "inventions", "response", "get"]
             .into_iter().map(String::from).collect();
         argv.push(self.id.clone());
+        if let Some(jq) = &self.jq {
+            argv.push("--jq".to_string());
+            argv.push(jq.clone());
+        }
         argv
     }
 }

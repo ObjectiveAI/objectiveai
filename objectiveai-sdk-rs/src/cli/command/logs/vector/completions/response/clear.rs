@@ -2,12 +2,18 @@
 
 use crate::cli::command::CommandRequest;
 
-pub struct Request;
-
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub struct Request {
+    pub jq: Option<String>,
+}
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         let mut argv: Vec<String> = vec!["logs", "vector", "completions", "response", "clear"]
             .into_iter().map(String::from).collect();
+        if let Some(jq) = &self.jq {
+            argv.push("--jq".to_string());
+            argv.push(jq.clone());
+        }
         argv
     }
 }
@@ -15,6 +21,20 @@ impl CommandRequest for Request {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Response {
     pub count: u64,
+}
+
+pub mod request_schema {
+    use crate::cli::command::CommandRequest;
+
+    pub struct Request;
+
+    impl CommandRequest for Request {
+        fn into_command(&self) -> Vec<String> {
+            vec!["logs", "vector", "completions", "response", "clear", "--request-schema"].into_iter().map(String::from).collect()
+        }
+    }
+
+    pub type Response = schemars::Schema;
 }
 
 pub mod response_schema {

@@ -5,6 +5,7 @@ use crate::cli::command::CommandRequest;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
     pub parent_agent_instance_hierarchy: Option<String>,
+    pub jq: Option<String>,
 }
 
 impl CommandRequest for Request {
@@ -16,6 +17,10 @@ impl CommandRequest for Request {
         ];
         if let Some(p) = &self.parent_agent_instance_hierarchy {
             argv.push(p.clone());
+        }
+        if let Some(jq) = &self.jq {
+            argv.push("--jq".to_string());
+            argv.push(jq.clone());
         }
         argv
     }

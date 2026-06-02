@@ -8,6 +8,7 @@ pub struct Request {
     pub message_index: u64,
     pub timeout_ms: u64,
     pub require_modification: bool,
+    pub jq: Option<String>,
 }
 
 impl CommandRequest for Request {
@@ -19,6 +20,10 @@ impl CommandRequest for Request {
         argv.push(self.timeout_ms.to_string());
         if self.require_modification {
             argv.push("--require-modification".to_string());
+        }
+        if let Some(jq) = &self.jq {
+            argv.push("--jq".to_string());
+            argv.push(jq.clone());
         }
         argv
     }

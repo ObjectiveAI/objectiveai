@@ -2,11 +2,18 @@
 
 use crate::cli::command::CommandRequest;
 
-pub struct Request;
-
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub struct Request {
+    pub jq: Option<String>,
+}
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
-        vec!["update".to_string()]
+        let mut argv = vec!["update".to_string()];
+        if let Some(jq) = &self.jq {
+            argv.push("--jq".to_string());
+            argv.push(jq.clone());
+        }
+        argv
     }
 }
 
@@ -42,6 +49,20 @@ pub enum ResponseSkipReason {
     DevTree,
     UnsupportedPlatform,
     IncompleteRelease,
+}
+
+pub mod request_schema {
+    use crate::cli::command::CommandRequest;
+
+    pub struct Request;
+
+    impl CommandRequest for Request {
+        fn into_command(&self) -> Vec<String> {
+            vec!["update", "--request-schema"].into_iter().map(String::from).collect()
+        }
+    }
+
+    pub type Response = schemars::Schema;
 }
 
 pub mod response_schema {

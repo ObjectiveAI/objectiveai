@@ -6,6 +6,7 @@ use crate::cli::command::CommandRequest;
 pub struct Request {
     pub id: String,
     pub message_index: u64,
+    pub jq: Option<String>,
 }
 
 impl CommandRequest for Request {
@@ -14,6 +15,10 @@ impl CommandRequest for Request {
             .into_iter().map(String::from).collect();
         argv.push(self.id.clone());
         argv.push(self.message_index.to_string());
+        if let Some(jq) = &self.jq {
+            argv.push("--jq".to_string());
+            argv.push(jq.clone());
+        }
         argv
     }
 }

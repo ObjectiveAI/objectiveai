@@ -17,6 +17,7 @@ pub enum RequestMessageKind {
 pub struct Request {
     pub agent_instance_hierarchy: String,
     pub kind: Option<RequestMessageKind>,
+    pub jq: Option<String>,
 }
 
 impl CommandRequest for Request {
@@ -30,6 +31,10 @@ impl CommandRequest for Request {
         if let Some(kind) = &self.kind {
             argv.push("--kind".to_string());
             argv.push(message_kind_flag(kind).to_string());
+        }
+        if let Some(jq) = &self.jq {
+            argv.push("--jq".to_string());
+            argv.push(jq.clone());
         }
         argv
     }

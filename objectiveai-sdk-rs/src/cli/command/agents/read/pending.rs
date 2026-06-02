@@ -5,6 +5,7 @@ use crate::cli::command::CommandRequest;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
     pub agent_instance_hierarchies: Vec<String>,
+    pub jq: Option<String>,
 }
 
 impl CommandRequest for Request {
@@ -15,6 +16,10 @@ impl CommandRequest for Request {
             "pending".to_string(),
         ];
         argv.extend(self.agent_instance_hierarchies.iter().cloned());
+        if let Some(jq) = &self.jq {
+            argv.push("--jq".to_string());
+            argv.push(jq.clone());
+        }
         argv
     }
 }

@@ -6,6 +6,7 @@ use crate::cli::command::CommandRequest;
 pub struct Request {
     pub offset: Option<usize>,
     pub limit: Option<usize>,
+    pub jq: Option<String>,
 }
 
 impl CommandRequest for Request {
@@ -19,6 +20,10 @@ impl CommandRequest for Request {
         if let Some(limit) = self.limit {
             argv.push("--limit".to_string());
             argv.push(limit.to_string());
+        }
+        if let Some(jq) = &self.jq {
+            argv.push("--jq".to_string());
+            argv.push(jq.clone());
         }
         argv
     }

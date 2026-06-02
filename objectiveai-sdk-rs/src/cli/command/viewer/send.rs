@@ -6,16 +6,22 @@ use crate::cli::command::CommandRequest;
 pub struct Request {
     pub path: String,
     pub body: serde_json::Value,
+    pub jq: Option<String>,
 }
 
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
-        vec![
+        let mut argv = vec![
             "viewer".to_string(),
             "send".to_string(),
             self.path.clone(),
             serde_json::to_string(&self.body).expect("body serializes"),
-        ]
+        ];
+        if let Some(jq) = &self.jq {
+            argv.push("--jq".to_string());
+            argv.push(jq.clone());
+        }
+        argv
     }
 }
 

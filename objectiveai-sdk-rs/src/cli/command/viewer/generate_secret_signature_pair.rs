@@ -2,11 +2,18 @@
 
 use crate::cli::command::CommandRequest;
 
-pub struct Request;
-
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub struct Request {
+    pub jq: Option<String>,
+}
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
-        vec!["viewer".to_string(), "generate-secret-signature-pair".to_string()]
+        let mut argv = vec!["viewer".to_string(), "generate-secret-signature-pair".to_string()];
+        if let Some(jq) = &self.jq {
+            argv.push("--jq".to_string());
+            argv.push(jq.clone());
+        }
+        argv
     }
 }
 
@@ -14,6 +21,20 @@ impl CommandRequest for Request {
 pub struct Response {
     pub secret: String,
     pub signature: String,
+}
+
+pub mod request_schema {
+    use crate::cli::command::CommandRequest;
+
+    pub struct Request;
+
+    impl CommandRequest for Request {
+        fn into_command(&self) -> Vec<String> {
+            vec!["viewer", "generate-secret-signature-pair", "--request-schema"].into_iter().map(String::from).collect()
+        }
+    }
+
+    pub type Response = schemars::Schema;
 }
 
 pub mod response_schema {

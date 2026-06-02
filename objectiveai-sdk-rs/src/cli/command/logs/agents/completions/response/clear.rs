@@ -5,6 +5,7 @@ use crate::cli::command::CommandRequest;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
     pub nested: bool,
+    pub jq: Option<String>,
 }
 
 impl CommandRequest for Request {
@@ -13,6 +14,10 @@ impl CommandRequest for Request {
             .into_iter().map(String::from).collect();
         if self.nested {
             argv.push("--nested".to_string());
+        }
+        if let Some(jq) = &self.jq {
+            argv.push("--jq".to_string());
+            argv.push(jq.clone());
         }
         argv
     }

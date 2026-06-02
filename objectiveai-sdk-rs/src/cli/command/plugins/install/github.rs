@@ -8,6 +8,7 @@ pub struct Request {
     pub repository: String,
     pub commit_sha: Option<String>,
     pub allow_untrusted: bool,
+    pub jq: Option<String>,
 }
 
 impl CommandRequest for Request {
@@ -27,6 +28,10 @@ impl CommandRequest for Request {
         }
         if self.allow_untrusted {
             argv.push("--allow-untrusted".to_string());
+        }
+        if let Some(jq) = &self.jq {
+            argv.push("--jq".to_string());
+            argv.push(jq.clone());
         }
         argv
     }

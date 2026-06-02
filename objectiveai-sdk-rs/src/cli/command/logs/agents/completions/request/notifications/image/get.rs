@@ -7,6 +7,7 @@ pub struct Request {
     pub response_id: String,
     pub index: u64,
     pub media_index: u64,
+    pub jq: Option<String>,
 }
 
 impl CommandRequest for Request {
@@ -16,6 +17,10 @@ impl CommandRequest for Request {
         argv.push(self.response_id.clone());
         argv.push(self.index.to_string());
         argv.push(self.media_index.to_string());
+        if let Some(jq) = &self.jq {
+            argv.push("--jq".to_string());
+            argv.push(jq.clone());
+        }
         argv
     }
 }
