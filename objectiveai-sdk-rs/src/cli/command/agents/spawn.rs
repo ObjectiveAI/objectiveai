@@ -2,7 +2,7 @@
 
 use crate::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use crate::agent::completions::message::Message;
-use crate::cli::command::IntoCommand;
+use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
@@ -50,7 +50,7 @@ impl RequestPrompt {
     }
 }
 
-impl IntoCommand for Request {
+impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         let mut argv = vec!["agents".to_string(), "spawn".to_string()];
         self.prompt.push_flags(&mut argv);

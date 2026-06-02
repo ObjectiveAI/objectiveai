@@ -4,6 +4,6 @@
 /// flags + positional args their leaf command expects — without the
 /// binary name. Callers prepend whatever launcher prefix they need
 /// (`["objectiveai-cli"]`, `["objectiveai-cli", "instance"]`, …).
-pub trait IntoCommand {
+pub trait CommandRequest {
     fn into_command(&self) -> Vec<String>;
 }

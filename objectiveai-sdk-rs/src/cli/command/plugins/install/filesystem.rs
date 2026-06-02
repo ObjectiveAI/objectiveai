@@ -1,10 +1,10 @@
 //! `plugins install filesystem` — async handler stub.
 
-use crate::cli::command::IntoCommand;
+use crate::cli::command::CommandRequest;
 
 pub struct Request;
 
-impl IntoCommand for Request {
+impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         vec!["plugins".to_string(), "install".to_string(), "filesystem".to_string()]
     }

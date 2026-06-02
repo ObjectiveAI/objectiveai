@@ -1,6 +1,6 @@
 //! `logs functions inventions recursive response subscribe` — async handler stub.
 
-use crate::cli::command::IntoCommand;
+use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
@@ -9,7 +9,7 @@ pub struct Request {
     pub require_modification: bool,
 }
 
-impl IntoCommand for Request {
+impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         let mut argv: Vec<String> = vec!["logs", "functions", "inventions", "recursive", "response", "subscribe"]
             .into_iter().map(String::from).collect();

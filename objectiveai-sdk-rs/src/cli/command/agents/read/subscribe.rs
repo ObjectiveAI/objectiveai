@@ -1,6 +1,6 @@
 //! `agents read subscribe` — async handler stub.
 
-use crate::cli::command::IntoCommand;
+use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -19,7 +19,7 @@ pub struct Request {
     pub kind: Option<RequestMessageKind>,
 }
 
-impl IntoCommand for Request {
+impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         let mut argv = vec![
             "agents".to_string(),

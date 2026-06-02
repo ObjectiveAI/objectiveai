@@ -1,7 +1,7 @@
 //! `functions executions create standard` — async handler stub.
 
 use crate::agent::completions::message::Message;  // unused placeholder to keep imports tidy
-use crate::cli::command::IntoCommand;
+use crate::cli::command::CommandRequest;
 use crate::functions::FullInlineFunctionOrRemoteCommitOptional;
 use crate::functions::InlineProfileOrRemoteCommitOptional;
 use crate::functions::expression::InputValue;
@@ -49,7 +49,7 @@ impl RequestInput {
     }
 }
 
-impl IntoCommand for Request {
+impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         let mut argv = vec![
             "functions".to_string(),

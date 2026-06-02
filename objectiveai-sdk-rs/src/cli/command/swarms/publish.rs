@@ -1,7 +1,7 @@
 //! `swarms publish` — async handler stub.
 
 use crate::swarm::RemoteSwarmBase;
-use crate::cli::command::IntoCommand;
+use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
@@ -63,7 +63,7 @@ impl RequestPublishMessage {
     }
 }
 
-impl IntoCommand for Request {
+impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         let mut argv = vec![
             "swarms".to_string(),

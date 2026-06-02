@@ -1,7 +1,7 @@
 //! `functions inventions recursive create remote` — async handler stub.
 
 use crate::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
-use crate::cli::command::IntoCommand;
+use crate::cli::command::CommandRequest;
 use crate::functions::inventions::state::ParamsState;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -35,7 +35,7 @@ impl RequestState {
     }
 }
 
-impl IntoCommand for Request {
+impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         let mut argv = vec![
             "functions".to_string(),

@@ -1,7 +1,7 @@
 //! `functions profiles publish` — async handler stub.
 
 use crate::functions::RemoteProfile;
-use crate::cli::command::IntoCommand;
+use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
@@ -63,7 +63,7 @@ impl RequestPublishMessage {
     }
 }
 
-impl IntoCommand for Request {
+impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         let mut argv = vec![
             "functions".to_string(), "profiles".to_string(),

@@ -1,6 +1,6 @@
 //! `swarms list` — async handler stub.
 
-use crate::cli::command::IntoCommand;
+use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
@@ -28,7 +28,7 @@ impl RequestSource {
     }
 }
 
-impl IntoCommand for Request {
+impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         vec!["swarms".to_string(), "list".to_string(), self.source.as_subcommand().to_string()]
     }

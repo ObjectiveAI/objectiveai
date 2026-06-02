@@ -1,6 +1,6 @@
 //! `functions profiles pairs favorites config add` — async handler stub.
 
-use crate::cli::command::IntoCommand;
+use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
@@ -9,7 +9,7 @@ pub struct Request {
     pub note: String,
 }
 
-impl IntoCommand for Request {
+impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         vec![
             "functions".to_string(), "profiles".to_string(), "pairs".to_string(), "favorites".to_string(), "config".to_string(), "add".to_string(),

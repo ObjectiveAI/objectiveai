@@ -1,6 +1,6 @@
 //! `plugins list` — async handler stub.
 
-use crate::cli::command::IntoCommand;
+use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
@@ -8,7 +8,7 @@ pub struct Request {
     pub limit: Option<usize>,
 }
 
-impl IntoCommand for Request {
+impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         let mut argv = vec!["plugins".to_string(), "list".to_string()];
         if let Some(offset) = self.offset {

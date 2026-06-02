@@ -1,13 +1,13 @@
 //! `functions inventions config get` — async handler stub.
 
-use crate::cli::command::IntoCommand;
+use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
     pub filter: Option<String>,
 }
 
-impl IntoCommand for Request {
+impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         let mut argv = vec!["functions".to_string(), "inventions".to_string(), "config".to_string(), "get".to_string()];
         if let Some(filter) = &self.filter {

@@ -1,6 +1,6 @@
 //! `logs agents completions response messages reasoning get` — async handler stub.
 
-use crate::cli::command::IntoCommand;
+use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
@@ -8,7 +8,7 @@ pub struct Request {
     pub message_index: u64,
 }
 
-impl IntoCommand for Request {
+impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         let mut argv: Vec<String> = vec!["logs", "agents", "completions", "response", "messages", "reasoning", "get"]
             .into_iter().map(String::from).collect();
