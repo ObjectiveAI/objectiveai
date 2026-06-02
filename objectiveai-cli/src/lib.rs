@@ -25,6 +25,7 @@ mod response_format;
 mod schemas;
 mod source_resolver;
 mod spawn;
+mod streaming;
 mod swarms;
 mod tools;
 mod updater;
