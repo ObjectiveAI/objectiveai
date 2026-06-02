@@ -17,4 +17,13 @@ impl IntoCommand for Request {
     }
 }
 
-pub use crate::filesystem::logs::LogContent as Response;
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum Response {
+    Json { content: serde_json::Value },
+    Text { text: String },
+    Image { image_url: crate::agent::completions::message::ImageUrl },
+    Audio { input_audio: crate::agent::completions::message::InputAudio },
+    Video { video_url: crate::agent::completions::message::VideoUrl },
+    File { file: crate::agent::completions::message::File },
+}

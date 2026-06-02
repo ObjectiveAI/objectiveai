@@ -37,9 +37,17 @@ impl IntoCommand for Request {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ResponseFavorite {
+    pub name: String,
+    #[serde(flatten)]
+    pub path: crate::RemotePathCommitOptional,
+    pub note: String,
+}
+
 pub enum Response {
     Filesystem(Vec<crate::RemotePath>),
-    Favorites(Vec<crate::filesystem::config::Favorite>),
+    Favorites(Vec<ResponseFavorite>),
     Objectiveai(Vec<crate::RemotePath>),
     Mock(Vec<crate::RemotePath>),
     All(Vec<crate::RemotePath>),
