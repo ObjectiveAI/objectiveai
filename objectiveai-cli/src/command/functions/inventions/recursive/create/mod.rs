@@ -4,7 +4,12 @@
 use std::pin::Pin;
 
 use futures::{Stream, StreamExt};
-use objectiveai_sdk::cli::command::functions::inventions::recursive::create::{Request, ResponseItem};
+use objectiveai_sdk::Remote;
+use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
+use objectiveai_sdk::cli::command::agents::spawn::AgentSpec;
+use objectiveai_sdk::cli::command::functions::inventions::recursive::create::{
+    Request, ResponseItem,
+};
 
 use crate::context::Context;
 use crate::error::Error;
@@ -12,6 +17,34 @@ use crate::error::Error;
 pub mod alpha_scalar;
 pub mod alpha_vector;
 pub mod remote;
+
+pub(super) async fn resolve_agent(
+    ctx: &Context,
+    spec: AgentSpec,
+) -> Result<InlineAgentBaseWithFallbacksOrRemoteCommitOptional, Error> {
+    match spec {
+        AgentSpec::Resolved(r) => Ok(r),
+        AgentSpec::Favorite(name) => {
+            let mut config = ctx.filesystem.read_config().await?;
+            let fav = config
+                .agents()
+                .get_favorites()
+                .iter()
+                .find(|f| f.get_name() == name)
+                .ok_or_else(|| Error::FavoriteNotFound(name.clone()))?;
+            Ok(InlineAgentBaseWithFallbacksOrRemoteCommitOptional::Remote(
+                fav.path.clone(),
+            ))
+        }
+    }
+}
+
+/// Read `functions.inventions.remote` from on-disk config. Hardcoded
+/// by the legacy dispatcher, not exposed via the SDK leaf's `Request`.
+pub(super) async fn read_inventions_remote(ctx: &Context) -> Result<Remote, Error> {
+    let mut config = ctx.filesystem.read_config().await?;
+    Ok(config.functions().inventions().get_remote())
+}
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
