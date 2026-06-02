@@ -1398,6 +1398,16 @@ where
         // --- Merge messages, drain proxy-queued notifications, prepare,
         // and apply transform. ---
         //
+        // `merged_messages` injects the agent's personality (system_prompt,
+        // prefix/suffix content, etc.) and bakes in `params.messages`. It
+        // must run **only on a fresh conversation**. On resumption — either
+        // a wire-level resume (`request_continuation.is_some()`) or an
+        // in-process resume (`!cont_items.is_empty()`) — the merged prefix
+        // is already part of the prior turn's accumulated state (e.g.
+        // OpenRouter's `Continuation.messages`, Claude SDK's session). Re-
+        // merging here would prepend a duplicate personality block on every
+        // turn, snowballing linearly with the conversation length.
+        //
         // The drained-notifications user message is inserted at the FRONT
         // of `messages` (index 0) so the notifications lead the prompt —
         // ahead of any system / developer / user content from the caller.
@@ -1407,8 +1417,15 @@ where
         // still drains in-flight notifications during a turn; this
         // init-time drain covers the gap *between* turns — i.e. when the
         // previous turn ended without a tool call, or when the user is
-        // starting a fresh continuation.
-        let mut messages = agent_base.merged_messages(params.messages.clone());
+        // starting a fresh continuation. On resumption with an empty merged
+        // prefix the drain message simply leads the new turn's content,
+        // landing before the continuation items in the upstream request.
+        let resuming = request_continuation.is_some() || !cont_items.is_empty();
+        let mut messages = if resuming {
+            Vec::new()
+        } else {
+            agent_base.merged_messages(params.messages.clone())
+        };
 
         if let Some(conn) = &mcp_connection {
             let blocks = conn.drain_notifications().await.map_err(|error| {
