@@ -211,7 +211,7 @@ impl Queue {
         //    `response_id` keys every extracted leaf so it stays
         //    aligned with the envelope filename below.
         let (content_log, leaf_files) =
-            crate::filesystem::logs::extract::extract_rich_content_media(
+            crate::logs::agents::completions::message::rich_content::extract_media(
                 content.clone(),
                 "agents/completions/request/notifications",
                 response_id,

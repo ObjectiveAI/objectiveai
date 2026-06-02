@@ -407,7 +407,8 @@ impl Client {
         Ok(super::LogWriter::new(
             self.logs_dir(),
             |chunk: &AgentCompletionChunk| {
-                chunk.produce_files().map(|(_, files)| files)
+                crate::logs::agents::completions::response::streaming::agent_completion_chunk::produce_files(chunk)
+                    .map(|(_, files)| files)
             },
         )
         .with_request("agents/completions/request", request)?

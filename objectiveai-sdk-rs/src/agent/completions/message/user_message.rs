@@ -50,30 +50,6 @@ impl UserMessage {
         }
     }
 
-    /// Extract this message's content into per-leaf log files,
-    /// returning a [`super::UserMessageLog`] (with
-    /// [`super::RichContentLog`] in place of `content`) plus the
-    /// [`crate::filesystem::logs::LogFile`]s the caller writes.
-    #[cfg(feature = "filesystem")]
-    pub fn extract(
-        self,
-        route_base: &str,
-        id: &str,
-        message_index: u64,
-    ) -> (super::UserMessageLog, Vec<crate::filesystem::logs::LogFile>) {
-        let (content, files) = self.content.extract_media(
-            &format!("{route_base}/messages"),
-            id,
-            message_index,
-        );
-        (
-            super::UserMessageLog {
-                content,
-                name: self.name,
-            },
-            files,
-        )
-    }
 }
 
 impl FromStarlarkValue for UserMessage {

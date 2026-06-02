@@ -1,68 +1,11 @@
-//! Free-function ports of the SDK's filesystem-coupled `extract_media`
-//! methods on `SimpleContent` and `RichContent`. These used to live on
-//! the SDK types as `pub fn extract_media(self, ...)` gated on the now-
-//! deleted `filesystem` feature; since `LogFile` and `LogReference`
-//! belong to the CLI, the constructors live here as free functions per
-//! `feedback_extract_methods_relocate_to_cli.md`.
+//! Free-function port of `RichContent::extract_media` and
+//! `RichContent::extract_one_part`.
 
 use objectiveai_sdk::agent::completions::message::{
-    RichContent, RichContentLog, RichContentPart, SimpleContent,
-    SimpleContentLog, SimpleContentPart,
+    RichContent, RichContentLog, RichContentPart,
 };
 
-use super::{LogFile, LogReference};
-
-/// Extract every chunk of a `SimpleContent` into its own on-disk log
-/// file. Parallel to [`extract_rich_content_media`].
-///
-/// `media_root` is the parent directory under which the `text` subdir
-/// gets created (SimpleContent has only text parts).
-///
-/// - `SimpleContent::Text(text)` → one `.txt` at
-///   `<media_root>/text/<id>-<idx>.txt` containing `text.into_bytes()`.
-///   Returns `Reference(ref)`.
-/// - `SimpleContent::Parts(parts)` → one `.txt` per part at
-///   `<media_root>/text/<id>-<idx>-<part_idx>.txt`. Returns
-///   `Parts(vec_of_refs)`.
-pub fn extract_simple_content_media(
-    content: SimpleContent,
-    media_root: &str,
-    id: &str,
-    message_index: u64,
-) -> (SimpleContentLog, Vec<LogFile>) {
-    match content {
-        SimpleContent::Text(text) => {
-            let log_file = LogFile {
-                route: format!("{media_root}/text"),
-                id: id.to_string(),
-                message_index: Some(message_index),
-                media_index: None,
-                extension: "txt".to_string(),
-                content: text.into_bytes(),
-            };
-            let reference = LogReference::new(log_file.path());
-            (SimpleContentLog::Reference(reference), vec![log_file])
-        }
-        SimpleContent::Parts(parts) => {
-            let mut log_refs = Vec::with_capacity(parts.len());
-            let mut files = Vec::with_capacity(parts.len());
-            for (part_idx, part) in parts.into_iter().enumerate() {
-                let SimpleContentPart::Text { text } = part;
-                let log_file = LogFile {
-                    route: format!("{media_root}/text"),
-                    id: id.to_string(),
-                    message_index: Some(message_index),
-                    media_index: Some(part_idx as u64),
-                    extension: "txt".to_string(),
-                    content: text.into_bytes(),
-                };
-                log_refs.push(LogReference::new(log_file.path()));
-                files.push(log_file);
-            }
-            (SimpleContentLog::Parts(log_refs), files)
-        }
-    }
-}
+use crate::filesystem::logs::{LogFile, LogReference};
 
 /// Extract every chunk of a `RichContent` into its own on-disk log
 /// file, returning a [`RichContentLog`] of [`LogReference`]s pointing
@@ -75,8 +18,8 @@ pub fn extract_simple_content_media(
 ///   `<media_root>/text/<id>-<idx>.txt` containing the raw UTF-8 text.
 ///   Returns `RichContentLog::Reference(ref)`.
 /// - `RichContent::Parts(parts)` → one file per part (rules in
-///   [`extract_one_rich_part`]). Returns `RichContentLog::Parts(refs)`
-///   in original order.
+///   [`extract_one_part`]). Returns `RichContentLog::Parts(refs)` in
+///   original order.
 ///
 /// `media_root` is the parent directory under which the per-media-type
 /// subdirs (`text`, `image`, `audio`, `video`, `file`) get created.
@@ -85,7 +28,7 @@ pub fn extract_simple_content_media(
 /// for notification extraction.
 ///
 /// `id` and `message_index` identify the parent record.
-pub fn extract_rich_content_media(
+pub fn extract_media(
     content: RichContent,
     media_root: &str,
     id: &str,
@@ -108,7 +51,7 @@ pub fn extract_rich_content_media(
             let mut log_refs = Vec::with_capacity(parts.len());
             let mut files = Vec::with_capacity(parts.len());
             for (part_idx, part) in parts.into_iter().enumerate() {
-                let file = extract_one_rich_part(
+                let file = extract_one_part(
                     part,
                     media_root,
                     id,
@@ -140,7 +83,7 @@ pub fn extract_rich_content_media(
 /// `media_dir` is debug grouping only — `image|audio|video|file` per
 /// variant. Not load-bearing for parsing (the reader keys off the file
 /// extension).
-fn extract_one_rich_part(
+pub fn extract_one_part(
     part: RichContentPart,
     media_root: &str,
     id: &str,

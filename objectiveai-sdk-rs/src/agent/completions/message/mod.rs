@@ -186,42 +186,6 @@ impl Message {
         }
     }
 
-    /// Extract this message's content into per-leaf log files,
-    /// returning a [`MessageLog`] (with the per-role `*MessageLog`
-    /// inside) plus the [`crate::filesystem::logs::LogFile`]s the
-    /// caller writes. Dispatches per role to the per-role `extract`
-    /// method, which delegates to the appropriate `SimpleContent` /
-    /// `RichContent` extractor.
-    #[cfg(feature = "filesystem")]
-    pub fn extract(
-        self,
-        route_base: &str,
-        id: &str,
-        message_index: u64,
-    ) -> (MessageLog, Vec<crate::filesystem::logs::LogFile>) {
-        match self {
-            Message::Developer(msg) => {
-                let (log, files) = msg.extract(route_base, id, message_index);
-                (MessageLog::Developer(log), files)
-            }
-            Message::System(msg) => {
-                let (log, files) = msg.extract(route_base, id, message_index);
-                (MessageLog::System(log), files)
-            }
-            Message::User(msg) => {
-                let (log, files) = msg.extract(route_base, id, message_index);
-                (MessageLog::User(log), files)
-            }
-            Message::Assistant(msg) => {
-                let (log, files) = msg.extract(route_base, id, message_index);
-                (MessageLog::Assistant(log), files)
-            }
-            Message::Tool(msg) => {
-                let (log, files) = msg.extract(route_base, id, message_index);
-                (MessageLog::Tool(log), files)
-            }
-        }
-    }
 }
 
 impl FromStarlarkValue for Message {
