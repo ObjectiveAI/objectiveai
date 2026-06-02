@@ -3,6 +3,10 @@
 //! `logs` is also skipped for now). Stubs today; typed
 //! `Args` + `pub async fn handle(...)` signatures land in
 //! follow-up commits.
+
+mod into_command;
+pub use into_command::*;
+
 pub mod agents;
 pub mod functions;
 pub mod instance;
