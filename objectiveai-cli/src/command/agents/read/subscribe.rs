@@ -1,17 +1,233 @@
-//! `agents read subscribe` — bare-naked streaming handler stub.
+//! `agents read subscribe` — channel-backed bare-naked port of the
+//! legacy `subscribe_recursive` driver. The async driver runs as a
+//! detached task; `ResponseItem`s flow to the caller through a
+//! tokio mpsc channel wrapped as a stream.
+//!
+//! See `agents/read/subscribe.rs` (legacy) for the algorithm — this
+//! is a verbatim port modulo the notification/handle plumbing being
+//! swapped for typed channel sends.
 
+use std::path::{Path, PathBuf};
 use std::pin::Pin;
 
 use futures::Stream;
-use objectiveai_sdk::cli::command::agents::read::subscribe::{Request, ResponseItem};
+use interprocess::local_socket::traits::tokio::Stream as _;
+use interprocess::local_socket::{GenericFilePath, ToFsName};
+use objectiveai_sdk::cli::command::agents::read::subscribe::{
+    Request, RequestMessageKind, ResponseItem,
+};
+use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::sync::mpsc;
 
 use crate::context::Context;
 use crate::error::Error;
+use crate::filesystem::db::schema::MessageKind;
+use crate::filesystem::logs::SubscribeEvent;
+use crate::filesystem::logs::queue::QueueItem;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
-pub async fn execute(_ctx: &Context, _request: Request) -> Result<ItemStream, Error> {
-    todo!("agents read subscribe execute")
+pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
+    let kind_filter = request.kind.map(map_message_kind);
+    let caller = ctx.config.agent_instance_hierarchy.clone();
+    let spawned = format!("{caller}/{}", request.agent_instance_hierarchy);
+    let sub_id = request.agent_instance_hierarchy;
+    let fs = ctx.filesystem.clone();
+    let pipes_dir = fs.pipes_dir();
+
+    let (tx, rx) = mpsc::channel::<Result<ResponseItem, Error>>(16);
+    tokio::spawn(async move {
+        let result =
+            subscribe_recursive(fs, pipes_dir, caller, spawned, sub_id, kind_filter, &tx).await;
+        if let Err(e) = result {
+            let _ = tx.send(Err(e)).await;
+        }
+    });
+    Ok(Box::pin(tokio_stream::wrappers::ReceiverStream::new(rx)))
+}
+
+/// Best-fit projection from the SDK's wire kinds to the filesystem
+/// `MessageKind` enum. The two enums don't line up 1:1 — the SDK
+/// surfaces some conceptually-cleaner names; the filesystem retains
+/// historical variants. Map to the closest semantic match.
+fn map_message_kind(k: RequestMessageKind) -> MessageKind {
+    match k {
+        RequestMessageKind::AgentCompletionRequest => MessageKind::AgentCompletionRequest,
+        RequestMessageKind::AssistantResponse => MessageKind::AssistantResponse,
+        RequestMessageKind::AgentCompletionResponse => MessageKind::AssistantResponse,
+        RequestMessageKind::AgentCompletionMessage
+        | RequestMessageKind::ContinuationToken
+        | RequestMessageKind::Sweep => MessageKind::AgentCompletionNotification,
+    }
+}
+
+fn subscribe_recursive(
+    fs: crate::filesystem::Client,
+    pipes_dir: PathBuf,
+    caller: String,
+    spawned: String,
+    sub_id: String,
+    kind_filter: Option<MessageKind>,
+    tx: &mpsc::Sender<Result<ResponseItem, Error>>,
+) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + '_>> {
+    Box::pin(async move {
+        // INVARIANT 1: open the listener BEFORE the first DB query.
+        let listener = try_connect_events(&pipes_dir, &spawned).await;
+
+        let items = fs.read_new_from_queue(&caller, &spawned).await?;
+        let mut matched = matches_filter(&items, kind_filter);
+        if !items.is_empty() {
+            send_items(tx, &sub_id, items).await?;
+        }
+        if matched {
+            return Ok(());
+        }
+
+        let mut listener = match listener {
+            Some(l) => l,
+            None => {
+                // INVARIANT 2: second connect attempt before declaring inactive.
+                if (try_connect_events(&pipes_dir, &spawned).await).is_some() {
+                    return subscribe_recursive(
+                        fs,
+                        pipes_dir,
+                        caller,
+                        spawned,
+                        sub_id,
+                        kind_filter,
+                        tx,
+                    )
+                    .await;
+                }
+                send_inactive(tx, &sub_id).await?;
+                return Ok(());
+            }
+        };
+
+        loop {
+            let event = match listener.next_event().await {
+                Some(ev) => ev,
+                None => {
+                    let items = fs.read_new_from_queue(&caller, &spawned).await?;
+                    if !items.is_empty() {
+                        send_items(tx, &sub_id, items).await?;
+                    }
+                    return Ok(());
+                }
+            };
+            match event {
+                SubscribeEvent::Row { message_kind: _ } => {
+                    let items = fs.read_new_from_queue(&caller, &spawned).await?;
+                    if matches_filter(&items, kind_filter) {
+                        matched = true;
+                    }
+                    if !items.is_empty() {
+                        send_items(tx, &sub_id, items).await?;
+                    }
+                    if matched {
+                        return Ok(());
+                    }
+                }
+                SubscribeEvent::StreamEnd => {
+                    let items = fs.read_new_from_queue(&caller, &spawned).await?;
+                    if !items.is_empty() {
+                        send_items(tx, &sub_id, items).await?;
+                    }
+                    return Ok(());
+                }
+            }
+        }
+    })
+}
+
+fn matches_filter(items: &[QueueItem], filter: Option<MessageKind>) -> bool {
+    items.iter().any(|it| match filter {
+        None => true,
+        Some(k) => queue_item_kind(it) == k,
+    })
+}
+
+fn queue_item_kind(item: &QueueItem) -> MessageKind {
+    match item {
+        QueueItem::AssistantResponse { .. } => MessageKind::AssistantResponse,
+        QueueItem::ToolResponse { .. } => MessageKind::ToolResponse,
+        QueueItem::Notification { .. } => MessageKind::AgentCompletionNotification,
+        QueueItem::AgentCompletionRequest { .. } => MessageKind::AgentCompletionRequest,
+        QueueItem::FunctionExecutionRequest { .. } => MessageKind::FunctionExecutionRequest,
+        QueueItem::FunctionInventionRecursiveRequest { .. } => {
+            MessageKind::FunctionInventionRecursiveRequest
+        }
+    }
+}
+
+async fn send_items(
+    tx: &mpsc::Sender<Result<ResponseItem, Error>>,
+    sub_id: &str,
+    items: Vec<QueueItem>,
+) -> Result<(), Error> {
+    let value =
+        serde_json::to_value(items).map_err(|e| Error::InlineDeserialize(e.into()))?;
+    let items = serde_json::from_value(value)
+        .map_err(|e| Error::InlineDeserialize(e.into()))?;
+    let _ = tx
+        .send(Ok(ResponseItem::Items {
+            agent_id: sub_id.to_string(),
+            items,
+        }))
+        .await;
+    Ok(())
+}
+
+async fn send_inactive(
+    tx: &mpsc::Sender<Result<ResponseItem, Error>>,
+    sub_id: &str,
+) -> Result<(), Error> {
+    let _ = tx
+        .send(Ok(ResponseItem::Inactive {
+            agent_id: sub_id.to_string(),
+        }))
+        .await;
+    Ok(())
+}
+
+struct EventStream {
+    lines: tokio::io::Lines<BufReader<interprocess::local_socket::tokio::RecvHalf>>,
+}
+
+impl EventStream {
+    async fn next_event(&mut self) -> Option<SubscribeEvent> {
+        loop {
+            let line = match self.lines.next_line().await {
+                Ok(Some(l)) => l,
+                Ok(None) => return None,
+                Err(_) => return None,
+            };
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            match serde_json::from_str::<SubscribeEvent>(trimmed) {
+                Ok(ev) => return Some(ev),
+                Err(_) => return None,
+            }
+        }
+    }
+}
+
+async fn try_connect_events(pipes_dir: &Path, spawned: &str) -> Option<EventStream> {
+    let socket_path = pipes_dir.join(spawned).join("events.sock");
+    let name = socket_path
+        .to_fs_name::<GenericFilePath>()
+        .ok()?
+        .into_owned();
+    let stream = interprocess::local_socket::tokio::Stream::connect(name)
+        .await
+        .ok()?;
+    let (read_half, _write_half) = stream.split();
+    let reader = BufReader::new(read_half);
+    Some(EventStream {
+        lines: reader.lines(),
+    })
 }
 
 pub mod request_schema {
