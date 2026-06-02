@@ -11,16 +11,13 @@ pub struct Request {
 
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
-        let mut argv = vec![
-            "tools".to_string(),
-            "run".to_string(),
-            self.name.clone(),
-        ];
-        argv.extend(self.args.iter().cloned());
+        let mut argv = vec!["tools".to_string(), "run".to_string()];
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
             argv.push(jq.clone());
         }
+        argv.push(self.name.clone());
+        argv.extend(self.args.iter().cloned());
         argv
     }
 }
