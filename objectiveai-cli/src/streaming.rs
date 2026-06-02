@@ -1,11 +1,9 @@
-//! Subprocess bridge to the instance runner — restored shape of the
-//! deleted `crate::api::stream_subprocess`, adapted to the bare-naked
-//! `command::*::execute` contract.
+//! Subprocess bridge to the instance runner.
 //!
-//! Streaming leaves spawn the cli binary as itself with the hidden
-//! `instance` subcommand prepended to argv; the forwarded HTTP / MCP /
-//! agent-id args ride as clap flags, the body as `--body <JSON>`, and
-//! the subprocess's NDJSON stdout is consumed here.
+//! Streaming leaves spawn the cli binary as `objectiveai-cli instance`;
+//! the parent inherits one end of an anonymous pipe into the child,
+//! writes a magic-header + JSON [`InstanceRequest`] blob, and consumes
+//! the child's NDJSON stdout as a stream.
 //!
 //! Per-chunk responsibilities split as follows:
 //!
@@ -34,7 +32,6 @@
 use std::pin::Pin;
 
 use futures::Stream;
-use serde::Serialize;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio_stream::wrappers::ReceiverStream;
@@ -45,6 +42,8 @@ use objectiveai_sdk::cli::output::{
 
 use crate::context::Context;
 use crate::error::Error;
+use crate::instance::handshake::{self, PIPE_ENV};
+use crate::instance::request::{HttpConfig, InstanceEndpoint, InstanceRequest, PipeConfig};
 
 /// Re-export of the producer-side constant from [`crate::instance::api`]
 /// so cli callers parse subprocess exit codes against the same value the
@@ -68,8 +67,9 @@ pub enum InstanceItem {
     Chunk(serde_json::Value),
 }
 
-/// Spawn `objectiveai-cli instance <endpoint_path...> --body <JSON>`
-/// and consume its NDJSON stdout as a stream.
+/// Spawn `objectiveai-cli instance` and consume its NDJSON stdout as a
+/// stream. The endpoint + params + forwarded config ride as an
+/// [`InstanceRequest`] over the handshake pipe.
 ///
 /// `bind_agent_instance_hierarchy` — when the caller knows the full
 /// agent id ahead of time (e.g. `agents message`'s continuation
@@ -83,15 +83,11 @@ pub enum InstanceItem {
 /// `false` detaches the instance after the `LogStreamReady` handshake.
 pub fn instance_subprocess_stream(
     ctx: &Context,
-    endpoint_path: &'static [&'static str],
-    body: &(impl Serialize + ?Sized),
+    endpoint: InstanceEndpoint,
     bind_agent_instance_hierarchy: Option<String>,
     stream: bool,
 ) -> Pin<Box<dyn Stream<Item = Result<InstanceItem, Error>> + Send>> {
-    let body_json = serde_json::to_string(body)
-        .expect("body serialization to JSON should not fail for valid params");
     let cli_config = ctx.config.clone();
-    let config_base_dir = cli_config.config_base_dir.clone();
     let fs = ctx.filesystem.clone();
 
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<InstanceItem, Error>>(16);
@@ -99,10 +95,8 @@ pub fn instance_subprocess_stream(
     tokio::spawn(async move {
         let result = run_subprocess(
             &cli_config,
-            config_base_dir,
             fs,
-            endpoint_path,
-            &body_json,
+            endpoint,
             bind_agent_instance_hierarchy,
             stream,
             tx.clone(),
@@ -118,56 +112,75 @@ pub fn instance_subprocess_stream(
     Box::pin(ReceiverStream::new(rx))
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn run_subprocess(
     cli_config: &crate::run::Config,
-    config_base_dir: Option<String>,
     fs: crate::filesystem::Client,
-    endpoint_path: &'static [&'static str],
-    body_json: &str,
+    endpoint: InstanceEndpoint,
     bind_agent_instance_hierarchy: Option<String>,
     stream: bool,
     tx: tokio::sync::mpsc::Sender<Result<InstanceItem, Error>>,
 ) -> Result<(), Error> {
+    // Resolve every forwarded header / address / auth token using the
+    // same env → on-disk-config → SDK-default precedence the regular
+    // CLI uses. Owned values, since the parent process drops them as
+    // soon as the JSON blob has been written.
+    let http = build_http_config(cli_config, &fs).await?;
+    let pipes = build_pipe_config(cli_config, &fs, bind_agent_instance_hierarchy).await?;
+
+    let request = InstanceRequest {
+        http,
+        pipes,
+        endpoint,
+    };
+
     let exe = std::env::current_exe()
         .map_err(|e| Error::Spawn("current_exe".into(), e))?;
     let mut cmd = Command::new(&exe);
     cmd.arg("instance");
-
-    push_forwarded_args(&mut cmd, cli_config, &fs).await?;
-
-    for seg in endpoint_path {
-        cmd.arg(seg);
-    }
-
-    cmd.args(["--body", body_json]);
-
-    if let Some(id) = &bind_agent_instance_hierarchy {
-        cmd.args(["--bind-agent-instance-hierarchy", id]);
-    }
-
-    if let Some(ref base) = config_base_dir {
-        // Already passed via push_forwarded_args; kept consistent here so
-        // the cli sees a single resolved value regardless of order.
-        let _ = base;
-    }
-
     cmd.stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped());
+
+    // Open the handshake pipe; the read end gets inherited into the
+    // child, the write end stays here so we can stream the magic +
+    // JSON blob in.
+    let (reader, writer) = os_pipe::pipe()
+        .map_err(|e| Error::Spawn("handshake pipe".into(), e))?;
+
+    let raw = inheritable_raw(&reader);
+    cmd.env(PIPE_ENV, raw);
+
+    // SAFETY: schedule the read end of the pipe to remain in the
+    // child after spawn — `pre_exec` (Unix) marks FD_CLOEXEC off;
+    // Windows handle inheritance is enabled by std for piped stdio
+    // already, but `os_pipe::PipeReader`'s underlying HANDLE has its
+    // inheritable bit set by the crate at construction time.
+    #[cfg(unix)]
+    {
+        use std::os::fd::AsRawFd;
+        use std::os::unix::process::CommandExt;
+        let fd = reader.as_raw_fd();
+        unsafe {
+            cmd.pre_exec(move || {
+                // Clear FD_CLOEXEC so the fd survives exec(). Leaves
+                // other flags untouched.
+                let flags = libc::fcntl(fd, libc::F_GETFD);
+                if flags < 0 {
+                    return Err(std::io::Error::last_os_error());
+                }
+                if libc::fcntl(fd, libc::F_SETFD, flags & !libc::FD_CLOEXEC) < 0 {
+                    return Err(std::io::Error::last_os_error());
+                }
+                Ok(())
+            });
+        }
+    }
 
     // On Windows, detach the child from the parent's console + job
     // object so it survives when the parent exits. Only applies when
     // we plan to release the orphan after the handshake (i.e. when
     // `stream == false`); when streaming, the leaf is following the
     // child to EOF and the inherited console is fine.
-    //   CREATE_NEW_PROCESS_GROUP (0x00000200): same flag legacy
-    //     `api/detach.rs` used for the parent→child CLI re-exec.
-    //   DETACHED_PROCESS (0x00000008): drop the inherited console so
-    //     the child isn't taken down with the parent's console
-    //     session — required because the parent leaf exits as soon as
-    //     it sees `LogStreamReady`, while the instance runner keeps
-    //     producing chunks for the rest of the request.
     #[cfg(windows)]
     if !stream {
         use std::os::windows::process::CommandExt;
@@ -179,6 +192,17 @@ async fn run_subprocess(
     let mut child = cmd
         .spawn()
         .map_err(|e| Error::Spawn("objectiveai-cli instance".into(), e))?;
+    // Parent no longer needs its copy of the read end — drop it so
+    // only the child holds it.
+    drop(reader);
+
+    // Hand the JSON blob to the child on a blocking-safe task so the
+    // synchronous writer doesn't block the async runtime.
+    let request_for_write = request;
+    let write_handle = tokio::task::spawn_blocking(move || {
+        handshake::write_request(writer, &request_for_write)
+    });
+
     let stdout = child.stdout.take().expect("stdout piped");
     let stderr = child.stderr.take().expect("stderr piped");
 
@@ -223,6 +247,9 @@ async fn run_subprocess(
                         // Drop the stderr task (the child is on its own
                         // now) and return without reaping.
                         drop(stderr_task);
+                        // Ensure the JSON blob made it to the child
+                        // before we walk away.
+                        let _ = write_handle.await;
                         return Ok(());
                     }
                     HandleOutcome::SawHandshake => {
@@ -236,14 +263,13 @@ async fn run_subprocess(
                 // Per-chunk errors from the runner are dropped at this
                 // boundary — leaves return their own typed Result-stream
                 // and don't have a `handle.emit()` to forward to.
-                // TODO: surface as a stream-level Err once we settle on
-                // a per-chunk error shape on `ItemStream`.
             }
         }
     }
 
     // Stdout EOF. Reap the child and decide whether the exit was clean.
     let stderr_buf = stderr_task.await.unwrap_or_default();
+    let _ = write_handle.await;
     let status = child
         .wait()
         .await
@@ -267,10 +293,6 @@ async fn run_subprocess(
         });
     }
 
-    // Clean exit. Whether we're streaming or detaching, the handshake
-    // should fire before EOF. If it didn't, the child died before the
-    // response id was minted — treat that as a subprocess failure with
-    // no exit code distinction.
     if !handshake_seen {
         let tail: String = stderr_buf
             .iter()
@@ -287,6 +309,18 @@ async fn run_subprocess(
     }
 
     Ok(())
+}
+
+#[cfg(unix)]
+fn inheritable_raw(reader: &os_pipe::PipeReader) -> String {
+    use std::os::fd::AsRawFd;
+    reader.as_raw_fd().to_string()
+}
+
+#[cfg(windows)]
+fn inheritable_raw(reader: &os_pipe::PipeReader) -> String {
+    use std::os::windows::io::AsRawHandle;
+    (reader.as_raw_handle() as isize).to_string()
 }
 
 enum HandleOutcome {
@@ -323,12 +357,6 @@ async fn handle_notification(
         }
         NotificationValue::Other(map) => {
             if !stream {
-                // Pre-handshake chunks (shouldn't happen — the runner
-                // emits LogStreamReady first) or post-handshake chunks
-                // in detach mode (we already returned via the
-                // DetachReturn early-return path; this branch is
-                // unreachable unless the runner emits a chunk before
-                // LogStreamReady) — drop.
                 return HandleOutcome::Continue;
             }
             let value = serde_json::Value::Object(map);
@@ -341,117 +369,126 @@ async fn handle_notification(
     }
 }
 
-/// Resolve every instance-runner global flag from cli's `cli_config`,
-/// env vars, and on-disk config — mirrors the `build_http_client`
-/// precedence chain in [`crate::context`].
-async fn push_forwarded_args(
-    cmd: &mut Command,
+/// Resolve every HTTP-client field from cli's `cli_config`, env vars,
+/// and on-disk config — mirrors the `build_http_client` precedence chain
+/// in [`crate::context`].
+async fn build_http_config(
     cli_config: &crate::run::Config,
     fs: &crate::filesystem::Client,
-) -> Result<(), Error> {
+) -> Result<HttpConfig, Error> {
     fn env(name: &str) -> Option<String> {
         std::env::var(name).ok()
     }
 
-    let mut config = fs
-        .read_config()
-        .await
-        .map_err(Error::Filesystem)?;
+    let mut config = fs.read_config().await.map_err(Error::Filesystem)?;
 
-    let address = env("OBJECTIVEAI_ADDRESS").or_else(|| {
+    let api_address = env("OBJECTIVEAI_ADDRESS").or_else(|| {
         let api = config.api();
         crate::context::compose_url(api.get_address(), api.get_port())
     });
-    if let Some(v) = address {
-        cmd.args(["--api-address", &v]);
-    }
 
-    if let Some(v) = env("OBJECTIVEAI_AUTHORIZATION").or_else(|| {
+    let objectiveai_authorization = env("OBJECTIVEAI_AUTHORIZATION").or_else(|| {
         config
             .api()
             .get_objectiveai_authorization()
             .map(String::from)
-    }) {
-        cmd.args(["--objectiveai-authorization", &v]);
-    }
+    });
 
-    if let Some(v) = env("USER_AGENT").or_else(|| config.api().get_user_agent().map(String::from)) {
-        cmd.args(["--user-agent", &v]);
-    }
+    let user_agent =
+        env("USER_AGENT").or_else(|| config.api().get_user_agent().map(String::from));
 
-    if let Some(v) = env("X_TITLE").or_else(|| config.api().get_x_title().map(String::from)) {
-        cmd.args(["--x-title", &v]);
-    }
+    let x_title =
+        env("X_TITLE").or_else(|| config.api().get_x_title().map(String::from));
 
-    if let Some(v) =
-        env("HTTP_REFERER").or_else(|| config.api().get_http_referer().map(String::from))
-    {
-        cmd.args(["--http-referer", &v]);
-    }
+    let http_referer = env("HTTP_REFERER")
+        .or_else(|| config.api().get_http_referer().map(String::from));
 
-    if let Some(v) = env("GITHUB_AUTHORIZATION")
-        .or_else(|| config.api().get_github_authorization().map(String::from))
-    {
-        cmd.args(["--github-authorization", &v]);
-    }
+    let github_authorization = env("GITHUB_AUTHORIZATION")
+        .or_else(|| config.api().get_github_authorization().map(String::from));
 
-    if let Some(v) = env("OPENROUTER_AUTHORIZATION").or_else(|| {
+    let openrouter_authorization = env("OPENROUTER_AUTHORIZATION").or_else(|| {
         config
             .api()
             .get_openrouter_authorization()
             .map(String::from)
-    }) {
-        cmd.args(["--openrouter-authorization", &v]);
-    }
-
-    let mcp_auth_json = env("MCP_AUTHORIZATION").or_else(|| {
-        config
-            .api()
-            .get_mcp_authorization()
-            .map(|m| serde_json::to_string(m).expect("encoding String→String map"))
     });
-    if let Some(v) = mcp_auth_json {
-        cmd.args(["--mcp-authorization", &v]);
-    }
 
-    if let Some(v) =
-        env("VIEWER_SIGNATURE").or_else(|| config.viewer().get_signature().map(String::from))
-    {
-        cmd.args(["--viewer-signature", &v]);
-    }
+    let mcp_authorization: Option<std::collections::HashMap<String, String>> =
+        env("MCP_AUTHORIZATION")
+            .and_then(|v| serde_json::from_str(&v).ok())
+            .or_else(|| {
+                config
+                    .api()
+                    .get_mcp_authorization()
+                    .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+            });
+
+    let viewer_signature = env("VIEWER_SIGNATURE")
+        .or_else(|| config.viewer().get_signature().map(String::from));
 
     let viewer_address = env("VIEWER_ADDRESS").or_else(|| {
         let viewer = config.viewer();
         crate::context::compose_url(viewer.get_address(), viewer.get_port())
     });
-    if let Some(v) = viewer_address {
-        cmd.args(["--viewer-address", &v]);
-    }
 
-    if let Some(v) = env("COMMIT_AUTHOR_NAME")
-        .or_else(|| config.api().get_commit_author_name().map(String::from))
-    {
-        cmd.args(["--commit-author-name", &v]);
-    }
+    let commit_author_name = env("COMMIT_AUTHOR_NAME")
+        .or_else(|| config.api().get_commit_author_name().map(String::from));
 
-    if let Some(v) = env("COMMIT_AUTHOR_EMAIL")
-        .or_else(|| config.api().get_commit_author_email().map(String::from))
-    {
-        cmd.args(["--commit-author-email", &v]);
-    }
+    let commit_author_email = env("COMMIT_AUTHOR_EMAIL")
+        .or_else(|| config.api().get_commit_author_email().map(String::from));
 
-    cmd.args([
-        "--objectiveai-agent-instance-hierarchy",
-        &cli_config.agent_instance_hierarchy,
-    ]);
+    Ok(HttpConfig {
+        api_address,
+        objectiveai_authorization,
+        user_agent,
+        x_title,
+        http_referer,
+        github_authorization,
+        openrouter_authorization,
+        mcp_authorization,
+        viewer_signature,
+        viewer_address,
+        commit_author_name,
+        commit_author_email,
+        objectiveai_agent_instance_hierarchy: cli_config.agent_instance_hierarchy.clone(),
+        mcp_session_id: cli_config.mcp_session_id.clone(),
+    })
+}
 
-    if let Some(ref v) = cli_config.mcp_session_id {
-        cmd.args(["--mcp-session-id", v]);
-    }
+async fn build_pipe_config(
+    cli_config: &crate::run::Config,
+    fs: &crate::filesystem::Client,
+    bind_agent_instance_hierarchy: Option<String>,
+) -> Result<PipeConfig, Error> {
+    let config_base_dir = cli_config
+        .config_base_dir
+        .clone()
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(default_config_base_dir);
 
-    if let Some(ref base) = cli_config.config_base_dir {
-        cmd.args(["--config-base-dir", base]);
-    }
+    // Primary objectiveai-mcp URL: `OBJECTIVEAI_MCP_ADDRESS` env first,
+    // then on-disk `mcp.address` / `mcp.port`, then None. `None` makes
+    // the instance conduit 501 inbound primary-MCP `server_request`s
+    // (per `ConduitMcpHandler::new` doc); plugin-MCP routing is
+    // unaffected either way.
+    let mcp_address = match std::env::var("OBJECTIVEAI_MCP_ADDRESS").ok() {
+        Some(v) => Some(v),
+        None => {
+            let mut config = fs.read_config().await.map_err(Error::Filesystem)?;
+            let mcp = config.mcp();
+            crate::context::compose_url(mcp.get_address(), mcp.get_port())
+        }
+    };
 
-    Ok(())
+    Ok(PipeConfig {
+        config_base_dir,
+        mcp_address,
+        bind_agent_instance_hierarchy,
+    })
+}
+
+fn default_config_base_dir() -> std::path::PathBuf {
+    dirs::home_dir()
+        .map(|h| h.join(".objectiveai"))
+        .unwrap_or_else(|| std::path::PathBuf::from(".objectiveai"))
 }

@@ -6,25 +6,23 @@ use objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams;
 use objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk;
 use objectiveai_sdk::cli::output::Handle;
 
-use crate::instance::api::{BodySource, HttpArgs, PipeArgs};
+use crate::instance::request::{HttpConfig, PipeConfig};
 use crate::instance::streaming;
 
-pub async fn handle(
-    http: &HttpArgs,
-    pipes: &PipeArgs,
-    body: BodySource,
+pub async fn execute(
+    http: &HttpConfig,
+    pipes: &PipeConfig,
+    params: AgentCompletionCreateParams,
     handle: &Handle,
 ) -> Result<(), String> {
-    let params: AgentCompletionCreateParams = body.resolve()?;
-    let config_base_dir = pipes.config_base_dir()?.to_path_buf();
-    let pipes_root = pipes.pipes_root()?;
+    let config_base_dir = pipes.config_base_dir().to_path_buf();
+    let pipes_root = pipes.pipes_root();
     let client = http.build_http_client()?;
     let conduit = pipes.build_conduit();
 
-    // Shared between the eager admission probe (if --bind-agent-instance-hierarchy
-    // is set) and the per-chunk binds inside `run_chunk_loop`. The
-    // eager probe stashes its `Listener` here; the chunk loop's
-    // first matching `ensure_pipe` consumes it.
+    // Shared between the eager admission probe (when
+    // `bind_agent_instance_hierarchy` is set) and the per-chunk binds
+    // inside `run_chunk_loop`.
     let registry = crate::instance::pipes::PipeRegistry::new();
     pipes.try_eager_acquire(&registry, handle).await?;
 
@@ -33,7 +31,8 @@ pub async fn handle(
         None::<String>,
         None::<String>,
     );
-    let caller_agent_instance_hierarchy = http.objectiveai_agent_instance_hierarchy.clone();
+    let caller_agent_instance_hierarchy =
+        http.objectiveai_agent_instance_hierarchy.clone();
     let log_writer = fs_client
         .write_agent_completion(&params)
         .map_err(|e| format!("failed to build agent-completion log writer: {e}"))?
@@ -51,11 +50,6 @@ pub async fn handle(
 
     let stream = Box::pin(stream);
 
-    // For every chunk that carries an agent response_id, ask the
-    // conduit to evict that response_id's sibling losers. After the
-    // first such chunk the winner's group is collapsed — subsequent
-    // chunks for the same response_id are no-ops in the conduit's
-    // group map. Generalizes cleanly to nested chunk trees.
     let conduit_for_drop = conduit.clone();
     let consumed = streaming::run_chunk_loop::<_, AgentCompletionChunk, _, _>(
         stream,

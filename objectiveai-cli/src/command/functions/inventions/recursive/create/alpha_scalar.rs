@@ -68,8 +68,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
 
     let raw = instance_subprocess_stream(
         ctx,
-        &["functions", "inventions", "recursive", "create", "alpha-scalar"],
-        &params,
+        crate::instance::request::InstanceEndpoint::FunctionsInventionsRecursiveCreate(params),
         None,
         stream,
     );

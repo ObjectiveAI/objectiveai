@@ -207,17 +207,11 @@ enum Commands {
     Update,
     /// Per-agent-instance subprocess runner. Spawned internally by
     /// streaming endpoints (`agents spawn`, `functions executions
-    /// create`, …) as `objectiveai-cli instance …`; hidden from
-    /// `--help` since end users never invoke it directly.
+    /// create`, …) as `objectiveai-cli instance`. All inputs ride
+    /// over an inherited anonymous-pipe handshake; the subcommand
+    /// rejects direct shell invocation. Hidden from `--help`.
     #[command(hide = true)]
-    Instance {
-        #[command(flatten)]
-        http: instance::HttpArgs,
-        #[command(flatten)]
-        pipes: instance::PipeArgs,
-        #[command(subcommand)]
-        command: instance::Commands,
-    },
+    Instance,
     /// Run a plugin from `~/.objectiveai/plugins/`. First element is
     /// the plugin name; the rest are forwarded as the plugin's argv.
     /// Captured via clap's external-subcommand mechanism — any first
@@ -243,8 +237,7 @@ impl Commands {
             Commands::Plugins { command } => command.handle(cli_config, handle).await,
             Commands::Tools { command } => command.handle(cli_config, handle).await,
             Commands::Update => crate::updater::run_update(cli_config, handle).await,
-            Commands::Instance { http, pipes, command } => command
-                .handle(&http, &pipes, handle)
+            Commands::Instance => crate::instance::run(handle)
                 .await
                 .map_err(error::Error::Instance),
             Commands::External(args) => {

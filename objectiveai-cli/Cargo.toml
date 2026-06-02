@@ -48,6 +48,7 @@ base64 = "0.22.1"
 futures = "0.3.32"
 async-stream = { version = "0.3.6" }
 tokio-stream = { version = "0.1.18", features = ["io-util", "sync"] }
+os_pipe = "1.2"
 semver = "1.0.28"
 indexmap = "2.13"
 sysinfo = { version = "0.38.4", default-features = false, features = ["system"] }

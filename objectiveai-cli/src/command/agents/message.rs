@@ -231,8 +231,7 @@ async fn fallback_via_continuation(
     // child keeps running orphaned and drives the completion.
     let mut stream = instance_subprocess_stream(
         ctx,
-        &["agents", "spawn"],
-        &params,
+        crate::instance::request::InstanceEndpoint::AgentsSpawn(params),
         Some(full_id.to_string()),
         false,
     );

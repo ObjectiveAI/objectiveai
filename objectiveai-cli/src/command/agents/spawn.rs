@@ -58,8 +58,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
 
     let raw = instance_subprocess_stream(
         ctx,
-        &["agents", "spawn"],
-        &params,
+        crate::instance::request::InstanceEndpoint::AgentsSpawn(params),
         None,
         stream,
     );

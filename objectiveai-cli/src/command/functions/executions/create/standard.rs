@@ -59,8 +59,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
 
     let raw = instance_subprocess_stream(
         ctx,
-        &["functions", "executions", "create", "standard"],
-        &params,
+        crate::instance::request::InstanceEndpoint::FunctionsExecutionsCreate(params),
         None,
         stream,
     );

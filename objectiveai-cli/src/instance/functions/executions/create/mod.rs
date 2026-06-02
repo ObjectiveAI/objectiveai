@@ -6,46 +6,30 @@ use objectiveai_sdk::cli::output::Handle;
 use objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams;
 use objectiveai_sdk::functions::executions::response::streaming::FunctionExecutionChunk;
 
-use crate::instance::api::{BodySource, HttpArgs, PipeArgs};
+use crate::instance::request::{HttpConfig, PipeConfig};
 use crate::instance::streaming;
 
-/// Run a function execution stream end-to-end.
-///
-/// 1. Build the HTTP client + MCP conduit from the parsed args.
-/// 2. Build a `LogWriter<FunctionExecutionChunk>` rooted at
-///    `${config_base_dir}/logs/` — same on-disk layout the regular
-///    CLI produces.
-/// 3. Open the streaming WS via the SDK.
-/// 4. Hand off to [`streaming::run_chunk_loop`] which prints each
-///    chunk as NDJSON, manages per-agent pipes, writes to the log on
-///    a separate coalescing task, emits `LogStreamReady` once the
-///    root log id is known, and accumulates.
-/// 5. On stream end, surface any root-level execution error.
-pub async fn handle(
-    http: &HttpArgs,
-    pipes: &PipeArgs,
-    body: BodySource,
+pub async fn execute(
+    http: &HttpConfig,
+    pipes: &PipeConfig,
+    params: FunctionExecutionCreateParams,
     handle: &Handle,
 ) -> Result<(), String> {
-    let params: FunctionExecutionCreateParams = body.resolve()?;
-    let config_base_dir = pipes.config_base_dir()?.to_path_buf();
-    let pipes_root = pipes.pipes_root()?;
+    let config_base_dir = pipes.config_base_dir().to_path_buf();
+    let pipes_root = pipes.pipes_root();
     let client = http.build_http_client()?;
     let conduit = pipes.build_conduit();
 
     let registry = crate::instance::pipes::PipeRegistry::new();
     pipes.try_eager_acquire(&registry, handle).await?;
 
-    // Build the on-disk log writer. `filesystem::Client::logs_dir()`
-    // = `${base_dir}/logs`, so this lands at
-    // `${config_base_dir}/logs/functions/executions/<fexc-id>/...` —
-    // byte-identical to `objectiveai-cli functions executions create`.
     let fs_client = crate::filesystem::Client::new(
         Some(config_base_dir),
         None::<String>,
         None::<String>,
     );
-    let caller_agent_instance_hierarchy = http.objectiveai_agent_instance_hierarchy.clone();
+    let caller_agent_instance_hierarchy =
+        http.objectiveai_agent_instance_hierarchy.clone();
     let log_writer = fs_client
         .write_function_execution(&params)
         .map_err(|e| format!("failed to build function-execution log writer: {e}"))?
@@ -63,11 +47,6 @@ pub async fn handle(
 
     let stream = Box::pin(stream);
 
-    // Function-execution chunks fan out N nested agent completions;
-    // each completion's chunk carries its winner response_id. Wire
-    // the per-chunk callback so the conduit can evict that group's
-    // losers as soon as the winner emerges, even though the
-    // selections land in arbitrary order over time.
     let conduit_for_drop = conduit.clone();
     let consumed = streaming::run_chunk_loop::<_, FunctionExecutionChunk, _, _>(
         stream,

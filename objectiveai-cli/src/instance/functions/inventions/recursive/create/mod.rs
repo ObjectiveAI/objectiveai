@@ -7,18 +7,17 @@ use objectiveai_sdk::cli::output::Handle;
 use objectiveai_sdk::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams;
 use objectiveai_sdk::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk;
 
-use crate::instance::api::{BodySource, HttpArgs, PipeArgs};
+use crate::instance::request::{HttpConfig, PipeConfig};
 use crate::instance::streaming;
 
-pub async fn handle(
-    http: &HttpArgs,
-    pipes: &PipeArgs,
-    body: BodySource,
+pub async fn execute(
+    http: &HttpConfig,
+    pipes: &PipeConfig,
+    params: FunctionInventionRecursiveCreateParams,
     handle: &Handle,
 ) -> Result<(), String> {
-    let params: FunctionInventionRecursiveCreateParams = body.resolve()?;
-    let config_base_dir = pipes.config_base_dir()?.to_path_buf();
-    let pipes_root = pipes.pipes_root()?;
+    let config_base_dir = pipes.config_base_dir().to_path_buf();
+    let pipes_root = pipes.pipes_root();
     let client = http.build_http_client()?;
     let conduit = pipes.build_conduit();
 
@@ -30,7 +29,8 @@ pub async fn handle(
         None::<String>,
         None::<String>,
     );
-    let caller_agent_instance_hierarchy = http.objectiveai_agent_instance_hierarchy.clone();
+    let caller_agent_instance_hierarchy =
+        http.objectiveai_agent_instance_hierarchy.clone();
     let log_writer = fs_client
         .write_function_invention_recursive(&params)
         .map_err(|e| format!("failed to build function-invention-recursive log writer: {e}"))?
@@ -46,16 +46,6 @@ pub async fn handle(
 
     let stream = Box::pin(stream);
 
-    // `FunctionInventionRecursiveChunk` has no top-level `error`
-    // field — only `inventions_errors: Option<bool>` (a flag) and
-    // per-invention inner errors that ride out on the NDJSON chunk
-    // stream. The fatal-error post-condition the other endpoints
-    // surface doesn't apply here.
-    //
-    // Recursive-invention chunks fan out many agent completions over
-    // time. Wire the per-chunk callback so each winner response_id
-    // triggers a group-local sweep limited to that completion's
-    // siblings.
     let conduit_for_drop = conduit.clone();
     let _consumed = streaming::run_chunk_loop::<_, FunctionInventionRecursiveChunk, _, _>(
         stream,
