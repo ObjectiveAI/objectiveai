@@ -105,7 +105,6 @@ impl PipeConfig {
     pub async fn try_eager_acquire(
         &self,
         registry: &crate::instance::pipes::PipeRegistry,
-        handle: &objectiveai_sdk::cli::output::Handle,
     ) -> Result<(), String> {
         let Some(bind_agent_instance_hierarchy) = self.bind_agent_instance_hierarchy.as_deref()
         else {
@@ -113,7 +112,7 @@ impl PipeConfig {
         };
         let pipes_root = self.pipes_root();
         match registry
-            .try_acquire_pipe(bind_agent_instance_hierarchy, &pipes_root, handle)
+            .try_acquire_pipe(bind_agent_instance_hierarchy, &pipes_root)
             .await
         {
             Ok(()) => Ok(()),

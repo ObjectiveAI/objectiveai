@@ -36,12 +36,9 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio_stream::wrappers::ReceiverStream;
 
-use objectiveai_sdk::cli::output::{
-    LogStreamReady, Notification, NotificationValue, Output, TypedNotificationValue,
-};
-
 use crate::context::Context;
 use crate::error::Error;
+use crate::instance::InstanceEmission;
 use crate::instance::handshake::{self, PIPE_ENV};
 use crate::instance::request::{HttpConfig, InstanceEndpoint, InstanceRequest, PipeConfig};
 
@@ -235,35 +232,24 @@ async fn run_subprocess(
         if trimmed.is_empty() {
             continue;
         }
-        let out: Output = serde_json::from_str(trimmed).unwrap_or_else(|e| {
-            panic!("instance-runner stdout produced a non-JSONL line: {trimmed}; parse error: {e}")
+        let emission: InstanceEmission = serde_json::from_str(trimmed).unwrap_or_else(|e| {
+            panic!("instance-runner stdout produced a non-InstanceEmission line: {trimmed}; parse error: {e}")
         });
-        match out {
-            Output::Notification(n) => {
-                match handle_notification(n, stream, &tx).await {
-                    HandleOutcome::DetachReturn => {
-                        // `stream == false` path: yielded the Id, the
-                        // instance-runner child keeps running orphaned.
-                        // Drop the stderr task (the child is on its own
-                        // now) and return without reaping.
-                        drop(stderr_task);
-                        // Ensure the JSON blob made it to the child
-                        // before we walk away.
-                        let _ = write_handle.await;
-                        return Ok(());
-                    }
-                    HandleOutcome::SawHandshake => {
-                        handshake_seen = true;
-                    }
-                    HandleOutcome::Continue => {}
-                    HandleOutcome::ConsumerGone => return Ok(()),
-                }
+        match handle_emission(emission, stream, &tx).await {
+            HandleOutcome::DetachReturn => {
+                // `stream == false` path: yielded the Id, the
+                // instance-runner child keeps running orphaned. Drop
+                // the stderr task (the child is on its own now) and
+                // return without reaping.
+                drop(stderr_task);
+                let _ = write_handle.await;
+                return Ok(());
             }
-            Output::Error(_e) => {
-                // Per-chunk errors from the runner are dropped at this
-                // boundary — leaves return their own typed Result-stream
-                // and don't have a `handle.emit()` to forward to.
+            HandleOutcome::SawHandshake => {
+                handshake_seen = true;
             }
+            HandleOutcome::Continue => {}
+            HandleOutcome::ConsumerGone => return Ok(()),
         }
     }
 
@@ -337,15 +323,13 @@ enum HandleOutcome {
     ConsumerGone,
 }
 
-async fn handle_notification(
-    n: Notification,
+async fn handle_emission(
+    emission: InstanceEmission,
     stream: bool,
     tx: &tokio::sync::mpsc::Sender<Result<InstanceItem, Error>>,
 ) -> HandleOutcome {
-    match n.value {
-        NotificationValue::Typed(TypedNotificationValue::LogStreamReady(
-            LogStreamReady { log_stream_ready },
-        )) => {
+    match emission {
+        InstanceEmission::LogStreamReady { log_stream_ready } => {
             if tx.send(Ok(InstanceItem::Id(log_stream_ready))).await.is_err() {
                 return HandleOutcome::ConsumerGone;
             }
@@ -355,17 +339,21 @@ async fn handle_notification(
                 HandleOutcome::DetachReturn
             }
         }
-        NotificationValue::Other(map) => {
+        InstanceEmission::Chunk(value) => {
             if !stream {
                 return HandleOutcome::Continue;
             }
-            let value = serde_json::Value::Object(map);
             if tx.send(Ok(InstanceItem::Chunk(value))).await.is_err() {
                 return HandleOutcome::ConsumerGone;
             }
             HandleOutcome::Continue
         }
-        _ => HandleOutcome::Continue,
+        InstanceEmission::Warning { .. } => {
+            // Warnings are non-fatal informational lines from the
+            // instance runtime. Drop at this boundary — leaves don't
+            // expose a warning channel on their typed stream today.
+            HandleOutcome::Continue
+        }
     }
 }
 

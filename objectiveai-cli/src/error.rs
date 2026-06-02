@@ -79,6 +79,10 @@ pub enum Error {
     Updater(String),
     #[error("instance runner: {0}")]
     Instance(String),
+    #[error("{0}")]
+    ClapParse(#[from] clap::Error),
+    #[error("argument parse error at `{}`: {}", .0.field, .0.source)]
+    FromArgs(#[from] objectiveai_sdk::cli::command::FromArgsError),
     #[error("{name} is already running (pids: {pids:?})")]
     AlreadyRunning { name: String, pids: Vec<u32> },
     #[error("{name} did not announce \"listening\" on stderr before exiting")]
