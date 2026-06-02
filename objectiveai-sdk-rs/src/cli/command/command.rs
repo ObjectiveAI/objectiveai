@@ -126,3 +126,129 @@ impl super::CommandRequest for Request {
         }
     }
 }
+
+#[cfg(feature = "cli-executor")]
+pub async fn execute<E: super::CommandExecutor>(
+    executor: &E,
+    request: Request,
+) -> Result<
+    std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>>,
+    E::Error,
+> {
+    use futures::StreamExt;
+    let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>> =
+        match request {
+            Request::Agents(req) => {
+                let inner = super::agents::execute(executor, req).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Agents)))
+            }
+            Request::Config(req) => {
+                let inner = super::config::execute(executor, req).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Config)))
+            }
+            Request::Functions(req) => {
+                let inner = super::functions::execute(executor, req).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Functions)))
+            }
+            Request::Logs(req) => {
+                let inner = super::logs::execute(executor, req).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Logs)))
+            }
+            Request::Mcp(req) => {
+                let inner = super::mcp::execute(executor, req).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Mcp)))
+            }
+            Request::Plugins(req) => {
+                let inner = super::plugins::execute(executor, req).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Plugins)))
+            }
+            Request::Swarms(req) => {
+                let inner = super::swarms::execute(executor, req).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Swarms)))
+            }
+            Request::Tools(req) => {
+                let inner = super::tools::execute(executor, req).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Tools)))
+            }
+            Request::Update(req) => {
+                let value = super::update::execute(executor, req).await?;
+                Box::pin(super::StreamOnce::new(Ok(ResponseItem::Update(value))))
+            }
+            Request::UpdateRequestSchema(req) => {
+                let value = super::update::request_schema::execute(executor, req).await?;
+                Box::pin(super::StreamOnce::new(Ok(ResponseItem::UpdateRequestSchema(value))))
+            }
+            Request::UpdateResponseSchema(req) => {
+                let value = super::update::response_schema::execute(executor, req).await?;
+                Box::pin(super::StreamOnce::new(Ok(ResponseItem::UpdateResponseSchema(value))))
+            }
+            Request::Viewer(req) => {
+                let inner = super::viewer::execute(executor, req).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Viewer)))
+            }
+        };
+    Ok(stream)
+}
+
+#[cfg(feature = "cli-executor")]
+pub async fn execute_jq<E: super::CommandExecutor>(
+    executor: &E,
+    request: Request,
+    jq: String,
+) -> Result<
+    std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>>,
+    E::Error,
+> {
+    let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
+        match request {
+            Request::Agents(req) => {
+                let inner = super::agents::execute_jq(executor, req, jq).await?;
+                Box::pin(inner)
+            }
+            Request::Config(req) => {
+                let inner = super::config::execute_jq(executor, req, jq).await?;
+                Box::pin(inner)
+            }
+            Request::Functions(req) => {
+                let inner = super::functions::execute_jq(executor, req, jq).await?;
+                Box::pin(inner)
+            }
+            Request::Logs(req) => {
+                let inner = super::logs::execute_jq(executor, req, jq).await?;
+                Box::pin(inner)
+            }
+            Request::Mcp(req) => {
+                let inner = super::mcp::execute_jq(executor, req, jq).await?;
+                Box::pin(inner)
+            }
+            Request::Plugins(req) => {
+                let inner = super::plugins::execute_jq(executor, req, jq).await?;
+                Box::pin(inner)
+            }
+            Request::Swarms(req) => {
+                let inner = super::swarms::execute_jq(executor, req, jq).await?;
+                Box::pin(inner)
+            }
+            Request::Tools(req) => {
+                let inner = super::tools::execute_jq(executor, req, jq).await?;
+                Box::pin(inner)
+            }
+            Request::Update(req) => {
+                let value = super::update::execute_jq(executor, req, jq).await?;
+                Box::pin(super::StreamOnce::new(Ok(value)))
+            }
+            Request::UpdateRequestSchema(req) => {
+                let value = super::update::request_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(super::StreamOnce::new(Ok(value)))
+            }
+            Request::UpdateResponseSchema(req) => {
+                let value = super::update::response_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(super::StreamOnce::new(Ok(value)))
+            }
+            Request::Viewer(req) => {
+                let inner = super::viewer::execute_jq(executor, req, jq).await?;
+                Box::pin(inner)
+            }
+        };
+    Ok(stream)
+}

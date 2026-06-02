@@ -61,3 +61,133 @@ impl crate::cli::command::CommandRequest for Request {
         }
     }
 }
+
+#[cfg(feature = "cli-executor")]
+pub async fn execute<E: crate::cli::command::CommandExecutor>(
+    executor: &E,
+    request: Request,
+) -> Result<
+    std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>>,
+    E::Error,
+> {
+    use futures::StreamExt;
+    let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>> =
+        match request {
+            Request::Standard(req) => {
+                let want_streaming = req
+                    .dangerous_advanced
+                    .as_ref()
+                    .and_then(|a| a.stream)
+                    .unwrap_or(false);
+                if want_streaming {
+                    let inner = standard::execute_streaming(executor, req).await?;
+                    Box::pin(inner.map(|r| r.map(ResponseItem::Standard)))
+                } else {
+                    let value = standard::execute(executor, req).await?;
+                    Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                        ResponseItem::Standard(standard::ResponseItem::Id(value)),
+                    )))
+                }
+            }
+            Request::StandardRequestSchema(req) => {
+                let value = standard::request_schema::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::StandardRequestSchema(value),
+                )))
+            }
+            Request::StandardResponseSchema(req) => {
+                let value = standard::response_schema::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::StandardResponseSchema(value),
+                )))
+            }
+            Request::SwissSystem(req) => {
+                let want_streaming = req
+                    .dangerous_advanced
+                    .as_ref()
+                    .and_then(|a| a.stream)
+                    .unwrap_or(false);
+                if want_streaming {
+                    let inner = swiss_system::execute_streaming(executor, req).await?;
+                    Box::pin(inner.map(|r| r.map(ResponseItem::SwissSystem)))
+                } else {
+                    let value = swiss_system::execute(executor, req).await?;
+                    Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                        ResponseItem::SwissSystem(swiss_system::ResponseItem::Id(value)),
+                    )))
+                }
+            }
+            Request::SwissSystemRequestSchema(req) => {
+                let value = swiss_system::request_schema::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::SwissSystemRequestSchema(value),
+                )))
+            }
+            Request::SwissSystemResponseSchema(req) => {
+                let value = swiss_system::response_schema::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::SwissSystemResponseSchema(value),
+                )))
+            }
+        };
+    Ok(stream)
+}
+
+#[cfg(feature = "cli-executor")]
+pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
+    executor: &E,
+    request: Request,
+    jq: String,
+) -> Result<
+    std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>>,
+    E::Error,
+> {
+    let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
+        match request {
+            Request::Standard(req) => {
+                let want_streaming = req
+                    .dangerous_advanced
+                    .as_ref()
+                    .and_then(|a| a.stream)
+                    .unwrap_or(false);
+                if want_streaming {
+                    let inner = standard::execute_streaming_jq(executor, req, jq).await?;
+                    Box::pin(inner)
+                } else {
+                    let value = standard::execute_jq(executor, req, jq).await?;
+                    Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+                }
+            }
+            Request::StandardRequestSchema(req) => {
+                let value = standard::request_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::StandardResponseSchema(req) => {
+                let value = standard::response_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::SwissSystem(req) => {
+                let want_streaming = req
+                    .dangerous_advanced
+                    .as_ref()
+                    .and_then(|a| a.stream)
+                    .unwrap_or(false);
+                if want_streaming {
+                    let inner = swiss_system::execute_streaming_jq(executor, req, jq).await?;
+                    Box::pin(inner)
+                } else {
+                    let value = swiss_system::execute_jq(executor, req, jq).await?;
+                    Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+                }
+            }
+            Request::SwissSystemRequestSchema(req) => {
+                let value = swiss_system::request_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::SwissSystemResponseSchema(req) => {
+                let value = swiss_system::response_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+        };
+    Ok(stream)
+}

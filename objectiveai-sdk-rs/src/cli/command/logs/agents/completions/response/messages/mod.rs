@@ -179,3 +179,203 @@ impl crate::cli::command::CommandRequest for Request {
         }
     }
 }
+
+#[cfg(feature = "cli-executor")]
+pub async fn execute<E: crate::cli::command::CommandExecutor>(
+    executor: &E,
+    request: Request,
+) -> Result<
+    std::pin::Pin<Box<dyn futures::Stream<Item = Result<Response, E::Error>> + Send>>,
+    E::Error,
+> {
+    use futures::StreamExt;
+    let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<Response, E::Error>> + Send>> =
+        match request {
+            Request::Audio(req) => {
+                let inner = audio::execute(executor, req).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Audio)))
+            }
+            Request::Clear(req) => {
+                let value = clear::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::Clear(value),
+                )))
+            }
+            Request::ClearRequestSchema(req) => {
+                let value = clear::request_schema::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::ClearRequestSchema(value),
+                )))
+            }
+            Request::ClearResponseSchema(req) => {
+                let value = clear::response_schema::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::ClearResponseSchema(value),
+                )))
+            }
+            Request::File(req) => {
+                let inner = file::execute(executor, req).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::File)))
+            }
+            Request::Get(req) => {
+                let value = get::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::Get(value),
+                )))
+            }
+            Request::GetRequestSchema(req) => {
+                let value = get::request_schema::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::GetRequestSchema(value),
+                )))
+            }
+            Request::GetResponseSchema(req) => {
+                let value = get::response_schema::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::GetResponseSchema(value),
+                )))
+            }
+            Request::Image(req) => {
+                let inner = image::execute(executor, req).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Image)))
+            }
+            Request::Logprobs(req) => {
+                let inner = logprobs::execute(executor, req).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Logprobs)))
+            }
+            Request::Reasoning(req) => {
+                let inner = reasoning::execute(executor, req).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Reasoning)))
+            }
+            Request::Refusal(req) => {
+                let inner = refusal::execute(executor, req).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Refusal)))
+            }
+            Request::Subscribe(req) => {
+                let value = subscribe::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::Subscribe(value),
+                )))
+            }
+            Request::SubscribeRequestSchema(req) => {
+                let value = subscribe::request_schema::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::SubscribeRequestSchema(value),
+                )))
+            }
+            Request::SubscribeResponseSchema(req) => {
+                let value = subscribe::response_schema::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::SubscribeResponseSchema(value),
+                )))
+            }
+            Request::Text(req) => {
+                let inner = text::execute(executor, req).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Text)))
+            }
+            Request::Tool(req) => {
+                let inner = tool::execute(executor, req).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Tool)))
+            }
+            Request::ToolCalls(req) => {
+                let inner = tool_calls::execute(executor, req).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::ToolCalls)))
+            }
+            Request::Video(req) => {
+                let inner = video::execute(executor, req).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Video)))
+            }
+        };
+    Ok(stream)
+}
+
+#[cfg(feature = "cli-executor")]
+pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
+    executor: &E,
+    request: Request,
+    jq: String,
+) -> Result<
+    std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>>,
+    E::Error,
+> {
+    let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
+        match request {
+            Request::Audio(req) => {
+                let inner = audio::execute_jq(executor, req, jq).await?;
+                Box::pin(inner)
+            }
+            Request::Clear(req) => {
+                let value = clear::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::ClearRequestSchema(req) => {
+                let value = clear::request_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::ClearResponseSchema(req) => {
+                let value = clear::response_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::File(req) => {
+                let inner = file::execute_jq(executor, req, jq).await?;
+                Box::pin(inner)
+            }
+            Request::Get(req) => {
+                let value = get::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::GetRequestSchema(req) => {
+                let value = get::request_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::GetResponseSchema(req) => {
+                let value = get::response_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::Image(req) => {
+                let inner = image::execute_jq(executor, req, jq).await?;
+                Box::pin(inner)
+            }
+            Request::Logprobs(req) => {
+                let inner = logprobs::execute_jq(executor, req, jq).await?;
+                Box::pin(inner)
+            }
+            Request::Reasoning(req) => {
+                let inner = reasoning::execute_jq(executor, req, jq).await?;
+                Box::pin(inner)
+            }
+            Request::Refusal(req) => {
+                let inner = refusal::execute_jq(executor, req, jq).await?;
+                Box::pin(inner)
+            }
+            Request::Subscribe(req) => {
+                let value = subscribe::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::SubscribeRequestSchema(req) => {
+                let value = subscribe::request_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::SubscribeResponseSchema(req) => {
+                let value = subscribe::response_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::Text(req) => {
+                let inner = text::execute_jq(executor, req, jq).await?;
+                Box::pin(inner)
+            }
+            Request::Tool(req) => {
+                let inner = tool::execute_jq(executor, req, jq).await?;
+                Box::pin(inner)
+            }
+            Request::ToolCalls(req) => {
+                let inner = tool_calls::execute_jq(executor, req, jq).await?;
+                Box::pin(inner)
+            }
+            Request::Video(req) => {
+                let inner = video::execute_jq(executor, req, jq).await?;
+                Box::pin(inner)
+            }
+        };
+    Ok(stream)
+}

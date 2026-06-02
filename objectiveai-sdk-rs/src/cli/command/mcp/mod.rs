@@ -61,3 +61,93 @@ impl crate::cli::command::CommandRequest for Request {
         }
     }
 }
+
+#[cfg(feature = "cli-executor")]
+pub async fn execute<E: crate::cli::command::CommandExecutor>(
+    executor: &E,
+    request: Request,
+) -> Result<
+    std::pin::Pin<Box<dyn futures::Stream<Item = Result<Response, E::Error>> + Send>>,
+    E::Error,
+> {
+    use futures::StreamExt;
+    let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<Response, E::Error>> + Send>> =
+        match request {
+            Request::Kill(req) => {
+                let value = kill::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::Kill(value),
+                )))
+            }
+            Request::KillRequestSchema(req) => {
+                let value = kill::request_schema::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::KillRequestSchema(value),
+                )))
+            }
+            Request::KillResponseSchema(req) => {
+                let value = kill::response_schema::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::KillResponseSchema(value),
+                )))
+            }
+            Request::Spawn(req) => {
+                let value = spawn::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::Spawn(value),
+                )))
+            }
+            Request::SpawnRequestSchema(req) => {
+                let value = spawn::request_schema::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::SpawnRequestSchema(value),
+                )))
+            }
+            Request::SpawnResponseSchema(req) => {
+                let value = spawn::response_schema::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::SpawnResponseSchema(value),
+                )))
+            }
+        };
+    Ok(stream)
+}
+
+#[cfg(feature = "cli-executor")]
+pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
+    executor: &E,
+    request: Request,
+    jq: String,
+) -> Result<
+    std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>>,
+    E::Error,
+> {
+    let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
+        match request {
+            Request::Kill(req) => {
+                let value = kill::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::KillRequestSchema(req) => {
+                let value = kill::request_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::KillResponseSchema(req) => {
+                let value = kill::response_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::Spawn(req) => {
+                let value = spawn::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::SpawnRequestSchema(req) => {
+                let value = spawn::request_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::SpawnResponseSchema(req) => {
+                let value = spawn::response_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+        };
+    Ok(stream)
+}

@@ -61,3 +61,93 @@ impl crate::cli::command::CommandRequest for Request {
         }
     }
 }
+
+#[cfg(feature = "cli-executor")]
+pub async fn execute<E: crate::cli::command::CommandExecutor>(
+    executor: &E,
+    request: Request,
+) -> Result<
+    std::pin::Pin<Box<dyn futures::Stream<Item = Result<Response, E::Error>> + Send>>,
+    E::Error,
+> {
+    use futures::StreamExt;
+    let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<Response, E::Error>> + Send>> =
+        match request {
+            Request::Filesystem(req) => {
+                let value = filesystem::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::Filesystem(value),
+                )))
+            }
+            Request::FilesystemRequestSchema(req) => {
+                let value = filesystem::request_schema::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::FilesystemRequestSchema(value),
+                )))
+            }
+            Request::FilesystemResponseSchema(req) => {
+                let value = filesystem::response_schema::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::FilesystemResponseSchema(value),
+                )))
+            }
+            Request::Github(req) => {
+                let value = github::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::Github(value),
+                )))
+            }
+            Request::GithubRequestSchema(req) => {
+                let value = github::request_schema::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::GithubRequestSchema(value),
+                )))
+            }
+            Request::GithubResponseSchema(req) => {
+                let value = github::response_schema::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::GithubResponseSchema(value),
+                )))
+            }
+        };
+    Ok(stream)
+}
+
+#[cfg(feature = "cli-executor")]
+pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
+    executor: &E,
+    request: Request,
+    jq: String,
+) -> Result<
+    std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>>,
+    E::Error,
+> {
+    let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
+        match request {
+            Request::Filesystem(req) => {
+                let value = filesystem::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::FilesystemRequestSchema(req) => {
+                let value = filesystem::request_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::FilesystemResponseSchema(req) => {
+                let value = filesystem::response_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::Github(req) => {
+                let value = github::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::GithubRequestSchema(req) => {
+                let value = github::request_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::GithubResponseSchema(req) => {
+                let value = github::response_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+        };
+    Ok(stream)
+}

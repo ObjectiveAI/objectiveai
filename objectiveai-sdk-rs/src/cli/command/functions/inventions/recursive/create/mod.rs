@@ -79,3 +79,183 @@ impl crate::cli::command::CommandRequest for Request {
         }
     }
 }
+
+#[cfg(feature = "cli-executor")]
+pub async fn execute<E: crate::cli::command::CommandExecutor>(
+    executor: &E,
+    request: Request,
+) -> Result<
+    std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>>,
+    E::Error,
+> {
+    use futures::StreamExt;
+    let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>> =
+        match request {
+            Request::AlphaScalar(req) => {
+                let want_streaming = req
+                    .dangerous_advanced
+                    .as_ref()
+                    .and_then(|a| a.stream)
+                    .unwrap_or(false);
+                if want_streaming {
+                    let inner = alpha_scalar::execute_streaming(executor, req).await?;
+                    Box::pin(inner.map(|r| r.map(ResponseItem::AlphaScalar)))
+                } else {
+                    let value = alpha_scalar::execute(executor, req).await?;
+                    Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                        ResponseItem::AlphaScalar(alpha_scalar::ResponseItem::Id(value)),
+                    )))
+                }
+            }
+            Request::AlphaScalarRequestSchema(req) => {
+                let value = alpha_scalar::request_schema::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::AlphaScalarRequestSchema(value),
+                )))
+            }
+            Request::AlphaScalarResponseSchema(req) => {
+                let value = alpha_scalar::response_schema::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::AlphaScalarResponseSchema(value),
+                )))
+            }
+            Request::AlphaVector(req) => {
+                let want_streaming = req
+                    .dangerous_advanced
+                    .as_ref()
+                    .and_then(|a| a.stream)
+                    .unwrap_or(false);
+                if want_streaming {
+                    let inner = alpha_vector::execute_streaming(executor, req).await?;
+                    Box::pin(inner.map(|r| r.map(ResponseItem::AlphaVector)))
+                } else {
+                    let value = alpha_vector::execute(executor, req).await?;
+                    Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                        ResponseItem::AlphaVector(alpha_vector::ResponseItem::Id(value)),
+                    )))
+                }
+            }
+            Request::AlphaVectorRequestSchema(req) => {
+                let value = alpha_vector::request_schema::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::AlphaVectorRequestSchema(value),
+                )))
+            }
+            Request::AlphaVectorResponseSchema(req) => {
+                let value = alpha_vector::response_schema::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::AlphaVectorResponseSchema(value),
+                )))
+            }
+            Request::Remote(req) => {
+                let want_streaming = req
+                    .dangerous_advanced
+                    .as_ref()
+                    .and_then(|a| a.stream)
+                    .unwrap_or(false);
+                if want_streaming {
+                    let inner = remote::execute_streaming(executor, req).await?;
+                    Box::pin(inner.map(|r| r.map(ResponseItem::Remote)))
+                } else {
+                    let value = remote::execute(executor, req).await?;
+                    Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                        ResponseItem::Remote(remote::ResponseItem::Id(value)),
+                    )))
+                }
+            }
+            Request::RemoteRequestSchema(req) => {
+                let value = remote::request_schema::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::RemoteRequestSchema(value),
+                )))
+            }
+            Request::RemoteResponseSchema(req) => {
+                let value = remote::response_schema::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::RemoteResponseSchema(value),
+                )))
+            }
+        };
+    Ok(stream)
+}
+
+#[cfg(feature = "cli-executor")]
+pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
+    executor: &E,
+    request: Request,
+    jq: String,
+) -> Result<
+    std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>>,
+    E::Error,
+> {
+    let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
+        match request {
+            Request::AlphaScalar(req) => {
+                let want_streaming = req
+                    .dangerous_advanced
+                    .as_ref()
+                    .and_then(|a| a.stream)
+                    .unwrap_or(false);
+                if want_streaming {
+                    let inner = alpha_scalar::execute_streaming_jq(executor, req, jq).await?;
+                    Box::pin(inner)
+                } else {
+                    let value = alpha_scalar::execute_jq(executor, req, jq).await?;
+                    Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+                }
+            }
+            Request::AlphaScalarRequestSchema(req) => {
+                let value = alpha_scalar::request_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::AlphaScalarResponseSchema(req) => {
+                let value = alpha_scalar::response_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::AlphaVector(req) => {
+                let want_streaming = req
+                    .dangerous_advanced
+                    .as_ref()
+                    .and_then(|a| a.stream)
+                    .unwrap_or(false);
+                if want_streaming {
+                    let inner = alpha_vector::execute_streaming_jq(executor, req, jq).await?;
+                    Box::pin(inner)
+                } else {
+                    let value = alpha_vector::execute_jq(executor, req, jq).await?;
+                    Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+                }
+            }
+            Request::AlphaVectorRequestSchema(req) => {
+                let value = alpha_vector::request_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::AlphaVectorResponseSchema(req) => {
+                let value = alpha_vector::response_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::Remote(req) => {
+                let want_streaming = req
+                    .dangerous_advanced
+                    .as_ref()
+                    .and_then(|a| a.stream)
+                    .unwrap_or(false);
+                if want_streaming {
+                    let inner = remote::execute_streaming_jq(executor, req, jq).await?;
+                    Box::pin(inner)
+                } else {
+                    let value = remote::execute_jq(executor, req, jq).await?;
+                    Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+                }
+            }
+            Request::RemoteRequestSchema(req) => {
+                let value = remote::request_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::RemoteResponseSchema(req) => {
+                let value = remote::response_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+        };
+    Ok(stream)
+}
