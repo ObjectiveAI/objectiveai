@@ -1,1 +1,0 @@
-//! `vector completions logs clear` — async handler stub.
