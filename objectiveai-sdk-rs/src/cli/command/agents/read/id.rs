@@ -21,25 +21,26 @@ impl CommandRequest for Request {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
 pub enum Response {
-    // Typed log envelopes — each carries the matching `logs <…> get`
-    // leaf's Response so the type stays in one place.
-    AgentCompletion(crate::cli::command::logs::agents::completions::response::get::Response),
-    AgentCompletionRequest(crate::cli::command::logs::agents::completions::request::get::Response),
-    Message(crate::cli::command::logs::agents::completions::response::messages::get::Response),
-    Logprobs(crate::cli::command::logs::agents::completions::response::messages::logprobs::get::Response),
-    ToolCall(crate::cli::command::logs::agents::completions::response::messages::tool_calls::get::Response),
+    // Typed log envelopes — each variant name is the PascalCase form
+    // of its full leaf path under `logs/`, and the payload aliases the
+    // matching `… ::get::Response` so the type stays in one place.
+    AgentsCompletionsResponse(crate::cli::command::logs::agents::completions::response::get::Response),
+    AgentsCompletionsRequest(crate::cli::command::logs::agents::completions::request::get::Response),
+    AgentsCompletionsResponseMessages(crate::cli::command::logs::agents::completions::response::messages::get::Response),
+    AgentsCompletionsResponseMessagesLogprobs(crate::cli::command::logs::agents::completions::response::messages::logprobs::get::Response),
+    AgentsCompletionsResponseMessagesToolCalls(crate::cli::command::logs::agents::completions::response::messages::tool_calls::get::Response),
 
-    VectorCompletion(crate::cli::command::logs::vector::completions::response::get::Response),
-    VectorCompletionRequest(crate::cli::command::logs::vector::completions::request::get::Response),
+    VectorCompletionsResponse(crate::cli::command::logs::vector::completions::response::get::Response),
+    VectorCompletionsRequest(crate::cli::command::logs::vector::completions::request::get::Response),
 
-    FunctionExecution(crate::cli::command::logs::functions::executions::response::get::Response),
-    FunctionExecutionRequest(crate::cli::command::logs::functions::executions::request::get::Response),
+    FunctionsExecutionsResponse(crate::cli::command::logs::functions::executions::response::get::Response),
+    FunctionsExecutionsRequest(crate::cli::command::logs::functions::executions::request::get::Response),
 
-    FunctionInvention(crate::cli::command::logs::functions::inventions::response::get::Response),
-    FunctionInventionRequest(crate::cli::command::logs::functions::inventions::request::get::Response),
+    FunctionsInventionsResponse(crate::cli::command::logs::functions::inventions::response::get::Response),
+    FunctionsInventionsRequest(crate::cli::command::logs::functions::inventions::request::get::Response),
 
-    FunctionInventionRecursive(crate::cli::command::logs::functions::inventions::recursive::response::get::Response),
-    FunctionInventionRecursiveRequest(crate::cli::command::logs::functions::inventions::recursive::request::get::Response),
+    FunctionsInventionsRecursiveResponse(crate::cli::command::logs::functions::inventions::recursive::response::get::Response),
+    FunctionsInventionsRecursiveRequest(crate::cli::command::logs::functions::inventions::recursive::request::get::Response),
 
     // Collapsed text/media — one variant per content kind, regardless
     // of where the file lives. Untagged tuple variants, no wrapper keys.
