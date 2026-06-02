@@ -57,11 +57,26 @@ pub enum Response {
     File(crate::agent::completions::message::File),
 }
 
+#[derive(clap::Args)]
+pub struct Args {
+    /// Log row id.
+    pub id: i64,
+    /// jq filter applied to the JSON output.
+    #[arg(long)]
+    pub jq: Option<String>,
+}
+
 pub mod request_schema {
     use crate::cli::command::CommandRequest;
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub jq: Option<String>,
+    }
+
+    #[derive(clap::Args)]
+    pub struct Args {
+        #[arg(long)]
         pub jq: Option<String>,
     }
 
@@ -85,6 +100,12 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub jq: Option<String>,
+    }
+
+    #[derive(clap::Args)]
+    pub struct Args {
+        #[arg(long)]
         pub jq: Option<String>,
     }
 

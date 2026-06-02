@@ -26,11 +26,28 @@ impl CommandRequest for Request {
 
 pub type Response = crate::agent::response::GetAgentResponse;
 
+#[derive(clap::Args)]
+pub struct Args {
+    /// Path to the agent (favorite ref or remote path).
+    #[arg(long)]
+    pub path: String,
+    /// jq filter applied to the JSON output.
+    #[arg(long)]
+    pub jq: Option<String>,
+}
+
 pub mod request_schema {
     use crate::cli::command::CommandRequest;
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub jq: Option<String>,
+    }
+
+    #[cfg(feature = "cli")]
+    #[derive(clap::Args)]
+    pub struct Args {
+        #[arg(long)]
         pub jq: Option<String>,
     }
 
@@ -54,6 +71,13 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub jq: Option<String>,
+    }
+
+    #[cfg(feature = "cli")]
+    #[derive(clap::Args)]
+    pub struct Args {
+        #[arg(long)]
         pub jq: Option<String>,
     }
 

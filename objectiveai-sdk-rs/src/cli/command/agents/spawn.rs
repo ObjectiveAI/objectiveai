@@ -99,11 +99,65 @@ pub enum ResponseItem {
     Id(String),
 }
 
+#[derive(clap::Args)]
+pub struct Args {
+    #[command(flatten)]
+    pub prompt: PromptArgs,
+    #[command(flatten)]
+    pub agent: AgentArgs,
+    /// Seed for deterministic mock responses.
+    #[arg(long)]
+    pub seed: Option<i64>,
+    /// Raw JSON for `RequestDangerousAdvanced` (e.g. `{"stream":true}`).
+    #[arg(long)]
+    pub dangerous_advanced: Option<String>,
+    /// jq filter applied to the JSON output.
+    #[arg(long)]
+    pub jq: Option<String>,
+}
+
+#[derive(clap::Args)]
+#[group(required = true, multiple = false)]
+pub struct PromptArgs {
+    /// Plain text — becomes one user message.
+    #[arg(long)]
+    pub simple: Option<String>,
+    /// Inline JSON messages array.
+    #[arg(long)]
+    pub inline: Option<String>,
+    /// Path to a JSON file containing the messages array.
+    #[arg(long)]
+    pub file: Option<std::path::PathBuf>,
+    /// Inline Python code that produces the messages array.
+    #[arg(long)]
+    pub python_inline: Option<String>,
+    /// Path to a Python file that produces the messages array.
+    #[arg(long)]
+    pub python_file: Option<std::path::PathBuf>,
+}
+
+#[derive(clap::Args)]
+#[group(required = true, multiple = false)]
+pub struct AgentArgs {
+    /// Favorite-ref or remote-path string.
+    #[arg(long)]
+    pub agent: Option<String>,
+    /// Inline JSON for the full agent definition.
+    #[arg(long)]
+    pub agent_inline: Option<String>,
+}
+
 pub mod request_schema {
     use crate::cli::command::CommandRequest;
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub jq: Option<String>,
+    }
+
+    #[derive(clap::Args)]
+    pub struct Args {
+        #[arg(long)]
         pub jq: Option<String>,
     }
 
@@ -127,6 +181,12 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub jq: Option<String>,
+    }
+
+    #[derive(clap::Args)]
+    pub struct Args {
+        #[arg(long)]
         pub jq: Option<String>,
     }
 

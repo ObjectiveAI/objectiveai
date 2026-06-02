@@ -90,11 +90,62 @@ pub struct Response {
     pub sha: String,
 }
 
+#[derive(clap::Args)]
+pub struct Args {
+    /// Target repository.
+    #[arg(long)]
+    pub repository: String,
+    #[command(flatten)]
+    pub body: BodyArgs,
+    #[command(flatten)]
+    pub message: PublishMessageArgs,
+    /// Overwrite the existing entry if present.
+    #[arg(long)]
+    pub overwrite: bool,
+    /// jq filter applied to the JSON output.
+    #[arg(long)]
+    pub jq: Option<String>,
+}
+
+#[derive(clap::Args)]
+#[group(required = true, multiple = false)]
+pub struct BodyArgs {
+    /// Inline JSON body.
+    #[arg(long)]
+    pub body_inline: Option<String>,
+    /// Path to a JSON file.
+    #[arg(long)]
+    pub body_file: Option<std::path::PathBuf>,
+    /// Inline Python code that produces the JSON body.
+    #[arg(long)]
+    pub body_python_inline: Option<String>,
+    /// Path to a Python file that produces the JSON body.
+    #[arg(long)]
+    pub body_python_file: Option<std::path::PathBuf>,
+}
+
+#[derive(clap::Args)]
+#[group(required = true, multiple = false)]
+pub struct PublishMessageArgs {
+    /// Inline commit message.
+    #[arg(long)]
+    pub message_inline: Option<String>,
+    /// Path to a file containing the commit message.
+    #[arg(long)]
+    pub message_file: Option<std::path::PathBuf>,
+}
+
 pub mod request_schema {
     use crate::cli::command::CommandRequest;
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub jq: Option<String>,
+    }
+
+    #[derive(clap::Args)]
+    pub struct Args {
+        #[arg(long)]
         pub jq: Option<String>,
     }
 
@@ -118,6 +169,12 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub jq: Option<String>,
+    }
+
+    #[derive(clap::Args)]
+    pub struct Args {
+        #[arg(long)]
         pub jq: Option<String>,
     }
 

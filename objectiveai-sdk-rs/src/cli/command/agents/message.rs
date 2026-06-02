@@ -77,11 +77,51 @@ pub enum Response {
     Delivered { agent_id: String },
 }
 
+#[derive(clap::Args)]
+pub struct Args {
+    /// Lineage path of the target agent.
+    pub agent_instance_hierarchy: String,
+    #[command(flatten)]
+    pub message: MessageArgs,
+    /// Seed for deterministic mock responses.
+    #[arg(long)]
+    pub seed: Option<i64>,
+    /// jq filter applied to the JSON output.
+    #[arg(long)]
+    pub jq: Option<String>,
+}
+
+#[derive(clap::Args)]
+#[group(required = true, multiple = false)]
+pub struct MessageArgs {
+    /// Plain text — becomes one user message.
+    #[arg(long)]
+    pub simple: Option<String>,
+    /// Inline JSON `RichContent`.
+    #[arg(long)]
+    pub inline: Option<String>,
+    /// Path to a JSON file containing the rich content.
+    #[arg(long)]
+    pub file: Option<std::path::PathBuf>,
+    /// Inline Python code that produces the rich content.
+    #[arg(long)]
+    pub python_inline: Option<String>,
+    /// Path to a Python file that produces the rich content.
+    #[arg(long)]
+    pub python_file: Option<std::path::PathBuf>,
+}
+
 pub mod request_schema {
     use crate::cli::command::CommandRequest;
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub jq: Option<String>,
+    }
+
+    #[derive(clap::Args)]
+    pub struct Args {
+        #[arg(long)]
         pub jq: Option<String>,
     }
 
@@ -105,6 +145,12 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub jq: Option<String>,
+    }
+
+    #[derive(clap::Args)]
+    pub struct Args {
+        #[arg(long)]
         pub jq: Option<String>,
     }
 

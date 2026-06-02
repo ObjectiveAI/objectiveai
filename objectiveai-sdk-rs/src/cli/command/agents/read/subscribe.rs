@@ -3,7 +3,9 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "cli", clap(rename_all = "kebab-case"))]
 pub enum RequestMessageKind {
     AgentCompletionRequest,
     AgentCompletionResponse,
@@ -138,11 +140,29 @@ pub enum ResponseItem {
     },
 }
 
+#[derive(clap::Args)]
+pub struct Args {
+    /// Lineage path of the agent to subscribe to.
+    pub agent_instance_hierarchy: String,
+    /// Filter the stream to messages of this kind only.
+    #[arg(long, value_enum)]
+    pub kind: Option<RequestMessageKind>,
+    /// jq filter applied to the JSON output.
+    #[arg(long)]
+    pub jq: Option<String>,
+}
+
 pub mod request_schema {
     use crate::cli::command::CommandRequest;
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub jq: Option<String>,
+    }
+
+    #[derive(clap::Args)]
+    pub struct Args {
+        #[arg(long)]
         pub jq: Option<String>,
     }
 
@@ -166,6 +186,12 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub jq: Option<String>,
+    }
+
+    #[derive(clap::Args)]
+    pub struct Args {
+        #[arg(long)]
         pub jq: Option<String>,
     }
 

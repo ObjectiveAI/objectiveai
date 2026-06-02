@@ -32,11 +32,27 @@ pub struct ResponseItem {
     pub last_log: u64,
 }
 
+#[derive(clap::Args)]
+pub struct Args {
+    /// Filter to active agents under this caller lineage. Omit for all.
+    pub parent_agent_instance_hierarchy: Option<String>,
+    /// jq filter applied to the JSON output.
+    #[arg(long)]
+    pub jq: Option<String>,
+}
+
 pub mod request_schema {
     use crate::cli::command::CommandRequest;
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub jq: Option<String>,
+    }
+
+    #[cfg(feature = "cli")]
+    #[derive(clap::Args)]
+    pub struct Args {
+        #[arg(long)]
         pub jq: Option<String>,
     }
 
