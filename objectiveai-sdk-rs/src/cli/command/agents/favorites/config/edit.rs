@@ -39,3 +39,5 @@ impl IntoCommand for Request {
         argv
     }
 }
+
+pub use crate::cli::output::Ok as Response;

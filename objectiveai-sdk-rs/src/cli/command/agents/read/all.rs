@@ -17,3 +17,5 @@ impl IntoCommand for Request {
         argv
     }
 }
+
+pub use crate::cli::output::notification::agents::AgentItems as ResponseItem;

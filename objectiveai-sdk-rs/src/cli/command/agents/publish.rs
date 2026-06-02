@@ -76,3 +76,5 @@ impl IntoCommand for Request {
         argv
     }
 }
+
+pub use crate::cli::output::Published as Response;

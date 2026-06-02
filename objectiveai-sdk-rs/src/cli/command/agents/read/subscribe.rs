@@ -35,3 +35,8 @@ fn message_kind_flag(kind: &MessageKind) -> &'static str {
         MessageKind::Sweep => "sweep",
     }
 }
+
+pub enum ResponseItem {
+    Items(crate::cli::output::notification::agents::AgentItems),
+    Inactive(crate::cli::output::notification::agents::Inactive),
+}

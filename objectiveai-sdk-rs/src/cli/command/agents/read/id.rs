@@ -16,3 +16,5 @@ impl IntoCommand for Request {
         ]
     }
 }
+
+pub use crate::cli::output::LogContent as Response;

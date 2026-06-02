@@ -19,3 +19,5 @@ impl IntoCommand for Request {
         argv
     }
 }
+
+pub type Response = crate::cli::output::Items<crate::cli::output::notification::agents::ActiveAgent>;

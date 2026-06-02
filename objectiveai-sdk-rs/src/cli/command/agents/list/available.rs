@@ -36,3 +36,5 @@ impl IntoCommand for Request {
         ]
     }
 }
+
+pub type Response = crate::cli::output::Items<serde_json::Value>;

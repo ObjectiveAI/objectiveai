@@ -9,3 +9,5 @@ impl IntoCommand for Request {
         vec!["agents".to_string(), "me".to_string()]
     }
 }
+
+pub use crate::cli::output::Me as Response;

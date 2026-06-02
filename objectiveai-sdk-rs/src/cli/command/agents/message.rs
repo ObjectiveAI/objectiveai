@@ -62,3 +62,8 @@ impl IntoCommand for Request {
         argv
     }
 }
+
+pub enum Response {
+    Delivered(crate::cli::output::notification::agents::MessageDelivered),
+    Queued(crate::cli::output::notification::agents::MessageQueued),
+}

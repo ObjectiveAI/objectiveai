@@ -14,3 +14,5 @@ impl IntoCommand for Request {
         ]
     }
 }
+
+pub use crate::cli::output::Value as Response;

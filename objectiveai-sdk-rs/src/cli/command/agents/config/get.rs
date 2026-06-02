@@ -19,3 +19,5 @@ impl IntoCommand for Request {
         argv
     }
 }
+
+pub use crate::cli::output::JqResults as Response;
