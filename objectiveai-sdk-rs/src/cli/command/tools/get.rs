@@ -58,7 +58,7 @@ pub enum Schema {
 }
 
 impl TryFrom<Args> for Request {
-    type Error = std::convert::Infallible;
+    type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
         Ok(Self {
             name: args.name,
