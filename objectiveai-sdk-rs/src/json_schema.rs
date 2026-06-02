@@ -510,9 +510,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
     #[cfg(feature = "cli")]
     {
         schemas.extend([
-            schemars::schema_for!(crate::filesystem::logs::LogContent),
-            schemars::schema_for!(crate::filesystem::db::schema::MessageKind),
-            schemars::schema_for!(crate::filesystem::logs::SubscribeEvent),
             schemars::schema_for!(crate::cli::plugins::Output),
             schemars::schema_for!(crate::cli::plugins::TypedOutput),
         ]);
