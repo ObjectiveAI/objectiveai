@@ -208,9 +208,22 @@ impl Client {
         &self,
         offset: usize,
         limit: usize,
-    ) -> Result<Vec<ListItem>, Error> {
-        self.list_endpoint("functions/executions/response", offset, limit)
-            .await
+    ) -> Result<
+        Vec<objectiveai_sdk::cli::command::logs::functions::executions::response::list::ResponseItem>,
+        Error,
+    > {
+        let items = self
+            .list_endpoint("functions/executions/response", offset, limit)
+            .await?;
+        Ok(items
+            .into_iter()
+            .map(|i| {
+                objectiveai_sdk::cli::command::logs::functions::executions::response::list::ResponseItem {
+                    id: i.id,
+                    created: i.created,
+                }
+            })
+            .collect())
     }
     pub async fn list_function_inventions(
         &self,
@@ -748,17 +761,22 @@ impl Client {
     pub async fn read_function_execution(
         &self,
         id: &str,
-        jq: Option<&str>,
-    ) -> Result<serde_json::Value, Error> {
-        self.read_json("functions/executions/response", id, jq)
+    ) -> Result<
+        objectiveai_sdk::functions::executions::response::streaming::FunctionExecutionChunkLog,
+        Error,
+    > {
+        self.read_json_typed("functions/executions/response", id)
             .await
     }
     pub async fn read_function_execution_request(
         &self,
         id: &str,
-        jq: Option<&str>,
-    ) -> Result<serde_json::Value, Error> {
-        self.read_json("functions/executions/request", id, jq).await
+    ) -> Result<
+        objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParamsLog,
+        Error,
+    > {
+        self.read_json_typed("functions/executions/request", id)
+            .await
     }
     pub async fn read_function_execution_retry_token(
         &self,
@@ -1451,14 +1469,15 @@ impl Client {
         id: &str,
         timeout: std::time::Duration,
         require_modification: bool,
-        jq: Option<&str>,
-    ) -> Result<Option<serde_json::Value>, Error> {
-        self.subscribe_json(
+    ) -> Result<
+        objectiveai_sdk::functions::executions::response::streaming::FunctionExecutionChunkLog,
+        Error,
+    > {
+        self.subscribe_json_typed(
             "functions/executions/response",
             id,
             timeout,
             require_modification,
-            jq,
         )
         .await
     }
@@ -1467,14 +1486,15 @@ impl Client {
         id: &str,
         timeout: std::time::Duration,
         require_modification: bool,
-        jq: Option<&str>,
-    ) -> Result<Option<serde_json::Value>, Error> {
-        self.subscribe_json(
+    ) -> Result<
+        objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParamsLog,
+        Error,
+    > {
+        self.subscribe_json_typed(
             "functions/executions/request",
             id,
             timeout,
             require_modification,
-            jq,
         )
         .await
     }
@@ -1483,14 +1503,15 @@ impl Client {
         id: &str,
         timeout: std::time::Duration,
         require_modification: bool,
-    ) -> Result<Option<String>, Error> {
+    ) -> Result<String, Error> {
         self.subscribe_text(
             "functions/executions/response/retry_token",
             id,
             timeout,
             require_modification,
         )
-        .await
+        .await?
+        .ok_or(Error::LogSubscribeTimedOut)
     }
     pub async fn subscribe_function_invention(
         &self,

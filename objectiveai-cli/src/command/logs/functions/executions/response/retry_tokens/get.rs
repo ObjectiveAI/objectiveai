@@ -1,12 +1,15 @@
-//! `logs functions executions response retry_tokens get` — bare-naked handler stub.
+//! `logs functions executions response retry_tokens get` — read a stored log record from disk.
 
 use objectiveai_sdk::cli::command::logs::functions::executions::response::retry_tokens::get::{Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
 
-pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-    todo!("logs functions executions response retry_tokens get execute")
+pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+    Ok(ctx
+        .filesystem
+        .read_function_execution_retry_token(&request.id)
+        .await?)
 }
 
 pub mod request_schema {
