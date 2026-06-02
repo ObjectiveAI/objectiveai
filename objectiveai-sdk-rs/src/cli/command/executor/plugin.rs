@@ -1,6 +1,6 @@
 use std::pin::Pin;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use dashmap::DashMap;
 use futures::Stream;
@@ -22,6 +22,12 @@ pub struct PluginExecutor {
     stdout: Arc<Mutex<tokio::io::Stdout>>,
     counter: AtomicU64,
     pending: Arc<DashMap<String, mpsc::UnboundedSender<serde_json::Value>>>,
+    /// `true` while the listener task is still reading stdin. Flipped
+    /// to `false` immediately before the listener drops its pending
+    /// senders, so `execute()` can re-check after registering its own
+    /// sender and bail with `Error::Closed` instead of installing a
+    /// channel nothing will ever drain.
+    listener_alive: Arc<AtomicBool>,
 }
 
 impl Default for PluginExecutor {
@@ -35,17 +41,24 @@ impl PluginExecutor {
     pub fn new() -> Self {
         let pending: Arc<DashMap<String, mpsc::UnboundedSender<serde_json::Value>>> =
             Arc::new(DashMap::new());
-        Self::spawn_listener(tokio::io::stdin(), pending.clone());
+        let listener_alive = Arc::new(AtomicBool::new(true));
+        Self::spawn_listener(
+            tokio::io::stdin(),
+            pending.clone(),
+            listener_alive.clone(),
+        );
         Self {
             stdout: Arc::new(Mutex::new(tokio::io::stdout())),
             counter: AtomicU64::new(0),
             pending,
+            listener_alive,
         }
     }
 
     fn spawn_listener(
         stdin: tokio::io::Stdin,
         pending: Arc<DashMap<String, mpsc::UnboundedSender<serde_json::Value>>>,
+        listener_alive: Arc<AtomicBool>,
     ) {
         tokio::spawn(async move {
             let mut lines = BufReader::new(stdin).lines();
@@ -68,8 +81,13 @@ impl PluginExecutor {
                     }
                 }
             }
-            // stdin EOF: drop every pending sender so all in-flight
-            // streams observe channel close and terminate.
+            // stdin EOF or read error. Flip the liveness flag BEFORE
+            // dropping any senders — `execute()` does an insert-then-
+            // re-check, and this ordering guarantees a concurrent
+            // `execute()` either sees the flag and removes its own
+            // entry, or completes its insert before `clear()` runs and
+            // gets drained by it.
+            listener_alive.store(false, Ordering::Release);
             pending.clear();
         });
     }
@@ -102,6 +120,9 @@ enum CommandResponse {
 
 #[derive(Debug)]
 pub enum Error {
+    /// Stdin closed (clean EOF or read error). The listener task has
+    /// exited and no new requests can be served.
+    Closed,
     Io(std::io::Error),
     Json(serde_json::Error),
     Cli(crate::cli::Error),
@@ -142,6 +163,21 @@ impl CommandExecutor for PluginExecutor {
         let (tx, rx) = mpsc::unbounded_channel::<serde_json::Value>();
         self.pending.insert(id.clone(), tx);
 
+        // Re-check liveness AFTER insert. The listener stores `false`
+        // before it calls `pending.clear()`, so any of these happens:
+        //   - We see `true`: listener is still running; if it dies
+        //     later, its `clear()` will drop our sender and the stream
+        //     will end naturally.
+        //   - We see `false` and our entry got cleared: remove() is a
+        //     no-op, sender is already dropped.
+        //   - We see `false` and our entry survived (we inserted after
+        //     `clear()` ran): remove() drops the sender ourselves.
+        // In every `false` path we bail with `Closed`.
+        if !self.listener_alive.load(Ordering::Acquire) {
+            self.pending.remove(&id);
+            return Err(Error::Closed);
+        }
+
         let argv = request.into_command();
         let envelope = Output::Typed(TypedOutput::Command {
             id: id.clone(),
@@ -151,9 +187,18 @@ impl CommandExecutor for PluginExecutor {
 
         {
             let mut stdout = self.stdout.lock().await;
-            stdout.write_all(line.as_bytes()).await.map_err(Error::Io)?;
-            stdout.write_all(b"\n").await.map_err(Error::Io)?;
-            stdout.flush().await.map_err(Error::Io)?;
+            if let Err(e) = stdout.write_all(line.as_bytes()).await {
+                self.pending.remove(&id);
+                return Err(Error::Io(e));
+            }
+            if let Err(e) = stdout.write_all(b"\n").await {
+                self.pending.remove(&id);
+                return Err(Error::Io(e));
+            }
+            if let Err(e) = stdout.flush().await {
+                self.pending.remove(&id);
+                return Err(Error::Io(e));
+            }
         }
 
         let pending = self.pending.clone();
