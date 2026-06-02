@@ -11,11 +11,9 @@ impl IntoCommand for Request {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct ResponseFavorite {
+pub struct ResponseItem {
     pub name: String,
     #[serde(flatten)]
     pub path: crate::RemotePathCommitOptional,
     pub note: String,
 }
-
-pub type Response = Vec<ResponseFavorite>;
