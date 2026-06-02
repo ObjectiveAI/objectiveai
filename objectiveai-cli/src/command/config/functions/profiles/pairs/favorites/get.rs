@@ -1,4 +1,8 @@
-//! `config functions profiles pairs favorites get` — bare-naked streaming handler stub.
+//! `config functions profiles pairs favorites get` — TODO: SDK
+//! `ResponseItem` currently exposes a single `path`, but on-disk
+//! `PairFavorite` has separate `function` + `profile` paths. Cannot
+//! collapse to one path without losing information. Fill in once the
+//! SDK leaf surfaces both paths.
 
 use std::pin::Pin;
 
@@ -11,7 +15,7 @@ use crate::error::Error;
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
 pub async fn execute(_ctx: &Context, _request: Request) -> Result<ItemStream, Error> {
-    todo!("config functions profiles pairs favorites get execute")
+    todo!("SDK ResponseItem single-path mismatch with on-disk PairFavorite (function+profile)")
 }
 
 pub mod request_schema {

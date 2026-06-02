@@ -1,12 +1,16 @@
-//! `config functions favorites del` — bare-naked handler stub.
+//! `config functions favorites del` — remove a named entry from the
+//! function favorites list in on-disk config.
 
 use objectiveai_sdk::cli::command::config::functions::favorites::del::{Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
 
-pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-    todo!("config functions favorites del execute")
+pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+    let mut config = ctx.filesystem.read_config().await?;
+    config.functions().del_favorite(&request.name)?;
+    ctx.filesystem.write_config(&config).await?;
+    Ok(Response::Ok)
 }
 
 pub mod request_schema {

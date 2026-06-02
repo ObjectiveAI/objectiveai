@@ -1,4 +1,5 @@
-//! `config functions profiles favorites get` — bare-naked streaming handler stub.
+//! `config functions profiles favorites get` — stream every saved
+//! function-profile favorite, one `ResponseItem` per record.
 
 use std::pin::Pin;
 
@@ -10,8 +11,20 @@ use crate::error::Error;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
-pub async fn execute(_ctx: &Context, _request: Request) -> Result<ItemStream, Error> {
-    todo!("config functions profiles favorites get execute")
+pub async fn execute(ctx: &Context, _request: Request) -> Result<ItemStream, Error> {
+    let mut config = ctx.filesystem.read_config().await?;
+    let items: Vec<ResponseItem> = config
+        .functions()
+        .profiles()
+        .get_favorites()
+        .iter()
+        .map(|f| ResponseItem {
+            name: f.get_name().to_string(),
+            path: f.path.clone(),
+            note: f.get_note().to_string(),
+        })
+        .collect();
+    Ok(Box::pin(futures::stream::iter(items.into_iter().map(Ok))))
 }
 
 pub mod request_schema {
