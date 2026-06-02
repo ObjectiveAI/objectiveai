@@ -18,6 +18,11 @@ mod command_executor;
 #[cfg(feature = "cli-executor")]
 pub use command_executor::*;
 
+#[cfg(feature = "cli-executor")]
+mod stream_once;
+#[cfg(feature = "cli-executor")]
+pub use stream_once::*;
+
 mod ok;
 pub use ok::*;
 

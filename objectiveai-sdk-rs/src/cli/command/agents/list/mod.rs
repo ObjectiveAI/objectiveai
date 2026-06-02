@@ -63,3 +63,89 @@ impl crate::cli::command::CommandRequest for Request {
         }
     }
 }
+
+#[cfg(feature = "cli-executor")]
+pub async fn execute<E: crate::cli::command::CommandExecutor>(
+    executor: &E,
+    request: Request,
+) -> Result<
+    std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>>,
+    E::Error,
+> {
+    use futures::StreamExt;
+    let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>> =
+        match request {
+            Request::Active(req) => {
+                let inner = active::execute(executor, req).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Active)))
+            }
+            Request::ActiveRequestSchema(req) => {
+                let value = active::request_schema::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::ActiveRequestSchema(value),
+                )))
+            }
+            Request::ActiveResponseSchema(req) => {
+                let value = active::response_schema::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::ActiveResponseSchema(value),
+                )))
+            }
+            Request::Available(req) => {
+                let inner = available::execute(executor, req).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Available)))
+            }
+            Request::AvailableRequestSchema(req) => {
+                let value = available::request_schema::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::AvailableRequestSchema(value),
+                )))
+            }
+            Request::AvailableResponseSchema(req) => {
+                let value = available::response_schema::execute(executor, req).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::AvailableResponseSchema(value),
+                )))
+            }
+        };
+    Ok(stream)
+}
+
+#[cfg(feature = "cli-executor")]
+pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
+    executor: &E,
+    request: Request,
+    jq: String,
+) -> Result<
+    std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>>,
+    E::Error,
+> {
+    let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
+        match request {
+            Request::Active(req) => {
+                let inner = active::execute_jq(executor, req, jq).await?;
+                Box::pin(inner)
+            }
+            Request::ActiveRequestSchema(req) => {
+                let value = active::request_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::ActiveResponseSchema(req) => {
+                let value = active::response_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::Available(req) => {
+                let inner = available::execute_jq(executor, req, jq).await?;
+                Box::pin(inner)
+            }
+            Request::AvailableRequestSchema(req) => {
+                let value = available::request_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::AvailableResponseSchema(req) => {
+                let value = available::response_schema::execute_jq(executor, req, jq).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+        };
+    Ok(stream)
+}
