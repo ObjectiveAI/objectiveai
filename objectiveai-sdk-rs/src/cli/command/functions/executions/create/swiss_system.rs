@@ -5,6 +5,7 @@ use crate::functions::FullInlineFunctionOrRemoteCommitOptional;
 use crate::functions::InlineProfileOrRemoteCommitOptional;
 use crate::functions::expression::InputValue;
 
+#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
     pub function: FullInlineFunctionOrRemoteCommitOptional,
     pub profile: InlineProfileOrRemoteCommitOptional,
@@ -20,6 +21,7 @@ pub struct Request {
     pub dangerous_advanced: Option<RequestDangerousAdvanced>,
 }
 
+#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub enum RequestInput {
     Inline(InputValue),
     PythonInline(String),
@@ -98,13 +100,13 @@ impl IntoCommand for Request {
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct RequestDangerousAdvanced {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stream: Option<bool>,
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
 pub enum ResponseItem {
     Chunk(crate::functions::executions::response::streaming::FunctionExecutionChunk),

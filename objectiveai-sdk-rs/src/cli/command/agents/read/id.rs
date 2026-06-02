@@ -2,6 +2,7 @@
 
 use crate::cli::command::IntoCommand;
 
+#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
     pub id: i64,
 }
@@ -17,7 +18,7 @@ impl IntoCommand for Request {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Response {
     Json { content: serde_json::Value },

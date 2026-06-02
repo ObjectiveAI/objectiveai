@@ -2,6 +2,7 @@
 
 use crate::cli::command::IntoCommand;
 
+#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
     pub filter: Option<String>,
 }
@@ -16,7 +17,7 @@ impl IntoCommand for Request {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Response {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub signature: Option<String>,

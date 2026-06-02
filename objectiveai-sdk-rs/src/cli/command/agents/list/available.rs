@@ -2,10 +2,12 @@
 
 use crate::cli::command::IntoCommand;
 
+#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
     pub source: RequestSource,
 }
 
+#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub enum RequestSource {
     Filesystem,
     Favorites,
@@ -37,7 +39,7 @@ impl IntoCommand for Request {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct ResponseFavorite {
     pub name: String,
     #[serde(flatten)]
@@ -45,6 +47,7 @@ pub struct ResponseFavorite {
     pub note: String,
 }
 
+#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub enum Response {
     Filesystem(Vec<crate::RemotePath>),
     Favorites(Vec<ResponseFavorite>),

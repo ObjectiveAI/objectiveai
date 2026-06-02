@@ -2,6 +2,7 @@
 
 use crate::cli::command::IntoCommand;
 
+#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
     pub name: String,
 }
@@ -14,7 +15,7 @@ impl IntoCommand for Request {
 
 pub type Response = Option<ResponseManifest>;
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct ResponseManifest {
     pub name: String,
     pub description: String,
@@ -41,7 +42,7 @@ pub struct ResponseManifest {
     pub source: String,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct ResponseBinaries {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub linux_x86_64: Option<String>,
@@ -68,14 +69,14 @@ impl ResponseBinaries {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct ResponseViewerRoute {
     pub path: String,
     pub method: ResponseHttpMethod,
     pub r#type: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum ResponseHttpMethod {
     Get,
@@ -85,7 +86,7 @@ pub enum ResponseHttpMethod {
     Delete,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct ResponseMcpServer {
     pub name: String,
     pub url: String,

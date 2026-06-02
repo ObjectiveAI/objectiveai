@@ -2,7 +2,7 @@
 
 use crate::cli::command::IntoCommand;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum RequestMessageKind {
     AgentCompletionRequest,
@@ -13,6 +13,7 @@ pub enum RequestMessageKind {
     Sweep,
 }
 
+#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
     pub agent_instance_hierarchy: String,
     pub kind: Option<RequestMessageKind>,
@@ -46,14 +47,14 @@ fn message_kind_flag(kind: &RequestMessageKind) -> &'static str {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
 pub enum ResponseContent {
     One(i64),
     Many(Vec<i64>),
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ResponseQueueMessage {
     Developer {
@@ -89,7 +90,7 @@ pub enum ResponseQueueMessage {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ResponseQueueItem {
     AssistantResponse {
@@ -120,6 +121,7 @@ pub enum ResponseQueueItem {
     },
 }
 
+#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub enum ResponseItem {
     Items {
         agent_id: String,

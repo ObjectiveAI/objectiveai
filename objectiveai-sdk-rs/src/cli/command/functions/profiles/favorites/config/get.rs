@@ -10,7 +10,7 @@ impl IntoCommand for Request {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct ResponseItem {
     pub name: String,
     #[serde(flatten)]

@@ -2,12 +2,14 @@
 
 use crate::cli::command::IntoCommand;
 
+#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
     pub name: String,
     pub note: Option<String>,
     pub commit: Option<RequestCommitChange>,
 }
 
+#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub enum RequestCommitChange {
     Set(String),
     Remove,

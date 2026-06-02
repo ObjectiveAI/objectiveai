@@ -4,6 +4,7 @@ use crate::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use crate::agent::completions::message::Message;
 use crate::cli::command::IntoCommand;
 
+#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
     pub prompt: RequestPrompt,
     pub agent: InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
@@ -11,6 +12,7 @@ pub struct Request {
     pub dangerous_advanced: Option<RequestDangerousAdvanced>,
 }
 
+#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub enum RequestPrompt {
     Inline(Vec<Message>),
     Simple(String),
@@ -79,13 +81,13 @@ impl IntoCommand for Request {
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct RequestDangerousAdvanced {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stream: Option<bool>,
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
 pub enum ResponseItem {
     Chunk(crate::agent::completions::response::streaming::AgentCompletionChunk),

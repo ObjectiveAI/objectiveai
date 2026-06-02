@@ -2,6 +2,7 @@
 
 use crate::cli::command::IntoCommand;
 
+#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
     pub agent_instance_hierarchies: Vec<String>,
 }
@@ -18,14 +19,14 @@ impl IntoCommand for Request {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
 pub enum ResponseContent {
     One(i64),
     Many(Vec<i64>),
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ResponseQueueMessage {
     Developer {
@@ -61,7 +62,7 @@ pub enum ResponseQueueMessage {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ResponseQueueItem {
     AssistantResponse {
@@ -92,6 +93,7 @@ pub enum ResponseQueueItem {
     },
 }
 
+#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct ResponseItem {
     pub agent_id: String,
     pub items: Vec<ResponseQueueItem>,
