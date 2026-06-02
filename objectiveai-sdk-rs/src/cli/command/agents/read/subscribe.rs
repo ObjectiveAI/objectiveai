@@ -2,10 +2,9 @@
 
 use crate::cli::command::CommandRequest;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema, clap::ValueEnum)]
 #[serde(rename_all = "snake_case")]
-#[cfg_attr(feature = "cli", clap(rename_all = "kebab-case"))]
+#[clap(rename_all = "kebab-case")]
 pub enum RequestMessageKind {
     AgentCompletionRequest,
     AgentCompletionResponse,

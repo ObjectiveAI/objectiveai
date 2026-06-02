@@ -8,9 +8,8 @@ pub struct Request {
     pub jq: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
-#[cfg_attr(feature = "cli", clap(rename_all = "kebab-case"))]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema, clap::ValueEnum)]
+#[clap(rename_all = "kebab-case")]
 pub enum RequestSource {
     Filesystem,
     Favorites,

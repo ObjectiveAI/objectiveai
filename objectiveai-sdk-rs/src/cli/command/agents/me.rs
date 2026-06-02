@@ -37,7 +37,6 @@ pub mod request_schema {
         pub jq: Option<String>,
     }
 
-    #[cfg(feature = "cli")]
     #[derive(clap::Args)]
     pub struct Args {
         #[arg(long)]
@@ -66,7 +65,6 @@ pub mod response_schema {
         pub jq: Option<String>,
     }
 
-    #[cfg(feature = "cli")]
     #[derive(clap::Args)]
     pub struct Args {
         #[arg(long)]
