@@ -8,6 +8,8 @@ pub enum Error {
     Parse(std::path::PathBuf, serde_json::Error),
     #[error("failed to deserialize file {0} into typed shape: {1}")]
     TypedDeserialize(std::path::PathBuf, serde_json::Error),
+    #[error("subscribe timed out")]
+    LogSubscribeTimedOut,
     #[error("file {0} is not valid UTF-8: {1}")]
     Utf8(std::path::PathBuf, std::string::FromUtf8Error),
     #[error("failed to serialize: {0}")]

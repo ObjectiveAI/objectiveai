@@ -599,9 +599,11 @@ impl Client {
     pub async fn read_agent_completion_request(
         &self,
         id: &str,
-        jq: Option<&str>,
-    ) -> Result<serde_json::Value, Error> {
-        self.read_json("agents/completions/request", id, jq).await
+    ) -> Result<
+        objectiveai_sdk::agent::completions::request::AgentCompletionCreateParamsLog,
+        Error,
+    > {
+        self.read_json_typed("agents/completions/request", id).await
     }
     pub async fn read_agent_completion_continuation(
         &self,
@@ -1051,6 +1053,28 @@ impl Client {
         apply_jq(value, jq).map(Some)
     }
 
+    /// Sibling to [`Self::read_json_typed`] but built atop
+    /// [`Self::subscribe_json`] — waits for the file to appear (or be
+    /// modified, when `require_modification`), then deserializes its
+    /// contents into `T`. A timeout becomes
+    /// [`Error::LogSubscribeTimedOut`]; a typed-shape deserialize
+    /// failure becomes [`Error::TypedDeserialize`] with the file path
+    /// attached.
+    async fn subscribe_json_typed<T: serde::de::DeserializeOwned>(
+        &self,
+        dir: &str,
+        stem: &str,
+        timeout: std::time::Duration,
+        require_modification: bool,
+    ) -> Result<T, Error> {
+        let value = self
+            .subscribe_json(dir, stem, timeout, require_modification, None)
+            .await?
+            .ok_or(Error::LogSubscribeTimedOut)?;
+        let full = self.logs_dir().join(dir).join(format!("{stem}.json"));
+        serde_json::from_value(value).map_err(|e| Error::TypedDeserialize(full, e))
+    }
+
     /// Polls for a media file (any extension matching `stem.`) and
     /// returns `(mime, base64_payload, filename)` parts. Mirrors
     /// [`Self::read_media_parts_by_stem`] but with create/modify
@@ -1213,14 +1237,15 @@ impl Client {
         id: &str,
         timeout: std::time::Duration,
         require_modification: bool,
-        jq: Option<&str>,
-    ) -> Result<Option<serde_json::Value>, Error> {
-        self.subscribe_json(
+    ) -> Result<
+        objectiveai_sdk::agent::completions::request::AgentCompletionCreateParamsLog,
+        Error,
+    > {
+        self.subscribe_json_typed(
             "agents/completions/request",
             id,
             timeout,
             require_modification,
-            jq,
         )
         .await
     }
