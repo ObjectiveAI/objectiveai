@@ -35,12 +35,13 @@ fn notification_wire_shape() {
 #[test]
 fn command_wire_shape() {
     let out = Output::Typed(TypedOutput::Command {
-        id: None,
+        id: "cmd-1".to_string(),
         command: "ping".to_string(),
     });
     let v = roundtrip(&out);
     assert_eq!(v["type"], "command");
     assert_eq!(v["command"], "ping");
+    assert_eq!(v["id"], "cmd-1");
 }
 
 #[test]

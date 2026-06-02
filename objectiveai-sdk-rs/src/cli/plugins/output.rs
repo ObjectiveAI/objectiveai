@@ -39,13 +39,12 @@ pub enum Output {
 pub enum TypedOutput {
     #[schemars(title = "Command")]
     Command {
-        /// Optional plugin-minted correlation id for this command. The
-        /// host streams every emission from the command back into the
-        /// plugin's stdin; when this id is set, plugins can use it to
-        /// demultiplex concurrent in-flight commands by matching
-        /// against the echoed id on each response line.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        id: Option<String>,
+        /// Plugin-minted correlation id for this command. The host
+        /// streams every emission from the command back into the
+        /// plugin's stdin; plugins demultiplex concurrent in-flight
+        /// commands by matching against the echoed id on each response
+        /// line.
+        id: String,
         command: String,
     },
     #[schemars(title = "Mcp")]
