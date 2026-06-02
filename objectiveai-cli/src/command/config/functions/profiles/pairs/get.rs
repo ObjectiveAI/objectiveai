@@ -1,16 +1,30 @@
-//! `config functions profiles pairs get` — TODO: SDK leaf
-//! `ResponseItem` currently exposes a single `path`, but on-disk
-//! `PairFavorite` has separate `function` + `profile` paths. Cannot
-//! collapse to one path without losing information. Fill in once the
-//! SDK leaf surfaces both paths.
+//! `config functions profiles pairs get` — read the function-profile
+//! pairs section of on-disk config.
 
+use objectiveai_sdk::cli::command::config::functions::profiles::pairs::favorites::get::ResponseItem;
 use objectiveai_sdk::cli::command::config::functions::profiles::pairs::get::{Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
 
-pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-    todo!("SDK leaf ResponseItem single-path mismatch with on-disk PairFavorite (function+profile)")
+pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error> {
+    let mut config = ctx.filesystem.read_config().await?;
+    let favorites: Vec<ResponseItem> = config
+        .functions()
+        .profiles()
+        .pairs()
+        .get_favorites()
+        .iter()
+        .map(|f| ResponseItem {
+            name: f.get_name().to_string(),
+            function: f.function.clone(),
+            profile: f.profile.clone(),
+            note: f.get_note().to_string(),
+        })
+        .collect();
+    Ok(Response {
+        favorites: Some(favorites),
+    })
 }
 
 pub mod request_schema {

@@ -1,15 +1,19 @@
-//! `config functions profiles pairs favorites add` — TODO: SDK
-//! Request exposes a single `path`, but on-disk `PairFavorite`
-//! requires both `function` and `profile` paths. Fill in once the SDK
-//! Request surfaces both.
+//! `config functions profiles pairs favorites add` — add a named entry
+//! to the function-profiles pair-favorites list in on-disk config.
 
 use objectiveai_sdk::cli::command::config::functions::profiles::pairs::favorites::add::{Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
+use crate::filesystem::config::PairFavorite;
 
-pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-    todo!("SDK Request single-path mismatch with on-disk PairFavorite (function+profile)")
+pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+    let favorite =
+        PairFavorite::new(request.name, request.function, request.profile, request.note)?;
+    let mut config = ctx.filesystem.read_config().await?;
+    config.functions().profiles().pairs().add_favorite(favorite);
+    ctx.filesystem.write_config(&config).await?;
+    Ok(Response::Ok)
 }
 
 pub mod request_schema {

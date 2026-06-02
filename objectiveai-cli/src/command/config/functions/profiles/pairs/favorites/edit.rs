@@ -1,8 +1,8 @@
 //! `config functions profiles pairs favorites edit` — mutate a named
 //! entry in the function-profiles pair-favorites list. Supports
-//! updating the note and the commit-on-path (set or remove). The SDK
-//! Request exposes only one `commit` field; we apply it to both the
-//! function and profile paths.
+//! updating the note and the commit-on-path independently for each of
+//! the function and profile sides (set or remove); drop and re-add to
+//! change remote/owner/repo.
 
 use objectiveai_sdk::RemotePathCommitOptional;
 use objectiveai_sdk::cli::command::config::functions::profiles::pairs::favorites::edit::{
@@ -22,9 +22,11 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     if let Some(note) = request.note {
         favorite.set_note(note)?;
     }
-    if let Some(commit_change) = request.commit {
-        apply_commit_change(&mut favorite.function, commit_change.clone());
-        apply_commit_change(&mut favorite.profile, commit_change);
+    if let Some(change) = request.function_commit {
+        apply_commit_change(&mut favorite.function, change);
+    }
+    if let Some(change) = request.profile_commit {
+        apply_commit_change(&mut favorite.profile, change);
     }
     ctx.filesystem.write_config(&config).await?;
     Ok(Response::Ok)
