@@ -128,6 +128,36 @@ pub enum Schema {
     ResponseSchema(response_schema::Args),
 }
 
+impl TryFrom<Args> for Request {
+    type Error = crate::cli::command::FromArgsError;
+    fn try_from(args: Args) -> Result<Self, Self::Error> {
+        let message = if let Some(s) = args.message.simple {
+            RequestMessage::Simple(s)
+        } else if let Some(s) = args.message.inline {
+            let mut de = serde_json::Deserializer::from_str(&s);
+            let v = serde_path_to_error::deserialize(&mut de).map_err(|source| {
+                crate::cli::command::FromArgsError {
+                    field: "inline",
+                    source,
+                }
+            })?;
+            RequestMessage::Inline(v)
+        } else if let Some(p) = args.message.file {
+            RequestMessage::File(p)
+        } else if let Some(s) = args.message.python_inline {
+            RequestMessage::PythonInline(s)
+        } else {
+            RequestMessage::PythonFile(args.message.python_file.unwrap())
+        };
+        Ok(Self {
+            agent_instance_hierarchy: args.agent_instance_hierarchy,
+            message,
+            seed: args.seed,
+            jq: args.jq,
+        })
+    }
+}
+
 pub mod request_schema {
     use crate::cli::command::CommandRequest;
 

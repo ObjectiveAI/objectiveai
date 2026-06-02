@@ -164,6 +164,62 @@ pub enum Schema {
     ResponseSchema(response_schema::Args),
 }
 
+impl TryFrom<Args> for Request {
+    type Error = crate::cli::command::FromArgsError;
+    fn try_from(args: Args) -> Result<Self, Self::Error> {
+        let prompt = if let Some(s) = args.prompt.simple {
+            RequestPrompt::Simple(s)
+        } else if let Some(s) = args.prompt.inline {
+            let mut de = serde_json::Deserializer::from_str(&s);
+            let v = serde_path_to_error::deserialize(&mut de).map_err(|source| {
+                crate::cli::command::FromArgsError {
+                    field: "inline",
+                    source,
+                }
+            })?;
+            RequestPrompt::Inline(v)
+        } else if let Some(p) = args.prompt.file {
+            RequestPrompt::File(p)
+        } else if let Some(s) = args.prompt.python_inline {
+            RequestPrompt::PythonInline(s)
+        } else {
+            RequestPrompt::PythonFile(args.prompt.python_file.unwrap())
+        };
+        let agent = if let Some(s) = args.agent.agent_inline {
+            let mut de = serde_json::Deserializer::from_str(&s);
+            serde_path_to_error::deserialize(&mut de).map_err(|source| {
+                crate::cli::command::FromArgsError {
+                    field: "agent_inline",
+                    source,
+                }
+            })?
+        } else {
+            crate::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::Favorite(
+                args.agent.agent.unwrap(),
+            )
+        };
+        let dangerous_advanced = if let Some(s) = args.dangerous_advanced {
+            let mut de = serde_json::Deserializer::from_str(&s);
+            let v = serde_path_to_error::deserialize(&mut de).map_err(|source| {
+                crate::cli::command::FromArgsError {
+                    field: "dangerous_advanced",
+                    source,
+                }
+            })?;
+            Some(v)
+        } else {
+            None
+        };
+        Ok(Self {
+            prompt,
+            agent,
+            seed: args.seed,
+            dangerous_advanced,
+            jq: args.jq,
+        })
+    }
+}
+
 pub mod request_schema {
     use crate::cli::command::CommandRequest;
 
