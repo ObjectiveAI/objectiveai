@@ -18,3 +18,12 @@ impl IntoCommand for Request {
         argv
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ResponseItem {
+    pub line: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stdout: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stderr: Option<bool>,
+}

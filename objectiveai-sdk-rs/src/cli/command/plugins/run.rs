@@ -18,3 +18,10 @@ impl IntoCommand for Request {
         argv
     }
 }
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+pub enum ResponseItem {
+    Error(crate::cli::Error),
+    Value(serde_json::Value),
+}
