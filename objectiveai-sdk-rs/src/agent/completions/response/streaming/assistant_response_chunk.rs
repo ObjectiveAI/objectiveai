@@ -207,30 +207,33 @@ impl AssistantResponseChunk {
             r
         });
 
-        // Extract reasoning to its own file (if present).
+        // Extract reasoning to its own file (if present). Raw text;
+        // no JSON quoting/escaping — match what `read_text` /
+        // `subscribe_text` consume on the read side.
         let reasoning_ref = self.reasoning.as_ref().map(|reasoning| {
             let f = LogFile {
                 route: format!("{route_base}/messages/assistant/reasoning"),
                 id: id.to_string(),
                 message_index: Some(self.index),
                 media_index: None,
-                extension: "json".to_string(),
-                content: serde_json::to_vec_pretty(reasoning).unwrap(),
+                extension: "txt".to_string(),
+                content: reasoning.clone().into_bytes(),
             };
             let r = LogReference::new(f.path());
             files.push(f);
             r
         });
 
-        // Extract refusal to its own file (if present).
+        // Extract refusal to its own file (if present). Raw text; see
+        // reasoning above.
         let refusal_ref = self.refusal.as_ref().map(|refusal| {
             let f = LogFile {
                 route: format!("{route_base}/messages/assistant/refusal"),
                 id: id.to_string(),
                 message_index: Some(self.index),
                 media_index: None,
-                extension: "json".to_string(),
-                content: serde_json::to_vec_pretty(refusal).unwrap(),
+                extension: "txt".to_string(),
+                content: refusal.clone().into_bytes(),
             };
             let r = LogReference::new(f.path());
             files.push(f);

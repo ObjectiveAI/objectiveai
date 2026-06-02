@@ -585,7 +585,7 @@ mod tests {
     #[test]
     fn agent_completion_message_reasoning() {
         let k = LogFileKind::from_path(
-            "agents/completions/response/messages/reasoning/acc-1_0.json",
+            "agents/completions/response/messages/reasoning/acc-1_0.txt",
         )
         .unwrap();
         assert_eq!(
@@ -743,7 +743,7 @@ mod tests {
         // The id may itself contain underscores — only the trailing
         // integer-shaped segments are indices.
         let k = LogFileKind::from_path(
-            "agents/completions/response/messages/reasoning/my_id_with_dashes_7.json",
+            "agents/completions/response/messages/reasoning/my_id_with_dashes_7.txt",
         )
         .unwrap();
         assert_eq!(

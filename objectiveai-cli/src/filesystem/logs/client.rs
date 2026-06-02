@@ -702,7 +702,10 @@ impl Client {
         id: &str,
         message_index: u64,
     ) -> Result<String, Error> {
-        self.read_json_typed(
+        // Raw text — `.txt` on disk, not `.json`. (Writer:
+        // `assistant_response_chunk.rs::extract_*` puts reasoning
+        // there as plain bytes; no JSON quoting.)
+        self.read_text(
             "agents/completions/response/messages/reasoning",
             &format!("{id}_{message_index}"),
         )
@@ -713,7 +716,8 @@ impl Client {
         id: &str,
         message_index: u64,
     ) -> Result<String, Error> {
-        self.read_json_typed(
+        // Raw text — `.txt` on disk, not `.json`. See reasoning.
+        self.read_text(
             "agents/completions/response/messages/refusal",
             &format!("{id}_{message_index}"),
         )
@@ -1371,13 +1375,16 @@ impl Client {
         timeout: std::time::Duration,
         require_modification: bool,
     ) -> Result<String, Error> {
-        self.subscribe_json_typed(
+        // Raw text — `.txt` on disk, not `.json`. See
+        // [`Self::read_agent_completion_message_reasoning`].
+        self.subscribe_text(
             "agents/completions/response/messages/reasoning",
             &format!("{id}_{message_index}"),
             timeout,
             require_modification,
         )
-        .await
+        .await?
+        .ok_or(Error::LogSubscribeTimedOut)
     }
     pub async fn subscribe_agent_completion_message_refusal(
         &self,
@@ -1386,13 +1393,16 @@ impl Client {
         timeout: std::time::Duration,
         require_modification: bool,
     ) -> Result<String, Error> {
-        self.subscribe_json_typed(
+        // Raw text — `.txt` on disk, not `.json`. See
+        // [`Self::read_agent_completion_message_refusal`].
+        self.subscribe_text(
             "agents/completions/response/messages/refusal",
             &format!("{id}_{message_index}"),
             timeout,
             require_modification,
         )
-        .await
+        .await?
+        .ok_or(Error::LogSubscribeTimedOut)
     }
     pub async fn subscribe_agent_completion_message_tool_call(
         &self,
