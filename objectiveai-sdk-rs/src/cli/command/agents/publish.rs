@@ -1,5 +1,6 @@
 //! `agents publish` — async handler stub.
 
+use crate::agent::RemoteAgentBaseWithFallbacks;
 use crate::cli::command::IntoCommand;
 
 pub struct Request {
@@ -10,7 +11,7 @@ pub struct Request {
 }
 
 pub enum RequestBody {
-    Inline(serde_json::Value),
+    Inline(RemoteAgentBaseWithFallbacks),
     File(std::path::PathBuf),
     PythonInline(String),
     PythonFile(std::path::PathBuf),
@@ -26,9 +27,7 @@ impl RequestBody {
         match self {
             RequestBody::Inline(v) => {
                 out.push("--body-inline".to_string());
-                out.push(
-                    serde_json::to_string(v).expect("serde_json::Value serializes"),
-                );
+                out.push(serde_json::to_string(v).expect("body serializes"));
             }
             RequestBody::File(p) => {
                 out.push("--body-file".to_string());

@@ -1,10 +1,11 @@
 //! `functions inventions recursive create alpha-vector` — async handler stub.
 
+use crate::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use crate::cli::command::IntoCommand;
 
 pub struct Request {
     pub params: RequestParams,
-    pub agent: serde_json::Value,
+    pub agent: InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
     pub continuation: Option<String>,
     pub seed: Option<i64>,
     pub detach: bool,

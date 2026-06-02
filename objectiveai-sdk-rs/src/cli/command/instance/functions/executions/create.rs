@@ -1,5 +1,6 @@
 //! `instance functions executions create` — async handler stub.
 
+use crate::functions::executions::request::FunctionExecutionCreateParams;
 use crate::cli::command::IntoCommand;
 
 pub struct Request {
@@ -23,8 +24,8 @@ pub struct Request {
     pub config_base_dir: Option<std::path::PathBuf>,
     pub mcp_address: Option<String>,
     pub bind_agent_instance_hierarchy: Option<String>,
-    // Body
-    pub body: serde_json::Value,
+    // Body — typed SDK params
+    pub body: FunctionExecutionCreateParams,
 }
 
 impl IntoCommand for Request {

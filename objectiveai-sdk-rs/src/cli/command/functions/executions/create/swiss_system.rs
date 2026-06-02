@@ -1,10 +1,13 @@
 //! `functions executions create swiss-system` — async handler stub.
 
 use crate::cli::command::IntoCommand;
+use crate::functions::FullInlineFunctionOrRemoteCommitOptional;
+use crate::functions::InlineProfileOrRemoteCommitOptional;
+use crate::functions::expression::InputValue;
 
 pub struct Request {
-    pub function: serde_json::Value,
-    pub profile: serde_json::Value,
+    pub function: FullInlineFunctionOrRemoteCommitOptional,
+    pub profile: InlineProfileOrRemoteCommitOptional,
     pub input: RequestInput,
     pub continuation: Option<String>,
     pub retry_token: Option<String>,
@@ -17,7 +20,7 @@ pub struct Request {
 }
 
 pub enum RequestInput {
-    Inline(serde_json::Value),
+    Inline(InputValue),
     PythonInline(String),
     PythonFile(std::path::PathBuf),
 }
@@ -27,7 +30,7 @@ impl RequestInput {
         match self {
             RequestInput::Inline(v) => {
                 out.push("--input-inline".to_string());
-                out.push(serde_json::to_string(v).expect("serde_json::Value serializes"));
+                out.push(serde_json::to_string(v).expect("input serializes"));
             }
             RequestInput::PythonInline(code) => {
                 out.push("--input-python-inline".to_string());

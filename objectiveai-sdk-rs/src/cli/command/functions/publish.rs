@@ -1,5 +1,6 @@
 //! `functions publish` — async handler stub.
 
+use crate::functions::FullRemoteFunction;
 use crate::cli::command::IntoCommand;
 
 pub struct Request {
@@ -10,7 +11,7 @@ pub struct Request {
 }
 
 pub enum RequestBody {
-    Inline(serde_json::Value),
+    Inline(FullRemoteFunction),
     File(std::path::PathBuf),
     PythonInline(String),
     PythonFile(std::path::PathBuf),
@@ -26,7 +27,7 @@ impl RequestBody {
         match self {
             RequestBody::Inline(v) => {
                 out.push("--body-inline".to_string());
-                out.push(serde_json::to_string(v).expect("serde_json::Value serializes"));
+                out.push(serde_json::to_string(v).expect("body serializes"));
             }
             RequestBody::File(p) => {
                 out.push("--body-file".to_string());
@@ -61,7 +62,12 @@ impl RequestPublishMessage {
 
 impl IntoCommand for Request {
     fn into_command(&self) -> Vec<String> {
-        let mut argv = vec!["functions".to_string(), "publish".to_string(), "--repository".to_string(), self.repository.clone()];
+        let mut argv = vec![
+            "functions".to_string(),
+            "publish".to_string(),
+            "--repository".to_string(),
+            self.repository.clone(),
+        ];
         self.body.push_flags(&mut argv);
         self.message.push_flags(&mut argv);
         if self.overwrite {
