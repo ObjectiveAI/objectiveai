@@ -23,7 +23,7 @@ impl IntoCommand for Request {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct ResponseManifest {
+pub struct ResponseItem {
     pub name: String,
     pub description: String,
     pub version: String,
@@ -31,5 +31,3 @@ pub struct ResponseManifest {
     pub exec: String,
     pub source: String,
 }
-
-pub type Response = Vec<ResponseManifest>;

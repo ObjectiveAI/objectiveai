@@ -24,5 +24,3 @@ pub struct ResponseItem {
     pub agent_id: String,
     pub last_log: u64,
 }
-
-pub type Response = Vec<ResponseItem>;
