@@ -9,6 +9,10 @@ fn agent_completion_wrapper(
         index,
         inner: crate::agent::completions::response::streaming::AgentCompletionChunk {
             id: format!("acc-{index}"),
+            agent_instance_hierarchy: String::new(),
+            agent_id: String::new(),
+            agent_full_id: String::new(),
+            agent_remote: None,
             created: 0,
             messages: vec![],
             object: crate::agent::completions::response::streaming::Object::AgentCompletionChunk,

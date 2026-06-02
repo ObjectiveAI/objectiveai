@@ -24,6 +24,12 @@ use crate::logs::LogReference;
 )]
 pub struct AgentCompletionChunkLog {
     pub id: String,
+    pub agent_instance_hierarchy: String,
+    pub agent_id: String,
+    pub agent_full_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub agent_remote: Option<crate::RemotePath>,
     pub created: u64,
     pub messages: Vec<LogReference>,
     pub object: response::streaming::Object,

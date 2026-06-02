@@ -24,6 +24,23 @@ use serde::{Deserialize, Serialize};
 )]
 pub struct AgentCompletionChunk {
     pub id: String,
+    /// Full agent instance hierarchy for this completion's slot —
+    /// `{ctx lineage}/{agent_full_id}-{response_id}`, or the fixed
+    /// continuation value on resume. Same on every chunk of a slot.
+    pub agent_instance_hierarchy: String,
+    /// Leaf agent id of the slot that produced this chunk. For the
+    /// primary attempt this is the primary agent's id; on fallback it
+    /// is the fallback agent's id. Same on every chunk of a slot.
+    pub agent_id: String,
+    /// WF-level id: concatenation of the primary agent's id with all
+    /// fallback ids (see `InlineAgentWithFallbacks::full_id`). Same
+    /// for every slot in the same WF request.
+    pub agent_full_id: String,
+    /// `RemotePath` the WF was fetched from. `None` when the WF was
+    /// supplied inline. Same for every slot in the same WF request.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub agent_remote: Option<crate::RemotePath>,
     #[arbitrary(with = crate::arbitrary_util::arbitrary_u64)]
     pub created: u64,
     pub messages: Vec<super::MessageChunk>,

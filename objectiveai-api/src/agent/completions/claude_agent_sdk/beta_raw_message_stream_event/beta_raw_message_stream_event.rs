@@ -14,14 +14,18 @@ pub enum BetaRawMessageStreamEvent {
 impl BetaRawMessageStreamEvent {
     /// Transforms this upstream stream event into a downstream
     /// [`AgentCompletionChunk`], or `None` if the event should be ignored.
+    #[allow(clippy::too_many_arguments)]
     pub fn into_downstream(
         self,
         id: String,
         created: u64,
-        agent: String,
         assistant_index: u64,
         session_id: String,
         upstream: objectiveai_sdk::agent::Upstream,
+        agent_instance_hierarchy: String,
+        agent_id: String,
+        agent_full_id: String,
+        agent_remote: Option<objectiveai_sdk::RemotePath>,
     ) -> Option<objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk> {
         use objectiveai_sdk::agent::completions::message;
         use objectiveai_sdk::agent::completions::response;
@@ -35,7 +39,6 @@ impl BetaRawMessageStreamEvent {
                         role: Default::default(),
                         index: assistant_index,
                         created,
-                        agent: agent.clone(),
                         model: msg.model,
                         upstream_id: session_id.clone(),
                         ..Default::default()
@@ -52,7 +55,6 @@ impl BetaRawMessageStreamEvent {
                                 role: Default::default(),
                                 index: assistant_index,
                                 created,
-                                agent: agent.clone(),
                                 upstream_id: session_id.clone(),
                                 tool_calls: Some(vec![message::AssistantToolCallDelta {
                                     index: event.index as u64,
@@ -73,7 +75,6 @@ impl BetaRawMessageStreamEvent {
                                 role: Default::default(),
                                 index: assistant_index,
                                 created,
-                                agent: agent.clone(),
                                 upstream_id: session_id.clone(),
                                 tool_calls: Some(vec![message::AssistantToolCallDelta {
                                     index: event.index as u64,
@@ -94,7 +95,6 @@ impl BetaRawMessageStreamEvent {
                                 role: Default::default(),
                                 index: assistant_index,
                                 created,
-                                agent: agent.clone(),
                                 upstream_id: session_id.clone(),
                                 tool_calls: Some(vec![message::AssistantToolCallDelta {
                                     index: event.index as u64,
@@ -122,7 +122,6 @@ impl BetaRawMessageStreamEvent {
                                 role: Default::default(),
                                 index: assistant_index,
                                 created,
-                                agent: agent.clone(),
                                 upstream_id: session_id.clone(),
                                 content: Some(message::RichContent::Text(delta.text)),
                                 ..Default::default()
@@ -135,7 +134,6 @@ impl BetaRawMessageStreamEvent {
                                 role: Default::default(),
                                 index: assistant_index,
                                 created,
-                                agent: agent.clone(),
                                 upstream_id: session_id.clone(),
                                 reasoning: Some(delta.thinking),
                                 ..Default::default()
@@ -148,7 +146,6 @@ impl BetaRawMessageStreamEvent {
                                 role: Default::default(),
                                 index: assistant_index,
                                 created,
-                                agent: agent.clone(),
                                 upstream_id: session_id.clone(),
                                 tool_calls: Some(vec![message::AssistantToolCallDelta {
                                     index: event.index as u64,
@@ -189,7 +186,6 @@ impl BetaRawMessageStreamEvent {
                         role: Default::default(),
                         index: assistant_index,
                         created,
-                        agent: agent.clone(),
                         upstream_id: session_id.clone(),
                         finish_reason,
                         ..Default::default()
@@ -204,6 +200,10 @@ impl BetaRawMessageStreamEvent {
         message_chunk.map(|message| {
             objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
                 id,
+                agent_instance_hierarchy,
+                agent_id,
+                agent_full_id,
+                agent_remote,
                 created,
                 messages: vec![message],
                 object: Default::default(),

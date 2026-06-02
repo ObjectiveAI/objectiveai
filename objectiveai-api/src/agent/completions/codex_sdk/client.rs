@@ -247,7 +247,10 @@ impl
         _invention_step: Option<usize>,
         _invention_tasks_min: Option<u64>,
         _invention_input_schema: Option<String>,
-        agent_instance_hierarchy_header: Option<&str>,
+        agent_instance_hierarchy: &str,
+        agent_id: &str,
+        agent_full_id: &str,
+        agent_remote: Option<&objectiveai_sdk::RemotePath>,
     ) -> impl Future<Output = Result<Self::Stream, Self::Error>> + Send + 'static
     {
         let enabled = self.enabled;
@@ -259,7 +262,10 @@ impl
         let continuation = continuation.map(|c| c.to_vec());
         let request_continuation = request_continuation.cloned();
         let client = self.clone();
-        let agent_instance_hierarchy_header = agent_instance_hierarchy_header.map(|s| s.to_string());
+        let agent_instance_hierarchy = agent_instance_hierarchy.to_string();
+        let agent_id = agent_id.to_string();
+        let agent_full_id = agent_full_id.to_string();
+        let agent_remote = agent_remote.cloned();
 
         async move {
             if !enabled {
@@ -327,7 +333,7 @@ impl
                 web_search_enabled: agent.base.web_search_enabled,
                 resume: resume_arg,
                 mcp_servers: &mcp_servers,
-                agent_instance_hierarchy: agent_instance_hierarchy_header.as_deref(),
+                agent_instance_hierarchy: Some(agent_instance_hierarchy.as_str()),
             };
 
             // Each agent-completions request gets its own caller-side
@@ -342,7 +348,6 @@ impl
                 .map_err(|e| super::Error::Spawn(e.to_string()))?;
 
             let id_for_chunks = id.clone();
-            let agent_instance_hierarchy = agent.id.clone();
             let model = agent.base.model.clone();
             let initial_thread_id = prompt.thread_id.clone();
 
@@ -390,13 +395,16 @@ impl
                                 event,
                                 id_for_chunks.clone(),
                                 created,
-                                agent_instance_hierarchy.clone(),
                                 model.clone(),
                                 msg_index,
                                 is_byok,
                                 cost_multiplier,
                                 objectiveai_sdk::agent::Upstream::CodexSdk,
                                 &latest_thread_id,
+                                agent_instance_hierarchy.clone(),
+                                agent_id.clone(),
+                                agent_full_id.clone(),
+                                agent_remote.clone(),
                             ) {
                                 Some(Ok(chunk)) => {
                                     let advances = chunk_finishes_assistant(&chunk);
@@ -458,6 +466,10 @@ impl
                 Some(Err(e)) => Err(e),
                 Some(Ok(first)) => {
                     let id_for_stream = id.clone();
+                    let agent_instance_hierarchy_for_stream = agent_instance_hierarchy.clone();
+                    let agent_id_for_stream = agent_id.clone();
+                    let agent_full_id_for_stream = agent_full_id.clone();
+                    let agent_remote_for_stream = agent_remote.clone();
                     let rest = stream.map(move |item| match item {
                         Ok(si) => si,
                         Err(e) => {
@@ -465,6 +477,10 @@ impl
                             StreamItem::Chunk(
                                 objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
                                     id: id_for_stream.clone(),
+                                    agent_instance_hierarchy: agent_instance_hierarchy_for_stream.clone(),
+                                    agent_id: agent_id_for_stream.clone(),
+                                    agent_full_id: agent_full_id_for_stream.clone(),
+                                    agent_remote: agent_remote_for_stream.clone(),
                                     error: Some(objectiveai_sdk::error::ResponseError {
                                         code: e.status(),
                                         message: e.message().unwrap_or(serde_json::Value::Null),
@@ -490,6 +506,7 @@ impl
         request_continuation: Option<&objectiveai_sdk::agent::codex_sdk::Continuation>,
         _messages: &[objectiveai_sdk::agent::completions::message::Message],
         continuation: Option<&[ContinuationItem<Self::State>]>,
+        agent_instance_hierarchy: &str,
     ) -> objectiveai_sdk::agent::codex_sdk::Continuation {
         let thread_id = continuation
             .and_then(|items| {
@@ -509,9 +526,7 @@ impl
 
         objectiveai_sdk::agent::codex_sdk::Continuation {
             upstream: objectiveai_sdk::agent::codex_sdk::Upstream::default(),
-            // Stamped by the agent-completions client immediately
-            // after this method returns; empty here is fine.
-            agent_instance_hierarchy: String::new(),
+            agent_instance_hierarchy: agent_instance_hierarchy.to_string(),
             thread_id,
             mcp_sessions,
             ws_session_id: None,

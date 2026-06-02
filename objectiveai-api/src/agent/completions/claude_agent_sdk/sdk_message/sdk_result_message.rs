@@ -95,15 +95,19 @@ impl SDKResultMessage {
 
     /// Transforms this upstream result message into a downstream
     /// [`AgentCompletionChunk`] with final usage and cost information.
+    #[allow(clippy::too_many_arguments)]
     pub fn into_downstream(
         self,
         id: String,
         created: u64,
-        agent: String,
         assistant_index: u64,
         is_byok: bool,
         cost_multiplier: rust_decimal::Decimal,
         upstream: objectiveai_sdk::agent::Upstream,
+        agent_instance_hierarchy: String,
+        agent_id: String,
+        agent_full_id: String,
+        agent_remote: Option<objectiveai_sdk::RemotePath>,
     ) -> objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
         let upstream_id = self.session_id().to_string();
         let (total_cost_usd, usage, error) = match &self {
@@ -168,13 +172,16 @@ impl SDKResultMessage {
 
         objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
             id,
+            agent_instance_hierarchy,
+            agent_id,
+            agent_full_id,
+            agent_remote,
             created,
             messages: vec![
                 objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
                     objectiveai_sdk::agent::completions::response::streaming::AssistantResponseChunk {
                         index: assistant_index,
                         created,
-                        agent,
                         upstream_id,
                         usage: Some(downstream_usage),
                         ..Default::default()

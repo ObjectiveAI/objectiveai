@@ -60,12 +60,28 @@ pub trait UpstreamClient<AGENT, CONTINUATION> {
         invention_step: Option<usize>,
         invention_tasks_min: Option<u64>,
         invention_input_schema: Option<String>,
-        // composite agent id `{parent}/{agent.id}_{index}` (or
-        // `{agent.id}_{index}` with no parent) that the orchestrator
-        // already sends to the MCP proxy. Runner-backed upstreams
-        // forward this as `OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY` in the env they hand
-        // to their child SDK subprocess; openrouter and mock ignore it.
-        agent_instance_hierarchy_header: Option<&str>,
+        // Composite per-slot agent instance hierarchy
+        // `{parent}/{agent_full_id}-{response_id}` (or
+        // `{agent_full_id}-{response_id}` with no parent) that the
+        // orchestrator already sends to the MCP proxy. Runner-backed
+        // upstreams also forward this as
+        // `OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY` in the env handed to
+        // their child SDK subprocess. The upstream MUST stamp this on
+        // every `AgentCompletionChunk` it emits.
+        agent_instance_hierarchy: &str,
+        // Leaf agent id of the slot answering this call (i.e.
+        // `attempt.agent.id()`). The upstream MUST stamp this on every
+        // `AgentCompletionChunk` it emits.
+        agent_id: &str,
+        // WF-level id: concatenation of the primary agent's id with
+        // all fallback ids (`InlineAgentWithFallbacks::full_id`). Same
+        // for every slot in this request. The upstream MUST stamp this
+        // on every `AgentCompletionChunk` it emits.
+        agent_full_id: &str,
+        // `RemotePath` the WF was fetched from; `None` when the
+        // request supplied the WF inline. The upstream MUST stamp this
+        // on every `AgentCompletionChunk` it emits.
+        agent_remote: Option<&objectiveai_sdk::RemotePath>,
     ) -> impl Future<
         Output = Result<
             Self::Stream,
@@ -77,12 +93,17 @@ pub trait UpstreamClient<AGENT, CONTINUATION> {
     /// Builds a response continuation from the proxy session info
     /// (proxy URL → agent's session id, max one entry), the request
     /// continuation, the messages, and internal continuation items.
+    ///
+    /// The upstream MUST stamp `agent_instance_hierarchy` on the
+    /// returned continuation so it survives the round-trip. The
+    /// orchestrator no longer post-stamps it.
     fn response_continuation(
         &self,
         mcp_sessions: indexmap::IndexMap<String, String>,
         request_continuation: Option<&CONTINUATION>,
         messages: &[objectiveai_sdk::agent::completions::message::Message],
         continuation: Option<&[super::ContinuationItem<Self::State>]>,
+        agent_instance_hierarchy: &str,
     ) -> CONTINUATION;
 }
 
@@ -109,7 +130,10 @@ impl<AGENT, CONTINUATION> UpstreamClient<AGENT, CONTINUATION> for UnimplementedU
         _invention_step: Option<usize>,
         _invention_tasks_min: Option<u64>,
         _invention_input_schema: Option<String>,
-        _agent_instance_hierarchy_header: Option<&str>,
+        _agent_instance_hierarchy: &str,
+        _agent_id: &str,
+        _agent_full_id: &str,
+        _agent_remote: Option<&objectiveai_sdk::RemotePath>,
     ) -> impl Future<
         Output = Result<
             Self::Stream,
@@ -133,6 +157,7 @@ impl<AGENT, CONTINUATION> UpstreamClient<AGENT, CONTINUATION> for UnimplementedU
         _request_continuation: Option<&CONTINUATION>,
         _messages: &[objectiveai_sdk::agent::completions::message::Message],
         _continuation: Option<&[super::ContinuationItem<Self::State>]>,
+        _agent_instance_hierarchy: &str,
     ) -> CONTINUATION {
         unimplemented!()
     }

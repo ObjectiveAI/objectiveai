@@ -28,7 +28,6 @@ pub struct AssistantResponseChunk {
     pub index: u64,
     #[arbitrary(with = crate::arbitrary_util::arbitrary_u64)]
     pub created: u64,
-    pub agent: String,
     pub model: String,
     pub upstream_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]

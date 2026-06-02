@@ -131,31 +131,39 @@ where
     // ── Agent ──────────────────────────────────────────────────────
 
     /// Resolve an agent: inline converts directly, remote fetches and converts.
+    ///
+    /// The returned `Option<RemotePath>` is `Some(path)` when the request
+    /// supplied a remote (in which case the resolved-latest path is
+    /// surfaced for stamping on response chunks), and `None` for inline
+    /// requests.
     pub async fn get_agent<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         self: &Arc<Self>,
         ctx: &ctx::Context<CTXEXT, PC>,
         params: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
-    ) -> Result<objectiveai_sdk::agent::AgentWithFallbacks, ResponseError> {
+    ) -> Result<(objectiveai_sdk::agent::AgentWithFallbacks, Option<objectiveai_sdk::RemotePath>), ResponseError> {
         match params {
             objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(base) => {
                 let converted = base.convert().map_err(|e| bad_request(&e))?;
-                Ok(objectiveai_sdk::agent::AgentWithFallbacks::Inline(converted))
+                Ok((objectiveai_sdk::agent::AgentWithFallbacks::Inline(converted), None))
             }
             objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::Remote(remote) => {
-                let base = self.fetch_agent_base(ctx, &remote).await?
+                let (base, path) = self.fetch_agent_base(ctx, &remote).await?
                     .ok_or_else(|| not_found("agent"))?;
                 let converted = base.convert().map_err(|e| bad_request(&e))?;
-                Ok(objectiveai_sdk::agent::AgentWithFallbacks::Remote(converted))
+                Ok((objectiveai_sdk::agent::AgentWithFallbacks::Remote(converted), Some(path)))
             }
         }
     }
 
     /// Fetch a raw `RemoteAgentBaseWithFallbacks` from a source, with per-request dedup caching.
+    ///
+    /// Returns `(base, resolved_path)` so callers can stamp the path
+    /// onto downstream response shapes without re-resolving.
     async fn fetch_agent_base<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         self: &Arc<Self>,
         ctx: &ctx::Context<CTXEXT, PC>,
         params: &objectiveai_sdk::RemotePathCommitOptional,
-    ) -> Result<Option<objectiveai_sdk::agent::RemoteAgentBaseWithFallbacks>, ResponseError> {
+    ) -> Result<Option<(objectiveai_sdk::agent::RemoteAgentBaseWithFallbacks, objectiveai_sdk::RemotePath)>, ResponseError> {
         let Some(path) = self.resolve_path(ctx, crate::retrieval::Kind::Agents, params).await? else {
             return Ok(None);
         };
@@ -163,9 +171,10 @@ where
         let remote = path.remote();
         let path_clone = path.clone();
         let ctx_clone = ctx.clone();
-        ctx.cached_agent(path, move || async move {
+        let base = ctx.cached_agent(path.clone(), move || async move {
             router.dispatch_get_agent(remote, &ctx_clone, &path_clone).await
-        }).await
+        }).await?;
+        Ok(base.map(|b| (b, path)))
     }
 
     /// API endpoint: fetch a remote agent, convert, wrap in response.
@@ -176,7 +185,7 @@ where
     ) -> Result<objectiveai_sdk::agent::response::GetAgentResponse, ResponseError> {
         let path = self.resolve_path(ctx, crate::retrieval::Kind::Agents, params).await?
             .ok_or_else(|| not_found("agent"))?;
-        let result = self.get_agent(
+        let (result, _) = self.get_agent(
             ctx,
             objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::Remote(params.clone()),
         ).await?;

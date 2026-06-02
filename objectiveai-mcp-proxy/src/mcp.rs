@@ -377,11 +377,24 @@ async fn handle_initialize(
             .or_else(|| headers.get("OBJECTIVEAI-AGENT-ID"))
             .and_then(|v| v.to_str().ok())
             .map(str::to_owned);
+        let agent_full_id = headers
+            .get("X-OBJECTIVEAI-AGENT-FULL-ID")
+            .or_else(|| headers.get("OBJECTIVEAI-AGENT-FULL-ID"))
+            .and_then(|v| v.to_str().ok())
+            .map(str::to_owned);
+        let agent_remote = headers
+            .get("X-OBJECTIVEAI-AGENT-REMOTE")
+            .or_else(|| headers.get("OBJECTIVEAI-AGENT-REMOTE"))
+            .and_then(|v| v.to_str().ok())
+            .filter(|s| !s.is_empty())
+            .map(str::to_owned);
         let (connections_with_headers, tool_allowlists) = match crate::upstream::connect_all_fresh(
             &state.client,
             headers,
             agent_instance_hierarchy.as_deref(),
             agent_id.as_deref(),
+            agent_full_id.as_deref(),
+            agent_remote.as_deref(),
         ).await {
             Ok(pair) => pair,
             Err(e @ (BadInit::NotUtf8 { .. } | BadInit::NotJson { .. })) => {
@@ -395,6 +408,8 @@ async fn handle_initialize(
             connections_with_headers,
             agent_instance_hierarchy,
             agent_id,
+            agent_full_id,
+            agent_remote,
             tool_allowlists,
         );
         ok_response_fresh_sse(request.id, session_id)

@@ -73,6 +73,15 @@ pub struct SessionPayload {
     /// header on resume.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
+    /// WF-level identity from `X-OBJECTIVEAI-AGENT-FULL-ID`. Same
+    /// AEAD-recovery path as `agent_id`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_full_id: Option<String>,
+    /// JSON-encoded `RemotePath` from `X-OBJECTIVEAI-AGENT-REMOTE`.
+    /// `None` when the WF was inline. Same AEAD-recovery path as
+    /// `agent_id`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_remote: Option<String>,
     /// Per-upstream-URL allowlist of un-prefixed tool names. URLs
     /// present in this map have `tools/list` filtered to only those
     /// names (the proxy still applies its `<server_name>_` prefix
@@ -131,15 +140,24 @@ impl SessionManager {
     /// byte-identical too (modulo the random AEAD nonce, which makes
     /// the ciphertext different each time — intentional, prevents
     /// payload-recognition attacks).
+    #[allow(clippy::too_many_arguments)]
     pub fn add(
         &self,
         connections_with_headers: Vec<(Connection, IndexMap<String, String>)>,
         agent_instance_hierarchy: Option<String>,
         agent_id: Option<String>,
+        agent_full_id: Option<String>,
+        agent_remote: Option<String>,
         tool_allowlists: IndexMap<String, Vec<String>>,
     ) -> String {
-        let payload =
-            build_payload(&connections_with_headers, agent_instance_hierarchy, agent_id, tool_allowlists);
+        let payload = build_payload(
+            &connections_with_headers,
+            agent_instance_hierarchy,
+            agent_id,
+            agent_full_id,
+            agent_remote,
+            tool_allowlists,
+        );
         let id = encrypt_and_encode(&payload, &self.key);
         let connections: Vec<Connection> =
             connections_with_headers.into_iter().map(|(c, _)| c).collect();
@@ -199,6 +217,8 @@ fn build_payload(
     pairs: &[(Connection, IndexMap<String, String>)],
     agent_instance_hierarchy: Option<String>,
     agent_id: Option<String>,
+    agent_full_id: Option<String>,
+    agent_remote: Option<String>,
     tool_allowlists: IndexMap<String, Vec<String>>,
 ) -> SessionPayload {
     // Collect (url, sorted headers) pairs, then sort by URL.
@@ -239,6 +259,8 @@ fn build_payload(
         connections,
         agent_instance_hierarchy,
         agent_id,
+        agent_full_id,
+        agent_remote,
         tool_allowlists,
     }
 }

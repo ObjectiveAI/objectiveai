@@ -6,6 +6,10 @@ fn agent_completion(
 ) -> crate::agent::completions::response::streaming::AgentCompletionChunk {
     crate::agent::completions::response::streaming::AgentCompletionChunk {
         id: String::new(),
+        agent_instance_hierarchy: String::new(),
+        agent_id: String::new(),
+        agent_full_id: String::new(),
+        agent_remote: None,
         created: 0,
         messages: vec![],
         object: crate::agent::completions::response::streaming::Object::AgentCompletionChunk,

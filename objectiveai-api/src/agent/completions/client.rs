@@ -539,12 +539,19 @@ where
         };
 
         // 3. Always resolve agents from params.agent.
-        let agent_wf = self
+        // `agent_remote` is `Some(path)` when the WF was fetched from a
+        // remote (stamped on every chunk + outbound MCP-proxy header),
+        // `None` when the request supplied the WF inline.
+        let (agent_wf, agent_remote) = self
             .retrieve_router
             .get_agent(&ctx, params.agent.clone())
             .await
             .map_err(|e| super::Error::InvalidAgent(e.message.to_string()))?;
         let inline = agent_wf.inline();
+        // WF-level identity: concatenation of the primary id with all
+        // fallback ids. See `InlineAgentWithFallbacks::full_id`. Same
+        // value for every slot in this completion.
+        let agent_full_id = inline.full_id();
         let mut all_agents: Vec<objectiveai_sdk::agent::InlineAgent> = vec![inline.inner.clone()];
         if let Some(fallbacks) = &inline.fallbacks {
             all_agents.extend(fallbacks.iter().cloned());
@@ -584,15 +591,18 @@ where
                     .filter(|s| !s.is_empty())
             });
         // When resuming, the hierarchy is fixed: every slot gets that exact
-        // value. Otherwise build a fresh per-agent instance.
+        // value. Otherwise build a fresh per-agent instance. The first
+        // segment is the WF-level `agent_full_id` (constant across all
+        // slots in this completion) followed by `-{response_id}` to
+        // disambiguate slots.
         let agent_instance_hierarchies: Vec<String> =
             match &continuation_agent_instance_hierarchy {
                 Some(h) => vec![h.clone(); filtered_agents.len()],
                 None => filtered_agents
                     .iter()
                     .enumerate()
-                    .map(|(i, agent)| {
-                        let agent_instance = format!("{}-{}", agent.id(), response_ids[i]);
+                    .map(|(i, _agent)| {
+                        let agent_instance = format!("{}-{}", agent_full_id, response_ids[i]);
                         match ctx.agent_instance_hierarchy() {
                             Some(prefix) => format!("{prefix}/{agent_instance}"),
                             None => agent_instance,
@@ -889,18 +899,27 @@ where
                 // per-slot bindings (zipped in from `agent_instance_hierarchies` and
                 // `response_ids` above). `agent_instance_hierarchy` is the full
                 // hierarchy (caller-lineage joined with this slot's instance,
-                // `{agent.id()}-{response_id}`); `id` is this slot's pure
+                // `{agent_full_id}-{response_id}`); `id` is this slot's pure
                 // response id — same value used downstream as `attempt.id`
                 // (chunk id, notify key) and `X-OBJECTIVEAI-RESPONSE-ID`.
                 // `RESPONSE-IDS` is the dash-joined group of every
                 // sibling response_id in this completion, stamped
                 // identically on every per-agent connect.
+                // `AGENT-ID` is the per-slot leaf id; `AGENT-FULL-ID` is
+                // the WF-level id (same across slots); `AGENT-REMOTE` is
+                // JSON-encoded `RemotePath` when the WF was fetched
+                // remotely, or empty when inline.
                 let proxy_request_headers: indexmap::IndexMap<String, String> =
                     indexmap::indexmap! {
                         "X-MCP-Servers".to_string() => serde_json::to_string(&urls).unwrap(),
                         "X-MCP-Headers".to_string() => serde_json::to_string(&per_url_headers).unwrap(),
                         "X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY".to_string() => agent_instance_hierarchy.clone(),
                         "X-OBJECTIVEAI-AGENT-ID".to_string() => agent.id().to_string(),
+                        "X-OBJECTIVEAI-AGENT-FULL-ID".to_string() => agent_full_id.clone(),
+                        "X-OBJECTIVEAI-AGENT-REMOTE".to_string() => agent_remote
+                            .as_ref()
+                            .map(|r| serde_json::to_string(r).unwrap_or_default())
+                            .unwrap_or_default(),
                         "X-OBJECTIVEAI-RESPONSE-ID".to_string() => id.clone(),
                         "X-OBJECTIVEAI-RESPONSE-IDS".to_string() => response_ids_group.clone(),
                     };
@@ -1162,7 +1181,10 @@ where
                                 invention_step,
                                 invention_tasks_min,
                                 invention_input_schema.clone(),
-                                Some(attempt.agent_instance_hierarchy.as_str()),
+                                attempt.agent_instance_hierarchy.as_str(),
+                                attempt.agent.id(),
+                                agent_full_id.as_str(),
+                                agent_remote.as_ref(),
                             ).await {
                                 Ok(stream) => {
                                     if !viewer { return Ok(stream); }
@@ -1210,7 +1232,10 @@ where
                                 invention_step,
                                 invention_tasks_min,
                                 invention_input_schema.clone(),
-                                Some(attempt.agent_instance_hierarchy.as_str()),
+                                attempt.agent_instance_hierarchy.as_str(),
+                                attempt.agent.id(),
+                                agent_full_id.as_str(),
+                                agent_remote.as_ref(),
                             ).await {
                                 Ok(stream) => {
                                     if !viewer { return Ok(stream); }
@@ -1258,7 +1283,10 @@ where
                                 invention_step,
                                 invention_tasks_min,
                                 invention_input_schema.clone(),
-                                Some(attempt.agent_instance_hierarchy.as_str()),
+                                attempt.agent_instance_hierarchy.as_str(),
+                                attempt.agent.id(),
+                                agent_full_id.as_str(),
+                                agent_remote.as_ref(),
                             ).await {
                                 Ok(stream) => {
                                     if !viewer { return Ok(stream); }
@@ -1306,7 +1334,10 @@ where
                                 invention_step,
                                 invention_tasks_min,
                                 invention_input_schema.clone(),
-                                Some(attempt.agent_instance_hierarchy.as_str()),
+                                attempt.agent_instance_hierarchy.as_str(),
+                                attempt.agent.id(),
+                                agent_full_id.as_str(),
+                                agent_remote.as_ref(),
                             ).await {
                                 Ok(stream) => {
                                     if !viewer { return Ok(stream); }
@@ -1384,7 +1415,10 @@ where
         invention_step: Option<usize>,
         invention_tasks_min: Option<u64>,
         invention_input_schema: Option<String>,
-        agent_instance_hierarchy_header: Option<&str>,
+        agent_instance_hierarchy_header: &str,
+        agent_id: &str,
+        agent_full_id: &str,
+        agent_remote: Option<&objectiveai_sdk::RemotePath>,
     ) -> Result<
         Pin<Box<dyn futures::Stream<Item = super::StreamItem<CONT>> + Send>>,
         super::Error,
@@ -1473,6 +1507,9 @@ where
             invention_tasks_min,
             invention_input_schema.clone(),
             agent_instance_hierarchy_header,
+            agent_id,
+            agent_full_id,
+            agent_remote,
         );
         let initial_stream =
             tokio::time::timeout(self.first_chunk_timeout, create_fut)
@@ -1503,7 +1540,10 @@ where
         let params = params.clone();
         let id = id.to_string();
         let byok = byok.map(|s| s.to_string());
-        let agent_instance_hierarchy_header = agent_instance_hierarchy_header.map(|s| s.to_string());
+        let agent_instance_hierarchy_header = agent_instance_hierarchy_header.to_string();
+        let agent_id = agent_id.to_string();
+        let agent_full_id = agent_full_id.to_string();
+        let agent_remote = agent_remote.cloned();
         let request_continuation = request_continuation.cloned();
 
         // Register this completion's notify target(s) before the stream
@@ -1545,6 +1585,11 @@ where
                 loop {
                     match tokio::time::timeout(other_chunk_timeout, stream.next()).await {
                         Ok(Some(super::StreamItem::Chunk(chunk))) => {
+                            // Identity (`agent_instance_hierarchy`,
+                            // `agent_id`, `agent_full_id`, `agent_remote`)
+                            // is stamped at the upstream-client level
+                            // when each chunk is constructed — no need
+                            // to re-stamp here.
                             // Import usage from assistant response chunks.
                             for msg in &chunk.messages {
                                 if let objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(asst) = msg {
@@ -1661,7 +1706,17 @@ where
                     match result {
                         Ok(tool_msg) => {
                             let idx = continuation_items.len() as u64;
-                            let chunk = make_tool_chunk(&id, created, upstream_kind, idx, &tool_msg);
+                            let chunk = make_tool_chunk(
+                                &id,
+                                &agent_instance_hierarchy_header,
+                                &agent_id,
+                                &agent_full_id,
+                                agent_remote.as_ref(),
+                                created,
+                                upstream_kind,
+                                idx,
+                                &tool_msg,
+                            );
                             if let Some(ref mut agg) = aggregate {
                                 agg.push(&chunk);
                             }
@@ -1712,7 +1767,10 @@ where
                         invention_step,
                         invention_tasks_min,
                         invention_input_schema.clone(),
-                        agent_instance_hierarchy_header.as_deref(),
+                        agent_instance_hierarchy_header.as_str(),
+                        agent_id.as_str(),
+                        agent_full_id.as_str(),
+                        agent_remote.as_ref(),
                     )
                     .await
                 {
@@ -1742,20 +1800,17 @@ where
                 })
                 .unwrap_or_default();
 
-            // Build response continuation token.
+            // Build response continuation token. The upstream stamps
+            // `agent_instance_hierarchy` on the returned continuation
+            // itself — no post-stamp from the orchestrator.
             let response_cont = upstream.response_continuation(
                 mcp_sessions,
                 request_continuation.as_ref(),
                 &messages,
                 Some(&continuation_items),
+                &agent_instance_hierarchy_header,
             );
-            let mut continuation_token: objectiveai_sdk::agent::Continuation = response_cont.into();
-            // Stamp the agent's full lineage on the outgoing wire
-            // continuation so the next round (whoever resumes — same
-            // caller or any other) reuses the same identity verbatim.
-            continuation_token.set_agent_instance_hierarchy(
-                agent_instance_hierarchy_header.clone().unwrap_or_default(),
-            );
+            let continuation_token: objectiveai_sdk::agent::Continuation = response_cont.into();
             let continuation_token = continuation_token.to_string();
 
             // Set cancellation error if the stream was cancelled.
@@ -1821,6 +1876,10 @@ where
             yield super::StreamItem::Chunk(
                 objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
                     id: id.clone(),
+                    agent_instance_hierarchy: agent_instance_hierarchy_header.clone(),
+                    agent_id: agent_id.clone(),
+                    agent_full_id: agent_full_id.clone(),
+                    agent_remote: agent_remote.clone(),
                     created,
                     upstream: upstream_kind,
                     usage: Some(usage),
@@ -1923,6 +1982,10 @@ fn build_drain_user_message(
 /// Builds an `AgentCompletionChunk` containing a single tool-response message.
 fn make_tool_chunk(
     id: &str,
+    agent_instance_hierarchy: &str,
+    agent_id: &str,
+    agent_full_id: &str,
+    agent_remote: Option<&objectiveai_sdk::RemotePath>,
     created: u64,
     upstream: objectiveai_sdk::agent::Upstream,
     index: u64,
@@ -1934,6 +1997,10 @@ fn make_tool_chunk(
     use objectiveai_sdk::agent::completions::response::ToolResponse;
     AgentCompletionChunk {
         id: id.to_string(),
+        agent_instance_hierarchy: agent_instance_hierarchy.to_string(),
+        agent_id: agent_id.to_string(),
+        agent_full_id: agent_full_id.to_string(),
+        agent_remote: agent_remote.cloned(),
         created,
         upstream,
         messages: vec![MessageChunk::Tool(ToolResponse {

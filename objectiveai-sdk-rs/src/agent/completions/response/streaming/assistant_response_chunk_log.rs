@@ -38,7 +38,6 @@ pub struct AssistantResponseChunkLog {
     pub role: response::AssistantRole,
     pub index: u64,
     pub created: u64,
-    pub agent: String,
     pub model: String,
     pub upstream_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]

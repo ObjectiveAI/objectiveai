@@ -1223,18 +1223,13 @@ fn extract_assistant_content(
     (text, logprobs, tool_call_text)
 }
 
-/// Extracts the agent ID from the last assistant message in a response.
+/// Returns the slot's `agent_instance_hierarchy` directly off the
+/// outer completion. Identity used to live on the last assistant
+/// message; now the outer completion carries it, so no walk is needed.
 fn extract_agent_instance_hierarchy(
     response: &objectiveai_sdk::agent::completions::response::unary::AgentCompletion,
 ) -> String {
-    use objectiveai_sdk::agent::completions::response::unary::Message;
-
-    for msg in response.messages.iter().rev() {
-        if let Message::Assistant(assistant) = msg {
-            return assistant.agent.clone();
-        }
-    }
-    String::new()
+    response.agent_instance_hierarchy.clone()
 }
 
 /// Converts RichContent to a plain string.

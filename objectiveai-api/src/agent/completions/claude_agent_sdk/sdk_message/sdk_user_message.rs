@@ -72,12 +72,17 @@ impl SDKUserMessage {
     ///
     /// Only produces a chunk when both `tool_use_result` and
     /// `parent_tool_use_id` are present.
+    #[allow(clippy::too_many_arguments)]
     pub fn into_downstream(
         self,
         id: String,
         created: u64,
         message_index: u64,
         upstream: objectiveai_sdk::agent::Upstream,
+        agent_instance_hierarchy: String,
+        agent_id: String,
+        agent_full_id: String,
+        agent_remote: Option<objectiveai_sdk::RemotePath>,
     ) -> Option<objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk> {
         let (Some(tool_use_result), Some(tool_call_id)) =
             (self.tool_use_result, self.parent_tool_use_id)
@@ -103,6 +108,10 @@ impl SDKUserMessage {
         Some(
             objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
                 id,
+                agent_instance_hierarchy,
+                agent_id,
+                agent_full_id,
+                agent_remote,
                 created,
                 messages: vec![message],
                 object: Default::default(),

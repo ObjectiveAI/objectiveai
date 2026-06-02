@@ -11,6 +11,20 @@ use serde::{Deserialize, Serialize};
 #[schemars(rename = "agent.completions.response.unary.AgentCompletion")]
 pub struct AgentCompletion {
     pub id: String,
+    /// Full agent instance hierarchy for this completion's slot. See
+    /// [`super::streaming::AgentCompletionChunk::agent_instance_hierarchy`].
+    pub agent_instance_hierarchy: String,
+    /// Leaf agent id of the slot that produced this completion. See
+    /// [`super::streaming::AgentCompletionChunk::agent_id`].
+    pub agent_id: String,
+    /// WF-level id: see
+    /// [`super::streaming::AgentCompletionChunk::agent_full_id`].
+    pub agent_full_id: String,
+    /// `RemotePath` the WF was fetched from, or `None` when inline.
+    /// See [`super::streaming::AgentCompletionChunk::agent_remote`].
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub agent_remote: Option<crate::RemotePath>,
     pub created: u64,
     pub messages: Vec<super::Message>,
     /// The object type (always "agent.completion").
@@ -140,6 +154,10 @@ impl From<response::streaming::AgentCompletionChunk> for AgentCompletion {
     fn from(
         response::streaming::AgentCompletionChunk {
             id,
+            agent_instance_hierarchy,
+            agent_id,
+            agent_full_id,
+            agent_remote,
             created,
             messages,
             object,
@@ -152,6 +170,10 @@ impl From<response::streaming::AgentCompletionChunk> for AgentCompletion {
     ) -> Self {
         Self {
             id,
+            agent_instance_hierarchy,
+            agent_id,
+            agent_full_id,
+            agent_remote,
             created,
             messages: messages.into_iter().map(Into::into).collect(),
             object: object.into(),

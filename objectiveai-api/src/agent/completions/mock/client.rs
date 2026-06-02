@@ -73,7 +73,10 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
         invention_step: Option<usize>,
         invention_tasks_min: Option<u64>,
         invention_input_schema: Option<String>,
-        _agent_instance_hierarchy_header: Option<&str>,
+        agent_instance_hierarchy: &str,
+        agent_id_arg: &str,
+        agent_full_id: &str,
+        agent_remote: Option<&objectiveai_sdk::RemotePath>,
     ) -> impl Future<
         Output = Result<
             Self::Stream,
@@ -84,7 +87,10 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
         let tools_enabled = tools_enabled;
         let mode = agent.base.mode.unwrap_or_default();
         let id = id.to_string();
-        let agent_instance_hierarchy = agent.id.clone();
+        let agent_instance_hierarchy = agent_instance_hierarchy.to_string();
+        let agent_id_for_chunks = agent_id_arg.to_string();
+        let agent_full_id = agent_full_id.to_string();
+        let agent_remote = agent_remote.cloned();
         let error = agent.base.error == Some(true);
         let error_probability = agent.base.error_probability;
         let top_logprobs = agent.base.top_logprobs;
@@ -356,11 +362,14 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
                     }
                     yield StreamItem::Chunk(AgentCompletionChunk {
                         id: id.clone(),
+                        agent_instance_hierarchy: agent_instance_hierarchy.clone(),
+                        agent_id: agent_id_for_chunks.clone(),
+                        agent_full_id: agent_full_id.clone(),
+                        agent_remote: agent_remote.clone(),
                         created,
                         messages: vec![MessageChunk::Assistant(AssistantResponseChunk {
                             index: assistant_index,
                             created,
-                            agent: agent_instance_hierarchy.clone(),
                             model: "mock".into(),
                             upstream_id: id.clone(),
                             reasoning: Some(reasoning_text.clone()),
@@ -387,11 +396,14 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
                             }
                             yield StreamItem::Chunk(AgentCompletionChunk {
                                 id: id.clone(),
+                                agent_instance_hierarchy: agent_instance_hierarchy.clone(),
+                                agent_id: agent_id_for_chunks.clone(),
+                                agent_full_id: agent_full_id.clone(),
+                                agent_remote: agent_remote.clone(),
                                 created,
                                 messages: vec![MessageChunk::Assistant(AssistantResponseChunk {
                                     index: assistant_index,
                                     created,
-                                    agent: agent_instance_hierarchy.clone(),
                                     model: "mock".into(),
                                     upstream_id: id.clone(),
                                     content: Some(RichContent::Text(chunk_text.clone())),
@@ -435,11 +447,14 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
                                 }
                                 yield StreamItem::Chunk(AgentCompletionChunk {
                                     id: id.clone(),
+                                    agent_instance_hierarchy: agent_instance_hierarchy.clone(),
+                                    agent_id: agent_id_for_chunks.clone(),
+                                    agent_full_id: agent_full_id.clone(),
+                                    agent_remote: agent_remote.clone(),
                                     created,
                                     messages: vec![MessageChunk::Assistant(AssistantResponseChunk {
                                         index: assistant_index,
                                         created,
-                                        agent: agent_instance_hierarchy.clone(),
                                         model: "mock".into(),
                                         upstream_id: id.clone(),
                                         tool_calls: Some(vec![AssistantToolCallDelta {
@@ -498,6 +513,7 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
         request_continuation: Option<&objectiveai_sdk::agent::mock::Continuation>,
         messages: &[objectiveai_sdk::agent::completions::message::Message],
         continuation: Option<&[ContinuationItem<Self::State>]>,
+        agent_instance_hierarchy: &str,
     ) -> objectiveai_sdk::agent::mock::Continuation {
         use objectiveai_sdk::agent::completions::message::Message;
         let rc_len = request_continuation.map_or(0, |rc| rc.messages.len());
@@ -516,9 +532,7 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
         }
         objectiveai_sdk::agent::mock::Continuation {
             upstream: objectiveai_sdk::agent::mock::Upstream::default(),
-            // Stamped by the agent-completions client immediately
-            // after this method returns; empty here is fine.
-            agent_instance_hierarchy: String::new(),
+            agent_instance_hierarchy: agent_instance_hierarchy.to_string(),
             messages: all_messages,
             mcp_sessions,
             ws_session_id: None,
