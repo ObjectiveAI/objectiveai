@@ -19,54 +19,35 @@ impl CommandRequest for Request {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(untagged)]
 pub enum Response {
-    // Agent-completion typed envelopes / metadata
-    AgentCompletion {
-        content: crate::agent::completions::response::streaming::AgentCompletionChunkLog,
-    },
-    AgentCompletionRequest {
-        content: crate::agent::completions::request::AgentCompletionCreateParamsLog,
-    },
-    Message { content: crate::agent::completions::message::MessageLog },
-    Logprobs { content: crate::agent::completions::response::Logprobs },
-    ToolCall { content: crate::agent::completions::message::AssistantToolCallDelta },
+    // Typed log envelopes — each carries the matching `logs <…> get`
+    // leaf's Response so the type stays in one place.
+    AgentCompletion(crate::cli::command::logs::agents::completions::response::get::Response),
+    AgentCompletionRequest(crate::cli::command::logs::agents::completions::request::get::Response),
+    Message(crate::cli::command::logs::agents::completions::response::messages::get::Response),
+    Logprobs(crate::cli::command::logs::agents::completions::response::messages::logprobs::get::Response),
+    ToolCall(crate::cli::command::logs::agents::completions::response::messages::tool_calls::get::Response),
 
-    // Vector / function typed envelopes
-    VectorCompletion {
-        content: crate::vector::completions::response::streaming::VectorCompletionChunkLog,
-    },
-    VectorCompletionRequest {
-        content: crate::vector::completions::request::VectorCompletionCreateParams,
-    },
-    FunctionExecution {
-        content: crate::functions::executions::response::streaming::FunctionExecutionChunkLog,
-    },
-    FunctionExecutionRequest {
-        content: crate::functions::executions::request::FunctionExecutionCreateParamsLog,
-    },
-    FunctionInvention {
-        content: crate::functions::inventions::response::streaming::FunctionInventionChunkLog,
-    },
-    FunctionInventionRequest {
-        content: crate::functions::inventions::request::FunctionInventionCreateParams,
-    },
-    FunctionInventionRecursive {
-        content: crate::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunkLog,
-    },
-    FunctionInventionRecursiveRequest {
-        content: crate::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParamsLog,
-    },
+    VectorCompletion(crate::cli::command::logs::vector::completions::response::get::Response),
+    VectorCompletionRequest(crate::cli::command::logs::vector::completions::request::get::Response),
+
+    FunctionExecution(crate::cli::command::logs::functions::executions::response::get::Response),
+    FunctionExecutionRequest(crate::cli::command::logs::functions::executions::request::get::Response),
+
+    FunctionInvention(crate::cli::command::logs::functions::inventions::response::get::Response),
+    FunctionInventionRequest(crate::cli::command::logs::functions::inventions::request::get::Response),
+
+    FunctionInventionRecursive(crate::cli::command::logs::functions::inventions::recursive::response::get::Response),
+    FunctionInventionRecursiveRequest(crate::cli::command::logs::functions::inventions::recursive::request::get::Response),
 
     // Collapsed text/media — one variant per content kind, regardless
-    // of where the file lives (continuation, reasoning, refusal, every
-    // message/tool/request/notification text and retry_token all surface
-    // as Text; every image as Image; etc.).
-    Text { text: String },
-    Image { image_url: crate::agent::completions::message::ImageUrl },
-    Audio { input_audio: crate::agent::completions::message::InputAudio },
-    Video { video_url: crate::agent::completions::message::VideoUrl },
-    File { file: crate::agent::completions::message::File },
+    // of where the file lives. Untagged tuple variants, no wrapper keys.
+    Text(String),
+    Image(crate::agent::completions::message::ImageUrl),
+    Audio(crate::agent::completions::message::InputAudio),
+    Video(crate::agent::completions::message::VideoUrl),
+    File(crate::agent::completions::message::File),
 }
 
 pub mod request_schema {
