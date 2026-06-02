@@ -416,7 +416,7 @@ impl Client {
             queue,
             Some(super::super::db::schema::MessageKind::AgentCompletionRequest),
             |chunk: &AgentCompletionChunk| {
-                Box::new(chunk.produce_message_rows())
+                Box::new(crate::logs::agents::completions::response::streaming::agent_completion_chunk::produce_message_rows(chunk))
             },
         ))
     }

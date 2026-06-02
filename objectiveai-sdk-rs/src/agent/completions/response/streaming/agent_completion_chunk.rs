@@ -90,53 +90,6 @@ impl AgentCompletionChunk {
         }
     }
 
-    /// Yields one [`MessageRow`] per `MessageChunk` for the SQLite
-    /// `messages` table. Lazy: borrows from `self`, never collects.
-    ///
-    /// `agent_instance_hierarchy` is this chunk's `id`; `path` points at the
-    /// per-message log file under `agents/completions/response/messages/`.
-    /// Returns an empty iterator when `id` is empty (the chunk hasn't
-    /// been assigned a response id yet — same gate `produce_files`
-    /// uses).
-    ///
-    /// [`MessageRow`]: crate::filesystem::db::schema::MessageRow
-    #[cfg(feature = "filesystem")]
-    pub fn produce_message_rows(
-        &self,
-    ) -> impl Iterator<Item = crate::filesystem::db::schema::MessageRow> + Send + '_
-    {
-        use crate::filesystem::db::schema::{MessageKind, MessageRow};
-        let id = self.id.as_str();
-        let created = self.created;
-        let empty = self.id.is_empty();
-        self.messages.iter().filter_map(move |m| {
-            if empty {
-                return None;
-            }
-            let kind = match m {
-                super::MessageChunk::Assistant(_) => {
-                    MessageKind::AssistantResponse
-                }
-                super::MessageChunk::Tool(_) => MessageKind::ToolResponse,
-            };
-            let idx = m.index();
-            Some(MessageRow {
-                agent_instance_hierarchy: id.to_string(),
-                // Same value as agent_instance_hierarchy at this stage — the writer
-                // will lineage-stamp `agent_instance_hierarchy` but `response_id`
-                // stays bare so the reader doesn't have to parse it
-                // back out of a stamped string.
-                response_id: id.to_string(),
-                kind,
-                index: idx,
-                // Bare id — the route is reconstructed from
-                // (kind, response_id, path) by `MessageKind::file_path`.
-                path: format!("{idx}"),
-                timestamp: created,
-            })
-        })
-    }
-
     fn push_messages(&mut self, other_choices: &[super::MessageChunk]) {
         fn push_message(
             messages: &mut Vec<super::MessageChunk>,
