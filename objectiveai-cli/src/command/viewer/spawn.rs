@@ -1,12 +1,37 @@
-//! `viewer spawn` — bare-naked handler stub.
+//! `viewer spawn` — start the `objectiveai-viewer` Tauri shell in the
+//! background, using `viewer.address` + `viewer.port` from on-disk
+//! config.
 
 use objectiveai_sdk::cli::command::viewer::spawn::{Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
 
-pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-    todo!("viewer spawn execute")
+pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error> {
+    let config = ctx.filesystem.read_config().await?;
+
+    let address = config
+        .viewer()
+        .get_address()
+        .ok_or(Error::MissingArgs(
+            "viewer.address unset; run `objectiveai config viewer address set <addr>`",
+        ))?
+        .to_string();
+    let port = config.viewer().get_port().ok_or(Error::MissingArgs(
+        "viewer.port unset; run `objectiveai config viewer port set <port>`",
+    ))?;
+
+    crate::spawn::ensure_not_running("objectiveai-viewer")?;
+
+    let bin = if cfg!(windows) {
+        "objectiveai-viewer.exe"
+    } else {
+        "objectiveai-viewer"
+    };
+    let exe = ctx.filesystem.base_dir().join("bin").join(bin);
+
+    let listening = crate::spawn::spawn_and_wait_for_listening(&exe, &address, port).await?;
+    Ok(Response { listening })
 }
 
 pub mod request_schema {

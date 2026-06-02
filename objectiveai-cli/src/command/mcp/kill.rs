@@ -1,4 +1,5 @@
-//! `mcp kill` — bare-naked handler stub.
+//! `mcp kill` — terminate every running `objectiveai-mcp` process.
+//! Idempotent: a count of zero is not an error.
 
 use objectiveai_sdk::cli::command::mcp::kill::{Request, Response};
 
@@ -6,7 +7,8 @@ use crate::context::Context;
 use crate::error::Error;
 
 pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-    todo!("mcp kill execute")
+    let killed = crate::spawn::kill_by_name("objectiveai-mcp");
+    Ok(Response { killed })
 }
 
 pub mod request_schema {
