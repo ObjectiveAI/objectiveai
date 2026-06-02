@@ -1,0 +1,1 @@
+//! `update` — async handler stub.
