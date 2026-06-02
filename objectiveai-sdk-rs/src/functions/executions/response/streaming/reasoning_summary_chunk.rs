@@ -38,31 +38,6 @@ impl ReasoningSummaryChunk {
         }
     }
 
-    /// Produces log files for this reasoning summary.
-    ///
-    /// Returns `(reference, files)` where `reference` is a
-    /// [`super::reasoning_summary_log_reference::LogReference`]
-    /// carrying the wrapper's own optional `error`. Files under
-    /// `agent/completions/`.
-    #[cfg(feature = "filesystem")]
-    pub fn produce_files(
-        &self,
-    ) -> (
-        super::reasoning_summary_log_reference::LogReference,
-        Vec<crate::filesystem::logs::LogFile>,
-    ) {
-        let (path, files) = match self.inner.produce_files() {
-            Some((inner_ref, files)) => (inner_ref.path, files),
-            None => (String::new(), Vec::new()),
-        };
-        let mut reference =
-            super::reasoning_summary_log_reference::LogReference::new(path);
-        if let Some(error) = &self.error {
-            reference.error = Some(serde_json::to_value(error).unwrap());
-        }
-        (reference, files)
-    }
-
     /// Delegates to the inner agent completion's message-row extractor.
     #[cfg(feature = "filesystem")]
     pub fn produce_message_rows(

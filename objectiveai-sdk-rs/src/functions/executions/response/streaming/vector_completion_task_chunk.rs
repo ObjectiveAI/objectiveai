@@ -44,36 +44,6 @@ impl VectorCompletionTaskChunk {
         }
     }
 
-    /// Produces log files for this vector completion task.
-    ///
-    /// Returns `(reference, files)` where `reference` is a
-    /// [`super::vector_completion_task_log_reference::LogReference`]
-    /// carrying `index`, `task_index`, `task_path`, and optionally
-    /// `error`. Files under `vector/completions/`.
-    #[cfg(feature = "filesystem")]
-    pub fn produce_files(
-        &self,
-    ) -> (
-        super::vector_completion_task_log_reference::LogReference,
-        Vec<crate::filesystem::logs::LogFile>,
-    ) {
-        let (path, files) = match self.inner.produce_files() {
-            Some((inner_ref, files)) => (inner_ref.path, files),
-            None => (String::new(), Vec::new()),
-        };
-        let mut reference =
-            super::vector_completion_task_log_reference::LogReference::new(
-                path,
-                self.index,
-                self.task_index,
-                self.task_path.clone(),
-            );
-        if let Some(error) = &self.error {
-            reference.error = Some(serde_json::to_value(error).unwrap());
-        }
-        (reference, files)
-    }
-
     /// Delegates to the inner vector completion.
     #[cfg(feature = "filesystem")]
     pub fn produce_message_rows(

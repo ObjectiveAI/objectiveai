@@ -93,40 +93,6 @@ impl TaskChunk {
         }
     }
 
-    /// Produces log files for this task.
-    ///
-    /// Returns `(reference, files)` where `reference` is the
-    /// untagged [`super::task_log_reference::LogReference`] enum
-    /// dispatching to whichever variant the task is.
-    #[cfg(feature = "filesystem")]
-    pub fn produce_files(
-        &self,
-    ) -> (
-        super::task_log_reference::LogReference,
-        Vec<crate::filesystem::logs::LogFile>,
-    ) {
-        match self {
-            TaskChunk::FunctionExecution(chunk) => {
-                let (reference, files) = chunk.produce_files();
-                (
-                    super::task_log_reference::LogReference::FunctionExecution(
-                        reference,
-                    ),
-                    files,
-                )
-            }
-            TaskChunk::VectorCompletion(chunk) => {
-                let (reference, files) = chunk.produce_files();
-                (
-                    super::task_log_reference::LogReference::VectorCompletion(
-                        reference,
-                    ),
-                    files,
-                )
-            }
-        }
-    }
-
     /// Delegates to whichever variant the task is. Erased to
     /// `Box<dyn Iterator>` because the two variants' iterators have
     /// different concrete types.

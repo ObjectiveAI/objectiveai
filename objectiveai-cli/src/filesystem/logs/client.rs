@@ -450,7 +450,8 @@ impl Client {
         Ok(super::LogWriter::new(
             self.logs_dir(),
             |chunk: &FunctionExecutionChunk| {
-                chunk.produce_files().map(|(_, files)| files)
+                crate::logs::functions::executions::response::streaming::function_execution_chunk::produce_files(chunk)
+                    .map(|(_, files)| files)
             },
         )
         .with_request("functions/executions/request", request)?
