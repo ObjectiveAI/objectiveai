@@ -1,4 +1,6 @@
-//! `plugins install filesystem` — bare-naked handler stub.
+//! `plugins install filesystem` — return the static
+//! INSTRUCTIONS.md asset describing how to install a plugin from a
+//! local path.
 
 use objectiveai_sdk::cli::command::plugins::install::filesystem::{Request, Response};
 
@@ -6,7 +8,12 @@ use crate::context::Context;
 use crate::error::Error;
 
 pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-    todo!("plugins install filesystem execute")
+    Ok(Response {
+        instructions: include_str!(
+            "../../../../assets/plugins/install/filesystem/INSTRUCTIONS.md"
+        )
+        .to_string(),
+    })
 }
 
 pub mod request_schema {
