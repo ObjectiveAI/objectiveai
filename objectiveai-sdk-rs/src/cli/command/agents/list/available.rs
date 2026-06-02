@@ -48,12 +48,10 @@ pub struct ResponseFavorite {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
 pub enum Response {
-    Filesystem(Vec<crate::RemotePath>),
     Favorites(Vec<ResponseFavorite>),
-    Objectiveai(Vec<crate::RemotePath>),
-    Mock(Vec<crate::RemotePath>),
-    All(Vec<crate::RemotePath>),
+    Paths(Vec<crate::RemotePath>),
 }
 
 pub mod request_schema {

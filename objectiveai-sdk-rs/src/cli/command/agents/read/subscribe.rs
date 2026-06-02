@@ -122,6 +122,7 @@ pub enum ResponseQueueItem {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
 pub enum ResponseItem {
     Items {
         agent_id: String,
