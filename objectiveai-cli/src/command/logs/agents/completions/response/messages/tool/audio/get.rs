@@ -1,12 +1,15 @@
-//! `logs agents completions response messages tool audio get` — bare-naked handler stub.
+//! `logs agents completions response messages tool audio get` — read a stored log record from disk.
 
 use objectiveai_sdk::cli::command::logs::agents::completions::response::messages::tool::audio::get::{Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
 
-pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-    todo!("logs agents completions response messages tool audio get execute")
+pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+    Ok(ctx
+        .filesystem
+        .read_agent_completion_message_tool_audio(&request.id, request.message_index, request.media_index)
+        .await?)
 }
 
 pub mod request_schema {

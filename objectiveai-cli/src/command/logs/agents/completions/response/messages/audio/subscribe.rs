@@ -1,12 +1,23 @@
-//! `logs agents completions response messages audio subscribe` — bare-naked handler stub.
+//! `logs agents completions response messages audio subscribe` — wait (up to `timeout_ms`) for a log file to appear
+//! or be modified, then read it. Timeout becomes
+//! [`Error::Filesystem(LogSubscribeTimedOut)`].
+
+use std::time::Duration;
 
 use objectiveai_sdk::cli::command::logs::agents::completions::response::messages::audio::subscribe::{Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
 
-pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-    todo!("logs agents completions response messages audio subscribe execute")
+pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+    Ok(ctx
+        .filesystem
+        .subscribe_agent_completion_message_audio(
+            &request.id, request.message_index, request.media_index,
+            Duration::from_millis(request.timeout_ms),
+            request.require_modification,
+        )
+        .await?)
 }
 
 pub mod request_schema {

@@ -1,12 +1,13 @@
-//! `logs agents completions response continuations clear` — bare-naked handler stub.
+//! `logs agents completions response continuations clear` — clear a category of stored log records.
 
 use objectiveai_sdk::cli::command::logs::agents::completions::response::continuations::clear::{Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
 
-pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-    todo!("logs agents completions response continuations clear execute")
+pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error> {
+    ctx.filesystem.clear_agent_completion_continuations().await?;
+    Ok(Response {})
 }
 
 pub mod request_schema {

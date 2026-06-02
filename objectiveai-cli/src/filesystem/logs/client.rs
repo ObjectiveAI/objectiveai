@@ -179,9 +179,22 @@ impl Client {
         &self,
         offset: usize,
         limit: usize,
-    ) -> Result<Vec<ListItem>, Error> {
-        self.list_endpoint("agents/completions/response", offset, limit)
-            .await
+    ) -> Result<
+        Vec<objectiveai_sdk::cli::command::logs::agents::completions::response::list::ResponseItem>,
+        Error,
+    > {
+        let items = self
+            .list_endpoint("agents/completions/response", offset, limit)
+            .await?;
+        Ok(items
+            .into_iter()
+            .map(|i| {
+                objectiveai_sdk::cli::command::logs::agents::completions::response::list::ResponseItem {
+                    id: i.id,
+                    created: i.created,
+                }
+            })
+            .collect())
     }
     pub async fn list_vector_completions(
         &self,
@@ -592,9 +605,11 @@ impl Client {
     pub async fn read_agent_completion(
         &self,
         id: &str,
-        jq: Option<&str>,
-    ) -> Result<serde_json::Value, Error> {
-        self.read_json("agents/completions/response", id, jq).await
+    ) -> Result<
+        objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunkLog,
+        Error,
+    > {
+        self.read_json_typed("agents/completions/response", id).await
     }
     pub async fn read_agent_completion_request(
         &self,
@@ -616,12 +631,10 @@ impl Client {
         &self,
         id: &str,
         message_index: u64,
-        jq: Option<&str>,
-    ) -> Result<serde_json::Value, Error> {
-        self.read_json(
+    ) -> Result<objectiveai_sdk::agent::completions::message::MessageLog, Error> {
+        self.read_json_typed(
             "agents/completions/response/messages",
             &format!("{id}_{message_index}"),
-            jq,
         )
         .await
     }
@@ -629,12 +642,10 @@ impl Client {
         &self,
         id: &str,
         message_index: u64,
-        jq: Option<&str>,
-    ) -> Result<serde_json::Value, Error> {
-        self.read_json(
+    ) -> Result<objectiveai_sdk::agent::completions::response::Logprobs, Error> {
+        self.read_json_typed(
             "agents/completions/response/messages/logprobs",
             &format!("{id}_{message_index}"),
-            jq,
         )
         .await
     }
@@ -642,12 +653,10 @@ impl Client {
         &self,
         id: &str,
         message_index: u64,
-        jq: Option<&str>,
-    ) -> Result<serde_json::Value, Error> {
-        self.read_json(
+    ) -> Result<String, Error> {
+        self.read_json_typed(
             "agents/completions/response/messages/reasoning",
             &format!("{id}_{message_index}"),
-            jq,
         )
         .await
     }
@@ -655,12 +664,10 @@ impl Client {
         &self,
         id: &str,
         message_index: u64,
-        jq: Option<&str>,
-    ) -> Result<serde_json::Value, Error> {
-        self.read_json(
+    ) -> Result<String, Error> {
+        self.read_json_typed(
             "agents/completions/response/messages/refusal",
             &format!("{id}_{message_index}"),
-            jq,
         )
         .await
     }
@@ -669,12 +676,10 @@ impl Client {
         id: &str,
         message_index: u64,
         tool_call_index: u64,
-        jq: Option<&str>,
-    ) -> Result<serde_json::Value, Error> {
-        self.read_json(
+    ) -> Result<objectiveai_sdk::agent::completions::message::AssistantToolCallDelta, Error> {
+        self.read_json_typed(
             "agents/completions/response/messages/tool_calls",
             &format!("{id}_{message_index}_{tool_call_index}"),
-            jq,
         )
         .await
     }
@@ -1221,14 +1226,15 @@ impl Client {
         id: &str,
         timeout: std::time::Duration,
         require_modification: bool,
-        jq: Option<&str>,
-    ) -> Result<Option<serde_json::Value>, Error> {
-        self.subscribe_json(
+    ) -> Result<
+        objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunkLog,
+        Error,
+    > {
+        self.subscribe_json_typed(
             "agents/completions/response",
             id,
             timeout,
             require_modification,
-            jq,
         )
         .await
     }
@@ -1254,14 +1260,15 @@ impl Client {
         id: &str,
         timeout: std::time::Duration,
         require_modification: bool,
-    ) -> Result<Option<String>, Error> {
+    ) -> Result<String, Error> {
         self.subscribe_text(
             "agents/completions/response/continuation",
             id,
             timeout,
             require_modification,
         )
-        .await
+        .await?
+        .ok_or(Error::LogSubscribeTimedOut)
     }
     pub async fn subscribe_agent_completion_message(
         &self,
@@ -1269,14 +1276,12 @@ impl Client {
         message_index: u64,
         timeout: std::time::Duration,
         require_modification: bool,
-        jq: Option<&str>,
-    ) -> Result<Option<serde_json::Value>, Error> {
-        self.subscribe_json(
+    ) -> Result<objectiveai_sdk::agent::completions::message::MessageLog, Error> {
+        self.subscribe_json_typed(
             "agents/completions/response/messages",
             &format!("{id}_{message_index}"),
             timeout,
             require_modification,
-            jq,
         )
         .await
     }
@@ -1286,14 +1291,12 @@ impl Client {
         message_index: u64,
         timeout: std::time::Duration,
         require_modification: bool,
-        jq: Option<&str>,
-    ) -> Result<Option<serde_json::Value>, Error> {
-        self.subscribe_json(
+    ) -> Result<objectiveai_sdk::agent::completions::response::Logprobs, Error> {
+        self.subscribe_json_typed(
             "agents/completions/response/messages/logprobs",
             &format!("{id}_{message_index}"),
             timeout,
             require_modification,
-            jq,
         )
         .await
     }
@@ -1303,14 +1306,12 @@ impl Client {
         message_index: u64,
         timeout: std::time::Duration,
         require_modification: bool,
-        jq: Option<&str>,
-    ) -> Result<Option<serde_json::Value>, Error> {
-        self.subscribe_json(
+    ) -> Result<String, Error> {
+        self.subscribe_json_typed(
             "agents/completions/response/messages/reasoning",
             &format!("{id}_{message_index}"),
             timeout,
             require_modification,
-            jq,
         )
         .await
     }
@@ -1320,14 +1321,12 @@ impl Client {
         message_index: u64,
         timeout: std::time::Duration,
         require_modification: bool,
-        jq: Option<&str>,
-    ) -> Result<Option<serde_json::Value>, Error> {
-        self.subscribe_json(
+    ) -> Result<String, Error> {
+        self.subscribe_json_typed(
             "agents/completions/response/messages/refusal",
             &format!("{id}_{message_index}"),
             timeout,
             require_modification,
-            jq,
         )
         .await
     }
@@ -1338,14 +1337,12 @@ impl Client {
         tool_call_index: u64,
         timeout: std::time::Duration,
         require_modification: bool,
-        jq: Option<&str>,
-    ) -> Result<Option<serde_json::Value>, Error> {
-        self.subscribe_json(
+    ) -> Result<objectiveai_sdk::agent::completions::message::AssistantToolCallDelta, Error> {
+        self.subscribe_json_typed(
             "agents/completions/response/messages/tool_calls",
             &format!("{id}_{message_index}_{tool_call_index}"),
             timeout,
             require_modification,
-            jq,
         )
         .await
     }
@@ -1356,7 +1353,7 @@ impl Client {
         media_index: u64,
         timeout: std::time::Duration,
         require_modification: bool,
-    ) -> Option<ImageUrl> {
+    ) -> Result<ImageUrl, Error> {
         self.subscribe_image_by_stem(
             "agents/completions/response/messages/image",
             &format!("{id}_{message_index}_{media_index}"),
@@ -1364,6 +1361,7 @@ impl Client {
             require_modification,
         )
         .await
+        .ok_or(Error::LogSubscribeTimedOut)
     }
     pub async fn subscribe_agent_completion_message_audio(
         &self,
@@ -1372,7 +1370,7 @@ impl Client {
         media_index: u64,
         timeout: std::time::Duration,
         require_modification: bool,
-    ) -> Option<InputAudio> {
+    ) -> Result<InputAudio, Error> {
         self.subscribe_audio_by_stem(
             "agents/completions/response/messages/audio",
             &format!("{id}_{message_index}_{media_index}"),
@@ -1380,6 +1378,7 @@ impl Client {
             require_modification,
         )
         .await
+        .ok_or(Error::LogSubscribeTimedOut)
     }
     pub async fn subscribe_agent_completion_message_video(
         &self,
@@ -1388,7 +1387,7 @@ impl Client {
         media_index: u64,
         timeout: std::time::Duration,
         require_modification: bool,
-    ) -> Option<VideoUrl> {
+    ) -> Result<VideoUrl, Error> {
         self.subscribe_video_by_stem(
             "agents/completions/response/messages/video",
             &format!("{id}_{message_index}_{media_index}"),
@@ -1396,6 +1395,7 @@ impl Client {
             require_modification,
         )
         .await
+        .ok_or(Error::LogSubscribeTimedOut)
     }
     pub async fn subscribe_agent_completion_message_file(
         &self,
@@ -1404,7 +1404,7 @@ impl Client {
         media_index: u64,
         timeout: std::time::Duration,
         require_modification: bool,
-    ) -> Option<File> {
+    ) -> Result<File, Error> {
         self.subscribe_file_by_stem(
             "agents/completions/response/messages/file",
             &format!("{id}_{message_index}_{media_index}"),
@@ -1412,6 +1412,7 @@ impl Client {
             require_modification,
         )
         .await
+        .ok_or(Error::LogSubscribeTimedOut)
     }
     pub async fn subscribe_vector_completion(
         &self,
