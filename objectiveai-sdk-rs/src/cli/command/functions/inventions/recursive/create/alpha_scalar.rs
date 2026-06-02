@@ -9,6 +9,7 @@ pub struct Request {
     pub continuation: Option<String>,
     pub seed: Option<i64>,
     pub detach: bool,
+    pub stream: Option<bool>,
 }
 
 pub struct RequestParams {
@@ -63,8 +64,16 @@ impl IntoCommand for Request {
         if self.detach {
             argv.push("--detach".to_string());
         }
+        if let Some(true) = self.stream {
+            argv.push("--stream".to_string());
+        }
         argv
     }
 }
 
-pub use crate::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk as ResponseItem;
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+pub enum ResponseItem {
+    Chunk(crate::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk),
+    Id(String),
+}

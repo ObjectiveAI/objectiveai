@@ -19,6 +19,7 @@ pub struct Request {
     pub split: bool,
     pub invert: bool,
     pub detach: bool,
+    pub stream: Option<bool>,
 }
 
 pub enum RequestInput {
@@ -80,8 +81,16 @@ impl IntoCommand for Request {
         if self.detach {
             argv.push("--detach".to_string());
         }
+        if let Some(true) = self.stream {
+            argv.push("--stream".to_string());
+        }
         argv
     }
 }
 
-pub use crate::functions::executions::response::streaming::FunctionExecutionChunk as ResponseItem;
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+pub enum ResponseItem {
+    Chunk(crate::functions::executions::response::streaming::FunctionExecutionChunk),
+    Id(String),
+}

@@ -8,6 +8,7 @@ pub struct Request {
     pub prompt: RequestPrompt,
     pub agent: InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
     pub seed: Option<i64>,
+    pub stream: Option<bool>,
 }
 
 pub enum RequestPrompt {
@@ -67,11 +68,16 @@ impl IntoCommand for Request {
             argv.push("--seed".to_string());
             argv.push(seed.to_string());
         }
+        if let Some(true) = self.stream {
+            argv.push("--stream".to_string());
+        }
         argv
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct Response {
-    pub agent_instance: String,
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+pub enum ResponseItem {
+    Chunk(crate::agent::completions::response::streaming::AgentCompletionChunk),
+    Id(String),
 }
