@@ -20,8 +20,8 @@ impl CommandRequest for Request {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct ResponseItem {
     pub name: String,
-    #[serde(flatten)]
-    pub path: crate::RemotePathCommitOptional,
+    pub function: crate::RemotePathCommitOptional,
+    pub profile: crate::RemotePathCommitOptional,
     pub note: String,
 }
 

@@ -6,7 +6,8 @@ use crate::cli::command::CommandRequest;
 pub struct Request {
     pub name: String,
     pub note: Option<String>,
-    pub commit: Option<RequestCommitChange>,
+    pub function_commit: Option<RequestCommitChange>,
+    pub profile_commit: Option<RequestCommitChange>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -17,18 +18,36 @@ pub enum RequestCommitChange {
 
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
-        let mut argv = vec!["config".to_string(), "functions".to_string(), "profiles".to_string(), "pairs".to_string(), "favorites".to_string(), "edit".to_string(), self.name.clone()];
+        let mut argv = vec![
+            "config".to_string(),
+            "functions".to_string(),
+            "profiles".to_string(),
+            "pairs".to_string(),
+            "favorites".to_string(),
+            "edit".to_string(),
+            self.name.clone(),
+        ];
         if let Some(note) = &self.note {
             argv.push("--note".to_string());
             argv.push(note.clone());
         }
-        match &self.commit {
+        match &self.function_commit {
             Some(RequestCommitChange::Set(c)) => {
-                argv.push("--commit".to_string());
+                argv.push("--function-commit".to_string());
                 argv.push(c.clone());
             }
             Some(RequestCommitChange::Remove) => {
-                argv.push("--remove-commit".to_string());
+                argv.push("--remove-function-commit".to_string());
+            }
+            None => {}
+        }
+        match &self.profile_commit {
+            Some(RequestCommitChange::Set(c)) => {
+                argv.push("--profile-commit".to_string());
+                argv.push(c.clone());
+            }
+            Some(RequestCommitChange::Remove) => {
+                argv.push("--remove-profile-commit".to_string());
             }
             None => {}
         }
@@ -45,12 +64,18 @@ pub struct Args {
     /// New note (omit to leave unchanged).
     #[arg(long)]
     pub note: Option<String>,
-    /// Set the pinned commit SHA.
-    #[arg(long, conflicts_with = "remove_commit")]
-    pub commit: Option<String>,
-    /// Remove the pinned commit SHA.
-    #[arg(long, conflicts_with = "commit")]
-    pub remove_commit: bool,
+    /// Set the pinned commit SHA on the function path.
+    #[arg(long, conflicts_with = "remove_function_commit")]
+    pub function_commit: Option<String>,
+    /// Remove the pinned commit SHA on the function path.
+    #[arg(long, conflicts_with = "function_commit")]
+    pub remove_function_commit: bool,
+    /// Set the pinned commit SHA on the profile path.
+    #[arg(long, conflicts_with = "remove_profile_commit")]
+    pub profile_commit: Option<String>,
+    /// Remove the pinned commit SHA on the profile path.
+    #[arg(long, conflicts_with = "profile_commit")]
+    pub remove_profile_commit: bool,
 }
 
 #[derive(clap::Args)]
@@ -73,9 +98,16 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        let commit = if let Some(c) = args.commit {
+        let function_commit = if let Some(c) = args.function_commit {
             Some(RequestCommitChange::Set(c))
-        } else if args.remove_commit {
+        } else if args.remove_function_commit {
+            Some(RequestCommitChange::Remove)
+        } else {
+            None
+        };
+        let profile_commit = if let Some(c) = args.profile_commit {
+            Some(RequestCommitChange::Set(c))
+        } else if args.remove_profile_commit {
             Some(RequestCommitChange::Remove)
         } else {
             None
@@ -83,7 +115,8 @@ impl TryFrom<Args> for Request {
         Ok(Self {
             name: args.name,
             note: args.note,
-            commit,
+            function_commit,
+            profile_commit,
         })
     }
 }
