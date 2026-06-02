@@ -1,12 +1,15 @@
-//! `logs vector completions response get` — bare-naked handler stub.
+//! `logs vector completions response get` — read a stored log record from disk.
 
 use objectiveai_sdk::cli::command::logs::vector::completions::response::get::{Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
 
-pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-    todo!("logs vector completions response get execute")
+pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+    Ok(ctx
+        .filesystem
+        .read_vector_completion(&request.id)
+        .await?)
 }
 
 pub mod request_schema {
