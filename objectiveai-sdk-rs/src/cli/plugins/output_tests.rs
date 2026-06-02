@@ -1,5 +1,4 @@
 use super::*;
-use crate::cli::output::ErrorType;
 use serde_json::json;
 
 fn roundtrip(out: &PluginOutput) -> serde_json::Value {
@@ -12,10 +11,9 @@ fn roundtrip(out: &PluginOutput) -> serde_json::Value {
 fn error_wire_shape() {
     let out = PluginOutput::Typed(TypedPluginOutput::Error(Error {
         r#type: ErrorType::Error,
-        level: Level::Error,
-        fatal: true,
+        level: Some(Level::Error),
+        fatal: Some(true),
         message: "plugin blew up".into(),
-        agent_instance_hierarchy: None,
     }));
     let v = roundtrip(&out);
     assert_eq!(v["type"], "error");
