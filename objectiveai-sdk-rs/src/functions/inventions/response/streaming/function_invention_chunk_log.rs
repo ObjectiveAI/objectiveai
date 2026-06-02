@@ -2,7 +2,7 @@
 //!
 //! Mirrors [`super::FunctionInventionChunk`] field-for-field, with
 //! `completions: Vec<AgentCompletionChunk>` →
-//! `Vec<indexed_reference::LogReference>` (each per-agent completion
+//! `Vec<IndexedLogReference>` (each per-agent completion
 //! in its own file under `agents/completions/`, with `index` at the
 //! reference level).
 
@@ -11,7 +11,7 @@ use serde::Serialize;
 
 use crate::agent;
 use crate::error;
-use crate::filesystem::logs::indexed_reference;
+use crate::IndexedLogReference;
 use crate::functions;
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
@@ -20,7 +20,7 @@ use crate::functions;
 )]
 pub struct FunctionInventionChunkLog {
     pub id: String,
-    pub completions: Vec<indexed_reference::LogReference>,
+    pub completions: Vec<IndexedLogReference>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub state: Option<functions::inventions::State>,

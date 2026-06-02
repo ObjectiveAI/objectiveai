@@ -2,7 +2,7 @@
 //!
 //! Mirrors [`super::VectorCompletionChunk`] field-for-field. The
 //! one type swap is `completions: Vec<AgentCompletionChunk>` →
-//! `Vec<indexed_reference::LogReference>` (each per-agent completion
+//! `Vec<IndexedLogReference>` (each per-agent completion
 //! is extracted to its own file under `agents/completions/`, with
 //! `index` preserved at the reference level).
 
@@ -10,7 +10,7 @@ use schemars::JsonSchema;
 use serde::Serialize;
 
 use crate::agent;
-use crate::filesystem::logs::indexed_reference;
+use crate::IndexedLogReference;
 use crate::vector::completions::response;
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
@@ -19,7 +19,7 @@ use crate::vector::completions::response;
 )]
 pub struct VectorCompletionChunkLog {
     pub id: String,
-    pub completions: Vec<indexed_reference::LogReference>,
+    pub completions: Vec<IndexedLogReference>,
     pub votes: Vec<response::Vote>,
     #[schemars(with = "Vec<f64>")]
     pub scores: Vec<rust_decimal::Decimal>,

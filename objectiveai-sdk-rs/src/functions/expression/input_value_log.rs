@@ -31,7 +31,7 @@ use indexmap::IndexMap;
 use schemars::JsonSchema;
 use serde::Serialize;
 
-use crate::filesystem::logs::LogReference;
+use crate::LogReference;
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 #[serde(untagged)]

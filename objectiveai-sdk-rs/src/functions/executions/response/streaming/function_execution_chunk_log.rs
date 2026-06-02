@@ -23,7 +23,7 @@ use serde::Serialize;
 
 use crate::agent;
 use crate::error;
-use crate::filesystem::logs::LogReference;
+use crate::LogReference;
 use crate::functions::executions::response;
 
 use super::{reasoning_summary_log_reference, task_log_reference};

@@ -11,7 +11,6 @@ mod finish_reason;
 mod logprobs;
 pub mod streaming;
 mod tool_response;
-#[cfg(feature = "filesystem")]
 mod tool_response_log;
 pub mod unary;
 mod upstream_usage;
@@ -23,7 +22,6 @@ pub use assistant_response::*;
 pub use finish_reason::*;
 pub use logprobs::*;
 pub use tool_response::*;
-#[cfg(feature = "filesystem")]
 pub use tool_response_log::*;
 pub use upstream_usage::*;
 pub use usage::*;
