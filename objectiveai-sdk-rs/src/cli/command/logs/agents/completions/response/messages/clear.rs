@@ -105,6 +105,13 @@ pub mod request_schema {
 
     pub type Response = schemars::Schema;
 
+    impl TryFrom<Args> for Request {
+        type Error = crate::cli::command::FromArgsError;
+        fn try_from(args: Args) -> Result<Self, Self::Error> {
+            Ok(Self { jq: args.jq })
+        }
+    }
+
     #[cfg(feature = "cli-executor")]
     pub async fn execute<E: crate::cli::command::CommandExecutor>(
         executor: &E,
@@ -146,6 +153,13 @@ pub mod response_schema {
     }
 
     pub type Response = schemars::Schema;
+
+    impl TryFrom<Args> for Request {
+        type Error = crate::cli::command::FromArgsError;
+        fn try_from(args: Args) -> Result<Self, Self::Error> {
+            Ok(Self { jq: args.jq })
+        }
+    }
 
     #[cfg(feature = "cli-executor")]
     pub async fn execute<E: crate::cli::command::CommandExecutor>(
