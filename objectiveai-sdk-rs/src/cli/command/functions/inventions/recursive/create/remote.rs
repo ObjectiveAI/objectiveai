@@ -10,7 +10,6 @@ pub struct Request {
     pub agent: AgentSpec,
     pub continuation: Option<String>,
     pub seed: Option<i64>,
-    pub detach: bool,
     pub dangerous_advanced: Option<RequestDangerousAdvanced>,
     pub jq: Option<String>,
 }
@@ -55,9 +54,6 @@ impl CommandRequest for Request {
         if let Some(seed) = self.seed {
             argv.push("--seed".to_string());
             argv.push(seed.to_string());
-        }
-        if self.detach {
-            argv.push("--detach".to_string());
         }
         if let Some(advanced) = &self.dangerous_advanced {
             argv.push("--dangerous-advanced".to_string());
@@ -110,9 +106,6 @@ pub struct Args {
     /// Seed for deterministic mock responses.
     #[arg(long)]
     pub seed: Option<i64>,
-    /// Run in the background; print PID and log path then exit.
-    #[arg(long)]
-    pub detach: bool,
     /// Advanced opt-in flags as inline JSON.
     #[arg(long)]
     pub dangerous_advanced: Option<String>,
@@ -179,7 +172,6 @@ impl TryFrom<Args> for Request {
             agent,
             continuation: args.continuation,
             seed: args.seed,
-            detach: args.detach,
             dangerous_advanced,
             jq: args.jq,
         })

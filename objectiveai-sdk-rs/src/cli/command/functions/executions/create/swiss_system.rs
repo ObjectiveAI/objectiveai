@@ -14,7 +14,6 @@ pub struct Request {
     pub seed: Option<i64>,
     pub split: bool,
     pub invert: bool,
-    pub detach: bool,
     pub pool: Option<usize>,
     pub rounds: Option<usize>,
     pub dangerous_advanced: Option<RequestDangerousAdvanced>,
@@ -77,9 +76,6 @@ impl CommandRequest for Request {
         }
         if self.invert {
             argv.push("--invert".to_string());
-        }
-        if self.detach {
-            argv.push("--detach".to_string());
         }
         if let Some(pool) = self.pool {
             argv.push("--pool".to_string());
@@ -155,9 +151,6 @@ pub struct Args {
     /// Invert outputs after expressions evaluate.
     #[arg(long)]
     pub invert: bool,
-    /// Run in the background; print PID and log path then exit.
-    #[arg(long)]
-    pub detach: bool,
     /// Advanced opt-in flags as inline JSON.
     #[arg(long)]
     pub dangerous_advanced: Option<String>,
@@ -245,7 +238,6 @@ impl TryFrom<Args> for Request {
             seed: args.seed,
             split: args.split,
             invert: args.invert,
-            detach: args.detach,
             pool: args.pool,
             rounds: args.rounds,
             dangerous_advanced,

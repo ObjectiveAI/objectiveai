@@ -50,19 +50,18 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         continuation: None,
     };
 
-    let follow = request
+    let stream = request
         .dangerous_advanced
         .as_ref()
         .and_then(|a| a.stream)
         .unwrap_or(false);
-    let detach = !follow;
 
     let raw = instance_subprocess_stream(
         ctx,
         &["agents", "spawn"],
         &params,
         None,
-        detach,
+        stream,
     );
     Ok(Box::pin(raw.map(map_item)))
 }

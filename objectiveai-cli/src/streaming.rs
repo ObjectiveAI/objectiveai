@@ -14,18 +14,18 @@
 //!   per-agent named-pipe listeners.
 //! - **leaf execute** owns: arg resolution, mapping the instance's
 //!   NDJSON envelope into typed `ResponseItem`s, deciding whether to
-//!   follow the stream or exit after the `LogStreamReady` handshake.
+//!   wait on the stream or detach after the `LogStreamReady`
+//!   handshake.
 //!
-//! ### Two modes
+//! ### The `stream` parameter
 //!
-//! - **`detach = true` (default)**: spawn the instance runner, wait
-//!   for the first `LogStreamReady` notification, yield
+//! - **`stream = false` (default)**: spawn the instance runner detached,
+//!   wait for the first `LogStreamReady` notification, yield
 //!   [`InstanceItem::Id`] with the response id, return. The instance
-//!   runner child keeps running after the leaf's stream ends — the
-//!   caller is expected to exit promptly so the orphan can take over
-//!   the actual completion stream. Mirrors legacy `run_detached`.
+//!   runner child keeps running orphaned and drives the completion to
+//!   completion on its own. Mirrors legacy `run_detached`.
 //!
-//! - **`detach = false` (follow)**: spawn the instance runner, yield
+//! - **`stream = true`**: spawn the instance runner, yield
 //!   [`InstanceItem::Id`] when the `LogStreamReady` notification
 //!   arrives, then yield [`InstanceItem::Chunk`] for every chunk
 //!   Notification the runner emits, until stdout EOF. Mirrors legacy
@@ -34,7 +34,6 @@
 use std::pin::Pin;
 
 use futures::Stream;
-use futures::StreamExt;
 use serde::Serialize;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
@@ -65,7 +64,7 @@ pub enum InstanceItem {
     /// One chunk Notification from the instance runner's NDJSON stdout
     /// (its typed shape varies per endpoint, so it rides as a raw
     /// `serde_json::Value` through the `NotificationValue::Other`
-    /// catch-all). Only yielded when `detach == false`.
+    /// catch-all). Only yielded when `stream == true`.
     Chunk(serde_json::Value),
 }
 
@@ -80,14 +79,14 @@ pub enum InstanceItem {
 /// maps to [`Error::CliStreamSlotTaken`]. `agents spawn` and the
 /// function-create leaves always pass `None`.
 ///
-/// `detach` — see module doc. `true` mirrors legacy `run_detached`;
-/// `false` mirrors legacy `run` as a streaming pipeline.
+/// `stream` — see module doc. `true` follows the instance to EOF;
+/// `false` detaches the instance after the `LogStreamReady` handshake.
 pub fn instance_subprocess_stream(
     ctx: &Context,
     endpoint_path: &'static [&'static str],
     body: &(impl Serialize + ?Sized),
     bind_agent_instance_hierarchy: Option<String>,
-    detach: bool,
+    stream: bool,
 ) -> Pin<Box<dyn Stream<Item = Result<InstanceItem, Error>> + Send>> {
     let body_json = serde_json::to_string(body)
         .expect("body serialization to JSON should not fail for valid params");
@@ -105,7 +104,7 @@ pub fn instance_subprocess_stream(
             endpoint_path,
             &body_json,
             bind_agent_instance_hierarchy,
-            detach,
+            stream,
             tx.clone(),
         )
         .await;
@@ -127,7 +126,7 @@ async fn run_subprocess(
     endpoint_path: &'static [&'static str],
     body_json: &str,
     bind_agent_instance_hierarchy: Option<String>,
-    detach: bool,
+    stream: bool,
     tx: tokio::sync::mpsc::Sender<Result<InstanceItem, Error>>,
 ) -> Result<(), Error> {
     let exe = std::env::current_exe()
@@ -158,16 +157,19 @@ async fn run_subprocess(
         .stderr(std::process::Stdio::piped());
 
     // On Windows, detach the child from the parent's console + job
-    // object so it survives when the parent exits.
+    // object so it survives when the parent exits. Only applies when
+    // we plan to release the orphan after the handshake (i.e. when
+    // `stream == false`); when streaming, the leaf is following the
+    // child to EOF and the inherited console is fine.
     //   CREATE_NEW_PROCESS_GROUP (0x00000200): same flag legacy
     //     `api/detach.rs` used for the parent→child CLI re-exec.
     //   DETACHED_PROCESS (0x00000008): drop the inherited console so
     //     the child isn't taken down with the parent's console
-    //     session — required because the parent leaf may exit as soon
-    //     as it sees `LogStreamReady`, while instance-runner keeps
-    //     streaming chunks for the rest of the request.
+    //     session — required because the parent leaf exits as soon as
+    //     it sees `LogStreamReady`, while the instance runner keeps
+    //     producing chunks for the rest of the request.
     #[cfg(windows)]
-    if detach {
+    if !stream {
         use std::os::windows::process::CommandExt;
         const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
         const DETACHED_PROCESS: u32 = 0x00000008;
@@ -214,9 +216,9 @@ async fn run_subprocess(
         });
         match out {
             Output::Notification(n) => {
-                match handle_notification(n, detach, &tx).await {
-                    HandleOutcome::HandshakeReturn => {
-                        // `detach == true` path: yielded the Id, the
+                match handle_notification(n, stream, &tx).await {
+                    HandleOutcome::DetachReturn => {
+                        // `stream == false` path: yielded the Id, the
                         // instance-runner child keeps running orphaned.
                         // Drop the stderr task (the child is on its own
                         // now) and return without reaping.
@@ -265,10 +267,11 @@ async fn run_subprocess(
         });
     }
 
-    // Clean exit. If we never saw the handshake in detach mode, the
-    // child died before the response id was minted — treat that as a
-    // subprocess failure with no exit code distinction.
-    if detach && !handshake_seen {
+    // Clean exit. Whether we're streaming or detaching, the handshake
+    // should fire before EOF. If it didn't, the child died before the
+    // response id was minted — treat that as a subprocess failure with
+    // no exit code distinction.
+    if !handshake_seen {
         let tail: String = stderr_buf
             .iter()
             .rev()
@@ -287,9 +290,11 @@ async fn run_subprocess(
 }
 
 enum HandleOutcome {
-    /// `detach == true` and we just emitted the Id — return early.
-    HandshakeReturn,
-    /// `detach == false` and we just emitted the Id — keep reading.
+    /// `stream == false` and we just emitted the Id — the instance
+    /// runner is detached, return early without reading more.
+    DetachReturn,
+    /// `stream == true` and we just emitted the Id — keep reading
+    /// chunks until stdout EOF.
     SawHandshake,
     /// Emitted a Chunk or dropped an unrelated Notification — keep
     /// reading.
@@ -300,7 +305,7 @@ enum HandleOutcome {
 
 async fn handle_notification(
     n: Notification,
-    detach: bool,
+    stream: bool,
     tx: &tokio::sync::mpsc::Sender<Result<InstanceItem, Error>>,
 ) -> HandleOutcome {
     match n.value {
@@ -310,17 +315,20 @@ async fn handle_notification(
             if tx.send(Ok(InstanceItem::Id(log_stream_ready))).await.is_err() {
                 return HandleOutcome::ConsumerGone;
             }
-            if detach {
-                HandleOutcome::HandshakeReturn
-            } else {
+            if stream {
                 HandleOutcome::SawHandshake
+            } else {
+                HandleOutcome::DetachReturn
             }
         }
         NotificationValue::Other(map) => {
-            if detach {
+            if !stream {
                 // Pre-handshake chunks (shouldn't happen — the runner
                 // emits LogStreamReady first) or post-handshake chunks
-                // (handled by the HandshakeReturn early-return) — drop.
+                // in detach mode (we already returned via the
+                // DetachReturn early-return path; this branch is
+                // unreachable unless the runner emits a chunk before
+                // LogStreamReady) — drop.
                 return HandleOutcome::Continue;
             }
             let value = serde_json::Value::Object(map);
