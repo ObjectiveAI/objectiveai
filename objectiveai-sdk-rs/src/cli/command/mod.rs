@@ -4,6 +4,9 @@
 //! + `pub async fn handle(...)` signatures land in follow-up
 //! commits.
 
+mod command;
+pub use command::*;
+
 mod command_request;
 pub use command_request::*;
 
