@@ -614,10 +614,22 @@ func reconstructVariantInner(
 	types map[string]*typeInfo,
 	titleMap map[string]string,
 ) map[string]any {
+	// `outerObject:"true"` tag is set by install_go.go whenever schemars
+	// stamped `type: "object"` next to the variant's `$ref` (the outer
+	// schema is a struct that flattens an untagged enum, or an
+	// internally-tagged enum). Re-emit `"type": "object"` alongside the
+	// `$ref` so the roundtrip matches the on-disk shape.
+	outerObject := getTagValue(f.tags, "outerObject") == "true"
+
 	if subTi, ok := types[typeName]; ok && !subTi.isAlias {
 		// If the sub-type has its own SchemaTitle, it's a standalone type → $ref
 		if subTitle, ok := titleMap[typeName]; ok {
-			return map[string]any{"$ref": subTitle}
+			result := map[string]any{}
+			if outerObject {
+				result["type"] = "object"
+			}
+			result["$ref"] = subTitle
+			return result
 		}
 
 		// Type definition with underlyingType (primitive variant, e.g., type FooBar string)
@@ -647,7 +659,12 @@ func reconstructVariantInner(
 
 	// Known schema type → $ref
 	if refTitle, ok := titleMap[typeName]; ok {
-		return map[string]any{"$ref": refTitle}
+		result := map[string]any{}
+		if outerObject {
+			result["type"] = "object"
+		}
+		result["$ref"] = refTitle
+		return result
 	}
 
 	// Primitive variant (string with enum)

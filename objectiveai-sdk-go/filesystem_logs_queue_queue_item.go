@@ -162,12 +162,12 @@ func (v *FilesystemLogsQueueQueueItemFunctionInventionRecursiveRequest) Unmarsha
 func (FilesystemLogsQueueQueueItemFunctionInventionRecursiveRequest) SchemaVariantTitle() string { return "FunctionInventionRecursiveRequest" }
 
 type FilesystemLogsQueueQueueItem struct {
-	AssistantResponse *FilesystemLogsQueueQueueItemAssistantResponse 
-	ToolResponse *FilesystemLogsQueueQueueItemToolResponse 
-	Notification *FilesystemLogsQueueQueueItemNotification 
-	AgentCompletionRequest *FilesystemLogsQueueQueueItemAgentCompletionRequest 
-	FunctionExecutionRequest *FilesystemLogsQueueQueueItemFunctionExecutionRequest 
-	FunctionInventionRecursiveRequest *FilesystemLogsQueueQueueItemFunctionInventionRecursiveRequest 
+	AssistantResponse *FilesystemLogsQueueQueueItemAssistantResponse `outerObject:"true"`
+	ToolResponse *FilesystemLogsQueueQueueItemToolResponse `outerObject:"true"`
+	Notification *FilesystemLogsQueueQueueItemNotification `outerObject:"true"`
+	AgentCompletionRequest *FilesystemLogsQueueQueueItemAgentCompletionRequest `outerObject:"true"`
+	FunctionExecutionRequest *FilesystemLogsQueueQueueItemFunctionExecutionRequest `outerObject:"true"`
+	FunctionInventionRecursiveRequest *FilesystemLogsQueueQueueItemFunctionInventionRecursiveRequest `outerObject:"true"`
 }
 
 func (v FilesystemLogsQueueQueueItem) MarshalJSON() ([]byte, error) {

@@ -74,8 +74,8 @@ func (v FunctionsAlphaVectorPartialPlaceholderBranchTaskExpressionPlaceholderVec
 func (FunctionsAlphaVectorPartialPlaceholderBranchTaskExpressionPlaceholderVectorFunction) SchemaVariantTitle() string { return "PlaceholderVectorFunction" }
 
 type FunctionsAlphaVectorPartialPlaceholderBranchTaskExpression struct {
-	PlaceholderScalarFunction *FunctionsAlphaVectorPartialPlaceholderBranchTaskExpressionPlaceholderScalarFunction 
-	PlaceholderVectorFunction *FunctionsAlphaVectorPartialPlaceholderBranchTaskExpressionPlaceholderVectorFunction 
+	PlaceholderScalarFunction *FunctionsAlphaVectorPartialPlaceholderBranchTaskExpressionPlaceholderScalarFunction `outerObject:"true"`
+	PlaceholderVectorFunction *FunctionsAlphaVectorPartialPlaceholderBranchTaskExpressionPlaceholderVectorFunction `outerObject:"true"`
 }
 
 func (v FunctionsAlphaVectorPartialPlaceholderBranchTaskExpression) MarshalJSON() ([]byte, error) {

@@ -171,17 +171,17 @@ func (AgentCompletionsRequestResponseFormatToolCall) SchemaVariantTitle() string
 // The format of the model's response.
 type AgentCompletionsRequestResponseFormat struct {
 	// Plain text response (default).
-	Text *AgentCompletionsRequestResponseFormatText 
+	Text *AgentCompletionsRequestResponseFormatText `outerObject:"true"`
 	// Response must be valid JSON.
-	JsonObject *AgentCompletionsRequestResponseFormatJsonObject 
+	JsonObject *AgentCompletionsRequestResponseFormatJsonObject `outerObject:"true"`
 	// Response must conform to a JSON schema.
-	JsonSchema *AgentCompletionsRequestResponseFormatJsonSchema 
+	JsonSchema *AgentCompletionsRequestResponseFormatJsonSchema `outerObject:"true"`
 	// Response must conform to a grammar.
-	Grammar *AgentCompletionsRequestResponseFormatGrammar 
+	Grammar *AgentCompletionsRequestResponseFormatGrammar `outerObject:"true"`
 	// Response must be valid Python code.
-	Python *AgentCompletionsRequestResponseFormatPython 
+	Python *AgentCompletionsRequestResponseFormatPython `outerObject:"true"`
 	// The final assistant message will contain this tool call
-	ToolCall *AgentCompletionsRequestResponseFormatToolCall 
+	ToolCall *AgentCompletionsRequestResponseFormatToolCall `outerObject:"true"`
 }
 
 func (v AgentCompletionsRequestResponseFormat) MarshalJSON() ([]byte, error) {

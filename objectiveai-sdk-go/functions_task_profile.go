@@ -20,7 +20,7 @@ type FunctionsTaskProfile struct {
 	// Inline profile for a task (tasks-based or auto).
 	Inline *FunctionsInlineProfile 
 	// Placeholder task — no configuration needed, output is fixed.
-	Placeholder *FunctionsTaskProfilePlaceholder 
+	Placeholder *FunctionsTaskProfilePlaceholder `outerObject:"true"`
 }
 
 func (v FunctionsTaskProfile) MarshalJSON() ([]byte, error) {

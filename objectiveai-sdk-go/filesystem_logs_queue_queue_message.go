@@ -141,11 +141,11 @@ func (v *FilesystemLogsQueueQueueMessageTool) UnmarshalJSON(data []byte) error {
 func (FilesystemLogsQueueQueueMessageTool) SchemaVariantTitle() string { return "Tool" }
 
 type FilesystemLogsQueueQueueMessage struct {
-	Developer *FilesystemLogsQueueQueueMessageDeveloper 
-	System *FilesystemLogsQueueQueueMessageSystem 
-	User *FilesystemLogsQueueQueueMessageUser 
-	Assistant *FilesystemLogsQueueQueueMessageAssistant 
-	Tool *FilesystemLogsQueueQueueMessageTool 
+	Developer *FilesystemLogsQueueQueueMessageDeveloper `outerObject:"true"`
+	System *FilesystemLogsQueueQueueMessageSystem `outerObject:"true"`
+	User *FilesystemLogsQueueQueueMessageUser `outerObject:"true"`
+	Assistant *FilesystemLogsQueueQueueMessageAssistant `outerObject:"true"`
+	Tool *FilesystemLogsQueueQueueMessageTool `outerObject:"true"`
 }
 
 func (v FilesystemLogsQueueQueueMessage) MarshalJSON() ([]byte, error) {

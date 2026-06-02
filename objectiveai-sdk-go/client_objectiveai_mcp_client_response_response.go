@@ -79,9 +79,9 @@ func (ClientObjectiveaiMcpClientResponseResponseClientObjectiveaiMCPClientRespon
 // otherwise produce).
 type ClientObjectiveaiMcpClientResponseResponse struct {
 	// Empty success — the request was accepted.
-	ClientObjectiveaiMCPClientResponseResponseOk *ClientObjectiveaiMcpClientResponseResponseClientObjectiveaiMCPClientResponseResponseOk 
+	ClientObjectiveaiMCPClientResponseResponseOk *ClientObjectiveaiMcpClientResponseResponseClientObjectiveaiMCPClientResponseResponseOk `outerObject:"true"`
 	// The request failed.
-	ClientObjectiveaiMCPClientResponseResponseError *ClientObjectiveaiMcpClientResponseResponseClientObjectiveaiMCPClientResponseResponseError 
+	ClientObjectiveaiMCPClientResponseResponseError *ClientObjectiveaiMcpClientResponseResponseClientObjectiveaiMCPClientResponseResponseError `outerObject:"true"`
 }
 
 func (v ClientObjectiveaiMcpClientResponseResponse) MarshalJSON() ([]byte, error) {

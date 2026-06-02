@@ -186,17 +186,17 @@ func (FilesystemLogsLogContentFile) SchemaVariantTitle() string { return "File" 
 // ```
 type FilesystemLogsLogContent struct {
 	// A `.json` envelope parsed as a structured value.
-	JSON *FilesystemLogsLogContentJSON 
+	JSON *FilesystemLogsLogContentJSON `outerObject:"true"`
 	// A `.txt` file content.
-	Text *FilesystemLogsLogContentText 
+	Text *FilesystemLogsLogContentText `outerObject:"true"`
 	// An image media file under `messages/image/`, etc.
-	Image *FilesystemLogsLogContentImage 
+	Image *FilesystemLogsLogContentImage `outerObject:"true"`
 	// An audio media file under `messages/audio/`, etc.
-	Audio *FilesystemLogsLogContentAudio 
+	Audio *FilesystemLogsLogContentAudio `outerObject:"true"`
 	// A video media file under `messages/video/`, etc.
-	Video *FilesystemLogsLogContentVideo 
+	Video *FilesystemLogsLogContentVideo `outerObject:"true"`
 	// A generic file under `messages/file/`, etc.
-	File *FilesystemLogsLogContentFile 
+	File *FilesystemLogsLogContentFile `outerObject:"true"`
 }
 
 func (v FilesystemLogsLogContent) MarshalJSON() ([]byte, error) {

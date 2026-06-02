@@ -1268,55 +1268,55 @@ func (CliOutputNotificationTypedNotificationValueViewerSendResult) SchemaVariant
 // `#[serde(tag = "type")]` — variant discrimination happens on
 // the `type` key.
 type CliOutputNotificationTypedNotificationValue struct {
-	ActiveAgent *CliOutputNotificationTypedNotificationValueActiveAgent 
-	Agent *CliOutputNotificationTypedNotificationValueAgent 
-	AgentItems *CliOutputNotificationTypedNotificationValueAgentItems 
-	Inactive *CliOutputNotificationTypedNotificationValueInactive 
-	MessageDelivered *CliOutputNotificationTypedNotificationValueMessageDelivered 
-	MessageQueued *CliOutputNotificationTypedNotificationValueMessageQueued 
-	Spawned *CliOutputNotificationTypedNotificationValueSpawned 
-	Detached *CliOutputNotificationTypedNotificationValueDetached 
-	Execution *CliOutputNotificationTypedNotificationValueExecution 
-	Function *CliOutputNotificationTypedNotificationValueFunction 
-	Inventions *CliOutputNotificationTypedNotificationValueInventions 
-	Pair *CliOutputNotificationTypedNotificationValuePair 
-	Profile *CliOutputNotificationTypedNotificationValueProfile 
-	State *CliOutputNotificationTypedNotificationValueState 
-	Laboratory *CliOutputNotificationTypedNotificationValueLaboratory 
-	Swarm *CliOutputNotificationTypedNotificationValueSwarm 
-	Cleared *CliOutputNotificationTypedNotificationValueCleared 
+	ActiveAgent *CliOutputNotificationTypedNotificationValueActiveAgent `outerObject:"true"`
+	Agent *CliOutputNotificationTypedNotificationValueAgent `outerObject:"true"`
+	AgentItems *CliOutputNotificationTypedNotificationValueAgentItems `outerObject:"true"`
+	Inactive *CliOutputNotificationTypedNotificationValueInactive `outerObject:"true"`
+	MessageDelivered *CliOutputNotificationTypedNotificationValueMessageDelivered `outerObject:"true"`
+	MessageQueued *CliOutputNotificationTypedNotificationValueMessageQueued `outerObject:"true"`
+	Spawned *CliOutputNotificationTypedNotificationValueSpawned `outerObject:"true"`
+	Detached *CliOutputNotificationTypedNotificationValueDetached `outerObject:"true"`
+	Execution *CliOutputNotificationTypedNotificationValueExecution `outerObject:"true"`
+	Function *CliOutputNotificationTypedNotificationValueFunction `outerObject:"true"`
+	Inventions *CliOutputNotificationTypedNotificationValueInventions `outerObject:"true"`
+	Pair *CliOutputNotificationTypedNotificationValuePair `outerObject:"true"`
+	Profile *CliOutputNotificationTypedNotificationValueProfile `outerObject:"true"`
+	State *CliOutputNotificationTypedNotificationValueState `outerObject:"true"`
+	Laboratory *CliOutputNotificationTypedNotificationValueLaboratory `outerObject:"true"`
+	Swarm *CliOutputNotificationTypedNotificationValueSwarm `outerObject:"true"`
+	Cleared *CliOutputNotificationTypedNotificationValueCleared `outerObject:"true"`
 	// Terminal marker for a plugin-dispatched command. Rides
 	// inside the [`crate::cli::plugins::PluginCommandResponse`]
 	// envelope on the plugin channel — the originating command's
 	// correlation id (when set) is on the envelope's `id` field,
 	// not on this struct. See [`CommandComplete`].
-	CommandComplete *CliOutputNotificationTypedNotificationValueCommandComplete 
-	Help *CliOutputNotificationTypedNotificationValueHelp 
-	Installed *CliOutputNotificationTypedNotificationValueInstalled 
-	Instructions *CliOutputNotificationTypedNotificationValueInstructions 
-	JqResults *CliOutputNotificationTypedNotificationValueJqResults 
-	LogContent *CliOutputNotificationTypedNotificationValueLogContent 
-	LogStreamReady *CliOutputNotificationTypedNotificationValueLogStreamReady 
-	MCP *CliOutputNotificationTypedNotificationValueMCP 
-	Me *CliOutputNotificationTypedNotificationValueMe 
-	Ok *CliOutputNotificationTypedNotificationValueOk 
-	Plugin *CliOutputNotificationTypedNotificationValuePlugin 
+	CommandComplete *CliOutputNotificationTypedNotificationValueCommandComplete `outerObject:"true"`
+	Help *CliOutputNotificationTypedNotificationValueHelp `outerObject:"true"`
+	Installed *CliOutputNotificationTypedNotificationValueInstalled `outerObject:"true"`
+	Instructions *CliOutputNotificationTypedNotificationValueInstructions `outerObject:"true"`
+	JqResults *CliOutputNotificationTypedNotificationValueJqResults `outerObject:"true"`
+	LogContent *CliOutputNotificationTypedNotificationValueLogContent `outerObject:"true"`
+	LogStreamReady *CliOutputNotificationTypedNotificationValueLogStreamReady `outerObject:"true"`
+	MCP *CliOutputNotificationTypedNotificationValueMCP `outerObject:"true"`
+	Me *CliOutputNotificationTypedNotificationValueMe `outerObject:"true"`
+	Ok *CliOutputNotificationTypedNotificationValueOk `outerObject:"true"`
+	Plugin *CliOutputNotificationTypedNotificationValuePlugin `outerObject:"true"`
 	// A notification emitted by a cli plugin and forwarded by the
 	// host. The plugin's payload is nested under `value` as an
 	// arbitrary `serde_json::Value` — objects, strings, numbers,
 	// booleans, arrays, and null are all valid.
 	//
 	// Wire: `{"type":"plugin_notification","value":<any-json>}`.
-	PluginNotification *CliOutputNotificationTypedNotificationValuePluginNotification 
-	Plugins *CliOutputNotificationTypedNotificationValuePlugins 
-	Published *CliOutputNotificationTypedNotificationValuePublished 
-	Schema *CliOutputNotificationTypedNotificationValueSchema 
-	Schemas *CliOutputNotificationTypedNotificationValueSchemas 
-	Tool *CliOutputNotificationTypedNotificationValueTool 
-	ToolLine *CliOutputNotificationTypedNotificationValueToolLine 
-	Tools *CliOutputNotificationTypedNotificationValueTools 
-	Updater *CliOutputNotificationTypedNotificationValueUpdater 
-	ViewerSendResult *CliOutputNotificationTypedNotificationValueViewerSendResult 
+	PluginNotification *CliOutputNotificationTypedNotificationValuePluginNotification `outerObject:"true"`
+	Plugins *CliOutputNotificationTypedNotificationValuePlugins `outerObject:"true"`
+	Published *CliOutputNotificationTypedNotificationValuePublished `outerObject:"true"`
+	Schema *CliOutputNotificationTypedNotificationValueSchema `outerObject:"true"`
+	Schemas *CliOutputNotificationTypedNotificationValueSchemas `outerObject:"true"`
+	Tool *CliOutputNotificationTypedNotificationValueTool `outerObject:"true"`
+	ToolLine *CliOutputNotificationTypedNotificationValueToolLine `outerObject:"true"`
+	Tools *CliOutputNotificationTypedNotificationValueTools `outerObject:"true"`
+	Updater *CliOutputNotificationTypedNotificationValueUpdater `outerObject:"true"`
+	ViewerSendResult *CliOutputNotificationTypedNotificationValueViewerSendResult `outerObject:"true"`
 }
 
 func (v CliOutputNotificationTypedNotificationValue) MarshalJSON() ([]byte, error) {

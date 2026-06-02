@@ -64,11 +64,11 @@ func (AgentCompletionsMessagePipeAckError) SchemaVariantTitle() string { return 
 type AgentCompletionsMessagePipeAck struct {
 	// The `RichContent` line parsed, queued in the writer task, and
 	// dispatched to the API server successfully.
-	Ok *AgentCompletionsMessagePipeAckOk 
+	Ok *AgentCompletionsMessagePipeAckOk `outerObject:"true"`
 	// Something failed — either the line wasn't valid
 	// `RichContent` JSON or the API-side notify dispatch returned
 	// an error. `message` is human-readable and not load-bearing.
-	Error *AgentCompletionsMessagePipeAckError 
+	Error *AgentCompletionsMessagePipeAckError `outerObject:"true"`
 }
 
 func (v AgentCompletionsMessagePipeAck) MarshalJSON() ([]byte, error) {

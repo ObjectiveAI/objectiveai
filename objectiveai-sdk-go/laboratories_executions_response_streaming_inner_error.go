@@ -90,9 +90,9 @@ func (LaboratoriesExecutionsResponseStreamingInnerErrorEvaluation) SchemaVariant
 // via [`LaboratoryExecutionChunk::error`](super::LaboratoryExecutionChunk::error).
 type LaboratoriesExecutionsResponseStreamingInnerError struct {
 	// An error from a [`BuilderChunk`](super::BuilderChunk).
-	Builder *LaboratoriesExecutionsResponseStreamingInnerErrorBuilder 
+	Builder *LaboratoriesExecutionsResponseStreamingInnerErrorBuilder `outerObject:"true"`
 	// An error from an [`EvaluationChunk`](super::EvaluationChunk).
-	Evaluation *LaboratoriesExecutionsResponseStreamingInnerErrorEvaluation 
+	Evaluation *LaboratoriesExecutionsResponseStreamingInnerErrorEvaluation `outerObject:"true"`
 }
 
 func (v LaboratoriesExecutionsResponseStreamingInnerError) MarshalJSON() ([]byte, error) {

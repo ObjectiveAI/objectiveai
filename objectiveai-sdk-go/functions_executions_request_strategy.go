@@ -63,9 +63,9 @@ func (FunctionsExecutionsRequestStrategySwissSystem) SchemaVariantTitle() string
 
 type FunctionsExecutionsRequestStrategy struct {
 	// Scalar or Vector
-	Default *FunctionsExecutionsRequestStrategyDefault 
+	Default *FunctionsExecutionsRequestStrategyDefault `outerObject:"true"`
 	// Vector
-	SwissSystem *FunctionsExecutionsRequestStrategySwissSystem 
+	SwissSystem *FunctionsExecutionsRequestStrategySwissSystem `outerObject:"true"`
 }
 
 func (v FunctionsExecutionsRequestStrategy) MarshalJSON() ([]byte, error) {

@@ -30,7 +30,7 @@ func (CliOutputNotificationNotificationOther) SchemaVariantTitle() string { retu
 //   Handle additionally injects `"agent_instance_hierarchy":"<cli-session-id>"`
 //   at JSON level when no inner agent_instance_hierarchy is present.
 type CliOutputNotificationNotification struct {
-	Typed *CliOutputNotificationTypedNotificationValue 
+	Typed *CliOutputNotificationTypedNotificationValue `outerObject:"true"`
 	// Single catch-all for anything that doesn't get a typed
 	// variant: generic emits (`Items<T>`, `Value<V>`),
 	// api/call.rs passthrough (`Resp`, `Chunk`), and raw
@@ -45,7 +45,7 @@ type CliOutputNotificationNotification struct {
 	// Wire examples:
 	//   `{"items":[…]}`   (Items<T>)
 	//   `{"value":<V>}`   (Value<V>)
-	Other *CliOutputNotificationNotificationOther 
+	Other *CliOutputNotificationNotificationOther `outerObject:"true"`
 }
 
 func (v CliOutputNotificationNotification) MarshalJSON() ([]byte, error) {

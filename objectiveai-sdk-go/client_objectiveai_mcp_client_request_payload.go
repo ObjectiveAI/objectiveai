@@ -94,13 +94,13 @@ func (ClientObjectiveaiMcpClientRequestPayloadMcpListChanged) SchemaVariantTitle
 // originated the request; the receiver's `client_response::Response`
 // echoes the same `id`.
 type ClientObjectiveaiMcpClientRequestPayload struct {
-	AgentCompletionNotify *ClientObjectiveaiMcpClientRequestPayloadAgentCompletionNotify 
+	AgentCompletionNotify *ClientObjectiveaiMcpClientRequestPayloadAgentCompletionNotify `outerObject:"true"`
 	// The CLI's upstream `mcp::Connection` for `mcp_session_id`
 	// fired `notifications/<kind>/list_changed`. The API
 	// dispatches this onto its per-`(ws_session_id, mcp_session_id)`
 	// broadcast so every matching MCP GET-SSE listener sees a
 	// standard MCP notification frame.
-	McpListChanged *ClientObjectiveaiMcpClientRequestPayloadMcpListChanged 
+	McpListChanged *ClientObjectiveaiMcpClientRequestPayloadMcpListChanged `outerObject:"true"`
 }
 
 func (v ClientObjectiveaiMcpClientRequestPayload) MarshalJSON() ([]byte, error) {

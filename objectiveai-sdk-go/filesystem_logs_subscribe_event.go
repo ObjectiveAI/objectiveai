@@ -65,8 +65,8 @@ func (FilesystemLogsSubscribeEventStreamEnd) SchemaVariantTitle() string { retur
 //   final row event for the stream. No more events will arrive on
 //   this pipe.
 type FilesystemLogsSubscribeEvent struct {
-	Row *FilesystemLogsSubscribeEventRow 
-	StreamEnd *FilesystemLogsSubscribeEventStreamEnd 
+	Row *FilesystemLogsSubscribeEventRow `outerObject:"true"`
+	StreamEnd *FilesystemLogsSubscribeEventStreamEnd `outerObject:"true"`
 }
 
 func (v FilesystemLogsSubscribeEvent) MarshalJSON() ([]byte, error) {

@@ -62,8 +62,8 @@ func (v *FunctionsAlphaVectorRemoteFunctionLeaf) UnmarshalJSON(data []byte) erro
 func (FunctionsAlphaVectorRemoteFunctionLeaf) SchemaVariantTitle() string { return "Leaf" }
 
 type FunctionsAlphaVectorRemoteFunction struct {
-	Branch *FunctionsAlphaVectorRemoteFunctionBranch 
-	Leaf *FunctionsAlphaVectorRemoteFunctionLeaf 
+	Branch *FunctionsAlphaVectorRemoteFunctionBranch `outerObject:"true"`
+	Leaf *FunctionsAlphaVectorRemoteFunctionLeaf `outerObject:"true"`
 }
 
 func (v FunctionsAlphaVectorRemoteFunction) MarshalJSON() ([]byte, error) {

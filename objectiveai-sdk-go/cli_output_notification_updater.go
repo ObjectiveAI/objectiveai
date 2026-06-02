@@ -161,19 +161,19 @@ func (CliOutputNotificationUpdaterInstalled) SchemaVariantTitle() string { retur
 type CliOutputNotificationUpdater struct {
 	// Refused to proceed with the update — the `reason` carries why.
 	// No binaries were modified.
-	Skipped *CliOutputNotificationUpdaterSkipped 
+	Skipped *CliOutputNotificationUpdaterSkipped `outerObject:"true"`
 	// All gates passed; about to call
 	// `GET /repos/ObjectiveAI/objectiveai/releases/latest`. The very
 	// first emitted line of any active update run.
-	Checking *CliOutputNotificationUpdaterChecking 
+	Checking *CliOutputNotificationUpdaterChecking `outerObject:"true"`
 	// GitHub returned the latest release tag and it's ≤ current.
 	// Terminal — no more events follow.
-	UpToDate *CliOutputNotificationUpdaterUpToDate 
+	UpToDate *CliOutputNotificationUpdaterUpToDate `outerObject:"true"`
 	// Found a newer release with our asset attached; about to download.
-	Found *CliOutputNotificationUpdaterFound 
+	Found *CliOutputNotificationUpdaterFound `outerObject:"true"`
 	// One binary's swap completed. Emitted once per package the
 	// updater touched (cli, api, viewer, mcp).
-	Installed *CliOutputNotificationUpdaterInstalled 
+	Installed *CliOutputNotificationUpdaterInstalled `outerObject:"true"`
 }
 
 func (v CliOutputNotificationUpdater) MarshalJSON() ([]byte, error) {

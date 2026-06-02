@@ -114,9 +114,9 @@ func (CliPluginsTypedPluginOutputError) SchemaVariantTitle() string { return "Er
 // The three explicitly-typed plugin output variants. Internally
 // tagged on `type`.
 type CliPluginsTypedPluginOutput struct {
-	Command *CliPluginsTypedPluginOutputCommand 
-	MCP *CliPluginsTypedPluginOutputMCP 
-	Error *CliPluginsTypedPluginOutputError 
+	Command *CliPluginsTypedPluginOutputCommand `outerObject:"true"`
+	MCP *CliPluginsTypedPluginOutputMCP `outerObject:"true"`
+	Error *CliPluginsTypedPluginOutputError `outerObject:"true"`
 }
 
 func (v CliPluginsTypedPluginOutput) MarshalJSON() ([]byte, error) {

@@ -52,7 +52,7 @@ type FunctionsExpressionInputValue struct {
 	// Rich content (image, audio, video, file).
 	RichContentPart *AgentCompletionsMessageRichContentPart 
 	// An object with string keys.
-	Object *FunctionsExpressionInputValueObject 
+	Object *FunctionsExpressionInputValueObject `outerObject:"true"`
 	// An array of values.
 	Array *FunctionsExpressionInputValueArray 
 	// A string value.

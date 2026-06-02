@@ -30,7 +30,7 @@ func (FunctionsExpressionInputValueLogArray) SchemaVariantTitle() string { retur
 
 type FunctionsExpressionInputValueLog struct {
 	Reference *FilesystemLogsLogReference 
-	Object *FunctionsExpressionInputValueLogObject 
+	Object *FunctionsExpressionInputValueLogObject `outerObject:"true"`
 	Array *FunctionsExpressionInputValueLogArray 
 }
 

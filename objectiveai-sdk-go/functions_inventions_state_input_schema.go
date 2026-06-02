@@ -61,8 +61,8 @@ func (FunctionsInventionsStateInputSchemaVectorFunctionInputSchema) SchemaVarian
 // The actual schema is nested under a `schema` key to avoid conflicts
 // with the `type` tag field (since ObjectInputSchema has its own `type` field).
 type FunctionsInventionsStateInputSchema struct {
-	ScalarFunctionInputSchema *FunctionsInventionsStateInputSchemaScalarFunctionInputSchema 
-	VectorFunctionInputSchema *FunctionsInventionsStateInputSchemaVectorFunctionInputSchema 
+	ScalarFunctionInputSchema *FunctionsInventionsStateInputSchemaScalarFunctionInputSchema `outerObject:"true"`
+	VectorFunctionInputSchema *FunctionsInventionsStateInputSchemaVectorFunctionInputSchema `outerObject:"true"`
 }
 
 func (v FunctionsInventionsStateInputSchema) MarshalJSON() ([]byte, error) {

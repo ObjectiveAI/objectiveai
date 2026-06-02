@@ -83,9 +83,9 @@ func (v *FunctionsProfilesComputationsRequestTargetVectorWinner) UnmarshalJSON(d
 func (FunctionsProfilesComputationsRequestTargetVectorWinner) SchemaVariantTitle() string { return "VectorWinner" }
 
 type FunctionsProfilesComputationsRequestTarget struct {
-	Scalar *FunctionsProfilesComputationsRequestTargetScalar 
-	Vector *FunctionsProfilesComputationsRequestTargetVector 
-	VectorWinner *FunctionsProfilesComputationsRequestTargetVectorWinner 
+	Scalar *FunctionsProfilesComputationsRequestTargetScalar `outerObject:"true"`
+	Vector *FunctionsProfilesComputationsRequestTargetVector `outerObject:"true"`
+	VectorWinner *FunctionsProfilesComputationsRequestTargetVectorWinner `outerObject:"true"`
 }
 
 func (v FunctionsProfilesComputationsRequestTarget) MarshalJSON() ([]byte, error) {

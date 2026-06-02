@@ -183,15 +183,15 @@ func (FunctionsTaskPlaceholderVectorFunction) SchemaVariantTitle() string { retu
 // expressions have been resolved to concrete values.
 type FunctionsTask struct {
 	// Calls a scalar function (produces a single score).
-	ScalarFunction *FunctionsTaskScalarFunction 
+	ScalarFunction *FunctionsTaskScalarFunction `outerObject:"true"`
 	// Calls a vector function (produces a vector of scores).
-	VectorFunction *FunctionsTaskVectorFunction 
+	VectorFunction *FunctionsTaskVectorFunction `outerObject:"true"`
 	// Runs a vector completion.
-	VectorCompletion *FunctionsTaskVectorCompletion 
+	VectorCompletion *FunctionsTaskVectorCompletion `outerObject:"true"`
 	// Placeholder scalar function (always outputs 0.5).
-	PlaceholderScalarFunction *FunctionsTaskPlaceholderScalarFunction 
+	PlaceholderScalarFunction *FunctionsTaskPlaceholderScalarFunction `outerObject:"true"`
 	// Placeholder vector function (always outputs equalized vector).
-	PlaceholderVectorFunction *FunctionsTaskPlaceholderVectorFunction 
+	PlaceholderVectorFunction *FunctionsTaskPlaceholderVectorFunction `outerObject:"true"`
 }
 
 func (v FunctionsTask) MarshalJSON() ([]byte, error) {

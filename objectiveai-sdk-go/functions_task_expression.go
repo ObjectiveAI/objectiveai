@@ -178,11 +178,11 @@ func (FunctionsTaskExpressionPlaceholderVectorFunction) SchemaVariantTitle() str
 // resolved against input data during compilation. Use [`compile`](Self::compile)
 // to produce a concrete [`Task`].
 type FunctionsTaskExpression struct {
-	ScalarFunction *FunctionsTaskExpressionScalarFunction 
-	VectorFunction *FunctionsTaskExpressionVectorFunction 
-	VectorCompletion *FunctionsTaskExpressionVectorCompletion 
-	PlaceholderScalarFunction *FunctionsTaskExpressionPlaceholderScalarFunction 
-	PlaceholderVectorFunction *FunctionsTaskExpressionPlaceholderVectorFunction 
+	ScalarFunction *FunctionsTaskExpressionScalarFunction `outerObject:"true"`
+	VectorFunction *FunctionsTaskExpressionVectorFunction `outerObject:"true"`
+	VectorCompletion *FunctionsTaskExpressionVectorCompletion `outerObject:"true"`
+	PlaceholderScalarFunction *FunctionsTaskExpressionPlaceholderScalarFunction `outerObject:"true"`
+	PlaceholderVectorFunction *FunctionsTaskExpressionPlaceholderVectorFunction `outerObject:"true"`
 }
 
 func (v FunctionsTaskExpression) MarshalJSON() ([]byte, error) {

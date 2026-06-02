@@ -30,7 +30,7 @@ type CliOutputNotificationNotificationValue struct {
 	// Wire examples:
 	//   `{"items":[…]}`   (Items<T>)
 	//   `{"value":<V>}`   (Value<V>)
-	Other *CliOutputNotificationNotificationValueOther 
+	Other *CliOutputNotificationNotificationValueOther `outerObject:"true"`
 }
 
 func (v CliOutputNotificationNotificationValue) MarshalJSON() ([]byte, error) {

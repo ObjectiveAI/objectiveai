@@ -140,7 +140,7 @@ type FunctionsExecutionsResponseStreamingInnerError struct {
 	// `task_path` locates the failing task; `swiss_pool_index` /
 	// `swiss_round` / `split_index` carry the tournament/split context
 	// from the wrapper when set.
-	FunctionTaskError *FunctionsExecutionsResponseStreamingInnerErrorFunctionTaskError 
+	FunctionTaskError *FunctionsExecutionsResponseStreamingInnerErrorFunctionTaskError `outerObject:"true"`
 	// A vector completion task failed. The optional `agent_completion_index`
 	// is the discriminator:
 	// - `None` → the task itself failed (the wrapper's own `.error`).
@@ -148,13 +148,13 @@ type FunctionsExecutionsResponseStreamingInnerError struct {
 	//   completion failed.
 	//
 	// `task_path` locates the vector completion task.
-	VectorCompletionTaskError *FunctionsExecutionsResponseStreamingInnerErrorVectorCompletionTaskError 
+	VectorCompletionTaskError *FunctionsExecutionsResponseStreamingInnerErrorVectorCompletionTaskError `outerObject:"true"`
 	// The inner agent completion of a reasoning summary failed
 	// (`ReasoningSummaryChunk.inner.error`).
 	//
 	// `task_path` identifies whose reasoning — empty for the root
 	// execution; non-empty for a nested execution at that path.
-	ReasoningAgentCompletionError *FunctionsExecutionsResponseStreamingInnerErrorReasoningAgentCompletionError 
+	ReasoningAgentCompletionError *FunctionsExecutionsResponseStreamingInnerErrorReasoningAgentCompletionError `outerObject:"true"`
 }
 
 func (v FunctionsExecutionsResponseStreamingInnerError) MarshalJSON() ([]byte, error) {

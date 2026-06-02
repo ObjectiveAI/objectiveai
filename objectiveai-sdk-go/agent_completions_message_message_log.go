@@ -173,11 +173,11 @@ func (v AgentCompletionsMessageMessageLogTool) MarshalJSON() ([]byte, error) {
 func (AgentCompletionsMessageMessageLogTool) SchemaVariantTitle() string { return "Tool" }
 
 type AgentCompletionsMessageMessageLog struct {
-	Developer *AgentCompletionsMessageMessageLogDeveloper 
-	System *AgentCompletionsMessageMessageLogSystem 
-	User *AgentCompletionsMessageMessageLogUser 
-	Assistant *AgentCompletionsMessageMessageLogAssistant 
-	Tool *AgentCompletionsMessageMessageLogTool 
+	Developer *AgentCompletionsMessageMessageLogDeveloper `outerObject:"true"`
+	System *AgentCompletionsMessageMessageLogSystem `outerObject:"true"`
+	User *AgentCompletionsMessageMessageLogUser `outerObject:"true"`
+	Assistant *AgentCompletionsMessageMessageLogAssistant `outerObject:"true"`
+	Tool *AgentCompletionsMessageMessageLogTool `outerObject:"true"`
 }
 
 func (v AgentCompletionsMessageMessageLog) MarshalJSON() ([]byte, error) {

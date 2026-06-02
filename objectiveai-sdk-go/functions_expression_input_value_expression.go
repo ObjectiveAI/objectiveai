@@ -200,7 +200,7 @@ type FunctionsExpressionInputValueExpression struct {
 	// Rich content (image, audio, video, file).
 	RichContentPart *AgentCompletionsMessageRichContentPart 
 	// An object with values that may be expressions.
-	Object *FunctionsExpressionInputValueExpressionObject 
+	Object *FunctionsExpressionInputValueExpressionObject `outerObject:"true"`
 	// An array with elements that may be expressions.
 	Array *FunctionsExpressionInputValueExpressionArray 
 	// A string value.

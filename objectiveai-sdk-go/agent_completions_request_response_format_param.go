@@ -29,7 +29,7 @@ type AgentCompletionsRequestResponseFormatParam struct {
 	// A single response format applied to all agents.
 	Single *AgentCompletionsRequestResponseFormat 
 	// Per-agent response formats, keyed by agent ID.
-	PerAgent *AgentCompletionsRequestResponseFormatParamPerAgent 
+	PerAgent *AgentCompletionsRequestResponseFormatParamPerAgent `outerObject:"true"`
 }
 
 func (v AgentCompletionsRequestResponseFormatParam) MarshalJSON() ([]byte, error) {
