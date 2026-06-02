@@ -453,6 +453,22 @@ impl Client {
         apply_jq(value, jq)
     }
 
+    /// Reads `<dir>/<stem>.json` and deserializes its contents into the
+    /// caller-specified `T`. Sits on top of [`Self::read_json`] (no jq
+    /// — the typed reads pass `None`) and surfaces a typed-shape
+    /// deserialization failure as [`Error::TypedDeserialize`] with the
+    /// originating file path attached. Used by the typed `read_*`
+    /// methods that match the SDK's per-leaf `Response` shapes.
+    async fn read_json_typed<T: serde::de::DeserializeOwned>(
+        &self,
+        dir: &str,
+        stem: &str,
+    ) -> Result<T, Error> {
+        let value = self.read_json(dir, stem, None).await?;
+        let full = self.logs_dir().join(dir).join(format!("{stem}.json"));
+        serde_json::from_value(value).map_err(|e| Error::TypedDeserialize(full, e))
+    }
+
     /// Reads a `.txt` file at `<dir>/<stem>.txt` as a UTF-8 string.
     /// Sibling to [`Self::read_json`] / [`Self::read_data_url_by_stem`]
     /// for the text-content writers (`extract_media` → `<...>/text/<stem>.txt`).
