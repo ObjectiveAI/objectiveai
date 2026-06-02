@@ -482,72 +482,23 @@ where
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        // Composite agent id for the **primary** slot — the agent's
-        // identity if the primary runs. Resolution order:
-        //   1. Internal `continuation` (server-side retry from the
-        //      vector / laboratory layer): reuse the composite baked
-        //      into the in-process state.
-        //   2. Wire `request_continuation` (client-side resume): reuse
-        //      the composite carried in the base64 token. This is what
-        //      keeps the agent's identity stable across separate
-        //      client requests, regardless of which caller's
-        //      `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY` header is on the resuming
-        //      request.
-        //   3. Fresh first call: mint a local id and prefix it with
-        //      the current request's `ctx.agent_instance_hierarchy()` (the spawner's
-        //      full lineage). Empty parent is its own first-class
-        //      slot, yielding a root composite of just the local id.
-        //
-        // Used as `agent_instance_hierarchies[0]` below (which is then leaf-projected
-        // into `ids[0]` and finally into `attempts[0].id` —
-        // `AgentCompletionChunk.id` / viewer correlation / notify-
-        // target key for the primary slot). Fallback slots get fresh
-        // per-slot composites at the `agent_instance_hierarchies` builder; their leaves
-        // flow downstream the same way via `attempts[i].id`. The
-        // pre-yield `send_viewer_err` path correlates against this
-        // primary leaf — there's no other meaningful candidate before
-        // any agent commits.
-        let request_composite = request_continuation
+        // Capture the internal continuation's instance hierarchy before
+        // `continuation` is consumed during item extraction below. The wire
+        // composite (`request_continuation`) stays live until the per-slot
+        // builder, where `continuation_agent_instance_hierarchy` is resolved.
+        let continuation_internal_aih: Option<String> = continuation
             .as_ref()
-            .map(|c| c.agent_instance_hierarchy())
-            .filter(|s| !s.is_empty());
-        let agent_instance_hierarchy: String = match (
-            continuation.as_ref().map(|c| c.agent_instance_hierarchy()),
-            request_composite,
-        ) {
-            (Some(s), _) => s.to_string(),
-            (None, Some(s)) => s.to_string(),
-            (None, None) => {
-                let local = response_id(created);
-                match ctx.agent_instance_hierarchy() {
-                    Some(prefix) => format!("{prefix}/{local}"),
-                    None => local,
-                }
-            }
-        };
-        // Viewer-begin is *not* fired here. The id that should
-        // correlate begin/continue/end is the winning slot's
-        // response_id leaf — which we only learn once that slot
-        // yields its first chunk. The per-attempt success wrappers
-        // below (one per upstream variant) fire begin on the first
-        // observed chunk using `chunk.id`. Pre-yield errors (paths
-        // that hit `send_viewer_err` below) never reach that point,
-        // so they correlate against the *first agent's* response_id
-        // leaf — there's no other meaningful candidate before
-        // commitment, and `agent_instance_hierarchies[0] = agent_instance_hierarchy.clone()` makes
-        // this the leaf of the resolved request `agent_instance_hierarchy`.
+            .map(|c| c.agent_instance_hierarchy().to_string());
+        // Pre-yield errors correlate against an agent's response id, passed
+        // explicitly at each call site (the primary's response id).
         let send_viewer_err = {
-            let first_agent_instance_hierarchy_leaf = agent_instance_hierarchy
-                .rsplit_once('/')
-                .map(|(_, t)| t.to_string())
-                .unwrap_or_else(|| agent_instance_hierarchy.clone());
             let viewer_client = self.viewer_client.clone();
             let ctx_for_err = ctx.clone();
-            move |e: super::Error| -> super::Error {
+            move |response_id: &str, e: super::Error| -> super::Error {
                 if viewer {
                     viewer_client.send_agent_completion_error(
                         ctx_for_err.clone(),
-                        first_agent_instance_hierarchy_leaf.clone(),
+                        response_id.to_string(),
                         &e,
                     );
                 }
@@ -612,6 +563,44 @@ where
             self.mcp_authorization.as_deref(),
         );
 
+        // Per-agent identities. `response_ids` are freshly minted, one per
+        // slot, and stay pure (no dash) so the `-`-joined RESPONSE-IDS group
+        // and X-OBJECTIVEAI-RESPONSE-ID are unaffected. An agent *instance* is
+        // `{agent.id()}-{response_id}`; the hierarchy is the spawner lineage
+        // (`ctx.agent_instance_hierarchy()`) joined by `/` with this instance.
+        let response_ids: Vec<String> =
+            filtered_agents.iter().map(|_| response_id(created)).collect();
+        // Primary id for pre-yield viewer-error correlation (empty when no
+        // agents survived filtering).
+        let primary_response_id: String =
+            response_ids.first().cloned().unwrap_or_default();
+        // Reuse on resume: internal continuation first, else the wire
+        // continuation; `None` on a fresh call.
+        let continuation_agent_instance_hierarchy: Option<String> =
+            continuation_internal_aih.or_else(|| {
+                request_continuation
+                    .as_ref()
+                    .map(|c| c.agent_instance_hierarchy().to_string())
+                    .filter(|s| !s.is_empty())
+            });
+        // When resuming, the hierarchy is fixed: every slot gets that exact
+        // value. Otherwise build a fresh per-agent instance.
+        let agent_instance_hierarchies: Vec<String> =
+            match &continuation_agent_instance_hierarchy {
+                Some(h) => vec![h.clone(); filtered_agents.len()],
+                None => filtered_agents
+                    .iter()
+                    .enumerate()
+                    .map(|(i, agent)| {
+                        let agent_instance = format!("{}-{}", agent.id(), response_ids[i]);
+                        match ctx.agent_instance_hierarchy() {
+                            Some(prefix) => format!("{prefix}/{agent_instance}"),
+                            None => agent_instance,
+                        }
+                    })
+                    .collect(),
+            };
+
         // 5. Boot the in-process proxy (idempotent — first call wins,
         //    subsequent calls reuse the same handle) and kick off one
         //    connect per agent in parallel. Awaiting each `JoinHandle`
@@ -621,7 +610,7 @@ where
             .proxy_spawner
             .get()
             .await
-            .map_err(|e| send_viewer_err(super::Error::McpProxyBootstrap(e.to_string())))?;
+            .map_err(|e| send_viewer_err(&primary_response_id, super::Error::McpProxyBootstrap(e.to_string())))?;
         let proxy_url = proxy_handle.url.clone();
 
         let request_mcp_auth_owned = request_mcp_auth.clone();
@@ -639,51 +628,6 @@ where
         let wire_proxy_session_id: Option<String> = request_continuation
             .as_ref()
             .and_then(|rc| rc.mcp_sessions().get(&proxy_url).cloned());
-
-        // 6.5. Compose the `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY` header we forward
-        //      to the proxy for every attempt.
-        //
-        // Primary (idx 0) inherits the request-resolved `agent_instance_hierarchy`
-        // (continuation or fresh). Fallbacks each get a brand-new
-        // `response_id(created)` leaf so every agent slot has a
-        // distinct identity — cli-stream uses these as the per-
-        // slot cache key beyond `agent_instance_hierarchy`. Backoff retries
-        // of one slot reuse the same cached `Connection` (and
-        // therefore the same leaf), since `attempt_connections[idx]`
-        // is populated on first visit and reused for the rest of
-        // the retry loop below.
-        let agent_instance_hierarchies: Vec<String> = filtered_agents
-            .iter()
-            .enumerate()
-            .map(|(i, _)| {
-                if i == 0 {
-                    agent_instance_hierarchy.clone()
-                } else {
-                    let local = response_id(created);
-                    match ctx.agent_instance_hierarchy() {
-                        Some(prefix) => format!("{prefix}/{local}"),
-                        None => local,
-                    }
-                }
-            })
-            .collect();
-
-        // Per-slot leaf — trailing slash-segment of each
-        // `agent_instance_hierarchies[i]`. This is the value that ends up as
-        // `AgentCompletionChunk.id`, the `notify_targets` key, and
-        // the `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY` / `X-OBJECTIVEAI-RESPONSE-ID`
-        // header for the corresponding per-agent dial. Single source
-        // of truth: everything downstream that needs the "agent's
-        // own id" reads from this vec (or, after `AgentAttempt` is
-        // built below, from `attempt.id`).
-        let ids: Vec<String> = agent_instance_hierarchies
-            .iter()
-            .map(|aid| {
-                aid.rsplit_once('/')
-                    .map(|(_, tail)| tail.to_string())
-                    .unwrap_or_else(|| aid.clone())
-            })
-            .collect();
 
         // Resolve a per-agent `ws_session_id` for any agent that
         // declares `client_objectiveai_mcp`. For the primary agent
@@ -731,7 +675,7 @@ where
         // learns the sibling set from whichever connect lands first
         // — driving the group-local loser sweep in
         // `ConduitMcpHandler::select_response_ids`.
-        let response_ids_group: String = ids.join("-");
+        let response_ids_group: String = response_ids.join("-");
 
         let connect_handles: Vec<
             Option<
@@ -750,7 +694,7 @@ where
         > = filtered_agents
             .iter()
             .zip(agent_instance_hierarchies.iter())
-            .zip(ids.iter())
+            .zip(response_ids.iter())
             .zip(agent_ws_session_ids.iter())
             .map(|(((agent, agent_instance_hierarchy), id), agent_ws_session_id)| {
                 // Build the per-agent X-MCP-* header set: the agent's
@@ -943,10 +887,11 @@ where
 
                 // Both `agent_instance_hierarchy` and `id` here are the closure's
                 // per-slot bindings (zipped in from `agent_instance_hierarchies` and
-                // `ids` above). `agent_instance_hierarchy` is the full hierarchical
-                // id (caller-lineage + this slot's response_id);
-                // `id` is its trailing segment — same value used
-                // downstream as `attempt.id` (chunk id, notify key).
+                // `response_ids` above). `agent_instance_hierarchy` is the full
+                // hierarchy (caller-lineage joined with this slot's instance,
+                // `{agent.id()}-{response_id}`); `id` is this slot's pure
+                // response id — same value used downstream as `attempt.id`
+                // (chunk id, notify key) and `X-OBJECTIVEAI-RESPONSE-ID`.
                 // `RESPONSE-IDS` is the dash-joined group of every
                 // sibling response_id in this completion, stamped
                 // identically on every per-agent connect.
@@ -955,7 +900,7 @@ where
                         "X-MCP-Servers".to_string() => serde_json::to_string(&urls).unwrap(),
                         "X-MCP-Headers".to_string() => serde_json::to_string(&per_url_headers).unwrap(),
                         "X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY".to_string() => agent_instance_hierarchy.clone(),
-                        "X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY".to_string() => id.clone(),
+                        "X-OBJECTIVEAI-AGENT-ID".to_string() => agent.id().to_string(),
                         "X-OBJECTIVEAI-RESPONSE-ID".to_string() => id.clone(),
                         "X-OBJECTIVEAI-RESPONSE-IDS".to_string() => response_ids_group.clone(),
                     };
@@ -1052,7 +997,7 @@ where
             .into_iter()
             .zip(connect_handles)
             .zip(agent_instance_hierarchies)
-            .zip(ids)
+            .zip(response_ids)
             .map(|(((agent, connect_handle), agent_instance_hierarchy), id)| AgentAttempt {
                 agent,
                 connect_handle,
@@ -1391,13 +1336,13 @@ where
 
             // All agents failed this round — apply backoff or give up.
             if errors.is_empty() {
-                return Err(send_viewer_err(super::Error::NoAgentsResolved));
+                return Err(send_viewer_err(&primary_response_id, super::Error::NoAgentsResolved));
             }
             use backoff::backoff::Backoff;
             match backoff.next_backoff() {
                 Some(d) => tokio::time::sleep(d).await,
                 None => {
-                    return Err(send_viewer_err(if errors.len() == 1 {
+                    return Err(send_viewer_err(&primary_response_id, if errors.len() == 1 {
                         errors.into_iter().next().unwrap()
                     } else {
                         super::Error::MultipleErrors(errors)
