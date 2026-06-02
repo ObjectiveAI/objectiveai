@@ -10,6 +10,11 @@ pub use command::*;
 mod command_request;
 pub use command_request::*;
 
+#[cfg(feature = "cli-executor")]
+mod command_executor;
+#[cfg(feature = "cli-executor")]
+pub use command_executor::*;
+
 mod ok;
 pub use ok::*;
 
