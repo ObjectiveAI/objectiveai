@@ -71,4 +71,7 @@ impl IntoCommand for Request {
     }
 }
 
-pub type Response = String;
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Response {
+    pub agent_instance: String,
+}
