@@ -56,11 +56,6 @@ pub struct ResponseFavorite {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-pub struct Response {
-    pub items: Vec<ResponseItem>,
-}
-
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
 pub enum ResponseItem {
     Favorite(ResponseFavorite),
