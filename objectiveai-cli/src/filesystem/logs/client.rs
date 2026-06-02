@@ -437,7 +437,7 @@ impl Client {
         )
         .with_request("vector/completions/request", request)?
         .with_queue(queue, None, |chunk: &VectorCompletionChunk| {
-            Box::new(chunk.produce_message_rows())
+            Box::new(crate::logs::vector::completions::response::streaming::vector_completion_chunk::produce_message_rows(chunk))
         }))
     }
     pub fn write_function_execution(

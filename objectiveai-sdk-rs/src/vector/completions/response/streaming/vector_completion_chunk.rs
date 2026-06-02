@@ -60,18 +60,6 @@ impl AgentCompletionIds for VectorCompletionChunk {
     }
 }
 
-impl VectorCompletionChunk {
-    /// Flat-maps inner agent-completion message rows. Lazy.
-    #[cfg(feature = "filesystem")]
-    pub fn produce_message_rows(
-        &self,
-    ) -> impl Iterator<Item = crate::filesystem::db::schema::MessageRow> + Send + '_
-    {
-        self.completions
-            .iter()
-            .flat_map(|c| c.produce_message_rows())
-    }
-}
 
 impl VectorCompletionChunk {
     /// Creates a default chunk with uniform scores for the given number of responses.
