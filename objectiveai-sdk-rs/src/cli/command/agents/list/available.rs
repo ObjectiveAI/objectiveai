@@ -18,7 +18,7 @@ pub enum RequestSource {
 }
 
 impl RequestSource {
-    fn as_subcommand(&self) -> &'static str {
+    fn as_str(&self) -> &'static str {
         match self {
             RequestSource::Filesystem => "filesystem",
             RequestSource::Favorites => "favorites",
@@ -35,7 +35,8 @@ impl CommandRequest for Request {
             "agents".to_string(),
             "list".to_string(),
             "available".to_string(),
-            self.source.as_subcommand().to_string(),
+            "--source".to_string(),
+            self.source.as_str().to_string(),
         ];
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());

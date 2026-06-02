@@ -18,7 +18,7 @@ pub enum RequestSource {
 }
 
 impl RequestSource {
-    fn as_subcommand(&self) -> &'static str {
+    fn as_str(&self) -> &'static str {
         match self {
             RequestSource::Filesystem => "filesystem",
             RequestSource::Favorites => "favorites",
@@ -31,7 +31,7 @@ impl RequestSource {
 
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
-        let mut argv = vec!["functions".to_string(), "list".to_string(), self.source.as_subcommand().to_string()];
+        let mut argv = vec!["functions".to_string(), "list".to_string(), "--source".to_string(), self.source.as_str().to_string()];
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
             argv.push(jq.clone());
