@@ -8,11 +8,9 @@
 //! [`Notification`] (which flattens [`NotificationValue`]'s `type`
 //! tag and the catch-all `Other` map directly at the top level).
 
-mod error;
 mod handle;
 pub mod notification;
 
-pub use error::*;
 pub use handle::*;
 pub use notification::*;
 
