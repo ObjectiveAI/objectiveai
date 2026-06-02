@@ -1,12 +1,15 @@
-//! `logs functions inventions response get` — bare-naked handler stub.
+//! `logs functions inventions response get` — read a stored log record from disk.
 
 use objectiveai_sdk::cli::command::logs::functions::inventions::response::get::{Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
 
-pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-    todo!("logs functions inventions response get execute")
+pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+    Ok(ctx
+        .filesystem
+        .read_function_invention(&request.id)
+        .await?)
 }
 
 pub mod request_schema {

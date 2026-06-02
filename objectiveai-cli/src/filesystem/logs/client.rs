@@ -200,9 +200,22 @@ impl Client {
         &self,
         offset: usize,
         limit: usize,
-    ) -> Result<Vec<ListItem>, Error> {
-        self.list_endpoint("vector/completions/response", offset, limit)
-            .await
+    ) -> Result<
+        Vec<objectiveai_sdk::cli::command::logs::vector::completions::response::list::ResponseItem>,
+        Error,
+    > {
+        let items = self
+            .list_endpoint("vector/completions/response", offset, limit)
+            .await?;
+        Ok(items
+            .into_iter()
+            .map(|i| {
+                objectiveai_sdk::cli::command::logs::vector::completions::response::list::ResponseItem {
+                    id: i.id,
+                    created: i.created,
+                }
+            })
+            .collect())
     }
     pub async fn list_function_executions(
         &self,
@@ -229,21 +242,43 @@ impl Client {
         &self,
         offset: usize,
         limit: usize,
-    ) -> Result<Vec<ListItem>, Error> {
-        self.list_endpoint("functions/inventions/response", offset, limit)
-            .await
+    ) -> Result<
+        Vec<objectiveai_sdk::cli::command::logs::functions::inventions::response::list::ResponseItem>,
+        Error,
+    > {
+        let items = self
+            .list_endpoint("functions/inventions/response", offset, limit)
+            .await?;
+        Ok(items
+            .into_iter()
+            .map(|i| {
+                objectiveai_sdk::cli::command::logs::functions::inventions::response::list::ResponseItem {
+                    id: i.id,
+                    created: i.created,
+                }
+            })
+            .collect())
     }
     pub async fn list_function_inventions_recursive(
         &self,
         offset: usize,
         limit: usize,
-    ) -> Result<Vec<ListItem>, Error> {
-        self.list_endpoint(
-            "functions/inventions/recursive/response",
-            offset,
-            limit,
-        )
-        .await
+    ) -> Result<
+        Vec<objectiveai_sdk::cli::command::logs::functions::inventions::recursive::response::list::ResponseItem>,
+        Error,
+    > {
+        let items = self
+            .list_endpoint("functions/inventions/recursive/response", offset, limit)
+            .await?;
+        Ok(items
+            .into_iter()
+            .map(|i| {
+                objectiveai_sdk::cli::command::logs::functions::inventions::recursive::response::list::ResponseItem {
+                    id: i.id,
+                    created: i.created,
+                }
+            })
+            .collect())
     }
 
     // -- Clear helpers + methods --------------------------------------------
@@ -747,16 +782,20 @@ impl Client {
     pub async fn read_vector_completion(
         &self,
         id: &str,
-        jq: Option<&str>,
-    ) -> Result<serde_json::Value, Error> {
-        self.read_json("vector/completions/response", id, jq).await
+    ) -> Result<
+        objectiveai_sdk::vector::completions::response::streaming::VectorCompletionChunkLog,
+        Error,
+    > {
+        self.read_json_typed("vector/completions/response", id).await
     }
     pub async fn read_vector_completion_request(
         &self,
         id: &str,
-        jq: Option<&str>,
-    ) -> Result<serde_json::Value, Error> {
-        self.read_json("vector/completions/request", id, jq).await
+    ) -> Result<
+        objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams,
+        Error,
+    > {
+        self.read_json_typed("vector/completions/request", id).await
     }
     pub async fn read_function_execution(
         &self,
@@ -788,32 +827,39 @@ impl Client {
     pub async fn read_function_invention(
         &self,
         id: &str,
-        jq: Option<&str>,
-    ) -> Result<serde_json::Value, Error> {
-        self.read_json("functions/inventions/response", id, jq)
+    ) -> Result<
+        objectiveai_sdk::functions::inventions::response::streaming::FunctionInventionChunkLog,
+        Error,
+    > {
+        self.read_json_typed("functions/inventions/response", id)
             .await
     }
     pub async fn read_function_invention_request(
         &self,
         id: &str,
-        jq: Option<&str>,
-    ) -> Result<serde_json::Value, Error> {
-        self.read_json("functions/inventions/request", id, jq).await
+    ) -> Result<objectiveai_sdk::functions::inventions::request::FunctionInventionCreateParams, Error>
+    {
+        self.read_json_typed("functions/inventions/request", id)
+            .await
     }
     pub async fn read_function_invention_recursive(
         &self,
         id: &str,
-        jq: Option<&str>,
-    ) -> Result<serde_json::Value, Error> {
-        self.read_json("functions/inventions/recursive/response", id, jq)
+    ) -> Result<
+        objectiveai_sdk::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunkLog,
+        Error,
+    > {
+        self.read_json_typed("functions/inventions/recursive/response", id)
             .await
     }
     pub async fn read_function_invention_recursive_request(
         &self,
         id: &str,
-        jq: Option<&str>,
-    ) -> Result<serde_json::Value, Error> {
-        self.read_json("functions/inventions/recursive/request", id, jq)
+    ) -> Result<
+        objectiveai_sdk::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParamsLog,
+        Error,
+    > {
+        self.read_json_typed("functions/inventions/recursive/request", id)
             .await
     }
 
@@ -1437,14 +1483,15 @@ impl Client {
         id: &str,
         timeout: std::time::Duration,
         require_modification: bool,
-        jq: Option<&str>,
-    ) -> Result<Option<serde_json::Value>, Error> {
-        self.subscribe_json(
+    ) -> Result<
+        objectiveai_sdk::vector::completions::response::streaming::VectorCompletionChunkLog,
+        Error,
+    > {
+        self.subscribe_json_typed(
             "vector/completions/response",
             id,
             timeout,
             require_modification,
-            jq,
         )
         .await
     }
@@ -1453,14 +1500,15 @@ impl Client {
         id: &str,
         timeout: std::time::Duration,
         require_modification: bool,
-        jq: Option<&str>,
-    ) -> Result<Option<serde_json::Value>, Error> {
-        self.subscribe_json(
+    ) -> Result<
+        objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams,
+        Error,
+    > {
+        self.subscribe_json_typed(
             "vector/completions/request",
             id,
             timeout,
             require_modification,
-            jq,
         )
         .await
     }
@@ -1518,14 +1566,15 @@ impl Client {
         id: &str,
         timeout: std::time::Duration,
         require_modification: bool,
-        jq: Option<&str>,
-    ) -> Result<Option<serde_json::Value>, Error> {
-        self.subscribe_json(
+    ) -> Result<
+        objectiveai_sdk::functions::inventions::response::streaming::FunctionInventionChunkLog,
+        Error,
+    > {
+        self.subscribe_json_typed(
             "functions/inventions/response",
             id,
             timeout,
             require_modification,
-            jq,
         )
         .await
     }
@@ -1534,14 +1583,13 @@ impl Client {
         id: &str,
         timeout: std::time::Duration,
         require_modification: bool,
-        jq: Option<&str>,
-    ) -> Result<Option<serde_json::Value>, Error> {
-        self.subscribe_json(
+    ) -> Result<objectiveai_sdk::functions::inventions::request::FunctionInventionCreateParams, Error>
+    {
+        self.subscribe_json_typed(
             "functions/inventions/request",
             id,
             timeout,
             require_modification,
-            jq,
         )
         .await
     }
@@ -1550,14 +1598,15 @@ impl Client {
         id: &str,
         timeout: std::time::Duration,
         require_modification: bool,
-        jq: Option<&str>,
-    ) -> Result<Option<serde_json::Value>, Error> {
-        self.subscribe_json(
+    ) -> Result<
+        objectiveai_sdk::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunkLog,
+        Error,
+    > {
+        self.subscribe_json_typed(
             "functions/inventions/recursive/response",
             id,
             timeout,
             require_modification,
-            jq,
         )
         .await
     }
@@ -1566,14 +1615,15 @@ impl Client {
         id: &str,
         timeout: std::time::Duration,
         require_modification: bool,
-        jq: Option<&str>,
-    ) -> Result<Option<serde_json::Value>, Error> {
-        self.subscribe_json(
+    ) -> Result<
+        objectiveai_sdk::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParamsLog,
+        Error,
+    > {
+        self.subscribe_json_typed(
             "functions/inventions/recursive/request",
             id,
             timeout,
             require_modification,
-            jq,
         )
         .await
     }
@@ -1863,7 +1913,8 @@ impl Client {
     pub async fn read_file_by_id(
         &self,
         id: i64,
-    ) -> Result<super::LogContent, Error> {
+    ) -> Result<objectiveai_sdk::cli::command::agents::read::id::Response, Error> {
+        use objectiveai_sdk::cli::command::agents::read::id::Response as R;
         let rel_path = self
             .path_for_file_id(id)
             .await?
@@ -1886,79 +1937,77 @@ impl Client {
         match kind {
             // -- Top-level envelopes (JSON) ---------------------------------
             K::AgentCompletion { id } => self
-                .read_agent_completion(&id, None)
+                .read_agent_completion(&id)
                 .await
-                .map(super::LogContent::json),
+                .map(R::AgentsCompletionsResponse),
             K::AgentCompletionRequest { id } => self
-                .read_agent_completion_request(&id, None)
+                .read_agent_completion_request(&id)
                 .await
-                .map(super::LogContent::json),
+                .map(R::AgentsCompletionsRequest),
             K::AgentCompletionContinuation { id } => self
                 .read_agent_completion_continuation(&id)
                 .await
-                .map(super::LogContent::text),
+                .map(R::Text),
             K::VectorCompletion { id } => self
-                .read_vector_completion(&id, None)
+                .read_vector_completion(&id)
                 .await
-                .map(super::LogContent::json),
+                .map(R::VectorCompletionsResponse),
             K::VectorCompletionRequest { id } => self
-                .read_vector_completion_request(&id, None)
+                .read_vector_completion_request(&id)
                 .await
-                .map(super::LogContent::json),
+                .map(R::VectorCompletionsRequest),
             K::FunctionExecution { id } => self
-                .read_function_execution(&id, None)
+                .read_function_execution(&id)
                 .await
-                .map(super::LogContent::json),
+                .map(R::FunctionsExecutionsResponse),
             K::FunctionExecutionRequest { id } => self
-                .read_function_execution_request(&id, None)
+                .read_function_execution_request(&id)
                 .await
-                .map(super::LogContent::json),
+                .map(R::FunctionsExecutionsRequest),
             K::FunctionExecutionRetryToken { id } => self
                 .read_function_execution_retry_token(&id)
                 .await
-                .map(super::LogContent::text),
+                .map(R::Text),
             K::FunctionInvention { id } => self
-                .read_function_invention(&id, None)
+                .read_function_invention(&id)
                 .await
-                .map(super::LogContent::json),
+                .map(R::FunctionsInventionsResponse),
             K::FunctionInventionRequest { id } => self
-                .read_function_invention_request(&id, None)
+                .read_function_invention_request(&id)
                 .await
-                .map(super::LogContent::json),
+                .map(R::FunctionsInventionsRequest),
             K::FunctionInventionRecursive { id } => self
-                .read_function_invention_recursive(&id, None)
+                .read_function_invention_recursive(&id)
                 .await
-                .map(super::LogContent::json),
+                .map(R::FunctionsInventionsRecursiveResponse),
             K::FunctionInventionRecursiveRequest { id } => self
-                .read_function_invention_recursive_request(&id, None)
+                .read_function_invention_recursive_request(&id)
                 .await
-                .map(super::LogContent::json),
+                .map(R::FunctionsInventionsRecursiveRequest),
 
             // -- Per-message metadata (JSON) --------------------------------
             K::AgentCompletionMessage { id, message_index } => self
                 .read_agent_completion_message(&id, message_index, None)
                 .await
-                .map(super::LogContent::json),
+                .map(R::AgentsCompletionsResponseMessages),
             K::AgentCompletionMessageLogprobs { id, message_index } => self
                 .read_agent_completion_message_logprobs(
                     &id,
-                    message_index,
-                    None,
+                    message_index
                 )
                 .await
-                .map(super::LogContent::json),
+                .map(R::AgentsCompletionsResponseMessagesLogprobs),
             K::AgentCompletionMessageReasoning { id, message_index } => self
                 .read_agent_completion_message_reasoning(
                     &id,
-                    message_index,
-                    None,
+                    message_index
                 )
                 .await
-                .map(super::LogContent::json),
+                .map(R::Text),
             K::AgentCompletionMessageRefusal { id, message_index } => self
-                .read_agent_completion_message_refusal(&id, message_index, None)
+                .read_agent_completion_message_refusal(&id, message_index)
                 .await
-                .map(super::LogContent::json),
+                .map(R::Text),
             K::AgentCompletionMessageToolCall {
                 id,
                 message_index,
@@ -1967,11 +2016,10 @@ impl Client {
                 .read_agent_completion_message_tool_call(
                     &id,
                     message_index,
-                    tool_call_index,
-                    None,
+                    tool_call_index
                 )
                 .await
-                .map(super::LogContent::json),
+                .map(R::AgentsCompletionsResponseMessagesToolCalls),
 
             // -- Assistant content ------------------------------------------
             // Text → `Json(Value::String(text))` so it lands under the
@@ -1988,7 +2036,7 @@ impl Client {
                     media_index,
                 )
                 .await
-                .map(super::LogContent::text),
+                .map(R::Text),
             K::AgentCompletionMessageImage {
                 id,
                 message_index,
@@ -2000,7 +2048,7 @@ impl Client {
                     media_index,
                 )
                 .await
-                .map(super::LogContent::image),
+                .map(R::Image),
             K::AgentCompletionMessageAudio {
                 id,
                 message_index,
@@ -2012,7 +2060,7 @@ impl Client {
                     media_index,
                 )
                 .await
-                .map(super::LogContent::audio),
+                .map(R::Audio),
             K::AgentCompletionMessageVideo {
                 id,
                 message_index,
@@ -2024,7 +2072,7 @@ impl Client {
                     media_index,
                 )
                 .await
-                .map(super::LogContent::video),
+                .map(R::Video),
             K::AgentCompletionMessageFile {
                 id,
                 message_index,
@@ -2036,7 +2084,7 @@ impl Client {
                     media_index,
                 )
                 .await
-                .map(super::LogContent::file),
+                .map(R::File),
 
             // -- Tool response content (under .../messages/tool/) -----------
             K::AgentCompletionMessageToolText {
@@ -2050,7 +2098,7 @@ impl Client {
                     media_index,
                 )
                 .await
-                .map(super::LogContent::text),
+                .map(R::Text),
             K::AgentCompletionMessageToolImage {
                 id,
                 message_index,
@@ -2062,7 +2110,7 @@ impl Client {
                     media_index,
                 )
                 .await
-                .map(super::LogContent::image),
+                .map(R::Image),
             K::AgentCompletionMessageToolAudio {
                 id,
                 message_index,
@@ -2074,7 +2122,7 @@ impl Client {
                     media_index,
                 )
                 .await
-                .map(super::LogContent::audio),
+                .map(R::Audio),
             K::AgentCompletionMessageToolVideo {
                 id,
                 message_index,
@@ -2086,7 +2134,7 @@ impl Client {
                     media_index,
                 )
                 .await
-                .map(super::LogContent::video),
+                .map(R::Video),
             K::AgentCompletionMessageToolFile {
                 id,
                 message_index,
@@ -2098,7 +2146,7 @@ impl Client {
                     media_index,
                 )
                 .await
-                .map(super::LogContent::file),
+                .map(R::File),
 
             // -- Request-side message content -------------------------------
             K::AgentCompletionRequestMessageText {
@@ -2112,7 +2160,7 @@ impl Client {
                     media_index,
                 )
                 .await
-                .map(super::LogContent::text),
+                .map(R::Text),
             K::AgentCompletionRequestMessageImage {
                 id,
                 message_index,
@@ -2124,7 +2172,7 @@ impl Client {
                     media_index,
                 )
                 .await
-                .map(super::LogContent::image),
+                .map(R::Image),
             K::AgentCompletionRequestMessageAudio {
                 id,
                 message_index,
@@ -2136,7 +2184,7 @@ impl Client {
                     media_index,
                 )
                 .await
-                .map(super::LogContent::audio),
+                .map(R::Audio),
             K::AgentCompletionRequestMessageVideo {
                 id,
                 message_index,
@@ -2148,7 +2196,7 @@ impl Client {
                     media_index,
                 )
                 .await
-                .map(super::LogContent::video),
+                .map(R::Video),
             K::AgentCompletionRequestMessageFile {
                 id,
                 message_index,
@@ -2160,7 +2208,7 @@ impl Client {
                     media_index,
                 )
                 .await
-                .map(super::LogContent::file),
+                .map(R::File),
 
             // -- Notification content ---------------------------------------
             K::AgentCompletionNotificationText {
@@ -2174,7 +2222,7 @@ impl Client {
                     media_index,
                 )
                 .await
-                .map(super::LogContent::text),
+                .map(R::Text),
             K::AgentCompletionNotificationImage {
                 response_id,
                 index,
@@ -2186,7 +2234,7 @@ impl Client {
                     media_index,
                 )
                 .await
-                .map(super::LogContent::image),
+                .map(R::Image),
             K::AgentCompletionNotificationAudio {
                 response_id,
                 index,
@@ -2198,7 +2246,7 @@ impl Client {
                     media_index,
                 )
                 .await
-                .map(super::LogContent::audio),
+                .map(R::Audio),
             K::AgentCompletionNotificationVideo {
                 response_id,
                 index,
@@ -2210,7 +2258,7 @@ impl Client {
                     media_index,
                 )
                 .await
-                .map(super::LogContent::video),
+                .map(R::Video),
             K::AgentCompletionNotificationFile {
                 response_id,
                 index,
@@ -2222,7 +2270,7 @@ impl Client {
                     media_index,
                 )
                 .await
-                .map(super::LogContent::file),
+                .map(R::File),
         }
     }
 

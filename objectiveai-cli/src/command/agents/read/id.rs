@@ -1,12 +1,16 @@
-//! `agents read id` — bare-naked handler stub.
+//! `agents read id <id>` — resolve a queue Id (SQL row id in the
+//! `files` table) to its log file's typed content. The filesystem
+//! dispatcher classifies the path, calls the matching typed read,
+//! and wraps the value in the matching `Response` variant — the cli
+//! leaf just returns it.
 
 use objectiveai_sdk::cli::command::agents::read::id::{Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
 
-pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-    todo!("agents read id execute")
+pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+    Ok(ctx.filesystem.read_file_by_id(request.id).await?)
 }
 
 pub mod request_schema {

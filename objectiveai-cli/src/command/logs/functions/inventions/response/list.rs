@@ -10,8 +10,14 @@ use crate::error::Error;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
-pub async fn execute(_ctx: &Context, _request: Request) -> Result<ItemStream, Error> {
-    todo!("logs functions inventions response list execute")
+pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
+    let offset = request.offset.unwrap_or(0);
+    let limit = request.limit.unwrap_or(usize::MAX);
+    let items = ctx
+        .filesystem
+        .list_function_inventions(offset, limit)
+        .await?;
+    Ok(Box::pin(futures::stream::iter(items.into_iter().map(Ok))))
 }
 
 pub mod request_schema {
