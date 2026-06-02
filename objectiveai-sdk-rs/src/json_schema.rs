@@ -563,8 +563,8 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
             schemars::schema_for!(crate::cli::output::notification::laboratories::Laboratory),
             schemars::schema_for!(crate::cli::output::notification::laboratories::LabResultItem),
             schemars::schema_for!(crate::cli::output::notification::swarms::Swarm),
-            schemars::schema_for!(crate::cli::plugins::PluginOutput),
-            schemars::schema_for!(crate::cli::plugins::TypedPluginOutput),
+            schemars::schema_for!(crate::cli::plugins::Output),
+            schemars::schema_for!(crate::cli::plugins::TypedOutput),
         ]);
     }
     #[cfg(feature = "viewer")]

@@ -3,7 +3,7 @@
 //! Invoked by the CLI's `dial_plugin_upstream` as
 //! `<exe> mcp <server_name> begin`. Spins up `rmcp`'s
 //! `StreamableHttpService` on `127.0.0.1:0`, announces the bound URL
-//! on stdout as a `PluginOutput::Mcp { url }` line
+//! on stdout as a `cli::plugins::Output::Mcp { url }` line
 //! (`{"type":"mcp","url":"http://127.0.0.1:<port>"}`), and serves
 //! forever.
 //!

@@ -17,7 +17,7 @@
 //! Both routes land in [`dispatch_external`], so the runtime behaviour
 //! is identical — only the parse path differs. We resolve `<name>`
 //! against `~/.objectiveai/plugins/`, spawn the binary with `<args…>`,
-//! and consume its stdout as a JSONL stream of [`PluginOutput`].
+//! and consume its stdout as a JSONL stream of [`objectiveai_sdk::cli::plugins::Output`].
 //! Per-line dispatch:
 //!
 //! - `Error` → forward via [`Output::Error`]
@@ -54,7 +54,7 @@ use objectiveai_sdk::cli::output::{
     CommandComplete, Handle, HandleDestination, Installed, Notification, Output, Plugin, Plugins,
     TypedNotificationValue,
 };
-use objectiveai_sdk::cli::plugins::{PluginOutput, TypedPluginOutput};
+use objectiveai_sdk::cli::plugins::{Output as PluginOutput, TypedOutput as TypedPluginOutput};
 use tokio::io::AsyncBufReadExt;
 use tokio::process::ChildStdin;
 use tokio::sync::Mutex;

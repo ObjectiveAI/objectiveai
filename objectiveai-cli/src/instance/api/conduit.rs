@@ -43,7 +43,7 @@
 use dashmap::DashMap;
 use indexmap::IndexMap;
 use objectiveai_sdk::Notifier;
-use objectiveai_sdk::cli::plugins::{PluginOutput, TypedPluginOutput};
+use objectiveai_sdk::cli::plugins::{Output as PluginOutput, TypedOutput as TypedPluginOutput};
 use objectiveai_sdk::client_objectiveai_mcp::client_request::{McpListChanged, McpListChangedKind};
 use objectiveai_sdk::client_objectiveai_mcp::{server_request, server_response};
 use objectiveai_sdk::http::McpHandler;

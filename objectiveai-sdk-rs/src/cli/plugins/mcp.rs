@@ -1,5 +1,6 @@
 //! Wire shape for a plugin-emitted MCP server announcement.
 
+use indexmap::IndexMap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -13,4 +14,9 @@ use serde::{Deserialize, Serialize};
 #[schemars(rename = "cli.plugins.Mcp")]
 pub struct Mcp {
     pub url: String,
+    /// Optional headers the host should attach to every request made to
+    /// `url` (e.g. `Authorization`, custom routing keys). Insertion
+    /// order is preserved on the wire.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub headers: Option<IndexMap<String, String>>,
 }

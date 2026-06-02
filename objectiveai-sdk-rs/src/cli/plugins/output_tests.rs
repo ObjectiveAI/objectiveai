@@ -1,15 +1,15 @@
 use super::*;
 use serde_json::json;
 
-fn roundtrip(out: &PluginOutput) -> serde_json::Value {
+fn roundtrip(out: &Output) -> serde_json::Value {
     let s = serde_json::to_string(out).unwrap();
-    let back: PluginOutput = serde_json::from_str(&s).unwrap();
+    let back: Output = serde_json::from_str(&s).unwrap();
     serde_json::to_value(&back).unwrap()
 }
 
 #[test]
 fn error_wire_shape() {
-    let out = PluginOutput::Typed(TypedPluginOutput::Error(Error {
+    let out = Output::Typed(TypedOutput::Error(Error {
         r#type: ErrorType::Error,
         level: Some(Level::Error),
         fatal: Some(true),
@@ -24,7 +24,7 @@ fn error_wire_shape() {
 
 #[test]
 fn notification_wire_shape() {
-    let out = PluginOutput::Notification(json!({"foo": "bar", "n": 42}));
+    let out = Output::Notification(json!({"foo": "bar", "n": 42}));
     let v = roundtrip(&out);
     // Untagged catch-all: the value's keys are the wire shape, no
     // `type:"notification"` envelope.
@@ -34,7 +34,7 @@ fn notification_wire_shape() {
 
 #[test]
 fn command_wire_shape() {
-    let out = PluginOutput::Typed(TypedPluginOutput::Command {
+    let out = Output::Typed(TypedOutput::Command {
         id: None,
         command: "ping".to_string(),
     });
@@ -45,10 +45,12 @@ fn command_wire_shape() {
 
 #[test]
 fn mcp_wire_shape() {
-    let out = PluginOutput::Typed(TypedPluginOutput::Mcp(Mcp {
+    let out = Output::Typed(TypedOutput::Mcp(Mcp {
         url: "https://example.com/mcp".into(),
+        headers: None,
     }));
     let v = roundtrip(&out);
     assert_eq!(v["type"], "mcp");
     assert_eq!(v["url"], "https://example.com/mcp");
+    assert!(v.get("headers").is_none());
 }
