@@ -19,7 +19,7 @@ pub struct Request {
     pub split: bool,
     pub invert: bool,
     pub detach: bool,
-    pub stream: Option<bool>,
+    pub dangerous_advanced: Option<RequestDangerousAdvanced>,
 }
 
 pub enum RequestInput {
@@ -81,11 +81,21 @@ impl IntoCommand for Request {
         if self.detach {
             argv.push("--detach".to_string());
         }
-        if let Some(true) = self.stream {
-            argv.push("--stream".to_string());
+        if let Some(advanced) = &self.dangerous_advanced {
+            argv.push("--dangerous-advanced".to_string());
+            argv.push(
+                serde_json::to_string(advanced)
+                    .expect("RequestDangerousAdvanced serializes"),
+            );
         }
         argv
     }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct RequestDangerousAdvanced {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stream: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
