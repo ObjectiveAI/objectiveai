@@ -1,4 +1,5 @@
-//! Free-function port of `FunctionInventionRecursiveChunk::produce_files`.
+//! Free-function ports of `FunctionInventionRecursiveChunk::produce_files`
+//! and `FunctionInventionRecursiveChunk::produce_message_rows`.
 
 use objectiveai_sdk::functions::inventions::recursive::response::streaming::{
     FunctionInventionRecursiveChunk, FunctionInventionRecursiveChunkLog,
@@ -6,6 +7,7 @@ use objectiveai_sdk::functions::inventions::recursive::response::streaming::{
 
 use objectiveai_sdk::logs::{IndexedLogReference, LogReference};
 
+use crate::filesystem::db::schema::MessageRow;
 use crate::filesystem::logs::LogFile;
 
 /// Produce the [`LogFile`]s for a recursive function invention chunk.
@@ -52,4 +54,14 @@ pub fn produce_files(
     files.push(root_file);
 
     Some((reference, files))
+}
+
+/// Flat-maps message rows from every wrapped non-recursive invention.
+/// Lazy.
+pub fn produce_message_rows(
+    c: &FunctionInventionRecursiveChunk,
+) -> impl Iterator<Item = MessageRow> + Send + '_ {
+    c.inventions
+        .iter()
+        .flat_map(|i| super::function_invention_chunk::produce_message_rows(i))
 }

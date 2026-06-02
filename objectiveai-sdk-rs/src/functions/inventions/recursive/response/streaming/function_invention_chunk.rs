@@ -34,12 +34,4 @@ impl FunctionInventionChunk {
         self.inner.push(&other.inner);
     }
 
-    /// Delegates to the inner non-recursive invention.
-    #[cfg(feature = "filesystem")]
-    pub fn produce_message_rows(
-        &self,
-    ) -> impl Iterator<Item = crate::filesystem::db::schema::MessageRow> + Send + '_
-    {
-        self.inner.produce_message_rows()
-    }
 }

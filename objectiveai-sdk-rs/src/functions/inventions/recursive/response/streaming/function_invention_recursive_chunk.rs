@@ -37,18 +37,6 @@ impl AgentCompletionIds for FunctionInventionRecursiveChunk {
     }
 }
 
-impl FunctionInventionRecursiveChunk {
-    /// Flat-maps message rows from every wrapped non-recursive invention. Lazy.
-    #[cfg(feature = "filesystem")]
-    pub fn produce_message_rows(
-        &self,
-    ) -> impl Iterator<Item = crate::filesystem::db::schema::MessageRow> + Send + '_
-    {
-        self.inventions
-            .iter()
-            .flat_map(|i| i.produce_message_rows())
-    }
-}
 
 impl FunctionInventionRecursiveChunk {
     /// Yields each inner error from the recursive chunk's wrapped

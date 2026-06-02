@@ -50,6 +50,7 @@ pub fn produce_files(
 
     let log = AgentCompletionChunkLog {
         id: c.id.clone(),
+        agent_instance_hierarchy: c.agent_instance_hierarchy.clone(),
         created: c.created,
         messages: message_refs,
         object: c.object,

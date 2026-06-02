@@ -497,7 +497,7 @@ impl Client {
             .with_queue(
                 queue,
                 Some(super::super::db::schema::MessageKind::FunctionInventionRecursiveRequest),
-                |chunk: &FunctionInventionRecursiveChunk| Box::new(chunk.produce_message_rows()),
+                |chunk: &FunctionInventionRecursiveChunk| Box::new(crate::logs::functions::inventions::recursive::response::streaming::function_invention_recursive_chunk::produce_message_rows(chunk)),
             ))
     }
 
