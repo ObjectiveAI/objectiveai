@@ -1,7 +1,7 @@
 //! `logs clear` — clear every category of log records across all
 //! endpoints (agents, vector, functions). Concurrent fan-out via
-//! `try_join_all`; the per-category record counts aren't surfaced in
-//! the SDK Response shape so they're discarded.
+//! `try_join_all`; sums the per-category record counts into the SDK
+//! `Response.count`.
 
 use objectiveai_sdk::cli::command::logs::clear::{Request, Response};
 
@@ -30,8 +30,10 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error
         Box::pin(fs.clear_function_inventions()),
         Box::pin(fs.clear_function_inventions_recursive()),
     ];
-    futures::future::try_join_all(futures).await?;
-    Ok(Response {})
+    let counts = futures::future::try_join_all(futures).await?;
+    Ok(Response {
+        count: counts.into_iter().sum(),
+    })
 }
 
 pub mod request_schema {
