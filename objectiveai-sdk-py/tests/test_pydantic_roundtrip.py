@@ -308,6 +308,19 @@ def _get_variant_title(tp: Any) -> str | None:
     return None
 
 
+def _get_variant_outer_object(tp: Any) -> bool:
+    """Read _outer_object marker — set by install_pydantic.py whenever
+    the source schema stamped `type: "object"` alongside the variant's
+    `$ref` (struct-flattens-untagged-enum / internally-tagged-enum cases).
+    """
+    config = getattr(tp, "model_config", None)
+    if config and isinstance(config, dict):
+        extra = config.get("json_schema_extra")
+        if isinstance(extra, dict):
+            return bool(extra.get("_outer_object"))
+    return False
+
+
 def _convert_union_member(tp: Any, root_title: str) -> dict:
     """Convert a single Union member to a JSON Schema dict.
 
@@ -336,6 +349,8 @@ def _convert_union_member(tp: Any, root_title: str) -> dict:
         doc = getattr(tp, "__doc__", None)
         if doc:
             result["description"] = doc
+        if _get_variant_outer_object(tp):
+            result["type"] = "object"
         if issubclass(tp, RootModel):
             inner = _convert_root_model(tp, root_title)
         else:
@@ -502,17 +517,19 @@ def _convert_base_model(cls: type, root_title: str) -> dict:
 
 
 def _convert_local_properties(cls: type, root_title: str) -> dict:
-    """Convert only locally-defined fields (not inherited) to JSON Schema properties."""
-    # Get the set of field names defined by parent classes
-    inherited_fields: set[str] = set()
-    for base in cls.__mro__[1:]:
-        if base in (BaseModel, RootModel, object):
-            continue
-        inherited_fields.update(getattr(base, "model_fields", {}).keys())
+    """Convert only locally-defined fields (including redeclared overrides
+    of inherited fields, e.g. a `type` discriminator narrowed from `ErrorType`
+    to `Literal["error"]`) to JSON Schema properties.
+
+    Uses `cls.__annotations__`, which contains only annotations directly
+    declared on this class (not inherited), so a redeclaration is treated
+    as local rather than filtered out as "inherited."
+    """
+    local_annotations = getattr(cls, "__annotations__", {})
 
     properties: dict = {}
     for field_name, field_info in cls.model_fields.items():
-        if field_name in inherited_fields:
+        if field_name not in local_annotations:
             continue
         prop_name = field_info.alias if field_info.alias else field_name
         tp = field_info.annotation

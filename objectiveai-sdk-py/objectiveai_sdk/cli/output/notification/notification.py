@@ -8,7 +8,7 @@ from objectiveai_sdk.cli.output.notification.typed_notification_value import Typ
 
 
 class NotificationTyped(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Typed'})
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Typed', '_outer_object': True})
 
     root: TypedNotificationValue
 
