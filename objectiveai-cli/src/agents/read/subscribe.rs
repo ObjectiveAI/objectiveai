@@ -46,12 +46,12 @@
 use std::path::PathBuf;
 use std::pin::Pin;
 
-use clap::{Args, ValueEnum};
+use clap::Args;
 use interprocess::local_socket::traits::tokio::Stream as _;
 use interprocess::local_socket::{GenericFilePath, ToFsName};
+use objectiveai_sdk::cli::command::agents::read::subscribe::RequestMessageKind;
 use objectiveai_sdk::cli::output::notification::agents::{AgentItems, Inactive};
 use objectiveai_sdk::cli::output::{Handle, Notification, Output};
-use crate::filesystem::db::schema::MessageKind;
 use crate::filesystem::logs::{SubscribeEvent, queue::QueueItem};
 use tokio::io::{AsyncBufReadExt, BufReader};
 
@@ -71,35 +71,7 @@ pub struct CommandArgs {
     /// kind filter only governs whether the command exits or keeps
     /// waiting.
     #[arg(long = "kind", value_enum)]
-    pub kind: Option<MessageKindArg>,
-}
-
-/// Clap-friendly mirror of [`MessageKind`]. We keep the canonical
-/// enum in the SDK free of clap deps; this maps 1:1.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
-#[clap(rename_all = "snake_case")]
-pub enum MessageKindArg {
-    AgentCompletionRequest,
-    FunctionExecutionRequest,
-    FunctionInventionRecursiveRequest,
-    AgentCompletionNotification,
-    AssistantResponse,
-    ToolResponse,
-}
-
-impl From<MessageKindArg> for MessageKind {
-    fn from(a: MessageKindArg) -> Self {
-        match a {
-            MessageKindArg::AgentCompletionRequest => MessageKind::AgentCompletionRequest,
-            MessageKindArg::FunctionExecutionRequest => MessageKind::FunctionExecutionRequest,
-            MessageKindArg::FunctionInventionRecursiveRequest => {
-                MessageKind::FunctionInventionRecursiveRequest
-            }
-            MessageKindArg::AgentCompletionNotification => MessageKind::AgentCompletionNotification,
-            MessageKindArg::AssistantResponse => MessageKind::AssistantResponse,
-            MessageKindArg::ToolResponse => MessageKind::ToolResponse,
-        }
-    }
+    pub kind: Option<RequestMessageKind>,
 }
 
 pub async fn handle(
@@ -107,7 +79,7 @@ pub async fn handle(
     cli_config: &crate::Config,
     handle: &Handle,
 ) -> Result<(), crate::error::Error> {
-    let kind_filter = args.kind.map(MessageKind::from);
+    let kind_filter = args.kind;
     let client = crate::filesystem::Client::new(
         cli_config.config_base_dir.as_deref(),
         None::<String>,
@@ -136,7 +108,7 @@ fn subscribe_recursive(
     caller: String,
     spawned: String,
     sub_id: String,
-    kind_filter: Option<MessageKind>,
+    kind_filter: Option<RequestMessageKind>,
     handle: &Handle,
 ) -> Pin<Box<dyn Future<Output = Result<(), crate::error::Error>> + Send + '_>> {
     Box::pin(async move {
@@ -223,25 +195,25 @@ fn subscribe_recursive(
 /// semantic the user specified ("waits if there are no unread of
 /// the specified kind," which when the kind is unconstrained means
 /// "waits if there are no unread").
-fn matches_filter(items: &[QueueItem], filter: Option<MessageKind>) -> bool {
+fn matches_filter(items: &[QueueItem], filter: Option<RequestMessageKind>) -> bool {
     items.iter().any(|it| match filter {
         None => true,
         Some(k) => queue_item_kind(it) == k,
     })
 }
 
-/// Map the typed [`QueueItem`] back to its [`MessageKind`]. The two
+/// Map the typed [`QueueItem`] back to its [`RequestMessageKind`]. The two
 /// share variant names by construction (see `queue_item_from_row`
 /// in the SDK).
-fn queue_item_kind(item: &QueueItem) -> MessageKind {
+fn queue_item_kind(item: &QueueItem) -> RequestMessageKind {
     match item {
-        QueueItem::AssistantResponse { .. } => MessageKind::AssistantResponse,
-        QueueItem::ToolResponse { .. } => MessageKind::ToolResponse,
-        QueueItem::Notification { .. } => MessageKind::AgentCompletionNotification,
-        QueueItem::AgentCompletionRequest { .. } => MessageKind::AgentCompletionRequest,
-        QueueItem::FunctionExecutionRequest { .. } => MessageKind::FunctionExecutionRequest,
+        QueueItem::AssistantResponse { .. } => RequestMessageKind::AssistantResponse,
+        QueueItem::ToolResponse { .. } => RequestMessageKind::ToolResponse,
+        QueueItem::Notification { .. } => RequestMessageKind::AgentCompletionNotification,
+        QueueItem::AgentCompletionRequest { .. } => RequestMessageKind::AgentCompletionRequest,
+        QueueItem::FunctionExecutionRequest { .. } => RequestMessageKind::FunctionExecutionRequest,
         QueueItem::FunctionInventionRecursiveRequest { .. } => {
-            MessageKind::FunctionInventionRecursiveRequest
+            RequestMessageKind::FunctionInventionRecursiveRequest
         }
     }
 }

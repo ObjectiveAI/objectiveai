@@ -5,147 +5,109 @@
 
 use std::sync::{Arc, Mutex};
 
+use objectiveai_sdk::cli::command::agents::read::subscribe::RequestMessageKind;
 use rusqlite::Connection;
 
-/// Discriminant for the row's payload. Persisted as TEXT via the
-/// `as_str()` mapping so on-disk dumps stay readable. Serde maps to
-/// the same snake_case strings so wire shapes that carry the kind
-/// (e.g. the cli-stream → subscribe event pipe) round-trip cleanly
-/// with `as_str()` / `from_str()`.
-///
-/// `AgentCompletionNotification` is the kind for messages drained
-/// off the per-agent inbound socket and inserted into `messages`
-/// just before the next tool-response row (or at stream end).
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    serde::Serialize,
-    serde::Deserialize,
-    schemars::JsonSchema,
-)]
-#[serde(rename_all = "snake_case")]
-#[schemars(rename = "filesystem.db.MessageKind")]
-pub enum MessageKind {
-    AgentCompletionRequest,
-    FunctionExecutionRequest,
-    FunctionInventionRecursiveRequest,
-    AgentCompletionNotification,
-    AssistantResponse,
-    ToolResponse,
+/// TEXT-column form of `kind`, produced and consumed by every row
+/// insert/read. The mapping is the canonical inverse of
+/// [`parse_message_kind`].
+pub fn message_kind_as_str(kind: RequestMessageKind) -> &'static str {
+    match kind {
+        RequestMessageKind::AgentCompletionRequest => "agent_completion_request",
+        RequestMessageKind::FunctionExecutionRequest => "function_execution_request",
+        RequestMessageKind::FunctionInventionRecursiveRequest => {
+            "function_invention_recursive_request"
+        }
+        RequestMessageKind::AgentCompletionNotification => "agent_completion_notification",
+        RequestMessageKind::AssistantResponse => "assistant_response",
+        RequestMessageKind::ToolResponse => "tool_response",
+    }
 }
 
-impl MessageKind {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            MessageKind::AgentCompletionRequest => "agent_completion_request",
-            MessageKind::FunctionExecutionRequest => {
-                "function_execution_request"
-            }
-            MessageKind::FunctionInventionRecursiveRequest => {
-                "function_invention_recursive_request"
-            }
-            MessageKind::AgentCompletionNotification => {
-                "agent_completion_notification"
-            }
-            MessageKind::AssistantResponse => "assistant_response",
-            MessageKind::ToolResponse => "tool_response",
+/// Parse the TEXT representation produced by [`message_kind_as_str`]
+/// back into a `RequestMessageKind`. Errors with
+/// `Error::InvalidPath(format!("unknown message kind: {}", s))` on an
+/// unrecognised string — mainly a guard against out-of-sync rows
+/// from a future schema.
+pub fn parse_message_kind(s: &str) -> Result<RequestMessageKind, super::super::Error> {
+    match s {
+        "agent_completion_request" => Ok(RequestMessageKind::AgentCompletionRequest),
+        "function_execution_request" => Ok(RequestMessageKind::FunctionExecutionRequest),
+        "function_invention_recursive_request" => {
+            Ok(RequestMessageKind::FunctionInventionRecursiveRequest)
         }
-    }
-
-    /// Parse the TEXT representation produced by [`Self::as_str`]
-    /// back into a `MessageKind`. Errors with
-    /// `Error::InvalidPath(format!("unknown message kind: {}", s))`
-    /// on an unrecognised string — mainly a guard against
-    /// out-of-sync rows from a future schema.
-    pub fn from_str(s: &str) -> Result<Self, super::super::Error> {
-        match s {
-            "agent_completion_request" => {
-                Ok(MessageKind::AgentCompletionRequest)
-            }
-            "function_execution_request" => {
-                Ok(MessageKind::FunctionExecutionRequest)
-            }
-            "function_invention_recursive_request" => {
-                Ok(MessageKind::FunctionInventionRecursiveRequest)
-            }
-            "agent_completion_notification" => {
-                Ok(MessageKind::AgentCompletionNotification)
-            }
-            "assistant_response" => Ok(MessageKind::AssistantResponse),
-            "tool_response" => Ok(MessageKind::ToolResponse),
-            other => Err(super::super::Error::InvalidPath(format!(
-                "unknown message kind: {other}"
-            ))),
+        "agent_completion_notification" => {
+            Ok(RequestMessageKind::AgentCompletionNotification)
         }
+        "assistant_response" => Ok(RequestMessageKind::AssistantResponse),
+        "tool_response" => Ok(RequestMessageKind::ToolResponse),
+        other => Err(super::super::Error::InvalidPath(format!(
+            "unknown message kind: {other}"
+        ))),
     }
+}
 
-    /// Reconstruct the on-disk file path (relative to `logs_dir`)
-    /// from a (kind, response_id, path) row.
-    ///
-    /// `response_id` is the bare agent-completion chunk id and is
-    /// passed in explicitly. We do **not** recover it by parsing
-    /// `agent_instance_hierarchy`'s trailing segment — `agent_instance_hierarchy` is constructed
-    /// from `response_id` (by lineage-stamping) and the reverse
-    /// direction is unsafe (bare/unstamped agent_instance_hierarchies, sub-lineages,
-    /// etc.). For notifications, the on-disk filename is keyed by
-    /// `response_id` too (the target agent-completion's id) so the
-    /// rule holds uniformly.
-    ///
-    /// Request rows have `path` already set to the full filesystem
-    /// path (the writer stores it as
-    /// `agents/completions/request/<id>.json`); we return it
-    /// verbatim. The fallback `{prefix}/{path}.json` form keeps
-    /// backwards compat for any bare-stem rows.
-    pub fn file_path(&self, response_id: &str, path: &str) -> String {
-        match self {
-            MessageKind::AgentCompletionRequest => {
-                if path.starts_with("agents/completions/request/")
-                    && path.ends_with(".json")
-                {
-                    path.to_string()
-                } else {
-                    format!("agents/completions/request/{path}.json")
-                }
+/// Reconstruct the on-disk file path (relative to `logs_dir`) from a
+/// (kind, response_id, path) row.
+///
+/// `response_id` is the bare agent-completion chunk id and is passed
+/// in explicitly. We do **not** recover it by parsing
+/// `agent_instance_hierarchy`'s trailing segment — `agent_instance_hierarchy`
+/// is constructed from `response_id` (by lineage-stamping) and the
+/// reverse direction is unsafe (bare/unstamped agent_instance_hierarchies,
+/// sub-lineages, etc.). For notifications, the on-disk filename is keyed
+/// by `response_id` too (the target agent-completion's id) so the rule
+/// holds uniformly.
+///
+/// Request rows have `path` already set to the full filesystem path
+/// (the writer stores it as `agents/completions/request/<id>.json`);
+/// we return it verbatim. The fallback `{prefix}/{path}.json` form
+/// keeps backwards compat for any bare-stem rows.
+pub fn message_kind_file_path(
+    kind: RequestMessageKind,
+    response_id: &str,
+    path: &str,
+) -> String {
+    match kind {
+        RequestMessageKind::AgentCompletionRequest => {
+            if path.starts_with("agents/completions/request/") && path.ends_with(".json") {
+                path.to_string()
+            } else {
+                format!("agents/completions/request/{path}.json")
             }
-            MessageKind::FunctionExecutionRequest => {
-                if path.starts_with("functions/executions/request/")
-                    && path.ends_with(".json")
-                {
-                    path.to_string()
-                } else {
-                    format!("functions/executions/request/{path}.json")
-                }
+        }
+        RequestMessageKind::FunctionExecutionRequest => {
+            if path.starts_with("functions/executions/request/")
+                && path.ends_with(".json")
+            {
+                path.to_string()
+            } else {
+                format!("functions/executions/request/{path}.json")
             }
-            MessageKind::FunctionInventionRecursiveRequest => {
-                if path.starts_with("functions/inventions/recursive/request/")
-                    && path.ends_with(".json")
-                {
-                    path.to_string()
-                } else {
-                    format!(
-                        "functions/inventions/recursive/request/{path}.json"
-                    )
-                }
+        }
+        RequestMessageKind::FunctionInventionRecursiveRequest => {
+            if path.starts_with("functions/inventions/recursive/request/")
+                && path.ends_with(".json")
+            {
+                path.to_string()
+            } else {
+                format!("functions/inventions/recursive/request/{path}.json")
             }
-            MessageKind::AssistantResponse => {
-                format!(
-                    "agents/completions/response/messages/assistant/{response_id}_{path}.json"
-                )
-            }
-            MessageKind::ToolResponse => {
-                format!(
-                    "agents/completions/response/messages/tool/{response_id}_{path}.json"
-                )
-            }
-            MessageKind::AgentCompletionNotification => {
-                format!(
-                    "agents/completions/request/notifications/{response_id}_{path}.json"
-                )
-            }
+        }
+        RequestMessageKind::AssistantResponse => {
+            format!(
+                "agents/completions/response/messages/assistant/{response_id}_{path}.json"
+            )
+        }
+        RequestMessageKind::ToolResponse => {
+            format!(
+                "agents/completions/response/messages/tool/{response_id}_{path}.json"
+            )
+        }
+        RequestMessageKind::AgentCompletionNotification => {
+            format!(
+                "agents/completions/request/notifications/{response_id}_{path}.json"
+            )
         }
     }
 }
@@ -161,10 +123,10 @@ pub struct MessageRow {
     /// The bare chunk id (the agent completion's response id). Set
     /// explicitly by the producer; never re-derived from `agent_instance_hierarchy`.
     pub response_id: String,
-    pub kind: MessageKind,
+    pub kind: RequestMessageKind,
     /// The chunk-given message index (assistant/tool: `MessageChunk::index()`).
     pub index: u64,
-    /// Bare-id placed in the `path` column. See [`MessageKind::file_path`]
+    /// Bare-id placed in the `path` column. See [`message_kind_file_path`]
     /// for the full filesystem path reconstruction.
     pub path: String,
     /// Unix seconds; usually the chunk's `created` field.
@@ -274,7 +236,7 @@ pub async fn path_for_file_id_async(
 /// List every direct-child agent of `parent_agent_instance_hierarchy` (one
 /// lineage segment deeper, no grandchildren) along with the unix-
 /// seconds timestamp of its most recent
-/// [`MessageKind::AssistantResponse`] row. Newest-first.
+/// [`RequestMessageKind::AssistantResponse`] row. Newest-first.
 ///
 /// Composite agent ids are slash-separated lineage strings minted
 /// at the api server (`{parent}/{local_id}`). "Direct child"
@@ -296,7 +258,7 @@ pub fn list_direct_active_children(
         .query_map(
             rusqlite::params![
                 parent_agent_instance_hierarchy,
-                MessageKind::AssistantResponse.as_str()
+                message_kind_as_str(RequestMessageKind::AssistantResponse)
             ],
             |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?.max(0) as u64)),
         )?
@@ -345,7 +307,7 @@ pub fn insert(
     conn: &Connection,
     agent_instance_hierarchy: &str,
     response_id: &str,
-    kind: MessageKind,
+    kind: RequestMessageKind,
     path: &str,
     timestamp: u64,
     index: u64,
@@ -356,7 +318,7 @@ pub fn insert(
         rusqlite::params![
             agent_instance_hierarchy,
             response_id,
-            kind.as_str(),
+            message_kind_as_str(kind),
             path,
             timestamp as i64,
             index as i64
@@ -372,7 +334,7 @@ pub async fn insert_async(
     conn: Arc<Mutex<Connection>>,
     agent_instance_hierarchy: String,
     response_id: String,
-    kind: MessageKind,
+    kind: RequestMessageKind,
     path: String,
     timestamp: u64,
     index: u64,

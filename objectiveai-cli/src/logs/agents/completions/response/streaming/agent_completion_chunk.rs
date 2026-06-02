@@ -7,7 +7,9 @@ use objectiveai_sdk::agent::completions::response::streaming::{
 
 use objectiveai_sdk::logs::LogReference;
 
-use crate::filesystem::db::schema::{MessageKind, MessageRow};
+use objectiveai_sdk::cli::command::agents::read::subscribe::RequestMessageKind;
+
+use crate::filesystem::db::schema::MessageRow;
 use crate::filesystem::logs::LogFile;
 
 /// Produce the [`LogFile`]s for the log file structure. Returns `None`
@@ -51,6 +53,9 @@ pub fn produce_files(
     let log = AgentCompletionChunkLog {
         id: c.id.clone(),
         agent_instance_hierarchy: c.agent_instance_hierarchy.clone(),
+        agent_id: c.agent_id.clone(),
+        agent_full_id: c.agent_full_id.clone(),
+        agent_remote: c.agent_remote.clone(),
         created: c.created,
         messages: message_refs,
         object: c.object,
@@ -93,8 +98,8 @@ pub fn produce_message_rows(
             return None;
         }
         let kind = match m {
-            MessageChunk::Assistant(_) => MessageKind::AssistantResponse,
-            MessageChunk::Tool(_) => MessageKind::ToolResponse,
+            MessageChunk::Assistant(_) => RequestMessageKind::AssistantResponse,
+            MessageChunk::Tool(_) => RequestMessageKind::ToolResponse,
         };
         let idx = m.index();
         Some(MessageRow {
@@ -107,7 +112,7 @@ pub fn produce_message_rows(
             kind,
             index: idx,
             // Bare id — the route is reconstructed from
-            // (kind, response_id, path) by `MessageKind::file_path`.
+            // (kind, response_id, path) by `RequestMessageKind::file_path`.
             path: format!("{idx}"),
             timestamp: created,
         })

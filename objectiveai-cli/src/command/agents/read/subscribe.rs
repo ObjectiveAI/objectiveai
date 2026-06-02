@@ -21,14 +21,13 @@ use tokio::sync::mpsc;
 
 use crate::context::Context;
 use crate::error::Error;
-use crate::filesystem::db::schema::MessageKind;
 use crate::filesystem::logs::SubscribeEvent;
 use crate::filesystem::logs::queue::QueueItem;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
-    let kind_filter = request.kind.map(map_message_kind);
+    let kind_filter = request.kind;
     let caller = ctx.config.agent_instance_hierarchy.clone();
     let spawned = format!("{caller}/{}", request.agent_instance_hierarchy);
     let sub_id = request.agent_instance_hierarchy;
@@ -46,28 +45,13 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     Ok(Box::pin(tokio_stream::wrappers::ReceiverStream::new(rx)))
 }
 
-/// Best-fit projection from the SDK's wire kinds to the filesystem
-/// `MessageKind` enum. The two enums don't line up 1:1 — the SDK
-/// surfaces some conceptually-cleaner names; the filesystem retains
-/// historical variants. Map to the closest semantic match.
-fn map_message_kind(k: RequestMessageKind) -> MessageKind {
-    match k {
-        RequestMessageKind::AgentCompletionRequest => MessageKind::AgentCompletionRequest,
-        RequestMessageKind::AssistantResponse => MessageKind::AssistantResponse,
-        RequestMessageKind::AgentCompletionResponse => MessageKind::AssistantResponse,
-        RequestMessageKind::AgentCompletionMessage
-        | RequestMessageKind::ContinuationToken
-        | RequestMessageKind::Sweep => MessageKind::AgentCompletionNotification,
-    }
-}
-
 fn subscribe_recursive(
     fs: crate::filesystem::Client,
     pipes_dir: PathBuf,
     caller: String,
     spawned: String,
     sub_id: String,
-    kind_filter: Option<MessageKind>,
+    kind_filter: Option<RequestMessageKind>,
     tx: &mpsc::Sender<Result<ResponseItem, Error>>,
 ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + '_>> {
     Box::pin(async move {
@@ -140,22 +124,22 @@ fn subscribe_recursive(
     })
 }
 
-fn matches_filter(items: &[QueueItem], filter: Option<MessageKind>) -> bool {
+fn matches_filter(items: &[QueueItem], filter: Option<RequestMessageKind>) -> bool {
     items.iter().any(|it| match filter {
         None => true,
         Some(k) => queue_item_kind(it) == k,
     })
 }
 
-fn queue_item_kind(item: &QueueItem) -> MessageKind {
+fn queue_item_kind(item: &QueueItem) -> RequestMessageKind {
     match item {
-        QueueItem::AssistantResponse { .. } => MessageKind::AssistantResponse,
-        QueueItem::ToolResponse { .. } => MessageKind::ToolResponse,
-        QueueItem::Notification { .. } => MessageKind::AgentCompletionNotification,
-        QueueItem::AgentCompletionRequest { .. } => MessageKind::AgentCompletionRequest,
-        QueueItem::FunctionExecutionRequest { .. } => MessageKind::FunctionExecutionRequest,
+        QueueItem::AssistantResponse { .. } => RequestMessageKind::AssistantResponse,
+        QueueItem::ToolResponse { .. } => RequestMessageKind::ToolResponse,
+        QueueItem::Notification { .. } => RequestMessageKind::AgentCompletionNotification,
+        QueueItem::AgentCompletionRequest { .. } => RequestMessageKind::AgentCompletionRequest,
+        QueueItem::FunctionExecutionRequest { .. } => RequestMessageKind::FunctionExecutionRequest,
         QueueItem::FunctionInventionRecursiveRequest { .. } => {
-            MessageKind::FunctionInventionRecursiveRequest
+            RequestMessageKind::FunctionInventionRecursiveRequest
         }
     }
 }

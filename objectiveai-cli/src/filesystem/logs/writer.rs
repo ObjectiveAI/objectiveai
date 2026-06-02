@@ -8,7 +8,9 @@ use objectiveai_sdk::agent::completions::response::streaming::AgentCompletionIds
 
 use super::super::db::messages::Queue;
 use super::super::db::pending::PendingNotification;
-use super::super::db::schema::{MessageKind, MessageRow};
+use objectiveai_sdk::cli::command::agents::read::subscribe::RequestMessageKind;
+
+use super::super::db::schema::MessageRow;
 use super::LogFile;
 
 /// Function-pointer signature for `produce_message_rows()` erased
@@ -67,7 +69,7 @@ pub struct LogWriter<C> {
     /// per agent) for every id surfaced by `agent_completion_ids()`.
     /// `None` skips the request row entirely (used for factories
     /// whose request kind isn't in the WORK.md list).
-    request_kind: Option<MessageKind>,
+    request_kind: Option<RequestMessageKind>,
     /// Function pointer that extracts [`MessageRow`]s from a chunk
     /// lazily. `None` disables row extraction even when `queue` is
     /// set (factories wire them as a pair, but this stays optional
@@ -172,7 +174,7 @@ impl<C> LogWriter<C> {
     pub fn with_queue(
         mut self,
         queue: Queue,
-        request_kind: Option<MessageKind>,
+        request_kind: Option<RequestMessageKind>,
         produce_rows: ProduceRows<C>,
     ) -> Self {
         self.queue = Some(queue);
@@ -237,7 +239,7 @@ impl<C> LogWriter<C> {
         &mut self,
         chunk: &C,
         pending: &mut Vec<PendingNotification>,
-    ) -> Result<Vec<(String, MessageKind)>, super::super::Error>
+    ) -> Result<Vec<(String, RequestMessageKind)>, super::super::Error>
     where
         C: AgentCompletionIds + Clone,
     {
@@ -268,7 +270,7 @@ impl<C> LogWriter<C> {
         &mut self,
         chunk: &C,
         pending: &mut Vec<PendingNotification>,
-    ) -> Result<Vec<(String, MessageKind)>, super::super::Error>
+    ) -> Result<Vec<(String, RequestMessageKind)>, super::super::Error>
     where
         C: AgentCompletionIds,
     {
@@ -320,7 +322,7 @@ impl<C> LogWriter<C> {
         // one Row event per insert on the outbound subscribe pipe);
         // file-only writes and dedup-skipped request rows return
         // `None`.
-        type Inserted = Option<(String, MessageKind)>;
+        type Inserted = Option<(String, RequestMessageKind)>;
         let mut ops: FuturesUnordered<
             std::pin::Pin<
                 Box<
@@ -414,7 +416,7 @@ impl<C> LogWriter<C> {
                     // their reserved (earlier) indices; the tool
                     // response then reserves and inserts at its own
                     // (later) index.
-                    if matches!(row.kind, MessageKind::ToolResponse) {
+                    if matches!(row.kind, RequestMessageKind::ToolResponse) {
                         let agent = row.agent_instance_hierarchy.clone();
                         let mut i = 0;
                         while i < pending.len() {
@@ -428,7 +430,7 @@ impl<C> LogWriter<C> {
                                     queue.insert_notification(notif).await?;
                                     Ok(Some((
                                         notif_agent,
-                                        MessageKind::AgentCompletionNotification,
+                                        RequestMessageKind::AgentCompletionNotification,
                                     )))
                                 }));
                             } else {
@@ -463,7 +465,7 @@ impl<C> LogWriter<C> {
 
         // Drive everything to completion. First error short-circuits;
         // remaining futures are dropped as the FuturesUnordered drops.
-        let mut inserted: Vec<(String, MessageKind)> = Vec::new();
+        let mut inserted: Vec<(String, RequestMessageKind)> = Vec::new();
         while let Some(result) = ops.next().await {
             if let Some(pair) = result? {
                 inserted.push(pair);
@@ -483,14 +485,14 @@ impl<C> LogWriter<C> {
     pub async fn finalize(
         &mut self,
         pending: &mut Vec<PendingNotification>,
-    ) -> Result<Vec<(String, MessageKind)>, super::super::Error>
+    ) -> Result<Vec<(String, RequestMessageKind)>, super::super::Error>
     where
         C: AgentCompletionIds,
     {
         // Flush the last buffered chunk before doing the
         // notification drain — its tool-response rows may want to
         // drain notifications too, and those should land first.
-        let mut inserted: Vec<(String, MessageKind)> = Vec::new();
+        let mut inserted: Vec<(String, RequestMessageKind)> = Vec::new();
         if let Some(buffered) = self.pending_chunk.take() {
             inserted.extend(self.process_chunk(&buffered, pending).await?);
         }
@@ -501,7 +503,7 @@ impl<C> LogWriter<C> {
                 return Ok(inserted);
             }
         };
-        type Inserted = Option<(String, MessageKind)>;
+        type Inserted = Option<(String, RequestMessageKind)>;
         let mut ops: FuturesUnordered<
             std::pin::Pin<
                 Box<
@@ -521,7 +523,7 @@ impl<C> LogWriter<C> {
                 queue.insert_notification(notif).await?;
                 Ok(Some((
                     notif_agent,
-                    MessageKind::AgentCompletionNotification,
+                    RequestMessageKind::AgentCompletionNotification,
                 )))
             }));
         }

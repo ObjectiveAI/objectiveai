@@ -113,7 +113,6 @@ pub fn produce_files(
         role: c.role,
         index: c.index,
         created: c.created,
-        agent: c.agent.clone(),
         model: c.model.clone(),
         upstream_id: c.upstream_id.clone(),
         reasoning: reasoning_ref,
@@ -131,7 +130,7 @@ pub fn produce_files(
     let msg_file = LogFile {
         // Kind-specific subdir so this file can't collide with a tool
         // message at the same (response_id, index) — see
-        // `MessageKind::file_path` for the reader-side mirror.
+        // `crate::filesystem::db::schema::message_kind_file_path` for the reader-side mirror.
         route: format!("{route_base}/messages/assistant"),
         id: id.to_string(),
         message_index: Some(c.index),

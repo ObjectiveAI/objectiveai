@@ -414,7 +414,7 @@ impl Client {
         .with_request("agents/completions/request", request)?
         .with_queue(
             queue,
-            Some(super::super::db::schema::MessageKind::AgentCompletionRequest),
+            Some(objectiveai_sdk::cli::command::agents::read::subscribe::RequestMessageKind::AgentCompletionRequest),
             |chunk: &AgentCompletionChunk| {
                 Box::new(crate::logs::agents::completions::response::streaming::agent_completion_chunk::produce_message_rows(chunk))
             },
@@ -459,7 +459,7 @@ impl Client {
         .with_queue(
             queue,
             Some(
-                super::super::db::schema::MessageKind::FunctionExecutionRequest,
+                objectiveai_sdk::cli::command::agents::read::subscribe::RequestMessageKind::FunctionExecutionRequest,
             ),
             |chunk: &FunctionExecutionChunk| crate::logs::functions::executions::response::streaming::function_execution_chunk::produce_message_rows(chunk),
         ))
@@ -496,7 +496,7 @@ impl Client {
             .with_request("functions/inventions/recursive/request", request)?
             .with_queue(
                 queue,
-                Some(super::super::db::schema::MessageKind::FunctionInventionRecursiveRequest),
+                Some(objectiveai_sdk::cli::command::agents::read::subscribe::RequestMessageKind::FunctionInventionRecursiveRequest),
                 |chunk: &FunctionInventionRecursiveChunk| Box::new(crate::logs::functions::inventions::recursive::response::streaming::function_invention_recursive_chunk::produce_message_rows(chunk)),
             ))
     }
@@ -1708,22 +1708,26 @@ impl Client {
         row: crate::filesystem::db::schema::MessageRow,
     ) -> Result<super::queue::QueueItem, Error> {
         use super::queue::QueueItem;
-        use crate::filesystem::db::schema::MessageKind;
+        use objectiveai_sdk::cli::command::agents::read::subscribe::RequestMessageKind;
 
-        let rel_path = row.kind.file_path(&row.response_id, &row.path);
+        let rel_path = crate::filesystem::db::schema::message_kind_file_path(
+            row.kind,
+            &row.response_id,
+            &row.path,
+        );
 
         match row.kind {
-            MessageKind::FunctionExecutionRequest => {
+            RequestMessageKind::FunctionExecutionRequest => {
                 Ok(QueueItem::FunctionExecutionRequest {
                     id: self.file_id(&rel_path).await?,
                 })
             }
-            MessageKind::FunctionInventionRecursiveRequest => {
+            RequestMessageKind::FunctionInventionRecursiveRequest => {
                 Ok(QueueItem::FunctionInventionRecursiveRequest {
                     id: self.file_id(&rel_path).await?,
                 })
             }
-            MessageKind::AgentCompletionRequest => {
+            RequestMessageKind::AgentCompletionRequest => {
                 let envelope: objectiveai_sdk::agent::completions::request::AgentCompletionCreateParamsLog =
                     self.read_log_file(&rel_path).await?;
                 let mut messages = Vec::with_capacity(envelope.messages.len());
@@ -1736,7 +1740,7 @@ impl Client {
                 }
                 Ok(QueueItem::AgentCompletionRequest { messages })
             }
-            MessageKind::AssistantResponse => {
+            RequestMessageKind::AssistantResponse => {
                 let log: objectiveai_sdk::agent::completions::response::streaming::AssistantResponseChunkLog =
                     self.read_log_file(&rel_path).await?;
                 Ok(QueueItem::AssistantResponse {
@@ -1746,7 +1750,7 @@ impl Client {
                     refusal: self.maybe_id(log.refusal).await?,
                 })
             }
-            MessageKind::ToolResponse => {
+            RequestMessageKind::ToolResponse => {
                 let log: objectiveai_sdk::agent::completions::response::ToolResponseLog =
                     self.read_log_file(&rel_path).await?;
                 Ok(QueueItem::ToolResponse {
@@ -1754,7 +1758,7 @@ impl Client {
                     content: self.rich_content_to_content(log.content).await?,
                 })
             }
-            MessageKind::AgentCompletionNotification => {
+            RequestMessageKind::AgentCompletionNotification => {
                 let log: objectiveai_sdk::agent::completions::message::RichContentLog =
                     self.read_log_file(&rel_path).await?;
                 Ok(QueueItem::Notification {

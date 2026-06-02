@@ -1,6 +1,6 @@
 //! `QueueItem` — typed shape of a single row returned by
 //! [`crate::filesystem::Client::read_new_from_queue`]. One variant per
-//! [`crate::filesystem::db::schema::MessageKind`].
+//! [`objectiveai_sdk::cli::command::agents::read::subscribe::RequestMessageKind`].
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

@@ -11,7 +11,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use super::super::db::schema::MessageKind;
+use objectiveai_sdk::cli::command::agents::read::subscribe::RequestMessageKind;
 
 /// One event written to the outbound pipe per NDJSON line.
 ///
@@ -26,7 +26,7 @@ use super::super::db::schema::MessageKind;
 #[schemars(rename = "filesystem.logs.SubscribeEvent")]
 pub enum SubscribeEvent {
     #[schemars(title = "Row")]
-    Row { message_kind: MessageKind },
+    Row { message_kind: RequestMessageKind },
     #[schemars(title = "StreamEnd")]
     StreamEnd,
 }

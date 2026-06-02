@@ -45,7 +45,7 @@ use objectiveai_sdk::agent::completions::message::RichContent;
 use objectiveai_sdk::agent::completions::response::streaming::AgentCompletionIds;
 use objectiveai_sdk::cli::output::{Handle, LogStreamReady, Notification, Output};
 use crate::filesystem::db::pending::PendingNotification;
-use crate::filesystem::db::schema::MessageKind;
+use objectiveai_sdk::cli::command::agents::read::subscribe::RequestMessageKind;
 use crate::filesystem::logs::{LogWriter, SubscribeEvent};
 use serde::Serialize;
 
@@ -387,7 +387,7 @@ where
 /// in the writer, so a missing entry here only happens if pipe bind
 /// previously failed (in which case the degraded sender is in place
 /// but no listener ever consumes from it — the send is a no-op).
-fn broadcast_rows(registry: &PipeRegistry, inserted: &[(String, MessageKind)]) {
+fn broadcast_rows(registry: &PipeRegistry, inserted: &[(String, RequestMessageKind)]) {
     for (agent_instance_hierarchy, kind) in inserted {
         if let Some(tx) = registry.outbound_sender(agent_instance_hierarchy) {
             let _ = tx.send(SubscribeEvent::Row {

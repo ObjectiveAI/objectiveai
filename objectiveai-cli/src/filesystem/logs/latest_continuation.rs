@@ -196,8 +196,9 @@ impl Client {
             let rows = stmt.query_map(
                 rusqlite::params![
                     agent_instance_hierarchy,
-                    crate::filesystem::db::schema::MessageKind::AgentCompletionRequest
-                        .as_str()
+                    crate::filesystem::db::schema::message_kind_as_str(
+                        objectiveai_sdk::cli::command::agents::read::subscribe::RequestMessageKind::AgentCompletionRequest
+                    )
                 ],
                 |r| r.get::<_, String>(0),
             )?;
@@ -227,7 +228,8 @@ impl Client {
 mod tests {
     use super::*;
     use crate::filesystem::Client;
-    use crate::filesystem::db::schema::{MessageKind, init_tables, insert};
+    use crate::filesystem::db::schema::{init_tables, insert};
+    use objectiveai_sdk::cli::command::agents::read::subscribe::RequestMessageKind;
 
     /// Build a Client rooted at `base_dir`, insert N
     /// `AgentCompletionRequest` rows for `agent_instance_hierarchy` with increasing
@@ -279,7 +281,7 @@ mod tests {
                     &c,
                     agent_instance_hierarchy,
                     &response_id,
-                    MessageKind::AgentCompletionRequest,
+                    RequestMessageKind::AgentCompletionRequest,
                     &stored_path,
                     1_700_000_000 + i as u64,
                     i as u64,

@@ -2,16 +2,19 @@
 
 use crate::cli::command::CommandRequest;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema, clap::ValueEnum)]
+/// The six values stored in the `messages.kind` TEXT column. Owning
+/// this enum in the SDK lets bare-naked callers reason about message
+/// kinds without depending on the CLI's filesystem layer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, schemars::JsonSchema, clap::ValueEnum)]
 #[serde(rename_all = "snake_case")]
 #[clap(rename_all = "kebab-case")]
 pub enum RequestMessageKind {
     AgentCompletionRequest,
-    AgentCompletionResponse,
-    AgentCompletionMessage,
+    FunctionExecutionRequest,
+    FunctionInventionRecursiveRequest,
+    AgentCompletionNotification,
     AssistantResponse,
-    ContinuationToken,
-    Sweep,
+    ToolResponse,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -45,11 +48,13 @@ fn message_kind_flag(kind: &RequestMessageKind) -> &'static str {
     // Wire form matches clap's `value_enum` rename_all = "kebab-case" default.
     match kind {
         RequestMessageKind::AgentCompletionRequest => "agent-completion-request",
-        RequestMessageKind::AgentCompletionResponse => "agent-completion-response",
-        RequestMessageKind::AgentCompletionMessage => "agent-completion-message",
+        RequestMessageKind::FunctionExecutionRequest => "function-execution-request",
+        RequestMessageKind::FunctionInventionRecursiveRequest => {
+            "function-invention-recursive-request"
+        }
+        RequestMessageKind::AgentCompletionNotification => "agent-completion-notification",
         RequestMessageKind::AssistantResponse => "assistant-response",
-        RequestMessageKind::ContinuationToken => "continuation-token",
-        RequestMessageKind::Sweep => "sweep",
+        RequestMessageKind::ToolResponse => "tool-response",
     }
 }
 

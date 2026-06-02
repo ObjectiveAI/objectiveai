@@ -6,8 +6,10 @@ use std::sync::{Arc, Mutex as StdMutex};
 
 use objectiveai_sdk::agent::completions::message::RichContent;
 
+use objectiveai_sdk::cli::command::agents::read::subscribe::RequestMessageKind;
+
 use super::pending::PendingNotification;
-use super::schema::{self, MessageKind, MessageRow};
+use super::schema::{self, MessageRow, parse_message_kind};
 
 /// Per-stream handle to the shared `messages` table API. Owns:
 /// - the per-agent monotonic `next_index` counter,
@@ -58,7 +60,7 @@ struct AgentMutableState {
     ///     `(response_id, path)`.
     /// The HashMap key gives `response_id` for free; this set adds the
     /// remaining `(kind, path)`.
-    inserted_paths: HashSet<(MessageKind, String)>,
+    inserted_paths: HashSet<(RequestMessageKind, String)>,
 }
 
 impl Queue {
@@ -98,7 +100,7 @@ impl Queue {
         &self,
         agent_instance_hierarchy: &str,
         response_id: &str,
-        kind: MessageKind,
+        kind: RequestMessageKind,
         path: String,
         timestamp: u64,
         index: u64,
@@ -124,7 +126,7 @@ impl Queue {
         &self,
         agent_instance_hierarchy: &str,
         response_id: &str,
-        kind: MessageKind,
+        kind: RequestMessageKind,
         path: String,
         timestamp: u64,
     ) -> Result<bool, super::super::Error> {
@@ -167,7 +169,7 @@ impl Queue {
     pub async fn register_path(
         &self,
         agent_instance_hierarchy: &str,
-        kind: MessageKind,
+        kind: RequestMessageKind,
         path: &str,
     ) -> Result<bool, super::super::Error> {
         let entry = self.ensure_agent(agent_instance_hierarchy).await?;
@@ -266,7 +268,7 @@ impl Queue {
         self.insert(
             &notification.agent_instance_hierarchy,
             &notification.response_id,
-            MessageKind::AgentCompletionNotification,
+            RequestMessageKind::AgentCompletionNotification,
             notification.path,
             notification.timestamp,
             notification.index,
@@ -335,7 +337,7 @@ impl Queue {
                     Ok(MessageRow {
                         agent_instance_hierarchy: spawned.clone(),
                         response_id,
-                        kind: MessageKind::from_str(&kind_str)?,
+                        kind: parse_message_kind(&kind_str)?,
                         path,
                         timestamp: ts.max(0) as u64,
                         index: idx.max(0) as u64,
@@ -401,7 +403,7 @@ impl Queue {
                     Ok(MessageRow {
                         agent_instance_hierarchy: spawned.clone(),
                         response_id,
-                        kind: MessageKind::from_str(&kind_str)?,
+                        kind: parse_message_kind(&kind_str)?,
                         path,
                         timestamp: ts.max(0) as u64,
                         index: idx.max(0) as u64,
