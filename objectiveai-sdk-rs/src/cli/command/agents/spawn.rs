@@ -99,6 +99,11 @@ pub enum ResponseItem {
     Id(String),
 }
 
+/// Non-chunk variant of [`ResponseItem`]. Returned by the unary `execute`
+/// path (with `dangerous_advanced.stream` cleared) when the cli emits a
+/// single bare id string.
+pub type Response = String;
+
 #[derive(clap::Args)]
 pub struct Args {
     #[command(flatten)]
@@ -221,12 +226,40 @@ impl TryFrom<Args> for Request {
 }
 
 #[cfg(feature = "cli-executor")]
-pub async fn execute<E: crate::cli::command::CommandExecutor>(
+pub async fn execute_streaming<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     mut request: Request,
 ) -> Result<E::Stream<ResponseItem>, E::Error> {
     request.jq = None;
+    let mut advanced = request.dangerous_advanced.unwrap_or_default();
+    advanced.stream = Some(true);
+    request.dangerous_advanced = Some(advanced);
     executor.execute(request).await
+}
+
+#[cfg(feature = "cli-executor")]
+pub async fn execute_streaming_jq<E: crate::cli::command::CommandExecutor>(
+    executor: &E,
+    mut request: Request,
+    jq: String,
+) -> Result<E::Stream<serde_json::Value>, E::Error> {
+    request.jq = Some(jq);
+    let mut advanced = request.dangerous_advanced.unwrap_or_default();
+    advanced.stream = Some(true);
+    request.dangerous_advanced = Some(advanced);
+    executor.execute(request).await
+}
+
+#[cfg(feature = "cli-executor")]
+pub async fn execute<E: crate::cli::command::CommandExecutor>(
+    executor: &E,
+    mut request: Request,
+) -> Result<Response, E::Error> {
+    request.jq = None;
+    if let Some(advanced) = request.dangerous_advanced.as_mut() {
+        advanced.stream = None;
+    }
+    executor.execute_one(request).await
 }
 
 #[cfg(feature = "cli-executor")]
@@ -234,9 +267,12 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     mut request: Request,
     jq: String,
-) -> Result<E::Stream<serde_json::Value>, E::Error> {
+) -> Result<serde_json::Value, E::Error> {
     request.jq = Some(jq);
-    executor.execute(request).await
+    if let Some(advanced) = request.dangerous_advanced.as_mut() {
+        advanced.stream = None;
+    }
+    executor.execute_one(request).await
 }
 
 pub mod request_schema {
