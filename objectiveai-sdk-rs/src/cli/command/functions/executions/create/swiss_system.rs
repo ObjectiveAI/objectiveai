@@ -185,6 +185,71 @@ pub enum Schema {
     ResponseSchema(response_schema::Args),
 }
 
+impl TryFrom<Args> for Request {
+    type Error = crate::cli::command::FromArgsError;
+    fn try_from(args: Args) -> Result<Self, Self::Error> {
+        let function = {
+            let mut de = serde_json::Deserializer::from_str(&args.function_inline);
+            serde_path_to_error::deserialize(&mut de).map_err(|source| {
+                crate::cli::command::FromArgsError {
+                    field: "function_inline",
+                    source,
+                }
+            })?
+        };
+        let profile = {
+            let mut de = serde_json::Deserializer::from_str(&args.profile_inline);
+            serde_path_to_error::deserialize(&mut de).map_err(|source| {
+                crate::cli::command::FromArgsError {
+                    field: "profile_inline",
+                    source,
+                }
+            })?
+        };
+        let input = if let Some(s) = args.input_inline {
+            let mut de = serde_json::Deserializer::from_str(&s);
+            let v = serde_path_to_error::deserialize(&mut de).map_err(|source| {
+                crate::cli::command::FromArgsError {
+                    field: "input_inline",
+                    source,
+                }
+            })?;
+            RequestInput::Inline(v)
+        } else if let Some(s) = args.input_python_inline {
+            RequestInput::PythonInline(s)
+        } else {
+            RequestInput::PythonFile(args.input_python_file.unwrap())
+        };
+        let dangerous_advanced = if let Some(s) = args.dangerous_advanced {
+            let mut de = serde_json::Deserializer::from_str(&s);
+            let v = serde_path_to_error::deserialize(&mut de).map_err(|source| {
+                crate::cli::command::FromArgsError {
+                    field: "dangerous_advanced",
+                    source,
+                }
+            })?;
+            Some(v)
+        } else {
+            None
+        };
+        Ok(Self {
+            function,
+            profile,
+            input,
+            continuation: args.continuation,
+            retry_token: args.retry_token,
+            seed: args.seed,
+            split: args.split,
+            invert: args.invert,
+            detach: args.detach,
+            pool: args.pool,
+            rounds: args.rounds,
+            dangerous_advanced,
+            jq: args.jq,
+        })
+    }
+}
+
 pub mod request_schema {
     use crate::cli::command::CommandRequest;
 
