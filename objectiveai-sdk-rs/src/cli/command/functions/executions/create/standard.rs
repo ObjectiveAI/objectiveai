@@ -9,7 +9,7 @@ use crate::functions::expression::InputValue;
 #[allow(dead_code)]
 type _UnusedMessage = Message;
 
-#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
     pub function: FullInlineFunctionOrRemoteCommitOptional,
     pub profile: InlineProfileOrRemoteCommitOptional,
@@ -23,7 +23,7 @@ pub struct Request {
     pub dangerous_advanced: Option<RequestDangerousAdvanced>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub enum RequestInput {
     Inline(InputValue),
     PythonInline(String),

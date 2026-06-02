@@ -3,7 +3,7 @@
 use crate::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use crate::cli::command::IntoCommand;
 
-#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
     pub params: RequestParams,
     pub agent: InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
@@ -13,7 +13,7 @@ pub struct Request {
     pub dangerous_advanced: Option<RequestDangerousAdvanced>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct RequestParams {
     pub name: String,
     pub spec: String,

@@ -3,7 +3,7 @@
 use crate::swarm::RemoteSwarmBase;
 use crate::cli::command::IntoCommand;
 
-#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
     pub repository: String,
     pub body: RequestBody,
@@ -11,7 +11,7 @@ pub struct Request {
     pub overwrite: bool,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub enum RequestBody {
     Inline(RemoteSwarmBase),
     File(std::path::PathBuf),
@@ -19,7 +19,7 @@ pub enum RequestBody {
     PythonFile(std::path::PathBuf),
 }
 
-#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub enum RequestPublishMessage {
     Inline(String),
     File(std::path::PathBuf),

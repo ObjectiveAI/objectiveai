@@ -4,7 +4,7 @@ use crate::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use crate::cli::command::IntoCommand;
 use crate::functions::inventions::state::ParamsState;
 
-#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
     pub state: RequestState,
     pub agent: InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
@@ -14,7 +14,7 @@ pub struct Request {
     pub dangerous_advanced: Option<RequestDangerousAdvanced>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub enum RequestState {
     Inline(ParamsState),
     Ref(String),

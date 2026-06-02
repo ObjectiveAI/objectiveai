@@ -13,7 +13,7 @@ pub enum RequestMessageKind {
     Sweep,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
     pub agent_instance_hierarchy: String,
     pub kind: Option<RequestMessageKind>,
@@ -121,7 +121,7 @@ pub enum ResponseQueueItem {
     },
 }
 
-#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub enum ResponseItem {
     Items {
         agent_id: String,

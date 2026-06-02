@@ -2,7 +2,7 @@
 
 use crate::cli::command::IntoCommand;
 
-#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
     pub parent_agent_instance_hierarchy: Option<String>,
 }
@@ -21,7 +21,7 @@ impl IntoCommand for Request {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct ResponseItem {
     pub agent_id: String,
     pub last_log: u64,

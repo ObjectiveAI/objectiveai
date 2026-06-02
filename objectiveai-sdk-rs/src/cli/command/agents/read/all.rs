@@ -2,7 +2,7 @@
 
 use crate::cli::command::IntoCommand;
 
-#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
     pub agent_instance_hierarchies: Vec<String>,
 }
@@ -93,7 +93,7 @@ pub enum ResponseQueueItem {
     },
 }
 
-#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct ResponseItem {
     pub agent_id: String,
     pub items: Vec<ResponseQueueItem>,

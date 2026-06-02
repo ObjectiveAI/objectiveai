@@ -3,14 +3,14 @@
 use crate::agent::completions::message::RichContent;
 use crate::cli::command::IntoCommand;
 
-#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
     pub agent_instance_hierarchy: String,
     pub message: RequestMessage,
     pub seed: Option<i64>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub enum RequestMessage {
     Inline(RichContent),
     Simple(String),
@@ -65,7 +65,7 @@ impl IntoCommand for Request {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub enum Response {
     Delivered { agent_id: String },
     Queued { agent_id: String, response_id: String },
