@@ -210,11 +210,13 @@ impl Queue {
         //    directory is `request/notifications/{text,image,...}/`.
         //    `response_id` keys every extracted leaf so it stays
         //    aligned with the envelope filename below.
-        let (content_log, leaf_files) = content.clone().extract_media(
-            "agents/completions/request/notifications",
-            response_id,
-            index,
-        );
+        let (content_log, leaf_files) =
+            crate::filesystem::logs::extract::extract_rich_content_media(
+                content.clone(),
+                "agents/completions/request/notifications",
+                response_id,
+                index,
+            );
 
         // 2. Write the per-leaf files.
         for file in leaf_files {

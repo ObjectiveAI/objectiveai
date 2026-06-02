@@ -1,4 +1,5 @@
 mod client;
+pub mod extract;
 pub mod indexed_reference;
 mod latest_continuation;
 mod list;
