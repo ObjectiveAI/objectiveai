@@ -23,5 +23,6 @@ impl IntoCommand for Request {
 #[serde(untagged)]
 pub enum ResponseItem {
     Error(crate::cli::Error),
-    Line(String),
+    Stdout(String),
+    Stderr(String),
 }
