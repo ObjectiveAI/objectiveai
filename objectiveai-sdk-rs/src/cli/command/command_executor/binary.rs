@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::pin::Pin;
 
-use futures::Stream;
+use futures::{Stream, StreamExt};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
@@ -53,6 +53,8 @@ pub enum Error {
     Json(serde_json::Error),
     /// Structured error emitted by the cli binary on stdout.
     Cli(crate::cli::Error),
+    /// `execute_one` was called but the stream produced no items.
+    Empty,
 }
 
 /// Per-line untagged decode. `Err` is listed first so serde tries it
@@ -121,5 +123,14 @@ impl CommandExecutor for BinaryExecutor {
         );
 
         Ok(Box::pin(stream))
+    }
+
+    async fn execute_one<R, T>(&self, request: R) -> Result<T, Error>
+    where
+        R: CommandRequest + Send,
+        T: serde::de::DeserializeOwned + Send + 'static,
+    {
+        let mut stream = self.execute::<R, T>(request).await?;
+        stream.next().await.ok_or(Error::Empty)?
     }
 }

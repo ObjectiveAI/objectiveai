@@ -2,6 +2,9 @@ use futures::Stream;
 
 use crate::cli::command::CommandRequest;
 
+pub mod binary;
+pub mod plugin;
+
 /// Run a [`CommandRequest`] against some backend (subprocess of the cli
 /// binary, in-process router, mock, …) and surface its output as a
 /// stream of typed items.
@@ -19,6 +22,18 @@ pub trait CommandExecutor {
         &self,
         request: R,
     ) -> impl Future<Output = Result<Self::Stream<T>, Self::Error>> + Send
+    where
+        R: CommandRequest + Send,
+        T: serde::de::DeserializeOwned + Send + 'static;
+
+    /// Convenience for unary commands: run the request and resolve the
+    /// first item from the stream. Implementations should error with
+    /// their own "empty stream" variant if the stream closes without
+    /// producing an item.
+    fn execute_one<R, T>(
+        &self,
+        request: R,
+    ) -> impl Future<Output = Result<T, Self::Error>> + Send
     where
         R: CommandRequest + Send,
         T: serde::de::DeserializeOwned + Send + 'static;

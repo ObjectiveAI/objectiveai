@@ -18,9 +18,6 @@ mod command_executor;
 #[cfg(feature = "cli-executor")]
 pub use command_executor::*;
 
-#[cfg(feature = "cli-executor")]
-pub mod executor;
-
 mod ok;
 pub use ok::*;
 

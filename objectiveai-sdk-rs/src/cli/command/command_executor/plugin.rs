@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use dashmap::DashMap;
-use futures::Stream;
+use futures::{Stream, StreamExt};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::{Mutex, mpsc};
 
@@ -126,6 +126,8 @@ pub enum Error {
     Io(std::io::Error),
     Json(serde_json::Error),
     Cli(crate::cli::Error),
+    /// `execute_one` was called but the stream produced no items.
+    Empty,
 }
 
 /// Per-value untagged decode. `Err` first so `cli::Error`'s `type:"error"`
@@ -222,5 +224,14 @@ impl CommandExecutor for PluginExecutor {
         );
 
         Ok(Box::pin(stream))
+    }
+
+    async fn execute_one<R, T>(&self, request: R) -> Result<T, Error>
+    where
+        R: CommandRequest + Send,
+        T: serde::de::DeserializeOwned + Send + 'static,
+    {
+        let mut stream = self.execute::<R, T>(request).await?;
+        stream.next().await.ok_or(Error::Empty)?
     }
 }
