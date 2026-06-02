@@ -13,4 +13,4 @@ impl IntoCommand for Request {
     }
 }
 
-pub use crate::functions::FullRemoteFunction as Response;
+pub type Response = crate::functions::FullRemoteFunction;

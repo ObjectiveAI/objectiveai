@@ -19,4 +19,4 @@ impl IntoCommand for Request {
     }
 }
 
-pub use crate::cli::command::Ok as Response;
+pub type Response = crate::cli::command::Ok;

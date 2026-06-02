@@ -13,4 +13,4 @@ impl IntoCommand for Request {
     }
 }
 
-pub use crate::swarm::response::GetSwarmResponse as Response;
+pub type Response = crate::swarm::response::GetSwarmResponse;

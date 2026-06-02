@@ -17,4 +17,4 @@ impl IntoCommand for Request {
     }
 }
 
-pub use crate::functions::inventions::state::response::GetFunctionInventionStateResponse as Response;
+pub type Response = crate::functions::inventions::state::response::GetFunctionInventionStateResponse;

@@ -18,4 +18,4 @@ impl IntoCommand for Request {
     }
 }
 
-pub use crate::agent::response::GetAgentResponse as Response;
+pub type Response = crate::agent::response::GetAgentResponse;
