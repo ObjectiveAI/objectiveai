@@ -4,15 +4,16 @@
 //! Each request `*CreateParams` type implements this trait to break
 //! itself out into per-field log files (messages, response_format,
 //! continuation, input, state, …) instead of being serialized as one
-//! monolithic JSON blob. The [`super::LogWriter`]'s `with_request`
-//! consumes this trait to produce the on-disk request log.
+//! monolithic JSON blob. The [`crate::filesystem::logs::LogWriter`]'s
+//! `with_request` consumes this trait to produce the on-disk request
+//! log.
 //!
 //! The returned `LogReference` points at the top-level
 //! `<route_base>/<id>.json` summary file that holds the
 //! `*CreateParamsLog` (refs to its sub-files). The `Vec<LogFile>`
 //! includes the summary file itself plus every per-field child.
 
-use super::{LogFile, LogReference};
+use crate::filesystem::logs::{LogFile, LogReference};
 
 pub trait ProducesRequestFiles {
     /// Walk the request, write each extracted sub-field to its own

@@ -31,7 +31,7 @@ struct PendingRequest {
     /// Walks the request, returns every [`LogFile`] under
     /// `<route>/...` plus the top-level summary file. The summary
     /// is conventionally the last element — see each
-    /// [`super::ProducesRequestFiles`] impl.
+    /// [`crate::logs::ProducesRequestFiles`] impl.
     produce: Box<dyn FnOnce(&str) -> Vec<LogFile> + Send>,
 }
 
@@ -55,7 +55,7 @@ pub struct LogWriter<C> {
     primary_id: Option<String>,
     buffer: HashMap<String, Vec<u8>>,
     /// A deferred request-side file producer waiting on the response
-    /// ID. Holds the route + a [`super::ProducesRequestFiles`]
+    /// ID. Holds the route + a [`crate::logs::ProducesRequestFiles`]
     /// closure that, given the discovered id, walks the request and
     /// returns every on-disk [`LogFile`] (leaves plus the top-level
     /// summary). Cleared after the first chunk is written.
@@ -143,14 +143,14 @@ impl<C> LogWriter<C> {
     /// arrives. The closure produces the full Log envelope
     /// (`<route>/<id>.json`) plus every extracted child (messages,
     /// response_format, continuation, …) using each request type's
-    /// [`super::ProducesRequestFiles`] impl.
+    /// [`crate::logs::ProducesRequestFiles`] impl.
     pub fn with_request<R>(
         mut self,
         route: impl Into<String>,
         request: &R,
     ) -> Result<Self, super::super::Error>
     where
-        R: super::ProducesRequestFiles + Clone + Send + 'static,
+        R: crate::logs::ProducesRequestFiles + Clone + Send + 'static,
     {
         let route = route.into();
         let cloned = request.clone();

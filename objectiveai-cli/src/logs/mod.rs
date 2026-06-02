@@ -1,46 +1,23 @@
-use clap::Subcommand;
+//! `logs/` — CLI-side ports of every filesystem-coupled helper that
+//! used to live on SDK types under the deleted `#[cfg(feature =
+//! "filesystem")]` gates. The internal tree mirrors the SDK source
+//! paths exactly, with one rename rule applied at the top: SDK
+//! singular leading segments become plural (`agent/` → `agents/`,
+//! `vector/` → `vectors/`). Already-plural segments pass through.
+//!
+//! Each relocated function takes the SDK type by value or ref as its
+//! first parameter (replacing `self`) and returns the same tuple shape
+//! the SDK method did.
+//!
+//! Also hosts the [`ProducesRequestFiles`] trait (relocated from
+//! `filesystem/logs/`), since every `*CreateParams::produce_files`
+//! impl now lives under this mirror.
 
-#[derive(Subcommand)]
-pub enum Commands {
-    /// Clear all logs across all endpoints
-    Clear,
-}
+pub mod agents;
+pub mod cli;
+pub mod functions;
+pub mod produces_request_files;
+pub mod vectors;
 
-impl Commands {
-    pub async fn handle(
-        self,
-        cli_config: &crate::Config,
-        handle: &objectiveai_sdk::cli::output::Handle,
-    ) -> Result<(), crate::error::Error> {
-        let client = crate::filesystem::Client::new(
-            cli_config.config_base_dir.as_deref(),
-            None::<String>,
-            None::<String>,
-        );
-        match self {
-            Commands::Clear => {
-                let counts = futures::future::try_join_all(vec![
-                    Box::pin(client.clear_agent_completions())
-                        as std::pin::Pin<Box<dyn std::future::Future<Output = _> + Send>>,
-                    Box::pin(client.clear_agent_completion_continuations()),
-                    Box::pin(client.clear_agent_completion_messages()),
-                    Box::pin(client.clear_agent_completion_message_logprobs()),
-                    Box::pin(client.clear_agent_completion_message_images()),
-                    Box::pin(client.clear_agent_completion_message_audio()),
-                    Box::pin(client.clear_agent_completion_message_video()),
-                    Box::pin(client.clear_agent_completion_message_files()),
-                    Box::pin(client.clear_vector_completions()),
-                    Box::pin(client.clear_function_executions()),
-                    Box::pin(client.clear_function_execution_retry_tokens()),
-                    Box::pin(client.clear_function_inventions()),
-                    Box::pin(client.clear_function_inventions_recursive()),
-                ])
-                .await?;
-                {
-                    crate::log_line::emit_log_clear_count(counts.into_iter().sum(), handle).await;
-                    Ok(())
-                }
-            }
-        }
-    }
-}
+pub use cli::Commands;
+pub use produces_request_files::ProducesRequestFiles;
