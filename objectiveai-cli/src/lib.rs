@@ -5,6 +5,7 @@ mod continuation;
 pub mod error;
 mod favorite;
 pub mod favorite_ref;
+pub mod filesystem;
 mod functions;
 mod get;
 pub mod instance;
