@@ -481,7 +481,7 @@ impl Client {
         )
         .with_request("functions/inventions/request", request)?
         .with_queue(queue, None, |chunk: &FunctionInventionChunk| {
-            Box::new(chunk.produce_message_rows())
+            Box::new(crate::logs::functions::inventions::response::streaming::function_invention_chunk::produce_message_rows(chunk))
         }))
     }
     pub fn write_function_invention_recursive(

@@ -1,4 +1,5 @@
-//! Free-function port of `FunctionInventionChunk::produce_files`.
+//! Free-function ports of `FunctionInventionChunk::produce_files` and
+//! `FunctionInventionChunk::produce_message_rows`.
 
 use objectiveai_sdk::functions::inventions::response::streaming::{
     FunctionInventionChunk, FunctionInventionChunkLog,
@@ -6,6 +7,7 @@ use objectiveai_sdk::functions::inventions::response::streaming::{
 
 use objectiveai_sdk::logs::{IndexedLogReference, LogReference};
 
+use crate::filesystem::db::schema::MessageRow;
 use crate::filesystem::logs::LogFile;
 
 /// Produce the [`LogFile`]s for a function invention chunk. Returns
@@ -54,4 +56,13 @@ pub fn produce_files(
     files.push(root_file);
 
     Some((reference, files))
+}
+
+/// Flat-maps message rows from every inner agent completion. Lazy.
+pub fn produce_message_rows(
+    c: &FunctionInventionChunk,
+) -> impl Iterator<Item = MessageRow> + Send + '_ {
+    c.completions
+        .iter()
+        .flat_map(|c| super::agent_completion_chunk::produce_message_rows(c))
 }
