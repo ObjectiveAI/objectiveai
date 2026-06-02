@@ -133,6 +133,54 @@ pub enum Schema {
     ResponseSchema(response_schema::Args),
 }
 
+impl TryFrom<Args> for Request {
+    type Error = crate::cli::command::FromArgsError;
+    fn try_from(args: Args) -> Result<Self, Self::Error> {
+        let state = if let Some(s) = args.state_inline {
+            let mut de = serde_json::Deserializer::from_str(&s);
+            let v = serde_path_to_error::deserialize(&mut de).map_err(|source| {
+                crate::cli::command::FromArgsError {
+                    field: "state_inline",
+                    source,
+                }
+            })?;
+            RequestState::Inline(v)
+        } else {
+            RequestState::Ref(args.state.unwrap())
+        };
+        let agent = {
+            let mut de = serde_json::Deserializer::from_str(&args.agent_inline);
+            serde_path_to_error::deserialize(&mut de).map_err(|source| {
+                crate::cli::command::FromArgsError {
+                    field: "agent_inline",
+                    source,
+                }
+            })?
+        };
+        let dangerous_advanced = if let Some(s) = args.dangerous_advanced {
+            let mut de = serde_json::Deserializer::from_str(&s);
+            let v = serde_path_to_error::deserialize(&mut de).map_err(|source| {
+                crate::cli::command::FromArgsError {
+                    field: "dangerous_advanced",
+                    source,
+                }
+            })?;
+            Some(v)
+        } else {
+            None
+        };
+        Ok(Self {
+            state,
+            agent,
+            continuation: args.continuation,
+            seed: args.seed,
+            detach: args.detach,
+            dangerous_advanced,
+            jq: args.jq,
+        })
+    }
+}
+
 pub mod request_schema {
     use crate::cli::command::CommandRequest;
 
