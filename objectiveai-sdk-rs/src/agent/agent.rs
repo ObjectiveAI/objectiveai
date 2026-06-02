@@ -690,6 +690,10 @@ pub enum InlineAgentBaseWithFallbacksOrRemote {
     AgentBase(InlineAgentBaseWithFallbacks),
     #[schemars(title = "Remote")]
     Remote(crate::RemotePath),
+    /// A bare favorite name (e.g. typed as `--agent mybot`).
+    /// Resolves to an inline or remote definition at handler time.
+    #[schemars(title = "Favorite")]
+    Favorite(String),
 }
 
 /// Like [`InlineAgentBaseWithFallbacksOrRemote`] but with optional commit.
@@ -702,6 +706,10 @@ pub enum InlineAgentBaseWithFallbacksOrRemoteCommitOptional {
     AgentBase(InlineAgentBaseWithFallbacks),
     #[schemars(title = "Remote")]
     Remote(crate::RemotePathCommitOptional),
+    /// A bare favorite name (e.g. typed as `--agent mybot`).
+    /// Resolves to an inline or remote definition at handler time.
+    #[schemars(title = "Favorite")]
+    Favorite(String),
 }
 
 // ── WithCount types (for swarm agent slots) ────────────────────────

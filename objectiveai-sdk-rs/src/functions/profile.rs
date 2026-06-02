@@ -17,6 +17,9 @@ pub enum InlineProfileOrRemoteCommitOptional {
     Inline(InlineProfile),
     #[schemars(title = "Remote")]
     Remote(crate::RemotePathCommitOptional),
+    /// A bare favorite name. Resolves at handler time.
+    #[schemars(title = "Favorite")]
+    Favorite(String),
 }
 
 /// A Profile definition, either remote or inline.

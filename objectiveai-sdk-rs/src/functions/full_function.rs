@@ -241,4 +241,7 @@ pub enum FullInlineFunctionOrRemoteCommitOptional {
     Inline(FullInlineFunction),
     #[schemars(title = "Remote")]
     Remote(crate::RemotePathCommitOptional),
+    /// A bare favorite name. Resolves at handler time.
+    #[schemars(title = "Favorite")]
+    Favorite(String),
 }

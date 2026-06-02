@@ -13,4 +13,7 @@ pub enum ParamsStateOrRemoteCommitOptional {
     Inline(super::ParamsState),
     #[schemars(title = "Remote")]
     Remote(crate::RemotePathCommitOptional),
+    /// A bare favorite name. Resolves at handler time.
+    #[schemars(title = "Favorite")]
+    Favorite(String),
 }
