@@ -304,6 +304,7 @@ stream_push_test!(
             id: "vcc-4".into(),
             completions: vec![],
             votes: vec![crate::vector::completions::response::Vote {
+                agent: String::new(),
                 swarm_index: 0,
                 flat_swarm_index: 0,
                 prompt_id: "p1".into(),
@@ -325,6 +326,7 @@ stream_push_test!(
             id: "vcc-4".into(),
             completions: vec![],
             votes: vec![crate::vector::completions::response::Vote {
+                agent: String::new(),
                 swarm_index: 1,
                 flat_swarm_index: 1,
                 prompt_id: "p1".into(),
@@ -348,6 +350,7 @@ stream_push_test!(
         completions: vec![],
         votes: vec![
             crate::vector::completions::response::Vote {
+                agent: String::new(),
                 swarm_index: 0,
                 flat_swarm_index: 0,
                 prompt_id: "p1".into(),
@@ -359,6 +362,7 @@ stream_push_test!(
                 completion_index: None,
             },
             crate::vector::completions::response::Vote {
+                agent: String::new(),
                 swarm_index: 1,
                 flat_swarm_index: 1,
                 prompt_id: "p1".into(),
