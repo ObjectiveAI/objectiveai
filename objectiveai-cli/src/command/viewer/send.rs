@@ -26,7 +26,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
 
     let address = std::env::var("VIEWER_ADDRESS")
         .ok()
-        .or_else(|| compose_url(viewer.get_address(), viewer.get_port()))
+        .or_else(|| crate::context::compose_url(viewer.get_address(), viewer.get_port()))
         .ok_or(Error::ViewerAddressNotConfigured)?;
     let signature = std::env::var("VIEWER_SIGNATURE")
         .ok()
@@ -53,27 +53,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         .unwrap_or_else(|_| serde_json::Value::String(text));
 
     Ok(Response { status, body })
-}
-
-/// Compose a URL from configured address + port. Defaults to `http://`
-/// when the address has no scheme.
-fn compose_url(address: Option<&str>, port: Option<u16>) -> Option<String> {
-    let address = address?;
-    let port = port?;
-    let has_scheme = address.contains("://");
-    if has_scheme {
-        // Address already includes a scheme (and possibly path); just
-        // tack on `:<port>` between host and any path/trailing slash.
-        let scheme_end = address.find("://").unwrap() + 3;
-        let (prefix, rest) = address.split_at(scheme_end);
-        let (host, tail) = match rest.find('/') {
-            Some(i) => (&rest[..i], &rest[i..]),
-            None => (rest, ""),
-        };
-        Some(format!("{prefix}{host}:{port}{tail}"))
-    } else {
-        Some(format!("http://{address}:{port}"))
-    }
 }
 
 pub mod request_schema {
