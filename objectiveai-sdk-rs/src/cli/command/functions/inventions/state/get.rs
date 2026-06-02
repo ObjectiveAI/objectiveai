@@ -16,4 +16,4 @@ impl IntoCommand for Request {
     }
 }
 
-pub type Response = serde_json::Value;
+pub use crate::functions::inventions::state::response::GetFunctionInventionStateResponse as Response;

@@ -16,8 +16,7 @@ impl IntoCommand for Request {
     }
 }
 
-#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Response {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub remote: Option<serde_json::Value>,
+    pub remote: crate::Remote,
 }
