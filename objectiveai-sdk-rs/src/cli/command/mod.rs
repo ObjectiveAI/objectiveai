@@ -14,6 +14,7 @@ mod ok;
 pub use ok::*;
 
 pub mod agents;
+pub mod config;
 pub mod functions;
 pub mod logs;
 pub mod mcp;
