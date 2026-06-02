@@ -16,4 +16,4 @@ impl IntoCommand for Request {
     }
 }
 
-pub type Response = crate::filesystem::logs::LogContent;
+pub type Response = crate::functions::executions::response::streaming::FunctionExecutionChunkLog;
