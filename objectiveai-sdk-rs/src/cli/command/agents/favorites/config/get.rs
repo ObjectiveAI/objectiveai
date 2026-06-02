@@ -24,6 +24,15 @@ pub struct ResponseItem {
 }
 
 pub mod response_schema {
+    use crate::cli::command::CommandRequest;
+
     pub struct Request;
+
+    impl CommandRequest for Request {
+        fn into_command(&self) -> Vec<String> {
+            vec!["agents", "favorites", "config", "get", "--response-schema"].into_iter().map(String::from).collect()
+        }
+    }
+
     pub type Response = schemars::Schema;
 }

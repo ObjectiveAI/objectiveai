@@ -29,12 +29,30 @@ impl CommandRequest for Request {
 pub type Response = crate::agent::completions::message::ImageUrl;
 
 pub mod request_schema {
+    use crate::cli::command::CommandRequest;
+
     pub struct Request;
+
+    impl CommandRequest for Request {
+        fn into_command(&self) -> Vec<String> {
+            vec!["logs", "agents", "completions", "response", "messages", "image", "subscribe", "--request-schema"].into_iter().map(String::from).collect()
+        }
+    }
+
     pub type Response = schemars::Schema;
 }
 
 
 pub mod response_schema {
+    use crate::cli::command::CommandRequest;
+
     pub struct Request;
+
+    impl CommandRequest for Request {
+        fn into_command(&self) -> Vec<String> {
+            vec!["logs", "agents", "completions", "response", "messages", "image", "subscribe", "--response-schema"].into_iter().map(String::from).collect()
+        }
+    }
+
     pub type Response = schemars::Schema;
 }
