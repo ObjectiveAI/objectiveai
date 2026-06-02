@@ -13,7 +13,13 @@ impl IntoCommand for Request {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct Response {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tool: Option<serde_json::Value>,
+pub struct ResponseManifest {
+    pub name: String,
+    pub description: String,
+    pub version: String,
+    pub owner: String,
+    pub exec: String,
+    pub source: String,
 }
+
+pub type Response = Option<ResponseManifest>;
