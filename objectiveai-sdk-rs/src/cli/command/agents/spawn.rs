@@ -220,6 +220,25 @@ impl TryFrom<Args> for Request {
     }
 }
 
+#[cfg(feature = "cli-executor")]
+pub async fn execute<E: crate::cli::command::CommandExecutor>(
+    executor: &E,
+    mut request: Request,
+) -> Result<E::Stream<ResponseItem>, E::Error> {
+    request.jq = None;
+    executor.execute(request).await
+}
+
+#[cfg(feature = "cli-executor")]
+pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
+    executor: &E,
+    mut request: Request,
+    jq: String,
+) -> Result<E::Stream<serde_json::Value>, E::Error> {
+    request.jq = Some(jq);
+    executor.execute(request).await
+}
+
 pub mod request_schema {
     use crate::cli::command::CommandRequest;
 
@@ -246,6 +265,25 @@ pub mod request_schema {
     }
 
     pub type Response = schemars::Schema;
+
+    #[cfg(feature = "cli-executor")]
+    pub async fn execute<E: crate::cli::command::CommandExecutor>(
+        executor: &E,
+        mut request: Request,
+    ) -> Result<Response, E::Error> {
+        request.jq = None;
+        executor.execute_one(request).await
+    }
+
+    #[cfg(feature = "cli-executor")]
+    pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
+        executor: &E,
+        mut request: Request,
+        jq: String,
+    ) -> Result<serde_json::Value, E::Error> {
+        request.jq = Some(jq);
+        executor.execute_one(request).await
+    }
 }
 
 
@@ -275,4 +313,23 @@ pub mod response_schema {
     }
 
     pub type Response = schemars::Schema;
+
+    #[cfg(feature = "cli-executor")]
+    pub async fn execute<E: crate::cli::command::CommandExecutor>(
+        executor: &E,
+        mut request: Request,
+    ) -> Result<Response, E::Error> {
+        request.jq = None;
+        executor.execute_one(request).await
+    }
+
+    #[cfg(feature = "cli-executor")]
+    pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
+        executor: &E,
+        mut request: Request,
+        jq: String,
+    ) -> Result<serde_json::Value, E::Error> {
+        request.jq = Some(jq);
+        executor.execute_one(request).await
+    }
 }
