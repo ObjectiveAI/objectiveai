@@ -4,7 +4,9 @@ use objectiveai_sdk::agent::completions::response::streaming::{
     AgentCompletionChunk, AgentCompletionChunkLog,
 };
 
-use crate::filesystem::logs::{LogFile, LogReference};
+use objectiveai_sdk::logs::LogReference;
+
+use crate::filesystem::logs::LogFile;
 
 /// Produce the [`LogFile`]s for the log file structure. Returns `None`
 /// if the chunk has no ID yet. All paths are relative to the `logs/`

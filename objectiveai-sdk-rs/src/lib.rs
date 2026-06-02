@@ -40,7 +40,7 @@ mod json_schema;
 pub mod laboratories;
 pub mod swarm;
 pub use json_schema::*;
-mod log_reference;
+pub mod logs;
 pub mod prefixed_uuid;
 mod remote;
 pub(crate) mod serde_util;
@@ -48,7 +48,6 @@ mod util;
 pub mod vector;
 mod weights;
 
-pub use log_reference::*;
 pub use remote::*;
 pub use weights::*;
 

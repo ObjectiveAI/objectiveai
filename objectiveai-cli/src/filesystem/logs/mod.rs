@@ -1,11 +1,9 @@
 mod client;
-pub mod indexed_reference;
 mod latest_continuation;
 mod list;
 mod log_file;
 mod log_file_kind;
 pub mod queue;
-mod reference;
 mod subscribe_event;
 mod writer;
 
@@ -15,6 +13,5 @@ pub use list::*;
 pub use log_file::*;
 pub use log_file_kind::*;
 pub use queue::*;
-pub use reference::*;
 pub use subscribe_event::*;
 pub use writer::*;

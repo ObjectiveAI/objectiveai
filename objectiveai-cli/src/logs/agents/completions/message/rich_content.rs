@@ -5,7 +5,9 @@ use objectiveai_sdk::agent::completions::message::{
     RichContent, RichContentLog, RichContentPart,
 };
 
-use crate::filesystem::logs::{LogFile, LogReference};
+use objectiveai_sdk::logs::LogReference;
+
+use crate::filesystem::logs::LogFile;
 
 /// Extract every chunk of a `RichContent` into its own on-disk log
 /// file, returning a [`RichContentLog`] of [`LogReference`]s pointing

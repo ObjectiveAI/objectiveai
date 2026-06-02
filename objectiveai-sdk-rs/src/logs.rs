@@ -1,8 +1,14 @@
-//! `LogReference` — the plain on-disk pointer shape every produced log
-//! file uses to reference a single child file. Lives in the SDK root
-//! so the `*Log` data types can express on-disk shape without
-//! depending on any filesystem module (which has been relocated to
-//! `objectiveai-cli`).
+//! SDK-side `logs` module.
+//!
+//! Hosts the structural types that every `*Log` data type needs to
+//! express its on-disk shape — primarily [`LogReference`] (`{type,
+//! path}`), the indexed variant [`IndexedLogReference`], and the
+//! constant `"reference"` discriminator [`LogReferenceTag`].
+//!
+//! These are pure data shapes. They live here in the SDK because the
+//! `*Log` types embed them as fields; the filesystem behavior that
+//! constructs the values (path joining, file writes, etc.) lives in
+//! `objectiveai-cli` per `feedback_extract_methods_relocate_to_cli`.
 //!
 //! On disk:
 //!

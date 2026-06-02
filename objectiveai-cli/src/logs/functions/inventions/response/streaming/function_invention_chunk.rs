@@ -4,7 +4,9 @@ use objectiveai_sdk::functions::inventions::response::streaming::{
     FunctionInventionChunk, FunctionInventionChunkLog,
 };
 
-use crate::filesystem::logs::{LogFile, LogReference, indexed_reference};
+use objectiveai_sdk::logs::{IndexedLogReference, LogReference};
+
+use crate::filesystem::logs::LogFile;
 
 /// Produce the [`LogFile`]s for a function invention chunk. Returns
 /// `None` if the chunk has no ID yet. All paths relative to `logs/`.
@@ -19,7 +21,7 @@ pub fn produce_files(
     }
 
     let mut files: Vec<LogFile> = Vec::new();
-    let mut completion_refs: Vec<indexed_reference::LogReference> = Vec::new();
+    let mut completion_refs: Vec<IndexedLogReference> = Vec::new();
 
     for completion in &c.completions {
         let (reference, completion_files) =

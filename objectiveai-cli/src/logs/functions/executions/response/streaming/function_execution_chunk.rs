@@ -4,7 +4,9 @@ use objectiveai_sdk::functions::executions::response::streaming::{
     FunctionExecutionChunk, FunctionExecutionChunkLog, task_log_reference,
 };
 
-use crate::filesystem::logs::{LogFile, LogReference};
+use objectiveai_sdk::logs::LogReference;
+
+use crate::filesystem::logs::LogFile;
 
 /// Produce the [`LogFile`]s for a function execution chunk. Returns
 /// `None` if the chunk has no ID yet. All paths relative to `logs/`.

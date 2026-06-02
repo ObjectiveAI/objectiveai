@@ -11,7 +11,7 @@ use serde::Serialize;
 
 use crate::agent;
 use crate::error;
-use crate::IndexedLogReference;
+use crate::logs::IndexedLogReference;
 use crate::functions;
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]

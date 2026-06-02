@@ -7,7 +7,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::LogReferenceTag;
+use crate::logs::LogReferenceTag;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(

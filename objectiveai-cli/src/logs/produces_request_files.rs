@@ -13,7 +13,9 @@
 //! `*CreateParamsLog` (refs to its sub-files). The `Vec<LogFile>`
 //! includes the summary file itself plus every per-field child.
 
-use crate::filesystem::logs::{LogFile, LogReference};
+use objectiveai_sdk::logs::LogReference;
+
+use crate::filesystem::logs::LogFile;
 
 pub trait ProducesRequestFiles {
     /// Walk the request, write each extracted sub-field to its own

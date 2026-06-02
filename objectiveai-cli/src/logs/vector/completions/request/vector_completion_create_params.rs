@@ -3,7 +3,9 @@
 
 use objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams;
 
-use crate::filesystem::logs::{LogFile, LogReference};
+use objectiveai_sdk::logs::LogReference;
+
+use crate::filesystem::logs::LogFile;
 use crate::logs::ProducesRequestFiles;
 
 // Placeholder `ProducesRequestFiles` impl: dumps the whole params as

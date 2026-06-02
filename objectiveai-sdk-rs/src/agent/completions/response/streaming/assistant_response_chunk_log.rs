@@ -28,7 +28,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::agent::completions::message;
 use crate::agent::completions::response;
-use crate::LogReference;
+use crate::logs::LogReference;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(

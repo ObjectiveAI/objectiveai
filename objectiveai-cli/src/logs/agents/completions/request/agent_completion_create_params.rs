@@ -5,7 +5,9 @@ use objectiveai_sdk::agent::completions::request::{
     AgentCompletionCreateParams, AgentCompletionCreateParamsLog,
 };
 
-use crate::filesystem::logs::{LogFile, LogReference};
+use objectiveai_sdk::logs::LogReference;
+
+use crate::filesystem::logs::LogFile;
 use crate::logs::ProducesRequestFiles;
 
 impl ProducesRequestFiles for AgentCompletionCreateParams {

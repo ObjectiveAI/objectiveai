@@ -9,7 +9,7 @@ use schemars::JsonSchema;
 use serde::Serialize;
 
 use crate::agent;
-use crate::IndexedLogReference;
+use crate::logs::IndexedLogReference;
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 #[schemars(

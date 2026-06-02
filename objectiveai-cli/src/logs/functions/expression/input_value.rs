@@ -3,7 +3,9 @@
 use indexmap::IndexMap;
 use objectiveai_sdk::functions::expression::{InputValue, InputValueLog};
 
-use crate::filesystem::logs::{LogFile, LogReference};
+use objectiveai_sdk::logs::LogReference;
+
+use crate::filesystem::logs::LogFile;
 
 /// Recursively extract an `InputValue` tree to per-leaf files,
 /// returning the [`InputValueLog`] (with references in place of values)

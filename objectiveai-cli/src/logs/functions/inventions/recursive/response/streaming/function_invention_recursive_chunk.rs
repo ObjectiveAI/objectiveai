@@ -4,7 +4,9 @@ use objectiveai_sdk::functions::inventions::recursive::response::streaming::{
     FunctionInventionRecursiveChunk, FunctionInventionRecursiveChunkLog,
 };
 
-use crate::filesystem::logs::{LogFile, LogReference, indexed_reference};
+use objectiveai_sdk::logs::{IndexedLogReference, LogReference};
+
+use crate::filesystem::logs::LogFile;
 
 /// Produce the [`LogFile`]s for a recursive function invention chunk.
 /// Returns `None` if the chunk has no ID yet. All paths relative to
@@ -20,7 +22,7 @@ pub fn produce_files(
     }
 
     let mut files: Vec<LogFile> = Vec::new();
-    let mut invention_refs: Vec<indexed_reference::LogReference> = Vec::new();
+    let mut invention_refs: Vec<IndexedLogReference> = Vec::new();
 
     for invention in &c.inventions {
         let (reference, invention_files) =

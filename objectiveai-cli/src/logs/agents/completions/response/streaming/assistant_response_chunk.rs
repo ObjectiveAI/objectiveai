@@ -4,7 +4,9 @@ use objectiveai_sdk::agent::completions::response::streaming::{
     AssistantResponseChunk, AssistantResponseChunkLog,
 };
 
-use crate::filesystem::logs::{LogFile, LogReference};
+use objectiveai_sdk::logs::LogReference;
+
+use crate::filesystem::logs::LogFile;
 
 /// Produce log files for an `AssistantResponseChunk`. Returns
 /// `(reference, files)` where `reference` points to the message file

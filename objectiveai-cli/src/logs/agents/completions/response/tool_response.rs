@@ -2,7 +2,9 @@
 
 use objectiveai_sdk::agent::completions::response::{ToolResponse, ToolResponseLog};
 
-use crate::filesystem::logs::{LogFile, LogReference};
+use objectiveai_sdk::logs::LogReference;
+
+use crate::filesystem::logs::LogFile;
 
 /// Produce log files for a `ToolResponse`. Returns `(reference, files)`
 /// where `reference` points to the message file and `files` contains

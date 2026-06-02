@@ -1828,7 +1828,7 @@ impl Client {
     /// Resolve an `Option<LogReference>` to an optional file-id.
     async fn maybe_id(
         &self,
-        r: Option<crate::filesystem::logs::LogReference>,
+        r: Option<objectiveai_sdk::logs::LogReference>,
     ) -> Result<Option<i64>, Error> {
         match r {
             Some(r) => Ok(Some(self.file_id(&r.path).await?)),
@@ -1839,7 +1839,7 @@ impl Client {
     /// Resolve a `Vec<LogReference>` to a Vec of file-ids.
     async fn id_list(
         &self,
-        rs: Vec<crate::filesystem::logs::LogReference>,
+        rs: Vec<objectiveai_sdk::logs::LogReference>,
     ) -> Result<Vec<i64>, Error> {
         let mut out = Vec::with_capacity(rs.len());
         for r in rs {
@@ -1851,7 +1851,7 @@ impl Client {
     /// Resolve an `Option<Vec<LogReference>>` to an optional Vec of file-ids.
     async fn maybe_id_list(
         &self,
-        rs: Option<Vec<crate::filesystem::logs::LogReference>>,
+        rs: Option<Vec<objectiveai_sdk::logs::LogReference>>,
     ) -> Result<Option<Vec<i64>>, Error> {
         match rs {
             Some(rs) => Ok(Some(self.id_list(rs).await?)),

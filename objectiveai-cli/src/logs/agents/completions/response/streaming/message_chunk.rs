@@ -2,7 +2,9 @@
 
 use objectiveai_sdk::agent::completions::response::streaming::MessageChunk;
 
-use crate::filesystem::logs::{LogFile, LogReference};
+use objectiveai_sdk::logs::LogReference;
+
+use crate::filesystem::logs::LogFile;
 
 /// Produce log files for a `MessageChunk`. Returns `(reference, files)`
 /// where `reference` points to this message's file and `files`

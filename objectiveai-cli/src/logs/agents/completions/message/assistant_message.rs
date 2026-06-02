@@ -4,7 +4,9 @@ use objectiveai_sdk::agent::completions::message::{
     AssistantMessage, AssistantMessageLog,
 };
 
-use crate::filesystem::logs::{LogFile, LogReference};
+use objectiveai_sdk::logs::LogReference;
+
+use crate::filesystem::logs::LogFile;
 
 /// Extract an `AssistantMessage`'s fields into per-field log files,
 /// returning an [`AssistantMessageLog`] with `content` / `reasoning` /

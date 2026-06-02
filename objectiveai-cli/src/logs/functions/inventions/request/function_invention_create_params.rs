@@ -3,7 +3,9 @@
 
 use objectiveai_sdk::functions::inventions::request::FunctionInventionCreateParams;
 
-use crate::filesystem::logs::{LogFile, LogReference};
+use objectiveai_sdk::logs::LogReference;
+
+use crate::filesystem::logs::LogFile;
 use crate::logs::ProducesRequestFiles;
 
 // Placeholder `ProducesRequestFiles` impl: dumps the whole params as

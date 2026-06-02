@@ -5,7 +5,9 @@ use objectiveai_sdk::functions::executions::request::{
     FunctionExecutionCreateParams, FunctionExecutionCreateParamsLog,
 };
 
-use crate::filesystem::logs::{LogFile, LogReference};
+use objectiveai_sdk::logs::LogReference;
+
+use crate::filesystem::logs::LogFile;
 use crate::logs::ProducesRequestFiles;
 
 impl ProducesRequestFiles for FunctionExecutionCreateParams {
