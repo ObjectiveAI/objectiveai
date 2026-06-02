@@ -20,17 +20,8 @@ impl IntoCommand for Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct ResponseLine {
-    pub line: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub stdout: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub stderr: Option<bool>,
-}
-
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
 pub enum ResponseItem {
     Error(crate::cli::Error),
-    Line(ResponseLine),
+    Line(String),
 }
