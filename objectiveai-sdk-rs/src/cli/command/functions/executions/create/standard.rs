@@ -185,7 +185,7 @@ impl TryFrom<Args> for Request {
             serde_path_to_error::deserialize(&mut de).map_err(|source| {
                 crate::cli::command::FromArgsError {
                     field: "function_inline",
-                    source,
+                    source: source.into(),
                 }
             })?
         };
@@ -194,7 +194,7 @@ impl TryFrom<Args> for Request {
             serde_path_to_error::deserialize(&mut de).map_err(|source| {
                 crate::cli::command::FromArgsError {
                     field: "profile_inline",
-                    source,
+                    source: source.into(),
                 }
             })?
         };
@@ -203,7 +203,7 @@ impl TryFrom<Args> for Request {
             let v = serde_path_to_error::deserialize(&mut de).map_err(|source| {
                 crate::cli::command::FromArgsError {
                     field: "input_inline",
-                    source,
+                    source: source.into(),
                 }
             })?;
             RequestInput::Inline(v)
@@ -217,7 +217,7 @@ impl TryFrom<Args> for Request {
             let v = serde_path_to_error::deserialize(&mut de).map_err(|source| {
                 crate::cli::command::FromArgsError {
                     field: "dangerous_advanced",
-                    source,
+                    source: source.into(),
                 }
             })?;
             Some(v)

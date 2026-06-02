@@ -1,11 +1,12 @@
 //! `config functions profiles favorites add` — async handler stub.
 
+use crate::RemotePathCommitOptional;
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
     pub name: String,
-    pub path: String,
+    pub path: RemotePathCommitOptional,
     pub note: String,
 }
 
@@ -20,7 +21,7 @@ impl CommandRequest for Request {
             "--name".to_string(),
             self.name.clone(),
             "--path".to_string(),
-            self.path.clone(),
+            crate::cli::command::remote_path_to_arg_string(&self.path),
             "--note".to_string(),
             self.note.clone(),
         ]
@@ -34,7 +35,7 @@ pub struct Args {
     /// Favorite name.
     #[arg(long)]
     pub name: String,
-    /// Remote-path string (or favorite ref).
+    /// Remote-path string (docker-style: `remote=<github|filesystem|mock>,owner=…,repository=…[,commit=…]`).
     #[arg(long)]
     pub path: String,
     /// Free-text note describing the favorite.
@@ -62,9 +63,13 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
+        let path = args
+            .path
+            .parse::<RemotePathCommitOptional>()
+            .map_err(|msg| crate::cli::command::FromArgsError::path_parse("path", msg))?;
         Ok(Self {
             name: args.name,
-            path: args.path,
+            path,
             note: args.note,
         })
     }

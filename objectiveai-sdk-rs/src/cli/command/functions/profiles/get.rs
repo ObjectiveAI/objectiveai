@@ -1,16 +1,22 @@
 //! `functions profiles get` — async handler stub.
 
-use crate::cli::command::CommandRequest;
+use crate::cli::command::{CommandRequest, RemotePathCommitOptionalOrFavorite};
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
-    pub path: String,
+    pub path: RemotePathCommitOptionalOrFavorite,
     pub jq: Option<String>,
 }
 
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
-        let mut argv = vec!["functions".to_string(), "profiles".to_string(), "get".to_string(), "--path".to_string(), self.path.clone()];
+        let mut argv = vec![
+            "functions".to_string(),
+            "profiles".to_string(),
+            "get".to_string(),
+            "--path".to_string(),
+            self.path.into_arg_string(),
+        ];
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
             argv.push(jq.clone());
@@ -51,10 +57,11 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self {
-            path: args.path,
-            jq: args.jq,
-        })
+        let path = args
+            .path
+            .parse::<RemotePathCommitOptionalOrFavorite>()
+            .map_err(|msg| crate::cli::command::FromArgsError::path_parse("path", msg))?;
+        Ok(Self { path, jq: args.jq })
     }
 }
 

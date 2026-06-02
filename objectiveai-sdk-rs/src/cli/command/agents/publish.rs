@@ -160,7 +160,7 @@ impl TryFrom<Args> for Request {
             let v = serde_path_to_error::deserialize(&mut de).map_err(|source| {
                 crate::cli::command::FromArgsError {
                     field: "body_inline",
-                    source,
+                    source: source.into(),
                 }
             })?;
             RequestBody::Inline(v)
