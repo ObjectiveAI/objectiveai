@@ -40,4 +40,4 @@ impl IntoCommand for Request {
     }
 }
 
-pub use crate::cli::output::Ok as Response;
+pub type Response = ();

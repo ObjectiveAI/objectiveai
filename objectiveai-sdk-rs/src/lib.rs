@@ -58,8 +58,8 @@ mod tests;
 #[cfg(test)]
 mod test_util;
 
-// #[cfg(feature = "filesystem")]
-// pub mod filesystem;
+#[cfg(feature = "filesystem")]
+pub mod filesystem;
 
 #[cfg(feature = "http")]
 pub mod http;

@@ -20,4 +20,4 @@ impl IntoCommand for Request {
     }
 }
 
-pub use crate::cli::output::JqResults as Response;
+pub use crate::filesystem::config::AgentsConfig as Response;

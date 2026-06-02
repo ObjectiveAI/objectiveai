@@ -18,4 +18,7 @@ impl IntoCommand for Request {
     }
 }
 
-pub use crate::cli::output::notification::agents::AgentItems as ResponseItem;
+pub struct ResponseItem {
+    pub agent_id: String,
+    pub items: Vec<crate::filesystem::logs::queue::QueueItem>,
+}

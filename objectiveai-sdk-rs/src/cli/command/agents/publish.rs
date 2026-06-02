@@ -77,4 +77,4 @@ impl IntoCommand for Request {
     }
 }
 
-pub use crate::cli::output::Published as Response;
+pub type Response = String;

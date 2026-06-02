@@ -20,4 +20,9 @@ impl IntoCommand for Request {
     }
 }
 
-pub type Response = crate::cli::output::Items<crate::cli::output::notification::agents::ActiveAgent>;
+pub struct ResponseItem {
+    pub agent_id: String,
+    pub last_log: u64,
+}
+
+pub type Response = Vec<ResponseItem>;

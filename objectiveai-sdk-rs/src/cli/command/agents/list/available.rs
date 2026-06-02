@@ -37,4 +37,10 @@ impl IntoCommand for Request {
     }
 }
 
-pub type Response = crate::cli::output::Items<serde_json::Value>;
+pub enum Response {
+    Filesystem(Vec<crate::RemotePath>),
+    Favorites(Vec<crate::filesystem::config::Favorite>),
+    Objectiveai(Vec<crate::RemotePath>),
+    Mock(Vec<crate::RemotePath>),
+    All(Vec<crate::RemotePath>),
+}

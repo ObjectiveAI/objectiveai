@@ -71,4 +71,4 @@ impl IntoCommand for Request {
     }
 }
 
-pub use crate::cli::output::notification::agents::Spawned as Response;
+pub type Response = String;

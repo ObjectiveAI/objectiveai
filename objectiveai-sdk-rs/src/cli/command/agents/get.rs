@@ -17,4 +17,4 @@ impl IntoCommand for Request {
     }
 }
 
-pub use crate::cli::output::notification::agents::Agent as Response;
+pub use crate::agent::response::GetAgentResponse as Response;

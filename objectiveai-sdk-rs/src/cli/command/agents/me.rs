@@ -10,4 +10,4 @@ impl IntoCommand for Request {
     }
 }
 
-pub use crate::cli::output::Me as Response;
+pub type Response = String;

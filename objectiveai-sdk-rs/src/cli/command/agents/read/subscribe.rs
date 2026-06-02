@@ -37,6 +37,11 @@ fn message_kind_flag(kind: &MessageKind) -> &'static str {
 }
 
 pub enum ResponseItem {
-    Items(crate::cli::output::notification::agents::AgentItems),
-    Inactive(crate::cli::output::notification::agents::Inactive),
+    Items {
+        agent_id: String,
+        items: Vec<crate::filesystem::logs::queue::QueueItem>,
+    },
+    Inactive {
+        agent_id: String,
+    },
 }

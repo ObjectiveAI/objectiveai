@@ -64,6 +64,6 @@ impl IntoCommand for Request {
 }
 
 pub enum Response {
-    Delivered(crate::cli::output::notification::agents::MessageDelivered),
-    Queued(crate::cli::output::notification::agents::MessageQueued),
+    Delivered { agent_id: String },
+    Queued { agent_id: String, response_id: String },
 }
