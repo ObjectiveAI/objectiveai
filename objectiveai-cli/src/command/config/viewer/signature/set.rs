@@ -1,12 +1,16 @@
-//! `config viewer signature set` — bare-naked handler stub.
+//! `config viewer signature set` — write `viewer.signature` to
+//! on-disk config.
 
 use objectiveai_sdk::cli::command::config::viewer::signature::set::{Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
 
-pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-    todo!("config viewer signature set execute")
+pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+    let mut config = ctx.filesystem.read_config().await?;
+    config.viewer().set_signature(request.value);
+    ctx.filesystem.write_config(&config).await?;
+    Ok(Response::Ok)
 }
 
 pub mod request_schema {

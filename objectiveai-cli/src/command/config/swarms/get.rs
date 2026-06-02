@@ -1,12 +1,26 @@
-//! `config swarms get` — bare-naked handler stub.
+//! `config swarms get` — read the swarms section of on-disk config.
 
+use objectiveai_sdk::cli::command::config::swarms::favorites::get::ResponseItem;
 use objectiveai_sdk::cli::command::config::swarms::get::{Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
 
-pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-    todo!("config swarms get execute")
+pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error> {
+    let mut config = ctx.filesystem.read_config().await?;
+    let favorites: Vec<ResponseItem> = config
+        .swarms()
+        .get_favorites()
+        .iter()
+        .map(|f| ResponseItem {
+            name: f.get_name().to_string(),
+            path: f.path.clone(),
+            note: f.get_note().to_string(),
+        })
+        .collect();
+    Ok(Response {
+        favorites: Some(favorites),
+    })
 }
 
 pub mod request_schema {

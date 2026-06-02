@@ -1,12 +1,19 @@
-//! `config mcp port get` — bare-naked handler stub.
+//! `config mcp port get` — read `mcp.port` from on-disk config. The
+//! SDK `Response.port` is non-optional, so an unset port becomes
+//! `Error::MissingArgs("mcp.port unset")`.
 
 use objectiveai_sdk::cli::command::config::mcp::port::get::{Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
 
-pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-    todo!("config mcp port get execute")
+pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error> {
+    let mut config = ctx.filesystem.read_config().await?;
+    let port = config
+        .mcp()
+        .get_port()
+        .ok_or(Error::MissingArgs("mcp.port unset"))?;
+    Ok(Response { port })
 }
 
 pub mod request_schema {

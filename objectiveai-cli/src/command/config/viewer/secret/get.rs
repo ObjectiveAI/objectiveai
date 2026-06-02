@@ -1,12 +1,16 @@
-//! `config viewer secret get` — bare-naked handler stub.
+//! `config viewer secret get` — read `viewer.secret` from on-disk
+//! config.
 
 use objectiveai_sdk::cli::command::config::viewer::secret::get::{Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
 
-pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-    todo!("config viewer secret get execute")
+pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error> {
+    let mut config = ctx.filesystem.read_config().await?;
+    Ok(Response {
+        secret: config.viewer().get_secret().map(String::from),
+    })
 }
 
 pub mod request_schema {

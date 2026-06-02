@@ -1,12 +1,15 @@
-//! `config mcp address set` — bare-naked handler stub.
+//! `config mcp address set` — write `mcp.address` to on-disk config.
 
 use objectiveai_sdk::cli::command::config::mcp::address::set::{Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
 
-pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-    todo!("config mcp address set execute")
+pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+    let mut config = ctx.filesystem.read_config().await?;
+    config.mcp().set_address(request.value);
+    ctx.filesystem.write_config(&config).await?;
+    Ok(Response::Ok)
 }
 
 pub mod request_schema {
