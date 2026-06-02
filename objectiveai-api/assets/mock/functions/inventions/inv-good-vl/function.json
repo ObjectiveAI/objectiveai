@@ -2,18 +2,32 @@
   "type": "alpha.vector.leaf.function",
   "description": "",
   "input_schema": {
-    "items": { "type": "string", "enum": ["apple", "banana"] }
+    "items": {
+      "type": "string",
+      "enum": [
+        "apple",
+        "banana"
+      ]
+    }
   },
   "tasks": [
     {
       "type": "vector.completion",
-      "messages": { "$starlark": "[{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"rank these\"}]}]" },
-      "responses": { "$starlark": "[[{\"type\": \"text\", \"text\": str(item)}] for item in input['items']]" }
+      "messages": {
+        "$starlark": "[{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"rank these\"}]}]"
+      },
+      "responses": {
+        "$starlark": "[[{\"type\": \"text\", \"text\": str(item)}] for item in input['items']]"
+      }
     },
     {
       "type": "vector.completion",
-      "messages": { "$starlark": "[{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"rank these\"}]}]" },
-      "responses": { "$starlark": "[[{\"type\": \"text\", \"text\": str(item)}] for item in input['items']]" }
+      "messages": {
+        "$starlark": "[{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"rank these\"}]}]"
+      },
+      "responses": {
+        "$starlark": "[[{\"type\": \"text\", \"text\": str(item)}] for item in input['items']]"
+      }
     }
   ]
 }

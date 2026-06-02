@@ -37,6 +37,7 @@ fn notification_wire_shape() {
 #[test]
 fn command_wire_shape() {
     let out = PluginOutput::Typed(TypedPluginOutput::Command {
+        id: None,
         command: "ping".to_string(),
     });
     let v = roundtrip(&out);

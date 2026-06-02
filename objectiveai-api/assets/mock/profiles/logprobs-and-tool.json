@@ -11,5 +11,8 @@
       "output_mode": "tool_call"
     }
   ],
-  "weights": [0.6, 0.4]
+  "weights": [
+    0.6,
+    0.4
+  ]
 }

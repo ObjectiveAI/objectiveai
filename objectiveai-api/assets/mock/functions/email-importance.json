@@ -11,7 +11,10 @@
         "type": "string"
       }
     },
-    "required": ["subject", "body"]
+    "required": [
+      "subject",
+      "body"
+    ]
   },
   "tasks": [
     {
@@ -20,8 +23,18 @@
         "$starlark": "[{'role': 'system', 'content': [{'type': 'text', 'text': 'You are an email classifier.'}]}, {'role': 'user', 'content': [{'type': 'text', 'text': 'Subject: ' + input['subject']}, {'type': 'text', 'text': 'Body: ' + input['body']}]}]"
       },
       "responses": [
-        [{"type": "text", "text": "Important"}],
-        [{"type": "text", "text": "Not important"}]
+        [
+          {
+            "type": "text",
+            "text": "Important"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "Not important"
+          }
+        ]
       ]
     }
   ]

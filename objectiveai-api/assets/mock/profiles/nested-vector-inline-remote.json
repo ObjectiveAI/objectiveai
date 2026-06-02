@@ -15,7 +15,10 @@
               "output_mode": "tool_call"
             }
           ],
-          "weights": [0.6, 0.4]
+          "weights": [
+            0.6,
+            0.4
+          ]
         },
         {
           "agents": [
@@ -24,15 +27,23 @@
               "output_mode": "json_schema"
             }
           ],
-          "weights": [1.0]
+          "weights": [
+            1.0
+          ]
         }
       ],
-      "weights": [0.5, 0.5]
+      "weights": [
+        0.5,
+        0.5
+      ]
     },
     {
       "remote": "mock",
       "name": "high-logprobs-duo"
     }
   ],
-  "weights": [0.55, 0.45]
+  "weights": [
+    0.55,
+    0.45
+  ]
 }

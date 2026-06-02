@@ -4,19 +4,37 @@
   "input_schema": {
     "type": "object",
     "properties": {
-      "text": { "type": "string" }
+      "text": {
+        "type": "string"
+      }
     },
-    "required": ["text"]
+    "required": [
+      "text"
+    ]
   },
   "tasks": [
     {
       "type": "vector.completion",
-      "messages": { "$starlark": "[{'role': 'user', 'content': [{'type': 'text', 'text': input['missing_key']}]}]" },
+      "messages": {
+        "$starlark": "[{'role': 'user', 'content': [{'type': 'text', 'text': input['missing_key']}]}]"
+      },
       "responses": [
-        [{"type": "text", "text": "Yes"}],
-        [{"type": "text", "text": "No"}]
+        [
+          {
+            "type": "text",
+            "text": "Yes"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "No"
+          }
+        ]
       ],
-      "output": { "$special": "task_output_weighted_sum" }
+      "output": {
+        "$special": "task_output_weighted_sum"
+      }
     }
   ]
 }

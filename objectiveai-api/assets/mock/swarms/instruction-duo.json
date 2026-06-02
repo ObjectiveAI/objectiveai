@@ -1,7 +1,15 @@
 {
   "description": "Two instruction-style agents with equal influence.",
   "agents": [
-    {"remote": "mock", "name": "instruction", "count": 1},
-    {"remote": "mock", "name": "instruction-logprobs", "count": 1}
+    {
+      "remote": "mock",
+      "name": "instruction",
+      "count": 1
+    },
+    {
+      "remote": "mock",
+      "name": "instruction-logprobs",
+      "count": 1
+    }
   ]
 }

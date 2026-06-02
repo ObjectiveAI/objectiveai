@@ -9,7 +9,9 @@
           "type": "string"
         }
       },
-      "required": ["query"]
+      "required": [
+        "query"
+      ]
     },
     "items": {
       "type": "string"

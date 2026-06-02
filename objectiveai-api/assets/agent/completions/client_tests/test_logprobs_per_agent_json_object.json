@@ -57,5 +57,5 @@
   },
   "upstream": "mock",
   "error": null,
-  "continuation": "eyJ1cHN0cmVhbSI6Im1vY2siLCJhZ2VudF9pZCI6IiIsIm1lc3NhZ2VzIjpbeyJyb2xlIjoiZGV2ZWxvcGVyIiwiY29udGVudCI6IlJlc3BvbmQgd2l0aCBKU09OIn0seyJyb2xlIjoiYXNzaXN0YW50IiwiY29udGVudCI6Int9In1dLCJtY3Bfc2Vzc2lvbnMiOnt9fQ=="
+  "continuation": "eyJ1cHN0cmVhbSI6Im1vY2siLCJhZ2VudF9pbnN0YW5jZV9oaWVyYXJjaHkiOiIiLCJtZXNzYWdlcyI6W3sicm9sZSI6ImRldmVsb3BlciIsImNvbnRlbnQiOiJSZXNwb25kIHdpdGggSlNPTiJ9LHsicm9sZSI6ImFzc2lzdGFudCIsImNvbnRlbnQiOiJ7fSJ9XSwibWNwX3Nlc3Npb25zIjp7fX0="
 }

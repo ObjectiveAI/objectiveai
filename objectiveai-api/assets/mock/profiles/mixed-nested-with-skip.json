@@ -23,10 +23,16 @@
               "output_mode": "tool_call"
             }
           ],
-          "weights": [0.7, 0.3]
+          "weights": [
+            0.7,
+            0.3
+          ]
         }
       ],
-      "weights": [0.5, 0.5]
+      "weights": [
+        0.5,
+        0.5
+      ]
     },
     {
       "tasks": [
@@ -38,7 +44,9 @@
               "top_logprobs": 3
             }
           ],
-          "weights": [1.0]
+          "weights": [
+            1.0
+          ]
         },
         {
           "agents": [
@@ -51,15 +59,26 @@
               "output_mode": "instruction"
             }
           ],
-          "weights": [0.6, 0.4]
+          "weights": [
+            0.6,
+            0.4
+          ]
         },
         {
           "remote": "mock",
           "name": "solo-instruction"
         }
       ],
-      "weights": [0.4, 0.35, 0.25]
+      "weights": [
+        0.4,
+        0.35,
+        0.25
+      ]
     }
   ],
-  "weights": [0.4, 0.3, 0.3]
+  "weights": [
+    0.4,
+    0.3,
+    0.3
+  ]
 }

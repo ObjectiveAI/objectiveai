@@ -98,7 +98,7 @@ fn error_non_fatal_warn_roundtrip() {
 fn nv_active_agent_roundtrip() {
     let out = notif(NotificationValue::Typed(
         TypedNotificationValue::ActiveAgent(ActiveAgent {
-            agent_instance_hierarchy: "child-1".into(),
+            agent_id: "child-1".into(),
             last_log: 1_700_000_000,
         }),
     ));
@@ -109,7 +109,7 @@ fn nv_active_agent_roundtrip() {
 fn nv_agent_items_roundtrip() {
     let out = notif(NotificationValue::Typed(
         TypedNotificationValue::AgentItems(AgentItems {
-            agent_instance_hierarchy: "agent-1".into(),
+            agent_id: "agent-1".into(),
             items: vec![],
         }),
     ));
@@ -121,7 +121,7 @@ fn nv_inactive_roundtrip() {
     let out =
         notif(NotificationValue::Typed(TypedNotificationValue::Inactive(
             crate::cli::output::notification::agents::Inactive {
-                agent_instance_hierarchy: "agent-1".into(),
+                agent_id: "agent-1".into(),
             },
         )));
     assert_roundtrip_eq(out);
@@ -131,7 +131,7 @@ fn nv_inactive_roundtrip() {
 fn nv_spawned_roundtrip() {
     let out = notif(NotificationValue::Typed(TypedNotificationValue::Spawned(
         Spawned {
-            agent_instance_hierarchy: "spawn-xyz".into(),
+            agent_id: "spawn-xyz".into(),
         },
     )));
     assert_roundtrip_eq(out);
@@ -158,7 +158,7 @@ fn nv_mcp_roundtrip() {
 fn nv_message_delivered_roundtrip() {
     let out = notif(NotificationValue::Typed(
         TypedNotificationValue::MessageDelivered(MessageDelivered {
-            agent_instance_hierarchy: "cli/foo-123".into(),
+            agent_id: "cli/foo-123".into(),
         }),
     ));
     assert_roundtrip_eq(out);
@@ -168,7 +168,7 @@ fn nv_message_delivered_roundtrip() {
 fn nv_message_queued_roundtrip() {
     let out = notif(NotificationValue::Typed(
         TypedNotificationValue::MessageQueued(MessageQueued {
-            agent_instance_hierarchy: "cli/foo-123".into(),
+            agent_id: "cli/foo-123".into(),
             response_id: "resp-abc".into(),
         }),
     ));
@@ -179,6 +179,14 @@ fn nv_message_queued_roundtrip() {
 fn nv_detached_roundtrip() {
     let out = notif(NotificationValue::Typed(
         TypedNotificationValue::Detached(Detached { pid: 12345 }),
+    ));
+    assert_roundtrip_eq(out);
+}
+
+#[test]
+fn nv_command_complete_roundtrip() {
+    let out = notif(NotificationValue::Typed(
+        TypedNotificationValue::CommandComplete(CommandComplete { exit_code: 0 }),
     ));
     assert_roundtrip_eq(out);
 }
@@ -846,7 +854,7 @@ fn full_envelope_with_agent_instance_hierarchy_roundtrip() {
     let out = Output::Notification(Notification {
         value: NotificationValue::Typed(TypedNotificationValue::Spawned(
             Spawned {
-                agent_instance_hierarchy: "x".into(),
+                agent_id: "x".into(),
             },
         )),
     });
@@ -870,11 +878,11 @@ fn other_keys_flatten_at_top_level() {
 fn typed_variant_carries_type_discriminator() {
     let out = notif(NotificationValue::Typed(TypedNotificationValue::Spawned(
         Spawned {
-            agent_instance_hierarchy: "abc".into(),
+            agent_id: "abc".into(),
         },
     )));
     let v = serde_json::to_value(&out).unwrap();
     assert_eq!(v["type"], "spawned");
-    assert_eq!(v["agent_instance_hierarchy"], "abc");
+    assert_eq!(v["agent_id"], "abc");
     assert!(v.get("value").is_none(), "no `value` wrapper");
 }

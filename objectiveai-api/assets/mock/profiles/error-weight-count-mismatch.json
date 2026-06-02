@@ -6,5 +6,8 @@
       "output_mode": "instruction"
     }
   ],
-  "weights": [0.5, 0.5]
+  "weights": [
+    0.5,
+    0.5
+  ]
 }

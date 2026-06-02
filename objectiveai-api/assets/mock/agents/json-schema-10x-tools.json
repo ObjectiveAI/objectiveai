@@ -4,16 +4,56 @@
   "output_mode": "json_schema",
   "client_objectiveai_mcp": {
     "tools": [
-      {"owner": "testorg", "name": "tool0", "version": "1.0.0"},
-      {"owner": "testorg", "name": "tool1", "version": "1.0.0"},
-      {"owner": "testorg", "name": "tool2", "version": "1.0.0"},
-      {"owner": "testorg", "name": "tool3", "version": "1.0.0"},
-      {"owner": "testorg", "name": "tool4", "version": "1.0.0"},
-      {"owner": "testorg", "name": "tool5", "version": "1.0.0"},
-      {"owner": "testorg", "name": "tool6", "version": "1.0.0"},
-      {"owner": "testorg", "name": "tool7", "version": "1.0.0"},
-      {"owner": "testorg", "name": "tool8", "version": "1.0.0"},
-      {"owner": "testorg", "name": "tool9", "version": "1.0.0"}
+      {
+        "owner": "testorg",
+        "name": "tool0",
+        "version": "1.0.0"
+      },
+      {
+        "owner": "testorg",
+        "name": "tool1",
+        "version": "1.0.0"
+      },
+      {
+        "owner": "testorg",
+        "name": "tool2",
+        "version": "1.0.0"
+      },
+      {
+        "owner": "testorg",
+        "name": "tool3",
+        "version": "1.0.0"
+      },
+      {
+        "owner": "testorg",
+        "name": "tool4",
+        "version": "1.0.0"
+      },
+      {
+        "owner": "testorg",
+        "name": "tool5",
+        "version": "1.0.0"
+      },
+      {
+        "owner": "testorg",
+        "name": "tool6",
+        "version": "1.0.0"
+      },
+      {
+        "owner": "testorg",
+        "name": "tool7",
+        "version": "1.0.0"
+      },
+      {
+        "owner": "testorg",
+        "name": "tool8",
+        "version": "1.0.0"
+      },
+      {
+        "owner": "testorg",
+        "name": "tool9",
+        "version": "1.0.0"
+      }
     ]
   }
 }

@@ -1,6 +1,12 @@
 {
   "type": "alpha.vector.function",
   "schema": {
-    "items": { "type": "string", "enum": ["apple", "banana"] }
+    "items": {
+      "type": "string",
+      "enum": [
+        "apple",
+        "banana"
+      ]
+    }
   }
 }

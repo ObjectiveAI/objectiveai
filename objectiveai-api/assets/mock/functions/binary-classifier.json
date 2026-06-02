@@ -9,7 +9,9 @@
         "description": "Text to classify"
       }
     },
-    "required": ["text"]
+    "required": [
+      "text"
+    ]
   },
   "tasks": [
     {
@@ -18,8 +20,18 @@
         "$starlark": "[{'role': 'user', 'content': [{'type': 'text', 'text': input['text']}]}]"
       },
       "responses": [
-        [{"type": "text", "text": "Yes"}],
-        [{"type": "text", "text": "No"}]
+        [
+          {
+            "type": "text",
+            "text": "Yes"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "No"
+          }
+        ]
       ]
     }
   ]

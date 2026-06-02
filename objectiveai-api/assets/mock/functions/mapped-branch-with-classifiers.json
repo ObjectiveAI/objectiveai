@@ -4,36 +4,100 @@
   "input_schema": {
     "type": "object",
     "properties": {
-      "items": { "type": "array", "items": { "type": "string" } }
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
     },
-    "required": ["items"]
+    "required": [
+      "items"
+    ]
   },
   "tasks": [
     {
       "type": "scalar.function",
       "remote": "mock",
       "name": "spam-importance-branch",
-      "map": { "$starlark": "len(input['items'])" },
-      "input": { "$starlark": "{'text': input['items'][map], 'subject': input['items'][map]}" },
-      "output": { "$starlark": "output[0]" }
+      "map": {
+        "$starlark": "len(input['items'])"
+      },
+      "input": {
+        "$starlark": "{'text': input['items'][map], 'subject': input['items'][map]}"
+      },
+      "output": {
+        "$starlark": "output[0]"
+      }
     },
     {
       "type": "vector.completion",
-      "messages": { "$starlark": "[{'role': 'user', 'content': [{'type': 'text', 'text': 'Classify tone: ' + input['items'][0]}]}]" },
-      "responses": [[{"type": "text", "text": "Formal"}], [{"type": "text", "text": "Casual"}]],
-      "output": { "$special": "task_output_weighted_sum" }
+      "messages": {
+        "$starlark": "[{'role': 'user', 'content': [{'type': 'text', 'text': 'Classify tone: ' + input['items'][0]}]}]"
+      },
+      "responses": [
+        [
+          {
+            "type": "text",
+            "text": "Formal"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "Casual"
+          }
+        ]
+      ],
+      "output": {
+        "$special": "task_output_weighted_sum"
+      }
     },
     {
       "type": "vector.completion",
-      "messages": { "$starlark": "[{'role': 'user', 'content': [{'type': 'text', 'text': 'Classify sentiment: ' + input['items'][0]}]}]" },
-      "responses": [[{"type": "text", "text": "Happy"}], [{"type": "text", "text": "Sad"}]],
-      "output": { "$special": "task_output_weighted_sum" }
+      "messages": {
+        "$starlark": "[{'role': 'user', 'content': [{'type': 'text', 'text': 'Classify sentiment: ' + input['items'][0]}]}]"
+      },
+      "responses": [
+        [
+          {
+            "type": "text",
+            "text": "Happy"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "Sad"
+          }
+        ]
+      ],
+      "output": {
+        "$special": "task_output_weighted_sum"
+      }
     },
     {
       "type": "vector.completion",
-      "messages": { "$starlark": "[{'role': 'user', 'content': [{'type': 'text', 'text': 'Classify intent: ' + input['items'][0]}]}]" },
-      "responses": [[{"type": "text", "text": "Question"}], [{"type": "text", "text": "Statement"}]],
-      "output": { "$special": "task_output_weighted_sum" }
+      "messages": {
+        "$starlark": "[{'role': 'user', 'content': [{'type': 'text', 'text': 'Classify intent: ' + input['items'][0]}]}]"
+      },
+      "responses": [
+        [
+          {
+            "type": "text",
+            "text": "Question"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "Statement"
+          }
+        ]
+      ],
+      "output": {
+        "$special": "task_output_weighted_sum"
+      }
     }
   ]
 }

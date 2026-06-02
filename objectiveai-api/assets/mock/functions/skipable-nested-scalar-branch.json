@@ -14,7 +14,10 @@
         "type": "boolean"
       }
     },
-    "required": ["text", "subject"]
+    "required": [
+      "text",
+      "subject"
+    ]
   },
   "tasks": [
     {

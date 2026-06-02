@@ -8,7 +8,9 @@
         "type": "string"
       }
     },
-    "required": ["text"]
+    "required": [
+      "text"
+    ]
   },
   "tasks": [
     {
@@ -17,11 +19,36 @@
         "$starlark": "[{'role': 'user', 'content': [{'type': 'text', 'text': 'Rate: ' + input['text']}]}]"
       },
       "responses": [
-        [{"type": "text", "text": "1 star"}],
-        [{"type": "text", "text": "2 stars"}],
-        [{"type": "text", "text": "3 stars"}],
-        [{"type": "text", "text": "4 stars"}],
-        [{"type": "text", "text": "5 stars"}]
+        [
+          {
+            "type": "text",
+            "text": "1 star"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "2 stars"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "3 stars"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "4 stars"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "5 stars"
+          }
+        ]
       ]
     }
   ]
