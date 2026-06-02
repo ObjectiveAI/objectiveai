@@ -48,10 +48,15 @@ pub struct ResponseFavorite {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub struct Response {
+    pub items: Vec<ResponseItem>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
-pub enum Response {
-    Favorites(Vec<ResponseFavorite>),
-    Paths(Vec<crate::RemotePath>),
+pub enum ResponseItem {
+    Favorite(ResponseFavorite),
+    Item(crate::RemotePath),
 }
 
 pub mod request_schema {
