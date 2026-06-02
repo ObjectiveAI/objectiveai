@@ -22,6 +22,20 @@ impl IntoCommand for Request {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
 pub enum ResponseItem {
+    Typed(ResponseTyped),
+    Notification(serde_json::Value),
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ResponseTyped {
+    Command {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        id: Option<String>,
+        command: String,
+    },
+    Mcp {
+        url: String,
+    },
     Error(crate::cli::Error),
-    Value(serde_json::Value),
 }
