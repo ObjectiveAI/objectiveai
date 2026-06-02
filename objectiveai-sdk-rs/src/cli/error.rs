@@ -21,8 +21,10 @@ use serde::{Deserialize, Serialize};
 pub struct Error {
     #[serde(rename = "type", default)]
     pub r#type: ErrorType,
-    pub level: Level,
-    pub fatal: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub level: Option<Level>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fatal: Option<bool>,
     pub message: serde_json::Value,
 }
 
