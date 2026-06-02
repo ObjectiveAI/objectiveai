@@ -125,8 +125,8 @@ impl AgentCompletionChunk {
                 id: id.clone(),
                 message_index: None,
                 media_index: None,
-                extension: "json".to_string(),
-                content: serde_json::to_vec_pretty(continuation).unwrap(),
+                extension: "txt".to_string(),
+                content: continuation.clone().into_bytes(),
             };
             let r = LogReference::new(cont_file.path());
             files.push(cont_file);

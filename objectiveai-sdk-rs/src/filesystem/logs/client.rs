@@ -590,9 +590,8 @@ impl Client {
     pub async fn read_agent_completion_continuation(
         &self,
         id: &str,
-        jq: Option<&str>,
-    ) -> Result<serde_json::Value, Error> {
-        self.read_json("agents/completions/response/continuation", id, jq)
+    ) -> Result<String, Error> {
+        self.read_text("agents/completions/response/continuation", id)
             .await
     }
     pub async fn read_agent_completion_message(
@@ -741,9 +740,8 @@ impl Client {
     pub async fn read_function_execution_retry_token(
         &self,
         id: &str,
-        jq: Option<&str>,
-    ) -> Result<serde_json::Value, Error> {
-        self.read_json("functions/executions/response/retry_token", id, jq)
+    ) -> Result<String, Error> {
+        self.read_text("functions/executions/response/retry_token", id)
             .await
     }
     pub async fn read_function_invention(
@@ -981,6 +979,32 @@ impl Client {
 
     // -- Subscribe helpers + methods ----------------------------------------
 
+    /// Polls for a `.txt` file. Sibling to [`Self::subscribe_json`] for
+    /// the raw-string writers (response-side continuation, retry_token).
+    /// Returns `Ok(None)` on deletion or timeout.
+    async fn subscribe_text(
+        &self,
+        dir: &str,
+        stem: &str,
+        timeout: std::time::Duration,
+        require_modification: bool,
+    ) -> Result<Option<String>, Error> {
+        let full = self.logs_dir().join(dir).join(format!("{stem}.txt"));
+        if poll_file(&full, timeout, require_modification)
+            .await
+            .is_none()
+        {
+            return Ok(None);
+        }
+        let bytes = match tokio::fs::read(&full).await {
+            Ok(b) => b,
+            Err(_) => return Ok(None),
+        };
+        String::from_utf8(bytes)
+            .map(Some)
+            .map_err(|e| Error::Utf8(full, e))
+    }
+
     /// Polls for a JSON file. If `require_modification` is false, returns
     /// immediately when the file exists. If true, waits for creation or
     /// modification. Returns `Ok(None)` on deletion or timeout. When `jq` is
@@ -1189,14 +1213,12 @@ impl Client {
         id: &str,
         timeout: std::time::Duration,
         require_modification: bool,
-        jq: Option<&str>,
-    ) -> Result<Option<serde_json::Value>, Error> {
-        self.subscribe_json(
+    ) -> Result<Option<String>, Error> {
+        self.subscribe_text(
             "agents/completions/response/continuation",
             id,
             timeout,
             require_modification,
-            jq,
         )
         .await
     }
@@ -1419,14 +1441,12 @@ impl Client {
         id: &str,
         timeout: std::time::Duration,
         require_modification: bool,
-        jq: Option<&str>,
-    ) -> Result<Option<serde_json::Value>, Error> {
-        self.subscribe_json(
+    ) -> Result<Option<String>, Error> {
+        self.subscribe_text(
             "functions/executions/response/retry_token",
             id,
             timeout,
             require_modification,
-            jq,
         )
         .await
     }
@@ -1811,9 +1831,9 @@ impl Client {
                 .await
                 .map(super::LogContent::json),
             K::AgentCompletionContinuation { id } => self
-                .read_agent_completion_continuation(&id, None)
+                .read_agent_completion_continuation(&id)
                 .await
-                .map(super::LogContent::json),
+                .map(super::LogContent::text),
             K::VectorCompletion { id } => self
                 .read_vector_completion(&id, None)
                 .await
@@ -1831,9 +1851,9 @@ impl Client {
                 .await
                 .map(super::LogContent::json),
             K::FunctionExecutionRetryToken { id } => self
-                .read_function_execution_retry_token(&id, None)
+                .read_function_execution_retry_token(&id)
                 .await
-                .map(super::LogContent::json),
+                .map(super::LogContent::text),
             K::FunctionInvention { id } => self
                 .read_function_invention(&id, None)
                 .await

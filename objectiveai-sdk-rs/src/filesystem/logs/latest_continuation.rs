@@ -3,8 +3,8 @@
 //! *response* continuation file exists. The response continuation is
 //! the value the server emits in the final streaming chunk and
 //! persists at
-//! `logs/agents/completions/response/continuation/<response_id>.json`
-//! (a pretty-printed JSON-quoted string). Reusing it on a fresh
+//! `logs/agents/completions/response/continuation/<response_id>.txt`
+//! (raw UTF-8 bytes — no JSON quoting). Reusing it on a fresh
 //! `AgentCompletionCreateParams.continuation` picks up the
 //! conversation where that turn left off — not where the previous
 //! turn ended, which is what the request-side continuation would
@@ -44,8 +44,8 @@ pub struct LatestContinuation {
     /// continuation — the value the server emitted in the final
     /// streaming chunk, persisted by
     /// [`crate::agent::completions::response::streaming::AgentCompletionChunk::produce_files`]
-    /// as a JSON-quoted string at
-    /// `logs/agents/completions/response/continuation/<response_id>.json`.
+    /// as raw UTF-8 bytes at
+    /// `logs/agents/completions/response/continuation/<response_id>.txt`.
     /// Resuming a conversation requires this value, **not** the
     /// previous turn's request-side continuation (which would replay
     /// from the earlier turn's end).
@@ -106,17 +106,17 @@ impl Client {
             .join("agents/completions/response/continuation");
 
         for response_id in response_ids {
-            // Response-side continuation: a JSON-quoted string in a
-            // `.json` file. Matches the producer at
+            // Response-side continuation: raw UTF-8 bytes in a `.txt`
+            // file. Matches the producer at
             // `AgentCompletionChunk::produce_files`.
-            let cont_path = cont_dir.join(format!("{response_id}.json"));
+            let cont_path = cont_dir.join(format!("{response_id}.txt"));
             let bytes = match tokio::fs::read(&cont_path).await {
                 Ok(b) => b,
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
                 Err(e) => return Err(Error::Read(cont_path, e)),
             };
-            let continuation: String = serde_json::from_slice(&bytes)
-                .map_err(|e| Error::Parse(cont_path.clone(), e))?;
+            let continuation: String = String::from_utf8(bytes)
+                .map_err(|e| Error::Utf8(cont_path.clone(), e))?;
 
             // Found one — pair it with the per-turn request log.
             let request = self
@@ -307,9 +307,8 @@ mod tests {
             .await
             .expect("mkdir continuation");
         // Match the on-disk shape `AgentCompletionChunk::produce_files`
-        // writes: pretty JSON-quoted string, `.json` extension.
-        let json = serde_json::to_vec_pretty(body).expect("encode cont");
-        tokio::fs::write(dir.join(format!("{response_id}.json")), json)
+        // writes: raw UTF-8 bytes, `.txt` extension.
+        tokio::fs::write(dir.join(format!("{response_id}.txt")), body.as_bytes())
             .await
             .expect("write continuation");
     }

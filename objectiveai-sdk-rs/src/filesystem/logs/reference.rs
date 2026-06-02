@@ -57,8 +57,8 @@
 //!
 //! Everything else nests: `messages/{assistant,tool}/{response_id}_{idx}.json`,
 //! `messages/{kind}/{logprobs,reasoning,refusal,tool_calls,text,
-//! image,audio,video,file}/...`, `continuation/{id}.json`,
-//! `response_format/{id}.json`, `retry_token/{id}.json`, etc. —
+//! image,audio,video,file}/...`, `continuation/{id}.txt`,
+//! `response_format/{id}.json`, `retry_token/{id}.txt`, etc. —
 //! the parent log file's `LogReference`s only ever cross *deeper*
 //! into its own subtree.
 

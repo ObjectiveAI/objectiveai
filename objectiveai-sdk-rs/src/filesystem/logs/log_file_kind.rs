@@ -32,7 +32,7 @@ pub enum LogFileKind {
     /// `agents/completions/request/<id>.json`
     /// — [`crate::filesystem::Client::read_agent_completion_request`].
     AgentCompletionRequest { id: String },
-    /// `agents/completions/response/continuation/<id>.json`
+    /// `agents/completions/response/continuation/<id>.txt`
     /// — [`crate::filesystem::Client::read_agent_completion_continuation`].
     AgentCompletionContinuation { id: String },
     /// `vector/completions/response/<id>.json`
@@ -47,7 +47,7 @@ pub enum LogFileKind {
     /// `functions/executions/request/<id>.json`
     /// — [`crate::filesystem::Client::read_function_execution_request`].
     FunctionExecutionRequest { id: String },
-    /// `functions/executions/response/retry_token/<id>.json`
+    /// `functions/executions/response/retry_token/<id>.txt`
     /// — [`crate::filesystem::Client::read_function_execution_retry_token`].
     FunctionExecutionRetryToken { id: String },
     /// `functions/inventions/response/<id>.json`

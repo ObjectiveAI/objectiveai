@@ -292,8 +292,8 @@ impl FunctionExecutionChunk {
                 id: id.clone(),
                 message_index: None,
                 media_index: None,
-                extension: "json".to_string(),
-                content: serde_json::to_vec_pretty(retry_token).unwrap(),
+                extension: "txt".to_string(),
+                content: retry_token.clone().into_bytes(),
             };
             let r = LogReference::new(rt_file.path());
             files.push(rt_file);
