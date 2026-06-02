@@ -24,4 +24,8 @@ impl IntoCommand for Request {
     }
 }
 
-pub type ResponseItem = crate::filesystem::logs::ListItem;
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub struct ResponseItem {
+    pub id: String,
+    pub created: u64,
+}
