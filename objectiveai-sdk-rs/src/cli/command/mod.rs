@@ -10,6 +10,9 @@ pub use command::*;
 mod command_request;
 pub use command_request::*;
 
+mod from_args_error;
+pub use from_args_error::*;
+
 #[cfg(feature = "cli-executor")]
 mod command_executor;
 #[cfg(feature = "cli-executor")]
