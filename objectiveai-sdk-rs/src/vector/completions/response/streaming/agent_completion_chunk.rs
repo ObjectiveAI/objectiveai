@@ -42,33 +42,6 @@ impl AgentCompletionChunk {
         self.inner.push(&other.inner);
     }
 
-    /// Produces log files for this agent completion within a vector completion.
-    ///
-    /// Returns `(reference, files)` where `reference` is an
-    /// [`indexed_reference::LogReference`] carrying `index`. Files
-    /// are written under `agent/completions/` (shared with standalone
-    /// agent completions).
-    ///
-    /// [`indexed_reference::LogReference`]: crate::filesystem::logs::indexed_reference::LogReference
-    #[cfg(feature = "filesystem")]
-    pub fn produce_files(
-        &self,
-    ) -> (
-        crate::filesystem::logs::indexed_reference::LogReference,
-        Vec<crate::filesystem::logs::LogFile>,
-    ) {
-        let (path, files) = match self.inner.produce_files() {
-            Some((inner_ref, files)) => (inner_ref.path, files),
-            None => (String::new(), Vec::new()),
-        };
-        (
-            crate::filesystem::logs::indexed_reference::LogReference::new(
-                path, self.index,
-            ),
-            files,
-        )
-    }
-
     /// Delegates to the inner agent completion's message-row extractor.
     #[cfg(feature = "filesystem")]
     pub fn produce_message_rows(

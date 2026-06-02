@@ -431,7 +431,8 @@ impl Client {
         Ok(super::LogWriter::new(
             self.logs_dir(),
             |chunk: &VectorCompletionChunk| {
-                chunk.produce_files().map(|(_, files)| files)
+                crate::logs::vector::completions::response::streaming::vector_completion_chunk::produce_files(chunk)
+                    .map(|(_, files)| files)
             },
         )
         .with_request("vector/completions/request", request)?

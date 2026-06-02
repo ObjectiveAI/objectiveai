@@ -9,12 +9,12 @@ use crate::filesystem::logs::LogFile;
 /// Produce log files for a vector completion task. Returns
 /// `(reference, files)` where `reference` carries `index`,
 /// `task_index`, `task_path`, and optionally `error`. Files under
-/// `vectors/completions/`.
+/// `vector/completions/`.
 pub fn produce_files(
     c: &VectorCompletionTaskChunk,
 ) -> (vector_completion_task_log_reference::LogReference, Vec<LogFile>) {
     let (path, files) =
-        match crate::logs::vectors::completions::response::streaming::vector_completion_chunk::produce_files(&c.inner) {
+        match crate::logs::vector::completions::response::streaming::vector_completion_chunk::produce_files(&c.inner) {
             Some((inner_ref, files)) => (inner_ref.path, files),
             None => (String::new(), Vec::new()),
         };
