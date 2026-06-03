@@ -144,9 +144,17 @@ impl Session {
     /// extracted from inbound `initialize` headers and stamped on
     /// every outbound upstream request via
     /// [`Connection::set_extra_headers`]. Closed set; not extensible.
-    pub const TRANSIENT_HEADER_KEYS: [&'static str; 2] = [
+    ///
+    /// None of these are encoded into the AEAD session id; each
+    /// reconnect re-extracts from the inbound `HeaderMap` and full-
+    /// replaces the bag (missing keys drop).
+    pub const TRANSIENT_HEADER_KEYS: [&'static str; 6] = [
         "X-OBJECTIVEAI-RESPONSE-ID",
         "X-OBJECTIVEAI-RESPONSE-IDS",
+        "X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY",
+        "X-OBJECTIVEAI-AGENT-ID",
+        "X-OBJECTIVEAI-AGENT-FULL-ID",
+        "X-OBJECTIVEAI-AGENT-REMOTE",
     ];
 
     /// Build the transient bag from an inbound `initialize` HeaderMap,
@@ -169,16 +177,6 @@ impl Session {
         for connection in self.connections.values() {
             connection.set_extra_headers(snapshot.clone()).await;
         }
-    }
-
-    /// Append `blocks` to the pending-notifications queue. The next
-    /// `tools/call` response on this session drains and prepends them.
-    /// Caller-supplied `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY` captured at session-
-    /// open time. Recovered from the encrypted session-id payload on
-    /// every resume, so upstream sdk runners (which only carry the
-    /// session id back) never have to re-send the header themselves.
-    pub fn agent_instance_hierarchy(&self) -> Option<&str> {
-        self.payload.agent_instance_hierarchy.as_deref()
     }
 
     pub async fn enqueue_notifications(&self, blocks: Vec<ContentBlock>) {

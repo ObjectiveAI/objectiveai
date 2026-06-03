@@ -415,26 +415,10 @@ async fn handle_initialize(
             return ok_response_resume_sse(request.id);
         }
         // Branch 2 — decrypt and reconnect strictly from the payload.
-        let (
-            connections_with_headers,
-            decoded_agent_instance_hierarchy,
-            decoded_agent_id,
-            decoded_agent_full_id,
-            decoded_agent_remote,
-        ) = match state.sessions.decode_session_id(sid) {
+        let connections_with_headers = match state.sessions.decode_session_id(sid) {
             Some(payload) => {
-                let agent_instance_hierarchy = payload.agent_instance_hierarchy.clone();
-                let agent_id = payload.agent_id.clone();
-                let agent_full_id = payload.agent_full_id.clone();
-                let agent_remote = payload.agent_remote.clone();
                 match crate::upstream::reconnect_from_payload(&state.client, &payload).await {
-                    Ok(pairs) => (
-                        pairs,
-                        agent_instance_hierarchy,
-                        agent_id,
-                        agent_full_id,
-                        agent_remote,
-                    ),
+                    Ok(pairs) => pairs,
                     Err(e @ BadInit::UpstreamConnectFailed { .. }) => {
                         return internal_error_response(request.id, e.to_string());
                     }
@@ -457,18 +441,13 @@ async fn handle_initialize(
         // id is deterministic and matches what the client already
         // holds; we discard the return value because the resume path
         // doesn't echo the id back.
-        let new_id = state.sessions.add(
-            connections_with_headers,
-            decoded_agent_instance_hierarchy,
-            decoded_agent_id,
-            decoded_agent_full_id,
-            decoded_agent_remote,
-        );
+        let new_id = state.sessions.add(connections_with_headers);
         // Apply the session-global transient headers from THIS
         // reconnect's inbound HeaderMap. Full replace — missing keys
         // drop from the bag. The reconnect's `X-MCP-Headers` is
         // ignored (per Branch 2 semantics), but the transient keys
-        // are extracted from the top-level HeaderMap.
+        // (agent identity + response routing) are extracted from the
+        // top-level HeaderMap here.
         if let Some(session) = state.sessions.get(&new_id) {
             session.apply_transient_headers(headers).await;
         }
@@ -478,40 +457,13 @@ async fn handle_initialize(
         // build the spec list, every URL connects from scratch, the
         // resulting `(Connection, headers)` set encodes into a
         // brand-new id which we echo back in the response header +
-        // SSE-deliver the `InitializeResult`.
-        // Capture the caller-supplied agent id at session-open. The
-        // value rides inside the encrypted session id we mint below,
-        // is recoverable from `session.payload.agent_instance_hierarchy` on every
-        // subsequent call, AND gets stamped on every outbound request
-        // each upstream connection makes (via connect_all_fresh below).
-        let agent_instance_hierarchy = headers
-            .get("X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY")
-            .or_else(|| headers.get("OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY"))
-            .and_then(|v| v.to_str().ok())
-            .map(str::to_owned);
-        let agent_id = headers
-            .get("X-OBJECTIVEAI-AGENT-ID")
-            .or_else(|| headers.get("OBJECTIVEAI-AGENT-ID"))
-            .and_then(|v| v.to_str().ok())
-            .map(str::to_owned);
-        let agent_full_id = headers
-            .get("X-OBJECTIVEAI-AGENT-FULL-ID")
-            .or_else(|| headers.get("OBJECTIVEAI-AGENT-FULL-ID"))
-            .and_then(|v| v.to_str().ok())
-            .map(str::to_owned);
-        let agent_remote = headers
-            .get("X-OBJECTIVEAI-AGENT-REMOTE")
-            .or_else(|| headers.get("OBJECTIVEAI-AGENT-REMOTE"))
-            .and_then(|v| v.to_str().ok())
-            .filter(|s| !s.is_empty())
-            .map(str::to_owned);
+        // SSE-deliver the `InitializeResult`. The agent-identity and
+        // response-routing headers ride on
+        // `Session::transient_headers` (applied below), not the
+        // AEAD payload.
         let connections_with_headers = match crate::upstream::connect_all_fresh(
             &state.client,
             headers,
-            agent_instance_hierarchy.as_deref(),
-            agent_id.as_deref(),
-            agent_full_id.as_deref(),
-            agent_remote.as_deref(),
         ).await {
             Ok(pairs) => pairs,
             Err(e @ (BadInit::NotUtf8 { .. } | BadInit::NotJson { .. })) => {
@@ -521,13 +473,7 @@ async fn handle_initialize(
                 return internal_error_response(request.id, e.to_string());
             }
         };
-        let session_id = state.sessions.add(
-            connections_with_headers,
-            agent_instance_hierarchy,
-            agent_id,
-            agent_full_id,
-            agent_remote,
-        );
+        let session_id = state.sessions.add(connections_with_headers);
         // Stamp the session-global transient headers extracted from
         // the inbound HeaderMap. Stays in memory; not encoded in the
         // session id.

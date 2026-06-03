@@ -82,29 +82,12 @@ pub const MCP_SESSION_ID_KEY: &str = "Mcp-Session-Id";
 pub async fn connect_all_fresh(
     client: &Client,
     http_headers: &HeaderMap,
-    agent_instance_hierarchy: Option<&str>,
-    agent_id: Option<&str>,
-    agent_full_id: Option<&str>,
-    agent_remote: Option<&str>,
 ) -> Result<Vec<(Connection, IndexMap<String, String>)>, BadInit> {
     let specs = parse_init_headers(http_headers)?;
-    // Capture once; each per-upstream future stamps the same string.
-    let agent_instance_hierarchy_owned: Option<String> =
-        agent_instance_hierarchy.filter(|s| !s.is_empty()).map(str::to_owned);
-    let agent_id_owned: Option<String> =
-        agent_id.filter(|s| !s.is_empty()).map(str::to_owned);
-    let agent_full_id_owned: Option<String> =
-        agent_full_id.filter(|s| !s.is_empty()).map(str::to_owned);
-    let agent_remote_owned: Option<String> =
-        agent_remote.filter(|s| !s.is_empty()).map(str::to_owned);
 
     let attempts = specs.into_iter().map(|spec| {
         let url = spec.url.clone();
         let headers_for_payload = spec.headers.clone();
-        let agent_instance_hierarchy_owned = agent_instance_hierarchy_owned.clone();
-        let agent_id_owned = agent_id_owned.clone();
-        let agent_full_id_owned = agent_full_id_owned.clone();
-        let agent_remote_owned = agent_remote_owned.clone();
         async move {
             // Hoist any caller-supplied `Mcp-Session-Id` out of the
             // header bag and pass it as the dedicated `session_id` arg.
@@ -117,21 +100,12 @@ pub async fn connect_all_fresh(
             // `NoSessionId` and retries forever.
             let mut headers = spec.headers;
             let session_id = headers.shift_remove(MCP_SESSION_ID_KEY);
-            // The proxy-minted agent ids win over anything the caller
-            // tried to slip into `X-MCP-Headers` — `insert` (not
-            // `entry`) intentionally overwrites.
-            if let Some(id) = &agent_instance_hierarchy_owned {
-                headers.insert("X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY".to_string(), id.clone());
-            }
-            if let Some(base) = &agent_id_owned {
-                headers.insert("X-OBJECTIVEAI-AGENT-ID".to_string(), base.clone());
-            }
-            if let Some(full) = &agent_full_id_owned {
-                headers.insert("X-OBJECTIVEAI-AGENT-FULL-ID".to_string(), full.clone());
-            }
-            if let Some(rem) = &agent_remote_owned {
-                headers.insert("X-OBJECTIVEAI-AGENT-REMOTE".to_string(), rem.clone());
-            }
+            // Agent identity headers (instance hierarchy, id, full id,
+            // remote) are NOT injected into the per-URL bag — they
+            // live on `Session::transient_headers` and ride via the
+            // SDK Connection's `extra_headers` layer instead.
+            // `parse_init_headers` already stripped them from
+            // `X-MCP-Headers` so they can't leak in via the caller.
             let conn_result = client
                 .connect(spec.url, session_id, Some(headers))
                 .await;
@@ -166,51 +140,14 @@ pub async fn reconnect_from_payload(
     client: &Client,
     payload: &crate::session_manager::SessionPayload,
 ) -> Result<Vec<(Connection, IndexMap<String, String>)>, BadInit> {
-    // Cold-resume identity comes straight from the decoded payload —
-    // baked into the session id at session-open time, recovered here.
-    let agent_instance_hierarchy_owned: Option<String> = payload
-        .agent_instance_hierarchy
-        .as_deref()
-        .filter(|s| !s.is_empty())
-        .map(str::to_owned);
-    let agent_id_owned: Option<String> = payload
-        .agent_id
-        .as_deref()
-        .filter(|s| !s.is_empty())
-        .map(str::to_owned);
-    let agent_full_id_owned: Option<String> = payload
-        .agent_full_id
-        .as_deref()
-        .filter(|s| !s.is_empty())
-        .map(str::to_owned);
-    let agent_remote_owned: Option<String> = payload
-        .agent_remote
-        .as_deref()
-        .filter(|s| !s.is_empty())
-        .map(str::to_owned);
-
     let attempts = payload.connections.iter().map(|(url, headers)| {
         let url = url.clone();
         let mut headers = headers.clone();
         let session_id = headers.shift_remove(MCP_SESSION_ID_KEY);
-        // Inject the identity BEFORE cloning into `payload_headers`,
-        // so it lands inside the canonical map we re-encode into the
-        // session id too. Without that, a Branch-2 resume would drop
-        // the identity from its payload on the next round-trip.
-        if let Some(id) = &agent_instance_hierarchy_owned {
-            headers.insert("X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY".to_string(), id.clone());
-        }
-        if let Some(base) = &agent_id_owned {
-            headers.insert("X-OBJECTIVEAI-AGENT-ID".to_string(), base.clone());
-        }
-        if let Some(full) = &agent_full_id_owned {
-            headers.insert("X-OBJECTIVEAI-AGENT-FULL-ID".to_string(), full.clone());
-        }
-        if let Some(rem) = &agent_remote_owned {
-            headers.insert("X-OBJECTIVEAI-AGENT-REMOTE".to_string(), rem.clone());
-        }
-        // Everything left (Authorization + custom headers) stays in
-        // `headers` and gets passed straight through to Client::connect.
+        // Agent identity headers live on `Session::transient_headers`
+        // (extracted from the reconnect request's HeaderMap in
+        // `handle_initialize`), not on the payload. The per-URL bag
+        // here carries only `Authorization` + custom headers.
         let payload_headers = headers.clone();
         async move {
             let conn_result = client

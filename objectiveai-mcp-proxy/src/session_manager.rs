@@ -57,31 +57,15 @@ use crate::session::Session;
 /// field. URLs sort alphabetically when encoding for stable ids; the
 /// per-URL header map sorts the same way.
 ///
-/// `agent_instance_hierarchy` carries the caller-supplied `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY`
-/// value at session-open time. Because the whole payload is
-/// AEAD-encrypted into the public session id, this value travels
-/// inside every Mcp-Session-Id the upstream sdk runners hand back to
-/// the proxy — runners don't have to re-send the header themselves.
+/// Agent identity (`X-OBJECTIVEAI-AGENT-*`) and routing keys
+/// (`X-OBJECTIVEAI-RESPONSE-ID`, `X-OBJECTIVEAI-RESPONSE-IDS`) are
+/// NOT in this payload — they live on `Session::transient_headers`
+/// in memory only, re-extracted from the inbound HeaderMap on every
+/// `initialize` and full-replaced. The session id encodes only the
+/// upstream-connection topology that needs to survive proxy restart.
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SessionPayload {
     pub connections: IndexMap<String, IndexMap<String, String>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub agent_instance_hierarchy: Option<String>,
-    /// Bare 22-character leaf identity from `X-OBJECTIVEAI-AGENT-ID`.
-    /// Travels alongside `agent_instance_hierarchy` inside the AEAD-
-    /// encrypted session id so runners don't have to re-send the
-    /// header on resume.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub agent_id: Option<String>,
-    /// WF-level identity from `X-OBJECTIVEAI-AGENT-FULL-ID`. Same
-    /// AEAD-recovery path as `agent_id`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub agent_full_id: Option<String>,
-    /// JSON-encoded `RemotePath` from `X-OBJECTIVEAI-AGENT-REMOTE`.
-    /// `None` when the WF was inline. Same AEAD-recovery path as
-    /// `agent_id`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub agent_remote: Option<String>,
 }
 
 /// Current envelope version byte. Bumping this lets future shape
@@ -133,22 +117,11 @@ impl SessionManager {
     /// byte-identical too (modulo the random AEAD nonce, which makes
     /// the ciphertext different each time — intentional, prevents
     /// payload-recognition attacks).
-    #[allow(clippy::too_many_arguments)]
     pub fn add(
         &self,
         connections_with_headers: Vec<(Connection, IndexMap<String, String>)>,
-        agent_instance_hierarchy: Option<String>,
-        agent_id: Option<String>,
-        agent_full_id: Option<String>,
-        agent_remote: Option<String>,
     ) -> String {
-        let payload = build_payload(
-            &connections_with_headers,
-            agent_instance_hierarchy,
-            agent_id,
-            agent_full_id,
-            agent_remote,
-        );
+        let payload = build_payload(&connections_with_headers);
         let id = encrypt_and_encode(&payload, &self.key);
         let connections: Vec<Connection> =
             connections_with_headers.into_iter().map(|(c, _)| c).collect();
@@ -206,10 +179,6 @@ impl SessionManager {
 ///   - sorted alphabetically.
 fn build_payload(
     pairs: &[(Connection, IndexMap<String, String>)],
-    agent_instance_hierarchy: Option<String>,
-    agent_id: Option<String>,
-    agent_full_id: Option<String>,
-    agent_remote: Option<String>,
 ) -> SessionPayload {
     // Collect (url, sorted headers) pairs, then sort by URL.
     let mut url_entries: Vec<(String, IndexMap<String, String>)> = pairs
@@ -235,13 +204,7 @@ fn build_payload(
         connections.insert(url, headers);
     }
 
-    SessionPayload {
-        connections,
-        agent_instance_hierarchy,
-        agent_id,
-        agent_full_id,
-        agent_remote,
-    }
+    SessionPayload { connections }
 }
 
 /// JSON-serialize the payload, AEAD-encrypt with a *deterministic*
@@ -441,13 +404,7 @@ mod tests {
         let mut h_b: IndexMap<String, String> = IndexMap::new();
         h_b.insert("Mcp-Session-Id".into(), "sid-B".into());
         connections.insert("https://upstream-b.example/mcp".into(), h_b);
-        SessionPayload {
-            connections,
-            agent_instance_hierarchy: None,
-            agent_id: None,
-            agent_full_id: None,
-            agent_remote: None,
-        }
+        SessionPayload { connections }
     }
 
     #[test]
