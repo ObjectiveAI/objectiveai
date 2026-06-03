@@ -5,16 +5,21 @@
 //! pattern-match the expected `server_response::Payload` variant
 //! (`JsonRpcResult::Ok` → typed result, `Err` → propagate as
 //! [`McpError`]).
+//!
+//! The route layer parses `mcp_kind` off the URL path and threads it
+//! into every delegate so the CLI can dispatch to the right per-MCP
+//! handler. Plugin args (URL query string on the inbound POST) ride
+//! into `handle_initialize` and only there — non-`initialize`
+//! requests reuse the cached upstream connection on the CLI side.
 
 use super::send::send_server_request;
 use crate::objectiveai_mcp::context::McpRequestContext;
 use axum::http::HeaderMap;
 use indexmap::IndexMap;
+use objectiveai_sdk::client_objectiveai_mcp::McpKind;
+use objectiveai_sdk::client_objectiveai_mcp::server_request::InitializeRequest;
 use objectiveai_sdk::client_objectiveai_mcp::{server_request, server_response};
-use objectiveai_sdk::mcp::initialize_result::{
-    Implementation, InitializeResult, ResourcesCapability, ServerCapabilities,
-    ToolsCapability,
-};
+use objectiveai_sdk::mcp::initialize_result::InitializeResult;
 use objectiveai_sdk::mcp::resource::{
     ListResourcesRequest, ListResourcesResult, ReadResourceRequestParams,
     ReadResourceResult,
@@ -22,7 +27,6 @@ use objectiveai_sdk::mcp::resource::{
 use objectiveai_sdk::mcp::tool::{
     CallToolRequestParams, CallToolResult, ListToolsRequest, ListToolsResult,
 };
-use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 /// How long to wait for a `server_response` over the WS before failing
@@ -31,7 +35,7 @@ use std::time::Duration;
 const FORWARD_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Common error shape every delegate returns. The route layer renders
-/// this into either a JSON-RPC error envelope (under `POST /`) or an
+/// this into either a JSON-RPC error envelope (under `POST /…`) or an
 /// HTTP status response (for `DELETE`). Codes follow JSON-RPC
 /// conventions; see `routes::mcp_error_to_http` for the mapping.
 #[derive(Debug)]
@@ -98,77 +102,37 @@ fn payload_variant_name(p: &server_response::Payload) -> &'static str {
     }
 }
 
-/// Minimal `initialize` params struct — only `protocolVersion` is
-/// load-bearing for the proxy ([`objectiveai-mcp-proxy/src/mcp.rs:246-273`])
-/// and the same is true here. `clientInfo` / `capabilities` arrive
-/// on the wire and serde drops them.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct InitializeRequestParams {
-    pub protocol_version: String,
-}
-
 // ────────────────────────────────────────────────────────────────
-// JSON-RPC method delegates (POST /objectiveai-mcp)
+// JSON-RPC method delegates (POST on either per-MCP route)
 // ────────────────────────────────────────────────────────────────
 
-/// Protocol version the API advertises on `initialize`. Pinned —
-/// mirrors `objectiveai-mcp-proxy/src/mcp.rs::PROTOCOL_VERSION`.
-const PROTOCOL_VERSION: &str = "2025-06-18";
-
-/// Canonical `InitializeResult` the API replaces the CLI's body
-/// with. The CLI no longer advertises any capabilities — every
-/// session presents the same surface: `tools.listChanged=true` +
-/// `resources.listChanged=true`, server name `"oai"`. Matches the
-/// shape of `objectiveai-mcp-proxy::server_capabilities` exactly,
-/// with the server name shortened from `"oaip"` to `"oai"`.
-fn canonical_initialize_result() -> InitializeResult {
-    InitializeResult {
-        protocol_version: PROTOCOL_VERSION.into(),
-        capabilities: ServerCapabilities {
-            experimental: None,
-            logging: None,
-            completions: None,
-            prompts: None,
-            tools: Some(ToolsCapability {
-                list_changed: Some(true),
-            }),
-            resources: Some(ResourcesCapability {
-                subscribe: None,
-                list_changed: Some(true),
-            }),
-            tasks: None,
-        },
-        server_info: Implementation {
-            name: "oai".into(),
-            title: None,
-            version: env!("CARGO_PKG_VERSION").into(),
-            website_url: None,
-            description: None,
-            icons: None,
-        },
-        instructions: None,
-        _meta: None,
-    }
-}
-
-/// `initialize` — forward to the CLI, take its returned
-/// `mcp_session_id`, and pair it with the API's canonical result.
-/// The proxy's incoming `protocolVersion` is discarded on the way
-/// in; the API publishes its own pinned version on the way out.
+/// `initialize` — forward to the CLI with the path-extracted
+/// [`McpKind`] and URL-query-string-parsed plugin args; return the
+/// upstream's verbatim `InitializeResult` plus its native
+/// `Mcp-Session-Id`. The CLI is a pure medium — it doesn't
+/// synthesize capabilities, doesn't pin a protocol version, doesn't
+/// name itself. Whatever the upstream MCP server (the local
+/// `objectiveai-mcp` HTTP server or the plugin's MCP subprocess)
+/// reported, the proxy sees.
 ///
 /// Caller (the route layer) stamps the returned `String` onto the
 /// outbound HTTP `Mcp-Session-Id` response header so the proxy
-/// adopts it.
+/// adopts it as the session id for this particular per-MCP upstream.
 pub async fn handle_initialize(
     ctx: McpRequestContext,
-    _params: InitializeRequestParams,
+    mcp_kind: McpKind,
+    args: IndexMap<String, Option<String>>,
 ) -> Result<(InitializeResult, String), McpError> {
-    let response = forward(&ctx, server_request::Payload::Initialize).await?;
+    let response = forward(
+        &ctx,
+        mcp_kind,
+        server_request::Payload::Initialize(InitializeRequest { args }),
+    )
+    .await?;
     match response.payload {
         server_response::Payload::Initialize(r) => {
             let reply = unwrap_rpc(r)?;
-            Ok((canonical_initialize_result(), reply.mcp_session_id))
+            Ok((reply.result, reply.mcp_session_id))
         }
         other => Err(McpError::variant_mismatch("initialize", &other)),
     }
@@ -176,15 +140,17 @@ pub async fn handle_initialize(
 
 pub async fn handle_ping(_ctx: McpRequestContext) -> Result<(), McpError> {
     // Local. The route layer 404'd already if the response_id was
-    // bogus; we just confirm liveness.
+    // bogus; we just confirm liveness. `ping` is not per-MCP — it
+    // answers on either route prefix without forwarding.
     Ok(())
 }
 
 pub async fn handle_tools_list(
     ctx: McpRequestContext,
+    mcp_kind: McpKind,
     params: ListToolsRequest,
 ) -> Result<ListToolsResult, McpError> {
-    let response = forward(&ctx, server_request::Payload::ToolsList(params)).await?;
+    let response = forward(&ctx, mcp_kind, server_request::Payload::ToolsList(params)).await?;
     match response.payload {
         server_response::Payload::ToolsList(r) => unwrap_rpc(r),
         other => Err(McpError::variant_mismatch("tools_list", &other)),
@@ -193,9 +159,10 @@ pub async fn handle_tools_list(
 
 pub async fn handle_tools_call(
     ctx: McpRequestContext,
+    mcp_kind: McpKind,
     params: CallToolRequestParams,
 ) -> Result<CallToolResult, McpError> {
-    let response = forward(&ctx, server_request::Payload::ToolsCall(params)).await?;
+    let response = forward(&ctx, mcp_kind, server_request::Payload::ToolsCall(params)).await?;
     match response.payload {
         server_response::Payload::ToolsCall(r) => unwrap_rpc(r),
         other => Err(McpError::variant_mismatch("tools_call", &other)),
@@ -204,9 +171,15 @@ pub async fn handle_tools_call(
 
 pub async fn handle_resources_list(
     ctx: McpRequestContext,
+    mcp_kind: McpKind,
     params: ListResourcesRequest,
 ) -> Result<ListResourcesResult, McpError> {
-    let response = forward(&ctx, server_request::Payload::ResourcesList(params)).await?;
+    let response = forward(
+        &ctx,
+        mcp_kind,
+        server_request::Payload::ResourcesList(params),
+    )
+    .await?;
     match response.payload {
         server_response::Payload::ResourcesList(r) => unwrap_rpc(r),
         other => Err(McpError::variant_mismatch("resources_list", &other)),
@@ -215,9 +188,15 @@ pub async fn handle_resources_list(
 
 pub async fn handle_resources_read(
     ctx: McpRequestContext,
+    mcp_kind: McpKind,
     params: ReadResourceRequestParams,
 ) -> Result<ReadResourceResult, McpError> {
-    let response = forward(&ctx, server_request::Payload::ResourcesRead(params)).await?;
+    let response = forward(
+        &ctx,
+        mcp_kind,
+        server_request::Payload::ResourcesRead(params),
+    )
+    .await?;
     match response.payload {
         server_response::Payload::ResourcesRead(r) => unwrap_rpc(r),
         other => Err(McpError::variant_mismatch("resources_read", &other)),
@@ -225,13 +204,14 @@ pub async fn handle_resources_read(
 }
 
 // ────────────────────────────────────────────────────────────────
-// Session lifecycle (DELETE /objectiveai-mcp)
+// Session lifecycle (DELETE on either per-MCP route)
 // ────────────────────────────────────────────────────────────────
 
 pub async fn handle_session_terminate(
     ctx: McpRequestContext,
+    mcp_kind: McpKind,
 ) -> Result<(), McpError> {
-    let response = forward(&ctx, server_request::Payload::SessionTerminate).await?;
+    let response = forward(&ctx, mcp_kind, server_request::Payload::SessionTerminate).await?;
     match response.payload {
         server_response::Payload::SessionTerminate => Ok(()),
         other => Err(McpError::variant_mismatch("session_terminate", &other)),
@@ -247,6 +227,7 @@ pub async fn handle_session_terminate(
 
 async fn forward(
     ctx: &McpRequestContext,
+    mcp_kind: McpKind,
     payload: server_request::Payload,
 ) -> Result<server_response::Response, McpError> {
     let rc = ctx
@@ -258,6 +239,7 @@ async fn forward(
     let request_id = uuid::Uuid::new_v4().to_string();
     let request = server_request::Request {
         id: request_id,
+        mcp_kind,
         headers: forward_headers(&ctx.headers),
         payload,
     };

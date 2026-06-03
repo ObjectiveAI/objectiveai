@@ -24,11 +24,11 @@ pub enum Payload {
     AgentCompletionNotify(
         crate::agent::completions::request::AgentCompletionNotifyParams,
     ),
-    /// The CLI's upstream `mcp::Connection` for `mcp_session_id`
-    /// fired `notifications/<kind>/list_changed`. The API
-    /// dispatches this onto its per-`(ws_session_id, mcp_session_id)`
-    /// broadcast so every matching MCP GET-SSE listener sees a
-    /// standard MCP notification frame.
+    /// The CLI's upstream `mcp::Connection` for `mcp_kind` fired
+    /// `notifications/<kind>/list_changed`. The API dispatches this
+    /// onto its per-`(response_id, McpKind)` broadcast so the
+    /// matching MCP GET-SSE listener sees a standard MCP
+    /// notification frame.
     #[schemars(title = "McpListChanged")]
     McpListChanged(McpListChanged),
 }
@@ -37,9 +37,11 @@ pub enum Payload {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.client_request.McpListChanged")]
 pub struct McpListChanged {
-    /// The remote-minted `Mcp-Session-Id` of the upstream MCP
-    /// connection that fired the list-changed notification.
-    pub mcp_session_id: String,
+    /// Which CLI-hosted MCP server fired the list-changed
+    /// notification. The API uses this to look up the right
+    /// per-MCP SSE broadcast and republish a standard MCP
+    /// notification frame to that upstream's proxy subscriber.
+    pub mcp_kind: super::super::McpKind,
     /// Which catalog changed.
     pub kind: McpListChangedKind,
 }

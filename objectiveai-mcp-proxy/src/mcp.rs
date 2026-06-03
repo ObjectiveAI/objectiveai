@@ -417,14 +417,12 @@ async fn handle_initialize(
             decoded_agent_id,
             decoded_agent_full_id,
             decoded_agent_remote,
-            decoded_tool_allowlists,
         ) = match state.sessions.decode_session_id(sid) {
             Some(payload) => {
                 let agent_instance_hierarchy = payload.agent_instance_hierarchy.clone();
                 let agent_id = payload.agent_id.clone();
                 let agent_full_id = payload.agent_full_id.clone();
                 let agent_remote = payload.agent_remote.clone();
-                let tool_allowlists = payload.tool_allowlists.clone();
                 match crate::upstream::reconnect_from_payload(&state.client, &payload).await {
                     Ok(pairs) => (
                         pairs,
@@ -432,7 +430,6 @@ async fn handle_initialize(
                         agent_id,
                         agent_full_id,
                         agent_remote,
-                        tool_allowlists,
                     ),
                     Err(e @ BadInit::UpstreamConnectFailed { .. }) => {
                         return internal_error_response(request.id, e.to_string());
@@ -462,7 +459,6 @@ async fn handle_initialize(
             decoded_agent_id,
             decoded_agent_full_id,
             decoded_agent_remote,
-            decoded_tool_allowlists,
         );
         ok_response_resume_sse(request.id)
     } else {
@@ -497,7 +493,7 @@ async fn handle_initialize(
             .and_then(|v| v.to_str().ok())
             .filter(|s| !s.is_empty())
             .map(str::to_owned);
-        let (connections_with_headers, tool_allowlists) = match crate::upstream::connect_all_fresh(
+        let connections_with_headers = match crate::upstream::connect_all_fresh(
             &state.client,
             headers,
             agent_instance_hierarchy.as_deref(),
@@ -505,7 +501,7 @@ async fn handle_initialize(
             agent_full_id.as_deref(),
             agent_remote.as_deref(),
         ).await {
-            Ok(pair) => pair,
+            Ok(pairs) => pairs,
             Err(e @ (BadInit::NotUtf8 { .. } | BadInit::NotJson { .. })) => {
                 return invalid_request_response(request.id, e.to_string());
             }
@@ -519,7 +515,6 @@ async fn handle_initialize(
             agent_id,
             agent_full_id,
             agent_remote,
-            tool_allowlists,
         );
         ok_response_fresh_sse(request.id, session_id)
     }

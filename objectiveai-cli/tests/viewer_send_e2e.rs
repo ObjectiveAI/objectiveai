@@ -8,6 +8,8 @@
 //! header — matching the same header format the viewer's signature
 //! middleware accepts.
 
+mod cli_test_util;
+
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -56,7 +58,7 @@ async fn viewer_send_remote_mode_posts_to_configured_address() {
         .await
         .expect("write_config failed");
 
-    let cli = env!("CARGO_BIN_EXE_objectiveai-cli");
+    let cli = cli_test_util::cli_binary();
     let body_arg = serde_json::to_string(&request_body).unwrap();
     let output = Command::new(cli)
         .env("CONFIG_BASE_DIR", &base)

@@ -3,6 +3,8 @@
 //! We assert on a deterministic summary (per-stream stdout/stderr
 //! arrays + exit code) via insta snapshots.
 
+mod cli_test_util;
+
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -103,7 +105,7 @@ struct Summary {
 /// wire shape is either `{"Tools":{"Run":"line text"}}` (stdout) or
 /// `{"Tools":{"Run":{"type":"error","message":"line text",...}}}` (stderr).
 fn run_and_summarize(base: &Path, name: &str) -> Summary {
-    let cli = env!("CARGO_BIN_EXE_objectiveai-cli");
+    let cli = cli_test_util::cli_binary();
     let output = Command::new(cli)
         .env("CONFIG_BASE_DIR", base)
         .args(["tools", "run", name])

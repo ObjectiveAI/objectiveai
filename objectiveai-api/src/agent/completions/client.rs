@@ -720,25 +720,62 @@ where
                     .unwrap_or_default();
                 urls.extend(extra_mcp_servers.iter().map(|s| s.url.clone()));
 
-                // If the agent declares `client_objectiveai_mcp`,
-                // append a synthetic URL that points back at this very
-                // API process's `/objectiveai-mcp` endpoint. The proxy
-                // will dial it, stamping the per-URL headers (built
-                // below) on every request — including the
-                // `X-OBJECTIVEAI-RESPONSE-ID` that the API routes off
-                // to find the matching WS reverse channel. The CLI
-                // conduit on the other side picks per-agent MCP
-                // connections out of its `Mcp-Session-Id` DashMap.
-                let client_mcp_synthetic_url: Option<String> =
-                    match (agent_ws_session_id.as_deref(), mcp_port_for_synth) {
-                        (Some(_), Some(mcp_port)) => Some(format!(
-                            "http://127.0.0.1:{mcp_port}/objectiveai-mcp"
-                        )),
-                        _ => None,
-                    };
-                if let Some(ref url) = client_mcp_synthetic_url {
-                    urls.push(url.clone());
-                }
+                // If the agent declares `client_objectiveai_mcp` AND
+                // a WS-attached CLI is on the other end, emit one
+                // synthetic URL per CLI-hosted MCP server. The proxy
+                // dials each as an independent upstream; the API's
+                // loopback MCP router parses the path back into a
+                // [`McpKind`] and forwards over the WS conduit. The
+                // CLI conduit treats each URL as a separate MCP
+                // session with its own `Mcp-Session-Id`, no
+                // aggregation, no tool renaming.
+                //
+                // - `/objectiveai` is emitted only when the agent
+                //   actually needs the primary upstream (declared
+                //   `tools`, set `objectiveai = true`, or declared an
+                //   `executable` plugin — non-executable plugins are
+                //   present purely for their `mcp_servers`).
+                // - One `/{owner}/{name}/{version}/{mcp}?<args>` per
+                //   declared plugin MCP server. `<args>` is the
+                //   form-urlencoded entry arguments; absent values
+                //   encode as bare keys (`?foo`), present values as
+                //   `?foo=bar`.
+                let client_mcp_synthetic_urls: Vec<String> = match (
+                    agent_ws_session_id.as_deref(),
+                    mcp_port_for_synth,
+                    agent.base().client_objectiveai_mcp(),
+                ) {
+                    (Some(_), Some(mcp_port), Some(client_mcp)) => {
+                        let mut out: Vec<String> = Vec::new();
+                        let needs_objectiveai = !client_mcp.tools.is_empty()
+                            || client_mcp.objectiveai.unwrap_or(false)
+                            || client_mcp.plugins.iter().any(|p| p.executable);
+                        if needs_objectiveai {
+                            out.push(format!("http://127.0.0.1:{mcp_port}/objectiveai"));
+                        }
+                        for plugin in &client_mcp.plugins {
+                            for entry in plugin.mcp_servers.as_deref().unwrap_or(&[]) {
+                                let path = format!(
+                                    "{owner}/{name}/{version}/{mcp}",
+                                    owner = percent_encode_segment(&plugin.owner),
+                                    name = percent_encode_segment(&plugin.name),
+                                    version = percent_encode_segment(&plugin.version),
+                                    mcp = percent_encode_segment(&entry.name),
+                                );
+                                let query = encode_args_query(entry.arguments.as_ref());
+                                let url = if query.is_empty() {
+                                    format!("http://127.0.0.1:{mcp_port}/{path}")
+                                } else {
+                                    format!("http://127.0.0.1:{mcp_port}/{path}?{query}")
+                                };
+                                out.push(url);
+                            }
+                        }
+                        out
+                    }
+                    _ => Vec::new(),
+                };
+                urls.extend(client_mcp_synthetic_urls.iter().cloned());
 
                 // No MCP servers → no proxy
                 // connection needed for this agent. Skipping the spawn
@@ -790,35 +827,13 @@ where
                         }
                     }
                 }
-                // For the synthetic `client_objectiveai_mcp` URL, stamp
-                // three headers the API needs on every proxy-originated
-                // request:
-                //
-                // - `X-OBJECTIVEAI-RESPONSE-ID` — the `ws_session_id`
-                //   the API's MCP router uses to look up the matching
-                //   WS reverse channel. Same value formerly carried in
-                //   the URL path; now header-shaped so a single WS can
-                //   host many MCP sessions without overloading
-                //   `Mcp-Session-Id` (which is reserved for whatever
-                //   upstream MCP server sits behind the CLI conduit).
-                // - `X-Objectiveai-Client-Mcp` — the agent's declared
-                //   `client_objectiveai_mcp` spec, base64url-no-pad
-                //   encoded so the CLI's conduit (or any real client)
-                //   can see what tools the agent expects exposed.
-                // - `X-OBJECTIVEAI-MCP-CONFIG` — the JSON control
-                //   surface the CLI uses for both `tools/list`
-                //   filtering AND plugin-MCP-server selection. Fields:
-                //     * `names`: allow-listed primary-upstream tool
-                //       names (bare `tools[].name` ∪
-                //       executable `plugins[].name`).
-                //     * `objectiveai_builtins`: mirror of
-                //       `client_objectiveai_mcp.objectiveai`.
-                //     * `mcp_servers`: `(plugin, mcp_name)` pairs the
-                //       CLI should make active for this
-                //       ws_session_id — drives `tools/list`
-                //       aggregation and `list_changed` fan-out from
-                //       each `plugins[i].mcp_servers` selection.
-                if let Some(url) = client_mcp_synthetic_url.as_ref() {
+                // Each synthetic per-MCP URL needs the
+                // `X-OBJECTIVEAI-RESPONSE-ID` header so the API's
+                // loopback MCP router can find the matching WS
+                // reverse channel when the proxy dials. The URL's
+                // path itself carries the McpKind discriminator —
+                // no per-URL config payload is necessary.
+                for url in &client_mcp_synthetic_urls {
                     let entry = per_url_headers
                         .entry(url.clone())
                         .or_insert_with(|| extra_mcp_headers.clone());
@@ -826,71 +841,6 @@ where
                         entry.insert(
                             "X-OBJECTIVEAI-RESPONSE-ID".to_string(),
                             ws_session_id.to_string(),
-                        );
-                    }
-                    if let Some(client_mcp) = agent.base().client_objectiveai_mcp() {
-                        use base64::Engine;
-                        let serialized =
-                            serde_json::to_string(client_mcp).unwrap_or_default();
-                        let encoded = base64::engine::general_purpose::URL_SAFE_NO_PAD
-                            .encode(serialized);
-                        entry.insert(
-                            "X-Objectiveai-Client-Mcp".to_string(),
-                            encoded,
-                        );
-
-                        #[derive(serde::Serialize)]
-                        struct McpServerConfig<'a> {
-                            plugin: &'a str,
-                            name: &'a str,
-                            #[serde(skip_serializing_if = "Option::is_none")]
-                            arguments: Option<&'a indexmap::IndexMap<String, Option<String>>>,
-                        }
-                        #[derive(serde::Serialize)]
-                        struct McpConfig<'a> {
-                            names: Vec<&'a str>,
-                            objectiveai_builtins: bool,
-                            mcp_servers: Vec<McpServerConfig<'a>>,
-                        }
-                        let config = McpConfig {
-                            names: client_mcp
-                                .plugins
-                                .iter()
-                                // Only `executable` plugins
-                                // contribute a tool name to the
-                                // allow-list — non-executable plugin
-                                // entries are present purely for
-                                // their declared `mcp_servers`.
-                                .filter(|e| e.executable)
-                                .map(|e| e.name.as_str())
-                                .chain(client_mcp.tools.iter().map(|e| e.name.as_str()))
-                                .collect(),
-                            objectiveai_builtins: client_mcp
-                                .objectiveai
-                                .unwrap_or(false),
-                            mcp_servers: client_mcp
-                                .plugins
-                                .iter()
-                                .flat_map(|plugin| {
-                                    plugin
-                                        .mcp_servers
-                                        .as_deref()
-                                        .unwrap_or(&[])
-                                        .iter()
-                                        .map(move |entry| McpServerConfig {
-                                            plugin: plugin.name.as_str(),
-                                            name: entry.name.as_str(),
-                                            arguments: entry.arguments.as_ref(),
-                                        })
-                                })
-                                .collect(),
-                        };
-                        let config_json = serde_json::to_string(&config).unwrap_or_default();
-                        let config_encoded = base64::engine::general_purpose::URL_SAFE_NO_PAD
-                            .encode(config_json);
-                        entry.insert(
-                            "X-OBJECTIVEAI-MCP-CONFIG".to_string(),
-                            config_encoded,
                         );
                     }
                 }
@@ -2010,6 +1960,62 @@ fn make_tool_chunk(
         })],
         ..Default::default()
     }
+}
+
+/// Percent-encode a single path segment for the synthetic per-MCP
+/// URLs in `X-MCP-Servers`. Mirrors RFC 3986's `pchar` minus the
+/// sub-delims we want literal; deliberately strict so that
+/// `owner`/`name`/`version`/`mcp` values containing `/` `?` `#` `&`
+/// `=` get encoded and the API's `Path` extractor sees exactly four
+/// segments.
+fn percent_encode_segment(s: &str) -> String {
+    /// `unreserved` + `:@` (the path-segment-internal `pchar` set,
+    /// minus sub-delims to keep `&` `=` etc out of segments).
+    const SEGMENT: &percent_encoding::AsciiSet =
+        &percent_encoding::NON_ALPHANUMERIC
+            .remove(b'-')
+            .remove(b'.')
+            .remove(b'_')
+            .remove(b'~')
+            .remove(b':')
+            .remove(b'@');
+    percent_encoding::utf8_percent_encode(s, SEGMENT).to_string()
+}
+
+/// Build a `application/x-www-form-urlencoded` query string from the
+/// plugin's `arguments` map. `None` values encode as bare keys
+/// (`foo`), `Some("")` as `foo=`, `Some(v)` as `foo=<encoded v>`.
+/// Order follows the IndexMap's insertion order so the CLI sees args
+/// in the same order the agent declared them. Returns empty when
+/// `arguments` is `None` or empty.
+fn encode_args_query(
+    args: Option<&indexmap::IndexMap<String, Option<String>>>,
+) -> String {
+    let Some(args) = args else { return String::new() };
+    if args.is_empty() {
+        return String::new();
+    }
+    /// `unreserved` per RFC 3986 for the query value. Everything else
+    /// gets percent-encoded, including `&` `=` `+` `?` so the split
+    /// on the parsing side stays unambiguous.
+    const QUERY: &percent_encoding::AsciiSet =
+        &percent_encoding::NON_ALPHANUMERIC
+            .remove(b'-')
+            .remove(b'.')
+            .remove(b'_')
+            .remove(b'~');
+    let mut out = String::new();
+    for (k, v) in args {
+        if !out.is_empty() {
+            out.push('&');
+        }
+        out.push_str(&percent_encoding::utf8_percent_encode(k, QUERY).to_string());
+        if let Some(v) = v {
+            out.push('=');
+            out.push_str(&percent_encoding::utf8_percent_encode(v, QUERY).to_string());
+        }
+    }
+    out
 }
 
 #[cfg(test)]

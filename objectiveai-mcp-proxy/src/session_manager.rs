@@ -82,13 +82,6 @@ pub struct SessionPayload {
     /// `agent_id`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agent_remote: Option<String>,
-    /// Per-upstream-URL allowlist of un-prefixed tool names. URLs
-    /// present in this map have `tools/list` filtered to only those
-    /// names (the proxy still applies its `<server_name>_` prefix
-    /// downstream). URLs absent → no filtering (every tool visible).
-    /// Empty Vec for a URL → zero tools visible from that upstream.
-    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
-    pub tool_allowlists: IndexMap<String, Vec<String>>,
 }
 
 /// Current envelope version byte. Bumping this lets future shape
@@ -148,7 +141,6 @@ impl SessionManager {
         agent_id: Option<String>,
         agent_full_id: Option<String>,
         agent_remote: Option<String>,
-        tool_allowlists: IndexMap<String, Vec<String>>,
     ) -> String {
         let payload = build_payload(
             &connections_with_headers,
@@ -156,7 +148,6 @@ impl SessionManager {
             agent_id,
             agent_full_id,
             agent_remote,
-            tool_allowlists,
         );
         let id = encrypt_and_encode(&payload, &self.key);
         let connections: Vec<Connection> =
@@ -219,7 +210,6 @@ fn build_payload(
     agent_id: Option<String>,
     agent_full_id: Option<String>,
     agent_remote: Option<String>,
-    tool_allowlists: IndexMap<String, Vec<String>>,
 ) -> SessionPayload {
     // Collect (url, sorted headers) pairs, then sort by URL.
     let mut url_entries: Vec<(String, IndexMap<String, String>)> = pairs
@@ -244,16 +234,6 @@ fn build_payload(
     for (url, headers) in url_entries {
         connections.insert(url, headers);
     }
-    // Sort tool_allowlists by URL for byte-stable session-id encoding,
-    // mirroring the per-URL sort applied to `connections` above.
-    let mut allow_entries: Vec<(String, Vec<String>)> =
-        tool_allowlists.into_iter().collect();
-    allow_entries.sort_by(|a, b| a.0.cmp(&b.0));
-    let mut tool_allowlists: IndexMap<String, Vec<String>> =
-        IndexMap::with_capacity(allow_entries.len());
-    for (url, names) in allow_entries {
-        tool_allowlists.insert(url, names);
-    }
 
     SessionPayload {
         connections,
@@ -261,7 +241,6 @@ fn build_payload(
         agent_id,
         agent_full_id,
         agent_remote,
-        tool_allowlists,
     }
 }
 
@@ -462,7 +441,13 @@ mod tests {
         let mut h_b: IndexMap<String, String> = IndexMap::new();
         h_b.insert("Mcp-Session-Id".into(), "sid-B".into());
         connections.insert("https://upstream-b.example/mcp".into(), h_b);
-        SessionPayload { connections, agent_instance_hierarchy: None, agent_id: None, tool_allowlists: IndexMap::new() }
+        SessionPayload {
+            connections,
+            agent_instance_hierarchy: None,
+            agent_id: None,
+            agent_full_id: None,
+            agent_remote: None,
+        }
     }
 
     #[test]
@@ -545,7 +530,13 @@ mod tests {
         for (u, h) in url_entries {
             connections.insert(u, h);
         }
-        let payload = SessionPayload { connections, agent_instance_hierarchy: None, agent_id: None, tool_allowlists: IndexMap::new() };
+        let payload = SessionPayload {
+            connections,
+            agent_instance_hierarchy: None,
+            agent_id: None,
+            agent_full_id: None,
+            agent_remote: None,
+        };
 
         let urls: Vec<&String> = payload.connections.keys().collect();
         assert_eq!(urls, vec![&conn_b_url, &conn_a_url]); // a.example before b.example

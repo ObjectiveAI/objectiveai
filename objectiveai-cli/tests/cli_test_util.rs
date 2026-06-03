@@ -16,7 +16,7 @@ use std::sync::Once;
 
 use futures::StreamExt;
 use objectiveai_sdk::cli::command::binary::BinaryExecutor;
-use objectiveai_sdk::cli::command::{CommandExecutor, CommandRequest};
+use objectiveai_sdk::cli::command::{CommandExecutor, CommandRequest, CommandResponse};
 
 static BUILD_ONCE: Once = Once::new();
 
@@ -101,7 +101,7 @@ pub fn executor_with_base_dir(base_dir: &Path) -> BinaryExecutor {
 pub async fn collect_stream<R, T>(executor: &BinaryExecutor, request: R) -> Vec<T>
 where
     R: CommandRequest + Send,
-    T: serde::de::DeserializeOwned + Send + 'static,
+    T: CommandResponse + serde::de::DeserializeOwned + Send + 'static,
 {
     let stream = executor
         .execute::<R, T>(request)
@@ -119,7 +119,7 @@ where
 pub async fn execute_one<R, T>(executor: &BinaryExecutor, request: R) -> T
 where
     R: CommandRequest + Send,
-    T: serde::de::DeserializeOwned + Send + 'static,
+    T: CommandResponse + serde::de::DeserializeOwned + Send + 'static,
 {
     executor
         .execute_one::<R, T>(request)

@@ -329,17 +329,19 @@ pub async fn recv_loop<F, Fut>(
                     continue;
                 }
                 // McpListChanged dispatch: fan out to every
-                // (ws_session_id, mcp_session_id) keyed under this WS.
-                // The GET-SSE subscriber for whichever agent's
+                // (response_id, mcp_kind) keyed under this WS. The
+                // GET-SSE subscriber for whichever agent's
                 // response_id is currently active will receive the
-                // event; idle keys publish to a no-op broadcast.
-                // Always Ok the ack — publish to a broadcast can't
-                // fail in a way the CLI should care about.
+                // event; idle keys publish to a no-op broadcast. The
+                // fan handles reconnect-across-continuations — the
+                // same upstream MCP can publish to multiple
+                // response_ids that share the WS, only the live
+                // subscriber gets the event.
                 ClientPayload::McpListChanged(change) => {
                     for ws_session_id in attach_handle.registered_ids() {
                         mcp_listeners.publish(
                             &ws_session_id,
-                            &change.mcp_session_id,
+                            &change.mcp_kind,
                             change.kind,
                         );
                     }

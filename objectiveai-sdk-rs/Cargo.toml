@@ -61,7 +61,7 @@ schemars = { version = "1.2.1", features = ["indexmap2", "chrono04", "uuid1"] }
 arbitrary = { version = "1.4.2", features = ["derive"] }
 clap = { version = "4.6.0", features = ["derive"], optional = true }
 mime2ext = { version = "0.1.54" }
-tokio = { version = "1.51.1", features = ["fs", "time", "sync", "rt", "io-util", "macros", "process"], optional = true }
+tokio = { version = "1.51.1", features = ["fs", "time", "sync", "rt", "io-util", "io-std", "macros", "process"], optional = true }
 
 [dev-dependencies]
 proc-macro2 = { version = "1.0.106", features = ["span-locations"] }

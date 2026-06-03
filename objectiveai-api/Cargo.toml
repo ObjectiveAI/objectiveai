@@ -69,6 +69,7 @@ bollard = { version = "0.20.2", optional = true }
 tar = { version = "0.4.45", optional = true }
 base64 = { version = "0.22.1" }
 tempfile = { version = "3.27.0" }
+percent-encoding = { version = "2.3.2" }
 
 [dev-dependencies]
 dunce = "1.0.5"

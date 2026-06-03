@@ -243,6 +243,15 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
         let is_byok = byok.is_some();
         let max_tool_calls = self.max_tool_calls;
 
+        // Clone agent's `calls` script and the continuation slice
+        // into owned values so the `'static` async future doesn't
+        // borrow from the caller-supplied `&Agent` / `&[Continuation]`.
+        let override_calls_owned: Option<
+            Vec<objectiveai_sdk::agent::mock::Call>,
+        > = agent.base.calls.clone();
+        let continuation_owned: Option<Vec<ContinuationItem<Self::State>>> =
+            continuation.map(|c| c.to_vec());
+
         async move {
             use objectiveai_sdk::agent::completions::request::ResponseFormat;
 
@@ -339,11 +348,11 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
             // what this turn emits — regardless of mode. Once the
             // override is exhausted (all `Call`s matched), we fall
             // through to the normal mode-driven dispatcher below.
-            let override_calls = agent.base.calls.as_ref();
+            let override_calls = override_calls_owned.as_ref();
             let override_response = override_calls.and_then(|calls| {
                 let idx = next_unmatched_call_index(
                     calls,
-                    continuation.as_deref(),
+                    continuation_owned.as_deref(),
                 );
                 if idx < calls.len() {
                     let call = &calls[idx];

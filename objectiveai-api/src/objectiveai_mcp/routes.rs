@@ -1,26 +1,28 @@
 //! Axum sub-router + JSON-RPC dispatch for the API's MCP server.
 //!
-//! Three routes — exactly the MCP-spec surface (per
-//! `objectiveai-mcp-proxy/src/run.rs`):
+//! Two route prefixes — one per [`McpKind`] discriminator:
 //!
-//! - `POST /objectiveai-mcp`   — JSON-RPC dispatch on `method`
-//! - `GET  /objectiveai-mcp`   — SSE notifications stream (delegated
-//!   to the SDK conduit's [`handle_get_sse`])
-//! - `DELETE /objectiveai-mcp` — session-terminate forward
+//! - `POST/GET/DELETE /objectiveai`        → [`McpKind::ObjectiveAi`]
+//! - `POST/GET/DELETE /{owner}/{name}/{version}/{mcp}` → [`McpKind::Other`]
+//!
+//! Each MCP-spec method (POST JSON-RPC, GET-SSE notifications, DELETE
+//! session-terminate) lives on both prefixes; the path-extracted
+//! [`McpKind`] gets threaded into the [`server_request::Request`]
+//! envelope so the CLI's per-MCP dispatch table can route directly.
 //!
 //! Routing key on every request: the `X-OBJECTIVEAI-RESPONSE-ID`
-//! header. Missing → 400, unknown → 404. A single WS reverse-attach
-//! can host many MCP sessions; `Mcp-Session-Id` (when present) rides
-//! through to whatever upstream MCP server sits behind the CLI's
-//! conduit and is opaque to this router.
+//! header. Missing → 400, unknown → 404. The path is the secondary
+//! discriminator (which MCP server this hits within the CLI).
 
 use crate::objectiveai_mcp::{context::McpRequestContext, handlers};
 use axum::{
     body::Bytes,
-    extract::State,
+    extract::{Path, State},
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
 };
+use indexmap::IndexMap;
+use objectiveai_sdk::client_objectiveai_mcp::McpKind;
 use super::{McpListenerRegistry, ReverseChannelRegistry, handle_get_sse};
 
 const JSON_RPC: &str = "2.0";
@@ -40,10 +42,16 @@ pub fn router(
     };
     axum::Router::new()
         .route(
-            "/objectiveai-mcp",
-            axum::routing::post(handle_post)
-                .get(handle_get)
-                .delete(handle_delete),
+            "/objectiveai",
+            axum::routing::post(handle_post_objectiveai)
+                .get(handle_get_objectiveai)
+                .delete(handle_delete_objectiveai),
+        )
+        .route(
+            "/{owner}/{name}/{version}/{mcp}",
+            axum::routing::post(handle_post_other)
+                .get(handle_get_other)
+                .delete(handle_delete_other),
         )
         .with_state(state)
 }
@@ -92,12 +100,76 @@ fn build_ctx(
 }
 
 // ────────────────────────────────────────────────────────────────
-// POST /objectiveai-mcp — JSON-RPC dispatch
+// Per-prefix handler shims — each parses its McpKind off the path
+// (or constructs the unit variant), then delegates to the shared
+// helpers below.
+// ────────────────────────────────────────────────────────────────
+
+async fn handle_post_objectiveai(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    uri: axum::http::Uri,
+    body: Bytes,
+) -> Response {
+    handle_post(McpKind::ObjectiveAi, state, headers, uri, body).await
+}
+
+async fn handle_get_objectiveai(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+) -> Response {
+    handle_get(McpKind::ObjectiveAi, state, headers).await
+}
+
+async fn handle_delete_objectiveai(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+) -> Response {
+    handle_delete(McpKind::ObjectiveAi, state, headers).await
+}
+
+async fn handle_post_other(
+    State(state): State<SharedState>,
+    Path((owner, name, version, mcp)): Path<(String, String, String, String)>,
+    headers: HeaderMap,
+    uri: axum::http::Uri,
+    body: Bytes,
+) -> Response {
+    handle_post(
+        McpKind::Other { owner, name, version, mcp },
+        state,
+        headers,
+        uri,
+        body,
+    )
+    .await
+}
+
+async fn handle_get_other(
+    State(state): State<SharedState>,
+    Path((owner, name, version, mcp)): Path<(String, String, String, String)>,
+    headers: HeaderMap,
+) -> Response {
+    handle_get(McpKind::Other { owner, name, version, mcp }, state, headers).await
+}
+
+async fn handle_delete_other(
+    State(state): State<SharedState>,
+    Path((owner, name, version, mcp)): Path<(String, String, String, String)>,
+    headers: HeaderMap,
+) -> Response {
+    handle_delete(McpKind::Other { owner, name, version, mcp }, state, headers).await
+}
+
+// ────────────────────────────────────────────────────────────────
+// POST — JSON-RPC dispatch
 // ────────────────────────────────────────────────────────────────
 
 async fn handle_post(
-    State(state): State<SharedState>,
+    mcp_kind: McpKind,
+    state: SharedState,
     headers: HeaderMap,
+    uri: axum::http::Uri,
     body: Bytes,
 ) -> Response {
     if let Err(resp) = require_streamable_http_accept(&headers) {
@@ -128,17 +200,13 @@ async fn handle_post(
 
     // `initialize` is special-cased: the API replaces the CLI's
     // response body with its canonical `InitializeResult` AND stamps
-    // the aggregate `Mcp-Session-Id` returned by the CLI on the
-    // outbound HTTP response header. Other methods stay on the
-    // uniform `dispatch_*` → `Ok(Value)` pipeline.
+    // the upstream's `Mcp-Session-Id` returned by the CLI onto the
+    // outbound HTTP response header. Plugin args ride on the URL
+    // query string; parse them here and pass through to the CLI
+    // via the typed Initialize variant.
     if method == "initialize" {
-        let params = match serde_json::from_value(params) {
-            Ok(p) => p,
-            Err(e) => {
-                return json_rpc_error(id, invalid_params(format!("initialize: {e}")));
-            }
-        };
-        return match handlers::handle_initialize(ctx, params).await {
+        let args = parse_query_args(&uri);
+        return match handlers::handle_initialize(ctx, mcp_kind, args).await {
             Ok((result, session_id)) => {
                 let value = serde_json::to_value(result)
                     .expect("InitializeResult serializes");
@@ -156,10 +224,10 @@ async fn handle_post(
 
     let result = match method.as_str() {
         "ping" => dispatch_ping(ctx).await,
-        "tools/list" => dispatch_tools_list(ctx, params).await,
-        "tools/call" => dispatch_tools_call(ctx, params).await,
-        "resources/list" => dispatch_resources_list(ctx, params).await,
-        "resources/read" => dispatch_resources_read(ctx, params).await,
+        "tools/list" => dispatch_tools_list(ctx, mcp_kind, params).await,
+        "tools/call" => dispatch_tools_call(ctx, mcp_kind, params).await,
+        "resources/list" => dispatch_resources_list(ctx, mcp_kind, params).await,
+        "resources/read" => dispatch_resources_read(ctx, mcp_kind, params).await,
         other => return method_not_found(id, other),
     };
 
@@ -167,6 +235,45 @@ async fn handle_post(
         Ok(value) => json_rpc_success(id, value),
         Err(e) => json_rpc_error(id, e),
     }
+}
+
+/// Decode a URL query string into `IndexMap<String, Option<String>>`,
+/// preserving the bare-key vs `key=` distinction needed for
+/// `Option<String>` plugin args. Used only on the `initialize` POST
+/// — every other proxy request reuses the same URL but its args
+/// have already been delivered to the CLI at dial time.
+fn parse_query_args(uri: &axum::http::Uri) -> IndexMap<String, Option<String>> {
+    let mut out = IndexMap::new();
+    let Some(query) = uri.query() else { return out };
+    for pair in query.split('&') {
+        if pair.is_empty() {
+            continue;
+        }
+        match pair.split_once('=') {
+            Some((k, v)) => {
+                let key = url_decode(k);
+                let val = url_decode(v);
+                out.insert(key, Some(val));
+            }
+            None => {
+                let key = url_decode(pair);
+                out.insert(key, None);
+            }
+        }
+    }
+    out
+}
+
+/// Percent-decode a URL component. `+` decodes to space per
+/// application/x-www-form-urlencoded. Falls back to the raw input on
+/// decode failure so we surface plugin-side parse errors rather than
+/// silently swallowing.
+fn url_decode(s: &str) -> String {
+    let with_space: String = s.chars().map(|c| if c == '+' { ' ' } else { c }).collect();
+    percent_encoding::percent_decode_str(&with_space)
+        .decode_utf8()
+        .map(|s| s.into_owned())
+        .unwrap_or(with_space)
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -183,65 +290,71 @@ async fn dispatch_ping(
 
 async fn dispatch_tools_list(
     ctx: McpRequestContext,
+    mcp_kind: McpKind,
     params: serde_json::Value,
 ) -> Result<serde_json::Value, handlers::McpError> {
     let params = serde_json::from_value(params)
         .map_err(|e| invalid_params(format!("tools/list: {e}")))?;
-    let result = handlers::handle_tools_list(ctx, params).await?;
+    let result = handlers::handle_tools_list(ctx, mcp_kind, params).await?;
     Ok(serde_json::to_value(result).expect("ListToolsResult serializes"))
 }
 
 async fn dispatch_tools_call(
     ctx: McpRequestContext,
+    mcp_kind: McpKind,
     params: serde_json::Value,
 ) -> Result<serde_json::Value, handlers::McpError> {
     let params = serde_json::from_value(params)
         .map_err(|e| invalid_params(format!("tools/call: {e}")))?;
-    let result = handlers::handle_tools_call(ctx, params).await?;
+    let result = handlers::handle_tools_call(ctx, mcp_kind, params).await?;
     Ok(serde_json::to_value(result).expect("CallToolResult serializes"))
 }
 
 async fn dispatch_resources_list(
     ctx: McpRequestContext,
+    mcp_kind: McpKind,
     params: serde_json::Value,
 ) -> Result<serde_json::Value, handlers::McpError> {
     let params = serde_json::from_value(params)
         .map_err(|e| invalid_params(format!("resources/list: {e}")))?;
-    let result = handlers::handle_resources_list(ctx, params).await?;
+    let result = handlers::handle_resources_list(ctx, mcp_kind, params).await?;
     Ok(serde_json::to_value(result).expect("ListResourcesResult serializes"))
 }
 
 async fn dispatch_resources_read(
     ctx: McpRequestContext,
+    mcp_kind: McpKind,
     params: serde_json::Value,
 ) -> Result<serde_json::Value, handlers::McpError> {
     let params = serde_json::from_value(params)
         .map_err(|e| invalid_params(format!("resources/read: {e}")))?;
-    let result = handlers::handle_resources_read(ctx, params).await?;
+    let result = handlers::handle_resources_read(ctx, mcp_kind, params).await?;
     Ok(serde_json::to_value(result).expect("ReadResourceResult serializes"))
 }
 
 // ────────────────────────────────────────────────────────────────
-// GET /objectiveai-mcp — SSE notifications stream
+// GET — SSE notifications stream (per-MCP)
 // ────────────────────────────────────────────────────────────────
 
 async fn handle_get(
-    State(state): State<SharedState>,
+    mcp_kind: McpKind,
+    state: SharedState,
     headers: HeaderMap,
 ) -> Response {
     let response_id = match route(&state, &headers) {
         Ok(id) => id,
         Err(resp) => return resp,
     };
-    handle_get_sse(response_id, state.listeners.clone(), headers).await
+    handle_get_sse(response_id, mcp_kind, state.listeners.clone(), headers).await
 }
 
 // ────────────────────────────────────────────────────────────────
-// DELETE /objectiveai-mcp
+// DELETE — session terminate (per-MCP)
 // ────────────────────────────────────────────────────────────────
 
 async fn handle_delete(
-    State(state): State<SharedState>,
+    mcp_kind: McpKind,
+    state: SharedState,
     headers: HeaderMap,
 ) -> Response {
     let response_id = match route(&state, &headers) {
@@ -249,7 +362,7 @@ async fn handle_delete(
         Err(resp) => return resp,
     };
     let ctx = build_ctx(&state, response_id, headers);
-    match handlers::handle_session_terminate(ctx).await {
+    match handlers::handle_session_terminate(ctx, mcp_kind).await {
         Ok(()) => StatusCode::OK.into_response(),
         Err(e) => mcp_error_to_http(e),
     }

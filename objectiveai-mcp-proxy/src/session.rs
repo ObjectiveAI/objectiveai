@@ -81,15 +81,6 @@ pub struct Session {
     /// `Connection`s rotated their internal state, the id remains
     /// derivable from the immutable per-upstream header set.
     pub payload: crate::session_manager::SessionPayload,
-    /// Per-`server_name` allowlist of un-prefixed tool names. Derived
-    /// once at `Session::new` time from
-    /// [`crate::session_manager::SessionPayload::tool_allowlists`]
-    /// (which is keyed by upstream URL) by walking the live
-    /// connections and remapping URL -> server_name. A server_name
-    /// absent from this map gets no filtering applied on `list_tools`.
-    /// Empty Vec for a server_name => zero tools visible from that
-    /// upstream.
-    tool_allowlists_by_server: IndexMap<String, Vec<String>>,
 }
 
 impl Session {
@@ -125,25 +116,12 @@ impl Session {
             });
         }
 
-        // Remap the payload's URL-keyed tool_allowlists onto our
-        // server_name-keyed connections map. URLs in the allowlist
-        // that don't match any live connection are silently dropped
-        // (the proxy just won't filter for them).
-        let mut tool_allowlists_by_server: IndexMap<String, Vec<String>> = IndexMap::new();
-        for (server_name, connection) in &connections {
-            if let Some(names) = payload.tool_allowlists.get(&connection.url) {
-                tool_allowlists_by_server
-                    .insert(server_name.clone(), names.clone());
-            }
-        }
-
         Self {
             connections,
             outbound,
             in_flight: DashMap::new(),
             pending_notifications: Mutex::new(Vec::new()),
             payload,
-            tool_allowlists_by_server,
         }
     }
 
@@ -254,18 +232,7 @@ impl Session {
 
         let mut tools: Vec<Tool> = Vec::new();
         for ((server_name, _), arc) in pairs.into_iter().zip(results) {
-            let allowlist = self.tool_allowlists_by_server.get(server_name);
             for tool in arc.iter() {
-                // Filter against the per-upstream allowlist if one
-                // was supplied via `X-MCP-Tools-Allow`. Match is on
-                // the un-prefixed name (the name the upstream itself
-                // returned), so callers don't have to know the
-                // `<server_name>_` prefix the proxy stamps.
-                if let Some(names) = allowlist {
-                    if !names.iter().any(|n| n == &tool.name) {
-                        continue;
-                    }
-                }
                 let mut prefixed = tool.clone();
                 prefixed.name = prefix_name(server_name, &tool.name);
                 tools.push(prefixed);

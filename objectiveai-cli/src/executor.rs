@@ -10,7 +10,9 @@
 use std::pin::Pin;
 
 use futures::{Stream, StreamExt};
-use objectiveai_sdk::cli::command::{CommandExecutor, CommandRequest, parse_request};
+use objectiveai_sdk::cli::command::{
+    CommandExecutor, CommandRequest, CommandResponse, parse_request,
+};
 use serde_json::Value;
 
 use crate::context::Context;
@@ -58,7 +60,7 @@ impl CommandExecutor for CliCommandExecutor {
     async fn execute<R, T>(&self, request: R) -> Result<Self::Stream<T>, Self::Error>
     where
         R: CommandRequest + Send,
-        T: serde::de::DeserializeOwned + Send + 'static,
+        T: CommandResponse + serde::de::DeserializeOwned + Send + 'static,
     {
         let argv = request.into_command();
         let sdk_request = parse_request(&argv).map_err(|e| match e {
@@ -78,7 +80,7 @@ impl CommandExecutor for CliCommandExecutor {
     async fn execute_one<R, T>(&self, request: R) -> Result<T, Self::Error>
     where
         R: CommandRequest + Send,
-        T: serde::de::DeserializeOwned + Send + 'static,
+        T: CommandResponse + serde::de::DeserializeOwned + Send + 'static,
     {
         let mut stream = self.execute::<R, T>(request).await?;
         match stream.next().await {

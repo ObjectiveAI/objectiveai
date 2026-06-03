@@ -116,6 +116,23 @@ pub enum RunItem {
     Instance(InstanceEmission),
 }
 
+#[cfg(feature = "mcp")]
+impl objectiveai_sdk::cli::command::CommandResponse for RunItem {
+    fn into_mcp(
+        self,
+    ) -> objectiveai_sdk::cli::command::McpResponseItem {
+        match self {
+            RunItem::Command(item) => item.into_mcp(),
+            RunItem::Instance(emission) => {
+                objectiveai_sdk::cli::command::McpResponseItem::JSONL(
+                    serde_json::to_value(emission)
+                        .unwrap_or(serde_json::Value::Null),
+                )
+            }
+        }
+    }
+}
+
 pub type RunStream = Pin<Box<dyn Stream<Item = Result<RunItem, Error>> + Send>>;
 
 /// Build the top-level CLI config from the process environment.

@@ -3,6 +3,8 @@
 //! We assert the host's JSONL output contains the expected re-emitted
 //! notification between the `begin` / `end` markers.
 
+mod cli_test_util;
+
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -67,7 +69,7 @@ fn hello_plugin_dispatch_produces_expected_output() {
         std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o755)).unwrap();
     }
 
-    let cli = env!("CARGO_BIN_EXE_objectiveai-cli");
+    let cli = cli_test_util::cli_binary();
     let output = Command::new(cli)
         .env("CONFIG_BASE_DIR", &base)
         .args(["plugins", "run", "hello", "world"])

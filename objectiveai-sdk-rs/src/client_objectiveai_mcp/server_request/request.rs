@@ -8,11 +8,23 @@ use serde::{Deserialize, Serialize};
 /// [`super::Payload`] variant; the JSON-RPC `{jsonrpc, id, method,
 /// params}` envelope is unwrapped into the typed variant payload.
 ///
-/// Wire shape (envelope is `{id, headers?, type, …variant fields…}`
-/// after the `#[serde(flatten)]` on `payload`):
+/// Which CLI-hosted MCP server the request targets rides as
+/// `mcp_kind` on the envelope. The API parses this off the inbound
+/// URL path (`/objectiveai` → [`super::super::McpKind::ObjectiveAi`];
+/// `/{owner}/{name}/{version}/{mcp}` → [`super::super::McpKind::Other`])
+/// before forwarding.
+///
+/// Wire shape (envelope is `{id, mcp_kind, headers?, type, …variant
+/// fields…}` after the `#[serde(flatten)]` on `payload`):
 ///
 /// ```json
-/// {"id":"…","headers":{"Mcp-Session-Id":"…"},"type":"tools_list", "cursor":"…"}
+/// {
+///   "id":"…",
+///   "mcp_kind":{"type":"objective_ai"},
+///   "headers":{"Mcp-Session-Id":"…"},
+///   "type":"tools_list",
+///   "cursor":"…"
+/// }
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.server_request.Request")]
@@ -20,6 +32,8 @@ pub struct Request {
     /// Server-minted correlation id. Echoed by the matching
     /// [`super::super::server_response::Response`].
     pub id: String,
+    /// Which CLI-hosted MCP server this request targets.
+    pub mcp_kind: super::super::McpKind,
     /// Verbatim copy of the headers the proxy sent on its HTTP
     /// request to the API. The CLI conduit reads several custom
     /// `X-OBJECTIVEAI-*` routing headers + `Mcp-Session-Id` off this

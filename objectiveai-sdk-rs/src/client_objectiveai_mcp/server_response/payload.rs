@@ -45,16 +45,23 @@ pub enum Payload {
     SessionTerminate,
 }
 
-/// The successful `Initialize` payload — the upstream
-/// `Mcp-Session-Id` the API mints from after pairing it with its
-/// canonical `InitializeResult`.
+/// The successful `Initialize` payload — the upstream's verbatim
+/// `InitializeResult` plus the native `Mcp-Session-Id` the CLI got
+/// back from dialing the actual MCP server. The API forwards both
+/// to the proxy: the result as the JSON-RPC body, the session id as
+/// the `Mcp-Session-Id` response header. The CLI is a pure medium —
+/// it doesn't synthesize capabilities, doesn't name itself, doesn't
+/// pin a protocol version. Whatever the upstream MCP advertised is
+/// what the proxy sees.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.server_response.InitializeReply")]
 pub struct InitializeReply {
-    /// Aggregate session id the CLI dialed across its primary +
-    /// selected plugin upstreams during `initialize`. The API stamps
-    /// this onto its outbound `Mcp-Session-Id` response header.
+    /// Upstream's native `Mcp-Session-Id`. One per CLI-hosted MCP
+    /// server — no aggregation, no encoding.
     pub mcp_session_id: String,
+    /// The upstream's verbatim `InitializeResult` (capabilities,
+    /// server info, protocol version). Returned as-is to the proxy.
+    pub result: crate::mcp::initialize_result::InitializeResult,
 }
 
 /// JSON-RPC result/error shape for every typed method. Mirrors
