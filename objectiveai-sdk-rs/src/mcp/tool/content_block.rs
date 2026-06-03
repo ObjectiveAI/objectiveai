@@ -16,7 +16,7 @@
 //!
 //! Round-trip property: for every `RichContentPart` value `p`,
 //! `RichContentPart::from(ContentBlock::from(p.clone())) == p` —
-//! with two documented exceptions:
+//! with three documented exceptions:
 //!
 //! 1. **`File` multi-field collapse.** When two or more of
 //!    `file_data`, `file_url`, `file_id` are set on the same
@@ -35,6 +35,14 @@
 //!    `From<TextContent>` arm in the SDK does the same thing), and
 //!    splitting the behaviour here would be more surprising than
 //!    the round-trip loss.
+//! 3. **`RichContentPart::VideoUrl` collapses to `InputVideo`.** The
+//!    forward path treats `InputVideo` and `VideoUrl` as the same
+//!    carrier (data URL → unmarked `Text`, remote URL → `Text` with
+//!    `kind = "input_video_remote"`), so the reverse arm always
+//!    rebuilds an `InputVideo` regardless of which variant the
+//!    forward call started with. Intentional: the distinction was
+//!    only meaningful for the legacy double-encoding, and unifying
+//!    the two halves the marker surface area.
 //!
 //! ## `_meta` markers
 //!
@@ -46,10 +54,9 @@
 //!   - `"image_url_remote"`: body is a remote URL for an
 //!     [`RichContentPart::ImageUrl`].
 //!   - `"input_video_remote"`: body is a remote URL for an
-//!     [`RichContentPart::InputVideo`].
-//!   - `"video_url"`: body is a URL (data or remote) for a
-//!     [`RichContentPart::VideoUrl`] (overrides the default
-//!     `data:video/*` → `InputVideo` heuristic).
+//!     [`RichContentPart::InputVideo`]. Also emitted for remote
+//!     [`RichContentPart::VideoUrl`] — the two video variants share
+//!     a forward path and both round-trip to `InputVideo`.
 //!   - `"file_url"`: body is a remote URL for a
 //!     [`RichContentPart::File`] whose primary field is `file_url`.
 //!   - `"file_id"`: body is an opaque ID for a
@@ -73,7 +80,6 @@ const META_FILENAME: &str = "objectiveai/filename";
 /// `objectiveai/kind` enum tag values.
 const KIND_IMAGE_URL_REMOTE: &str = "image_url_remote";
 const KIND_INPUT_VIDEO_REMOTE: &str = "input_video_remote";
-const KIND_VIDEO_URL: &str = "video_url";
 const KIND_FILE_URL: &str = "file_url";
 const KIND_FILE_ID: &str = "file_id";
 
@@ -119,9 +125,7 @@ impl From<crate::agent::completions::message::RichContentPart>
     for ContentBlock
 {
     fn from(part: crate::agent::completions::message::RichContentPart) -> Self {
-        use crate::agent::completions::message::{
-            File as RcpFile, RichContentPart,
-        };
+        use crate::agent::completions::message::RichContentPart;
         match part {
             RichContentPart::Text { text } => {
                 ContentBlock::Text(super::TextContent {
@@ -130,84 +134,14 @@ impl From<crate::agent::completions::message::RichContentPart>
                     _meta: None,
                 })
             }
-            RichContentPart::ImageUrl { image_url } => {
-                // Serialize detail (an enum) once via serde_json so
-                // we hand markers a Value::String("auto"|"low"|"high"),
-                // not the typed enum literal.
-                let detail_value = image_url
-                    .detail
-                    .as_ref()
-                    .and_then(|d| serde_json::to_value(d).ok());
-                match super::ImageContent::try_from(image_url) {
-                    Ok(mut ic) => {
-                        // Data-URL path: lossless Image carrier.
-                        // Detail (when present) rides in _meta.
-                        if let Some(v) = detail_value {
-                            let mut m = indexmap::IndexMap::new();
-                            m.insert(META_IMAGE_DETAIL.to_string(), v);
-                            ic._meta = Some(m);
-                        }
-                        ContentBlock::Image(ic)
-                    }
-                    Err(err) => {
-                        // Remote URL: stash on Text with kind marker
-                        // so reverse can rebuild ImageUrl.
-                        let mut meta = indexmap::IndexMap::new();
-                        meta.insert(
-                            META_KIND.to_string(),
-                            serde_json::Value::String(
-                                KIND_IMAGE_URL_REMOTE.to_string(),
-                            ),
-                        );
-                        if let Some(v) = detail_value {
-                            meta.insert(META_IMAGE_DETAIL.to_string(), v);
-                        }
-                        ContentBlock::Text(super::TextContent {
-                            text: err.url,
-                            annotations: None,
-                            _meta: Some(meta),
-                        })
-                    }
-                }
-            }
-            RichContentPart::InputAudio { input_audio } => {
-                ContentBlock::Audio(input_audio.into())
-            }
-            RichContentPart::InputVideo { video_url } => {
-                // Data-URL InputVideo round-trips via the default
-                // reverse heuristic (parse_data_url → video/* mime
-                // → InputVideo), so no marker. Remote URL needs the
-                // marker to tell the reverse it's an InputVideo.
-                if crate::data_url::parse_data_url(&video_url.url).is_some() {
-                    ContentBlock::Text(super::TextContent {
-                        text: video_url.url,
-                        annotations: None,
-                        _meta: None,
-                    })
-                } else {
-                    ContentBlock::Text(super::TextContent {
-                        text: video_url.url,
-                        annotations: None,
-                        _meta: Some(single_meta(
-                            META_KIND,
-                            KIND_INPUT_VIDEO_REMOTE.to_string(),
-                        )),
-                    })
-                }
-            }
-            RichContentPart::VideoUrl { video_url } => {
-                // Both data-URL and remote URL need the marker —
-                // without it the reverse defaults to InputVideo.
-                ContentBlock::Text(super::TextContent {
-                    text: video_url.url,
-                    annotations: None,
-                    _meta: Some(single_meta(
-                        META_KIND,
-                        KIND_VIDEO_URL.to_string(),
-                    )),
-                })
-            }
-            RichContentPart::File { file } => file_to_block(file),
+            RichContentPart::ImageUrl { image_url } => image_url.into(),
+            RichContentPart::InputAudio { input_audio } => input_audio.into(),
+            // Both video variants share a forward path; reverse always
+            // rebuilds `InputVideo`. See the third round-trip exception
+            // in the module-level docs.
+            RichContentPart::InputVideo { video_url } => video_url.into(),
+            RichContentPart::VideoUrl { video_url } => video_url.into(),
+            RichContentPart::File { file } => file.into(),
         }
     }
 }
@@ -271,12 +205,13 @@ impl From<crate::agent::completions::message::InputAudio> for ContentBlock {
 }
 
 /// Direct conversion from a typed `VideoUrl` to a `ContentBlock`.
-/// Same body as the `RichContentPart::InputVideo` arm of
-/// [`From<RichContentPart> for ContentBlock`] (not the `VideoUrl`
-/// arm): data-URL videos round-trip via the default reverse
-/// heuristic (parse_data_url → video/* mime → InputVideo), so no
-/// marker. Remote URLs get `META_KIND = "input_video_remote"` so the
-/// reverse rebuilds an `InputVideo`.
+/// Shared forward path for both `RichContentPart::InputVideo` and
+/// `RichContentPart::VideoUrl`: data-URL videos round-trip via the
+/// default reverse heuristic (parse_data_url → video/* mime →
+/// InputVideo), so no marker. Remote URLs get
+/// `META_KIND = "input_video_remote"` so the reverse rebuilds an
+/// `InputVideo`. See the third round-trip exception in the
+/// module-level docs.
 impl From<crate::agent::completions::message::VideoUrl> for ContentBlock {
     fn from(video_url: crate::agent::completions::message::VideoUrl) -> Self {
         if crate::data_url::parse_data_url(&video_url.url).is_some() {
@@ -298,11 +233,8 @@ impl From<crate::agent::completions::message::VideoUrl> for ContentBlock {
     }
 }
 
-/// Direct conversion from a typed `File` to a `ContentBlock`. Same
-/// body as the private [`file_to_block`] helper — kept independent
-/// so per-leaf `CommandResponse::into_mcp` impls (whose `Response`
-/// is already a `File`) can call `file.into()` without first
-/// wrapping in `RichContentPart`. Multi-field collapse:
+/// Direct conversion from a typed `File` to a `ContentBlock`.
+/// Multi-field collapse:
 /// `file_data` > `file_url` > `file_id` by precedence. Lower-priority
 /// fields are dropped; `filename` rides through via `_meta`.
 impl From<crate::agent::completions::message::File> for ContentBlock {
@@ -350,57 +282,6 @@ impl From<crate::agent::completions::message::File> for ContentBlock {
                 _meta: None,
             })
         }
-    }
-}
-
-/// Build a `ContentBlock` for a `File` part. Multi-field collapse:
-/// `file_data` > `file_url` > `file_id` by precedence. Lower-priority
-/// fields are dropped; `filename` rides through via `_meta`.
-fn file_to_block(
-    file: crate::agent::completions::message::File,
-) -> ContentBlock {
-    let filename = file.filename.clone();
-    if let Some(blob) = file.file_data {
-        // Encode as a Text(data:application/octet-stream;base64,...)
-        // — the heuristic reverse decodes it into a File. Filename
-        // rides in _meta.
-        let body = format!("data:application/octet-stream;base64,{blob}");
-        let meta = filename.map(|n| single_meta(META_FILENAME, n));
-        ContentBlock::Text(super::TextContent {
-            text: body,
-            annotations: None,
-            _meta: meta,
-        })
-    } else if let Some(url) = file.file_url {
-        let mut m = single_meta(META_KIND, KIND_FILE_URL.to_string());
-        if let Some(n) = filename {
-            m.insert(META_FILENAME.to_string(), serde_json::Value::String(n));
-        }
-        ContentBlock::Text(super::TextContent {
-            text: url,
-            annotations: None,
-            _meta: Some(m),
-        })
-    } else if let Some(id) = file.file_id {
-        let mut m = single_meta(META_KIND, KIND_FILE_ID.to_string());
-        if let Some(n) = filename {
-            m.insert(META_FILENAME.to_string(), serde_json::Value::String(n));
-        }
-        ContentBlock::Text(super::TextContent {
-            text: id,
-            annotations: None,
-            _meta: Some(m),
-        })
-    } else {
-        // Empty File: nothing to encode. Produce a Text("") carrier
-        // with no markers. Reverse will land it as a Text part —
-        // which is a minor round-trip loss for the (unusual)
-        // empty-File case. Document this in the round-trip caveats.
-        ContentBlock::Text(super::TextContent {
-            text: String::new(),
-            annotations: None,
-            _meta: None,
-        })
     }
 }
 
@@ -549,24 +430,6 @@ mod round_trip_tests {
         assert_round_trips(RichContentPart::InputVideo {
             video_url: VideoUrl {
                 url: "https://example.com/v.mp4".into(),
-            },
-        });
-    }
-
-    #[test]
-    fn rt_video_url_data_url() {
-        assert_round_trips(RichContentPart::VideoUrl {
-            video_url: VideoUrl {
-                url: "data:video/webm;base64,GkXfo".into(),
-            },
-        });
-    }
-
-    #[test]
-    fn rt_video_url_remote_url() {
-        assert_round_trips(RichContentPart::VideoUrl {
-            video_url: VideoUrl {
-                url: "https://example.com/clip.webm".into(),
             },
         });
     }
