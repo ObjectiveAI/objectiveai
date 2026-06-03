@@ -178,7 +178,14 @@ pub async fn run(
         return Ok(Box::pin(inst.map(|r| r.map(RunItem::Instance))));
     }
 
-    let request = parse_request(&args).map_err(|e| match e {
+    // `args[0]` is the program name however the binary was invoked —
+    // bare name from PATH, full path from a test harness or a
+    // `current_exe()` self-respawn — never part of the command.
+    // Strip it unconditionally; `parse_request` prepends its own
+    // canonical bin name. (Matching on the literal `"objectiveai"`
+    // inside `parse_request` is NOT enough: a full-path argv[0] like
+    // `C:\...\objectiveai-cli.exe` would be parsed as a subcommand.)
+    let request = parse_request(args.get(1..).unwrap_or_default()).map_err(|e| match e {
         objectiveai_sdk::cli::command::ParseError::Clap(e) => Error::ClapParse(e),
         objectiveai_sdk::cli::command::ParseError::FromArgs(e) => Error::FromArgs(e),
     })?;
