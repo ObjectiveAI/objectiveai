@@ -52,17 +52,10 @@ struct ConduitState {
     /// the list-changed pump can stamp it on every
     /// [`McpListChanged`] frame.
     mcp_kind: McpKind,
-    /// `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY` of the request that dialed this
-    /// upstream. Carried for wire-shape parity and diagnostic
-    /// readability; the actual sweep key is `response_id` below.
+    /// `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY` of the request that
+    /// dialed this upstream. Carried for wire-shape parity and
+    /// diagnostic readability.
     agent_instance_hierarchy: String,
-    /// `X-OBJECTIVEAI-RESPONSE-ID` of the request that dialed this
-    /// upstream — the per-agent-slot leaf the API minted at
-    /// `proxy_request_headers` build time. Used by
-    /// [`ConduitMcpHandler::select_response_ids`] for direct
-    /// equality match against the streamed chunk's
-    /// `agent_completion_ids()`.
-    response_id: String,
 }
 
 #[derive(Clone)]
@@ -91,16 +84,6 @@ struct Inner {
     /// `dial_plugin_upstream` time. `None` means filesystem is
     /// unavailable.
     config_base_dir: Option<PathBuf>,
-    /// `response_id → sibling group` map. Populated at every dial
-    /// site by inserting one entry per id in the dial's
-    /// `X-OBJECTIVEAI-RESPONSE-IDS` header, all pointing at the same
-    /// `Arc<Vec<String>>`. Consumed by
-    /// [`ConduitMcpHandler::select_response_ids`]: when a streamed
-    /// chunk yields a response_id, its sibling group is looked up
-    /// and the losers are evicted. Entries are removed as their
-    /// groups are processed so a re-fire on the same winner is a
-    /// no-op.
-    response_id_groups: DashMap<String, Arc<Vec<String>>>,
 }
 
 impl ConduitMcpHandler {
@@ -133,7 +116,6 @@ impl ConduitMcpHandler {
                 connections: DashMap::new(),
                 notifier: OnceLock::new(),
                 config_base_dir,
-                response_id_groups: DashMap::new(),
             }),
         }
     }
@@ -145,35 +127,6 @@ impl ConduitMcpHandler {
     /// could plausibly have triggered upstream `list_changed` fires.
     pub fn install_notifier(&self, notifier: Notifier) {
         let _ = self.inner.notifier.set(notifier);
-    }
-
-    /// For each `winner` response_id, look up its sibling group in
-    /// [`Inner::response_id_groups`]. Drop every `ConduitState`
-    /// whose `response_id` is in `siblings − {winner}`. Subsequent
-    /// calls with the same winner are no-ops because we also forget
-    /// the losers' entries from the group map.
-    pub fn select_response_ids(&self, winners: &std::collections::HashSet<String>) {
-        for winner in winners {
-            let Some(group_arc) = self.inner.response_id_groups.get(winner) else {
-                continue;
-            };
-            let losers: std::collections::HashSet<String> = group_arc
-                .value()
-                .iter()
-                .filter(|id| id.as_str() != winner.as_str())
-                .cloned()
-                .collect();
-            drop(group_arc);
-            if losers.is_empty() {
-                continue;
-            }
-            self.inner
-                .connections
-                .retain(|_, state| !losers.contains(&state.response_id));
-            for loser in &losers {
-                self.inner.response_id_groups.remove(loser);
-            }
-        }
     }
 }
 
@@ -187,7 +140,7 @@ impl McpHandler for ConduitMcpHandler {
                 dispatch_initialize(&self.inner, mcp_kind.clone(), init, &request.headers).await
             }
             server_request::Payload::SessionTerminate => {
-                dispatch_session_terminate(&self.inner, &request.headers)
+                dispatch_session_terminate(&self.inner, &request.headers).await
             }
             server_request::Payload::ToolsList(params) => {
                 match resolve_connection(self, &mcp_kind, &request.headers).await {
@@ -270,7 +223,6 @@ async fn resolve_connection(
             ));
         }
     };
-    register_response_id_group(&handler.inner, &transient.response_ids);
     let connect_headers = sanitize_connect_headers(headers);
     let connection = match handler
         .inner
@@ -292,7 +244,6 @@ async fn resolve_connection(
         connection,
         mcp_kind: mcp_kind.clone(),
         agent_instance_hierarchy: transient.agent_instance_hierarchy,
-        response_id: transient.response_id,
     });
     handler.inner.connections.insert(session_id, state.clone());
     Ok(state)
@@ -304,11 +255,11 @@ async fn resolve_connection(
 /// payload that would've been produced on success.
 fn error_for(mcp_kind: &McpKind, code: i64, message: String) -> server_response::Payload {
     let _ = mcp_kind;
-    // Variant doesn't matter for routing — the wire envelope is
-    // already shaped by the caller and pattern-matched by the API
-    // via `variant_mismatch` on a misalign. We choose a generic
-    // shape (`ToolsList`) since SessionTerminate has no error
-    // variant; the API still surfaces code+message+data correctly.
+    // Used only from `resolve_connection`'s non-Initialize / non-
+    // SessionTerminate paths. The API's `variant_mismatch` check
+    // logs a mismatch but still surfaces code/message/data, so any
+    // `JsonRpcResult::Err` variant works — picking `ToolsList`
+    // arbitrarily.
     server_response::Payload::ToolsList(JsonRpcResult::Err {
         code,
         message,
@@ -340,7 +291,6 @@ async fn dispatch_initialize(
             });
         }
     };
-    register_response_id_group(inner, &transient.response_ids);
     let stored_session_id = mcp_session_id_from_headers(headers);
 
     let dial = match &mcp_kind {
@@ -398,7 +348,6 @@ async fn dispatch_initialize(
             connection,
             mcp_kind,
             agent_instance_hierarchy: transient.agent_instance_hierarchy,
-            response_id: transient.response_id,
         }),
     );
 
@@ -410,18 +359,49 @@ async fn dispatch_initialize(
     })
 }
 
-/// `SessionTerminate`: drop the cached connection by `Mcp-Session-Id`.
-/// The SDK's `Connection` Drop tears down the SSE listener and HTTP
-/// stream the moment the last `Arc` clone drops; removing from the
-/// map is enough.
-fn dispatch_session_terminate(
+/// `SessionTerminate`: forward an explicit HTTP DELETE to the
+/// upstream MCP server via `Connection::delete()`; on success drop
+/// the cached connection. On failure leave the cache entry intact
+/// so the proxy can retry — the SDK's `Connection::delete()` already
+/// folds upstream 404/401/403 into `Ok(())`, so the only `Err`
+/// paths here are real transport / status failures the caller
+/// should know about.
+async fn dispatch_session_terminate(
     inner: &Arc<Inner>,
     headers: &IndexMap<String, String>,
 ) -> server_response::Payload {
-    if let Some(session_id) = mcp_session_id_from_headers(headers) {
-        inner.connections.remove(&session_id);
+    let Some(session_id) = mcp_session_id_from_headers(headers) else {
+        // Nothing to terminate.
+        return server_response::Payload::SessionTerminate(
+            JsonRpcResult::Ok { result: () },
+        );
+    };
+    let Some(state) = inner
+        .connections
+        .get(&session_id)
+        .map(|e| e.value().clone())
+    else {
+        // Not in cache. Idempotent success — the proxy may have
+        // already torn down its half.
+        return server_response::Payload::SessionTerminate(
+            JsonRpcResult::Ok { result: () },
+        );
+    };
+    match state.connection.delete().await {
+        Ok(()) => {
+            inner.connections.remove(&session_id);
+            server_response::Payload::SessionTerminate(
+                JsonRpcResult::Ok { result: () },
+            )
+        }
+        Err(e) => server_response::Payload::SessionTerminate(
+            JsonRpcResult::Err {
+                code: -32603,
+                message: format!("conduit: upstream delete: {e}"),
+                data: None,
+            },
+        ),
     }
-    server_response::Payload::SessionTerminate
 }
 
 async fn dispatch_tools_list(
@@ -855,24 +835,6 @@ fn require_transient(
         response_id,
         response_ids,
     })
-}
-
-fn register_response_id_group(inner: &Arc<Inner>, response_ids: &str) {
-    let shared: Arc<Vec<String>> = Arc::new(
-        response_ids
-            .split('-')
-            .filter(|s| !s.is_empty())
-            .map(str::to_owned)
-            .collect(),
-    );
-    if shared.is_empty() {
-        return;
-    }
-    for id in shared.iter() {
-        inner
-            .response_id_groups
-            .insert(id.clone(), shared.clone());
-    }
 }
 
 /// Parses bare JSON; falls back to stripping `data:` prefixes and

@@ -62,7 +62,6 @@ pub async fn execute(
     conduit.install_notifier(notifier.clone());
 
     let stream = Box::pin(stream);
-    let conduit_for_drop = conduit.clone();
 
     tokio::spawn(async move {
         let result = streaming::run_chunk_loop::<_, FunctionExecutionChunk, _, _>(
@@ -73,9 +72,6 @@ pub async fn execute(
             log_writer,
             tx.clone(),
             |agg: &mut FunctionExecutionChunk, chunk: &FunctionExecutionChunk| agg.push(chunk),
-            Some(Box::new(move |seen: &std::collections::HashSet<String>| {
-                conduit_for_drop.select_response_ids(seen);
-            })),
             registry,
         )
         .await;

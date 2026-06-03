@@ -98,7 +98,7 @@ fn payload_variant_name(p: &server_response::Payload) -> &'static str {
         P::ToolsCall(_) => "tools_call",
         P::ResourcesList(_) => "resources_list",
         P::ResourcesRead(_) => "resources_read",
-        P::SessionTerminate => "session_terminate",
+        P::SessionTerminate(_) => "session_terminate",
     }
 }
 
@@ -213,7 +213,7 @@ pub async fn handle_session_terminate(
 ) -> Result<(), McpError> {
     let response = forward(&ctx, mcp_kind, server_request::Payload::SessionTerminate).await?;
     match response.payload {
-        server_response::Payload::SessionTerminate => Ok(()),
+        server_response::Payload::SessionTerminate(r) => unwrap_rpc(r),
         other => Err(McpError::variant_mismatch("session_terminate", &other)),
     }
 }

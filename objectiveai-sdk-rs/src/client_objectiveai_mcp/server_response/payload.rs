@@ -40,9 +40,11 @@ pub enum Payload {
 
     /// Acknowledges
     /// [`super::super::server_request::Payload::SessionTerminate`].
-    /// Empty body.
+    /// On success carries the unit value (no body); on failure
+    /// carries the upstream-delete error so the proxy sees a
+    /// non-2xx and can retry.
     #[schemars(title = "SessionTerminate")]
-    SessionTerminate,
+    SessionTerminate(JsonRpcResult<()>),
 }
 
 /// The successful `Initialize` payload — the upstream's verbatim

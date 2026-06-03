@@ -77,7 +77,11 @@ impl McpHandler for RejectHandler {
                 message: MESSAGE.into(),
                 data: None,
             }),
-            server_request::Payload::SessionTerminate => Payload::SessionTerminate,
+            server_request::Payload::SessionTerminate => Payload::SessionTerminate(JsonRpcResult::Err {
+                code: CODE,
+                message: MESSAGE.into(),
+                data: None,
+            }),
         };
         server_response::Response {
             id: request.id,
