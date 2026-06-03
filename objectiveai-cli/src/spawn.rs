@@ -146,10 +146,7 @@ pub async fn spawn_and_wait_for_listening(
 /// parent's config byte-identically.
 ///
 /// `Option`-typed fields are skipped on `None`. Boolean fields are
-/// stamped only when `true`. The plugin-MCP spawn in
-/// `objectiveai-cli-stream` does **not** call this — it uses the
-/// per-request agent identity from the upstream's headers instead;
-/// see `dial_plugin_upstream`.
+/// stamped only when `true`.
 pub fn apply_config_env(cmd: &mut Command, cfg: &crate::Config) {
     if cfg.config_set_forbidden {
         cmd.env("CONFIG_SET_FORBIDDEN", "true");
@@ -169,6 +166,18 @@ pub fn apply_config_env(cmd: &mut Command, cfg: &crate::Config) {
     cmd.env("OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY", &cfg.agent_instance_hierarchy);
     if let Some(v) = cfg.agent_id.as_deref() {
         cmd.env("OBJECTIVEAI_AGENT_ID", v);
+    }
+    if let Some(v) = cfg.agent_full_id.as_deref() {
+        cmd.env("OBJECTIVEAI_AGENT_FULL_ID", v);
+    }
+    if let Some(v) = cfg.agent_remote.as_deref() {
+        cmd.env("OBJECTIVEAI_AGENT_REMOTE", v);
+    }
+    if let Some(v) = cfg.response_id.as_deref() {
+        cmd.env("OBJECTIVEAI_RESPONSE_ID", v);
+    }
+    if let Some(v) = cfg.response_ids.as_deref() {
+        cmd.env("OBJECTIVEAI_RESPONSE_IDS", v);
     }
     if let Some(v) = cfg.mcp_session_id.as_deref() {
         cmd.env(objectiveai_sdk::mcp::MCP_SESSION_ID_ENV, v);

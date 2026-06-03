@@ -31,7 +31,6 @@ use dashmap::DashMap;
 use indexmap::IndexMap;
 use objectiveai_sdk::Notifier;
 use objectiveai_sdk::cli::command::plugins::run::Mcp as PluginMcp;
-use objectiveai_sdk::cli::plugins::Output as PluginOutput;
 use objectiveai_sdk::client_objectiveai_mcp::McpKind;
 use objectiveai_sdk::client_objectiveai_mcp::client_request::{McpListChanged, McpListChangedKind};
 use objectiveai_sdk::client_objectiveai_mcp::server_response::{InitializeReply, JsonRpcResult};
@@ -43,7 +42,6 @@ use objectiveai_sdk::mcp::resource::{
 use objectiveai_sdk::mcp::tool::{
     CallToolRequestParams, CallToolResult, ListToolsRequest, ListToolsResult,
 };
-use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
@@ -81,18 +79,21 @@ struct Inner {
     /// after the WS-creating call returns the notifier. Pump
     /// closures read it at fire time.
     notifier: OnceLock<Notifier>,
-    /// Filesystem root for resolving installed plugin manifests at
-    /// `dial_plugin_upstream` time. `None` means filesystem is
-    /// unavailable.
-    config_base_dir: Option<PathBuf>,
+    /// Base [`crate::context::Context`] the conduit clones+mutates
+    /// per `dial_plugin_upstream` call to stamp the six transient
+    /// header values into [`crate::Config`] before calling
+    /// [`crate::command::plugins::run::execute`]. Carries the
+    /// filesystem client used to resolve installed plugin binaries.
+    ctx: crate::context::Context,
 }
 
 impl ConduitMcpHandler {
     /// Construct a handler that dials the given URL on first use.
     /// `mcp_url = None` makes every `McpKind::ObjectiveAi` request
-    /// reject with 501. `config_base_dir` is the filesystem root the
-    /// CLI consults for plugin manifests during plugin-MCP dial.
-    pub fn new(mcp_url: Option<String>, config_base_dir: Option<PathBuf>) -> Self {
+    /// reject with 501. `ctx` is the base [`crate::context::Context`]
+    /// the conduit clones+mutates per plugin dial to thread the six
+    /// transient header values into [`crate::Config`].
+    pub fn new(mcp_url: Option<String>, ctx: crate::context::Context) -> Self {
         let http = reqwest::Client::builder()
             .build()
             .expect("reqwest::Client::build is infallible without rustls toggles");
@@ -116,7 +117,7 @@ impl ConduitMcpHandler {
                 client,
                 connections: DashMap::new(),
                 notifier: OnceLock::new(),
-                config_base_dir,
+                ctx,
             }),
         }
     }
@@ -558,11 +559,19 @@ where
 // Plugin dial
 // ────────────────────────────────────────────────────────────────
 
-/// Dial a plugin's MCP upstream: verify the plugin manifest declares
-/// the requested `mcp` server name, spawn `<plugin> mcp <mcp> begin
-/// [--<arg> [value]]`, capture the first `Mcp { url }` notification
-/// from its stdout, dial that URL (resuming with `stored_session_id`
-/// when present).
+/// Dial a plugin's MCP upstream: clone the base
+/// [`crate::context::Context`] from `inner.ctx`, stamp the six
+/// transient header values into `Config`, then call the shared
+/// [`crate::command::plugins::run::execute`] with
+/// `Request { name: plugin, args: ["mcp", mcp_name, "begin", …], jq: None }`.
+/// A background drain task forwards the first
+/// [`PluginMcp`](objectiveai_sdk::cli::command::plugins::run::Mcp)
+/// item it sees via a `tokio::sync::oneshot`, then discards every
+/// subsequent stream item until EOF so the plugin's nested-command
+/// demux stays unstuck. The CLI does NOT time the dial out — the
+/// API layer above owns the deadline; if the plugin exits without
+/// ever emitting an Mcp, the oneshot sender drops and we surface
+/// that as a `PluginDialFailed`.
 ///
 /// Owner / version are carried through for diagnostic readability +
 /// future versioning; today's filesystem layer looks up plugins by
@@ -587,102 +596,68 @@ async fn dial_plugin_upstream(
         reason,
     };
 
-    let Some(base_dir) = inner.config_base_dir.clone() else {
-        return Err(fail("filesystem unavailable (no config_base_dir)".into()));
-    };
-    let fs = crate::filesystem::Client::new(Some(base_dir), None::<String>, None::<String>);
+    // Clone base ctx and stamp the six transient headers into
+    // Config. `crate::spawn::apply_config_env` (called inside
+    // `command::plugins::run::execute`) projects these onto the
+    // plugin subprocess env so the plugin's MCP server can
+    // re-stamp them on any outbound calls it makes downstream.
+    let mut dial_ctx = inner.ctx.clone();
+    dial_ctx.config.agent_instance_hierarchy = transient.agent_instance_hierarchy.clone();
+    dial_ctx.config.agent_id = Some(transient.agent_id.clone());
+    dial_ctx.config.agent_full_id = Some(transient.agent_full_id.clone());
+    dial_ctx.config.agent_remote = Some(transient.agent_remote.clone());
+    dial_ctx.config.response_id = Some(transient.response_id.clone());
+    dial_ctx.config.response_ids = Some(transient.response_ids.clone());
 
-    let Some(plugin) = fs.get_plugin(&plugin_name).await else {
-        return Err(fail(format!("plugin {plugin_name:?} not installed")));
-    };
-    if !plugin
-        .manifest
-        .mcp_servers
-        .iter()
-        .any(|s| s.name == mcp_name)
-    {
-        return Err(fail(format!(
-            "plugin {plugin_name:?} manifest does not declare mcp server {mcp_name:?}"
-        )));
-    }
-    let Some(exe) = fs.resolve_plugin(&plugin_name).await else {
-        return Err(fail(format!("plugin {plugin_name:?} binary not found")));
-    };
-
-    let mut cmd = tokio::process::Command::new(&exe);
-    cmd.arg("mcp").arg(&mcp_name).arg("begin");
+    // Build argv: `mcp <mcp_name> begin [--<k> [<v>]]…`. Manifest /
+    // binary resolution is `command::plugins::run::execute`'s job;
+    // it surfaces `Error::PluginNotFound` when the plugin isn't
+    // installed.
+    let mut argv: Vec<String> = vec!["mcp".to_string(), mcp_name.clone(), "begin".to_string()];
     for (k, v) in &args {
-        cmd.arg(format!("--{k}"));
+        argv.push(format!("--{k}"));
         if let Some(value) = v {
-            cmd.arg(value);
+            argv.push(value.clone());
         }
     }
-    // Propagate the six session-global transient headers as env
-    // vars so the plugin's MCP server can re-stamp them on any
-    // outbound calls it makes downstream. All six are required at
-    // initialize time (see `require_transient`).
-    cmd.env(
-        "OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY",
-        &transient.agent_instance_hierarchy,
-    );
-    cmd.env("OBJECTIVEAI_AGENT_ID", &transient.agent_id);
-    cmd.env("OBJECTIVEAI_AGENT_FULL_ID", &transient.agent_full_id);
-    cmd.env("OBJECTIVEAI_AGENT_REMOTE", &transient.agent_remote);
-    cmd.env("OBJECTIVEAI_RESPONSE_ID", &transient.response_id);
-    cmd.env("OBJECTIVEAI_RESPONSE_IDS", &transient.response_ids);
-    let mut child = cmd
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn()
-        .map_err(|e| fail(format!("spawn failed: {e}")))?;
 
-    let stdout = child.stdout.take().expect("stdout was piped");
-    let stderr = child.stderr.take().expect("stderr was piped");
+    let request = objectiveai_sdk::cli::command::plugins::run::Request {
+        name: plugin_name.clone(),
+        args: argv,
+        jq: None,
+    };
 
-    use tokio::io::AsyncBufReadExt;
-    let reader = tokio::io::BufReader::new(stdout);
-    let mut lines = reader.lines();
+    let stream = crate::command::plugins::run::execute(&dial_ctx, request)
+        .await
+        .map_err(|e| fail(format!("plugin spawn failed: {e}")))?;
 
-    let timeout = std::time::Duration::from_secs(30);
-    let begin_result = tokio::time::timeout(timeout, async {
-        loop {
-            let line = match lines.next_line().await {
-                Ok(Some(l)) => l,
-                Ok(None) => {
-                    return Err::<PluginMcp, String>(
-                        "plugin exited without emitting mcp{url}".into(),
-                    );
-                }
-                Err(e) => return Err(format!("plugin stdout read error: {e}")),
-            };
-            let out = match serde_json::from_str::<PluginOutput>(&line) {
-                Ok(o) => o,
-                Err(_) => continue,
-            };
-            match out {
-                PluginOutput::Mcp(mcp) => return Ok(mcp),
-                PluginOutput::Error(err) => {
-                    return Err(format!("plugin emitted error: {}", err.message));
-                }
-                PluginOutput::Notification(_) | PluginOutput::Command(_) => {}
-            }
-        }
-    })
-    .await;
+    let (mcp_tx, mcp_rx) = tokio::sync::oneshot::channel::<PluginMcp>();
 
     tokio::spawn(async move {
-        let stderr_task = tokio::spawn(forward_stderr(stderr));
-        while let Ok(Some(_)) = lines.next_line().await {}
-        let _ = stderr_task.await;
-        let _ = child.wait().await;
+        use futures::StreamExt;
+        use objectiveai_sdk::cli::command::plugins::run::ResponseItem;
+        let mut stream = stream;
+        let mut mcp_tx = Some(mcp_tx);
+        while let Some(item) = stream.next().await {
+            if let Ok(ResponseItem::Mcp(mcp)) = item {
+                if let Some(tx) = mcp_tx.take() {
+                    let _ = tx.send(mcp);
+                }
+            }
+            // Every other variant (Error, Notification, stream Err)
+            // and every Mcp after the first is discarded — but we
+            // keep reading so the plugin's nested-command demux
+            // (which writes back into the plugin's stdin) keeps
+            // draining the stream until EOF.
+        }
+        // Stream EOF: if we never saw an Mcp, `mcp_tx` is dropped
+        // here, waking `mcp_rx.await` with `Err(Canceled)`.
     });
 
-    let mcp = match begin_result {
-        Ok(Ok(mcp)) => mcp,
-        Ok(Err(message)) => return Err(fail(message)),
-        Err(_) => return Err(fail("plugin mcp begin timed out".into())),
-    };
+    // Wait forever — the API layer above owns the timeout.
+    let mcp = mcp_rx
+        .await
+        .map_err(|_| fail("plugin exited without emitting mcp{url}".into()))?;
 
     let connection = inner
         .client
@@ -691,20 +666,6 @@ async fn dial_plugin_upstream(
         .map_err(|e| fail(format!("connect: {e}")))?;
 
     Ok(connection)
-}
-
-async fn forward_stderr(mut stderr: tokio::process::ChildStderr) {
-    use tokio::io::AsyncReadExt;
-    let mut buf = [0u8; 4096];
-    loop {
-        match stderr.read(&mut buf).await {
-            Ok(0) | Err(_) => return,
-            Ok(n) => {
-                use std::io::Write;
-                let _ = std::io::stderr().write_all(&buf[..n]);
-            }
-        }
-    }
 }
 
 /// Wire `set_on_{tools,resources}_list_changed` to fire-and-forget

@@ -88,11 +88,11 @@ impl PipeConfig {
         self.config_base_dir.join("pipes")
     }
 
-    pub fn build_conduit(&self) -> crate::instance::api::conduit::ConduitMcpHandler {
-        crate::instance::api::conduit::ConduitMcpHandler::new(
-            self.mcp_address.clone(),
-            Some(self.config_base_dir.clone()),
-        )
+    pub fn build_conduit(
+        &self,
+        ctx: crate::context::Context,
+    ) -> crate::instance::api::conduit::ConduitMcpHandler {
+        crate::instance::api::conduit::ConduitMcpHandler::new(self.mcp_address.clone(), ctx)
     }
 
     /// Run the eager admission probe against `registry` when

@@ -106,6 +106,8 @@ impl ConfigBuilder {
             agent_id: self.agent_id,
             agent_full_id: self.agent_full_id,
             agent_remote: self.agent_remote,
+            response_id: self.response_id,
+            response_ids: self.response_ids,
             mcp_session_id: self.mcp_session_id,
         }
     }
@@ -129,6 +131,15 @@ pub struct Config {
     /// the `X-OBJECTIVEAI-AGENT-REMOTE` reverse-attach header. Empty
     /// when the WF was inline. Propagated onto spawned plugins.
     pub agent_remote: Option<String>,
+    /// Current response id from `OBJECTIVEAI_RESPONSE_ID` / the
+    /// `X-OBJECTIVEAI-RESPONSE-ID` reverse-attach header. Propagated
+    /// onto spawned plugins so plugin-side code can stamp it on
+    /// outbound calls.
+    pub response_id: Option<String>,
+    /// Comma-separated response id chain from
+    /// `OBJECTIVEAI_RESPONSE_IDS` / `X-OBJECTIVEAI-RESPONSE-IDS`.
+    /// Propagated onto spawned plugins.
+    pub response_ids: Option<String>,
     pub mcp_session_id: Option<String>,
 }
 
@@ -200,8 +211,13 @@ pub async fn run(
     args: Vec<String>,
     ctx: Option<Context>,
 ) -> Result<RunStream, Error> {
+    let ctx = match ctx {
+        Some(c) => c,
+        None => Context::new(load_config()).await?,
+    };
+
     if args.get(1).map(String::as_str) == Some("instance") {
-        let inst = crate::instance::run().await?;
+        let inst = crate::instance::run(ctx).await?;
         return Ok(Box::pin(inst.map(|r| r.map(RunItem::Instance))));
     }
 
@@ -216,11 +232,6 @@ pub async fn run(
         objectiveai_sdk::cli::command::ParseError::Clap(e) => Error::ClapParse(e),
         objectiveai_sdk::cli::command::ParseError::FromArgs(e) => Error::FromArgs(e),
     })?;
-
-    let ctx = match ctx {
-        Some(c) => c,
-        None => Context::new(load_config()).await?,
-    };
 
     // TODO(jq): if the resolved request carries a `jq` filter, extract
     // it here and apply to the returned stream before wrapping.

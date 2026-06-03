@@ -54,19 +54,19 @@ type EmissionStream = Pin<Box<dyn Stream<Item = Result<InstanceEmission, Error>>
 /// request blob, then dispatches to one of the typed endpoint
 /// functions. Each handler returns a typed stream of
 /// [`InstanceEmission`]s.
-pub async fn run() -> Result<EmissionStream, Error> {
+pub async fn run(ctx: crate::context::Context) -> Result<EmissionStream, Error> {
     let request = handshake::read_request().map_err(Error::Instance)?;
     let http = request.http;
     let pipes = request.pipes;
     let stream: EmissionStream = match request.endpoint {
         InstanceEndpoint::AgentsSpawn(params) => {
-            agents::spawn::execute(http, pipes, params).await?
+            agents::spawn::execute(ctx, http, pipes, params).await?
         }
         InstanceEndpoint::FunctionsExecutionsCreate(params) => {
-            functions::executions::create::execute(http, pipes, params).await?
+            functions::executions::create::execute(ctx, http, pipes, params).await?
         }
         InstanceEndpoint::FunctionsInventionsRecursiveCreate(params) => {
-            functions::inventions::recursive::create::execute(http, pipes, params).await?
+            functions::inventions::recursive::create::execute(ctx, http, pipes, params).await?
         }
     };
     Ok(stream)

@@ -19,6 +19,7 @@ use crate::instance::streaming;
 type EmissionStream = Pin<Box<dyn Stream<Item = Result<InstanceEmission, Error>> + Send>>;
 
 pub async fn execute(
+    ctx: crate::context::Context,
     http: HttpConfig,
     pipes: PipeConfig,
     params: AgentCompletionCreateParams,
@@ -26,7 +27,7 @@ pub async fn execute(
     let config_base_dir = pipes.config_base_dir().to_path_buf();
     let pipes_root = pipes.pipes_root();
     let client = http.build_http_client().map_err(Error::Instance)?;
-    let conduit = pipes.build_conduit();
+    let conduit = pipes.build_conduit(ctx);
 
     let (tx, rx) = mpsc::channel::<Result<InstanceEmission, Error>>(16);
     let registry = crate::instance::pipes::PipeRegistry::new(tx.clone());

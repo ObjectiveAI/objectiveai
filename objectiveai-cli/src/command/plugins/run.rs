@@ -19,7 +19,7 @@ use objectiveai_sdk::cli::command::plugins::run::{Request, ResponseItem};
 use objectiveai_sdk::cli::plugins::Output as PluginOutput;
 use objectiveai_sdk::cli::{Error as CliError, ErrorType as CliErrorType};
 use serde::Serialize;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{ChildStdin, Command};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
