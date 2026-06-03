@@ -88,6 +88,33 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
     executor.execute(request).await
 }
 
+#[cfg(feature = "mcp")]
+impl crate::cli::command::CommandResponse for ResponseItem {
+    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
+        use crate::agent::completions::message::RichContentPart;
+        use crate::cli::command::McpResponseItem;
+        match self {
+            ResponseItem::Stdout(s) => {
+                // Stdout line that happens to be a `data:<mime>;base64,...`
+                // URL gets upgraded to a typed media block; otherwise
+                // it rides through as a bare `Value::String`.
+                if let Some((mime, payload)) = crate::data_url::parse_data_url(&s) {
+                    let part = RichContentPart::from_blob(
+                        mime,
+                        payload.to_string(),
+                        None,
+                    );
+                    return McpResponseItem::Media(part.into());
+                }
+                McpResponseItem::JSONL(serde_json::Value::String(s))
+            }
+            ResponseItem::Stderr(e) => {
+                McpResponseItem::JSONL(serde_json::to_value(e).unwrap())
+            }
+        }
+    }
+}
+
 pub mod request_schema {
     use crate::cli::command::CommandRequest;
 

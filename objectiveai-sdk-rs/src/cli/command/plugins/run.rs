@@ -26,6 +26,14 @@ impl CommandRequest for Request {
 #[serde(untagged)]
 pub enum ResponseItem {
     Typed(ResponseTyped),
+    // `cli::Error` already carries `type: "error"`, so it gets its own
+    // top-level variant rather than riding under `ResponseTyped`'s
+    // `tag = "type"` discriminator (which would double-type the wire).
+    // Placement above `Notification` is load-bearing: serde untagged
+    // tries variants in source order, so a `cli::Error`-shaped JSON
+    // must be checked against `Error` before falling through to the
+    // catch-all `Notification(Value)`.
+    Error(crate::cli::Error),
     Notification(serde_json::Value),
 }
 
@@ -40,7 +48,6 @@ pub enum ResponseTyped {
     Mcp {
         url: String,
     },
-    Error(crate::cli::Error),
 }
 
 #[derive(clap::Args)]
@@ -100,6 +107,38 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
 ) -> Result<E::Stream<serde_json::Value>, E::Error> {
     request.jq = Some(jq);
     executor.execute(request).await
+}
+
+#[cfg(feature = "mcp")]
+impl crate::cli::command::CommandResponse for ResponseItem {
+    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
+        use crate::agent::completions::message::RichContentPart;
+        use crate::cli::command::McpResponseItem;
+        match self {
+            ResponseItem::Typed(typed) => {
+                McpResponseItem::JSONL(serde_json::to_value(typed).unwrap())
+            }
+            ResponseItem::Error(e) => {
+                McpResponseItem::JSONL(serde_json::to_value(e).unwrap())
+            }
+            ResponseItem::Notification(value) => {
+                // String + data URL → media via RichContentPart::from_blob.
+                // Anything else (and strings that aren't data URLs) →
+                // JSONL passthrough.
+                if let serde_json::Value::String(s) = &value
+                    && let Some((mime, payload)) = crate::data_url::parse_data_url(s)
+                {
+                    let part = RichContentPart::from_blob(
+                        mime,
+                        payload.to_string(),
+                        None,
+                    );
+                    return McpResponseItem::Media(part.into());
+                }
+                McpResponseItem::JSONL(value)
+            }
+        }
+    }
 }
 
 pub mod request_schema {

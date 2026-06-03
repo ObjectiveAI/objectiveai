@@ -225,9 +225,58 @@ impl RichContentPart {
     pub fn from_text_or_data_url(text: String) -> Self {
         match crate::data_url::parse_data_url(&text) {
             Some((mime, payload)) => {
-                blob_to_rich_content_part(mime, payload.to_string(), None)
+                Self::from_blob(mime, payload.to_string(), None)
             }
             None => RichContentPart::Text { text },
+        }
+    }
+
+    /// Build a `RichContentPart` from a raw base64 blob and explicit
+    /// mime. Routing rules:
+    ///
+    /// - `image/*` → `ImageUrl` (base64 data URL).
+    /// - `audio/*` → `InputAudio` (raw base64 + format string, matching
+    ///   the `From<AudioContent>` convention).
+    /// - `video/*` → `InputVideo` (base64 data URL in the `VideoUrl`
+    ///   shape).
+    /// - Anything else — including ambiguous container types like
+    ///   `application/ogg` or `application/mp4` where the bytes would
+    ///   be needed to disambiguate audio vs video — becomes a `File`
+    ///   part with the raw base64 data and the caller-supplied filename.
+    pub fn from_blob(
+        mime: &str,
+        blob: String,
+        filename: Option<String>,
+    ) -> Self {
+        if mime.starts_with("image/") {
+            RichContentPart::ImageUrl {
+                image_url: ImageUrl {
+                    url: format!("data:{};base64,{}", mime, blob),
+                    detail: None,
+                },
+            }
+        } else if mime.starts_with("audio/") {
+            RichContentPart::InputAudio {
+                input_audio: InputAudio {
+                    data: blob,
+                    format: mime.to_string(),
+                },
+            }
+        } else if mime.starts_with("video/") {
+            RichContentPart::InputVideo {
+                video_url: VideoUrl {
+                    url: format!("data:{};base64,{}", mime, blob),
+                },
+            }
+        } else {
+            RichContentPart::File {
+                file: File {
+                    file_data: Some(blob),
+                    filename,
+                    file_id: None,
+                    file_url: None,
+                },
+            }
         }
     }
 }
@@ -282,61 +331,8 @@ impl From<crate::mcp::shared::ResourceContentsUnion> for RichContentPart {
                     .next()
                     .filter(|s| !s.is_empty())
                     .map(String::from);
-                blob_to_rich_content_part(mime, blob.blob, filename)
+                RichContentPart::from_blob(mime, blob.blob, filename)
             }
-        }
-    }
-}
-
-/// Shared mime-prefix dispatch for inline-media payloads (raw base64
-/// payload + explicit mime). Consumed by `From<ResourceContentsUnion>`
-/// for blob resources, and by `From<ContentBlock>`'s text arm when
-/// it spots a `data:<mime>;base64,<payload>` URL.
-///
-/// Routing rules:
-///
-/// - `image/*` → `ImageUrl` part (base64 data URL).
-/// - `audio/*` → `InputAudio` part (raw base64 + format string,
-///   matching the `From<AudioContent>` convention).
-/// - `video/*` → `InputVideo` part (base64 data URL in the `VideoUrl`
-///   shape).
-/// - Anything else — including ambiguous container types like
-///   `application/ogg` or `application/mp4` where the bytes would
-///   be needed to disambiguate audio vs video — becomes a file part
-///   with the raw base64 data and the caller-supplied filename.
-fn blob_to_rich_content_part(
-    mime: &str,
-    blob: String,
-    filename: Option<String>,
-) -> RichContentPart {
-    if mime.starts_with("image/") {
-        RichContentPart::ImageUrl {
-            image_url: ImageUrl {
-                url: format!("data:{};base64,{}", mime, blob),
-                detail: None,
-            },
-        }
-    } else if mime.starts_with("audio/") {
-        RichContentPart::InputAudio {
-            input_audio: InputAudio {
-                data: blob,
-                format: mime.to_string(),
-            },
-        }
-    } else if mime.starts_with("video/") {
-        RichContentPart::InputVideo {
-            video_url: VideoUrl {
-                url: format!("data:{};base64,{}", mime, blob),
-            },
-        }
-    } else {
-        RichContentPart::File {
-            file: File {
-                file_data: Some(blob),
-                filename,
-                file_id: None,
-                file_url: None,
-            },
         }
     }
 }
@@ -389,7 +385,7 @@ fn decode_text_no_marker(
 ) -> RichContentPart {
     if let Some((mime, payload)) = crate::data_url::parse_data_url(&text) {
         let filename = meta_string(meta, "objectiveai/filename");
-        blob_to_rich_content_part(mime, payload.to_string(), filename)
+        RichContentPart::from_blob(mime, payload.to_string(), filename)
     } else {
         RichContentPart::Text { text }
     }

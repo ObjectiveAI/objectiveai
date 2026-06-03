@@ -74,7 +74,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             let trimmed = line.trim_end_matches(['\r', '\n']);
             match serde_json::from_str::<PluginOutput>(trimmed) {
                 Ok(PluginOutput::Typed(TypedPluginOutput::Error(e))) => {
-                    yield Ok(ResponseItem::Typed(ResponseTyped::Error(e)));
+                    yield Ok(ResponseItem::Error(e));
                 }
                 Ok(PluginOutput::Typed(TypedPluginOutput::Mcp(mcp))) => {
                     // `ResponseTyped::Mcp` only carries `url`; headers

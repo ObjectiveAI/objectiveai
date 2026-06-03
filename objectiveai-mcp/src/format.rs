@@ -137,11 +137,19 @@ fn response_item_to_rich_content_part(ri: &ResponseItem) -> RichContentPart {
                 RichContentPart::from_text_or_data_url(body)
             }
         },
-        // Plugins `run` typed events (Command / Mcp / Error) — encode
-        // the typed value verbatim so the MCP consumer sees the same
+        // Plugins `run` typed events (Command / Mcp) — encode the
+        // typed value verbatim so the MCP consumer sees the same
         // `{"type":"<kind>", ...}` shape the CLI wire format uses.
         ResponseItem::Plugins(PluginsResponseItem::Run(plugins_run::ResponseItem::Typed(typed))) => {
             let body = serde_json::to_string(typed)
+                .unwrap_or_else(|_| String::from("<serialize error>"));
+            RichContentPart::from_text_or_data_url(body)
+        }
+        // Plugins `run` error — `cli::Error` has its own `type:"error"`,
+        // so we encode it directly (the SDK ResponseItem moved Error
+        // out of the `tag=type` ResponseTyped to avoid double-typing).
+        ResponseItem::Plugins(PluginsResponseItem::Run(plugins_run::ResponseItem::Error(err))) => {
+            let body = serde_json::to_string(err)
                 .unwrap_or_else(|_| String::from("<serialize error>"));
             RichContentPart::from_text_or_data_url(body)
         }
