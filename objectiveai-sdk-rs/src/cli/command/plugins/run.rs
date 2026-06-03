@@ -118,9 +118,7 @@ impl crate::cli::command::CommandResponse for ResponseItem {
             ResponseItem::Typed(typed) => {
                 McpResponseItem::JSONL(serde_json::to_value(typed).unwrap())
             }
-            ResponseItem::Error(e) => {
-                McpResponseItem::JSONL(serde_json::to_value(e).unwrap())
-            }
+            ResponseItem::Error(e) => e.into_mcp(),
             ResponseItem::Notification(value) => {
                 // String + data URL → media via RichContentPart::from_blob.
                 // Anything else (and strings that aren't data URLs) →

@@ -27,6 +27,20 @@ pub enum Response {
     GithubResponseSchema(github::response_schema::Response),
 }
 
+#[cfg(feature = "mcp")]
+impl crate::cli::command::CommandResponse for Response {
+    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
+        match self {
+            Response::Filesystem(v) => v.into_mcp(),
+            Response::FilesystemRequestSchema(v) => v.into_mcp(),
+            Response::FilesystemResponseSchema(v) => v.into_mcp(),
+            Response::Github(v) => v.into_mcp(),
+            Response::GithubRequestSchema(v) => v.into_mcp(),
+            Response::GithubResponseSchema(v) => v.into_mcp(),
+        }
+    }
+}
+
 impl TryFrom<Command> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(command: Command) -> Result<Self, Self::Error> {

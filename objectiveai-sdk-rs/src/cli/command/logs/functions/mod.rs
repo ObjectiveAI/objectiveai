@@ -25,6 +25,16 @@ pub enum ResponseItem {
     Inventions(inventions::ResponseItem),
 }
 
+#[cfg(feature = "mcp")]
+impl crate::cli::command::CommandResponse for ResponseItem {
+    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
+        match self {
+            ResponseItem::Executions(v) => v.into_mcp(),
+            ResponseItem::Inventions(v) => v.into_mcp(),
+        }
+    }
+}
+
 impl TryFrom<Command> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(command: Command) -> Result<Self, Self::Error> {

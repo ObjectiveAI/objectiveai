@@ -74,6 +74,31 @@ pub enum ResponseItem {
     SpawnResponseSchema(spawn::response_schema::Response),
 }
 
+#[cfg(feature = "mcp")]
+impl crate::cli::command::CommandResponse for ResponseItem {
+    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
+        match self {
+            ResponseItem::Get(v) => v.into_mcp(),
+            ResponseItem::GetRequestSchema(v) => v.into_mcp(),
+            ResponseItem::GetResponseSchema(v) => v.into_mcp(),
+            ResponseItem::List(v) => v.into_mcp(),
+            ResponseItem::Me(v) => v.into_mcp(),
+            ResponseItem::MeRequestSchema(v) => v.into_mcp(),
+            ResponseItem::MeResponseSchema(v) => v.into_mcp(),
+            ResponseItem::Message(v) => v.into_mcp(),
+            ResponseItem::MessageRequestSchema(v) => v.into_mcp(),
+            ResponseItem::MessageResponseSchema(v) => v.into_mcp(),
+            ResponseItem::Publish(v) => v.into_mcp(),
+            ResponseItem::PublishRequestSchema(v) => v.into_mcp(),
+            ResponseItem::PublishResponseSchema(v) => v.into_mcp(),
+            ResponseItem::Read(v) => v.into_mcp(),
+            ResponseItem::Spawn(v) => v.into_mcp(),
+            ResponseItem::SpawnRequestSchema(v) => v.into_mcp(),
+            ResponseItem::SpawnResponseSchema(v) => v.into_mcp(),
+        }
+    }
+}
+
 impl TryFrom<Command> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(command: Command) -> Result<Self, Self::Error> {

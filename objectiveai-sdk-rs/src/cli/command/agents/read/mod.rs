@@ -47,6 +47,26 @@ pub enum ResponseItem {
     SubscribeResponseSchema(subscribe::response_schema::Response),
 }
 
+#[cfg(feature = "mcp")]
+impl crate::cli::command::CommandResponse for ResponseItem {
+    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
+        match self {
+            ResponseItem::All(v) => v.into_mcp(),
+            ResponseItem::AllRequestSchema(v) => v.into_mcp(),
+            ResponseItem::AllResponseSchema(v) => v.into_mcp(),
+            ResponseItem::Id(v) => v.into_mcp(),
+            ResponseItem::IdRequestSchema(v) => v.into_mcp(),
+            ResponseItem::IdResponseSchema(v) => v.into_mcp(),
+            ResponseItem::Pending(v) => v.into_mcp(),
+            ResponseItem::PendingRequestSchema(v) => v.into_mcp(),
+            ResponseItem::PendingResponseSchema(v) => v.into_mcp(),
+            ResponseItem::Subscribe(v) => v.into_mcp(),
+            ResponseItem::SubscribeRequestSchema(v) => v.into_mcp(),
+            ResponseItem::SubscribeResponseSchema(v) => v.into_mcp(),
+        }
+    }
+}
+
 impl TryFrom<Command> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(command: Command) -> Result<Self, Self::Error> {

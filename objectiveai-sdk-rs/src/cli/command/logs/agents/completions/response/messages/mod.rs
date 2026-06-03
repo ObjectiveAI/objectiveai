@@ -105,6 +105,33 @@ pub enum Response {
     Video(video::Response),
 }
 
+#[cfg(feature = "mcp")]
+impl crate::cli::command::CommandResponse for Response {
+    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
+        match self {
+            Response::Audio(v) => v.into_mcp(),
+            Response::Clear(v) => v.into_mcp(),
+            Response::ClearRequestSchema(v) => v.into_mcp(),
+            Response::ClearResponseSchema(v) => v.into_mcp(),
+            Response::File(v) => v.into_mcp(),
+            Response::Get(v) => v.into_mcp(),
+            Response::GetRequestSchema(v) => v.into_mcp(),
+            Response::GetResponseSchema(v) => v.into_mcp(),
+            Response::Image(v) => v.into_mcp(),
+            Response::Logprobs(v) => v.into_mcp(),
+            Response::Reasoning(v) => v.into_mcp(),
+            Response::Refusal(v) => v.into_mcp(),
+            Response::Subscribe(v) => v.into_mcp(),
+            Response::SubscribeRequestSchema(v) => v.into_mcp(),
+            Response::SubscribeResponseSchema(v) => v.into_mcp(),
+            Response::Text(v) => v.into_mcp(),
+            Response::Tool(v) => v.into_mcp(),
+            Response::ToolCalls(v) => v.into_mcp(),
+            Response::Video(v) => v.into_mcp(),
+        }
+    }
+}
+
 impl TryFrom<Command> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(command: Command) -> Result<Self, Self::Error> {

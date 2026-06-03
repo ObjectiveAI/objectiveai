@@ -33,6 +33,19 @@ pub enum ResponseItem {
     Pairs(pairs::ResponseItem),
 }
 
+#[cfg(feature = "mcp")]
+impl crate::cli::command::CommandResponse for ResponseItem {
+    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
+        match self {
+            ResponseItem::Get(v) => v.into_mcp(),
+            ResponseItem::GetRequestSchema(v) => v.into_mcp(),
+            ResponseItem::GetResponseSchema(v) => v.into_mcp(),
+            ResponseItem::Favorites(v) => v.into_mcp(),
+            ResponseItem::Pairs(v) => v.into_mcp(),
+        }
+    }
+}
+
 impl TryFrom<Command> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(command: Command) -> Result<Self, Self::Error> {

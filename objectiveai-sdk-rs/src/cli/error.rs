@@ -59,3 +59,10 @@ pub enum Level {
     Warn,
     Error,
 }
+
+#[cfg(feature = "mcp")]
+impl crate::cli::command::CommandResponse for Error {
+    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
+        crate::cli::command::McpResponseItem::JSONL(serde_json::to_value(self).unwrap())
+    }
+}

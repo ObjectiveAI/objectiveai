@@ -108,9 +108,7 @@ impl crate::cli::command::CommandResponse for ResponseItem {
                 }
                 McpResponseItem::JSONL(serde_json::Value::String(s))
             }
-            ResponseItem::Stderr(e) => {
-                McpResponseItem::JSONL(serde_json::to_value(e).unwrap())
-            }
+            ResponseItem::Stderr(e) => e.into_mcp(),
         }
     }
 }

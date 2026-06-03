@@ -35,6 +35,23 @@ pub enum ResponseItem {
     RemoteResponseSchema(remote::response_schema::Response),
 }
 
+#[cfg(feature = "mcp")]
+impl crate::cli::command::CommandResponse for ResponseItem {
+    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
+        match self {
+            ResponseItem::AlphaScalar(v) => v.into_mcp(),
+            ResponseItem::AlphaScalarRequestSchema(v) => v.into_mcp(),
+            ResponseItem::AlphaScalarResponseSchema(v) => v.into_mcp(),
+            ResponseItem::AlphaVector(v) => v.into_mcp(),
+            ResponseItem::AlphaVectorRequestSchema(v) => v.into_mcp(),
+            ResponseItem::AlphaVectorResponseSchema(v) => v.into_mcp(),
+            ResponseItem::Remote(v) => v.into_mcp(),
+            ResponseItem::RemoteRequestSchema(v) => v.into_mcp(),
+            ResponseItem::RemoteResponseSchema(v) => v.into_mcp(),
+        }
+    }
+}
+
 impl TryFrom<Command> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(command: Command) -> Result<Self, Self::Error> {

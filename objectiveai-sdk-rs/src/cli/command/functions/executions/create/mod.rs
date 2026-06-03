@@ -55,6 +55,20 @@ pub enum ResponseItem {
     SwissSystemResponseSchema(swiss_system::response_schema::Response),
 }
 
+#[cfg(feature = "mcp")]
+impl crate::cli::command::CommandResponse for ResponseItem {
+    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
+        match self {
+            ResponseItem::Standard(v) => v.into_mcp(),
+            ResponseItem::StandardRequestSchema(v) => v.into_mcp(),
+            ResponseItem::StandardResponseSchema(v) => v.into_mcp(),
+            ResponseItem::SwissSystem(v) => v.into_mcp(),
+            ResponseItem::SwissSystemRequestSchema(v) => v.into_mcp(),
+            ResponseItem::SwissSystemResponseSchema(v) => v.into_mcp(),
+        }
+    }
+}
+
 impl TryFrom<Command> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(command: Command) -> Result<Self, Self::Error> {

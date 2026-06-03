@@ -5,7 +5,7 @@ use futures::{Stream, StreamExt};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
-use crate::cli::command::{CommandExecutor, CommandRequest};
+use crate::cli::command::{CommandExecutor, CommandRequest, CommandResponse};
 
 /// Spawn the `objectiveai` cli binary on disk, feed it the argv from
 /// `request.into_command()`, and stream each stdout JSONL line back as
@@ -132,7 +132,7 @@ impl CommandExecutor for BinaryExecutor {
     async fn execute<R, T>(&self, request: R) -> Result<Self::Stream<T>, Error>
     where
         R: CommandRequest + Send,
-        T: serde::de::DeserializeOwned + Send + 'static,
+        T: CommandResponse + serde::de::DeserializeOwned + Send + 'static,
     {
         let argv = request.into_command();
         let binary = self.binary_path()?;
@@ -177,7 +177,7 @@ impl CommandExecutor for BinaryExecutor {
     async fn execute_one<R, T>(&self, request: R) -> Result<T, Error>
     where
         R: CommandRequest + Send,
-        T: serde::de::DeserializeOwned + Send + 'static,
+        T: CommandResponse + serde::de::DeserializeOwned + Send + 'static,
     {
         let mut stream = self.execute::<R, T>(request).await?;
         stream.next().await.ok_or(Error::Empty)?

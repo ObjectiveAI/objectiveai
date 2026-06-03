@@ -75,6 +75,26 @@ pub enum ResponseItem {
     Viewer(super::viewer::Response),
 }
 
+#[cfg(feature = "mcp")]
+impl super::CommandResponse for ResponseItem {
+    fn into_mcp(self) -> super::McpResponseItem {
+        match self {
+            ResponseItem::Agents(v) => v.into_mcp(),
+            ResponseItem::Config(v) => v.into_mcp(),
+            ResponseItem::Functions(v) => v.into_mcp(),
+            ResponseItem::Logs(v) => v.into_mcp(),
+            ResponseItem::Mcp(v) => v.into_mcp(),
+            ResponseItem::Plugins(v) => v.into_mcp(),
+            ResponseItem::Swarms(v) => v.into_mcp(),
+            ResponseItem::Tools(v) => v.into_mcp(),
+            ResponseItem::Update(v) => v.into_mcp(),
+            ResponseItem::UpdateRequestSchema(v) => v.into_mcp(),
+            ResponseItem::UpdateResponseSchema(v) => v.into_mcp(),
+            ResponseItem::Viewer(v) => v.into_mcp(),
+        }
+    }
+}
+
 impl TryFrom<Command> for Request {
     type Error = super::FromArgsError;
     fn try_from(command: Command) -> Result<Self, Self::Error> {

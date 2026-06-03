@@ -46,6 +46,19 @@ pub enum Response {
     Video(video::Response),
 }
 
+#[cfg(feature = "mcp")]
+impl crate::cli::command::CommandResponse for Response {
+    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
+        match self {
+            Response::Audio(v) => v.into_mcp(),
+            Response::File(v) => v.into_mcp(),
+            Response::Image(v) => v.into_mcp(),
+            Response::Text(v) => v.into_mcp(),
+            Response::Video(v) => v.into_mcp(),
+        }
+    }
+}
+
 impl TryFrom<Command> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(command: Command) -> Result<Self, Self::Error> {
