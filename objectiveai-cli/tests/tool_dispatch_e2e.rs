@@ -91,16 +91,22 @@ struct Summary {
     stderr: Vec<String>,
 }
 
-/// Spawn the cli with `CONFIG_BASE_DIR=<base>`, args `tools <name>`,
-/// then bucket every `ToolLine` notification into its originating
+/// Spawn the cli with `CONFIG_BASE_DIR=<base>`, args `tools run <name>`,
+/// then bucket every `tools::run::ResponseItem` into its originating
 /// stream. Order is preserved within each bucket; cross-bucket
 /// ordering is dropped (the dispatch drains both streams
-/// concurrently via `tokio::join!`).
+/// concurrently via `tokio_stream::StreamExt::merge`).
+///
+/// Each line is `RunItem::Command(ResponseItem::Tools(tools::ResponseItem::Run(
+/// tools::run::ResponseItem)))`. The inner `tools::run::ResponseItem` is
+/// `#[serde(untagged)]` with `Stdout(String)` and `Stderr(cli::Error)`, so the
+/// wire shape is either `{"Tools":{"Run":"line text"}}` (stdout) or
+/// `{"Tools":{"Run":{"type":"error","message":"line text",...}}}` (stderr).
 fn run_and_summarize(base: &Path, name: &str) -> Summary {
     let cli = env!("CARGO_BIN_EXE_objectiveai-cli");
     let output = Command::new(cli)
         .env("CONFIG_BASE_DIR", base)
-        .args(["tools", name])
+        .args(["tools", "run", name])
         .output()
         .expect("failed to run cli");
 
@@ -111,19 +117,15 @@ fn run_and_summarize(base: &Path, name: &str) -> Summary {
         let Ok(v) = serde_json::from_str::<serde_json::Value>(line) else {
             continue;
         };
-        if v.get("type").and_then(|t| t.as_str()) != Some("notification") {
-            continue;
-        }
-        let Some(value) = v.get("value") else {
+        let Some(inner) = v.pointer("/Tools/Run") else {
             continue;
         };
-        let Some(text) = value.get("line").and_then(|l| l.as_str()) else {
-            continue;
-        };
-        if value.get("stdout").and_then(|b| b.as_bool()) == Some(true) {
+        if let Some(text) = inner.as_str() {
             stdout_lines.push(text.to_string());
-        } else if value.get("stderr").and_then(|b| b.as_bool()) == Some(true) {
-            stderr_lines.push(text.to_string());
+        } else if let Some(msg) =
+            inner.pointer("/message").and_then(|m| m.as_str())
+        {
+            stderr_lines.push(msg.to_string());
         }
     }
 

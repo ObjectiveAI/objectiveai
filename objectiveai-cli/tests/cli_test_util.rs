@@ -15,7 +15,7 @@ use std::process::Command;
 use std::sync::Once;
 
 use futures::StreamExt;
-use objectiveai_sdk::cli::command::command_executor::binary::BinaryExecutor;
+use objectiveai_sdk::cli::command::binary::BinaryExecutor;
 use objectiveai_sdk::cli::command::{CommandExecutor, CommandRequest};
 
 static BUILD_ONCE: Once = Once::new();

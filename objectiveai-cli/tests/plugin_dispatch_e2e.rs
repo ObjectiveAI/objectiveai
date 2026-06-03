@@ -70,7 +70,7 @@ fn hello_plugin_dispatch_produces_expected_output() {
     let cli = env!("CARGO_BIN_EXE_objectiveai-cli");
     let output = Command::new(cli)
         .env("CONFIG_BASE_DIR", &base)
-        .args(["plugins", "hello", "world"])
+        .args(["plugins", "run", "hello", "world"])
         .output()
         .expect("failed to run cli");
 
@@ -81,11 +81,11 @@ fn hello_plugin_dispatch_produces_expected_output() {
         String::from_utf8_lossy(&output.stderr)
     );
 
-    // `Output::Begin` / `Output::End` JSONL markers were dropped in
-    // f5f4cf52e; plugin dispatch now emits the notification line(s)
-    // directly. The notification's `value` is the
-    // `NotificationValue::Other` flattened map, so the plugin's raw
-    // `{"hello":"world"}` rides alongside `"kind":"other"`.
+    // Each line is `RunItem::Command(ResponseItem::Plugins(plugins::ResponseItem::Run(
+    // plugins::run::ResponseItem)))`. The inner `plugins::run::ResponseItem` is
+    // `#[serde(untagged)]`, so a `Notification(value)` variant carrying the plugin's
+    // raw payload `{"hello":"world"}` lands on the wire as
+    // `{"Plugins":{"Run":{"hello":"world"}}}`.
     let stdout = String::from_utf8(output.stdout).expect("cli stdout not utf-8");
     let lines: Vec<&str> = stdout.lines().collect();
     assert!(
@@ -99,13 +99,7 @@ fn hello_plugin_dispatch_produces_expected_output() {
             let Ok(v) = serde_json::from_str::<Value>(line) else {
                 return false;
             };
-            // PluginNotification wraps the plugin's payload under
-            // an inner `value` field (`type = "plugin_notification"`),
-            // flattened directly at the top level after the wire
-            // shape redesign — no more `value`/`type:"notification"`
-            // envelope.
-            v.get("type") == Some(&Value::String("plugin_notification".into()))
-                && v.pointer("/value/hello") == Some(&Value::String("world".into()))
+            v.pointer("/Plugins/Run/hello") == Some(&Value::String("world".into()))
         })
         .count();
     assert_eq!(

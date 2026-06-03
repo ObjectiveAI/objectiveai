@@ -36,7 +36,8 @@ use objectiveai_sdk::cli::command::agents::spawn::{
     AgentSpec, Request as SpawnRequest, RequestPrompt,
     ResponseItem as SpawnResponseItem,
 };
-use objectiveai_sdk::cli::command::command_executor::binary::BinaryExecutor;
+use objectiveai_sdk::cli::command::CommandExecutor;
+use objectiveai_sdk::cli::command::binary::BinaryExecutor;
 use serde_json::{Value, json};
 
 static BUILD_COUNT_TOOL_ONCE: Once = Once::new();
