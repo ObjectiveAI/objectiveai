@@ -220,9 +220,9 @@ async fn function_swarm_writes_per_agent_files() {
     );
 
     // Both agents called `invoke` once during turn 1 of their script.
-    // Header asserts inside the plugin ensure the `X-FOO` /
-    // `Mcp-Session-Id` routing was correct; finding the file at all
-    // is what proves the call landed on the matching plugin process.
+    // The plugin's `Mcp-Session-Id` assert ensures each call landed
+    // on the matching plugin process; finding the file at all is
+    // what proves the per-agent argv arrived correctly.
     let a_path = base.join("A.txt");
     let b_path = base.join("B.txt");
     let a = std::fs::read_to_string(&a_path)
