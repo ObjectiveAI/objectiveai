@@ -2,16 +2,17 @@ use indexmap::IndexMap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// One HTTP request the proxy made against the API's
-/// `/objectiveai-mcp/{session_id}` route, forwarded verbatim down
-/// the reverse-attach WS to the calling client. The client returns
-/// a matching [`super::super::server_response::Response`] echoing
-/// the request `id`.
+/// One reverse-attach request the API has shipped to the calling
+/// client. The proxy's HTTP method (`POST` for the five JSON-RPC
+/// methods, `DELETE` for session terminate) is implicit in the
+/// [`super::Payload`] variant; the JSON-RPC `{jsonrpc, id, method,
+/// params}` envelope is unwrapped into the typed variant payload.
 ///
-/// Wire shape:
+/// Wire shape (envelope is `{id, headers?, type, …variant fields…}`
+/// after the `#[serde(flatten)]` on `payload`):
 ///
 /// ```json
-/// {"id":"…","method":"POST","headers":{"Mcp-Session-Id":"…"},"body":{…}}
+/// {"id":"…","headers":{"Mcp-Session-Id":"…"},"type":"tools_list", "cursor":"…"}
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.server_request.Request")]
@@ -19,19 +20,15 @@ pub struct Request {
     /// Server-minted correlation id. Echoed by the matching
     /// [`super::super::server_response::Response`].
     pub id: String,
-    /// HTTP method (`POST`, `GET`, `DELETE`).
-    pub method: String,
     /// Verbatim copy of the headers the proxy sent on its HTTP
-    /// request to the API. The handler stamps these on its own
-    /// request to the local objectiveai-mcp, with `Accept` always
-    /// forced to `application/json` so no SSE flows on the handler
-    /// leg.
+    /// request to the API. The CLI conduit reads several custom
+    /// `X-OBJECTIVEAI-*` routing headers + `Mcp-Session-Id` off this
+    /// map; protocol-level headers (Host, Content-Length, …) the API
+    /// already stripped on its way in.
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     #[schemars(extend("omitempty" = true))]
     pub headers: IndexMap<String, String>,
-    /// Request body. `None` for `GET` and `DELETE`. For `POST`,
-    /// this is the JSON-RPC envelope the proxy sent.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub body: Option<serde_json::Value>,
+    /// The typed request variant.
+    #[serde(flatten)]
+    pub payload: super::Payload,
 }

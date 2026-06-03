@@ -7,29 +7,25 @@
 //! a `client_request::Payload::McpListChanged` so the API's
 //! `/objectiveai-mcp` GET-SSE stream can re-emit it standard-MCP-shaped.
 //!
-//! Dispatch on an inbound `server_request`:
-//! - **No `Mcp-Session-Id` header (fresh `initialize`).** Dial the
-//!   remote with `session_id = None`; the remote mints one and we
-//!   key the new `Connection` under it. The synthesized `initialize`
-//!   response stamps that id back in the response `Mcp-Session-Id`
-//!   header so the proxy adopts it.
-//! - **Header present + already in the map.** Reuse the cached
-//!   `Connection`.
-//! - **Header present + not in the map (continuation resume).** Dial
-//!   the remote with `session_id = Some(incoming)`. The SDK handles
-//!   the resume branch — many servers don't echo the header back on
-//!   resume, so the SDK falls back to the caller's provided id.
-//!
-//! Then:
-//! - `initialize` → synthesize from `connection.initialize_result`
-//!   (the SDK already handshook on `connect`). `tools.listChanged` /
-//!   `resources.listChanged` are advertised verbatim — the dial-time
-//!   `install_list_changed_pump` makes that honest.
-//! - notifications (no `id`) → 202 Accepted, no body, never round-trip.
-//! - everything else → raw POST through `connection.http_client` +
-//!   `connection.url` + `connection.session_id`. Response parsed by
-//!   `parse_json_or_sse` (rmcp's `StreamableHttpService` may pick
-//!   either shape).
+//! Dispatch is by typed [`server_request::Payload`] variant; the
+//! arms cover the closed set of methods the API ever sends
+//! (`initialize` / `tools/list` / `tools/call` / `resources/list` /
+//! `resources/read` / `session_terminate`). Per-arm shape:
+//! - **`Initialize`.** Decode the inbound aggregate `Mcp-Session-Id`,
+//!   dial primary (when needed) and every selected plugin upstream
+//!   concurrently, resuming each against its stored session id.
+//!   Returns the freshly-aggregated outbound session id, which the
+//!   API stamps onto its `Mcp-Session-Id` response header so the
+//!   proxy adopts it.
+//! - **`ToolsList` / `ResourcesList`.** Forward to primary, apply the
+//!   API↔CLI control surface (filter + plugin aggregation), return
+//!   the merged typed result.
+//! - **`ToolsCall` / `ResourcesRead`.** Route by prefix-strip to the
+//!   matching upstream (primary or plugin), forward through the
+//!   typed call, return the typed result.
+//! - **`SessionTerminate`.** Tear down every connection in the
+//!   aggregate; the proxy's HTTP DELETE wakes here as a typed
+//!   variant rather than a method string.
 //!
 //! `Notifier` is late-bound: the pump needs one, but the `Notifier`
 //! is output of `send_streaming_ws(handler, ...)` and the handler is
@@ -45,8 +41,15 @@ use indexmap::IndexMap;
 use objectiveai_sdk::Notifier;
 use objectiveai_sdk::cli::plugins::{Output as PluginOutput, TypedOutput as TypedPluginOutput};
 use objectiveai_sdk::client_objectiveai_mcp::client_request::{McpListChanged, McpListChangedKind};
+use objectiveai_sdk::client_objectiveai_mcp::server_response::{InitializeReply, JsonRpcResult};
 use objectiveai_sdk::client_objectiveai_mcp::{server_request, server_response};
 use objectiveai_sdk::http::McpHandler;
+use objectiveai_sdk::mcp::resource::{
+    ListResourcesRequest, ListResourcesResult, ReadResourceRequestParams, ReadResourceResult,
+};
+use objectiveai_sdk::mcp::tool::{
+    CallToolRequestParams, CallToolResult, ListToolsRequest, ListToolsResult, Tool,
+};
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
@@ -56,8 +59,8 @@ use tokio::sync::OnceCell;
 /// Header on every API-originated request to the synthetic
 /// `/objectiveai-mcp` URL when the agent declared
 /// `client_objectiveai_mcp`. Base64url-no-pad JSON `{names, objectiveai_builtins}`.
-/// Consumed by [`forward`]'s `tools/list` branch and stripped from
-/// the upstream-forwarded headers.
+/// Consumed by the per-method arms and stripped from the
+/// upstream-forwarded headers.
 const MCP_CONFIG_HEADER: &str = "X-OBJECTIVEAI-MCP-CONFIG";
 
 struct ConduitState {
@@ -475,54 +478,52 @@ async fn forward_stderr(mut stderr: tokio::process::ChildStderr) {
 
 impl McpHandler for ConduitMcpHandler {
     async fn handle(&self, request: server_request::Request) -> server_response::Response {
-        let id_for_err = request.id.clone();
-        let rpc_id_for_err = jsonrpc_id_from_body(&request.body);
-
-        // Parse method from JSON-RPC body so we can branch on
-        // `initialize` (the only path that dials upstreams — all of
-        // them, gated by the inbound aggregate `Mcp-Session-Id`) vs.
-        // every other method (aggregate rides on `Mcp-Session-Id`
-        // and we route through the cached `ConduitState`s).
-        let rpc_method = request
-            .body
-            .as_ref()
-            .and_then(|v| v.get("method"))
-            .and_then(|m| m.as_str())
-            .unwrap_or("");
-
+        let id = request.id.clone();
         let config = read_mcp_config_header(&request.headers);
 
-        // For `initialize`, all dialing — primary + every selected
-        // plugin upstream — happens in `forward`'s initialize arm,
-        // where the inbound aggregate is decoded and each upstream
-        // gets resumed against its stored session id. `handle()` is
-        // just dispatch.
-        if rpc_method == "initialize" {
-            return match forward(&self.inner, None, config.as_ref(), request).await {
-                Ok(resp) => resp,
-                Err(e) => conduit_error(id_for_err, rpc_id_for_err, e.to_string()),
-            };
+        // `Initialize` is the only path that dials upstreams. All
+        // routing inside `dispatch_initialize` is driven by the
+        // inbound aggregate `Mcp-Session-Id` (decoded there) plus
+        // the `X-OBJECTIVEAI-MCP-CONFIG` selection.
+        if matches!(request.payload, server_request::Payload::Initialize) {
+            let payload = dispatch_initialize(&self.inner, config.as_ref(), &request).await;
+            return server_response::Response { id, payload };
         }
 
-        // Non-initialize: the inbound `Mcp-Session-Id` is the
-        // aggregate. Decode it to find primary's session id (if
-        // primary participates) so we can route through the matching
-        // `ConduitState`. Primary's `mcp_url` is only needed when
-        // the aggregate names a primary that's no longer cached
-        // (e.g. fresh WS after reconnect).
+        // `SessionTerminate` does not need a primary lookup — the
+        // teardown logic walks the aggregate itself.
+        if matches!(request.payload, server_request::Payload::SessionTerminate) {
+            let payload = dispatch_session_terminate(&self.inner, &request).await;
+            return server_response::Response { id, payload };
+        }
+
+        // Every other variant needs primary (if the aggregate names
+        // one): decode the inbound `Mcp-Session-Id`, look up
+        // primary's `ConduitState` (or re-dial it on a CLI restart),
+        // then dispatch the typed variant.
         let aggregate_id = request
             .headers
             .iter()
             .find_map(|(k, v)| k.eq_ignore_ascii_case("mcp-session-id").then(|| v.clone()));
         let Some(aggregate_id) = aggregate_id else {
-            return conduit_error(id_for_err, rpc_id_for_err, "missing Mcp-Session-Id");
+            return server_response::Response {
+                id,
+                payload: error_payload_for(
+                    &request.payload,
+                    -32600,
+                    "missing Mcp-Session-Id".to_string(),
+                ),
+            };
         };
         let Some(aggregate) = AggregateSession::decode(&aggregate_id) else {
-            return conduit_error(
-                id_for_err,
-                rpc_id_for_err,
-                "invalid Mcp-Session-Id (decode failed)",
-            );
+            return server_response::Response {
+                id,
+                payload: error_payload_for(
+                    &request.payload,
+                    -32600,
+                    "invalid Mcp-Session-Id (decode failed)".to_string(),
+                ),
+            };
         };
         let primary_state: Option<Arc<ConduitState>> = match aggregate.primary {
             Some(primary_sid) => {
@@ -530,7 +531,15 @@ impl McpHandler for ConduitMcpHandler {
                     Some(existing.clone())
                 } else {
                     let Some(mcp_url) = self.inner.mcp_url.as_ref() else {
-                        return reject_no_mcp(id_for_err, rpc_id_for_err);
+                        return server_response::Response {
+                            id,
+                            payload: error_payload_for(
+                                &request.payload,
+                                -32601,
+                                "this client has no MCP server configured (pass --mcp-address)"
+                                    .to_string(),
+                            ),
+                        };
                     };
                     match self
                         .dial(mcp_url.clone(), Some(primary_sid.clone()), &request.headers)
@@ -541,11 +550,14 @@ impl McpHandler for ConduitMcpHandler {
                             Some(st)
                         }
                         Err(e) => {
-                            return conduit_error(
-                                id_for_err,
-                                rpc_id_for_err,
-                                format!("connect (resume): {e}"),
-                            );
+                            return server_response::Response {
+                                id,
+                                payload: error_payload_for(
+                                    &request.payload,
+                                    -32603,
+                                    format!("conduit: connect (resume): {e}"),
+                                ),
+                            };
                         }
                     }
                 }
@@ -553,17 +565,14 @@ impl McpHandler for ConduitMcpHandler {
             None => None,
         };
 
-        match forward(
+        let payload = dispatch_typed(
             &self.inner,
             primary_state.as_deref(),
             config.as_ref(),
-            request,
+            &request,
         )
-        .await
-        {
-            Ok(resp) => resp,
-            Err(e) => conduit_error(id_for_err, rpc_id_for_err, e.to_string()),
-        }
+        .await;
+        server_response::Response { id, payload }
     }
 }
 
@@ -666,349 +675,514 @@ fn sanitize_connect_headers(headers: &IndexMap<String, String>) -> IndexMap<Stri
     out
 }
 
-async fn forward(
+// ───────────────────────────────────────────────────────────────────
+// Per-variant dispatchers — each returns the typed
+// `server_response::Payload` variant matching the inbound request.
+// ───────────────────────────────────────────────────────────────────
+
+/// `Initialize`: dial primary (when needed) and every selected plugin
+/// upstream concurrently, resuming each against the inbound aggregate
+/// `Mcp-Session-Id`. Encode the dialed session ids into a new
+/// aggregate and return it as the `Initialize` reply; the API stamps
+/// it onto its outbound `Mcp-Session-Id` response header.
+///
+/// First dial failure aborts the whole initialize via
+/// `try_join_all`'s cancel-on-error. Partial-success connections
+/// already stored in `plugin_mcp_connections` leak until the next
+/// initialize overwrites — cleanup is a follow-up.
+async fn dispatch_initialize(
     inner: &Arc<Inner>,
-    primary: Option<&ConduitState>,
     config: Option<&McpConfig>,
-    request: server_request::Request,
-) -> Result<server_response::Response, ConduitError> {
-    let envelope = request.body.clone();
+    request: &server_request::Request,
+) -> server_response::Payload {
+    // Decode inbound aggregate. `None` on a fresh session;
+    // `Some(_)` on a continuation. Each upstream's stored session
+    // id rides through unchanged so the dial below can resume it.
+    let inbound_aggregate: Option<AggregateSession> = request
+        .headers
+        .iter()
+        .find(|(k, _)| k.eq_ignore_ascii_case("mcp-session-id"))
+        .and_then(|(_, v)| AggregateSession::decode(v));
 
-    let rpc_id = envelope.as_ref().and_then(|v| v.get("id")).cloned();
-    let rpc_method = envelope
-        .as_ref()
-        .and_then(|v| v.get("method"))
-        .and_then(|m| m.as_str())
-        .map(|s| s.to_string());
+    let needs_primary = config
+        .map(|c| !c.names.is_empty() || c.objectiveai_builtins)
+        // Header is API-stamped on every request; absence is a
+        // bug. Default to dialing primary so we degrade toward
+        // today's behavior rather than dropping the call.
+        .unwrap_or(true);
+    let plugin_entries: Vec<McpServerConfigEntry> =
+        config.map(|c| c.mcp_servers.clone()).unwrap_or_default();
+    let agent_instance_hierarchy = agent_instance_hierarchy_from_headers(&request.headers);
+    let agent_id = agent_id_from_headers(&request.headers);
+    let response_id = response_id_from_headers(&request.headers);
+    // Register the sibling group exactly once for this initialize.
+    // The per-agent dials below all reuse the same shared
+    // `Arc<Vec<String>>` via re-insert of the same ids, which is
+    // idempotent.
+    register_response_id_group(inner, &request.headers);
 
-    // Notifications (no `id`) → 202 with no body; don't round-trip.
-    if rpc_id.is_none() {
-        return Ok(server_response::Response {
-            id: request.id,
-            status: 202,
-            headers: IndexMap::new(),
-            body: None,
+    if !needs_primary && plugin_entries.is_empty() {
+        return server_response::Payload::Initialize(JsonRpcResult::Err {
+            code: -32602,
+            message: "agent declaration references no upstreams".into(),
+            data: None,
         });
     }
 
-    // `initialize`: this is the only path that dials upstreams.
-    // Decode the inbound aggregate (present on a continuation,
-    // absent on a fresh session), then dial primary (when needed)
-    // and every selected plugin upstream concurrently, resuming each
-    // against its stored session id. The dialed `Mcp-Session-Id`s
-    // get re-aggregated and returned as the outbound
-    // `Mcp-Session-Id` response header. The body is `None` — the
-    // API replaces it with its own canonical `InitializeResult`
-    // (oai serverInfo + canonical capabilities + protocol version).
-    // CLI no longer advertises capabilities.
-    //
-    // First dial failure aborts the whole initialize via
-    // `try_join_all`'s cancel-on-error. Partial-success connections
-    // already stored in `plugin_mcp_connections` leak until the next
-    // initialize overwrites — cleanup is a follow-up.
-    if rpc_method.as_deref() == Some("initialize") {
-        // Decode inbound aggregate. `None` on a fresh session;
-        // `Some(_)` on a continuation. Each upstream's stored
-        // session id rides through unchanged so the dial below can
-        // resume it.
-        let inbound_aggregate: Option<AggregateSession> = request
-            .headers
-            .iter()
-            .find(|(k, _)| k.eq_ignore_ascii_case("mcp-session-id"))
-            .and_then(|(_, v)| AggregateSession::decode(v));
-
-        let needs_primary = config
-            .map(|c| !c.names.is_empty() || c.objectiveai_builtins)
-            // Header is API-stamped on every request; absence is a
-            // bug. Default to dialing primary so we degrade toward
-            // today's behavior rather than dropping the call.
-            .unwrap_or(true);
-        let plugin_entries: Vec<McpServerConfigEntry> =
-            config.map(|c| c.mcp_servers.clone()).unwrap_or_default();
-        let agent_instance_hierarchy = agent_instance_hierarchy_from_headers(&request.headers);
-        let agent_id = agent_id_from_headers(&request.headers);
-        let response_id = response_id_from_headers(&request.headers);
-        // Register the sibling group exactly once for this
-        // initialize. The per-agent dials below all reuse the same
-        // shared `Arc<Vec<String>>` via re-insert of the same ids,
-        // which is idempotent.
-        register_response_id_group(inner, &request.headers);
-
-        if !needs_primary && plugin_entries.is_empty() {
-            return Ok(jsonrpc_error_envelope(
-                request.id,
-                rpc_id.unwrap_or(serde_json::Value::Null),
-                -32602,
-                "agent declaration references no upstreams",
-            ));
+    // Primary future. Skipped when `needs_primary = false`; the
+    // `expect` is unreachable in that branch.
+    let stored_primary_sid = inbound_aggregate.as_ref().and_then(|a| a.primary.clone());
+    let primary_headers = sanitize_connect_headers(&request.headers);
+    let primary_fut = async {
+        if !needs_primary {
+            return Ok::<Option<String>, ConduitError>(None);
         }
+        let mcp_url = inner
+            .mcp_url
+            .as_ref()
+            .expect("primary only dialed when configured")
+            .clone();
+        let connection = inner
+            .client
+            .connect(mcp_url, stored_primary_sid, Some(primary_headers))
+            .await
+            .map_err(|_| ConduitError::PrimaryDialFailed)?;
+        install_list_changed_pump(&connection, inner.clone(), connection.session_id.clone());
+        let session_id = connection.session_id.clone();
+        let agent_instance_hierarchy_for_state = agent_instance_hierarchy.clone();
+        let response_id_for_state = response_id.clone();
+        inner.connections.insert(
+            session_id.clone(),
+            Arc::new(ConduitState {
+                connection,
+                agent_instance_hierarchy: agent_instance_hierarchy_for_state,
+                response_id: response_id_for_state,
+            }),
+        );
+        Ok(Some(session_id))
+    };
 
-        // Primary future. Skipped when `needs_primary = false`; the
-        // `expect` is unreachable in that branch.
-        let stored_primary_sid = inbound_aggregate.as_ref().and_then(|a| a.primary.clone());
-        let primary_headers = sanitize_connect_headers(&request.headers);
-        let primary_fut = async {
-            if !needs_primary {
-                return Ok::<Option<String>, ConduitError>(None);
-            }
-            let mcp_url = inner
-                .mcp_url
-                .as_ref()
-                .expect("primary only dialed when configured")
-                .clone();
-            let connection = inner
-                .client
-                .connect(mcp_url, stored_primary_sid, Some(primary_headers))
+    // Plugin futures: one per `(plugin, mcp_name)` entry in the
+    // agent declaration. Each resumes its upstream session if the
+    // inbound aggregate carries a matching entry.
+    let plugin_futs: Vec<_> = plugin_entries
+        .iter()
+        .cloned()
+        .map(|entry| {
+            let stored_sid = inbound_aggregate.as_ref().and_then(|a| {
+                a.plugins
+                    .iter()
+                    .find(|e| e.plugin_name == entry.plugin && e.mcp_name == entry.name)
+                    .map(|e| e.mcp_session_id.clone())
+            });
+            let inner = inner.clone();
+            let agent_instance_hierarchy = agent_instance_hierarchy.clone();
+            let agent_id = agent_id.clone();
+            let response_id = response_id.clone();
+            async move {
+                dial_plugin_upstream(
+                    &inner,
+                    entry.plugin,
+                    entry.name,
+                    agent_instance_hierarchy,
+                    agent_id,
+                    response_id,
+                    entry.arguments,
+                    stored_sid,
+                )
                 .await
-                .map_err(|_| ConduitError::PrimaryDialFailed)?;
-            install_list_changed_pump(&connection, inner.clone(), connection.session_id.clone());
-            let session_id = connection.session_id.clone();
-            let agent_instance_hierarchy_for_state = agent_instance_hierarchy.clone();
-            let response_id_for_state = response_id.clone();
-            inner.connections.insert(
-                session_id.clone(),
-                Arc::new(ConduitState {
-                    connection,
-                    agent_instance_hierarchy: agent_instance_hierarchy_for_state,
-                    response_id: response_id_for_state,
-                }),
-            );
-            Ok(Some(session_id))
-        };
-
-        // Plugin futures: one per `(plugin, mcp_name)` entry in the
-        // agent declaration. Each resumes its upstream session if
-        // the inbound aggregate carries a matching entry.
-        let plugin_futs: Vec<_> = plugin_entries
-            .iter()
-            .cloned()
-            .map(|entry| {
-                let stored_sid = inbound_aggregate.as_ref().and_then(|a| {
-                    a.plugins
-                        .iter()
-                        .find(|e| e.plugin_name == entry.plugin && e.mcp_name == entry.name)
-                        .map(|e| e.mcp_session_id.clone())
-                });
-                let inner = inner.clone();
-                let agent_instance_hierarchy = agent_instance_hierarchy.clone();
-                let agent_id = agent_id.clone();
-                let response_id = response_id.clone();
-                async move {
-                    dial_plugin_upstream(
-                        &inner,
-                        entry.plugin,
-                        entry.name,
-                        agent_instance_hierarchy,
-                        agent_id,
-                        response_id,
-                        entry.arguments,
-                        stored_sid,
-                    )
-                    .await
-                }
-            })
-            .collect();
-
-        let plugin_joined = futures::future::try_join_all(plugin_futs);
-        let (primary_sid_opt, plugin_results) = tokio::try_join!(primary_fut, plugin_joined)?;
-
-        // Build the outbound aggregate from the dialed session ids.
-        // Input ordering of `plugin_entries` is preserved through
-        // `try_join_all`'s `Vec<Output>`.
-        let aggregate = AggregateSession {
-            primary: primary_sid_opt,
-            plugins: plugin_entries
-                .into_iter()
-                .zip(plugin_results.into_iter())
-                .map(|(entry, mcp_session_id)| AggregatePluginEntry {
-                    plugin_name: entry.plugin,
-                    mcp_name: entry.name,
-                    mcp_session_id,
-                })
-                .collect(),
-        };
-        let aggregate_encoded = aggregate.encode();
-
-        // Record the aggregate on this ws_session_id's
-        // `SessionState`. `list_changed` fan-out from selected
-        // plugin upstreams uses this as the outbound `mcp_session_id`
-        // on every `McpListChanged` frame so the API routes the
-        // event to the proxy's GET-SSE subscriber correctly.
-        if let Some(ws_session_id) = ws_session_id_from_headers(&request.headers) {
-            let sess = get_or_create_session(inner, &ws_session_id);
-            let _ = sess.mcp_session_id.set(aggregate_encoded.clone());
-        }
-
-        let mut headers = IndexMap::new();
-        headers.insert("Mcp-Session-Id".to_string(), aggregate_encoded);
-        return Ok(server_response::Response {
-            id: request.id,
-            status: 200,
-            headers,
-            body: None,
-        });
-    }
-
-    // `tools/call` / `resources/read` routing: fan list_tools or
-    // list_resources across primary (if present) + selected plugins
-    // concurrently, find which upstream exposes the requested
-    // (prefixed) name or URI, rewrite the JSON-RPC body to the
-    // unprefixed form, and forward through the matching connection.
-    // No match → -32601 error envelope.
-    if let Some(method) = rpc_method.as_deref() {
-        if method == "tools/call" || method == "resources/read" {
-            // The API always stamps `X-OBJECTIVEAI-MCP-CONFIG` on
-            // every request; its absence means an upstream bug.
-            let cfg = config.expect(
-                "X-OBJECTIVEAI-MCP-CONFIG header is required on tools/call and resources/read",
-            );
-            // No plugin selection AND no primary → return -32601.
-            // No plugin selection AND primary present → fall
-            // through to primary forward below.
-            if !cfg.mcp_servers.is_empty() || primary.is_some() {
-                let routed = if method == "tools/call" {
-                    try_route_tools_call(inner, primary.map(|s| &s.connection), &request, cfg)
-                        .await?
-                } else {
-                    try_route_resources_read(inner, primary.map(|s| &s.connection), &request, cfg)
-                        .await?
-                };
-                if let Some(resp) = routed {
-                    return Ok(resp);
-                }
             }
-        }
-    }
+        })
+        .collect();
 
-    // Methods that absolutely require primary: ping is friendly
-    // (return `{}`) when primary is None; everything else returns
-    // -32601 "method not supported by selected upstreams".
-    let primary = match primary {
-        Some(p) => p,
-        None => {
-            return Ok(no_primary_method_response(
-                request.id,
-                rpc_id.unwrap_or(serde_json::Value::Null),
-                rpc_method.as_deref().unwrap_or(""),
-            ));
+    let plugin_joined = futures::future::try_join_all(plugin_futs);
+    let join_result = tokio::try_join!(primary_fut, plugin_joined);
+    let (primary_sid_opt, plugin_results) = match join_result {
+        Ok(v) => v,
+        Err(e) => {
+            return server_response::Payload::Initialize(JsonRpcResult::Err {
+                code: -32603,
+                message: format!("conduit: {e}"),
+                data: None,
+            });
         }
     };
 
-    // Raw POST through the primary Connection.
-    let mut response = forward_through(&primary.connection, &request, envelope.as_ref()).await?;
+    // Build the outbound aggregate from the dialed session ids.
+    // Input ordering of `plugin_entries` is preserved through
+    // `try_join_all`'s `Vec<Output>`.
+    let aggregate = AggregateSession {
+        primary: primary_sid_opt,
+        plugins: plugin_entries
+            .into_iter()
+            .zip(plugin_results.into_iter())
+            .map(|(entry, mcp_session_id)| AggregatePluginEntry {
+                plugin_name: entry.plugin,
+                mcp_name: entry.name,
+                mcp_session_id,
+            })
+            .collect(),
+    };
+    let aggregate_encoded = aggregate.encode();
 
-    // `tools/list`: apply the API↔CLI control surface stamped on
-    // the request via `X-OBJECTIVEAI-MCP-CONFIG`.
-    //
-    // 1. Filter `result.tools[]` (from the primary upstream) by
-    //    `names` + `objectiveai_builtins`.
-    // 2. Aggregate selected plugin MCP connections' tools into the
-    //    same `result.tools[]`, prefix-namespaced by `mcp_name`.
-    //    Reconcile `interested_sessions` against the diff between
-    //    this session's previous selection and the current one.
-    if rpc_method.as_deref() == Some("tools/list") {
-        let cfg = config.expect("X-OBJECTIVEAI-MCP-CONFIG header is required on tools/list");
-        if let Some(body) = response.body.as_mut() {
-            apply_tools_filter(inner, body, cfg).await;
-            let ws_session_id = ws_session_id_from_headers(&request.headers);
-            let agent_instance_hierarchy = agent_instance_hierarchy_from_headers(&request.headers);
-            let response_id = response_id_from_headers(&request.headers);
-            let selection: Vec<PluginUpstreamKey> = cfg
-                .mcp_servers
-                .iter()
-                .map(|e| e.cache_key(&agent_instance_hierarchy, &response_id))
-                .collect();
-            aggregate_plugin_tools(inner, body, &selection, ws_session_id.as_deref()).await?;
-        }
-    } else if rpc_method.as_deref() == Some("resources/list") {
-        // `resources/list`: same shape as tools/list aggregation,
-        // operating on `result.resources[]` with `uri` as the
-        // prefix-namespacing field. No primary name allow-list.
-        let cfg = config.expect("X-OBJECTIVEAI-MCP-CONFIG header is required on resources/list");
-        if let Some(body) = response.body.as_mut() {
-            let ws_session_id = ws_session_id_from_headers(&request.headers);
-            let agent_instance_hierarchy = agent_instance_hierarchy_from_headers(&request.headers);
-            let response_id = response_id_from_headers(&request.headers);
-            let selection: Vec<PluginUpstreamKey> = cfg
-                .mcp_servers
-                .iter()
-                .map(|e| e.cache_key(&agent_instance_hierarchy, &response_id))
-                .collect();
-            aggregate_plugin_resources(inner, body, &selection, ws_session_id.as_deref()).await?;
-        }
+    // Record the aggregate on this ws_session_id's `SessionState`.
+    // `list_changed` fan-out from selected plugin upstreams uses
+    // this as the outbound `mcp_session_id` on every
+    // `McpListChanged` frame so the API routes the event to the
+    // proxy's GET-SSE subscriber correctly.
+    if let Some(ws_session_id) = ws_session_id_from_headers(&request.headers) {
+        let sess = get_or_create_session(inner, &ws_session_id);
+        let _ = sess.mcp_session_id.set(aggregate_encoded.clone());
     }
 
-    Ok(response)
+    server_response::Payload::Initialize(JsonRpcResult::Ok {
+        result: InitializeReply {
+            mcp_session_id: aggregate_encoded,
+        },
+    })
 }
 
-/// Synthesize a `-32601` JSON-RPC error envelope for a method that
-/// requires primary when primary isn't part of the session. Ping
-/// gets special-cased to a friendly empty `{}` result.
-fn no_primary_method_response(
-    server_request_id: String,
-    rpc_id: serde_json::Value,
-    method: &str,
-) -> server_response::Response {
-    if method == "ping" {
-        return server_response::Response {
-            id: server_request_id,
-            status: 200,
-            headers: IndexMap::new(),
-            body: Some(serde_json::json!({
-                "jsonrpc": "2.0",
-                "id": rpc_id,
-                "result": {},
-            })),
-        };
-    }
-    jsonrpc_error_envelope(
-        server_request_id,
-        rpc_id,
-        -32601,
-        format!("method {method:?} not supported by selected upstreams (no primary)"),
-    )
-}
-
-/// Synthesize a generic JSON-RPC error envelope inside a 200 HTTP
-/// response. Used for upstream-selection failures and other
-/// upstream-independent error paths.
-fn jsonrpc_error_envelope(
-    server_request_id: String,
-    rpc_id: serde_json::Value,
-    code: i64,
-    message: impl Into<String>,
-) -> server_response::Response {
-    server_response::Response {
-        id: server_request_id,
-        status: 200,
-        headers: IndexMap::new(),
-        body: Some(serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": rpc_id,
-            "error": {
-                "code": code,
-                "message": message.into(),
-            },
-        })),
-    }
-}
-
-/// Raw POST through an `mcp::Connection`. Forwards headers verbatim
-/// (modulo a hop-by-hop blacklist), sets `Mcp-Session-Id` to the
-/// connection's own session id, parses the response body via
-/// `parse_json_or_sse`, returns a `server_response::Response` with
-/// the parsed body. `body_override` lets the caller substitute a
-/// different JSON-RPC envelope on the outbound POST (used by
-/// `tools/call` and `resources/read` routing to rewrite
-/// `params.name` / `params.uri` to the unprefixed form before
-/// forwarding to the matching upstream).
-async fn forward_through(
-    conn: &objectiveai_sdk::mcp::Connection,
+/// `SessionTerminate`: drop every cached connection in the inbound
+/// aggregate. The MCP-spec `DELETE` semantics of the WS-level
+/// session would also delete each upstream session, but the SDK's
+/// `Drop` for `Connection` tears down its SSE listener and HTTP
+/// stream the moment the last `Arc` clone drops — removing the
+/// state from `connections` / `plugin_mcp_connections` is enough
+/// for the conduit's purposes.
+async fn dispatch_session_terminate(
+    inner: &Arc<Inner>,
     request: &server_request::Request,
-    body_override: Option<&serde_json::Value>,
-) -> Result<server_response::Response, ConduitError> {
+) -> server_response::Payload {
+    let aggregate_id = request
+        .headers
+        .iter()
+        .find_map(|(k, v)| k.eq_ignore_ascii_case("mcp-session-id").then(|| v.clone()));
+    if let Some(aggregate_id) = aggregate_id {
+        if let Some(aggregate) = AggregateSession::decode(&aggregate_id) {
+            if let Some(primary_sid) = aggregate.primary.as_ref() {
+                inner.connections.remove(primary_sid);
+            }
+            for entry in &aggregate.plugins {
+                inner.plugin_mcp_connections.retain(|key, _| {
+                    !(key.0 == entry.plugin_name && key.1 == entry.mcp_name)
+                });
+            }
+        }
+    }
+    server_response::Payload::SessionTerminate
+}
+
+/// Typed dispatch for `tools/list`, `tools/call`, `resources/list`,
+/// `resources/read`. `Initialize` and `SessionTerminate` are routed
+/// before this point. Each arm builds the corresponding
+/// `server_response::Payload` variant directly.
+async fn dispatch_typed(
+    inner: &Arc<Inner>,
+    primary: Option<&ConduitState>,
+    config: Option<&McpConfig>,
+    request: &server_request::Request,
+) -> server_response::Payload {
+    match &request.payload {
+        server_request::Payload::Initialize | server_request::Payload::SessionTerminate => {
+            // Handled upstream.
+            unreachable!("Initialize / SessionTerminate routed elsewhere")
+        }
+        server_request::Payload::ToolsList(params) => {
+            dispatch_tools_list(inner, primary, config, &request.headers, params.clone()).await
+        }
+        server_request::Payload::ToolsCall(params) => {
+            dispatch_tools_call(inner, primary, config, &request.headers, params.clone()).await
+        }
+        server_request::Payload::ResourcesList(params) => {
+            dispatch_resources_list(inner, primary, config, &request.headers, params.clone())
+                .await
+        }
+        server_request::Payload::ResourcesRead(params) => {
+            dispatch_resources_read(inner, primary, config, &request.headers, params.clone())
+                .await
+        }
+    }
+}
+
+async fn dispatch_tools_list(
+    inner: &Arc<Inner>,
+    primary: Option<&ConduitState>,
+    config: Option<&McpConfig>,
+    headers: &IndexMap<String, String>,
+    params: ListToolsRequest,
+) -> server_response::Payload {
+    let Some(primary) = primary else {
+        return server_response::Payload::ToolsList(JsonRpcResult::Err {
+            code: -32601,
+            message: "method \"tools/list\" requires a primary upstream (none selected)".into(),
+            data: None,
+        });
+    };
+    let cfg = config.expect("X-OBJECTIVEAI-MCP-CONFIG header is required on tools/list");
+
+    let primary_call = upstream_call::<ListToolsRequest, ListToolsResult>(
+        &primary.connection,
+        headers,
+        "tools/list",
+        &params,
+    )
+    .await;
+    let mut result = match primary_call {
+        Ok(JsonRpcResult::Ok { result }) => result,
+        Ok(err @ JsonRpcResult::Err { .. }) => {
+            return server_response::Payload::ToolsList(err);
+        }
+        Err(e) => {
+            return server_response::Payload::ToolsList(JsonRpcResult::Err {
+                code: -32603,
+                message: format!("conduit: {e}"),
+                data: None,
+            });
+        }
+    };
+
+    apply_tools_filter(inner, &mut result, cfg).await;
+
+    let ws_session_id = ws_session_id_from_headers(headers);
+    let agent_instance_hierarchy = agent_instance_hierarchy_from_headers(headers);
+    let response_id = response_id_from_headers(headers);
+    let selection: Vec<PluginUpstreamKey> = cfg
+        .mcp_servers
+        .iter()
+        .map(|e| e.cache_key(&agent_instance_hierarchy, &response_id))
+        .collect();
+    if let Err(e) =
+        aggregate_plugin_tools(inner, &mut result, &selection, ws_session_id.as_deref()).await
+    {
+        return server_response::Payload::ToolsList(JsonRpcResult::Err {
+            code: -32603,
+            message: format!("conduit: {e}"),
+            data: None,
+        });
+    }
+
+    server_response::Payload::ToolsList(JsonRpcResult::Ok { result })
+}
+
+async fn dispatch_resources_list(
+    inner: &Arc<Inner>,
+    primary: Option<&ConduitState>,
+    config: Option<&McpConfig>,
+    headers: &IndexMap<String, String>,
+    params: ListResourcesRequest,
+) -> server_response::Payload {
+    let Some(primary) = primary else {
+        return server_response::Payload::ResourcesList(JsonRpcResult::Err {
+            code: -32601,
+            message: "method \"resources/list\" requires a primary upstream (none selected)"
+                .into(),
+            data: None,
+        });
+    };
+    let cfg = config.expect("X-OBJECTIVEAI-MCP-CONFIG header is required on resources/list");
+
+    let primary_call = upstream_call::<ListResourcesRequest, ListResourcesResult>(
+        &primary.connection,
+        headers,
+        "resources/list",
+        &params,
+    )
+    .await;
+    let mut result = match primary_call {
+        Ok(JsonRpcResult::Ok { result }) => result,
+        Ok(err @ JsonRpcResult::Err { .. }) => {
+            return server_response::Payload::ResourcesList(err);
+        }
+        Err(e) => {
+            return server_response::Payload::ResourcesList(JsonRpcResult::Err {
+                code: -32603,
+                message: format!("conduit: {e}"),
+                data: None,
+            });
+        }
+    };
+
+    let ws_session_id = ws_session_id_from_headers(headers);
+    let agent_instance_hierarchy = agent_instance_hierarchy_from_headers(headers);
+    let response_id = response_id_from_headers(headers);
+    let selection: Vec<PluginUpstreamKey> = cfg
+        .mcp_servers
+        .iter()
+        .map(|e| e.cache_key(&agent_instance_hierarchy, &response_id))
+        .collect();
+    if let Err(e) =
+        aggregate_plugin_resources(inner, &mut result, &selection, ws_session_id.as_deref()).await
+    {
+        return server_response::Payload::ResourcesList(JsonRpcResult::Err {
+            code: -32603,
+            message: format!("conduit: {e}"),
+            data: None,
+        });
+    }
+
+    server_response::Payload::ResourcesList(JsonRpcResult::Ok { result })
+}
+
+async fn dispatch_tools_call(
+    inner: &Arc<Inner>,
+    primary: Option<&ConduitState>,
+    config: Option<&McpConfig>,
+    headers: &IndexMap<String, String>,
+    params: CallToolRequestParams,
+) -> server_response::Payload {
+    let cfg = config.expect("X-OBJECTIVEAI-MCP-CONFIG header is required on tools/call");
+
+    // No primary AND no plugins → -32601 (method not available).
+    if cfg.mcp_servers.is_empty() && primary.is_none() {
+        return server_response::Payload::ToolsCall(JsonRpcResult::Err {
+            code: -32601,
+            message: "method \"tools/call\" not supported by selected upstreams (no primary)"
+                .into(),
+            data: None,
+        });
+    }
+
+    // Routing: fan list_tools across primary + plugins, find which
+    // upstream exposes the requested name, rewrite `params.name` to
+    // the unprefixed form, and forward via that upstream.
+    match try_route_tools_call(inner, primary, headers, cfg, params).await {
+        Ok(payload) => payload,
+        Err(e) => server_response::Payload::ToolsCall(JsonRpcResult::Err {
+            code: -32603,
+            message: format!("conduit: {e}"),
+            data: None,
+        }),
+    }
+}
+
+async fn dispatch_resources_read(
+    inner: &Arc<Inner>,
+    primary: Option<&ConduitState>,
+    config: Option<&McpConfig>,
+    headers: &IndexMap<String, String>,
+    params: ReadResourceRequestParams,
+) -> server_response::Payload {
+    let cfg = config.expect("X-OBJECTIVEAI-MCP-CONFIG header is required on resources/read");
+
+    if cfg.mcp_servers.is_empty() && primary.is_none() {
+        return server_response::Payload::ResourcesRead(JsonRpcResult::Err {
+            code: -32601,
+            message: "method \"resources/read\" not supported by selected upstreams (no primary)"
+                .into(),
+            data: None,
+        });
+    }
+
+    match try_route_resources_read(inner, primary, headers, cfg, params).await {
+        Ok(payload) => payload,
+        Err(e) => server_response::Payload::ResourcesRead(JsonRpcResult::Err {
+            code: -32603,
+            message: format!("conduit: {e}"),
+            data: None,
+        }),
+    }
+}
+
+/// Build a `JsonRpcResult::Err` typed into the corresponding
+/// response variant for the inbound request. Used by the
+/// transport-level error paths in `handle()` that need to return
+/// an error before the per-variant dispatch arm runs (missing
+/// `Mcp-Session-Id`, decode failure, primary dial failure).
+fn error_payload_for(
+    payload: &server_request::Payload,
+    code: i64,
+    message: String,
+) -> server_response::Payload {
+    let err = JsonRpcResult::<()>::Err {
+        code,
+        message: message.clone(),
+        data: None,
+    };
+    // Re-build with the right phantom-type so each Payload variant
+    // takes the right `JsonRpcResult<R>` shape. Since each variant
+    // wraps a different R but the error variant carries no `R`
+    // value, we just need to type-erase by building each per-variant.
+    let _ = err;
+    match payload {
+        server_request::Payload::Initialize => {
+            server_response::Payload::Initialize(JsonRpcResult::Err {
+                code,
+                message,
+                data: None,
+            })
+        }
+        server_request::Payload::ToolsList(_) => {
+            server_response::Payload::ToolsList(JsonRpcResult::Err {
+                code,
+                message,
+                data: None,
+            })
+        }
+        server_request::Payload::ToolsCall(_) => {
+            server_response::Payload::ToolsCall(JsonRpcResult::Err {
+                code,
+                message,
+                data: None,
+            })
+        }
+        server_request::Payload::ResourcesList(_) => {
+            server_response::Payload::ResourcesList(JsonRpcResult::Err {
+                code,
+                message,
+                data: None,
+            })
+        }
+        server_request::Payload::ResourcesRead(_) => {
+            server_response::Payload::ResourcesRead(JsonRpcResult::Err {
+                code,
+                message,
+                data: None,
+            })
+        }
+        server_request::Payload::SessionTerminate => {
+            // SessionTerminate has no error variant in its typed
+            // reply; surface as a successful ack since the failure
+            // path here means "we couldn't decode the aggregate to
+            // tear it down" which is effectively a no-op anyway.
+            let _ = message;
+            let _ = code;
+            server_response::Payload::SessionTerminate
+        }
+    }
+}
+
+/// Raw POST through an `mcp::Connection`. Builds a JSON-RPC
+/// envelope (`{jsonrpc, id, method, params}`) from the typed
+/// `params`, forwards inbound headers verbatim (modulo a hop-by-hop
+/// blacklist), sets `Mcp-Session-Id` to the connection's own
+/// session id, parses the response body via [`parse_json_or_sse`],
+/// and projects the JSON-RPC `{result|error}` shape into the
+/// SDK-typed [`JsonRpcResult<R>`]. Transport-level failures (HTTP
+/// errors, malformed envelopes) bubble up as [`ConduitError`].
+async fn upstream_call<P, R>(
+    conn: &objectiveai_sdk::mcp::Connection,
+    headers: &IndexMap<String, String>,
+    method: &str,
+    params: &P,
+) -> Result<JsonRpcResult<R>, ConduitError>
+where
+    P: serde::Serialize,
+    R: serde::de::DeserializeOwned,
+{
+    // Mint a request id local to this upstream call. The proxy's
+    // original JSON-RPC id rode on the inbound HTTP request to the
+    // API; the API↔CLI WS link uses `request.id` for correlation,
+    // and the upstream's id is independent.
+    let rpc_id = uuid::Uuid::new_v4().to_string();
+    let envelope = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": rpc_id,
+        "method": method,
+        "params": params,
+    });
+
     let mut req = conn.http_client.post(&conn.url);
-    for (k, v) in &request.headers {
+    for (k, v) in headers {
         if k.eq_ignore_ascii_case("host")
             || k.eq_ignore_ascii_case("content-length")
             || k.eq_ignore_ascii_case("connection")
@@ -1026,40 +1200,40 @@ async fn forward_through(
     req = req
         .header("Content-Type", "application/json")
         .header("Accept", "application/json, text/event-stream")
-        .header("Mcp-Session-Id", &conn.session_id);
-    if let Some(body) = body_override.or(request.body.as_ref()) {
-        req = req.json(body);
-    }
+        .header("Mcp-Session-Id", &conn.session_id)
+        .json(&envelope);
 
     let resp = req.send().await.map_err(ConduitError::Request)?;
-    let status = resp.status().as_u16();
-    let mut resp_headers = IndexMap::new();
-    for (k, v) in resp.headers().iter() {
-        if k.as_str().eq_ignore_ascii_case("mcp-session-id")
-            || k.as_str().eq_ignore_ascii_case("content-type")
-            || k.as_str().eq_ignore_ascii_case("transfer-encoding")
-            || k.as_str().eq_ignore_ascii_case("content-length")
-        {
-            // mcp-session-id: local-layer; the API uses the conduit's
-            // real session id stamped elsewhere.
-            // content-type: the API re-sets it on body presence.
-            // transfer-encoding / content-length: framing headers
-            // scoped to the conduit↔objectiveai-mcp TCP connection.
-            continue;
-        }
-        if let Ok(value) = v.to_str() {
-            resp_headers.insert(k.as_str().to_string(), value.to_string());
-        }
-    }
     let resp_text = resp.text().await.map_err(ConduitError::Body)?;
-    let resp_body = parse_json_or_sse(&resp_text);
+    let Some(body) = parse_json_or_sse(&resp_text) else {
+        return Err(ConduitError::MalformedUpstream(
+            "empty or unparseable upstream response".into(),
+        ));
+    };
 
-    Ok(server_response::Response {
-        id: request.id.clone(),
-        status,
-        headers: resp_headers,
-        body: resp_body,
-    })
+    if let Some(result) = body.get("result") {
+        let typed: R = serde_json::from_value(result.clone()).map_err(|e| {
+            ConduitError::MalformedUpstream(format!("decode upstream result: {e}"))
+        })?;
+        return Ok(JsonRpcResult::Ok { result: typed });
+    }
+    if let Some(err) = body.get("error") {
+        let code = err.get("code").and_then(|c| c.as_i64()).unwrap_or(-32603);
+        let message = err
+            .get("message")
+            .and_then(|m| m.as_str())
+            .unwrap_or("upstream returned an error envelope without a message")
+            .to_string();
+        let data = err.get("data").cloned();
+        return Ok(JsonRpcResult::Err {
+            code,
+            message,
+            data,
+        });
+    }
+    Err(ConduitError::MalformedUpstream(
+        "upstream response missing both `result` and `error`".into(),
+    ))
 }
 
 /// Aggregate tools from the selected plugin MCP connections into the
@@ -1069,11 +1243,11 @@ async fn forward_through(
 /// matching `PluginMcpState`, call `Connection::list_tools` on it
 /// concurrently, prefix each returned tool name `<mcp_name>_<tool>`
 /// (mirrors `objectiveai-mcp-proxy/src/session.rs::prefix_name`'s
-/// `<server>_<tool>` shape), and append to `result.tools[]`. If any
+/// `<server>_<tool>` shape), and append to `result.tools`. If any
 /// prefixed plugin tool collides with a primary tool's name, prefix
 /// every primary tool with `objectiveai-mcp_` (the conventional
 /// server-name for the local objectiveai-mcp upstream). Finally sort
-/// the merged array by name for stable ordering.
+/// the merged list by name for stable ordering.
 ///
 /// Also reconciles `interested_sessions` on each `PluginMcpState`:
 /// pairs added since the last `tools/list` for this ws_session_id
@@ -1081,7 +1255,7 @@ async fn forward_through(
 /// is gated by the session's `last_selected` mutex.
 async fn aggregate_plugin_tools(
     inner: &Arc<Inner>,
-    body: &mut serde_json::Value,
+    result: &mut ListToolsResult,
     selection: &[PluginUpstreamKey],
     ws_session_id: Option<&str>,
 ) -> Result<(), ConduitError> {
@@ -1093,9 +1267,8 @@ async fn aggregate_plugin_tools(
         return Ok(());
     }
 
-    // Fan out list_tools across selected plugin connections.
     let states = collect_plugin_states(inner, selection);
-    let plugin_tool_lists: Vec<(PluginUpstreamKey, Arc<Vec<objectiveai_sdk::mcp::tool::Tool>>)> =
+    let plugin_tool_lists: Vec<(PluginUpstreamKey, Arc<Vec<Tool>>)> =
         futures::future::try_join_all(states.into_iter().map(|(key, state)| async move {
             let tools = state
                 .connection
@@ -1106,36 +1279,28 @@ async fn aggregate_plugin_tools(
         }))
         .await?;
 
-    let Some(arr) = body
-        .get_mut("result")
-        .and_then(|r| r.get_mut("tools"))
-        .and_then(|t| t.as_array_mut())
-    else {
-        return Ok(());
-    };
-
-    // Build prefixed plugin tool entries (key on "name").
-    let mut plugin_entries: Vec<serde_json::Value> = Vec::new();
+    let mut plugin_entries: Vec<Tool> = Vec::new();
     for ((_plugin, mcp_name, _base, _rid, _args), arc) in plugin_tool_lists {
         for tool in arc.iter() {
-            let value = serde_json::to_value(tool).unwrap_or(serde_json::Value::Null);
-            plugin_entries.push(prefix_entry_field(value, "name", &mcp_name));
+            let mut prefixed = tool.clone();
+            prefixed.name = format!("{mcp_name}_{}", prefixed.name);
+            plugin_entries.push(prefixed);
         }
     }
 
-    merge_with_conflict_resolution(arr, plugin_entries, "name");
+    merge_tools(&mut result.tools, plugin_entries);
     Ok(())
 }
 
 /// Aggregate resources from selected plugin MCP connections into the
 /// primary upstream's `resources/list` response. Same shape as
-/// [`aggregate_plugin_tools`] but operates on `result.resources[]`
-/// with `uri` as the prefix-namespacing field. No name allow-list is
+/// [`aggregate_plugin_tools`] but operates on `result.resources` with
+/// `uri` as the prefix-namespacing field. No name allow-list is
 /// applied to primary resources (the agent declaration has no
 /// `resources[]` field today — filtering is plugin-selection-only).
 async fn aggregate_plugin_resources(
     inner: &Arc<Inner>,
-    body: &mut serde_json::Value,
+    result: &mut ListResourcesResult,
     selection: &[PluginUpstreamKey],
     ws_session_id: Option<&str>,
 ) -> Result<(), ConduitError> {
@@ -1161,23 +1326,16 @@ async fn aggregate_plugin_resources(
     }))
     .await?;
 
-    let Some(arr) = body
-        .get_mut("result")
-        .and_then(|r| r.get_mut("resources"))
-        .and_then(|t| t.as_array_mut())
-    else {
-        return Ok(());
-    };
-
-    let mut plugin_entries: Vec<serde_json::Value> = Vec::new();
+    let mut plugin_entries: Vec<objectiveai_sdk::mcp::resource::Resource> = Vec::new();
     for ((_plugin, mcp_name, _base, _rid, _args), arc) in plugin_resource_lists {
         for resource in arc.iter() {
-            let value = serde_json::to_value(resource).unwrap_or(serde_json::Value::Null);
-            plugin_entries.push(prefix_entry_field(value, "uri", &mcp_name));
+            let mut prefixed = resource.clone();
+            prefixed.uri = format!("{mcp_name}_{}", prefixed.uri);
+            plugin_entries.push(prefixed);
         }
     }
 
-    merge_with_conflict_resolution(arr, plugin_entries, "uri");
+    merge_resources(&mut result.resources, plugin_entries);
     Ok(())
 }
 
@@ -1226,88 +1384,61 @@ fn collect_plugin_states(
         .collect()
 }
 
-/// Rewrite the named JSON field on `value` with the
-/// `<mcp_name>_<original>` prefix-namespaced form. Used to prefix
-/// tool `name` / resource `uri` fields in aggregated responses.
-fn prefix_entry_field(
-    mut value: serde_json::Value,
-    field: &str,
-    mcp_name: &str,
-) -> serde_json::Value {
-    if let Some(obj) = value.as_object_mut() {
-        if let Some(original) = obj.get(field).and_then(|n| n.as_str()) {
-            let prefixed = format!("{mcp_name}_{original}");
-            obj.insert(field.to_string(), serde_json::Value::String(prefixed));
+/// Merge `plugin_entries` into `primary_tools` with conflict
+/// resolution on `name`: if any plugin tool's prefixed name
+/// collides with a primary tool's name, prefix every primary tool
+/// with `objectiveai-mcp_`. Then sort the merged list by `name` for
+/// stable ordering.
+fn merge_tools(primary_tools: &mut Vec<Tool>, plugin_entries: Vec<Tool>) {
+    let plugin_names: HashSet<&str> = plugin_entries.iter().map(|t| t.name.as_str()).collect();
+    let primary_collides = primary_tools
+        .iter()
+        .any(|t| plugin_names.contains(t.name.as_str()));
+    if primary_collides {
+        for tool in primary_tools.iter_mut() {
+            tool.name = format!("objectiveai-mcp_{}", tool.name);
         }
     }
-    value
+    primary_tools.extend(plugin_entries);
+    primary_tools.sort_by(|a, b| a.name.cmp(&b.name));
 }
 
-/// Merge `plugin_entries` into `primary_arr` with conflict
-/// resolution on the named field: if any plugin entry's value
-/// collides with a primary entry's, prefix every primary entry's
-/// value with `objectiveai-mcp_`. Then sort the merged list by the
-/// field for stable ordering.
-fn merge_with_conflict_resolution(
-    primary_arr: &mut Vec<serde_json::Value>,
-    plugin_entries: Vec<serde_json::Value>,
-    field: &str,
+/// Resource counterpart of [`merge_tools`] — merges on `uri`.
+fn merge_resources(
+    primary_resources: &mut Vec<objectiveai_sdk::mcp::resource::Resource>,
+    plugin_entries: Vec<objectiveai_sdk::mcp::resource::Resource>,
 ) {
-    let plugin_values: HashSet<String> = plugin_entries
+    let plugin_uris: HashSet<&str> = plugin_entries.iter().map(|r| r.uri.as_str()).collect();
+    let primary_collides = primary_resources
         .iter()
-        .filter_map(|e| e.get(field).and_then(|n| n.as_str()).map(String::from))
-        .collect();
-    let primary_collides = primary_arr.iter().any(|e| {
-        e.get(field)
-            .and_then(|n| n.as_str())
-            .map(|n| plugin_values.contains(n))
-            .unwrap_or(false)
-    });
+        .any(|r| plugin_uris.contains(r.uri.as_str()));
     if primary_collides {
-        for entry in primary_arr.iter_mut() {
-            if let Some(obj) = entry.as_object_mut() {
-                if let Some(original) = obj.get(field).and_then(|n| n.as_str()) {
-                    let prefixed = format!("objectiveai-mcp_{original}");
-                    obj.insert(field.to_string(), serde_json::Value::String(prefixed));
-                }
-            }
+        for resource in primary_resources.iter_mut() {
+            resource.uri = format!("objectiveai-mcp_{}", resource.uri);
         }
     }
-    primary_arr.extend(plugin_entries);
-    primary_arr.sort_by(|a, b| {
-        let av = a.get(field).and_then(|n| n.as_str()).unwrap_or("");
-        let bv = b.get(field).and_then(|n| n.as_str()).unwrap_or("");
-        av.cmp(bv)
-    });
+    primary_resources.extend(plugin_entries);
+    primary_resources.sort_by(|a, b| a.uri.cmp(&b.uri));
 }
 
 /// Try routing a `tools/call` to the upstream that exposes the
 /// requested (prefixed) tool name. Fans out `Connection::list_tools`
 /// across primary + selected plugins concurrently (all cached),
 /// computes the primary's prefix from conflict-detection, finds the
-/// matching upstream by stripping the prefix, rewrites
-/// `params.name` to the unprefixed form, and forwards through the
-/// matching connection. No match → 200 with a `-32601` error
-/// envelope. Returns `None` if the request body isn't shaped right
-/// to extract a tool name (caller falls through to primary).
+/// matching upstream by stripping the prefix, rewrites `params.name`
+/// to the unprefixed form, and forwards through the matching
+/// connection. No match → typed `JsonRpcResult::Err(-32601)`.
 async fn try_route_tools_call(
     inner: &Arc<Inner>,
-    primary: Option<&objectiveai_sdk::mcp::Connection>,
-    request: &server_request::Request,
+    primary: Option<&ConduitState>,
+    headers: &IndexMap<String, String>,
     config: &McpConfig,
-) -> Result<Option<server_response::Response>, ConduitError> {
-    let envelope = request.body.clone().unwrap_or(serde_json::Value::Null);
-    let Some(requested) = envelope
-        .get("params")
-        .and_then(|p| p.get("name"))
-        .and_then(|v| v.as_str())
-        .map(String::from)
-    else {
-        return Ok(None);
-    };
+    params: CallToolRequestParams,
+) -> Result<server_response::Payload, ConduitError> {
+    let requested = params.name.clone();
 
-    let agent_instance_hierarchy = agent_instance_hierarchy_from_headers(&request.headers);
-    let response_id = response_id_from_headers(&request.headers);
+    let agent_instance_hierarchy = agent_instance_hierarchy_from_headers(headers);
+    let response_id = response_id_from_headers(headers);
     let selection: Vec<PluginUpstreamKey> = config
         .mcp_servers
         .iter()
@@ -1323,25 +1454,22 @@ async fn try_route_tools_call(
                 .map_err(|_| ConduitError::PluginListFailed)?;
             Ok::<_, ConduitError>((key, state, tools))
         }));
-    let primary_tools_opt = match primary {
+    let (primary_tools, plugin_lists) = match primary {
         Some(p) => {
+            let primary_conn = &p.connection;
             let primary_tools_fut = async {
-                p.list_tools()
+                primary_conn
+                    .list_tools()
                     .await
                     .map_err(|_| ConduitError::PluginListFailed)
             };
-            let (pt, plugin_lists) = tokio::try_join!(primary_tools_fut, plugin_lists_fut)?;
-            Some((pt, plugin_lists))
+            tokio::try_join!(primary_tools_fut, plugin_lists_fut)?
         }
-        None => {
-            let plugin_lists = plugin_lists_fut.await?;
-            Some((Arc::new(Vec::new()), plugin_lists))
-        }
+        None => (Arc::new(Vec::new()), plugin_lists_fut.await?),
     };
-    let (primary_tools, plugin_lists) = primary_tools_opt.unwrap();
 
-    // Conflict detection — does any plugin's prefixed name match
-    // any primary tool's name? (Trivially false if primary is None /
+    // Conflict detection: does any plugin's prefixed name match any
+    // primary tool's name? (Trivially false if primary is None or
     // primary_tools is empty.)
     let plugin_prefixed: HashSet<String> = plugin_lists
         .iter()
@@ -1365,8 +1493,17 @@ async fn try_route_tools_call(
     if let Some(p) = primary {
         if let Some(stripped) = requested.strip_prefix(primary_prefix) {
             if primary_tools.iter().any(|t| t.name == stripped) {
-                let new_body = rewrite_params_field(&envelope, "name", stripped);
-                return Ok(Some(forward_through(p, request, Some(&new_body)).await?));
+                let mut routed_params = params.clone();
+                routed_params.name = stripped.to_string();
+                let result =
+                    upstream_call::<CallToolRequestParams, CallToolResult>(
+                        &p.connection,
+                        headers,
+                        "tools/call",
+                        &routed_params,
+                    )
+                    .await?;
+                return Ok(server_response::Payload::ToolsCall(result));
             }
         }
     }
@@ -1376,47 +1513,43 @@ async fn try_route_tools_call(
         let prefix = format!("{mcp_name}_");
         if let Some(stripped) = requested.strip_prefix(&prefix) {
             if tools.iter().any(|t| t.name == stripped) {
-                let new_body = rewrite_params_field(&envelope, "name", stripped);
-                return Ok(Some(
-                    forward_through(&state.connection, request, Some(&new_body)).await?,
-                ));
+                let mut routed_params = params.clone();
+                routed_params.name = stripped.to_string();
+                let result =
+                    upstream_call::<CallToolRequestParams, CallToolResult>(
+                        &state.connection,
+                        headers,
+                        "tools/call",
+                        &routed_params,
+                    )
+                    .await?;
+                return Ok(server_response::Payload::ToolsCall(result));
             }
         }
     }
 
     // No match anywhere.
-    Ok(Some(json_rpc_not_found(
-        request.id.clone(),
-        envelope
-            .get("id")
-            .cloned()
-            .unwrap_or(serde_json::Value::Null),
-        &requested,
-        "tool",
-    )))
+    Ok(server_response::Payload::ToolsCall(JsonRpcResult::Err {
+        code: -32601,
+        message: format!("tool not found: {requested}"),
+        data: None,
+    }))
 }
 
 /// Try routing a `resources/read` to the upstream that exposes the
-/// requested (prefixed) URI. Same shape as `try_route_tools_call`
+/// requested (prefixed) URI. Same shape as [`try_route_tools_call`]
 /// but uses `list_resources` and `params.uri` / `resource.uri`.
 async fn try_route_resources_read(
     inner: &Arc<Inner>,
-    primary: Option<&objectiveai_sdk::mcp::Connection>,
-    request: &server_request::Request,
+    primary: Option<&ConduitState>,
+    headers: &IndexMap<String, String>,
     config: &McpConfig,
-) -> Result<Option<server_response::Response>, ConduitError> {
-    let envelope = request.body.clone().unwrap_or(serde_json::Value::Null);
-    let Some(requested) = envelope
-        .get("params")
-        .and_then(|p| p.get("uri"))
-        .and_then(|v| v.as_str())
-        .map(String::from)
-    else {
-        return Ok(None);
-    };
+    params: ReadResourceRequestParams,
+) -> Result<server_response::Payload, ConduitError> {
+    let requested = params.uri.clone();
 
-    let agent_instance_hierarchy = agent_instance_hierarchy_from_headers(&request.headers);
-    let response_id = response_id_from_headers(&request.headers);
+    let agent_instance_hierarchy = agent_instance_hierarchy_from_headers(headers);
+    let response_id = response_id_from_headers(headers);
     let selection: Vec<PluginUpstreamKey> = config
         .mcp_servers
         .iter()
@@ -1434,8 +1567,10 @@ async fn try_route_resources_read(
         }));
     let (primary_resources, plugin_lists) = match primary {
         Some(p) => {
+            let primary_conn = &p.connection;
             let primary_resources_fut = async {
-                p.list_resources()
+                primary_conn
+                    .list_resources()
                     .await
                     .map_err(|_| ConduitError::PluginListFailed)
             };
@@ -1465,8 +1600,16 @@ async fn try_route_resources_read(
     if let Some(p) = primary {
         if let Some(stripped) = requested.strip_prefix(primary_prefix) {
             if primary_resources.iter().any(|r| r.uri == stripped) {
-                let new_body = rewrite_params_field(&envelope, "uri", stripped);
-                return Ok(Some(forward_through(p, request, Some(&new_body)).await?));
+                let mut routed_params = params.clone();
+                routed_params.uri = stripped.to_string();
+                let result = upstream_call::<ReadResourceRequestParams, ReadResourceResult>(
+                    &p.connection,
+                    headers,
+                    "resources/read",
+                    &routed_params,
+                )
+                .await?;
+                return Ok(server_response::Payload::ResourcesRead(result));
             }
         }
     }
@@ -1475,68 +1618,25 @@ async fn try_route_resources_read(
         let prefix = format!("{mcp_name}_");
         if let Some(stripped) = requested.strip_prefix(&prefix) {
             if resources.iter().any(|r| r.uri == stripped) {
-                let new_body = rewrite_params_field(&envelope, "uri", stripped);
-                return Ok(Some(
-                    forward_through(&state.connection, request, Some(&new_body)).await?,
-                ));
+                let mut routed_params = params.clone();
+                routed_params.uri = stripped.to_string();
+                let result = upstream_call::<ReadResourceRequestParams, ReadResourceResult>(
+                    &state.connection,
+                    headers,
+                    "resources/read",
+                    &routed_params,
+                )
+                .await?;
+                return Ok(server_response::Payload::ResourcesRead(result));
             }
         }
     }
 
-    Ok(Some(json_rpc_not_found(
-        request.id.clone(),
-        envelope
-            .get("id")
-            .cloned()
-            .unwrap_or(serde_json::Value::Null),
-        &requested,
-        "resource",
-    )))
-}
-
-/// Clone the envelope and overwrite the named field on its `params`
-/// object. Used by `tools/call` and `resources/read` routing to
-/// rewrite `name` / `uri` to the unprefixed form before forwarding
-/// to the matching upstream.
-fn rewrite_params_field(
-    body: &serde_json::Value,
-    field: &str,
-    new_value: &str,
-) -> serde_json::Value {
-    let mut clone = body.clone();
-    if let Some(obj) = clone.get_mut("params").and_then(|p| p.as_object_mut()) {
-        obj.insert(
-            field.to_string(),
-            serde_json::Value::String(new_value.to_string()),
-        );
-    }
-    clone
-}
-
-/// Synthesize a 200 response carrying a JSON-RPC `-32601` error
-/// envelope when no upstream owns the requested `name` / `uri`.
-/// `rpc_id` is echoed on the inner envelope so the proxy can
-/// correlate the error to the in-flight `tools/call` /
-/// `resources/read` request.
-fn json_rpc_not_found(
-    id: String,
-    rpc_id: serde_json::Value,
-    name: &str,
-    kind: &str,
-) -> server_response::Response {
-    server_response::Response {
-        id,
-        status: 200,
-        headers: IndexMap::new(),
-        body: Some(serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": rpc_id,
-            "error": {
-                "code": -32601,
-                "message": format!("{kind} not found: {name}"),
-            },
-        })),
-    }
+    Ok(server_response::Payload::ResourcesRead(JsonRpcResult::Err {
+        code: -32601,
+        message: format!("resource not found: {requested}"),
+        data: None,
+    }))
 }
 
 /// Decoded `X-OBJECTIVEAI-MCP-CONFIG` payload. The JSON control
@@ -1694,8 +1794,8 @@ fn read_mcp_config_header(headers: &IndexMap<String, String>) -> Option<McpConfi
     serde_json::from_slice::<McpConfig>(&bytes).ok()
 }
 
-/// In-place filter on a JSON-RPC `tools/list` response body. Keeps a
-/// returned tool iff either:
+/// Filter a typed `ListToolsResult` in place. Keeps a returned tool
+/// iff either:
 ///
 /// - its name matches an explicit `allowed.names` entry exactly OR
 ///   with a `_<name>` suffix (mirrors the API's existing match
@@ -1704,17 +1804,12 @@ fn read_mcp_config_header(headers: &IndexMap<String, String>) -> Option<McpConfi
 ///   among the CLI's locally-installed plugin/tool manifests (so it
 ///   must be an `objectiveai-mcp` built-in).
 ///
-/// Drops everything else. No-op on bodies that don't carry a
-/// `result.tools` array.
-async fn apply_tools_filter(inner: &Arc<Inner>, body: &mut serde_json::Value, allowed: &McpConfig) {
-    let Some(tools) = body
-        .get_mut("result")
-        .and_then(|r| r.get_mut("tools"))
-        .and_then(|t| t.as_array_mut())
-    else {
-        return;
-    };
-
+/// Drops everything else.
+async fn apply_tools_filter(
+    inner: &Arc<Inner>,
+    result: &mut ListToolsResult,
+    allowed: &McpConfig,
+) {
     let installed: Option<&HashSet<String>> = if allowed.objectiveai_builtins {
         Some(
             inner
@@ -1726,19 +1821,16 @@ async fn apply_tools_filter(inner: &Arc<Inner>, body: &mut serde_json::Value, al
         None
     };
 
-    tools.retain(|tool| {
-        let Some(name) = tool.get("name").and_then(|n| n.as_str()) else {
-            return false;
-        };
+    result.tools.retain(|tool| {
         if allowed
             .names
             .iter()
-            .any(|declared| name == declared || name.ends_with(&format!("_{declared}")))
+            .any(|declared| tool.name == *declared || tool.name.ends_with(&format!("_{declared}")))
         {
             return true;
         }
         if let Some(installed) = installed {
-            return !installed.contains(name);
+            return !installed.contains(&tool.name);
         }
         false
     });
@@ -1791,55 +1883,6 @@ fn get_or_create_session(inner: &Arc<Inner>, ws_session_id: &str) -> Arc<Session
         .clone()
 }
 
-fn reject_no_mcp(id: String, rpc_id: serde_json::Value) -> server_response::Response {
-    server_response::Response {
-        id,
-        status: 501,
-        headers: IndexMap::new(),
-        body: Some(serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": rpc_id,
-            "error": {
-                "code": -32601,
-                "message": "this client has no MCP server configured (pass --mcp-address)",
-            },
-        })),
-    }
-}
-
-fn conduit_error(
-    id: String,
-    rpc_id: serde_json::Value,
-    message: impl Into<String>,
-) -> server_response::Response {
-    let message = message.into();
-    server_response::Response {
-        id,
-        status: 502,
-        headers: IndexMap::new(),
-        body: Some(serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": rpc_id,
-            "error": {
-                "code": -32603,
-                "message": format!("conduit: {message}"),
-            },
-        })),
-    }
-}
-
-/// Extract the JSON-RPC request id from a `server_request::Request`'s
-/// inbound body, if any. Used to echo the request's `id` on every
-/// synthesized JSON-RPC error envelope so the proxy can correlate
-/// the error to the in-flight request that triggered it. Defaults
-/// to `null` when the body is absent or lacks an `id` field.
-fn jsonrpc_id_from_body(body: &Option<serde_json::Value>) -> serde_json::Value {
-    body.as_ref()
-        .and_then(|b| b.get("id"))
-        .cloned()
-        .unwrap_or(serde_json::Value::Null)
-}
-
 /// Parses bare JSON; falls back to stripping `data:` prefixes and
 /// reparsing for SSE-wrapped responses.
 fn parse_json_or_sse(text: &str) -> Option<serde_json::Value> {
@@ -1865,8 +1908,8 @@ enum ConduitError {
     Request(reqwest::Error),
     #[error("reading response body failed: {0}")]
     Body(reqwest::Error),
-    #[error("serializing InitializeResult failed: {0}")]
-    Serialize(serde_json::Error),
+    #[error("upstream response was malformed: {0}")]
+    MalformedUpstream(String),
     #[error("plugin upstream list_tools / list_resources failed")]
     PluginListFailed,
     #[error("primary upstream connect failed")]

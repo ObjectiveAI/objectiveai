@@ -1,14 +1,16 @@
 //! Typed delegate functions, one per MCP route. Every forwarding
-//! delegate wraps the same primitive: re-build the JSON-RPC envelope,
-//! ship it to the CLI via `send_server_request`, await the matching
-//! `server_response`, unwrap `result` (or propagate `error`) into the
-//! delegate's typed return.
+//! delegate wraps the same primitive: build a typed
+//! `server_request::Payload`, ship it to the CLI via
+//! `send_server_request`, await the matching `server_response`,
+//! pattern-match the expected `server_response::Payload` variant
+//! (`JsonRpcResult::Ok` → typed result, `Err` → propagate as
+//! [`McpError`]).
 
 use super::send::send_server_request;
 use crate::objectiveai_mcp::context::McpRequestContext;
 use axum::http::HeaderMap;
 use indexmap::IndexMap;
-use objectiveai_sdk::client_objectiveai_mcp::server_request;
+use objectiveai_sdk::client_objectiveai_mcp::{server_request, server_response};
 use objectiveai_sdk::mcp::initialize_result::{
     Implementation, InitializeResult, ResourcesCapability, ServerCapabilities,
     ToolsCapability,
@@ -20,7 +22,7 @@ use objectiveai_sdk::mcp::resource::{
 use objectiveai_sdk::mcp::tool::{
     CallToolRequestParams, CallToolResult, ListToolsRequest, ListToolsResult,
 };
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 /// How long to wait for a `server_response` over the WS before failing
@@ -72,36 +74,27 @@ impl McpError {
         }
     }
 
-    pub fn empty_response() -> Self {
-        Self {
-            code: -32004,
-            message: "empty response body from reverse channel".into(),
-            data: None,
-        }
-    }
-
-    pub fn missing_result(body: &serde_json::Value) -> Self {
-        Self {
-            code: -32004,
-            message: "reverse channel response missing both `result` and `error`".into(),
-            data: Some(body.clone()),
-        }
-    }
-
-    pub fn parse(message: String) -> Self {
+    pub fn variant_mismatch(expected: &str, got: &server_response::Payload) -> Self {
         Self {
             code: -32603,
-            message,
+            message: format!(
+                "reverse channel returned wrong payload variant: expected {expected}, got {}",
+                payload_variant_name(got),
+            ),
             data: None,
         }
     }
+}
 
-    pub fn serialize(message: String) -> Self {
-        Self {
-            code: -32603,
-            message,
-            data: None,
-        }
+fn payload_variant_name(p: &server_response::Payload) -> &'static str {
+    use server_response::Payload as P;
+    match p {
+        P::Initialize { .. } => "initialize",
+        P::ToolsList(_) => "tools_list",
+        P::ToolsCall(_) => "tools_call",
+        P::ResourcesList(_) => "resources_list",
+        P::ResourcesRead(_) => "resources_read",
+        P::SessionTerminate => "session_terminate",
     }
 }
 
@@ -159,67 +152,26 @@ fn canonical_initialize_result() -> InitializeResult {
     }
 }
 
-/// `initialize` — forwards to the CLI for the aggregate
-/// `Mcp-Session-Id`, then returns the API's canonical result. The
-/// CLI's response body is discarded (it returns `body: None` on
-/// initialize); only the `Mcp-Session-Id` response header is
-/// extracted via [`forward_initialize_session_id`].
+/// `initialize` — forward to the CLI, take its returned
+/// `mcp_session_id`, and pair it with the API's canonical result.
+/// The proxy's incoming `protocolVersion` is discarded on the way
+/// in; the API publishes its own pinned version on the way out.
 ///
-/// Caller (the route layer) stamps `Mcp-Session-Id` from the
-/// returned `String` onto the outbound HTTP response header so the
-/// proxy adopts it.
+/// Caller (the route layer) stamps the returned `String` onto the
+/// outbound HTTP `Mcp-Session-Id` response header so the proxy
+/// adopts it.
 pub async fn handle_initialize(
     ctx: McpRequestContext,
     _params: InitializeRequestParams,
 ) -> Result<(InitializeResult, String), McpError> {
-    let session_id = forward_initialize_session_id(&ctx).await?;
-    Ok((canonical_initialize_result(), session_id))
-}
-
-/// Forward `initialize` to the CLI conduit and return its
-/// `Mcp-Session-Id` response header (the aggregate). Body is
-/// ignored — the API replaces it with [`canonical_initialize_result`].
-async fn forward_initialize_session_id(
-    ctx: &McpRequestContext,
-) -> Result<String, McpError> {
-    let rc = ctx
-        .registry
-        .get(&ctx.response_id)
-        .ok_or_else(|| McpError::no_session(&ctx.response_id))?
-        .clone();
-
-    let request_id = uuid::Uuid::new_v4().to_string();
-    let envelope = serde_json::json!({
-        "jsonrpc": "2.0",
-        "id": request_id,
-        "method": "initialize",
-        "params": serde_json::Value::Null,
-    });
-    let request = server_request::Request {
-        id: request_id,
-        method: "POST".to_string(),
-        headers: forward_headers(&ctx.headers),
-        body: Some(envelope),
-    };
-
-    let rx = send_server_request(&rc.sink, &rc.pending, request)
-        .await
-        .map_err(|_| McpError::reverse_channel_closed())?;
-
-    let response = match tokio::time::timeout(FORWARD_TIMEOUT, rx).await {
-        Ok(Ok(r)) => r,
-        Ok(Err(_)) => return Err(McpError::reverse_channel_dropped()),
-        Err(_) => return Err(McpError::reverse_channel_timeout()),
-    };
-
-    response
-        .headers
-        .iter()
-        .find(|(k, _)| k.eq_ignore_ascii_case("Mcp-Session-Id"))
-        .map(|(_, v)| v.clone())
-        .ok_or_else(|| McpError::parse(
-            "initialize response missing Mcp-Session-Id header".into(),
-        ))
+    let response = forward(&ctx, server_request::Payload::Initialize).await?;
+    match response.payload {
+        server_response::Payload::Initialize(r) => {
+            let reply = unwrap_rpc(r)?;
+            Ok((canonical_initialize_result(), reply.mcp_session_id))
+        }
+        other => Err(McpError::variant_mismatch("initialize", &other)),
+    }
 }
 
 pub async fn handle_ping(_ctx: McpRequestContext) -> Result<(), McpError> {
@@ -232,36 +184,44 @@ pub async fn handle_tools_list(
     ctx: McpRequestContext,
     params: ListToolsRequest,
 ) -> Result<ListToolsResult, McpError> {
-    let params = serde_json::to_value(params)
-        .map_err(|e| McpError::serialize(format!("tools/list params: {e}")))?;
-    forward_jsonrpc(&ctx, "tools/list", params).await
+    let response = forward(&ctx, server_request::Payload::ToolsList(params)).await?;
+    match response.payload {
+        server_response::Payload::ToolsList(r) => unwrap_rpc(r),
+        other => Err(McpError::variant_mismatch("tools_list", &other)),
+    }
 }
 
 pub async fn handle_tools_call(
     ctx: McpRequestContext,
     params: CallToolRequestParams,
 ) -> Result<CallToolResult, McpError> {
-    let params = serde_json::to_value(params)
-        .map_err(|e| McpError::serialize(format!("tools/call params: {e}")))?;
-    forward_jsonrpc(&ctx, "tools/call", params).await
+    let response = forward(&ctx, server_request::Payload::ToolsCall(params)).await?;
+    match response.payload {
+        server_response::Payload::ToolsCall(r) => unwrap_rpc(r),
+        other => Err(McpError::variant_mismatch("tools_call", &other)),
+    }
 }
 
 pub async fn handle_resources_list(
     ctx: McpRequestContext,
     params: ListResourcesRequest,
 ) -> Result<ListResourcesResult, McpError> {
-    let params = serde_json::to_value(params)
-        .map_err(|e| McpError::serialize(format!("resources/list params: {e}")))?;
-    forward_jsonrpc(&ctx, "resources/list", params).await
+    let response = forward(&ctx, server_request::Payload::ResourcesList(params)).await?;
+    match response.payload {
+        server_response::Payload::ResourcesList(r) => unwrap_rpc(r),
+        other => Err(McpError::variant_mismatch("resources_list", &other)),
+    }
 }
 
 pub async fn handle_resources_read(
     ctx: McpRequestContext,
     params: ReadResourceRequestParams,
 ) -> Result<ReadResourceResult, McpError> {
-    let params = serde_json::to_value(params)
-        .map_err(|e| McpError::serialize(format!("resources/read params: {e}")))?;
-    forward_jsonrpc(&ctx, "resources/read", params).await
+    let response = forward(&ctx, server_request::Payload::ResourcesRead(params)).await?;
+    match response.payload {
+        server_response::Payload::ResourcesRead(r) => unwrap_rpc(r),
+        other => Err(McpError::variant_mismatch("resources_read", &other)),
+    }
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -271,6 +231,24 @@ pub async fn handle_resources_read(
 pub async fn handle_session_terminate(
     ctx: McpRequestContext,
 ) -> Result<(), McpError> {
+    let response = forward(&ctx, server_request::Payload::SessionTerminate).await?;
+    match response.payload {
+        server_response::Payload::SessionTerminate => Ok(()),
+        other => Err(McpError::variant_mismatch("session_terminate", &other)),
+    }
+}
+
+// ────────────────────────────────────────────────────────────────
+// Internal: build + ship one typed `server_request::Request` over
+// the WS, await + return its matching `server_response::Response`.
+// Each caller pattern-matches on the response payload to extract
+// its method-specific result.
+// ────────────────────────────────────────────────────────────────
+
+async fn forward(
+    ctx: &McpRequestContext,
+    payload: server_request::Payload,
+) -> Result<server_response::Response, McpError> {
     let rc = ctx
         .registry
         .get(&ctx.response_id)
@@ -280,9 +258,8 @@ pub async fn handle_session_terminate(
     let request_id = uuid::Uuid::new_v4().to_string();
     let request = server_request::Request {
         id: request_id,
-        method: "DELETE".to_string(),
         headers: forward_headers(&ctx.headers),
-        body: None,
+        payload,
     };
 
     let rx = send_server_request(&rc.sink, &rc.pending, request)
@@ -290,72 +267,29 @@ pub async fn handle_session_terminate(
         .map_err(|_| McpError::reverse_channel_closed())?;
 
     match tokio::time::timeout(FORWARD_TIMEOUT, rx).await {
-        Ok(Ok(_response)) => Ok(()),
+        Ok(Ok(response)) => Ok(response),
         Ok(Err(_)) => Err(McpError::reverse_channel_dropped()),
         Err(_) => Err(McpError::reverse_channel_timeout()),
     }
 }
 
-// ────────────────────────────────────────────────────────────────
-// Internal: forward one JSON-RPC method over the WS reverse channel.
-// ────────────────────────────────────────────────────────────────
-
-async fn forward_jsonrpc<R: DeserializeOwned>(
-    ctx: &McpRequestContext,
-    method: &str,
-    params: serde_json::Value,
+/// Project a `JsonRpcResult<R>` from the CLI side into the API's
+/// `Result<R, McpError>` shape.
+fn unwrap_rpc<R>(
+    r: server_response::JsonRpcResult<R>,
 ) -> Result<R, McpError> {
-    let rc = ctx
-        .registry
-        .get(&ctx.response_id)
-        .ok_or_else(|| McpError::no_session(&ctx.response_id))?
-        .clone();
-
-    let request_id = uuid::Uuid::new_v4().to_string();
-    let envelope = serde_json::json!({
-        "jsonrpc": "2.0",
-        "id": request_id,
-        "method": method,
-        "params": params,
-    });
-    let request = server_request::Request {
-        id: request_id,
-        method: "POST".to_string(),
-        headers: forward_headers(&ctx.headers),
-        body: Some(envelope),
-    };
-
-    let rx = send_server_request(&rc.sink, &rc.pending, request)
-        .await
-        .map_err(|_| McpError::reverse_channel_closed())?;
-
-    let response = match tokio::time::timeout(FORWARD_TIMEOUT, rx).await {
-        Ok(Ok(r)) => r,
-        Ok(Err(_)) => return Err(McpError::reverse_channel_dropped()),
-        Err(_) => return Err(McpError::reverse_channel_timeout()),
-    };
-
-    let body = response.body.ok_or_else(McpError::empty_response)?;
-
-    // Upstream returned a JSON-RPC error envelope — preserve its
-    // code/message/data verbatim.
-    if let Some(err) = body.get("error") {
-        let code = err.get("code").and_then(|c| c.as_i64()).unwrap_or(-32603);
-        let message = err
-            .get("message")
-            .and_then(|m| m.as_str())
-            .unwrap_or("upstream MCP error")
-            .to_string();
-        let data = err.get("data").cloned();
-        return Err(McpError { code, message, data });
+    match r {
+        server_response::JsonRpcResult::Ok { result } => Ok(result),
+        server_response::JsonRpcResult::Err {
+            code,
+            message,
+            data,
+        } => Err(McpError {
+            code,
+            message,
+            data,
+        }),
     }
-
-    let result = body
-        .get("result")
-        .ok_or_else(|| McpError::missing_result(&body))?
-        .clone();
-    serde_json::from_value(result)
-        .map_err(|e| McpError::parse(format!("{method} result: {e}")))
 }
 
 /// Copy inbound headers for forwarding, dropping hop-by-hop and

@@ -552,6 +552,7 @@ impl HttpClient {
     /// task and closes the connection cleanly. Dropping only one
     /// keeps the WS alive — useful when a caller wants to send
     /// notifies after the chunk stream has finished, or vice-versa.
+    #[cfg(feature = "mcp")]
     pub async fn send_streaming_ws<Chunk, B, H, P>(
         &self,
         method: reqwest::Method,
