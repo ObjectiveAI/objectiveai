@@ -1,17 +1,15 @@
 //! Typed queue items returned by
 //! [`crate::filesystem::Client::read_new_from_queue`].
 //!
-//! Mirrors the schema spelled out in `WORK.md`: each enum variant
-//! corresponds to one [`RequestMessageKind`] row, with the per-row file(s)
-//! read and flattened to bare `i64` SQL row ids (into the `files`
-//! table populated by [`crate::filesystem::Client::read_new_from_queue`]).
+//! These re-export the SDK wire types — the on-disk persistence
+//! layer and the bare-naked `agents read` Response use the same
+//! shapes (one [`RequestMessageKind`] variant per row), so there's
+//! no benefit to a CLI-local duplicate.
 //!
 //! [`RequestMessageKind`]: objectiveai_sdk::cli::command::agents::read::subscribe::RequestMessageKind
 
-mod content;
-mod queue_item;
-mod queue_message;
-
-pub use content::*;
-pub use queue_item::*;
-pub use queue_message::*;
+pub use objectiveai_sdk::cli::command::agents::read::all::{
+    ResponseContent as Content,
+    ResponseQueueItem as QueueItem,
+    ResponseQueueMessage as QueueMessage,
+};

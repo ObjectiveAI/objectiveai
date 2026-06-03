@@ -149,10 +149,6 @@ async fn send_items(
     sub_id: &str,
     items: Vec<QueueItem>,
 ) -> Result<(), Error> {
-    let value =
-        serde_json::to_value(items).map_err(|e| Error::InlineJson(e))?;
-    let items = serde_json::from_value(value)
-        .map_err(|e| Error::InlineJson(e))?;
     let _ = tx
         .send(Ok(ResponseItem::Items {
             agent_id: sub_id.to_string(),

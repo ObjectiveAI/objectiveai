@@ -23,10 +23,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             inflight.push(async move {
                 let spawned = format!("{caller}/{sub}");
                 let items = fs.read_new_from_queue(&caller, &spawned).await?;
-                let value = serde_json::to_value(items)
-                    .map_err(|e| Error::InlineJson(e))?;
-                let items = serde_json::from_value(value)
-                    .map_err(|e| Error::InlineJson(e))?;
                 Ok::<_, Error>(ResponseItem { agent_id: sub, items })
             });
         }

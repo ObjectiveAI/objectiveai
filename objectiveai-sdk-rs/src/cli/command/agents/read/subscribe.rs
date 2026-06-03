@@ -58,79 +58,10 @@ fn message_kind_flag(kind: &RequestMessageKind) -> &'static str {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(untagged)]
-pub enum ResponseContent {
-    One(i64),
-    Many(Vec<i64>),
-}
-
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum ResponseQueueMessage {
-    Developer {
-        content: ResponseContent,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        name: Option<String>,
-    },
-    System {
-        content: ResponseContent,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        name: Option<String>,
-    },
-    User {
-        content: ResponseContent,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        name: Option<String>,
-    },
-    Assistant {
-        #[serde(skip_serializing_if = "Option::is_none")]
-        content: Option<ResponseContent>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        name: Option<String>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        reasoning: Option<i64>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        tool_calls: Option<Vec<i64>>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        refusal: Option<i64>,
-    },
-    Tool {
-        content: ResponseContent,
-        tool_call_id: String,
-    },
-}
-
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum ResponseQueueItem {
-    AssistantResponse {
-        #[serde(skip_serializing_if = "Option::is_none")]
-        reasoning: Option<i64>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        tool_calls: Option<Vec<i64>>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        content: Option<ResponseContent>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        refusal: Option<i64>,
-    },
-    ToolResponse {
-        tool_call_id: String,
-        content: ResponseContent,
-    },
-    Notification {
-        content: ResponseContent,
-    },
-    AgentCompletionRequest {
-        messages: Vec<ResponseQueueMessage>,
-    },
-    FunctionExecutionRequest {
-        id: i64,
-    },
-    FunctionInventionRecursiveRequest {
-        id: i64,
-    },
-}
+// Share the queue-item / queue-message / content shapes with
+// `agents read all` — same on-disk persistence rows surfaced
+// through different read patterns.
+pub use super::all::{ResponseContent, ResponseQueueItem, ResponseQueueMessage};
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
