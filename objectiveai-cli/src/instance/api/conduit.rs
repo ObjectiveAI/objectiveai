@@ -260,9 +260,17 @@ async fn resolve_connection(
             "this client has no MCP server configured (pass --mcp-address)".to_string(),
         ));
     };
-    let agent_instance_hierarchy = agent_instance_hierarchy_from_headers(headers);
-    let response_id = response_id_from_headers(headers);
-    register_response_id_group(&handler.inner, headers);
+    let transient = match require_transient(headers) {
+        Ok(t) => t,
+        Err(message) => {
+            return Err(error_for(
+                mcp_kind,
+                -32600,
+                format!("conduit: {message}"),
+            ));
+        }
+    };
+    register_response_id_group(&handler.inner, &transient.response_ids);
     let connect_headers = sanitize_connect_headers(headers);
     let connection = match handler
         .inner
@@ -283,8 +291,8 @@ async fn resolve_connection(
     let state = Arc::new(ConduitState {
         connection,
         mcp_kind: mcp_kind.clone(),
-        agent_instance_hierarchy,
-        response_id,
+        agent_instance_hierarchy: transient.agent_instance_hierarchy,
+        response_id: transient.response_id,
     });
     handler.inner.connections.insert(session_id, state.clone());
     Ok(state)
@@ -322,10 +330,17 @@ async fn dispatch_initialize(
     init: server_request::InitializeRequest,
     headers: &IndexMap<String, String>,
 ) -> server_response::Payload {
-    let agent_instance_hierarchy = agent_instance_hierarchy_from_headers(headers);
-    let agent_id = agent_id_from_headers(headers);
-    let response_id = response_id_from_headers(headers);
-    register_response_id_group(inner, headers);
+    let transient = match require_transient(headers) {
+        Ok(t) => t,
+        Err(message) => {
+            return server_response::Payload::Initialize(JsonRpcResult::Err {
+                code: -32600,
+                message: format!("conduit: {message}"),
+                data: None,
+            });
+        }
+    };
+    register_response_id_group(inner, &transient.response_ids);
     let stored_session_id = mcp_session_id_from_headers(headers);
 
     let dial = match &mcp_kind {
@@ -353,8 +368,7 @@ async fn dispatch_initialize(
                 version.clone(),
                 mcp.clone(),
                 init.args,
-                agent_instance_hierarchy.clone(),
-                agent_id,
+                &transient,
                 stored_session_id,
             )
             .await
@@ -383,8 +397,8 @@ async fn dispatch_initialize(
         Arc::new(ConduitState {
             connection,
             mcp_kind,
-            agent_instance_hierarchy,
-            response_id,
+            agent_instance_hierarchy: transient.agent_instance_hierarchy,
+            response_id: transient.response_id,
         }),
     );
 
@@ -581,8 +595,7 @@ async fn dial_plugin_upstream(
     plugin_version: String,
     mcp_name: String,
     args: IndexMap<String, Option<String>>,
-    agent_instance_hierarchy: String,
-    agent_id: String,
+    transient: &TransientHeaders,
     stored_session_id: Option<String>,
 ) -> Result<objectiveai_sdk::mcp::Connection, ConduitError> {
     let fail = |reason: String| ConduitError::PluginDialFailed {
@@ -623,10 +636,19 @@ async fn dial_plugin_upstream(
             cmd.arg(value);
         }
     }
-    cmd.env("OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY", &agent_instance_hierarchy);
-    if !agent_id.is_empty() {
-        cmd.env("OBJECTIVEAI_AGENT_ID", &agent_id);
-    }
+    // Propagate the six session-global transient headers as env
+    // vars so the plugin's MCP server can re-stamp them on any
+    // outbound calls it makes downstream. All six are required at
+    // initialize time (see `require_transient`).
+    cmd.env(
+        "OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY",
+        &transient.agent_instance_hierarchy,
+    );
+    cmd.env("OBJECTIVEAI_AGENT_ID", &transient.agent_id);
+    cmd.env("OBJECTIVEAI_AGENT_FULL_ID", &transient.agent_full_id);
+    cmd.env("OBJECTIVEAI_AGENT_REMOTE", &transient.agent_remote);
+    cmd.env("OBJECTIVEAI_RESPONSE_ID", &transient.response_id);
+    cmd.env("OBJECTIVEAI_RESPONSE_IDS", &transient.response_ids);
     let mut child = cmd
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
@@ -777,44 +799,75 @@ fn mcp_session_id_from_headers(headers: &IndexMap<String, String>) -> Option<Str
         .map(|(_, v)| v.clone())
 }
 
-fn agent_instance_hierarchy_from_headers(headers: &IndexMap<String, String>) -> String {
-    headers
-        .iter()
-        .find(|(k, _)| k.eq_ignore_ascii_case("X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY"))
-        .map(|(_, v)| v.clone())
-        .unwrap_or_default()
+/// The six session-global transient headers the proxy stamps on
+/// every outbound request via `Connection.extra_headers`. All
+/// required at `initialize` time — the conduit errors if any is
+/// missing.
+const REQUIRED_TRANSIENT_HEADERS: [&str; 6] = [
+    "X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY",
+    "X-OBJECTIVEAI-AGENT-ID",
+    "X-OBJECTIVEAI-AGENT-FULL-ID",
+    "X-OBJECTIVEAI-AGENT-REMOTE",
+    "X-OBJECTIVEAI-RESPONSE-ID",
+    "X-OBJECTIVEAI-RESPONSE-IDS",
+];
+
+/// Verbatim values of the six required transient headers extracted
+/// from one `server_request::Request.headers` map. Order matches
+/// [`REQUIRED_TRANSIENT_HEADERS`]. Built by [`require_transient`]; a
+/// missing key on any of the six is a hard error returned to the
+/// API as a `JsonRpcResult::Err`.
+struct TransientHeaders {
+    agent_instance_hierarchy: String,
+    agent_id: String,
+    agent_full_id: String,
+    agent_remote: String,
+    response_id: String,
+    response_ids: String,
 }
 
-fn agent_id_from_headers(headers: &IndexMap<String, String>) -> String {
-    headers
-        .iter()
-        .find(|(k, _)| k.eq_ignore_ascii_case("X-OBJECTIVEAI-AGENT-ID"))
-        .map(|(_, v)| v.clone())
-        .unwrap_or_default()
+/// Extract all six required transient headers from `headers`. The
+/// first missing key (in [`REQUIRED_TRANSIENT_HEADERS`] order) drives
+/// the error message — empty-string values count as missing because
+/// the proxy never stamps an empty value for these.
+fn require_transient(
+    headers: &IndexMap<String, String>,
+) -> Result<TransientHeaders, String> {
+    let mut values: [Option<String>; 6] = Default::default();
+    for (idx, key) in REQUIRED_TRANSIENT_HEADERS.iter().enumerate() {
+        let v = headers
+            .iter()
+            .find(|(k, _)| k.eq_ignore_ascii_case(key))
+            .map(|(_, v)| v.clone())
+            .filter(|v| !v.is_empty());
+        match v {
+            Some(v) => values[idx] = Some(v),
+            None => return Err(format!("missing required header {key:?}")),
+        }
+    }
+    let [agent_instance_hierarchy, agent_id, agent_full_id, agent_remote, response_id, response_ids] =
+        values.map(|o| o.expect("every slot filled before this line"));
+    Ok(TransientHeaders {
+        agent_instance_hierarchy,
+        agent_id,
+        agent_full_id,
+        agent_remote,
+        response_id,
+        response_ids,
+    })
 }
 
-fn response_id_from_headers(headers: &IndexMap<String, String>) -> String {
-    headers
-        .iter()
-        .find(|(k, _)| k.eq_ignore_ascii_case("X-OBJECTIVEAI-RESPONSE-ID"))
-        .map(|(_, v)| v.clone())
-        .unwrap_or_default()
-}
-
-fn response_ids_group_from_headers(headers: &IndexMap<String, String>) -> Vec<String> {
-    headers
-        .iter()
-        .find(|(k, _)| k.eq_ignore_ascii_case("X-OBJECTIVEAI-RESPONSE-IDS"))
-        .map(|(_, v)| v.split('-').map(str::to_owned).collect())
-        .unwrap_or_default()
-}
-
-fn register_response_id_group(inner: &Arc<Inner>, headers: &IndexMap<String, String>) {
-    let group = response_ids_group_from_headers(headers);
-    if group.is_empty() {
+fn register_response_id_group(inner: &Arc<Inner>, response_ids: &str) {
+    let shared: Arc<Vec<String>> = Arc::new(
+        response_ids
+            .split('-')
+            .filter(|s| !s.is_empty())
+            .map(str::to_owned)
+            .collect(),
+    );
+    if shared.is_empty() {
         return;
     }
-    let shared = Arc::new(group);
     for id in shared.iter() {
         inner
             .response_id_groups

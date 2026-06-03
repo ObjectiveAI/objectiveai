@@ -24,6 +24,14 @@ struct EnvConfigBuilder {
     agent_instance_hierarchy: Option<String>,
     #[envconfig(from = "OBJECTIVEAI_AGENT_ID")]
     agent_id: Option<String>,
+    #[envconfig(from = "OBJECTIVEAI_AGENT_FULL_ID")]
+    agent_full_id: Option<String>,
+    #[envconfig(from = "OBJECTIVEAI_AGENT_REMOTE")]
+    agent_remote: Option<String>,
+    #[envconfig(from = "OBJECTIVEAI_RESPONSE_ID")]
+    response_id: Option<String>,
+    #[envconfig(from = "OBJECTIVEAI_RESPONSE_IDS")]
+    response_ids: Option<String>,
     #[envconfig(from = "MCP_SESSION_ID")]
     mcp_session_id: Option<String>,
 }
@@ -42,6 +50,10 @@ impl EnvConfigBuilder {
             github_authorization: self.github_authorization,
             agent_instance_hierarchy: self.agent_instance_hierarchy,
             agent_id: self.agent_id,
+            agent_full_id: self.agent_full_id,
+            agent_remote: self.agent_remote,
+            response_id: self.response_id,
+            response_ids: self.response_ids,
             mcp_session_id: self.mcp_session_id,
         }
     }
@@ -56,6 +68,10 @@ pub struct ConfigBuilder {
     pub github_authorization: Option<String>,
     pub agent_instance_hierarchy: Option<String>,
     pub agent_id: Option<String>,
+    pub agent_full_id: Option<String>,
+    pub agent_remote: Option<String>,
+    pub response_id: Option<String>,
+    pub response_ids: Option<String>,
     pub mcp_session_id: Option<String>,
 }
 
@@ -88,6 +104,8 @@ impl ConfigBuilder {
                 .agent_instance_hierarchy
                 .unwrap_or_else(|| "cli".to_string()),
             agent_id: self.agent_id,
+            agent_full_id: self.agent_full_id,
+            agent_remote: self.agent_remote,
             mcp_session_id: self.mcp_session_id,
         }
     }
@@ -102,6 +120,15 @@ pub struct Config {
     pub github_authorization: Option<String>,
     pub agent_instance_hierarchy: String,
     pub agent_id: Option<String>,
+    /// WF-level agent identity from `OBJECTIVEAI_AGENT_FULL_ID` / the
+    /// `X-OBJECTIVEAI-AGENT-FULL-ID` reverse-attach header. Propagated
+    /// onto spawned plugin subprocesses by the conduit so plugin-side
+    /// code can stamp it on outbound calls.
+    pub agent_full_id: Option<String>,
+    /// JSON-encoded `RemotePath` from `OBJECTIVEAI_AGENT_REMOTE` /
+    /// the `X-OBJECTIVEAI-AGENT-REMOTE` reverse-attach header. Empty
+    /// when the WF was inline. Propagated onto spawned plugins.
+    pub agent_remote: Option<String>,
     pub mcp_session_id: Option<String>,
 }
 
