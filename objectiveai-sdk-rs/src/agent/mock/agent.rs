@@ -58,6 +58,21 @@ pub struct AgentBase {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub client_objectiveai_mcp: Option<super::super::ClientObjectiveaiMcp>,
+
+    /// Deterministic-script override. When `Some`, the mock agent
+    /// emits each [`super::Call`] as its own assistant turn —
+    /// `tool_calls` first, then `content` — in array order. Each
+    /// subsequent turn inspects the continuation to count how many
+    /// `Call`s have already been satisfied (assistant message with
+    /// exactly that `Call`'s `tool_calls` (by name+arguments) and
+    /// `content`); the next un-matched `Call` is what that turn
+    /// emits. Once every `Call` has been satisfied in the
+    /// continuation, the mock falls through to its normal mode-driven
+    /// dispatcher. Pure addition — agents without `calls` are
+    /// unaffected.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub calls: Option<Vec<super::Call>>,
 }
 
 impl AgentBase {

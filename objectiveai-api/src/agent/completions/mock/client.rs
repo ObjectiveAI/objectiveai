@@ -47,6 +47,97 @@ enum MockResponse {
     },
     /// Respond with one or more parallel tool calls.
     ToolCalls(Vec<MockToolCall>),
+    /// Deterministic-script override response: a single assistant
+    /// turn that emits every entry in `tool_calls` (as tool-call
+    /// deltas) and then `content` (as content deltas) before
+    /// finishing. Sourced from
+    /// [`objectiveai_sdk::agent::mock::AgentBase::calls`]. Bypasses
+    /// the per-turn RNG selection.
+    Override {
+        tool_calls: Vec<MockToolCall>,
+        content: String,
+    },
+}
+
+/// Count how many entries from `calls` have already been satisfied,
+/// in order, by assistant states in `continuation`. A `Call` is
+/// satisfied by a [`ContinuationItem::State`] whose `tool_calls`,
+/// compared as `(name, arguments)` pairs (call ids excluded — they're
+/// random per-emit), equal the `Call`'s `tool_calls`, AND whose
+/// `content` text equals the `Call`'s `content` string (an empty
+/// spec string matches `content: None`; multimodal `Parts` never
+/// matches since the mock only emits `Text`).
+///
+/// Returns the index of the next un-matched `Call`. When the return
+/// value equals `calls.len()`, every `Call` has been satisfied and
+/// the mock should fall through to its normal dispatcher.
+///
+/// Order-sensitive but interleave-tolerant: an assistant state that
+/// doesn't match the current `Call` is skipped (not disqualifying)
+/// — the matcher keeps scanning for a later state that does.
+fn next_unmatched_call_index(
+    calls: &[objectiveai_sdk::agent::mock::Call],
+    continuation: Option<&[ContinuationItem<objectiveai_sdk::agent::completions::message::AssistantMessage>]>,
+) -> usize {
+    use objectiveai_sdk::agent::completions::message::{
+        AssistantToolCall, RichContent,
+    };
+
+    let Some(items) = continuation else {
+        return 0;
+    };
+
+    let mut idx = 0usize;
+    for item in items {
+        if idx >= calls.len() {
+            return idx;
+        }
+        let ContinuationItem::State(state) = item else {
+            continue;
+        };
+        let call = &calls[idx];
+
+        // Compare content. The call spec carries a plain `String`;
+        // the wire shape on the state side is `Option<RichContent>`.
+        // `None` matches the empty spec string; `Text(s)` matches
+        // when `s == call.content`. Multimodal `Parts` never matches
+        // — the mock emits text only, so any `Parts` in the
+        // continuation is from a different source.
+        let state_text = match &state.content {
+            None => "",
+            Some(RichContent::Text(t)) => t.as_str(),
+            Some(RichContent::Parts(_)) => continue,
+        };
+        if state_text != call.content {
+            continue;
+        }
+
+        // Compare tool_calls by (name, arguments) only — call ids on
+        // the wire are random per emit, so we strip them off both
+        // sides before comparing.
+        let state_pairs: Vec<(&str, &str)> = state
+            .tool_calls
+            .as_deref()
+            .unwrap_or(&[])
+            .iter()
+            .map(|tc| match tc {
+                AssistantToolCall::Function { function, .. } => {
+                    (function.name.as_str(), function.arguments.as_str())
+                }
+            })
+            .collect();
+        let call_pairs: Vec<(&str, &str)> = call
+            .tool_calls
+            .iter()
+            .map(|c| (c.name.as_str(), c.arguments.as_str()))
+            .collect();
+        if state_pairs != call_pairs {
+            continue;
+        }
+
+        idx += 1;
+    }
+    idx
 }
 
 impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation> for Client {
@@ -241,7 +332,49 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
                 .collect();
 
             // --- Tool call vs content ---
-            let mock_response = if matches!(mode, objectiveai_sdk::agent::mock::Mode::LaboratoryEvaluation) {
+            //
+            // `agent.base.calls` is a deterministic-script preceding
+            // override. When set and the continuation hasn't yet
+            // satisfied every `Call`, the next un-matched `Call` is
+            // what this turn emits — regardless of mode. Once the
+            // override is exhausted (all `Call`s matched), we fall
+            // through to the normal mode-driven dispatcher below.
+            let override_calls = agent.base.calls.as_ref();
+            let override_response = override_calls.and_then(|calls| {
+                let idx = next_unmatched_call_index(
+                    calls,
+                    continuation.as_deref(),
+                );
+                if idx < calls.len() {
+                    let call = &calls[idx];
+                    let tool_calls: Vec<MockToolCall> = call
+                        .tool_calls
+                        .iter()
+                        .map(|c| MockToolCall {
+                            tool_name: c.name.clone(),
+                            // Same shape as the existing random-mint
+                            // path. The matcher ignores id, so the
+                            // value here only matters for downstream
+                            // tool-response wiring.
+                            call_id: format!(
+                                "call_mock_{}",
+                                random_string(&mut rng, 16, 16),
+                            ),
+                            arguments: c.arguments.clone(),
+                            n_deltas: 1,
+                        })
+                        .collect();
+                    Some(MockResponse::Override {
+                        tool_calls,
+                        content: call.content.clone(),
+                    })
+                } else {
+                    None
+                }
+            });
+            let mock_response = if let Some(r) = override_response {
+                r
+            } else if matches!(mode, objectiveai_sdk::agent::mock::Mode::LaboratoryEvaluation) {
                 // Extract schema from last user message: "## evaluation schema\n\n{json}"
                 let schema_json = {
                     use objectiveai_sdk::agent::completions::message::RichContent;
@@ -299,7 +432,8 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
                 )
             };
             let current_tool_calls: Vec<(String, String)> = match &mock_response {
-                MockResponse::ToolCalls(calls) => calls.iter()
+                MockResponse::ToolCalls(calls)
+                | MockResponse::Override { tool_calls: calls, .. } => calls.iter()
                     .map(|c| (c.tool_name.clone(), c.call_id.clone()))
                     .collect(),
                 _ => Vec::new(),
@@ -332,6 +466,29 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
                         name: None,
                         refusal: None,
                         tool_calls: Some(calls.iter().map(|c| {
+                            AssistantToolCall::Function {
+                                id: c.call_id.clone(),
+                                function: AssistantToolCallFunction {
+                                    name: c.tool_name.clone(),
+                                    arguments: c.arguments.clone(),
+                                },
+                            }
+                        }).collect()),
+                        reasoning,
+                    },
+                    MockResponse::Override { tool_calls, content } => AssistantMessage {
+                        // Empty content string round-trips through the
+                        // matcher as `None` — see
+                        // `next_unmatched_call_index` for the
+                        // "empty string ↔ None" convention.
+                        content: if content.is_empty() {
+                            None
+                        } else {
+                            Some(RichContent::Text(content.clone()))
+                        },
+                        name: None,
+                        refusal: None,
+                        tool_calls: Some(tool_calls.iter().map(|c| {
                             AssistantToolCall::Function {
                                 id: c.call_id.clone(),
                                 function: AssistantToolCallFunction {
@@ -480,6 +637,134 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
                                         }]),
                                         finish_reason: if is_last && tc_idx == calls.len() - 1 {
                                             Some(FinishReason::ToolCalls)
+                                        } else {
+                                            None
+                                        },
+                                        ..Default::default()
+                                    })],
+                                    object: Default::default(),
+                                    usage: None,
+                                    upstream: objectiveai_sdk::agent::Upstream::Mock,
+                                    error: None,
+                                    continuation: None,
+                                    messages_queued: None,
+                                });
+                            }
+                        }
+                    }
+                    MockResponse::Override { tool_calls, content } => {
+                        // Two phases: emit every tool-call delta first,
+                        // then emit content text chunks. The `finish_reason`
+                        // lands on the last chunk overall — if `content`
+                        // is non-empty, that's the last text chunk
+                        // (`Stop`); if `content` is empty, that's the
+                        // last tool-call chunk (`ToolCalls`).
+                        let has_content = !content.is_empty();
+
+                        // --- Phase 1: tool-call deltas ---
+                        for (tc_idx, tc) in tool_calls.iter().enumerate() {
+                            let chunk_size = (tc.arguments.len() + tc.n_deltas - 1) / tc.n_deltas;
+                            let parts: Vec<&str> = if tc.arguments.is_empty() {
+                                vec![""]
+                            } else {
+                                tc.arguments.as_bytes()
+                                    .chunks(chunk_size.max(1))
+                                    .map(|b| std::str::from_utf8(b).unwrap_or(""))
+                                    .collect()
+                            };
+
+                            for (i, part) in parts.iter().enumerate() {
+                                let is_first = i == 0;
+                                let is_last_in_call = i == parts.len() - 1;
+                                let is_last_tool_call =
+                                    tc_idx == tool_calls.len() - 1;
+                                if !delay.is_zero() {
+                                    tokio::time::sleep(delay).await;
+                                }
+                                yield StreamItem::Chunk(AgentCompletionChunk {
+                                    id: id.clone(),
+                                    agent_instance_hierarchy: agent_instance_hierarchy.clone(),
+                                    agent_id: agent_id_for_chunks.clone(),
+                                    agent_full_id: agent_full_id.clone(),
+                                    agent_remote: agent_remote.clone(),
+                                    created,
+                                    messages: vec![MessageChunk::Assistant(AssistantResponseChunk {
+                                        index: assistant_index,
+                                        created,
+                                        model: "mock".into(),
+                                        upstream_id: id.clone(),
+                                        tool_calls: Some(vec![AssistantToolCallDelta {
+                                            index: tc_idx as u64,
+                                            r#type: if is_first {
+                                                Some(AssistantToolCallType::Function)
+                                            } else {
+                                                None
+                                            },
+                                            id: if is_first {
+                                                Some(tc.call_id.clone())
+                                            } else {
+                                                None
+                                            },
+                                            function: Some(AssistantToolCallFunctionDelta {
+                                                name: if is_first {
+                                                    Some(tc.tool_name.clone())
+                                                } else {
+                                                    None
+                                                },
+                                                arguments: Some(part.to_string()),
+                                            }),
+                                        }]),
+                                        // No content following → terminate
+                                        // on the last tool-call chunk with
+                                        // `ToolCalls`, same as the
+                                        // `MockResponse::ToolCalls` arm.
+                                        finish_reason: if !has_content
+                                            && is_last_in_call
+                                            && is_last_tool_call
+                                        {
+                                            Some(FinishReason::ToolCalls)
+                                        } else {
+                                            None
+                                        },
+                                        ..Default::default()
+                                    })],
+                                    object: Default::default(),
+                                    usage: None,
+                                    upstream: objectiveai_sdk::agent::Upstream::Mock,
+                                    error: None,
+                                    continuation: None,
+                                    messages_queued: None,
+                                });
+                            }
+                        }
+
+                        // --- Phase 2: content text chunks (skipped
+                        // entirely when `content` is empty) ---
+                        if has_content {
+                            // Override doesn't carry logprobs — text-only
+                            // chunking via the same helper as the
+                            // `Content` arm (no logprobs alignment).
+                            let chunks = chunk_by_logprobs(content, None, &mut rng);
+                            for (i, (chunk_text, _)) in chunks.iter().enumerate() {
+                                let is_last = i == chunks.len() - 1;
+                                if !delay.is_zero() {
+                                    tokio::time::sleep(delay).await;
+                                }
+                                yield StreamItem::Chunk(AgentCompletionChunk {
+                                    id: id.clone(),
+                                    agent_instance_hierarchy: agent_instance_hierarchy.clone(),
+                                    agent_id: agent_id_for_chunks.clone(),
+                                    agent_full_id: agent_full_id.clone(),
+                                    agent_remote: agent_remote.clone(),
+                                    created,
+                                    messages: vec![MessageChunk::Assistant(AssistantResponseChunk {
+                                        index: assistant_index,
+                                        created,
+                                        model: "mock".into(),
+                                        upstream_id: id.clone(),
+                                        content: Some(RichContent::Text(chunk_text.clone())),
+                                        finish_reason: if is_last {
+                                            Some(FinishReason::Stop)
                                         } else {
                                             None
                                         },
