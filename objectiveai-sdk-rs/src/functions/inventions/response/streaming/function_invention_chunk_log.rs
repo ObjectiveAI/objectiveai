@@ -7,14 +7,14 @@
 //! reference level).
 
 use schemars::JsonSchema;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::agent;
 use crate::error;
 use crate::logs::IndexedLogReference;
 use crate::functions;
 
-#[derive(Debug, Clone, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(
     rename = "functions.inventions.response.streaming.FunctionInventionChunkLog"
 )]

@@ -19,7 +19,7 @@ pub enum Request {
     AvailableResponseSchema(available::response_schema::Request),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum ResponseItem {
     Active(active::ResponseItem),
     ActiveRequestSchema(active::request_schema::Response),

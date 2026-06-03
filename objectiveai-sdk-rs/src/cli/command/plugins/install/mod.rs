@@ -17,7 +17,7 @@ pub enum Request {
     GithubResponseSchema(github::response_schema::Request),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Response {
     Filesystem(filesystem::Response),
     FilesystemRequestSchema(filesystem::request_schema::Response),
@@ -76,37 +76,37 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
             Request::Filesystem(req) => {
                 let value = filesystem::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::Filesystem(value),
+                    Response::Filesystem(value),
                 )))
             }
             Request::FilesystemRequestSchema(req) => {
                 let value = filesystem::request_schema::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::FilesystemRequestSchema(value),
+                    Response::FilesystemRequestSchema(value),
                 )))
             }
             Request::FilesystemResponseSchema(req) => {
                 let value = filesystem::response_schema::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::FilesystemResponseSchema(value),
+                    Response::FilesystemResponseSchema(value),
                 )))
             }
             Request::Github(req) => {
                 let value = github::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::Github(value),
+                    Response::Github(value),
                 )))
             }
             Request::GithubRequestSchema(req) => {
                 let value = github::request_schema::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::GithubRequestSchema(value),
+                    Response::GithubRequestSchema(value),
                 )))
             }
             Request::GithubResponseSchema(req) => {
                 let value = github::response_schema::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::GithubResponseSchema(value),
+                    Response::GithubResponseSchema(value),
                 )))
             }
         };

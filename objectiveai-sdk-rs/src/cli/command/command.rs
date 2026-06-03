@@ -43,7 +43,7 @@ pub enum Command {
     },
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Request {
     Agents(super::agents::Request),
     Config(super::config::Request),
@@ -59,7 +59,7 @@ pub enum Request {
     Viewer(super::viewer::Request),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum ResponseItem {
     Agents(super::agents::ResponseItem),
     Config(super::config::ResponseItem),

@@ -44,10 +44,18 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     let stdout = child.stdout.take().expect("stdout was piped");
     let stderr = child.stderr.take().expect("stderr was piped");
 
-    let stdout_lines = LinesStream::new(BufReader::new(stdout).lines())
-        .map(|r| r.map(stdout_item).map_err(Error::ToolRead));
-    let stderr_lines = LinesStream::new(BufReader::new(stderr).lines())
-        .map(|r| r.map(stderr_item).map_err(Error::ToolRead));
+    let stdout_lines = StreamExt::map(
+        LinesStream::new(BufReader::new(stdout).lines()),
+        |r: Result<String, std::io::Error>| {
+            r.map(stdout_item).map_err(Error::ToolRead)
+        },
+    );
+    let stderr_lines = StreamExt::map(
+        LinesStream::new(BufReader::new(stderr).lines()),
+        |r: Result<String, std::io::Error>| {
+            r.map(stderr_item).map_err(Error::ToolRead)
+        },
+    );
 
     // `merge` polls both line streams and yields each item the
     // moment it's read — no buffering between the producer and the
@@ -58,7 +66,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
 
     let stream = async_stream::stream! {
         let mut merged = merged;
-        while let Some(item) = merged.next().await {
+        while let Some(item) = futures::StreamExt::next(&mut merged).await {
             yield item;
         }
         // Both pipes closed — child has either exited or is about to.
@@ -117,6 +125,6 @@ pub mod response_schema {
     use crate::error::Error;
 
     pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-        Ok(schemars::schema_for!(sdk::Response))
+        Ok(schemars::schema_for!(sdk::ResponseItem))
     }
 }

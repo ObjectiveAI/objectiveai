@@ -62,6 +62,12 @@ pub mod request_schema {
     pub struct Request {
         pub jq: Option<String>,
     }
+    #[derive(clap::Args)]
+    pub struct Args {
+        #[arg(long)]
+        pub jq: Option<String>,
+    }
+
 
     impl CommandRequest for Request {
         fn into_command(&self) -> Vec<String> {
@@ -111,6 +117,12 @@ pub mod response_schema {
     pub struct Request {
         pub jq: Option<String>,
     }
+    #[derive(clap::Args)]
+    pub struct Args {
+        #[arg(long)]
+        pub jq: Option<String>,
+    }
+
 
     impl CommandRequest for Request {
         fn into_command(&self) -> Vec<String> {
@@ -150,4 +162,14 @@ pub mod response_schema {
         request.jq = Some(jq);
         executor.execute_one(request).await
     }
+}
+
+#[cfg(feature = "cli-executor")]
+pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
+    executor: &E,
+    request: Request,
+    _jq: String,
+) -> Result<serde_json::Value, E::Error> {
+    let resp: Response = executor.execute_one(request).await?;
+    Ok(serde_json::to_value(resp).expect("Response serializes"))
 }

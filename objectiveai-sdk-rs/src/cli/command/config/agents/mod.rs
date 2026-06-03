@@ -18,7 +18,7 @@ pub enum Request {
     Favorites(favorites::Request),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum ResponseItem {
     Get(get::Response),
     GetRequestSchema(get::request_schema::Response),

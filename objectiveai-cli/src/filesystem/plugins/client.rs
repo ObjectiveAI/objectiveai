@@ -212,7 +212,6 @@ impl Client {
     }
 }
 
-#[cfg(feature = "http")]
 impl Client {
     /// Install a plugin from a GitHub repository.
     ///
@@ -555,7 +554,6 @@ impl Client {
     }
 }
 
-#[cfg(feature = "http")]
 async fn write_binary_branch(
     binary_path: PathBuf,
     bytes: Vec<u8>,
@@ -574,7 +572,6 @@ async fn write_binary_branch(
     Ok(())
 }
 
-#[cfg(feature = "http")]
 async fn write_viewer_branch(
     viewer_dir: PathBuf,
     zip_bytes: Option<Vec<u8>>,
@@ -607,7 +604,6 @@ async fn write_viewer_branch(
     Ok(())
 }
 
-#[cfg(feature = "http")]
 async fn write_manifest_branch(
     manifest_path: PathBuf,
     bytes: Vec<u8>,
@@ -621,7 +617,6 @@ async fn write_manifest_branch(
 /// side-effect. `objectiveai` (case-insensitive) is reserved because
 /// the viewer uses it as the Tauri channel name for built-in events;
 /// a plugin with that repository name would shadow them.
-#[cfg(feature = "http")]
 fn check_repository_name(repository: &str) -> Result<(), super::InstallError> {
     if repository.eq_ignore_ascii_case("objectiveai") {
         return Err(super::InstallError::ReservedRepositoryName {
@@ -636,7 +631,6 @@ fn check_repository_name(repository: &str) -> Result<(), super::InstallError> {
 /// plus `.` (so semver-shaped versions and dotted commit refs flow
 /// through cleanly; the `.` -> `-` substitution happens when the tool
 /// name is materialized via [`super::Manifest::tool_name`]).
-#[cfg(feature = "http")]
 fn validate_identifier(
     kind: &'static str,
     value: &str,
@@ -660,7 +654,6 @@ fn validate_identifier(
 /// `install_plugin_at`. Calls [`check_repository_name`] first so a
 /// reserved-name failure takes precedence over a generic regex
 /// failure for the same input.
-#[cfg(feature = "http")]
 fn validate_install_inputs(
     owner: &str,
     repository: &str,
@@ -690,7 +683,6 @@ pub fn raw_manifest_url(
     )
 }
 
-#[cfg(feature = "http")]
 pub(super) fn build_headers(
     headers: Option<&indexmap::IndexMap<String, String>>,
 ) -> Result<reqwest::header::HeaderMap, super::InstallError> {

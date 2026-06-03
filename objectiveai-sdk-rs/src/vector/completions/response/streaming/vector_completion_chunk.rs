@@ -53,7 +53,7 @@ pub struct VectorCompletionChunk {
 }
 
 impl AgentCompletionIds for VectorCompletionChunk {
-    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> {
+    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> + Send {
         self.completions
             .iter()
             .flat_map(|c| c.agent_completion_ids())

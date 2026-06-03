@@ -14,9 +14,9 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     // Same on-disk shape on both sides of the boundary — JSON
     // round-trip handles the field-by-field conversion.
     let value = serde_json::to_value(&manifest)
-        .map_err(|e| Error::InlineDeserialize(e.into()))?;
+        .map_err(|e| Error::InlineJson(e))?;
     Ok(Some(
-        serde_json::from_value(value).map_err(|e| Error::InlineDeserialize(e.into()))?,
+        serde_json::from_value(value).map_err(|e| Error::InlineJson(e))?,
     ))
 }
 

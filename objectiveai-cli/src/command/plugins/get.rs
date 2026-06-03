@@ -15,9 +15,9 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     // share the same on-disk shape — round-trip through JSON does the
     // conversion without hand-coding each field.
     let value = serde_json::to_value(&manifest)
-        .map_err(|e| Error::InlineDeserialize(e.into()))?;
+        .map_err(|e| Error::InlineJson(e))?;
     Ok(Some(
-        serde_json::from_value(value).map_err(|e| Error::InlineDeserialize(e.into()))?,
+        serde_json::from_value(value).map_err(|e| Error::InlineJson(e))?,
     ))
 }
 

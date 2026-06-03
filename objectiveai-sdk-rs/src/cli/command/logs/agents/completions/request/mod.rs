@@ -17,7 +17,7 @@ pub enum Command {
     Subscribe(subscribe::Command),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Request {
     Get(get::Request),
     GetRequestSchema(get::request_schema::Request),
@@ -29,7 +29,7 @@ pub enum Request {
     SubscribeResponseSchema(subscribe::response_schema::Request),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Response {
     Get(get::Response),
     GetRequestSchema(get::request_schema::Response),
@@ -96,45 +96,45 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
             Request::Get(req) => {
                 let value = get::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::Get(value),
+                    Response::Get(value),
                 )))
             }
             Request::GetRequestSchema(req) => {
                 let value = get::request_schema::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::GetRequestSchema(value),
+                    Response::GetRequestSchema(value),
                 )))
             }
             Request::GetResponseSchema(req) => {
                 let value = get::response_schema::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::GetResponseSchema(value),
+                    Response::GetResponseSchema(value),
                 )))
             }
             Request::Messages(req) => {
                 let inner = messages::execute(executor, req).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Messages)))
+                Box::pin(inner.map(|r| r.map(Response::Messages)))
             }
             Request::Notifications(req) => {
                 let inner = notifications::execute(executor, req).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Notifications)))
+                Box::pin(inner.map(|r| r.map(Response::Notifications)))
             }
             Request::Subscribe(req) => {
                 let value = subscribe::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::Subscribe(value),
+                    Response::Subscribe(value),
                 )))
             }
             Request::SubscribeRequestSchema(req) => {
                 let value = subscribe::request_schema::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::SubscribeRequestSchema(value),
+                    Response::SubscribeRequestSchema(value),
                 )))
             }
             Request::SubscribeResponseSchema(req) => {
                 let value = subscribe::response_schema::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::SubscribeResponseSchema(value),
+                    Response::SubscribeResponseSchema(value),
                 )))
             }
         };

@@ -24,7 +24,7 @@ pub struct FunctionInventionChunk {
 }
 
 impl AgentCompletionIds for FunctionInventionChunk {
-    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> {
+    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> + Send {
         self.inner.agent_completion_ids()
     }
 }

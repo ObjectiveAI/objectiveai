@@ -69,3 +69,11 @@ impl std::fmt::Display for FromArgsErrorSource {
         }
     }
 }
+
+impl std::fmt::Display for FromArgsError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "argument parse error at `{}`: {}", self.field, self.source)
+    }
+}
+
+impl std::error::Error for FromArgsError {}

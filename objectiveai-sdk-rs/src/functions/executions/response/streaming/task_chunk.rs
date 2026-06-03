@@ -21,10 +21,10 @@ pub enum TaskChunk {
 }
 
 impl AgentCompletionIds for TaskChunk {
-    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> {
+    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> + Send {
         // Enum dispatch: each variant's own impl returns its own concrete
         // iterator type. We type-erase via Box<dyn ...> to unify them.
-        let iter: Box<dyn Iterator<Item = &str> + '_> = match self {
+        let iter: Box<dyn Iterator<Item = &str> + Send + '_> = match self {
             TaskChunk::FunctionExecution(c) => {
                 Box::new(c.agent_completion_ids())
             }

@@ -13,13 +13,13 @@ pub enum Command {
     },
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Request {
     Executions(executions::Request),
     Inventions(inventions::Request),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum ResponseItem {
     Executions(executions::ResponseItem),
     Inventions(inventions::ResponseItem),

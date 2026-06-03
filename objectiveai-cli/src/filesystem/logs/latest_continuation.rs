@@ -120,31 +120,11 @@ impl Client {
 
             // Found one — pair it with the per-turn request log.
             let request = self
-                .read_agent_completion_request(&response_id, None)
+                .read_agent_completion_request(&response_id)
                 .await?;
 
-            let agent: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional =
-                serde_json::from_value(
-                    request.get("agent").cloned().ok_or_else(|| {
-                        Error::InvalidPath(format!(
-                            "agent_completion_request {response_id} missing `agent` field"
-                        ))
-                    })?,
-                )
-                .map_err(|e| {
-                    Error::InvalidPath(format!(
-                        "agent_completion_request {response_id} `agent` does not parse: {e}"
-                    ))
-                })?;
-
-            let provider = match request.get("provider").cloned() {
-                Some(serde_json::Value::Null) | None => None,
-                Some(v) => Some(serde_json::from_value(v).map_err(|e| {
-                    Error::InvalidPath(format!(
-                        "agent_completion_request {response_id} `provider` does not parse: {e}"
-                    ))
-                })?),
-            };
+            let agent = request.agent.clone();
+            let provider = request.provider.clone();
 
             // On-disk shape stores `response_format` as a
             // LogReference, not the inline ResponseFormatParam.
@@ -153,10 +133,7 @@ impl Client {
             // default response format.
             let response_format = None;
 
-            let seed = match request.get("seed").cloned() {
-                Some(serde_json::Value::Number(n)) => n.as_i64(),
-                _ => None,
-            };
+            let seed = request.seed;
 
             return Ok(LatestContinuationOutcome::Found(LatestContinuation {
                 response_id,

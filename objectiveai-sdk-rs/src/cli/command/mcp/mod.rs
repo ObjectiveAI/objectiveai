@@ -17,7 +17,7 @@ pub enum Request {
     SpawnResponseSchema(spawn::response_schema::Request),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Response {
     Kill(kill::Response),
     KillRequestSchema(kill::request_schema::Response),
@@ -76,37 +76,37 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
             Request::Kill(req) => {
                 let value = kill::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::Kill(value),
+                    Response::Kill(value),
                 )))
             }
             Request::KillRequestSchema(req) => {
                 let value = kill::request_schema::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::KillRequestSchema(value),
+                    Response::KillRequestSchema(value),
                 )))
             }
             Request::KillResponseSchema(req) => {
                 let value = kill::response_schema::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::KillResponseSchema(value),
+                    Response::KillResponseSchema(value),
                 )))
             }
             Request::Spawn(req) => {
                 let value = spawn::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::Spawn(value),
+                    Response::Spawn(value),
                 )))
             }
             Request::SpawnRequestSchema(req) => {
                 let value = spawn::request_schema::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::SpawnRequestSchema(value),
+                    Response::SpawnRequestSchema(value),
                 )))
             }
             Request::SpawnResponseSchema(req) => {
                 let value = spawn::response_schema::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::SpawnResponseSchema(value),
+                    Response::SpawnResponseSchema(value),
                 )))
             }
         };

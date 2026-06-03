@@ -378,7 +378,7 @@ async fn dial_plugin_upstream(
             let line = match lines.next_line().await {
                 Ok(Some(l)) => l,
                 Ok(None) => {
-                    return Err::<objectiveai_sdk::cli::output::Mcp, String>(
+                    return Err::<objectiveai_sdk::cli::plugins::Mcp, String>(
                         "plugin exited without emitting mcp{url}".into(),
                     );
                 }

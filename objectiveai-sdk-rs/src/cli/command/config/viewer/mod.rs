@@ -36,7 +36,7 @@ pub enum Request {
     Signature(signature::Request),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Response {
     Get(get::Response),
     GetRequestSchema(get::request_schema::Response),
@@ -98,36 +98,36 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
             Request::Get(req) => {
                 let value = get::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::Get(value),
+                    Response::Get(value),
                 )))
             }
             Request::GetRequestSchema(req) => {
                 let value = get::request_schema::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::GetRequestSchema(value),
+                    Response::GetRequestSchema(value),
                 )))
             }
             Request::GetResponseSchema(req) => {
                 let value = get::response_schema::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::GetResponseSchema(value),
+                    Response::GetResponseSchema(value),
                 )))
             }
             Request::Address(req) => {
                 let inner = address::execute(executor, req).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Address)))
+                Box::pin(inner.map(|r| r.map(Response::Address)))
             }
             Request::Port(req) => {
                 let inner = port::execute(executor, req).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Port)))
+                Box::pin(inner.map(|r| r.map(Response::Port)))
             }
             Request::Secret(req) => {
                 let inner = secret::execute(executor, req).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Secret)))
+                Box::pin(inner.map(|r| r.map(Response::Secret)))
             }
             Request::Signature(req) => {
                 let inner = signature::execute(executor, req).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Signature)))
+                Box::pin(inner.map(|r| r.map(Response::Signature)))
             }
         };
     Ok(stream)

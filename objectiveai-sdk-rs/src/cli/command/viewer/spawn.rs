@@ -80,6 +80,12 @@ pub mod request_schema {
         pub jq: Option<String>,
     }
 
+    #[derive(clap::Args)]
+    pub struct Args {
+        #[arg(long)]
+        pub jq: Option<String>,
+    }
+
     impl CommandRequest for Request {
         fn into_command(&self) -> Vec<String> {
             let mut argv: Vec<String> = vec!["viewer", "spawn", "request-schema"].into_iter().map(String::from).collect();
@@ -125,6 +131,12 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub jq: Option<String>,
+    }
+
+    #[derive(clap::Args)]
+    pub struct Args {
+        #[arg(long)]
         pub jq: Option<String>,
     }
 

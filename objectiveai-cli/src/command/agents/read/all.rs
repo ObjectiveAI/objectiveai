@@ -24,9 +24,9 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
                 let spawned = format!("{caller}/{sub}");
                 let items = fs.read_all_from_queue(&caller, &spawned).await?;
                 let value = serde_json::to_value(items)
-                    .map_err(|e| Error::InlineDeserialize(e.into()))?;
+                    .map_err(|e| Error::InlineJson(e))?;
                 let items = serde_json::from_value(value)
-                    .map_err(|e| Error::InlineDeserialize(e.into()))?;
+                    .map_err(|e| Error::InlineJson(e))?;
                 Ok::<_, Error>(ResponseItem { agent_id: sub, items })
             });
         }
@@ -57,6 +57,6 @@ pub mod response_schema {
     use crate::error::Error;
 
     pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-        Ok(schemars::schema_for!(sdk::Response))
+        Ok(schemars::schema_for!(sdk::ResponseItem))
     }
 }

@@ -37,7 +37,7 @@ pub enum Request {
     Viewer(viewer::Request),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum ResponseItem {
     Agents(agents::ResponseItem),
     Functions(functions::ResponseItem),

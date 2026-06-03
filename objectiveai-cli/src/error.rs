@@ -28,6 +28,8 @@ pub enum Error {
     PythonHarnessBroken(String),
     #[error("inline JSON deserialization failed: {0}")]
     InlineDeserialize(serde_path_to_error::Error<serde_json::Error>),
+    #[error("inline JSON conversion failed: {0}")]
+    InlineJson(#[from] serde_json::Error),
     #[error("stream ended without producing any chunks")]
     EmptyStream,
     #[error("config set forbidden by server configuration")]
@@ -109,24 +111,10 @@ pub enum Error {
 }
 
 impl Error {
-    pub fn to_output(
-        &self,
-        level: objectiveai_sdk::cli::output::Level,
-        fatal: bool,
-    ) -> objectiveai_sdk::cli::output::Error {
-        objectiveai_sdk::cli::output::Error {
-            r#type: objectiveai_sdk::cli::output::ErrorType::Error,
-            level,
-            fatal,
-            message: self.output_message(),
-            agent_instance_hierarchy: None,
-        }
-    }
-
-    /// JSON value to use for the `message` field of `Output::Error`.
-    /// For `ResponseError` this is the inner error serialized as a
-    /// structured object; for everything else it's a string built from
-    /// the `Display` impl.
+    /// JSON value to use when serializing this error in user-facing
+    /// output. For `ResponseError` this is the inner error serialized
+    /// as a structured object; for everything else it's a string built
+    /// from the `Display` impl.
     pub fn output_message(&self) -> serde_json::Value {
         match self {
             Error::ResponseError(re) => {

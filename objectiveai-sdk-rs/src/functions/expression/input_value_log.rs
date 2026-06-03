@@ -29,11 +29,11 @@
 
 use indexmap::IndexMap;
 use schemars::JsonSchema;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::logs::LogReference;
 
-#[derive(Debug, Clone, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(untagged)]
 #[schemars(rename = "functions.expression.InputValueLog")]
 pub enum InputValueLog {

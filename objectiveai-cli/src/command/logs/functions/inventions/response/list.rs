@@ -40,6 +40,6 @@ pub mod response_schema {
     use crate::error::Error;
 
     pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-        Ok(schemars::schema_for!(sdk::Response))
+        Ok(schemars::schema_for!(sdk::ResponseItem))
     }
 }

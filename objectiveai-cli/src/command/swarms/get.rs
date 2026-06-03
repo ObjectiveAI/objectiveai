@@ -15,7 +15,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     let path = match request.path {
         RemotePathCommitOptionalOrFavorite::Resolved(p) => p,
         RemotePathCommitOptionalOrFavorite::Favorite(name) => {
-            let config = ctx.filesystem.read_config().await?;
+            let mut config = ctx.filesystem.read_config().await?;
             let fav = config
                 .swarms()
                 .get_favorites()

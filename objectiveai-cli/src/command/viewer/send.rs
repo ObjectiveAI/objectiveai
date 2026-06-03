@@ -21,7 +21,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         return Err(Error::ViewerPathMissingSlash(path));
     }
 
-    let config = ctx.filesystem.read_config().await?;
+    let mut config = ctx.filesystem.read_config().await?;
     let viewer = config.viewer();
 
     let address = std::env::var("VIEWER_ADDRESS")

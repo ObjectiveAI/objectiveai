@@ -30,7 +30,7 @@ pub struct FunctionInventionRecursiveChunk {
 }
 
 impl AgentCompletionIds for FunctionInventionRecursiveChunk {
-    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> {
+    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> + Send {
         self.inventions
             .iter()
             .flat_map(|i| i.agent_completion_ids())

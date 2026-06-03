@@ -1,14 +1,12 @@
 //! Plugin discovery and manifest types.
 
 mod client;
-#[cfg(feature = "http")]
 mod install_error;
 mod manifest;
 mod platform;
 mod whitelist;
 
 pub use client::*;
-#[cfg(feature = "http")]
 pub use install_error::*;
 pub use manifest::*;
 pub use platform::*;

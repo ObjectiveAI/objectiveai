@@ -32,7 +32,7 @@ pub enum Command {
     Spawn(spawn::Command),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Request {
     Get(get::Request),
     GetRequestSchema(get::request_schema::Request),
@@ -53,7 +53,7 @@ pub enum Request {
     SpawnResponseSchema(spawn::response_schema::Request),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum ResponseItem {
     Get(get::Response),
     GetRequestSchema(get::request_schema::Response),

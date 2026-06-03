@@ -22,8 +22,8 @@ fn once<T: Send + 'static>(
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     let stream: ItemStream = match request {
         Request::Get(req) => {
-            let inner = get::execute(ctx, req).await?;
-            Box::pin(inner.map(|r| r.map(ResponseItem::Get)))
+            let value = get::execute(ctx, req).await?;
+            once(Ok(ResponseItem::Get(value)))
         }
         Request::GetRequestSchema(req) => {
             let value = get::request_schema::execute(ctx, req).await?;

@@ -27,7 +27,7 @@ pub enum Request {
     GetResponseSchema(get::response_schema::Request),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum ResponseItem {
     Add(add::Response),
     AddRequestSchema(add::request_schema::Response),

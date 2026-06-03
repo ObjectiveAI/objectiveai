@@ -6,12 +6,12 @@
 //! carries its `index` at the reference level).
 
 use schemars::JsonSchema;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::agent;
 use crate::logs::IndexedLogReference;
 
-#[derive(Debug, Clone, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(
     rename = "functions.inventions.recursive.response.streaming.FunctionInventionRecursiveChunkLog"
 )]

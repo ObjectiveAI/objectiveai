@@ -32,7 +32,7 @@ pub struct LaboratoryExecutionChunk {
 }
 
 impl AgentCompletionIds for LaboratoryExecutionChunk {
-    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> {
+    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> + Send {
         self.builders
             .iter()
             .flat_map(|b| b.agent_completion_ids())

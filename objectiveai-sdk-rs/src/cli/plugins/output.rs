@@ -12,7 +12,8 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use super::{Error, Mcp};
+use super::Mcp;
+use crate::cli::Error;
 
 /// One line of plugin output. Untagged outer enum: deserialization
 /// tries the three explicit [`TypedOutput`] variants first

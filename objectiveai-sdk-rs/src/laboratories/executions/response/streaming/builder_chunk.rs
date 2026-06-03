@@ -27,7 +27,7 @@ pub struct BuilderChunk {
 }
 
 impl AgentCompletionIds for BuilderChunk {
-    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> {
+    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> + Send {
         self.inner.agent_completion_ids()
     }
 }

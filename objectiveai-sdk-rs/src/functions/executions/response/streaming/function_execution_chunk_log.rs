@@ -19,7 +19,7 @@
 //! it. Mirroring that order keeps the snapshot tests byte-identical.
 
 use schemars::JsonSchema;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::agent;
 use crate::error;
@@ -28,7 +28,7 @@ use crate::functions::executions::response;
 
 use super::{reasoning_summary_log_reference, task_log_reference};
 
-#[derive(Debug, Clone, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(
     rename = "functions.executions.response.streaming.FunctionExecutionChunkLog"
 )]

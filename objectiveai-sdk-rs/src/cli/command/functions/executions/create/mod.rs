@@ -45,7 +45,7 @@ pub enum Request {
     SwissSystemResponseSchema(swiss_system::response_schema::Request),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum ResponseItem {
     Standard(standard::ResponseItem),
     StandardRequestSchema(standard::request_schema::Response),

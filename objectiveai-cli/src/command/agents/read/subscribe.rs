@@ -150,9 +150,9 @@ async fn send_items(
     items: Vec<QueueItem>,
 ) -> Result<(), Error> {
     let value =
-        serde_json::to_value(items).map_err(|e| Error::InlineDeserialize(e.into()))?;
+        serde_json::to_value(items).map_err(|e| Error::InlineJson(e))?;
     let items = serde_json::from_value(value)
-        .map_err(|e| Error::InlineDeserialize(e.into()))?;
+        .map_err(|e| Error::InlineJson(e))?;
     let _ = tx
         .send(Ok(ResponseItem::Items {
             agent_id: sub_id.to_string(),
@@ -234,6 +234,6 @@ pub mod response_schema {
     use crate::error::Error;
 
     pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-        Ok(schemars::schema_for!(sdk::Response))
+        Ok(schemars::schema_for!(sdk::ResponseItem))
     }
 }

@@ -289,6 +289,12 @@ pub mod request_schema {
     pub struct Request {
         pub jq: Option<String>,
     }
+    #[derive(clap::Args)]
+    pub struct Args {
+        #[arg(long)]
+        pub jq: Option<String>,
+    }
+
 
     impl CommandRequest for Request {
         fn into_command(&self) -> Vec<String> {
@@ -338,6 +344,12 @@ pub mod response_schema {
     pub struct Request {
         pub jq: Option<String>,
     }
+    #[derive(clap::Args)]
+    pub struct Args {
+        #[arg(long)]
+        pub jq: Option<String>,
+    }
+
 
     impl CommandRequest for Request {
         fn into_command(&self) -> Vec<String> {

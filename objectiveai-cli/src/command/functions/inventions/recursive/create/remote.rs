@@ -73,7 +73,7 @@ fn map_item(item: Result<InstanceItem, Error>) -> Result<ResponseItem, Error> {
         InstanceItem::Id(id) => Ok(ResponseItem::Id(id)),
         InstanceItem::Chunk(value) => serde_json::from_value(value)
             .map(ResponseItem::Chunk)
-            .map_err(|e| Error::InlineDeserialize(e.into())),
+            .map_err(|e| Error::InlineJson(e)),
     }
 }
 

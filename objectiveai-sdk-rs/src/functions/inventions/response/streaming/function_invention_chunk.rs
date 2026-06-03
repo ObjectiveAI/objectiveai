@@ -41,7 +41,7 @@ pub struct FunctionInventionChunk {
 }
 
 impl AgentCompletionIds for FunctionInventionChunk {
-    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> {
+    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> + Send {
         self.completions
             .iter()
             .flat_map(|c| c.agent_completion_ids())

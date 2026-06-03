@@ -18,14 +18,14 @@ pub enum Command {
     },
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Request {
     Recursive(recursive::Request),
     Request(request::Request),
     Response(response::Request),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum ResponseItem {
     Recursive(recursive::ResponseItem),
     Request(request::Response),

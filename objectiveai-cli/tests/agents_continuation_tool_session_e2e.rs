@@ -12,14 +12,31 @@
 //!    deterministic-tool-selection is producing the same number of
 //!    tool calls per turn under both seeds and that the per-session
 //!    counters are independent (no cross-agent contamination).
+//!
+//! Driven through the SDK `BinaryExecutor` so each cli leaf is invoked
+//! with a typed `Request` value rather than hand-rolled argv.
 
 mod cli_test_util;
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::Once;
+use std::sync::{Arc, Once};
 use std::time::{Duration, Instant};
 
+use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
+use objectiveai_sdk::cli::command::agents::message::{
+    Request as MessageRequest, RequestMessage,
+};
+use objectiveai_sdk::cli::command::agents::read::all::{
+    Request as ReadAllRequest, ResponseContent, ResponseItem as ReadAllItem,
+    ResponseQueueItem,
+};
+use objectiveai_sdk::cli::command::agents::read::id::Request as ReadIdRequest;
+use objectiveai_sdk::cli::command::agents::spawn::{
+    AgentSpec, Request as SpawnRequest, RequestPrompt,
+    ResponseItem as SpawnResponseItem,
+};
+use objectiveai_sdk::cli::command::command_executor::binary::BinaryExecutor;
 use serde_json::{Value, json};
 
 static BUILD_COUNT_TOOL_ONCE: Once = Once::new();
@@ -47,34 +64,6 @@ fn count_tool_binary() -> PathBuf {
         assert!(status.success(), "count-tool build failed");
     });
     path
-}
-
-fn cli_command_with_base_dir(base_dir: &Path, args: &[&str]) -> Command {
-    let mut cmd = Command::new(cli_test_util::cli_binary());
-    cmd.env("CONFIG_BASE_DIR", base_dir);
-    if let Some(addr) = cli_test_util::test_api_address() {
-        cmd.env("OBJECTIVEAI_ADDRESS", addr);
-    }
-    cmd.args(args);
-    cmd
-}
-
-fn run_cli_with_base_dir(base_dir: &Path, args: &[&str]) -> Vec<Value> {
-    let output = cli_command_with_base_dir(base_dir, args)
-        .output()
-        .expect("execute cli");
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    if !output.status.success() {
-        panic!(
-            "cli exited with {}\nargs: {args:?}\nstdout: {stdout}\nstderr: {stderr}",
-            output.status,
-        );
-    }
-    stdout
-        .lines()
-        .filter_map(|l| serde_json::from_str::<Value>(l.trim()).ok())
-        .collect()
 }
 
 async fn poll_until<F: Fn() -> bool>(timeout: Duration, pred: F) -> Result<(), ()> {
@@ -119,14 +108,12 @@ fn install_count_tool_over_echo_arglen() {
     }
 }
 
-/// Inline mock-agent JSON wired to the 10 `testorg/tool{0..9}/1.0.0`
+/// Inline mock-agent spec wired to the 10 `testorg/tool{0..9}/1.0.0`
 /// tools the test mcp server registered. Same body regardless of
 /// seed (the seed lives on the request, not the agent), so two
 /// spawns with the same body produce the SAME agent definition but
-/// two DIFFERENT per-turn `chunk.id`s. Each lineage `cli/<chunk.id>`
-/// becomes its own MCP session id via the objectiveai-mcp fallback
-/// chain to `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY`.
-fn agent_json() -> String {
+/// two DIFFERENT per-turn `chunk.id`s.
+fn agent_spec() -> AgentSpec {
     let tools: Vec<Value> = (0..10)
         .map(|i| {
             json!({
@@ -136,39 +123,44 @@ fn agent_json() -> String {
             })
         })
         .collect();
-    json!({
+    let agent_json = json!({
         "upstream": "mock",
         "output_mode": "instruction",
         "client_objectiveai_mcp": {"tools": tools},
-    })
-    .to_string()
+    });
+    AgentSpec::Resolved(
+        serde_json::from_value::<InlineAgentBaseWithFallbacksOrRemoteCommitOptional>(
+            agent_json,
+        )
+        .expect("inline mock agent must deserialize"),
+    )
 }
 
-/// Spawn an agent and return its sub-id (the `Spawned.agent_instance_hierarchy`).
-fn spawn_agent(base_dir: &Path, agent_json: &str, seed: i64) -> String {
-    let seed_str = seed.to_string();
-    let lines = run_cli_with_base_dir(
-        base_dir,
-        &[
-            "agents",
-            "spawn",
-            "--agent-inline",
-            agent_json,
-            "--simple",
-            "go",
-            "--seed",
-            &seed_str,
-        ],
-    );
-    let spawned = lines
+/// Spawn an agent and return its sub-id (the chunk's
+/// `agent_instance_hierarchy`).
+async fn spawn_agent(executor: &BinaryExecutor, seed: i64) -> String {
+    let request = SpawnRequest {
+        prompt: RequestPrompt::Simple("go".to_string()),
+        agent: agent_spec(),
+        seed: Some(seed),
+        dangerous_advanced: None,
+        jq: None,
+    };
+    let items: Vec<SpawnResponseItem> =
+        cli_test_util::collect_stream(executor, request).await;
+    items
         .iter()
-        .find(|l| l.pointer("/type") == Some(&json!("spawned")))
-        .expect("agents spawn must emit Spawned");
-    spawned
-        .pointer("/agent_instance_hierarchy")
-        .and_then(|v| v.as_str())
-        .expect("Spawned.agent_instance_hierarchy")
-        .to_string()
+        .find_map(|item| match item {
+            SpawnResponseItem::Chunk(chunk) => {
+                if chunk.agent_instance_hierarchy.is_empty() {
+                    None
+                } else {
+                    Some(chunk.agent_instance_hierarchy.clone())
+                }
+            }
+            SpawnResponseItem::Id(_) => None,
+        })
+        .expect("agents spawn must emit a Chunk with agent_instance_hierarchy")
 }
 
 /// Wait for the cli-stream child to have flushed an agent's response
@@ -188,50 +180,39 @@ async fn wait_for_completion(base_dir: &Path, spawn_id: &str) {
     });
 }
 
-/// Run one continuation turn against a spawned agent. Sync — the
-/// caller (the parallel-agents flow) wraps this in `spawn_blocking`
-/// and then `await`s a fresh `wait_for_completion` separately.
-fn continue_agent_sync(base_dir: &Path, spawn_id: &str, seed: i64) {
-    let seed_str = seed.to_string();
-    let _ = run_cli_with_base_dir(
-        base_dir,
-        &[
-            "agents", "message", spawn_id, "--simple", "more", "--seed", &seed_str,
-        ],
-    );
+/// Run one continuation turn against a spawned agent.
+async fn continue_agent(executor: &BinaryExecutor, spawn_id: &str, seed: i64) {
+    let request = MessageRequest {
+        agent_instance_hierarchy: spawn_id.to_string(),
+        message: RequestMessage::Simple("more".to_string()),
+        seed: Some(seed),
+        jq: None,
+    };
+    // Returns either Queued or Delivered — we don't care which here,
+    // only that the cli emitted something without erroring. The real
+    // verification is the post-turn `wait_for_completion`.
+    let _ = executor
+        .execute_one::<_, objectiveai_sdk::cli::command::agents::message::Response>(request)
+        .await
+        .expect("agents message executor call");
 }
 
-/// Collect every `tool_response` queue item's sql row id (from the
-/// `content` field's `One` / `Many` variant) for `sub_id`, via the
-/// public `agents read all` cli surface.
-fn read_tool_response_ids(base_dir: &Path, sub_id: &str) -> Vec<i64> {
-    let lines = run_cli_with_base_dir(base_dir, &["agents", "read", "all", sub_id]);
-    let agent_items = lines
-        .iter()
-        .find(|l| l.pointer("/type") == Some(&json!("agent_items")))
-        .expect("agents read all must emit AgentItems");
-    let items = agent_items
-        .pointer("/items")
-        .and_then(|v| v.as_array())
-        .expect("AgentItems.items");
-
+/// Collect every `tool_response` queue item's sql row id for `sub_id`
+/// via the public `agents read all` cli surface.
+async fn read_tool_response_ids(executor: &BinaryExecutor, sub_id: &str) -> Vec<i64> {
+    let request = ReadAllRequest {
+        agent_instance_hierarchies: vec![sub_id.to_string()],
+        jq: None,
+    };
+    let items: Vec<ReadAllItem> =
+        cli_test_util::collect_stream(executor, request).await;
     let mut ids = Vec::new();
     for item in items {
-        if item.get("type").and_then(|t| t.as_str()) != Some("tool_response") {
-            continue;
-        }
-        let content = match item.get("content") {
-            Some(c) => c,
-            None => continue,
-        };
-        // `Content` is untagged: `One(Id)` (integer) | `Many(Vec<Id>)`
-        // (array of integers).
-        if let Some(n) = content.as_i64() {
-            ids.push(n);
-        } else if let Some(arr) = content.as_array() {
-            for v in arr {
-                if let Some(n) = v.as_i64() {
-                    ids.push(n);
+        for queue_item in item.items {
+            if let ResponseQueueItem::ToolResponse { content, .. } = queue_item {
+                match content {
+                    ResponseContent::One(id) => ids.push(id),
+                    ResponseContent::Many(many) => ids.extend(many),
                 }
             }
         }
@@ -242,15 +223,16 @@ fn read_tool_response_ids(base_dir: &Path, sub_id: &str) -> Vec<i64> {
 /// Read one queue file by sql id and extract any embedded integer
 /// (the count-tool prints e.g. `7\n`; once persisted as a tool-
 /// response message file it lands as a JSON value whose text content
-/// holds that number). Permissive — searches the whole JSON value
-/// recursively for the first integer-shaped string or number.
-fn read_count_for_id(base_dir: &Path, id: i64) -> Option<u64> {
-    let id_str = id.to_string();
-    let lines = run_cli_with_base_dir(base_dir, &["agents", "read", "id", &id_str]);
-    let value = lines
-        .iter()
-        .find(|l| l.pointer("/content").is_some())
-        .and_then(|l| l.pointer("/content").cloned())?;
+/// holds that number). Permissive — serializes the typed Response
+/// back to JSON and scans recursively for the first integer-shaped
+/// string or number.
+async fn read_count_for_id(executor: &BinaryExecutor, id: i64) -> Option<u64> {
+    let request = ReadIdRequest { id, jq: None };
+    let response: objectiveai_sdk::cli::command::agents::read::id::Response = executor
+        .execute_one(request)
+        .await
+        .expect("agents read id executor call");
+    let value = serde_json::to_value(&response).expect("Response serializes");
     extract_first_u64(&value)
 }
 
@@ -298,30 +280,23 @@ async fn two_agents_continuations_count_persists_per_session() {
         let _ = std::fs::remove_dir_all(&tool_data_dir);
     }
 
+    // One shared executor — all cli invocations point at the same
+    // `CONFIG_BASE_DIR`.
+    let executor = Arc::new(cli_test_util::executor_with_base_dir(&base_dir));
+
     // Each agent runs its full spawn → wait → continue → wait →
     // continue → wait pipeline as its own task. The two tasks are
     // independent — A doesn't gate on B's progress, and vice versa.
     // Distinct seeds give two distinct `chunk.id` lineages even
     // though the agent body content-hashes identically.
-    let agent = agent_json();
     let run_agent = |seed: i64| {
         let base_dir = base_dir.clone();
-        let agent = agent.clone();
+        let executor = executor.clone();
         async move {
-            let id = tokio::task::spawn_blocking({
-                let base_dir = base_dir.clone();
-                let agent = agent.clone();
-                move || spawn_agent(&base_dir, &agent, seed)
-            })
-            .await
-            .expect("spawn_agent task panicked");
+            let id = spawn_agent(&executor, seed).await;
             wait_for_completion(&base_dir, &id).await;
             for _ in 0..2 {
-                let id_c = id.clone();
-                let base_c = base_dir.clone();
-                tokio::task::spawn_blocking(move || continue_agent_sync(&base_c, &id_c, seed))
-                    .await
-                    .expect("continue_agent task panicked");
+                continue_agent(&executor, &id, seed).await;
                 wait_for_completion(&base_dir, &id).await;
             }
             id
@@ -331,8 +306,8 @@ async fn two_agents_continuations_count_persists_per_session() {
     let (a, b) = tokio::join!(run_agent(1), run_agent(2));
     assert_ne!(a, b, "two spawns must produce distinct lineages");
 
-    let ids_a = read_tool_response_ids(&base_dir, &a);
-    let ids_b = read_tool_response_ids(&base_dir, &b);
+    let ids_a = read_tool_response_ids(&executor, &a).await;
+    let ids_b = read_tool_response_ids(&executor, &b).await;
 
     assert!(
         !ids_a.is_empty(),
@@ -343,14 +318,18 @@ async fn two_agents_continuations_count_persists_per_session() {
         "agent B produced zero tool responses — mock didn't call tools (seed/mode mismatch?)",
     );
 
-    let counts_a: Vec<u64> = ids_a
-        .iter()
-        .filter_map(|&id| read_count_for_id(&base_dir, id))
-        .collect();
-    let counts_b: Vec<u64> = ids_b
-        .iter()
-        .filter_map(|&id| read_count_for_id(&base_dir, id))
-        .collect();
+    let mut counts_a: Vec<u64> = Vec::with_capacity(ids_a.len());
+    for id in &ids_a {
+        if let Some(c) = read_count_for_id(&executor, *id).await {
+            counts_a.push(c);
+        }
+    }
+    let mut counts_b: Vec<u64> = Vec::with_capacity(ids_b.len());
+    for id in &ids_b {
+        if let Some(c) = read_count_for_id(&executor, *id).await {
+            counts_b.push(c);
+        }
+    }
 
     let max_a = *counts_a.iter().max().expect("counts_a empty");
     let max_b = *counts_b.iter().max().expect("counts_b empty");

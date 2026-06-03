@@ -11,16 +11,20 @@ impl<T> StreamOnce<T> {
     }
 }
 
-impl<T> Stream for StreamOnce<T>
-where
-    T: Unpin,
-{
+impl<T> Stream for StreamOnce<T> {
     type Item = T;
 
     fn poll_next(
-        mut self: std::pin::Pin<&mut Self>,
+        self: std::pin::Pin<&mut Self>,
         _cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Self::Item>> {
-        std::task::Poll::Ready(self.as_mut().get_mut().0.take())
+        // SAFETY: We hold `Option<T>`. Calling `take()` moves the
+        // inner `T` out by value but leaves the option location
+        // (which is what's pinned) in place — we never project into
+        // the still-stored `T`. Soundness only requires that we never
+        // observe the inner `T` through a pinned borrow before taking
+        // ownership, which we don't.
+        let this = unsafe { std::pin::Pin::get_unchecked_mut(self) };
+        std::task::Poll::Ready(this.0.take())
     }
 }

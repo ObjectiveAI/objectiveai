@@ -9,6 +9,14 @@ use objectiveai_sdk::agent::completions::message::{
     File, ImageUrl, InputAudio, VideoUrl,
 };
 
+/// Direct-child agent of the parent the caller asked about, with the
+/// unix-seconds timestamp of its most recent `assistant_response` row.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ActiveAgent {
+    pub agent_id: String,
+    pub last_log: u64,
+}
+
 /// Result of reading a log file. The variant is determined by **which
 /// typed `read_*` method the caller invoked** (or, for
 /// [`Client::read_file_by_id`], by the on-disk folder the path
@@ -2005,7 +2013,7 @@ impl Client {
 
             // -- Per-message metadata (JSON) --------------------------------
             K::AgentCompletionMessage { id, message_index } => self
-                .read_agent_completion_message(&id, message_index, None)
+                .read_agent_completion_message(&id, message_index)
                 .await
                 .map(R::AgentsCompletionsResponseMessages),
             K::AgentCompletionMessageLogprobs { id, message_index } => self
@@ -2304,12 +2312,10 @@ impl Client {
     /// prefix stripped — so callers can paste it back into
     /// commands that re-prepend the parent (e.g. `agents
     /// read pending`).
-    ///
-    /// [`ActiveAgent`]: objectiveai_sdk::cli::output::ActiveAgent
     pub async fn list_active(
         &self,
         parent_agent_instance_hierarchy: &str,
-    ) -> Result<Vec<objectiveai_sdk::cli::output::ActiveAgent>, Error> {
+    ) -> Result<Vec<ActiveAgent>, Error> {
         let conn = super::super::db::connection::connection(self)?;
         let rows = super::super::db::schema::list_direct_active_children_async(
             conn,
@@ -2319,7 +2325,7 @@ impl Client {
         let prefix = format!("{parent_agent_instance_hierarchy}/");
         Ok(rows
             .into_iter()
-            .map(|(full, last_log)| objectiveai_sdk::cli::output::ActiveAgent {
+            .map(|(full, last_log)| ActiveAgent {
                 agent_id: full
                     .strip_prefix(&prefix)
                     .unwrap_or(&full)

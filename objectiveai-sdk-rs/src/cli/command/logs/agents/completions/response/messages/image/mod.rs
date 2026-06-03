@@ -22,7 +22,7 @@ pub enum Request {
     SubscribeResponseSchema(subscribe::response_schema::Request),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Response {
     Clear(clear::Response),
     ClearRequestSchema(clear::request_schema::Response),
@@ -94,55 +94,55 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
             Request::Clear(req) => {
                 let value = clear::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::Clear(value),
+                    Response::Clear(value),
                 )))
             }
             Request::ClearRequestSchema(req) => {
                 let value = clear::request_schema::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::ClearRequestSchema(value),
+                    Response::ClearRequestSchema(value),
                 )))
             }
             Request::ClearResponseSchema(req) => {
                 let value = clear::response_schema::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::ClearResponseSchema(value),
+                    Response::ClearResponseSchema(value),
                 )))
             }
             Request::Get(req) => {
                 let value = get::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::Get(value),
+                    Response::Get(value),
                 )))
             }
             Request::GetRequestSchema(req) => {
                 let value = get::request_schema::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::GetRequestSchema(value),
+                    Response::GetRequestSchema(value),
                 )))
             }
             Request::GetResponseSchema(req) => {
                 let value = get::response_schema::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::GetResponseSchema(value),
+                    Response::GetResponseSchema(value),
                 )))
             }
             Request::Subscribe(req) => {
                 let value = subscribe::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::Subscribe(value),
+                    Response::Subscribe(value),
                 )))
             }
             Request::SubscribeRequestSchema(req) => {
                 let value = subscribe::request_schema::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::SubscribeRequestSchema(value),
+                    Response::SubscribeRequestSchema(value),
                 )))
             }
             Request::SubscribeResponseSchema(req) => {
                 let value = subscribe::response_schema::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::SubscribeResponseSchema(value),
+                    Response::SubscribeResponseSchema(value),
                 )))
             }
         };

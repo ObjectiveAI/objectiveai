@@ -115,7 +115,8 @@ pub struct Config {
 /// two dispatch paths: the bare-naked command tree (the SDK's typed
 /// `ResponseItem` aggregator) or the instance subprocess runtime (its
 /// own typed [`InstanceEmission`] enum).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(untagged)]
 pub enum RunItem {
     Command(ResponseItem),
     Instance(InstanceEmission),

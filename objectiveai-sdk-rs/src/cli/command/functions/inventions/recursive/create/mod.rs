@@ -22,7 +22,7 @@ pub enum Request {
     RemoteResponseSchema(remote::response_schema::Request),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum ResponseItem {
     AlphaScalar(alpha_scalar::ResponseItem),
     AlphaScalarRequestSchema(alpha_scalar::request_schema::Response),

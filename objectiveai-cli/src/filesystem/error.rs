@@ -48,7 +48,6 @@ pub enum Error {
     Git(#[from] git2::Error),
     #[error("db error: {0}")]
     Db(#[from] rusqlite::Error),
-    #[cfg(feature = "http")]
     #[error("plugin install error: {0}")]
     Install(#[from] crate::filesystem::plugins::InstallError),
 }

@@ -12,7 +12,7 @@ pub enum Request {
     GetResponseSchema(get::response_schema::Request),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Response {
     Get(get::Response),
     GetRequestSchema(get::request_schema::Response),
@@ -58,19 +58,19 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
             Request::Get(req) => {
                 let value = get::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::Get(value),
+                    Response::Get(value),
                 )))
             }
             Request::GetRequestSchema(req) => {
                 let value = get::request_schema::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::GetRequestSchema(value),
+                    Response::GetRequestSchema(value),
                 )))
             }
             Request::GetResponseSchema(req) => {
                 let value = get::response_schema::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::GetResponseSchema(value),
+                    Response::GetResponseSchema(value),
                 )))
             }
         };

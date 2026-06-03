@@ -40,7 +40,7 @@ pub enum Request {
     PublishResponseSchema(publish::response_schema::Request),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum ResponseItem {
     Executions(executions::ResponseItem),
     Get(get::Response),

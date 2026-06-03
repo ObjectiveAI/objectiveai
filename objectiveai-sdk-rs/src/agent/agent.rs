@@ -558,7 +558,7 @@ impl InlineAgentWithFallbacks {
     }
 
     /// Returns an iterator over the IDs of the primary agent and all fallbacks.
-    pub fn ids(&self) -> impl Iterator<Item = &str> {
+    pub fn ids(&self) -> impl Iterator<Item = &str> + Send {
         std::iter::once(self.inner.id()).chain(
             self.fallbacks.as_ref().into_iter().flat_map(|fallbacks| {
                 fallbacks.iter().map(|fallback| fallback.id())
@@ -608,7 +608,7 @@ impl RemoteAgentWithFallbacks {
     }
 
     /// Returns an iterator over the IDs of the primary agent and all fallbacks.
-    pub fn ids(&self) -> impl Iterator<Item = &str> {
+    pub fn ids(&self) -> impl Iterator<Item = &str> + Send {
         self.inner.ids()
     }
 }
@@ -649,7 +649,7 @@ impl AgentWithFallbacks {
     }
 
     /// Returns an iterator over the IDs of the primary agent and all fallbacks.
-    pub fn ids(&self) -> impl Iterator<Item = &str> {
+    pub fn ids(&self) -> impl Iterator<Item = &str> + Send {
         self.inline().ids()
     }
 

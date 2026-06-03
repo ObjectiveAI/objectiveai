@@ -8,7 +8,7 @@ use crate::context::Context;
 use crate::error::Error;
 
 pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error> {
-    let config = ctx.filesystem.read_config().await?;
+    let mut config = ctx.filesystem.read_config().await?;
 
     let address = config
         .viewer()

@@ -71,11 +71,12 @@ async fn write_error_line(
     stdout: &mut tokio::io::Stdout,
     e: &objectiveai_cli::error::Error,
 ) {
-    let payload = serde_json::json!({
-        "type": "error",
-        "fatal": true,
-        "message": e.to_string(),
-    });
+    let payload = objectiveai_sdk::cli::Error {
+        r#type: objectiveai_sdk::cli::ErrorType::Error,
+        level: Some(objectiveai_sdk::cli::Level::Error),
+        fatal: Some(true),
+        message: e.output_message(),
+    };
     write_line(stdout, &payload).await;
 }
 

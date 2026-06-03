@@ -7,13 +7,13 @@
 //! `index` preserved at the reference level).
 
 use schemars::JsonSchema;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::agent;
 use crate::logs::IndexedLogReference;
 use crate::vector::completions::response;
 
-#[derive(Debug, Clone, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(
     rename = "vector.completions.response.streaming.VectorCompletionChunkLog"
 )]

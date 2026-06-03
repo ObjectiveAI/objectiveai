@@ -15,7 +15,7 @@ pub enum Command {
     Subscribe(subscribe::Command),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Request {
     All(all::Request),
     AllRequestSchema(all::request_schema::Request),
@@ -31,7 +31,7 @@ pub enum Request {
     SubscribeResponseSchema(subscribe::response_schema::Request),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum ResponseItem {
     All(all::ResponseItem),
     AllRequestSchema(all::request_schema::Response),

@@ -13,7 +13,7 @@ pub enum Request {
     Create(create::Request),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum ResponseItem {
     Create(create::ResponseItem),
 }

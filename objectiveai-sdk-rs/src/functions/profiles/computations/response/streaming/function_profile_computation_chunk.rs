@@ -43,7 +43,7 @@ pub struct FunctionProfileComputationChunk {
 }
 
 impl AgentCompletionIds for FunctionProfileComputationChunk {
-    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> {
+    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> + Send {
         self.executions
             .iter()
             .flat_map(|e| e.agent_completion_ids())

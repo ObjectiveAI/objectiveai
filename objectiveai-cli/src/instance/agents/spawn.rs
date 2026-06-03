@@ -41,7 +41,7 @@ pub async fn execute(
         None::<String>,
         None::<String>,
     );
-    let caller_agent_instance_hierarchy = http.objectiveai_agent_instance_hierarchy.clone();
+    let caller_agent_instance_hierarchy = Some(http.objectiveai_agent_instance_hierarchy.clone());
     let log_writer = fs_client
         .write_agent_completion(&params)
         .map_err(|e| Error::Instance(format!(

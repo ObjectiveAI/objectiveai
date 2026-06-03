@@ -15,10 +15,8 @@
 //! impl now lives under this mirror.
 
 pub mod agents;
-pub mod cli;
 pub mod functions;
 pub mod produces_request_files;
 pub mod vector;
 
-pub use cli::Commands;
 pub use produces_request_files::ProducesRequestFiles;

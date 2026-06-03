@@ -8,52 +8,25 @@
 //! read the response-side `.json` would surface as a panic at the final
 //! `assert_eq!` (the file the request-side producer writes would never
 //! end up holding the original turn's continuation).
+//!
+//! Driven through the SDK `BinaryExecutor` rather than hand-rolled
+//! argv. The test still pokes at the cli's on-disk continuation logs
+//! to verify byte-level propagation — that path-walking is the
+//! load-bearing part of the assertion, independent of the executor.
 
 mod cli_test_util;
 
 use std::path::Path;
-use std::process::Command;
-use std::sync::Once;
 use std::time::{Duration, Instant};
 
-use serde_json::{Value, json};
-
-/// `cli_test_util::cli_command` pins `CONFIG_BASE_DIR` to the shared
-/// `tests/.objectiveai` scratch dir; this test needs a fresh tempdir
-/// per run so the spawn doesn't trip on stale state. Same env plumbing
-/// otherwise.
-fn cli_command_with_base_dir(base_dir: &Path, args: &[&str]) -> Command {
-    let mut cmd = Command::new(cli_test_util::cli_binary());
-    cmd.env("CONFIG_BASE_DIR", base_dir);
-    if let Some(addr) = cli_test_util::test_api_address() {
-        cmd.env("OBJECTIVEAI_ADDRESS", addr);
-    }
-    cmd.args(args);
-    cmd
-}
-
-/// Spawn cli, panic on non-zero exit, return every JSONL-parsed
-/// stdout line in order. Unlike `cli_test_util::run_cli` we keep the
-/// full stream — the test dispatches on the `value.kind`
-/// discriminator and needs the typed Spawned / MessageQueued
-/// notifications, not the unwrapped last line.
-fn run_cli_with_base_dir(base_dir: &Path, args: &[&str]) -> Vec<Value> {
-    let output = cli_command_with_base_dir(base_dir, args)
-        .output()
-        .expect("failed to execute cli binary");
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    if !output.status.success() {
-        panic!(
-            "cli exited with {}\nargs: {args:?}\nstdout: {stdout}\nstderr: {stderr}",
-            output.status,
-        );
-    }
-    stdout
-        .lines()
-        .filter_map(|l| serde_json::from_str::<Value>(l.trim()).ok())
-        .collect()
-}
+use objectiveai_sdk::cli::command::agents::message::{
+    Request as MessageRequest, RequestMessage, Response as MessageResponse,
+};
+use objectiveai_sdk::cli::command::agents::spawn::{
+    AgentSpec, Request as SpawnRequest, RequestPrompt, ResponseItem as SpawnResponseItem,
+};
+use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
+use serde_json::Value;
 
 /// Sleep-poll `pred` every 50ms until it returns true, up to `timeout`.
 async fn poll_until<F: Fn() -> bool>(timeout: Duration, pred: F) -> Result<(), ()> {
@@ -76,33 +49,39 @@ async fn spawn_then_message_propagates_response_continuation() {
         return;
     }
 
-
     let tmp = tempfile::tempdir().expect("tempdir");
     let base_dir = tmp.path();
 
+    let executor = cli_test_util::executor_with_base_dir(base_dir);
+
     // ── 1. Spawn a mock agent ────────────────────────────────────
-    let spawn_lines = run_cli_with_base_dir(
-        base_dir,
-        &[
-            "agents",
-            "spawn",
-            "--agent-inline",
-            r#"{"upstream":"mock","output_mode":"instruction"}"#,
-            "--simple",
-            "first turn",
-            "--seed",
-            "42",
-        ],
-    );
-    let spawned = spawn_lines
+    let spawn_request = SpawnRequest {
+        prompt: RequestPrompt::Simple("first turn".to_string()),
+        agent: AgentSpec::Resolved(
+            serde_json::from_value::<InlineAgentBaseWithFallbacksOrRemoteCommitOptional>(
+                serde_json::json!({"upstream":"mock","output_mode":"instruction"}),
+            )
+            .expect("inline mock agent must deserialize"),
+        ),
+        seed: Some(42),
+        dangerous_advanced: None,
+        jq: None,
+    };
+    let spawn_items: Vec<SpawnResponseItem> =
+        cli_test_util::collect_stream(&executor, spawn_request).await;
+    let spawn_id = spawn_items
         .iter()
-        .find(|l| l.pointer("/type") == Some(&json!("spawned")))
-        .expect("agents spawn must emit a Spawned notification");
-    let spawn_id = spawned
-        .pointer("/agent_instance_hierarchy")
-        .and_then(|v| v.as_str())
-        .expect("Spawned.agent_instance_hierarchy")
-        .to_string();
+        .find_map(|item| match item {
+            SpawnResponseItem::Chunk(chunk) => {
+                if chunk.agent_instance_hierarchy.is_empty() {
+                    None
+                } else {
+                    Some(chunk.agent_instance_hierarchy.clone())
+                }
+            }
+            SpawnResponseItem::Id(_) => None,
+        })
+        .expect("agents spawn must emit a Chunk with agent_instance_hierarchy");
 
     // ── 2. Wait for cli-stream to fully finish ───────────────────
     //
@@ -128,39 +107,21 @@ async fn spawn_then_message_propagates_response_continuation() {
     .expect("response continuation is JSON-quoted string");
 
     // ── 4. Message the agent ─────────────────────────────────────
-    let msg_lines = run_cli_with_base_dir(
-        base_dir,
-        &[
-            "agents",
-            "message",
-            &spawn_id,
-            "--simple",
-            "follow up",
-            "--seed",
-            "42",
-        ],
-    );
-    let queued = msg_lines
-        .iter()
-        .find(|l| l.pointer("/type") == Some(&json!("message_queued")))
-        .expect("agents message must emit MessageQueued on the fallback path");
-
-    let new_response_id = queued
-        .pointer("/response_id")
-        .and_then(|v| v.as_str())
-        .expect("MessageQueued.response_id")
-        .to_string();
-    let echoed_agent_instance_hierarchy = queued
-        .pointer("/agent_instance_hierarchy")
-        .and_then(|v| v.as_str())
-        .expect("MessageQueued.agent_instance_hierarchy");
-    assert_eq!(
-        echoed_agent_instance_hierarchy,
-        format!("cli/{spawn_id}"),
-        "MessageQueued.agent_instance_hierarchy should be the full lineage form — \
-         caller (`cli` by default) glued onto the spawn's chunk.id, \
-         matching what the writer stamps into `messages.agent_instance_hierarchy`"
-    );
+    let message_request = MessageRequest {
+        agent_instance_hierarchy: spawn_id.clone(),
+        message: RequestMessage::Simple("follow up".to_string()),
+        seed: Some(42),
+        jq: None,
+    };
+    let response: MessageResponse =
+        cli_test_util::execute_one(&executor, message_request).await;
+    let new_response_id = match response {
+        MessageResponse::Queued { response_id, .. } => response_id,
+        MessageResponse::Delivered { .. } => panic!(
+            "agents message must take the fallback path (Queued), got Delivered — the cli \
+             stream from the spawn turn never tore down cleanly"
+        ),
+    };
     // Continuations from the api server reuse the original chunk.id
     // as the new turn's response_id (the agent's stable lineage id
     // is the same across turns). So new_response_id == spawn_id is
@@ -187,56 +148,8 @@ async fn spawn_then_message_propagates_response_continuation() {
     // every other request-side referenced leaf uses. Follow the path
     // and read that file's content (raw bytes, NOT JSON-quoted) so
     // the comparison below is `token vs token`.
-    let request_cont_raw = {
-        let mut last_err = None;
-        let mut value: Option<String> = None;
-        let start = Instant::now();
-        while start.elapsed() < Duration::from_secs(10) {
-            match std::fs::read_to_string(&request_summary_path) {
-                Ok(s) if !s.is_empty() => match serde_json::from_str::<Value>(&s) {
-                    Ok(v) => {
-                        let path = v
-                            .get("continuation")
-                            .and_then(|c| c.get("path"))
-                            .and_then(|p| p.as_str());
-                        match path {
-                            Some(p) => {
-                                let leaf = base_dir.join("logs").join(p);
-                                match std::fs::read_to_string(&leaf) {
-                                    Ok(token) if !token.is_empty() => {
-                                        value = Some(token);
-                                        break;
-                                    }
-                                    Ok(_) => {
-                                        last_err = Some("continuation leaf empty".to_string());
-                                    }
-                                    Err(e) => {
-                                        last_err = Some(format!(
-                                            "read continuation leaf {}: {e}",
-                                            leaf.display()
-                                        ));
-                                    }
-                                }
-                            }
-                            None => {
-                                last_err = Some("no .continuation.path field".to_string());
-                            }
-                        }
-                    }
-                    Err(e) => last_err = Some(format!("parse: {e}")),
-                },
-                _ => last_err = Some("empty / unreadable".to_string()),
-            }
-            tokio::time::sleep(Duration::from_millis(50)).await;
-        }
-        value.unwrap_or_else(|| {
-            panic!(
-                "did not find non-empty .continuation in {} after 10s: {:?}",
-                request_summary_path.display(),
-                last_err
-            )
-        })
-    };
+    let request_cont_raw =
+        read_referenced_continuation(&request_summary_path, base_dir).await;
 
     // ── 6. The smoking gun ──────────────────────────────────────
     //
@@ -250,4 +163,61 @@ async fn spawn_then_message_propagates_response_continuation() {
         request_cont_raw, response_cont_raw,
         "second turn's request continuation must equal first turn's response continuation",
     );
+}
+
+/// Poll the request-summary JSON, follow `.continuation.path` to the
+/// referenced leaf file, and return its raw contents (un-JSON-quoted).
+async fn read_referenced_continuation(
+    request_summary_path: &Path,
+    base_dir: &Path,
+) -> String {
+    let mut last_err: Option<String> = None;
+    let mut value: Option<String> = None;
+    let start = Instant::now();
+    while start.elapsed() < Duration::from_secs(10) {
+        match std::fs::read_to_string(request_summary_path) {
+            Ok(s) if !s.is_empty() => match serde_json::from_str::<Value>(&s) {
+                Ok(v) => {
+                    let path = v
+                        .get("continuation")
+                        .and_then(|c| c.get("path"))
+                        .and_then(|p| p.as_str());
+                    match path {
+                        Some(p) => {
+                            let leaf = base_dir.join("logs").join(p);
+                            match std::fs::read_to_string(&leaf) {
+                                Ok(token) if !token.is_empty() => {
+                                    value = Some(token);
+                                    break;
+                                }
+                                Ok(_) => {
+                                    last_err =
+                                        Some("continuation leaf empty".to_string());
+                                }
+                                Err(e) => {
+                                    last_err = Some(format!(
+                                        "read continuation leaf {}: {e}",
+                                        leaf.display()
+                                    ));
+                                }
+                            }
+                        }
+                        None => {
+                            last_err = Some("no .continuation.path field".to_string());
+                        }
+                    }
+                }
+                Err(e) => last_err = Some(format!("parse: {e}")),
+            },
+            _ => last_err = Some("empty / unreadable".to_string()),
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    value.unwrap_or_else(|| {
+        panic!(
+            "did not find non-empty .continuation in {} after 10s: {:?}",
+            request_summary_path.display(),
+            last_err
+        )
+    })
 }

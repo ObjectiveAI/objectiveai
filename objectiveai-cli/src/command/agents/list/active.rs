@@ -29,14 +29,14 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             let value = match serde_json::to_value(&a) {
                 Ok(v) => v,
                 Err(e) => {
-                    yield Err(Error::InlineDeserialize(e.into()));
+                    yield Err(Error::InlineJson(e));
                     return;
                 }
             };
             match serde_json::from_value::<ResponseItem>(value) {
                 Ok(item) => yield Ok(item),
                 Err(e) => {
-                    yield Err(Error::InlineDeserialize(e.into()));
+                    yield Err(Error::InlineJson(e));
                     return;
                 }
             }
@@ -65,6 +65,6 @@ pub mod response_schema {
     use crate::error::Error;
 
     pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-        Ok(schemars::schema_for!(sdk::Response))
+        Ok(schemars::schema_for!(sdk::ResponseItem))
     }
 }

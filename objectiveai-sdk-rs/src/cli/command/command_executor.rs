@@ -13,7 +13,7 @@ pub mod plugin;
 /// (`agents::spawn::Response`, `functions::executions::create::standard::ResponseItem`,
 /// …) or a more general `serde_json::Value` for opaque consumption.
 pub trait CommandExecutor {
-    type Error;
+    type Error: Send + 'static;
     type Stream<T>: Stream<Item = Result<T, Self::Error>> + Send + 'static
     where
         T: Send + 'static;

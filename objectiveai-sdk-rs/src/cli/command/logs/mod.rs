@@ -20,7 +20,7 @@ pub enum Command {
     },
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Request {
     Agents(agents::Request),
     Clear(clear::Request),
@@ -30,7 +30,7 @@ pub enum Request {
     Vector(vector::Request),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum ResponseItem {
     Agents(agents::ResponseItem),
     Clear(clear::Response),

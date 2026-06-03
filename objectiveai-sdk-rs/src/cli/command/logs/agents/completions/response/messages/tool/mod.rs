@@ -37,7 +37,7 @@ pub enum Request {
     Video(video::Request),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Response {
     Audio(audio::Response),
     File(file::Response),
@@ -89,23 +89,23 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
         match request {
             Request::Audio(req) => {
                 let inner = audio::execute(executor, req).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Audio)))
+                Box::pin(inner.map(|r| r.map(Response::Audio)))
             }
             Request::File(req) => {
                 let inner = file::execute(executor, req).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::File)))
+                Box::pin(inner.map(|r| r.map(Response::File)))
             }
             Request::Image(req) => {
                 let inner = image::execute(executor, req).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Image)))
+                Box::pin(inner.map(|r| r.map(Response::Image)))
             }
             Request::Text(req) => {
                 let inner = text::execute(executor, req).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Text)))
+                Box::pin(inner.map(|r| r.map(Response::Text)))
             }
             Request::Video(req) => {
                 let inner = video::execute(executor, req).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Video)))
+                Box::pin(inner.map(|r| r.map(Response::Video)))
             }
         };
     Ok(stream)

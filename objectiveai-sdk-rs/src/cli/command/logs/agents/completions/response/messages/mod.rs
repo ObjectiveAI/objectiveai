@@ -59,7 +59,7 @@ pub enum Command {
     },
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Request {
     Audio(audio::Request),
     Clear(clear::Request),
@@ -82,7 +82,7 @@ pub enum Request {
     Video(video::Request),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Response {
     Audio(audio::Response),
     Clear(clear::Response),
@@ -193,97 +193,97 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
         match request {
             Request::Audio(req) => {
                 let inner = audio::execute(executor, req).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Audio)))
+                Box::pin(inner.map(|r| r.map(Response::Audio)))
             }
             Request::Clear(req) => {
                 let value = clear::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::Clear(value),
+                    Response::Clear(value),
                 )))
             }
             Request::ClearRequestSchema(req) => {
                 let value = clear::request_schema::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::ClearRequestSchema(value),
+                    Response::ClearRequestSchema(value),
                 )))
             }
             Request::ClearResponseSchema(req) => {
                 let value = clear::response_schema::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::ClearResponseSchema(value),
+                    Response::ClearResponseSchema(value),
                 )))
             }
             Request::File(req) => {
                 let inner = file::execute(executor, req).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::File)))
+                Box::pin(inner.map(|r| r.map(Response::File)))
             }
             Request::Get(req) => {
                 let value = get::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::Get(value),
+                    Response::Get(value),
                 )))
             }
             Request::GetRequestSchema(req) => {
                 let value = get::request_schema::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::GetRequestSchema(value),
+                    Response::GetRequestSchema(value),
                 )))
             }
             Request::GetResponseSchema(req) => {
                 let value = get::response_schema::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::GetResponseSchema(value),
+                    Response::GetResponseSchema(value),
                 )))
             }
             Request::Image(req) => {
                 let inner = image::execute(executor, req).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Image)))
+                Box::pin(inner.map(|r| r.map(Response::Image)))
             }
             Request::Logprobs(req) => {
                 let inner = logprobs::execute(executor, req).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Logprobs)))
+                Box::pin(inner.map(|r| r.map(Response::Logprobs)))
             }
             Request::Reasoning(req) => {
                 let inner = reasoning::execute(executor, req).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Reasoning)))
+                Box::pin(inner.map(|r| r.map(Response::Reasoning)))
             }
             Request::Refusal(req) => {
                 let inner = refusal::execute(executor, req).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Refusal)))
+                Box::pin(inner.map(|r| r.map(Response::Refusal)))
             }
             Request::Subscribe(req) => {
                 let value = subscribe::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::Subscribe(value),
+                    Response::Subscribe(value),
                 )))
             }
             Request::SubscribeRequestSchema(req) => {
                 let value = subscribe::request_schema::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::SubscribeRequestSchema(value),
+                    Response::SubscribeRequestSchema(value),
                 )))
             }
             Request::SubscribeResponseSchema(req) => {
                 let value = subscribe::response_schema::execute(executor, req).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::SubscribeResponseSchema(value),
+                    Response::SubscribeResponseSchema(value),
                 )))
             }
             Request::Text(req) => {
                 let inner = text::execute(executor, req).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Text)))
+                Box::pin(inner.map(|r| r.map(Response::Text)))
             }
             Request::Tool(req) => {
                 let inner = tool::execute(executor, req).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Tool)))
+                Box::pin(inner.map(|r| r.map(Response::Tool)))
             }
             Request::ToolCalls(req) => {
                 let inner = tool_calls::execute(executor, req).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::ToolCalls)))
+                Box::pin(inner.map(|r| r.map(Response::ToolCalls)))
             }
             Request::Video(req) => {
                 let inner = video::execute(executor, req).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Video)))
+                Box::pin(inner.map(|r| r.map(Response::Video)))
             }
         };
     Ok(stream)

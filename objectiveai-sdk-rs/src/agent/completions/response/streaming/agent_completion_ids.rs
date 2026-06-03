@@ -16,11 +16,11 @@
 pub trait AgentCompletionIds {
     /// Yields every agent-completion `response_id` reachable from this
     /// chunk. Borrows into `self`; never allocates.
-    fn agent_completion_ids(&self) -> impl Iterator<Item = &str>;
+    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> + Send;
 }
 
 impl AgentCompletionIds for super::AgentCompletionChunk {
-    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> {
+    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> + Send {
         std::iter::once(self.id.as_str())
     }
 }

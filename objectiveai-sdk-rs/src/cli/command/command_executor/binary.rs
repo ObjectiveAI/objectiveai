@@ -11,22 +11,68 @@ use crate::cli::command::{CommandExecutor, CommandRequest};
 /// `request.into_command()`, and stream each stdout JSONL line back as
 /// either a typed `T` or a structured [`crate::cli::Error`].
 ///
-/// The binary is resolved at `execute` time (not at construction) so the
-/// home-dir lookup only happens when actually needed:
-/// `<config_base_dir>/objectiveai{.exe}` if `config_base_dir` is set,
-/// otherwise `<home>/.objectiveai/objectiveai{.exe}`.
+/// The binary is resolved at `execute` time (not at construction).
+/// Resolution order:
+///
+/// - [`BinaryExecutor::from_path`] — returns the explicit path verbatim
+///   (used by tests pointing at an out-of-tree build).
+/// - [`BinaryExecutor::new`] with `Some(config_base_dir)` —
+///   `<config_base_dir>/objectiveai{.exe}`.
+/// - [`BinaryExecutor::new`] with `None` —
+///   `<home>/.objectiveai/objectiveai{.exe}`.
 pub struct BinaryExecutor {
+    /// Resolves to a directory; the binary inside is always
+    /// `objectiveai{.exe}`. `None` falls back to the home-dir default.
     config_base_dir: Option<PathBuf>,
+    /// When set, used verbatim and the `config_base_dir` lookup is
+    /// skipped entirely. Lets callers (notably tests) point the
+    /// executor at any binary by absolute path without enforcing the
+    /// `<dir>/objectiveai` naming convention.
+    explicit_path: Option<PathBuf>,
+    /// Extra environment variables to set on the spawned child. Stacks
+    /// on top of the parent's environment (the child inherits the rest
+    /// — this map only overrides). Set via [`Self::env`].
+    extra_env: Vec<(String, String)>,
 }
 
 impl BinaryExecutor {
     pub fn new(config_base_dir: Option<impl Into<PathBuf>>) -> Self {
         Self {
             config_base_dir: config_base_dir.map(Into::into),
+            explicit_path: None,
+            extra_env: Vec::new(),
         }
     }
 
+    /// Construct an executor that spawns the binary at `binary`
+    /// directly, regardless of file name. Skips the `objectiveai`
+    /// name lookup so tests can target a `target/debug/objectiveai-cli`
+    /// build without renaming or symlinking.
+    pub fn from_path(binary: impl Into<PathBuf>) -> Self {
+        Self {
+            config_base_dir: None,
+            explicit_path: Some(binary.into()),
+            extra_env: Vec::new(),
+        }
+    }
+
+    /// Set an environment variable on every child the executor spawns.
+    /// Stacks on top of the parent's env; intended for tests that need
+    /// to pin a per-instance `CONFIG_BASE_DIR` or `OBJECTIVEAI_ADDRESS`
+    /// without racing other parallel tests via `std::env::set_var`.
+    pub fn env(
+        mut self,
+        key: impl Into<String>,
+        value: impl Into<String>,
+    ) -> Self {
+        self.extra_env.push((key.into(), value.into()));
+        self
+    }
+
     fn binary_path(&self) -> Result<PathBuf, Error> {
+        if let Some(p) = &self.explicit_path {
+            return Ok(p.clone());
+        }
         let base = match &self.config_base_dir {
             Some(d) => d.clone(),
             None => dirs::home_dir()
@@ -91,13 +137,16 @@ impl CommandExecutor for BinaryExecutor {
         let argv = request.into_command();
         let binary = self.binary_path()?;
 
-        let mut child = Command::new(&binary)
+        let mut command = Command::new(&binary);
+        command
             .args(&argv)
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::inherit())
-            .spawn()
-            .map_err(Error::Spawn)?;
+            .stderr(std::process::Stdio::inherit());
+        for (k, v) in &self.extra_env {
+            command.env(k, v);
+        }
+        let mut child = command.spawn().map_err(Error::Spawn)?;
 
         let stdout = child.stdout.take().ok_or(Error::NoStdout)?;
         let lines = BufReader::new(stdout).lines();
