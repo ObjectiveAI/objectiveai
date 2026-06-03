@@ -6,24 +6,4 @@
 /// (`["objectiveai-cli"]`, `["objectiveai-cli", "instance"]`, …).
 pub trait CommandRequest {
     fn into_command(&self) -> Vec<String>;
-
-    /// Parse an argv tail (the inverse of [`Self::into_command`]) into
-    /// the typed request. Default impl returns
-    /// [`CommandRequestError::Custom`] until each leaf wires up its
-    /// own parser.
-    fn from_command(_argv: &[String]) -> Result<Self, CommandRequestError>
-    where
-        Self: Sized,
-    {
-        Err(CommandRequestError::Custom(
-            "CommandRequest::from_command not yet implemented".to_string(),
-        ))
-    }
-}
-
-/// Error returned by [`CommandRequest::from_command`].
-#[derive(Debug)]
-pub enum CommandRequestError {
-    Serde(serde_path_to_error::Error<serde_json::Error>),
-    Custom(String),
 }
