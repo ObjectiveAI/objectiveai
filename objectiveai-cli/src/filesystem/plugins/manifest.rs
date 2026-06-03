@@ -364,3 +364,67 @@ impl ManifestWithNameAndSource {
         self.manifest.tool_name(&self.name)
     }
 }
+
+// Typed conversion to the SDK's bare-naked wire shape. Lets the
+// `command::plugins::{get, list}` leaves yield SDK `ResponseManifest`
+// items without round-tripping through `serde_json::Value`. The
+// inner type parallels (`Binaries`/`ResponseBinaries`,
+// `ViewerRoute`/`ResponseViewerRoute`, `McpServer`/`ResponseMcpServer`,
+// `HttpMethod`/`ResponseHttpMethod`) are field-identical — collapsing
+// them into shared types is a separate cleanup pass.
+impl From<ManifestWithNameAndSource>
+    for objectiveai_sdk::cli::command::plugins::get::ResponseManifest
+{
+    fn from(m: ManifestWithNameAndSource) -> Self {
+        use objectiveai_sdk::cli::command::plugins::get::{
+            ResponseBinaries, ResponseHttpMethod, ResponseManifest, ResponseMcpServer,
+            ResponseViewerRoute,
+        };
+        let manifest = m.manifest;
+        ResponseManifest {
+            name: m.name,
+            description: manifest.description,
+            version: manifest.version,
+            owner: manifest.owner,
+            author: manifest.author,
+            homepage: manifest.homepage,
+            license: manifest.license,
+            binaries: ResponseBinaries {
+                linux_x86_64: manifest.binaries.linux_x86_64,
+                linux_aarch64: manifest.binaries.linux_aarch64,
+                windows_x86_64: manifest.binaries.windows_x86_64,
+                windows_aarch64: manifest.binaries.windows_aarch64,
+                macos_x86_64: manifest.binaries.macos_x86_64,
+                macos_aarch64: manifest.binaries.macos_aarch64,
+            },
+            viewer_zip: manifest.viewer_zip,
+            viewer_url: manifest.viewer_url,
+            viewer_routes: manifest
+                .viewer_routes
+                .into_iter()
+                .map(|r| ResponseViewerRoute {
+                    path: r.path,
+                    method: match r.method {
+                        HttpMethod::Get => ResponseHttpMethod::Get,
+                        HttpMethod::Post => ResponseHttpMethod::Post,
+                        HttpMethod::Put => ResponseHttpMethod::Put,
+                        HttpMethod::Patch => ResponseHttpMethod::Patch,
+                        HttpMethod::Delete => ResponseHttpMethod::Delete,
+                    },
+                    r#type: r.r#type,
+                })
+                .collect(),
+            mobile_ready: manifest.mobile_ready,
+            mcp_servers: manifest
+                .mcp_servers
+                .into_iter()
+                .map(|s| ResponseMcpServer {
+                    name: s.name,
+                    url: s.url,
+                    authorization: s.authorization,
+                })
+                .collect(),
+            source: m.source,
+        }
+    }
+}

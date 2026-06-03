@@ -18,20 +18,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     let stream = async_stream::stream! {
         let manifests = fs.list_tools(offset, limit).await;
         for m in manifests {
-            let value = match serde_json::to_value(&m) {
-                Ok(v) => v,
-                Err(e) => {
-                    yield Err(Error::InlineJson(e));
-                    return;
-                }
-            };
-            match serde_json::from_value::<ResponseItem>(value) {
-                Ok(item) => yield Ok(item),
-                Err(e) => {
-                    yield Err(Error::InlineJson(e));
-                    return;
-                }
-            }
+            yield Ok(ResponseItem::from(m));
         }
     };
     Ok(Box::pin(stream))

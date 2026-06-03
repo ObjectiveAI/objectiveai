@@ -28,15 +28,10 @@ impl CommandRequest for Request {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-pub struct ResponseItem {
-    pub name: String,
-    pub description: String,
-    pub version: String,
-    pub owner: String,
-    pub exec: String,
-    pub source: String,
-}
+// Each list item carries the same shape as `tools get`'s response —
+// `ResponseManifest` is the canonical definition. Re-export here so
+// list items deserialize as the same Rust type.
+pub use super::get::ResponseManifest as ResponseItem;
 
 #[derive(clap::Args)]
 pub struct Args {

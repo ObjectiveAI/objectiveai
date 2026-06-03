@@ -59,3 +59,21 @@ impl ManifestWithNameAndSource {
         self.manifest.tool_name(&self.name)
     }
 }
+
+// Typed conversion to the SDK's bare-naked wire shape. Lets
+// `command::tools::{get, list}` leaves yield SDK `ResponseManifest`
+// items without round-tripping through `serde_json::Value`.
+impl From<ManifestWithNameAndSource>
+    for objectiveai_sdk::cli::command::tools::get::ResponseManifest
+{
+    fn from(m: ManifestWithNameAndSource) -> Self {
+        Self {
+            name: m.name,
+            description: m.manifest.description,
+            version: m.manifest.version,
+            owner: m.manifest.owner,
+            exec: m.manifest.exec,
+            source: m.source,
+        }
+    }
+}

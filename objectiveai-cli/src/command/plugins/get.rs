@@ -7,18 +7,7 @@ use crate::context::Context;
 use crate::error::Error;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    let manifest = match ctx.filesystem.get_plugin(&request.name).await {
-        Some(m) => m,
-        None => return Ok(None),
-    };
-    // CLI's `ManifestWithNameAndSource` and SDK's `ResponseManifest`
-    // share the same on-disk shape — round-trip through JSON does the
-    // conversion without hand-coding each field.
-    let value = serde_json::to_value(&manifest)
-        .map_err(|e| Error::InlineJson(e))?;
-    Ok(Some(
-        serde_json::from_value(value).map_err(|e| Error::InlineJson(e))?,
-    ))
+    Ok(ctx.filesystem.get_plugin(&request.name).await.map(Into::into))
 }
 
 pub mod request_schema {
