@@ -173,9 +173,6 @@ pub fn apply_config_env(cmd: &mut Command, cfg: &crate::Config) {
     if let Some(v) = cfg.mcp_session_id.as_deref() {
         cmd.env(objectiveai_sdk::mcp::MCP_SESSION_ID_ENV, v);
     }
-    if cfg.mcp {
-        cmd.env(objectiveai_sdk::mcp::OBJECTIVEAI_MCP_ENV, "true");
-    }
 }
 
 /// Case-insensitive match between an observed process name and a target

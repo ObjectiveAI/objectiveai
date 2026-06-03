@@ -26,8 +26,6 @@ struct EnvConfigBuilder {
     agent_id: Option<String>,
     #[envconfig(from = "MCP_SESSION_ID")]
     mcp_session_id: Option<String>,
-    #[envconfig(from = "OBJECTIVEAI_MCP")]
-    mcp: Option<String>,
 }
 
 impl EnvConfigBuilder {
@@ -45,7 +43,6 @@ impl EnvConfigBuilder {
             agent_instance_hierarchy: self.agent_instance_hierarchy,
             agent_id: self.agent_id,
             mcp_session_id: self.mcp_session_id,
-            mcp: self.mcp.map(|s| parse_bool(&s)),
         }
     }
 }
@@ -60,7 +57,6 @@ pub struct ConfigBuilder {
     pub agent_instance_hierarchy: Option<String>,
     pub agent_id: Option<String>,
     pub mcp_session_id: Option<String>,
-    pub mcp: Option<bool>,
 }
 
 impl Envconfig for ConfigBuilder {
@@ -93,7 +89,6 @@ impl ConfigBuilder {
                 .unwrap_or_else(|| "cli".to_string()),
             agent_id: self.agent_id,
             mcp_session_id: self.mcp_session_id,
-            mcp: self.mcp.unwrap_or(false),
         }
     }
 }
@@ -108,7 +103,6 @@ pub struct Config {
     pub agent_instance_hierarchy: String,
     pub agent_id: Option<String>,
     pub mcp_session_id: Option<String>,
-    pub mcp: bool,
 }
 
 /// One typed item yielded by [`run`]. The two variants reflect the
