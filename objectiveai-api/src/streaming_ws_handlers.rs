@@ -140,7 +140,7 @@ pub(crate) async fn create_agent_completion_ws(
             pending.clone(),
         );
         let ctx = crate::context(&headers, persistent_cache, suppress_output)
-            .with_api_port(reverse_attach.api_port)
+            .with_mcp_port(reverse_attach.mcp_port)
             .with_reverse_attach(_attach_guard.handle());
         let notify_client = client.clone();
 
@@ -281,7 +281,7 @@ where
             pending.clone(),
         );
         let ctx = crate::context(&headers, persistent_cache, suppress_output)
-            .with_api_port(reverse_attach.api_port)
+            .with_mcp_port(reverse_attach.mcp_port)
             .with_reverse_attach(_attach_guard.handle());
 
         // `create_streaming_handle_usage` lives INSIDE the `send`
@@ -408,7 +408,7 @@ where
             pending.clone(),
         );
         let ctx = crate::context(&headers, persistent_cache, suppress_output)
-            .with_api_port(reverse_attach.api_port)
+            .with_mcp_port(reverse_attach.mcp_port)
             .with_reverse_attach(_attach_guard.handle());
 
         // Stream setup lives INSIDE the `send` branch so `recv_loop`
@@ -504,7 +504,7 @@ where
             pending.clone(),
         );
         let ctx = crate::context(&headers, persistent_cache, suppress_output)
-            .with_api_port(reverse_attach.api_port)
+            .with_mcp_port(reverse_attach.mcp_port)
             .with_reverse_attach(_attach_guard.handle());
 
         // Stream setup lives INSIDE the `send` branch so `recv_loop`
@@ -641,7 +641,7 @@ where
             pending.clone(),
         );
         let ctx = crate::context(&headers, persistent_cache, suppress_output)
-            .with_api_port(reverse_attach.api_port)
+            .with_mcp_port(reverse_attach.mcp_port)
             .with_reverse_attach(_attach_guard.handle());
         // Stream setup lives INSIDE the `send` branch so `recv_loop`
         // is polled concurrently with `create_streaming_handle_usage`.
@@ -764,7 +764,7 @@ where
             pending.clone(),
         );
         let ctx = crate::context(&headers, persistent_cache, suppress_output)
-            .with_api_port(reverse_attach.api_port)
+            .with_mcp_port(reverse_attach.mcp_port)
             .with_reverse_attach(_attach_guard.handle());
         // Stream setup lives INSIDE the `send` branch so `recv_loop`
         // is polled concurrently with `create_streaming_handle_usage`.
@@ -861,7 +861,7 @@ where
             pending.clone(),
         );
         let ctx = crate::context(&headers, persistent_cache, suppress_output)
-            .with_api_port(reverse_attach.api_port)
+            .with_mcp_port(reverse_attach.mcp_port)
             .with_reverse_attach(_attach_guard.handle());
         let stream = match client.create_streaming(&ctx, &body) {
             Ok(s) => s,
@@ -989,7 +989,7 @@ where
             pending.clone(),
         );
         let ctx = crate::context(&headers, persistent_cache, suppress_output)
-            .with_api_port(reverse_attach.api_port)
+            .with_mcp_port(reverse_attach.mcp_port)
             .with_reverse_attach(_attach_guard.handle());
         // Stream setup lives INSIDE the `send` branch so `recv_loop`
         // is polled concurrently with `create_streaming_handle_usage`.

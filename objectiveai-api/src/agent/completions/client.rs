@@ -662,7 +662,7 @@ where
                 if agent.base().client_objectiveai_mcp().is_none() {
                     return None;
                 }
-                let handle = match (ctx.api_port(), ctx.reverse_attach()) {
+                let handle = match (ctx.mcp_port(), ctx.reverse_attach()) {
                     (Some(_), Some(h)) => h.clone(),
                     _ => return None,
                 };
@@ -677,7 +677,7 @@ where
                 Some(id)
             })
             .collect();
-        let api_port_for_synth = ctx.api_port();
+        let mcp_port_for_synth = ctx.mcp_port();
 
         // Dash-joined list of every per-agent response_id leaf in
         // this completion. Stamped identically on every per-agent
@@ -730,9 +730,9 @@ where
                 // conduit on the other side picks per-agent MCP
                 // connections out of its `Mcp-Session-Id` DashMap.
                 let client_mcp_synthetic_url: Option<String> =
-                    match (agent_ws_session_id.as_deref(), api_port_for_synth) {
-                        (Some(_), Some(api_port)) => Some(format!(
-                            "http://127.0.0.1:{api_port}/objectiveai-mcp"
+                    match (agent_ws_session_id.as_deref(), mcp_port_for_synth) {
+                        (Some(_), Some(mcp_port)) => Some(format!(
+                            "http://127.0.0.1:{mcp_port}/objectiveai-mcp"
                         )),
                         _ => None,
                     };
@@ -1134,7 +1134,7 @@ where
                     attempt_connections[idx].clone();
                 if agent_needs_mcp && mcp_connection.is_none() {
                     if attempt.agent.base().client_objectiveai_mcp().is_some()
-                        && (ctx.api_port().is_none() || ctx.reverse_attach().is_none())
+                        && (ctx.mcp_port().is_none() || ctx.reverse_attach().is_none())
                     {
                         errors.push(super::Error::ClientObjectiveaiMcpUnavailable);
                     }

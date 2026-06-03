@@ -462,7 +462,14 @@ pub struct Config {
     pub suppress_output: bool,
 }
 
-pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, axum::Router)> {
+pub async fn setup(
+    config: Config,
+) -> std::io::Result<(
+    tokio::net::TcpListener,
+    axum::Router,
+    tokio::net::TcpListener,
+    axum::Router,
+)> {
     let Config {
         // -- HttpClient fields --
         objectiveai_address,
@@ -716,9 +723,30 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
     // WS recv loop publishes here when the CLI pushes `McpListChanged`;
     // the GET handler subscribes from here.
     let mcp_listeners = crate::objectiveai_mcp::McpListenerRegistry::new();
+    // Public + loopback-MCP listeners bound in parallel. Both
+    // listeners need to be up before the process can serve a
+    // request that touches `client_objectiveai_mcp`, and neither
+    // bind blocks the other — `try_join` shaves the second bind's
+    // syscall latency off cold start (matters on Cloud Run where
+    // boot time bills + counts toward request latency).
+    //
+    // The MCP listener binds `127.0.0.1` so the kernel rejects any
+    // non-loopback dialer outright — the proxy running inside the
+    // API process is the only intended caller, and it always dials
+    // over loopback. Ephemeral port keeps the binding cheap and
+    // conflict-free; we read it back below and stamp it onto
+    // `ReverseAttachConfig.mcp_port` so the agent client can
+    // synthesize the matching `http://127.0.0.1:<port>/objectiveai-
+    // mcp` URL on every per-agent `X-MCP-Servers` header.
+    let (listener, mcp_listener) = tokio::try_join!(
+        tokio::net::TcpListener::bind(format!("{}:{}", address, port)),
+        tokio::net::TcpListener::bind(("127.0.0.1", 0u16)),
+    )?;
+    let mcp_port = mcp_listener.local_addr()?.port();
+
     let reverse_attach = streaming_ws::ReverseAttachConfig {
         registry: reverse_channels.clone(),
-        api_port: port,
+        mcp_port,
         mcp_listeners: mcp_listeners.clone(),
     };
 
@@ -1509,16 +1537,6 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 }
             }),
         )
-        // ObjectiveAI-MCP server — Streamable HTTP MCP + the
-        // `/notify` extensions. Six routes total (POST/GET/DELETE
-        // on the root, POST/GET on `/notify`, GET on
-        // `/notify/queued`). Every leaf delegate is `todo!()` at
-        // the moment; dispatch + envelope framing is real. See
-        // `objectiveai_mcp::router`.
-        .merge(crate::objectiveai_mcp::router(
-            reverse_channels.clone(),
-            mcp_listeners.clone(),
-        ))
         // CORS
         .layer(
             tower_http::cors::CorsLayer::new()
@@ -1528,11 +1546,19 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
                 .expose_headers(tower_http::cors::Any),
         );
 
-    let listener =
-        tokio::net::TcpListener::bind(format!("{}:{}", address, port))
-            .await?;
+    // ObjectiveAI-MCP server — Streamable HTTP MCP + the `/notify`
+    // extensions. Six routes total (POST/GET/DELETE on the root,
+    // POST/GET on `/notify`, GET on `/notify/queued`). Lives on its
+    // own loopback-only listener (`mcp_listener` above) so non-
+    // loopback callers physically cannot reach it. No CORS layer —
+    // there's nothing cross-origin about loopback-to-loopback. See
+    // `objectiveai_mcp::router`.
+    let mcp_app = axum::Router::new().merge(crate::objectiveai_mcp::router(
+        reverse_channels.clone(),
+        mcp_listeners.clone(),
+    ));
 
-    Ok((listener, app))
+    Ok((listener, app, mcp_listener, mcp_app))
 }
 
 pub async fn serve(listener: tokio::net::TcpListener, app: axum::Router) -> std::io::Result<()> {
@@ -1541,12 +1567,21 @@ pub async fn serve(listener: tokio::net::TcpListener, app: axum::Router) -> std:
 
 pub async fn run(config: Config) -> std::io::Result<()> {
     let suppress_output = config.suppress_output;
-    let (listener, app) = setup(config).await?;
+    let (listener, app, mcp_listener, mcp_app) = setup(config).await?;
     if !suppress_output {
         let addr = listener.local_addr()?;
+        let mcp_addr = mcp_listener.local_addr()?;
         eprintln!("listening on {addr}");
+        eprintln!("mcp listening on {mcp_addr} (loopback only)");
     }
-    serve(listener, app).await
+    // Public + loopback-MCP listeners served concurrently. On Cloud
+    // Run there is no infra benefit to staggering them — the
+    // container needs both up before it can serve a single request
+    // that touches `client_objectiveai_mcp` — so we `try_join` to
+    // bring them up in parallel and tear the process down the
+    // moment either listener's accept loop errors.
+    tokio::try_join!(serve(listener, app), serve(mcp_listener, mcp_app))?;
+    Ok(())
 }
 
 // Create Context
