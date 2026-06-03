@@ -61,3 +61,202 @@ impl CommandResponse for crate::agent::completions::message::File {
         McpResponseItem::Media(self.into())
     }
 }
+
+// JSONL passthrough — `serde_json::to_value(self)` is the body for
+// every alias target whose leaf simply emits its serde-shaped value
+// as one JSONL line. `String` gets a direct `Value::String` shortcut
+// (no fallible round-trip).
+//
+// Out of scope (per user): `crate::cli::command::Ok` and
+// `Option<ResponseManifest>` — both are alias targets but their
+// `into_mcp` is deferred.
+
+#[cfg(feature = "mcp")]
+impl CommandResponse for String {
+    fn into_mcp(self) -> McpResponseItem {
+        McpResponseItem::JSONL(serde_json::Value::String(self))
+    }
+}
+
+#[cfg(feature = "mcp")]
+impl CommandResponse for crate::agent::completions::message::AssistantToolCallDelta {
+    fn into_mcp(self) -> McpResponseItem {
+        McpResponseItem::JSONL(
+            serde_json::to_value(self).expect("CommandResponse serializes"),
+        )
+    }
+}
+
+#[cfg(feature = "mcp")]
+impl CommandResponse for crate::agent::completions::message::MessageLog {
+    fn into_mcp(self) -> McpResponseItem {
+        McpResponseItem::JSONL(
+            serde_json::to_value(self).expect("CommandResponse serializes"),
+        )
+    }
+}
+
+#[cfg(feature = "mcp")]
+impl CommandResponse for crate::agent::completions::request::AgentCompletionCreateParamsLog {
+    fn into_mcp(self) -> McpResponseItem {
+        McpResponseItem::JSONL(
+            serde_json::to_value(self).expect("CommandResponse serializes"),
+        )
+    }
+}
+
+#[cfg(feature = "mcp")]
+impl CommandResponse for crate::agent::completions::response::Logprobs {
+    fn into_mcp(self) -> McpResponseItem {
+        McpResponseItem::JSONL(
+            serde_json::to_value(self).expect("CommandResponse serializes"),
+        )
+    }
+}
+
+#[cfg(feature = "mcp")]
+impl CommandResponse for crate::agent::completions::response::streaming::AgentCompletionChunkLog {
+    fn into_mcp(self) -> McpResponseItem {
+        McpResponseItem::JSONL(
+            serde_json::to_value(self).expect("CommandResponse serializes"),
+        )
+    }
+}
+
+#[cfg(feature = "mcp")]
+impl CommandResponse for crate::agent::response::GetAgentResponse {
+    fn into_mcp(self) -> McpResponseItem {
+        McpResponseItem::JSONL(
+            serde_json::to_value(self).expect("CommandResponse serializes"),
+        )
+    }
+}
+
+#[cfg(feature = "mcp")]
+impl CommandResponse for crate::functions::executions::request::FunctionExecutionCreateParamsLog {
+    fn into_mcp(self) -> McpResponseItem {
+        McpResponseItem::JSONL(
+            serde_json::to_value(self).expect("CommandResponse serializes"),
+        )
+    }
+}
+
+#[cfg(feature = "mcp")]
+impl CommandResponse
+    for crate::functions::executions::response::streaming::FunctionExecutionChunkLog
+{
+    fn into_mcp(self) -> McpResponseItem {
+        McpResponseItem::JSONL(
+            serde_json::to_value(self).expect("CommandResponse serializes"),
+        )
+    }
+}
+
+#[cfg(feature = "mcp")]
+impl CommandResponse for crate::functions::inventions::request::FunctionInventionCreateParams {
+    fn into_mcp(self) -> McpResponseItem {
+        McpResponseItem::JSONL(
+            serde_json::to_value(self).expect("CommandResponse serializes"),
+        )
+    }
+}
+
+#[cfg(feature = "mcp")]
+impl CommandResponse
+    for crate::functions::inventions::response::streaming::FunctionInventionChunkLog
+{
+    fn into_mcp(self) -> McpResponseItem {
+        McpResponseItem::JSONL(
+            serde_json::to_value(self).expect("CommandResponse serializes"),
+        )
+    }
+}
+
+#[cfg(feature = "mcp")]
+impl CommandResponse
+    for crate::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParamsLog
+{
+    fn into_mcp(self) -> McpResponseItem {
+        McpResponseItem::JSONL(
+            serde_json::to_value(self).expect("CommandResponse serializes"),
+        )
+    }
+}
+
+#[cfg(feature = "mcp")]
+impl CommandResponse
+    for crate::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunkLog
+{
+    fn into_mcp(self) -> McpResponseItem {
+        McpResponseItem::JSONL(
+            serde_json::to_value(self).expect("CommandResponse serializes"),
+        )
+    }
+}
+
+#[cfg(feature = "mcp")]
+impl CommandResponse
+    for crate::functions::inventions::state::response::GetFunctionInventionStateResponse
+{
+    fn into_mcp(self) -> McpResponseItem {
+        McpResponseItem::JSONL(
+            serde_json::to_value(self).expect("CommandResponse serializes"),
+        )
+    }
+}
+
+#[cfg(feature = "mcp")]
+impl CommandResponse for crate::functions::profiles::response::GetProfileResponse {
+    fn into_mcp(self) -> McpResponseItem {
+        McpResponseItem::JSONL(
+            serde_json::to_value(self).expect("CommandResponse serializes"),
+        )
+    }
+}
+
+#[cfg(feature = "mcp")]
+impl CommandResponse for crate::functions::response::GetFunctionResponse {
+    fn into_mcp(self) -> McpResponseItem {
+        McpResponseItem::JSONL(
+            serde_json::to_value(self).expect("CommandResponse serializes"),
+        )
+    }
+}
+
+#[cfg(feature = "mcp")]
+impl CommandResponse for crate::Remote {
+    fn into_mcp(self) -> McpResponseItem {
+        McpResponseItem::JSONL(
+            serde_json::to_value(self).expect("CommandResponse serializes"),
+        )
+    }
+}
+
+#[cfg(feature = "mcp")]
+impl CommandResponse for crate::swarm::response::GetSwarmResponse {
+    fn into_mcp(self) -> McpResponseItem {
+        McpResponseItem::JSONL(
+            serde_json::to_value(self).expect("CommandResponse serializes"),
+        )
+    }
+}
+
+#[cfg(feature = "mcp")]
+impl CommandResponse for crate::vector::completions::request::VectorCompletionCreateParams {
+    fn into_mcp(self) -> McpResponseItem {
+        McpResponseItem::JSONL(
+            serde_json::to_value(self).expect("CommandResponse serializes"),
+        )
+    }
+}
+
+#[cfg(feature = "mcp")]
+impl CommandResponse
+    for crate::vector::completions::response::streaming::VectorCompletionChunkLog
+{
+    fn into_mcp(self) -> McpResponseItem {
+        McpResponseItem::JSONL(
+            serde_json::to_value(self).expect("CommandResponse serializes"),
+        )
+    }
+}
