@@ -24,22 +24,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
                 return;
             }
         };
-        for a in actives {
-            // Field-identical shape (`agent_id: String, last_log: u64`).
-            let value = match serde_json::to_value(&a) {
-                Ok(v) => v,
-                Err(e) => {
-                    yield Err(Error::InlineJson(e));
-                    return;
-                }
-            };
-            match serde_json::from_value::<ResponseItem>(value) {
-                Ok(item) => yield Ok(item),
-                Err(e) => {
-                    yield Err(Error::InlineJson(e));
-                    return;
-                }
-            }
+        for item in actives {
+            yield Ok(item);
         }
     };
     Ok(Box::pin(stream))

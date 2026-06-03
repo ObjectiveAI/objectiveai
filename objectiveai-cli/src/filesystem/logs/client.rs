@@ -9,14 +9,6 @@ use objectiveai_sdk::agent::completions::message::{
     File, ImageUrl, InputAudio, VideoUrl,
 };
 
-/// Direct-child agent of the parent the caller asked about, with the
-/// unix-seconds timestamp of its most recent `assistant_response` row.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ActiveAgent {
-    pub agent_id: String,
-    pub last_log: u64,
-}
-
 /// Result of reading a log file. The variant is determined by **which
 /// typed `read_*` method the caller invoked** (or, for
 /// [`Client::read_file_by_id`], by the on-disk folder the path
@@ -2315,7 +2307,11 @@ impl Client {
     pub async fn list_active(
         &self,
         parent_agent_instance_hierarchy: &str,
-    ) -> Result<Vec<ActiveAgent>, Error> {
+    ) -> Result<
+        Vec<objectiveai_sdk::cli::command::agents::list::active::ResponseItem>,
+        Error,
+    > {
+        use objectiveai_sdk::cli::command::agents::list::active::ResponseItem;
         let conn = super::super::db::connection::connection(self)?;
         let rows = super::super::db::schema::list_direct_active_children_async(
             conn,
@@ -2325,7 +2321,7 @@ impl Client {
         let prefix = format!("{parent_agent_instance_hierarchy}/");
         Ok(rows
             .into_iter()
-            .map(|(full, last_log)| ActiveAgent {
+            .map(|(full, last_log)| ResponseItem {
                 agent_id: full
                     .strip_prefix(&prefix)
                     .unwrap_or(&full)
