@@ -10,11 +10,11 @@ use tokio::sync::{Mutex, mpsc};
 use crate::cli::command::{
     CommandExecutor, CommandRequest, CommandResponse as CommandResponseTrait,
 };
-use crate::cli::plugins::{Output, TypedOutput};
+use crate::cli::plugins::{Command, CommandType, Output};
 
 /// Demultiplex many in-flight `CommandRequest` calls over a plugin's
 /// stdin/stdout. Each `execute` mints a fresh id, emits a
-/// `TypedOutput::Command { id, command }` line on the plugin's stdout,
+/// `Output::Command(Command { id, command })` line on the plugin's stdout,
 /// and returns a stream that yields whatever the overlord writes back
 /// to the plugin's stdin under the same id.
 ///
@@ -96,7 +96,7 @@ impl PluginExecutor {
 }
 
 /// One line the overlord writes to a plugin's stdin in response to a
-/// previously-emitted `TypedOutput::Command`.
+/// previously-emitted `Output::Command`.
 ///
 /// Wire shape:
 /// - Value: `{"id":"42","value":<JSON>}`
@@ -183,7 +183,8 @@ impl CommandExecutor for PluginExecutor {
         }
 
         let argv = request.into_command();
-        let envelope = Output::Typed(TypedOutput::Command {
+        let envelope = Output::Command(Command {
+            r#type: CommandType::Command,
             id: id.clone(),
             command: argv.join(" "),
         });

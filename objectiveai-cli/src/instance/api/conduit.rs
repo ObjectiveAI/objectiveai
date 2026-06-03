@@ -30,7 +30,8 @@
 use dashmap::DashMap;
 use indexmap::IndexMap;
 use objectiveai_sdk::Notifier;
-use objectiveai_sdk::cli::plugins::{Output as PluginOutput, TypedOutput as TypedPluginOutput};
+use objectiveai_sdk::cli::command::plugins::run::Mcp as PluginMcp;
+use objectiveai_sdk::cli::plugins::Output as PluginOutput;
 use objectiveai_sdk::client_objectiveai_mcp::McpKind;
 use objectiveai_sdk::client_objectiveai_mcp::client_request::{McpListChanged, McpListChangedKind};
 use objectiveai_sdk::client_objectiveai_mcp::server_response::{InitializeReply, JsonRpcResult};
@@ -649,7 +650,7 @@ async fn dial_plugin_upstream(
             let line = match lines.next_line().await {
                 Ok(Some(l)) => l,
                 Ok(None) => {
-                    return Err::<objectiveai_sdk::cli::plugins::Mcp, String>(
+                    return Err::<PluginMcp, String>(
                         "plugin exited without emitting mcp{url}".into(),
                     );
                 }
@@ -660,12 +661,11 @@ async fn dial_plugin_upstream(
                 Err(_) => continue,
             };
             match out {
-                PluginOutput::Typed(TypedPluginOutput::Mcp(mcp)) => return Ok(mcp),
-                PluginOutput::Typed(TypedPluginOutput::Error(err)) => {
+                PluginOutput::Mcp(mcp) => return Ok(mcp),
+                PluginOutput::Error(err) => {
                     return Err(format!("plugin emitted error: {}", err.message));
                 }
-                PluginOutput::Notification(_)
-                | PluginOutput::Typed(TypedPluginOutput::Command { .. }) => {}
+                PluginOutput::Notification(_) | PluginOutput::Command(_) => {}
             }
         }
     })

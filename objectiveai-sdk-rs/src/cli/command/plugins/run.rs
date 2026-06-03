@@ -25,29 +25,48 @@ impl CommandRequest for Request {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
 pub enum ResponseItem {
-    Typed(ResponseTyped),
-    // `cli::Error` already carries `type: "error"`, so it gets its own
-    // top-level variant rather than riding under `ResponseTyped`'s
-    // `tag = "type"` discriminator (which would double-type the wire).
-    // Placement above `Notification` is load-bearing: serde untagged
-    // tries variants in source order, so a `cli::Error`-shaped JSON
-    // must be checked against `Error` before falling through to the
-    // catch-all `Notification(Value)`.
+    Mcp(Mcp),
+    // `cli::Error` already carries `type:"error"`. Placement above
+    // `Notification` is load-bearing: serde untagged tries variants
+    // in source order, so a `cli::Error`-shaped JSON must match
+    // `Error` before falling through to the catch-all.
     Error(crate::cli::Error),
     Notification(serde_json::Value),
 }
 
+/// Plugin announces a running MCP server URL. The host routes this
+/// through the standard plugin-notification pipeline and dials the
+/// URL the same way it would for an entry in the plugin's manifest
+/// `mcp_servers` — runtime announcements are functionally identical
+/// to manifest-time declarations.
+///
+/// The constant `type:"mcp"` discriminator disambiguates this
+/// variant from the rest of the untagged [`ResponseItem`] /
+/// [`crate::cli::plugins::Output`] catch-all, mirroring the
+/// `type:"error"` discriminator on [`crate::cli::Error`].
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum ResponseTyped {
-    Command {
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        id: Option<String>,
-        command: String,
-    },
-    Mcp {
-        url: String,
-    },
+#[schemars(rename = "cli.command.plugins.run.Mcp")]
+pub struct Mcp {
+    pub r#type: McpType,
+    pub url: String,
+}
+
+/// Single-variant discriminator for [`Mcp`]'s `type` field. Always
+/// `"mcp"` on the wire.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[schemars(rename = "cli.command.plugins.run.McpType")]
+pub enum McpType {
+    Mcp,
 }
 
 #[derive(clap::Args)]
@@ -115,8 +134,8 @@ impl crate::cli::command::CommandResponse for ResponseItem {
         use crate::agent::completions::message::RichContentPart;
         use crate::cli::command::McpResponseItem;
         match self {
-            ResponseItem::Typed(typed) => {
-                McpResponseItem::JSONL(serde_json::to_value(typed).unwrap())
+            ResponseItem::Mcp(m) => {
+                McpResponseItem::JSONL(serde_json::to_value(m).unwrap())
             }
             ResponseItem::Error(e) => e.into_mcp(),
             ResponseItem::Notification(value) => {

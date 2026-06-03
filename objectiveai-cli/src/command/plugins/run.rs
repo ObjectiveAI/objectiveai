@@ -15,10 +15,8 @@ use std::process::Stdio;
 use std::sync::Arc;
 
 use futures::Stream;
-use objectiveai_sdk::cli::command::plugins::run::{
-    Request, ResponseItem, ResponseTyped,
-};
-use objectiveai_sdk::cli::plugins::{Output as PluginOutput, TypedOutput as TypedPluginOutput};
+use objectiveai_sdk::cli::command::plugins::run::{Request, ResponseItem};
+use objectiveai_sdk::cli::plugins::Output as PluginOutput;
 use serde::Serialize;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{ChildStdin, Command};
@@ -73,30 +71,26 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             }
             let trimmed = line.trim_end_matches(['\r', '\n']);
             match serde_json::from_str::<PluginOutput>(trimmed) {
-                Ok(PluginOutput::Typed(TypedPluginOutput::Error(e))) => {
+                Ok(PluginOutput::Error(e)) => {
                     yield Ok(ResponseItem::Error(e));
                 }
-                Ok(PluginOutput::Typed(TypedPluginOutput::Mcp(mcp))) => {
-                    yield Ok(ResponseItem::Typed(ResponseTyped::Mcp { url: mcp.url }));
+                Ok(PluginOutput::Mcp(mcp)) => {
+                    yield Ok(ResponseItem::Mcp(mcp));
                 }
-                Ok(PluginOutput::Typed(TypedPluginOutput::Command { id, command })) => {
-                    // Yield the request for observability, then spawn
-                    // the writer task that drives the bidirectional
-                    // protocol back to the plugin's stdin.
-                    let observe_id = id.clone();
-                    let observe_cmd = command.clone();
-                    let task_id = Some(id);
+                Ok(PluginOutput::Command(c)) => {
+                    // Command requests are host-internal — the CLI
+                    // intercepts them to drive the bidirectional
+                    // protocol back into the plugin's stdin and does
+                    // NOT surface them on the user-visible
+                    // `ResponseItem` stream.
+                    let task_id = Some(c.id);
                     let task = spawn_nested_command(
-                        command,
+                        c.command,
                         cli_config.clone(),
                         plugin_stdin.clone(),
                         task_id.clone(),
                     );
                     command_tasks.push((task_id, task));
-                    yield Ok(ResponseItem::Typed(ResponseTyped::Command {
-                        id: Some(observe_id),
-                        command: observe_cmd,
-                    }));
                 }
                 Ok(PluginOutput::Notification(value)) => {
                     yield Ok(ResponseItem::Notification(value));
