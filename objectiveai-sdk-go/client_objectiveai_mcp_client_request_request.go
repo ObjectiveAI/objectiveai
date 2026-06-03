@@ -7,6 +7,93 @@ import (
 	"fmt"
 )
 
+type ClientObjectiveaiMcpClientRequestRequestAgentCompletionNotify struct {
+	AgentCompletionsRequestAgentCompletionNotifyParams
+	// Client-minted correlation id. Echoed by the matching
+	// [`super::super::client_response::Response`].
+	ID string `json:"id"`
+	Type string `json:"type" validate:"oneof=agent_completion_notify"`
+}
+
+func (v *ClientObjectiveaiMcpClientRequestRequestAgentCompletionNotify) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(data, &v.AgentCompletionsRequestAgentCompletionNotifyParams); err != nil {
+		return err
+	}
+	var local struct {
+		ID string `json:"id"`
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(data, &local); err != nil {
+		return err
+	}
+	v.ID = local.ID
+	v.Type = local.Type
+	return nil
+}
+
+func (v ClientObjectiveaiMcpClientRequestRequestAgentCompletionNotify) MarshalJSON() ([]byte, error) {
+	base, err := json.Marshal(v.AgentCompletionsRequestAgentCompletionNotifyParams)
+	if err != nil {
+		return nil, err
+	}
+	var merged map[string]json.RawMessage
+	json.Unmarshal(base, &merged)
+	if raw, err := json.Marshal(v.ID); err == nil {
+		merged["id"] = raw
+	}
+	if raw, err := json.Marshal(v.Type); err == nil {
+		merged["type"] = raw
+	}
+	return json.Marshal(merged)
+}
+func (ClientObjectiveaiMcpClientRequestRequestAgentCompletionNotify) SchemaVariantTitle() string { return "AgentCompletionNotify" }
+
+// The CLI's upstream `mcp::Connection` for `mcp_session_id`
+// fired `notifications/<kind>/list_changed`. The API
+// dispatches this onto its per-`(ws_session_id, mcp_session_id)`
+// broadcast so every matching MCP GET-SSE listener sees a
+// standard MCP notification frame.
+type ClientObjectiveaiMcpClientRequestRequestMcpListChanged struct {
+	ClientObjectiveaiMcpClientRequestMcpListChanged
+	// Client-minted correlation id. Echoed by the matching
+	// [`super::super::client_response::Response`].
+	ID string `json:"id"`
+	Type string `json:"type" validate:"oneof=mcp_list_changed"`
+}
+
+func (v *ClientObjectiveaiMcpClientRequestRequestMcpListChanged) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(data, &v.ClientObjectiveaiMcpClientRequestMcpListChanged); err != nil {
+		return err
+	}
+	var local struct {
+		ID string `json:"id"`
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(data, &local); err != nil {
+		return err
+	}
+	v.ID = local.ID
+	v.Type = local.Type
+	return nil
+}
+
+func (v ClientObjectiveaiMcpClientRequestRequestMcpListChanged) MarshalJSON() ([]byte, error) {
+	base, err := json.Marshal(v.ClientObjectiveaiMcpClientRequestMcpListChanged)
+	if err != nil {
+		return nil, err
+	}
+	var merged map[string]json.RawMessage
+	json.Unmarshal(base, &merged)
+	if raw, err := json.Marshal(v.ID); err == nil {
+		merged["id"] = raw
+	}
+	if raw, err := json.Marshal(v.Type); err == nil {
+		merged["type"] = raw
+	}
+	return json.Marshal(merged)
+}
+func (ClientObjectiveaiMcpClientRequestRequestMcpListChanged) SchemaVariantTitle() string { return "McpListChanged" }
+
 // Envelope: correlation `id` + tagged [`super::Payload`]. Wire shape
 // (the `id` field lives at the envelope level, the `type` discriminator
 // and the variant's payload fields are flattened alongside):
@@ -15,45 +102,59 @@ import (
 // {"id":"…","type":"agent_completion_notify","response_id":"…","content":{…}}
 // ```
 type ClientObjectiveaiMcpClientRequestRequest struct {
-	AgentCompletionsRequestAgentCompletionNotifyParams
-	Type string `json:"type" validate:"oneof=agent_completion_notify"`
-}
-
-func (ClientObjectiveaiMcpClientRequestRequest) SchemaTitle() string { return "client_objectiveai_mcp.client_request.Request" }
-func (v ClientObjectiveaiMcpClientRequestRequest) Validate() error {
-	return variantValidator.Struct(v)
-}
-
-func (v *ClientObjectiveaiMcpClientRequestRequest) UnmarshalJSON(data []byte) error {
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	for _, key := range []string{"type"} {
-		if _, ok := raw[key]; !ok {
-			return fmt.Errorf("ClientObjectiveaiMcpClientRequestRequest: missing required field %q", key)
-		}
-	}
-	if err := json.Unmarshal(data, &v.AgentCompletionsRequestAgentCompletionNotifyParams); err != nil {
-		return err
-	}
-	if rawField, ok := raw["type"]; ok {
-		if err := json.Unmarshal(rawField, &v.Type); err != nil {
-			return err
-		}
-	}
-	return nil
+	AgentCompletionNotify *ClientObjectiveaiMcpClientRequestRequestAgentCompletionNotify `outerObject:"true"`
+	// The CLI's upstream `mcp::Connection` for `mcp_session_id`
+	// fired `notifications/<kind>/list_changed`. The API
+	// dispatches this onto its per-`(ws_session_id, mcp_session_id)`
+	// broadcast so every matching MCP GET-SSE listener sees a
+	// standard MCP notification frame.
+	McpListChanged *ClientObjectiveaiMcpClientRequestRequestMcpListChanged `outerObject:"true"`
 }
 
 func (v ClientObjectiveaiMcpClientRequestRequest) MarshalJSON() ([]byte, error) {
-	base, err := json.Marshal(v.AgentCompletionsRequestAgentCompletionNotifyParams)
-	if err != nil {
-		return nil, err
+	if v.AgentCompletionNotify != nil {
+		return json.Marshal(v.AgentCompletionNotify)
 	}
-	var merged map[string]json.RawMessage
-	json.Unmarshal(base, &merged)
-	if raw, err := json.Marshal(v.Type); err == nil {
-		merged["type"] = raw
+	if v.McpListChanged != nil {
+		return json.Marshal(v.McpListChanged)
 	}
-	return json.Marshal(merged)
+	return []byte("null"), nil
 }
+
+func (v *ClientObjectiveaiMcpClientRequestRequest) UnmarshalJSON(data []byte) error {
+	{
+		var try ClientObjectiveaiMcpClientRequestRequestAgentCompletionNotify
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := ClientObjectiveaiMcpClientRequestRequest{}
+			candidate.AgentCompletionNotify = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try ClientObjectiveaiMcpClientRequestRequestMcpListChanged
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := ClientObjectiveaiMcpClientRequestRequest{}
+			candidate.McpListChanged = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("data did not match any variant of ClientObjectiveaiMcpClientRequestRequest")
+}
+
+func (v ClientObjectiveaiMcpClientRequestRequest) Validate() error {
+	count := 0
+	if v.AgentCompletionNotify != nil { count++ }
+	if v.McpListChanged != nil { count++ }
+	if count != 1 {
+		return fmt.Errorf("ClientObjectiveaiMcpClientRequestRequest: exactly one variant must be set, got %d", count)
+	}
+	return variantValidator.Struct(v)
+}
+func (ClientObjectiveaiMcpClientRequestRequest) SchemaTitle() string { return "client_objectiveai_mcp.client_request.Request" }
+

@@ -83,10 +83,10 @@ fn upstream_usage(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn assistant_chunk(
     id: String,
     created: u64,
-    agent_id: String,
     model: String,
     upstream: Upstream,
     upstream_id: String,
@@ -95,14 +95,21 @@ fn assistant_chunk(
     reasoning: Option<String>,
     finish_reason: Option<FinishReason>,
     usage: Option<UpstreamUsage>,
+    agent_instance_hierarchy: String,
+    agent_id: String,
+    agent_full_id: String,
+    agent_remote: Option<objectiveai_sdk::RemotePath>,
 ) -> AgentCompletionChunk {
     AgentCompletionChunk {
         id,
+        agent_instance_hierarchy,
+        agent_id,
+        agent_full_id,
+        agent_remote,
         created,
         messages: vec![MessageChunk::Assistant(AssistantResponseChunk {
             index: assistant_index,
             created,
-            agent: agent_id,
             model,
             upstream_id,
             reasoning,
@@ -129,13 +136,16 @@ pub fn into_downstream(
     event: ThreadEvent,
     id: String,
     created: u64,
-    agent_id: String,
     model: String,
     assistant_index: u64,
     is_byok: bool,
     cost_multiplier: rust_decimal::Decimal,
     upstream: Upstream,
     thread_id: &str,
+    agent_instance_hierarchy: String,
+    agent_id: String,
+    agent_full_id: String,
+    agent_remote: Option<objectiveai_sdk::RemotePath>,
 ) -> Option<Result<AgentCompletionChunk, super::Error>> {
     let known = match event {
         ThreadEvent::Known(k) => k,
@@ -150,7 +160,6 @@ pub fn into_downstream(
             Some(Ok(assistant_chunk(
                 id,
                 created,
-                agent_id,
                 model,
                 upstream,
                 thread_id.to_string(),
@@ -159,6 +168,10 @@ pub fn into_downstream(
                 None,
                 Some(FinishReason::Stop),
                 Some(usage),
+                agent_instance_hierarchy,
+                agent_id,
+                agent_full_id,
+                agent_remote,
             )))
         }
 
@@ -180,7 +193,6 @@ pub fn into_downstream(
                 KnownThreadItem::AgentMessage(m) => Some(Ok(assistant_chunk(
                     id,
                     created,
-                    agent_id,
                     model,
                     upstream,
                     thread_id.to_string(),
@@ -189,11 +201,14 @@ pub fn into_downstream(
                     None,
                     None,
                     None,
+                    agent_instance_hierarchy,
+                    agent_id,
+                    agent_full_id,
+                    agent_remote,
                 ))),
                 KnownThreadItem::Reasoning(r) => Some(Ok(assistant_chunk(
                     id,
                     created,
-                    agent_id,
                     model,
                     upstream,
                     thread_id.to_string(),
@@ -202,6 +217,10 @@ pub fn into_downstream(
                     Some(r.text),
                     None,
                     None,
+                    agent_instance_hierarchy,
+                    agent_id,
+                    agent_full_id,
+                    agent_remote,
                 ))),
                 // Sandboxed read-only / temp-cwd posture means file
                 // changes / command execution don't actually mutate

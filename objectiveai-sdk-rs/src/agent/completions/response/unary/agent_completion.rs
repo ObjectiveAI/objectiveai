@@ -1,14 +1,30 @@
 //! Agent completion response type.
 
 use crate::agent::completions::response;
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// A complete agent completion response.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, JsonSchema)]
+#[derive(
+    Debug, Clone, PartialEq, Serialize, Deserialize, Default, JsonSchema,
+)]
 #[schemars(rename = "agent.completions.response.unary.AgentCompletion")]
 pub struct AgentCompletion {
     pub id: String,
+    /// Full agent instance hierarchy for this completion's slot. See
+    /// [`super::streaming::AgentCompletionChunk::agent_instance_hierarchy`].
+    pub agent_instance_hierarchy: String,
+    /// Leaf agent id of the slot that produced this completion. See
+    /// [`super::streaming::AgentCompletionChunk::agent_id`].
+    pub agent_id: String,
+    /// WF-level id: see
+    /// [`super::streaming::AgentCompletionChunk::agent_full_id`].
+    pub agent_full_id: String,
+    /// `RemotePath` the WF was fetched from, or `None` when inline.
+    /// See [`super::streaming::AgentCompletionChunk::agent_remote`].
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub agent_remote: Option<crate::RemotePath>,
     pub created: u64,
     pub messages: Vec<super::Message>,
     /// The object type (always "agent.completion").
@@ -31,7 +47,9 @@ pub struct AgentCompletion {
 impl AgentCompletion {
     /// Normalize non-deterministic fields for test snapshot comparison.
     pub fn normalize_for_tests(&mut self) {
-        use crate::agent::completions::message::{RichContent, RichContentPart};
+        use crate::agent::completions::message::{
+            RichContent, RichContentPart,
+        };
 
         self.id = String::new();
         self.created = 0;
@@ -42,22 +60,22 @@ impl AgentCompletion {
                     asst.created = 0;
                 }
                 super::Message::Tool(tool) => {
-                    // Strip the `agent_id` key the CLI's
+                    // Strip the `agent_instance_hierarchy` key the CLI's
                     // `cli::output::Handle::emit` stamps on every
                     // emitted JSON line. The value is the racy
                     // `next_agent_index` counter — the order-of-task
                     // assignment varies run-to-run, so leaving it in
                     // would break snapshot determinism. Walk text
-                    // payloads, parse each line, drop `agent_id`,
+                    // payloads, parse each line, drop `agent_instance_hierarchy`,
                     // re-serialize.
                     match &mut tool.inner.content {
                         RichContent::Text(s) => {
-                            *s = strip_agent_id_lines(s);
+                            *s = strip_agent_instance_hierarchy_lines(s);
                         }
                         RichContent::Parts(parts) => {
                             for p in parts {
                                 if let RichContentPart::Text { text } = p {
-                                    *text = strip_agent_id_lines(text);
+                                    *text = strip_agent_instance_hierarchy_lines(text);
                                 }
                             }
                         }
@@ -66,25 +84,32 @@ impl AgentCompletion {
             }
         }
 
-        // The continuation is base64-encoded JSON whose payload includes
-        // an `mcp_sessions` map keyed by proxy URL with freshly-minted
-        // session UUIDs as values. Both the URL's port and the UUIDs are
-        // random per run — they'd break every snapshot otherwise.
-        // Decode, clear the map, re-encode.
+        // The continuation is base64-encoded JSON whose payload
+        // includes both an `mcp_sessions` map (keyed by proxy URL
+        // with freshly-minted session UUIDs as values; the URL's
+        // port and the UUIDs are random per run) and the agent's
+        // lineage `agent_instance_hierarchy` (minted at first-spawn from a UUID +
+        // creation timestamp). Both vary run-to-run and would break
+        // every snapshot otherwise. Decode, clear them, re-encode.
         if let Some(s) = &mut self.continuation {
-            if let Some(mut c) = crate::agent::Continuation::try_from_string(s) {
+            if let Some(mut c) = crate::agent::Continuation::try_from_string(s)
+            {
                 match &mut c {
                     crate::agent::Continuation::Openrouter(x) => {
-                        x.mcp_sessions.clear()
+                        x.mcp_sessions.clear();
+                        x.agent_instance_hierarchy.clear();
                     }
                     crate::agent::Continuation::ClaudeAgentSdk(x) => {
-                        x.mcp_sessions.clear()
+                        x.mcp_sessions.clear();
+                        x.agent_instance_hierarchy.clear();
                     }
                     crate::agent::Continuation::CodexSdk(x) => {
-                        x.mcp_sessions.clear()
+                        x.mcp_sessions.clear();
+                        x.agent_instance_hierarchy.clear();
                     }
                     crate::agent::Continuation::Mock(x) => {
-                        x.mcp_sessions.clear()
+                        x.mcp_sessions.clear();
+                        x.agent_instance_hierarchy.clear();
                     }
                 }
                 *s = c.to_string();
@@ -93,25 +118,25 @@ impl AgentCompletion {
     }
 }
 
-/// Private mirror of `cli::output::strip_agent_id_lines` for use inside
+/// Private mirror of `cli::output::strip_agent_instance_hierarchy_lines` for use inside
 /// `normalize_for_tests`. The shared public copy lives behind the
 /// `cli` feature flag and the SDK core builds without that feature,
 /// so we keep a small local duplicate here. ~15 lines, no shared
 /// state, no drift risk.
-fn strip_agent_id_lines(text: &str) -> String {
+fn strip_agent_instance_hierarchy_lines(text: &str) -> String {
     let mut out: String = text
         .lines()
         .map(|line| {
             // Only rewrite lines that parse as a JSON *object* AND
-            // actually contain an `agent_id` top-level key. See the
-            // sibling helper in `cli::output::strip_agent_id_lines`
+            // actually contain an `agent_instance_hierarchy` top-level key. See the
+            // sibling helper in `cli::output::strip_agent_instance_hierarchy_lines`
             // for the indentation-preservation rationale.
             let Ok(serde_json::Value::Object(mut obj)) =
                 serde_json::from_str::<serde_json::Value>(line)
             else {
                 return line.to_string();
             };
-            if obj.remove("agent_id").is_none() {
+            if obj.remove("agent_instance_hierarchy").is_none() {
                 return line.to_string();
             }
             serde_json::to_string(&serde_json::Value::Object(obj))
@@ -129,6 +154,10 @@ impl From<response::streaming::AgentCompletionChunk> for AgentCompletion {
     fn from(
         response::streaming::AgentCompletionChunk {
             id,
+            agent_instance_hierarchy,
+            agent_id,
+            agent_full_id,
+            agent_remote,
             created,
             messages,
             object,
@@ -141,6 +170,10 @@ impl From<response::streaming::AgentCompletionChunk> for AgentCompletion {
     ) -> Self {
         Self {
             id,
+            agent_instance_hierarchy,
+            agent_id,
+            agent_full_id,
+            agent_remote,
             created,
             messages: messages.into_iter().map(Into::into).collect(),
             object: object.into(),

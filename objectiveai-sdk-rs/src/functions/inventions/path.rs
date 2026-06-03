@@ -56,7 +56,10 @@
 
 use std::fmt::Display;
 
-pub trait PathElement: Copy + Into<u128> + TryFrom<u128> + Ord + Display {}
+pub trait PathElement:
+    Copy + Into<u128> + TryFrom<u128> + Ord + Display
+{
+}
 
 macro_rules! impl_path_element {
     ($($t:ty),*) => {
@@ -85,7 +88,9 @@ fn validate_path<T: PathElement>(path: &[T]) -> Result<(), String> {
     }
     for (i, &v) in path.iter().enumerate() {
         if v.into() > MAX_VAL {
-            return Err(format!("path[{i}] value {v} exceeds maximum of {MAX_VAL}"));
+            return Err(format!(
+                "path[{i}] value {v} exceeds maximum of {MAX_VAL}"
+            ));
         }
     }
     Ok(())
@@ -103,15 +108,16 @@ pub fn path_to_u128<T: PathElement>(path: &[T]) -> Result<u128, String> {
     Ok(result)
 }
 
-pub fn u128_to_path<T: PathElement>(mut encoded: u128) -> Result<Vec<T>, String> {
+pub fn u128_to_path<T: PathElement>(
+    mut encoded: u128,
+) -> Result<Vec<T>, String> {
     let mut path = Vec::new();
     while encoded > 0 {
         encoded -= 1;
         let digit = encoded % 255;
-        path.push(
-            T::try_from(digit)
-                .map_err(|_| format!("value {digit} out of range for target type"))?,
-        );
+        path.push(T::try_from(digit).map_err(|_| {
+            format!("value {digit} out of range for target type")
+        })?);
         encoded /= 255;
     }
     if path.len() > MAX_LEN {

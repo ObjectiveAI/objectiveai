@@ -1,4 +1,34 @@
-use crate::remote::Remote;
+/// Remote source enum used inside [`PathRef`].
+#[derive(Clone, Debug)]
+pub enum Remote {
+    Github,
+    Filesystem,
+    Mock,
+}
+
+impl Remote {
+    pub fn into_path(
+        self,
+        owner: Option<String>,
+        repository: Option<String>,
+        name: Option<String>,
+        commit: Option<String>,
+    ) -> Option<objectiveai_sdk::RemotePathCommitOptional> {
+        match self {
+            Remote::Github => Some(objectiveai_sdk::RemotePathCommitOptional::Github {
+                owner: owner?,
+                repository: repository?,
+                commit,
+            }),
+            Remote::Filesystem => Some(objectiveai_sdk::RemotePathCommitOptional::Filesystem {
+                owner: owner?,
+                repository: repository?,
+                commit,
+            }),
+            Remote::Mock => Some(objectiveai_sdk::RemotePathCommitOptional::Mock { name: name? }),
+        }
+    }
+}
 
 /// Remote path reference in `key=value,key=value` format.
 ///
@@ -103,9 +133,7 @@ fn parse_remote(s: &str) -> Result<Remote, String> {
 impl PathRef {
     pub fn resolve(self) -> Result<objectiveai_sdk::RemotePathCommitOptional, crate::error::Error> {
         self.remote
-            .ok_or(crate::error::Error::MissingArgs(
-                "remote is required",
-            ))?
+            .ok_or(crate::error::Error::MissingArgs("remote is required"))?
             .into_path(self.owner, self.repository, self.name, self.commit)
             .ok_or(crate::error::Error::MissingArgs(
                 "owner and repository are required for github/filesystem, name for mock",

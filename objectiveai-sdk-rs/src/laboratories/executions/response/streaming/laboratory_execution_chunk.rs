@@ -1,11 +1,21 @@
-use crate::{agent, error};
 use crate::agent::completions::response::streaming::AgentCompletionIds;
-use serde::{Deserialize, Serialize};
+use crate::{agent, error};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// Streaming chunk for a laboratory execution.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
-#[schemars(rename = "laboratories.executions.response.streaming.LaboratoryExecutionChunk")]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
+#[schemars(
+    rename = "laboratories.executions.response.streaming.LaboratoryExecutionChunk"
+)]
 pub struct LaboratoryExecutionChunk {
     pub id: String,
     pub builders: Vec<super::BuilderChunk>,
@@ -22,11 +32,15 @@ pub struct LaboratoryExecutionChunk {
 }
 
 impl AgentCompletionIds for LaboratoryExecutionChunk {
-    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> {
+    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> + Send {
         self.builders
             .iter()
             .flat_map(|b| b.agent_completion_ids())
-            .chain(self.evaluations.iter().flat_map(|e| e.agent_completion_ids()))
+            .chain(
+                self.evaluations
+                    .iter()
+                    .flat_map(|e| e.agent_completion_ids()),
+            )
     }
 }
 
@@ -42,18 +56,24 @@ impl LaboratoryExecutionChunk {
     /// Does NOT include the chunk's own top-level `.error` field.
     pub fn inner_errors(&self) -> impl Iterator<Item = super::InnerError<'_>> {
         let builders = self.builders.iter().filter_map(|b| {
-            b.inner.error.as_ref().map(|error| super::InnerError::Builder {
-                builder_index: b.index,
-                agent_completion_index: b.agent_index,
-                error: std::borrow::Cow::Borrowed(error),
-            })
+            b.inner
+                .error
+                .as_ref()
+                .map(|error| super::InnerError::Builder {
+                    builder_index: b.index,
+                    agent_completion_index: b.agent_index,
+                    error: std::borrow::Cow::Borrowed(error),
+                })
         });
         let evaluations = self.evaluations.iter().filter_map(|e| {
-            e.inner.error.as_ref().map(|error| super::InnerError::Evaluation {
-                evaluation_index: e.index,
-                agent_completion_index: e.agent_index,
-                error: std::borrow::Cow::Borrowed(error),
-            })
+            e.inner
+                .error
+                .as_ref()
+                .map(|error| super::InnerError::Evaluation {
+                    evaluation_index: e.index,
+                    agent_completion_index: e.agent_index,
+                    error: std::borrow::Cow::Borrowed(error),
+                })
         });
         builders.chain(evaluations)
     }
@@ -86,7 +106,9 @@ impl LaboratoryExecutionChunk {
 
     fn push_builders(&mut self, others: &[super::BuilderChunk]) {
         for other in others {
-            if let Some(existing) = self.builders.iter_mut().find(|c| c.index == other.index) {
+            if let Some(existing) =
+                self.builders.iter_mut().find(|c| c.index == other.index)
+            {
                 existing.push(other);
             } else {
                 self.builders.push(other.clone());
@@ -96,10 +118,8 @@ impl LaboratoryExecutionChunk {
 
     fn push_evaluations(&mut self, others: &[super::EvaluationChunk]) {
         for other in others {
-            if let Some(existing) = self
-                .evaluations
-                .iter_mut()
-                .find(|c| c.index == other.index)
+            if let Some(existing) =
+                self.evaluations.iter_mut().find(|c| c.index == other.index)
             {
                 existing.push(other);
             } else {
@@ -107,5 +127,4 @@ impl LaboratoryExecutionChunk {
             }
         }
     }
-
 }

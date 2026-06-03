@@ -19,7 +19,8 @@ fn ends_with_ident(s: &str, target: &str) -> bool {
 fn contains_option_with_expression_option(type_str: &str) -> bool {
     // Collapse whitespace so `functions :: expression :: WithExpression`
     // becomes `functions::expression::WithExpression`.
-    let collapsed: String = type_str.chars().filter(|c| !c.is_whitespace()).collect();
+    let collapsed: String =
+        type_str.chars().filter(|c| !c.is_whitespace()).collect();
 
     // Tokenize on `<`, `>`, and `,` to get path segments between angle brackets.
     // Then look for a sequence: [...Option] < [...WithExpression] < [...Option...]
@@ -40,7 +41,12 @@ fn contains_option_with_expression_option(type_str: &str) -> bool {
     false
 }
 
-fn check_fields(fields: &Fields, type_name: &str, file: &str, errors: &mut Vec<String>) {
+fn check_fields(
+    fields: &Fields,
+    type_name: &str,
+    file: &str,
+    errors: &mut Vec<String>,
+) {
     let field_list: Vec<_> = match fields {
         Fields::Named(named) => named
             .named
@@ -99,13 +105,23 @@ fn no_option_with_expression_option() {
         for item in &file.items {
             match item {
                 Item::Struct(s) if matches!(s.vis, Visibility::Public(_)) => {
-                    check_fields(&s.fields, &s.ident.to_string(), &relative, &mut errors);
+                    check_fields(
+                        &s.fields,
+                        &s.ident.to_string(),
+                        &relative,
+                        &mut errors,
+                    );
                 }
                 Item::Enum(e) if matches!(e.vis, Visibility::Public(_)) => {
                     let name = e.ident.to_string();
                     for variant in &e.variants {
                         let qualified = format!("{name}::{}", variant.ident);
-                        check_fields(&variant.fields, &qualified, &relative, &mut errors);
+                        check_fields(
+                            &variant.fields,
+                            &qualified,
+                            &relative,
+                            &mut errors,
+                        );
                     }
                 }
                 _ => {}

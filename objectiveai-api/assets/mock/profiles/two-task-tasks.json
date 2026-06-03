@@ -8,7 +8,9 @@
           "output_mode": "instruction"
         }
       ],
-      "weights": [1.0]
+      "weights": [
+        1.0
+      ]
     },
     {
       "agents": [
@@ -17,8 +19,13 @@
           "output_mode": "instruction"
         }
       ],
-      "weights": [1.0]
+      "weights": [
+        1.0
+      ]
     }
   ],
-  "weights": [0.5, 0.5]
+  "weights": [
+    0.5,
+    0.5
+  ]
 }

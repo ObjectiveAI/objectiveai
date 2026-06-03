@@ -14,6 +14,10 @@
 //! its URL. The entire `CONFIG_BASE_DIR` lives under the system
 //! temp dir — nothing touches the host's `.objectiveai`.
 //!
+//! Driven through the SDK `BinaryExecutor` rather than hand-rolled
+//! argv; the extra env var the plugin fixture needs is attached to
+//! the executor via [`BinaryExecutor::env`].
+//!
 //! Skip-gate: requires `OBJECTIVEAI_TEST_PORT` to point at a
 //! running test API (mirrors the existing snapshot tests).
 
@@ -24,27 +28,14 @@ use std::process::Command;
 use std::sync::Once;
 use std::time::{Duration, Instant};
 
+use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
+use objectiveai_sdk::cli::command::agents::spawn::{
+    AgentSpec, Request as SpawnRequest, RequestPrompt,
+    ResponseItem as SpawnResponseItem,
+};
 use serde_json::{Value, json};
 
-static BUILD_CLI_STREAM_ONCE: Once = Once::new();
 static BUILD_TEST_MCP_PLUGIN_ONCE: Once = Once::new();
-
-fn ensure_cli_stream_built() {
-    BUILD_CLI_STREAM_ONCE.call_once(|| {
-        let target_dir = cli_test_util::test_target_dir();
-        let status = Command::new("cargo")
-            .args([
-                "build",
-                "-p",
-                "objectiveai-cli-stream",
-                "--target-dir",
-                target_dir.to_str().unwrap(),
-            ])
-            .status()
-            .expect("spawn cargo build cli-stream");
-        assert!(status.success(), "cli-stream build failed");
-    });
-}
 
 fn test_mcp_plugin_binary() -> PathBuf {
     let target_dir = cli_test_util::test_target_dir();
@@ -72,8 +63,7 @@ fn test_mcp_plugin_binary() -> PathBuf {
 /// isolated — no contact with `~/.objectiveai` or the in-repo
 /// `objectiveai-cli/tests/.objectiveai`.
 fn temp_base() -> PathBuf {
-    let d = std::env::temp_dir()
-        .join(format!("oai-mcp-plugin-{}", uuid::Uuid::new_v4()));
+    let d = std::env::temp_dir().join(format!("oai-mcp-plugin-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&d).unwrap();
     d
 }
@@ -115,11 +105,7 @@ fn stage_plugin(base: &Path) {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(
-            &installed,
-            std::fs::Permissions::from_mode(0o755),
-        )
-        .unwrap();
+        std::fs::set_permissions(&installed, std::fs::Permissions::from_mode(0o755)).unwrap();
     }
 }
 
@@ -144,9 +130,7 @@ impl Drop for PluginGuard {
                 }
                 #[cfg(unix)]
                 {
-                    let _ = Command::new("kill")
-                        .args(["-9", &pid.to_string()])
-                        .status();
+                    let _ = Command::new("kill").args(["-9", &pid.to_string()]).status();
                 }
             }
         }
@@ -161,10 +145,7 @@ async fn wait_for_completion(base_dir: &Path, spawn_id: &str) {
     let response_cont_path = base_dir
         .join("logs/agents/completions/response/continuation")
         .join(format!("{spawn_id}.json"));
-    let socket_path = base_dir
-        .join("pipes/cli")
-        .join(spawn_id)
-        .join("socket");
+    let socket_path = base_dir.join("pipes/cli").join(spawn_id).join("socket");
     let deadline = Instant::now() + Duration::from_secs(180);
     while Instant::now() < deadline {
         if response_cont_path.exists() && !socket_path.exists() {
@@ -172,19 +153,7 @@ async fn wait_for_completion(base_dir: &Path, spawn_id: &str) {
         }
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
-    panic!(
-        "cli-stream did not flush continuation + tear down socket for {spawn_id} in 180s",
-    );
-}
-
-fn cli_command_with_base_dir(base_dir: &Path, args: &[&str]) -> Command {
-    let mut cmd = Command::new(cli_test_util::cli_binary());
-    cmd.env("CONFIG_BASE_DIR", base_dir);
-    if let Some(addr) = cli_test_util::test_api_address() {
-        cmd.env("OBJECTIVEAI_ADDRESS", addr);
-    }
-    cmd.args(args);
-    cmd
+    panic!("cli-stream did not flush continuation + tear down socket for {spawn_id} in 180s",);
 }
 
 /// Extract a deterministic snapshot projection from the response
@@ -194,11 +163,7 @@ fn project_for_snapshot(cont: &Value) -> Value {
     let mut tool_call_names: Vec<String> = Vec::new();
     let mut tool_result_texts: Vec<String> = Vec::new();
 
-    fn walk(
-        v: &Value,
-        tool_call_names: &mut Vec<String>,
-        tool_result_texts: &mut Vec<String>,
-    ) {
+    fn walk(v: &Value, tool_call_names: &mut Vec<String>, tool_result_texts: &mut Vec<String>) {
         match v {
             Value::Object(obj) => {
                 if let Some(name) = obj
@@ -214,9 +179,7 @@ fn project_for_snapshot(cont: &Value) -> Value {
                             tool_result_texts.push(s.to_string());
                         } else if let Some(arr) = content.as_array() {
                             for part in arr {
-                                if let Some(s) =
-                                    part.get("text").and_then(|t| t.as_str())
-                                {
+                                if let Some(s) = part.get("text").and_then(|t| t.as_str()) {
                                     tool_result_texts.push(s.to_string());
                                 }
                             }
@@ -256,7 +219,6 @@ async fn plugin_mcp_dispatch_round_trip() {
 
     // Build CLI + cli-stream + the plugin fixture once.
     let _ = cli_test_util::cli_binary();
-    ensure_cli_stream_built();
     let _ = test_mcp_plugin_binary();
 
     let base = temp_base();
@@ -280,7 +242,7 @@ async fn plugin_mcp_dispatch_round_trip() {
     //   mcp_servers = [("test-mcp-plugin", "demo")]
     // which means `needs_primary = false` and ONLY the plugin
     // upstream gets dialed during `initialize`.
-    let agent = json!({
+    let agent_json = json!({
         "upstream": "mock",
         "output_mode": "instruction",
         "client_objectiveai_mcp": {
@@ -292,52 +254,49 @@ async fn plugin_mcp_dispatch_round_trip() {
                 "mcp_servers": ["demo"]
             }]
         }
-    })
-    .to_string();
+    });
+    let agent = AgentSpec::Resolved(
+        serde_json::from_value::<InlineAgentBaseWithFallbacksOrRemoteCommitOptional>(agent_json)
+            .expect("inline plugin-mcp agent must deserialize"),
+    );
+
+    // Executor pinned to this test's scratch base dir, with the
+    // plugin's PID-file env var attached so the cli → cli-stream →
+    // plugin chain inherits it.
+    let executor = cli_test_util::executor_with_base_dir(&base)
+        .env("OAI_TEST_MCP_PID_FILE", pid_file.to_string_lossy().into_owned());
 
     // Spawn the agent. The plugin binary inherits OAI_TEST_MCP_PID_FILE
     // through the CLI subprocess → cli-stream → plugin chain.
-    let mut spawn_cmd = cli_command_with_base_dir(
-        &base,
-        &[
-            "agents", "spawn",
-            "--agent-inline", &agent,
-            "--simple", "use a tool",
-            "--seed", "1",
-        ],
-    );
-    spawn_cmd.env("OAI_TEST_MCP_PID_FILE", &pid_file);
-    let output = spawn_cmd.output().expect("execute cli");
-    if !output.status.success() {
-        panic!(
-            "cli agents spawn exited with {}\nstdout: {}\nstderr: {}",
-            output.status,
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr),
-        );
-    }
-
-    let lines: Vec<Value> = String::from_utf8_lossy(&output.stdout)
-        .lines()
-        .filter_map(|l| serde_json::from_str::<Value>(l.trim()).ok())
-        .collect();
-    let spawned = lines
+    let spawn_request = SpawnRequest {
+        prompt: RequestPrompt::Simple("use a tool".to_string()),
+        agent,
+        seed: Some(1),
+        dangerous_advanced: None,
+        jq: None,
+    };
+    let items: Vec<SpawnResponseItem> =
+        cli_test_util::collect_stream(&executor, spawn_request).await;
+    let spawn_id = items
         .iter()
-        .find(|l| l.pointer("/value/kind") == Some(&json!("spawned")))
-        .expect("agents spawn must emit Spawned notification");
-    let spawn_id = spawned
-        .pointer("/value/agent_id")
-        .and_then(|v| v.as_str())
-        .expect("Spawned.agent_id")
-        .to_string();
+        .find_map(|item| match item {
+            SpawnResponseItem::Chunk(chunk) => {
+                if chunk.agent_instance_hierarchy.is_empty() {
+                    None
+                } else {
+                    Some(chunk.agent_instance_hierarchy.clone())
+                }
+            }
+            SpawnResponseItem::Id(_) => None,
+        })
+        .expect("agents spawn must emit a Chunk with agent_instance_hierarchy");
 
     wait_for_completion(&base, &spawn_id).await;
 
     let response_cont_path = base
         .join("logs/agents/completions/response/continuation")
         .join(format!("{spawn_id}.json"));
-    let raw = std::fs::read_to_string(&response_cont_path)
-        .expect("read response continuation");
+    let raw = std::fs::read_to_string(&response_cont_path).expect("read response continuation");
     let cont: Value = serde_json::from_str(&raw).expect("parse response continuation");
 
     let projection = project_for_snapshot(&cont);

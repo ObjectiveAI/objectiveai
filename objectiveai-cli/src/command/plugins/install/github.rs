@@ -1,0 +1,89 @@
+//! `plugins install github` — fetch the manifest, check the
+//! whitelist, and install the matching platform binary under
+//! `~/.objectiveai/plugins/<repository>/`. Port of the legacy
+//! `plugins::install` function minus the notification plumbing —
+//! the bare-naked contract surfaces the untrusted decision as the
+//! typed `Error::PluginNotWhitelisted` variant.
+//!
+//! The SDK `Request` does not expose `upgrade`; this leaf always
+//! installs fresh and surfaces `Error::AlreadyInstalled` if a
+//! manifest already exists.
+
+use objectiveai_sdk::cli::command::plugins::install::github::{Request, Response};
+
+use crate::context::Context;
+use crate::error::Error;
+
+pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+    let manifest = ctx
+        .filesystem
+        .fetch_plugin_manifest(
+            &request.owner,
+            &request.repository,
+            request.commit_sha.as_deref(),
+            None,
+        )
+        .await?;
+
+    let effective_sha = request.commit_sha.as_deref().unwrap_or("HEAD");
+    let whitelist = crate::filesystem::plugins::default_whitelist();
+    let allowed = crate::filesystem::plugins::check_plugin_whitelist(
+        &request.owner,
+        &request.repository,
+        effective_sha,
+        &manifest.version,
+        &whitelist,
+    )
+    .map_err(Error::WhitelistRegex)?;
+
+    if !allowed && !request.allow_untrusted {
+        return Err(Error::PluginNotWhitelisted {
+            owner: request.owner.clone(),
+            repository: request.repository.clone(),
+            commit_sha: effective_sha.to_string(),
+            version: manifest.version.clone(),
+        });
+    }
+
+    let source = crate::filesystem::plugins::raw_manifest_url(
+        &request.owner,
+        &request.repository,
+        request.commit_sha.as_deref(),
+    );
+    let installed = ctx
+        .filesystem
+        .install_plugin_from_manifest(
+            &request.owner,
+            &request.repository,
+            &manifest,
+            &source,
+            None,
+            false,
+        )
+        .await?;
+    Ok(Response { installed })
+}
+
+pub mod request_schema {
+    use objectiveai_sdk::cli::command::plugins::install::github as sdk;
+    use objectiveai_sdk::cli::command::plugins::install::github::request_schema::{Request, Response};
+
+    use crate::context::Context;
+    use crate::error::Error;
+
+    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+        Ok(schemars::schema_for!(sdk::Request))
+    }
+}
+
+pub mod response_schema {
+    use objectiveai_sdk::cli::command::plugins::install::github as sdk;
+    use objectiveai_sdk::cli::command::plugins::install::github::response_schema::{Request, Response};
+
+    use crate::context::Context;
+    use crate::error::Error;
+
+    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+        Ok(schemars::schema_for!(sdk::Response))
+    }
+}

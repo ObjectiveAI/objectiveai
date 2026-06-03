@@ -1,8 +1,8 @@
 //! Message type for unary agent completion responses.
 
 use crate::agent::completions::response;
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(untagged)]

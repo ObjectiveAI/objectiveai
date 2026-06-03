@@ -1,7 +1,7 @@
 use crate::agent;
 use crate::functions::inventions::response;
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
 #[schemars(rename = "functions.inventions.response.unary.AgentCompletion")]

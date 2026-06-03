@@ -1,6 +1,6 @@
 use crate::{error, functions::executions::response, vector};
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
 #[schemars(rename = "functions.executions.response.unary.VectorCompletionTask")]

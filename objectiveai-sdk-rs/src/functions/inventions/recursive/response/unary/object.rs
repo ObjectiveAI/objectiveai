@@ -1,6 +1,6 @@
 use crate::functions::inventions::recursive::response;
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "functions.inventions.recursive.response.unary.Object")]

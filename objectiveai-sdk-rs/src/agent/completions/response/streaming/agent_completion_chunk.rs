@@ -1,18 +1,46 @@
 //! Streaming agent completion chunk type.
 
 use crate::agent::completions::response;
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// A chunk of a streaming agent completion response.
 ///
 /// Multiple chunks are received via Server-Sent Events and can be
 /// accumulated into a complete [`AgentCompletion`](response::unary::AgentCompletion)
 /// using the [`push`](Self::push) method.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, JsonSchema, arbitrary::Arbitrary)]
-#[schemars(rename = "agent.completions.response.streaming.AgentCompletionChunk")]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    Default,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
+#[schemars(
+    rename = "agent.completions.response.streaming.AgentCompletionChunk"
+)]
 pub struct AgentCompletionChunk {
     pub id: String,
+    /// Full agent instance hierarchy for this completion's slot —
+    /// `{ctx lineage}/{agent_full_id}-{response_id}`, or the fixed
+    /// continuation value on resume. Same on every chunk of a slot.
+    pub agent_instance_hierarchy: String,
+    /// Leaf agent id of the slot that produced this chunk. For the
+    /// primary attempt this is the primary agent's id; on fallback it
+    /// is the fallback agent's id. Same on every chunk of a slot.
+    pub agent_id: String,
+    /// WF-level id: concatenation of the primary agent's id with all
+    /// fallback ids (see `InlineAgentWithFallbacks::full_id`). Same
+    /// for every slot in the same WF request.
+    pub agent_full_id: String,
+    /// `RemotePath` the WF was fetched from. `None` when the WF was
+    /// supplied inline. Same for every slot in the same WF request.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub agent_remote: Option<crate::RemotePath>,
     #[arbitrary(with = crate::arbitrary_util::arbitrary_u64)]
     pub created: u64,
     pub messages: Vec<super::MessageChunk>,
@@ -50,7 +78,12 @@ impl AgentCompletionChunk {
     pub fn push(
         &mut self,
         AgentCompletionChunk {
-            messages, usage, error, continuation, messages_queued, ..
+            messages,
+            usage,
+            error,
+            continuation,
+            messages_queued,
+            ..
         }: &AgentCompletionChunk,
     ) {
         self.push_messages(messages);
@@ -72,116 +105,6 @@ impl AgentCompletionChunk {
         if let Some(mq) = messages_queued {
             self.messages_queued = Some(*mq);
         }
-    }
-
-    /// Produces the [`LogFile`]s for the log file structure.
-    ///
-    /// Returns `None` if the chunk has no ID yet. All paths are relative
-    /// to the `logs/` root directory, under `agents/completions/`.
-    #[cfg(feature = "filesystem")]
-    pub fn produce_files(
-        &self,
-    ) -> Option<(crate::filesystem::logs::LogReference, Vec<crate::filesystem::logs::LogFile>)> {
-        use crate::filesystem::logs::{LogFile, LogReference};
-        const ROUTE: &str = "agents/completions/response";
-
-        let id = &self.id;
-        if id.is_empty() {
-            return None;
-        }
-
-        let mut files: Vec<LogFile> = Vec::new();
-        let mut message_refs: Vec<LogReference> = Vec::new();
-
-        for msg in &self.messages {
-            let (reference, msg_files) = msg.produce_files(id, ROUTE);
-            message_refs.push(reference);
-            files.extend(msg_files);
-        }
-
-        // Extract continuation to a separate file (if present).
-        let continuation_ref = self.continuation.as_ref().map(|continuation| {
-            let cont_file = LogFile {
-                route: format!("{ROUTE}/continuation"),
-                id: id.clone(),
-                message_index: None,
-                media_index: None,
-                extension: "json".to_string(),
-                content: serde_json::to_vec_pretty(continuation).unwrap(),
-            };
-            let r = LogReference::new(cont_file.path());
-            files.push(cont_file);
-            r
-        });
-
-        let log = super::AgentCompletionChunkLog {
-            id: self.id.clone(),
-            created: self.created,
-            messages: message_refs,
-            object: self.object,
-            usage: self.usage.clone(),
-            upstream: self.upstream,
-            error: self.error.clone(),
-            continuation: continuation_ref,
-            messages_queued: self.messages_queued,
-        };
-
-        let root_file = LogFile {
-            route: ROUTE.to_string(),
-            id: id.clone(),
-            message_index: None,
-            media_index: None,
-            extension: "json".to_string(),
-            content: serde_json::to_vec_pretty(&log).unwrap(),
-        };
-        let reference = LogReference::new(root_file.path());
-        files.push(root_file);
-
-        Some((reference, files))
-    }
-
-    /// Yields one [`MessageRow`] per `MessageChunk` for the SQLite
-    /// `messages` table. Lazy: borrows from `self`, never collects.
-    ///
-    /// `agent_id` is this chunk's `id`; `path` points at the
-    /// per-message log file under `agents/completions/response/messages/`.
-    /// Returns an empty iterator when `id` is empty (the chunk hasn't
-    /// been assigned a response id yet — same gate `produce_files`
-    /// uses).
-    ///
-    /// [`MessageRow`]: crate::filesystem::db::schema::MessageRow
-    #[cfg(feature = "filesystem")]
-    pub fn produce_message_rows(
-        &self,
-    ) -> impl Iterator<Item = crate::filesystem::db::schema::MessageRow> + Send + '_ {
-        use crate::filesystem::db::schema::{MessageKind, MessageRow};
-        let id = self.id.as_str();
-        let created = self.created;
-        let empty = self.id.is_empty();
-        self.messages.iter().filter_map(move |m| {
-            if empty {
-                return None;
-            }
-            let kind = match m {
-                super::MessageChunk::Assistant(_) => MessageKind::AssistantResponse,
-                super::MessageChunk::Tool(_) => MessageKind::ToolResponse,
-            };
-            let idx = m.index();
-            Some(MessageRow {
-                agent_id: id.to_string(),
-                // Same value as agent_id at this stage — the writer
-                // will lineage-stamp `agent_id` but `response_id`
-                // stays bare so the reader doesn't have to parse it
-                // back out of a stamped string.
-                response_id: id.to_string(),
-                kind,
-                index: idx,
-                // Bare id — the route is reconstructed from
-                // (kind, response_id, path) by `MessageKind::file_path`.
-                path: format!("{idx}"),
-                timestamp: created,
-            })
-        })
     }
 
     fn push_messages(&mut self, other_choices: &[super::MessageChunk]) {

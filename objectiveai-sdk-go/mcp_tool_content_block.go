@@ -180,15 +180,15 @@ func (McpToolContentBlockEmbeddedResource) SchemaVariantTitle() string { return 
 // A content block that can be used in prompts and tool results.
 type McpToolContentBlock struct {
 	// Text content.
-	Text *McpToolContentBlockText 
+	Text *McpToolContentBlockText `outerObject:"true"`
 	// Image content (base64-encoded).
-	Image *McpToolContentBlockImage 
+	Image *McpToolContentBlockImage `outerObject:"true"`
 	// Audio content (base64-encoded).
-	Audio *McpToolContentBlockAudio 
+	Audio *McpToolContentBlockAudio `outerObject:"true"`
 	// A resource link.
-	ResourceLink *McpToolContentBlockResourceLink 
+	ResourceLink *McpToolContentBlockResourceLink `outerObject:"true"`
 	// An embedded resource.
-	EmbeddedResource *McpToolContentBlockEmbeddedResource 
+	EmbeddedResource *McpToolContentBlockEmbeddedResource `outerObject:"true"`
 }
 
 func (v McpToolContentBlock) MarshalJSON() ([]byte, error) {

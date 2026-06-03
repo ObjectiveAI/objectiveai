@@ -1,9 +1,9 @@
 use rand::Rng;
+use rand::SeedableRng;
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
-use rand::SeedableRng;
 
-use crate::functions::expression::{InputValue, InputSchema};
+use crate::functions::expression::{InputSchema, InputValue};
 
 pub fn permutations(schema: &InputSchema) -> usize {
     inner_permutations(schema) * 2
@@ -32,7 +32,10 @@ pub fn generate(schema: &InputSchema, mut rng: StdRng) -> Generator {
     let mut indices: Vec<usize> = (0..total).collect();
     indices.shuffle(&mut rng);
 
-    let inner = super::multi::generate(schema, StdRng::seed_from_u64(rng.random::<u64>()));
+    let inner = super::multi::generate(
+        schema,
+        StdRng::seed_from_u64(rng.random::<u64>()),
+    );
 
     Generator {
         inner,

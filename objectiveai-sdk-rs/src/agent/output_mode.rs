@@ -4,8 +4,8 @@
 //! a set of predefined responses during vector completion. This setting
 //! is **only used for vector completions** and is ignored for agent completions.
 
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// The method used to constrain LLM output to valid response keys.
 ///
@@ -14,7 +14,9 @@ use schemars::JsonSchema;
 ///
 /// **Note:** This setting is only relevant for vector completions and is
 /// completely ignored for agent completions.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Hash, JsonSchema)]
+#[derive(
+    Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Hash, JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 #[schemars(rename = "agent.OutputMode")]
 pub enum OutputMode {
@@ -66,7 +68,9 @@ impl From<super::claude_agent_sdk::OutputMode> for OutputMode {
 impl From<super::codex_sdk::OutputMode> for OutputMode {
     fn from(mode: super::codex_sdk::OutputMode) -> Self {
         match mode {
-            super::codex_sdk::OutputMode::Instruction => OutputMode::Instruction,
+            super::codex_sdk::OutputMode::Instruction => {
+                OutputMode::Instruction
+            }
         }
     }
 }

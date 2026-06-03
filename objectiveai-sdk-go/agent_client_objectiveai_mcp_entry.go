@@ -8,7 +8,9 @@ import (
 )
 
 // A single `owner` / `name` / `version` reference identifying one
-// plugin or one tool inside [`ClientObjectiveaiMcp`].
+// tool inside [`ClientObjectiveaiMcp::tools`]. Plugin references
+// use the larger [`ClientObjectiveaiMcpPluginEntry`] — they carry
+// extra `executable` / `mcp_servers` fields tools don't have.
 type AgentClientObjectiveaiMcpEntry struct {
 	Name string `json:"name"`
 	Owner string `json:"owner"`

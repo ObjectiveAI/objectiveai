@@ -1,6 +1,6 @@
 use crate::functions;
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// Tagged union of input schema types for invention state serialization.
 /// The actual schema is nested under a `schema` key to avoid conflicts

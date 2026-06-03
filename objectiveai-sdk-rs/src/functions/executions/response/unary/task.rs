@@ -1,6 +1,6 @@
 use crate::functions::executions::response;
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(untagged)]
@@ -24,7 +24,9 @@ impl Task {
     /// a `task_path`. Pulls in the swiss / split / task indices that
     /// distinguish parallel branches so test snapshots are stable across
     /// arrival orders.
-    pub fn snapshot_sort_key(&self) -> (Vec<u64>, Option<u64>, Option<u64>, Option<u64>, u64) {
+    pub fn snapshot_sort_key(
+        &self,
+    ) -> (Vec<u64>, Option<u64>, Option<u64>, Option<u64>, u64) {
         match self {
             Task::FunctionExecution(f) => (
                 f.task_path.clone(),
@@ -33,13 +35,9 @@ impl Task {
                 f.split_index,
                 f.task_index,
             ),
-            Task::VectorCompletion(v) => (
-                v.task_path.clone(),
-                None,
-                None,
-                None,
-                v.task_index,
-            ),
+            Task::VectorCompletion(v) => {
+                (v.task_path.clone(), None, None, None, v.task_index)
+            }
         }
     }
 }

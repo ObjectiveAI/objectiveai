@@ -1,5 +1,5 @@
-use crate::tests::stream_push::stream_push_test;
 use super::*;
+use crate::tests::stream_push::stream_push_test;
 
 stream_push_test!(
     single_chunk_unchanged,

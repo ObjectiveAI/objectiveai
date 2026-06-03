@@ -4,7 +4,6 @@ use std::time::Duration;
 
 use indexmap::IndexMap;
 
-
 /// Client for creating MCP connections.
 ///
 /// Holds shared configuration (HTTP client, headers, backoff parameters)
@@ -179,6 +178,65 @@ impl Client {
         }
     }
 
+    /// Issue a stateless HTTP `DELETE /` to one upstream MCP server,
+    /// telling it to terminate the session identified by `session_id`.
+    ///
+    /// This is the low-level primitive — no backoff, no listener
+    /// teardown, no connection state. Caller is responsible for any
+    /// retry semantics. For the stateful tear-down path that also
+    /// cancels the connection's own active streams and absorbs
+    /// upstream `404 / 401 / 403` as success, use
+    /// [`Connection::delete`](super::Connection::delete) instead.
+    ///
+    /// `headers` is merged with the same defaults `connect` applies
+    /// (`User-Agent`, `X-Title`, `Referer`, `HTTP-Referer`). The
+    /// explicit `session_id` argument always wins over any
+    /// `Mcp-Session-Id` entry that happens to appear in `headers` — the
+    /// shape mirrors `connect`'s argument split for the same reason.
+    ///
+    /// Returns `Ok(())` on any 2xx status. Any non-2xx (including
+    /// `404 Not Found`) surfaces as [`Error::BadStatus`]. Network /
+    /// transport failures surface as [`Error::Request`].
+    pub async fn delete(
+        &self,
+        url: String,
+        session_id: String,
+        headers: Option<IndexMap<String, String>>,
+    ) -> Result<(), super::Error> {
+        if url == "mock" {
+            return Ok(());
+        }
+        let headers = self.headers(headers);
+        let mut request = self
+            .http_client
+            .delete(&url)
+            .timeout(self.call_timeout)
+            .header("Mcp-Session-Id", &session_id);
+        for (name, value) in &headers {
+            // Explicit `session_id` arg always wins.
+            if name.eq_ignore_ascii_case("Mcp-Session-Id") {
+                continue;
+            }
+            request = request.header(name, value);
+        }
+        let response = request.send().await.map_err(|source| {
+            super::Error::Request {
+                url: url.clone(),
+                source,
+            }
+        })?;
+        if !response.status().is_success() {
+            let code = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(super::Error::BadStatus {
+                url,
+                code,
+                body: body.chars().take(800).collect(),
+            });
+        }
+        Ok(())
+    }
+
     /// One pass through the full Streamable-HTTP handshake. Caller
     /// applies the outer backoff retry loop in [`Self::connect`].
     /// `headers` is the already-merged map (defaults + caller overrides
@@ -222,9 +280,11 @@ impl Client {
             request = request.header("Mcp-Session-Id", sid);
         }
 
-        let response = request.send().await.map_err(|source| super::Error::Connection {
-            url: url.to_string(),
-            source,
+        let response = request.send().await.map_err(|source| {
+            super::Error::Connection {
+                url: url.to_string(),
+                source,
+            }
         })?;
 
         if !response.status().is_success() {
@@ -355,7 +415,8 @@ impl Client {
         for (name, value) in headers {
             notify_request = notify_request.header(name, value);
         }
-        notify_request = notify_request.header("Mcp-Session-Id", &resolved_session_id);
+        notify_request =
+            notify_request.header("Mcp-Session-Id", &resolved_session_id);
         let notify_response = notify_request
             .json(&init_notification_body)
             .send()
@@ -394,7 +455,8 @@ impl Client {
             for (name, value) in headers {
                 get_request = get_request.header(name, value);
             }
-            get_request = get_request.header("Mcp-Session-Id", &resolved_session_id);
+            get_request =
+                get_request.header("Mcp-Session-Id", &resolved_session_id);
             let get_response = get_request.send().await.map_err(|source| {
                 super::Error::Connection {
                     url: url.to_string(),
@@ -420,6 +482,14 @@ impl Client {
         // `refresh_tools` / `refresh_resources` background tasks get
         // spawned — by now the upstream is fully past its init
         // handshake, so any of those POSTs land safely.
+        //
+        // `was_resumed` is true when the caller passed an existing
+        // `session_id` into `connect` — i.e. this is a re-attach to a
+        // pre-existing upstream session, not a fresh mint. The bit
+        // rides into `ConnectionInner` as `is_reconnect` and gates
+        // the drop-time orphan-DELETE that releases resumed sessions
+        // nobody ended up using.
+        let was_resumed = session_id.is_some();
         let connection = super::Connection::new(
             self.http_client.clone(),
             url.to_string(),
@@ -434,10 +504,10 @@ impl Client {
             self.call_timeout,
             initialize_result,
             initial_sse_lines,
+            was_resumed,
         )
         .await;
 
         Ok(connection)
     }
 }
-

@@ -4,8 +4,8 @@
 //! a Function. Profiles are typically trained on example data to optimize
 //! scoring behavior.
 
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// A profile specification that is either an inline profile definition
 /// or a remote path reference.
@@ -62,7 +62,9 @@ pub enum InlineProfile {
 }
 
 impl<'a> arbitrary::Arbitrary<'a> for InlineProfile {
-    fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
+    fn arbitrary(
+        u: &mut arbitrary::Unstructured<'a>,
+    ) -> arbitrary::Result<Self> {
         // Only generate Tasks variant since Auto requires SwarmBaseWithProfile
         // which has complex dependencies.
         Ok(InlineProfile::Tasks(u.arbitrary()?))
@@ -70,7 +72,15 @@ impl<'a> arbitrary::Arbitrary<'a> for InlineProfile {
 }
 
 /// An inline tasks-based profile definition without metadata.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "functions.InlineTasksProfile")]
 pub struct InlineTasksProfile {
     /// Configuration for each task in the corresponding Function.
@@ -115,7 +125,9 @@ pub enum TaskProfile {
 }
 
 impl<'a> arbitrary::Arbitrary<'a> for TaskProfile {
-    fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
+    fn arbitrary(
+        u: &mut arbitrary::Unstructured<'a>,
+    ) -> arbitrary::Result<Self> {
         // Inline variant is recursive (InlineProfile → InlineTasksProfile → Vec<TaskProfile>),
         // so use go-deep bool to make recursion exponentially rare.
         if u.arbitrary().unwrap_or(false) {

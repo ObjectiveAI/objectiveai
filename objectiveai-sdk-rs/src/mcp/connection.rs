@@ -9,8 +9,8 @@
 //! zombie 401 retries against a now-dead proxy session.
 
 use std::ops::Deref;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, RwLock as StdRwLock, Weak};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use indexmap::IndexMap;
@@ -80,7 +80,9 @@ pub struct Connection {
 
 impl Clone for Connection {
     fn clone(&self) -> Self {
-        Self { inner: Arc::clone(&self.inner) }
+        Self {
+            inner: Arc::clone(&self.inner),
+        }
     }
 }
 
@@ -96,6 +98,102 @@ impl Deref for Connection {
 }
 
 impl Connection {
+    /// Tear this connection down explicitly.
+    ///
+    /// 1. Cancels the long-lived list-changed listener task immediately
+    ///    (drops the [`DropGuard`] in
+    ///    [`ConnectionInner::_listener_cancel_guard`]), so by the time
+    ///    the HTTP DELETE goes out the listener isn't still holding an
+    ///    SSE read open against the upstream we're about to close.
+    /// 2. Issues `DELETE /` to the upstream with this connection's
+    ///    `Mcp-Session-Id` and the same merged header set every other
+    ///    RPC stamps. Reuses [`ConnectionInner::call_timeout`].
+    /// 3. Treats `404 / 401 / 403` as success — the upstream is
+    ///    unreachable from these credentials anyway, which is the
+    ///    desired terminal state. Other non-2xx surfaces as
+    ///    [`super::Error::BadStatus`].
+    ///
+    /// Takes `&self`: the listener cancel is in-place, and dropping
+    /// the surrounding `Arc<ConnectionInner>` (which closes the rest
+    /// of the connection's owned state) is the caller's responsibility
+    /// — usually by dropping the `Arc<Session>` holding it. Stateless
+    /// callers that don't hold a `Connection` should use
+    /// [`Client::delete`](super::Client::delete) instead.
+    ///
+    /// **In-flight RPC ordering.** This method does not block on
+    /// in-flight `call_tool` / `read_resource` / `list_tools` /
+    /// `list_resources` calls on the same connection. If one is
+    /// outstanding when `delete` lands, the upstream may see DELETE
+    /// before the RPC's reply makes it back; the in-flight call then
+    /// surfaces as a closed-connection error to whoever started it.
+    /// That's the spec-correct order (client said terminate) — drain
+    /// on the caller side first if you need different semantics.
+    pub async fn delete(&self) -> Result<(), super::Error> {
+        // 1. Mark the connection as "used" so the drop-time
+        //    orphan-DELETE check (see `ConnectionInner::Drop`) skips
+        //    its own fan-out. Without this, a fresh-mint connection
+        //    that's explicitly torn down via `delete()` would race
+        //    its own drop-time orphan into a duplicate upstream
+        //    DELETE.
+        self.inner.any_calls.store(true, Ordering::Relaxed);
+
+        // 2. Drop the listener-cancel guard. Releasing the `DropGuard`
+        //    cancels the sibling `CancellationToken` the listener task
+        //    holds; the listener `tokio::select!`s against it on every
+        //    blocking await and exits inside one scheduler tick.
+        if let Ok(mut guard) = self.inner._listener_cancel_guard.lock() {
+            let _ = guard.take();
+        }
+
+        // 3. Mock connections never opened an HTTP session, so the
+        //    DELETE call would 404. Short-circuit to success.
+        if self.inner.mock {
+            return Ok(());
+        }
+
+        // 4. Build + send HTTP DELETE. Mirrors `Client::connect_once`'s
+        //    request-stamp shape: header loop first, explicit
+        //    `Mcp-Session-Id` always wins.
+        let mut request = self
+            .inner
+            .http_client
+            .delete(&self.inner.url)
+            .timeout(self.inner.call_timeout)
+            .header("Mcp-Session-Id", &self.inner.session_id);
+        for (name, value) in &self.inner.headers {
+            if name.eq_ignore_ascii_case("Mcp-Session-Id") {
+                continue;
+            }
+            request = request.header(name, value);
+        }
+        let response = request.send().await.map_err(|source| {
+            super::Error::Request {
+                url: self.inner.url.clone(),
+                source,
+            }
+        })?;
+
+        // 5. 404 / 401 / 403 → success; other non-2xx → real error.
+        let status = response.status();
+        if matches!(
+            status,
+            reqwest::StatusCode::NOT_FOUND
+                | reqwest::StatusCode::UNAUTHORIZED
+                | reqwest::StatusCode::FORBIDDEN
+        ) {
+            return Ok(());
+        }
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            return Err(super::Error::BadStatus {
+                url: self.inner.url.clone(),
+                code: status,
+                body: body.chars().take(800).collect(),
+            });
+        }
+        Ok(())
+    }
+
     pub(super) async fn new(
         http_client: reqwest::Client,
         url: String,
@@ -110,6 +208,7 @@ impl Connection {
         call_timeout: Duration,
         initialize_result: super::initialize_result::InitializeResult,
         initial_sse_lines: Option<super::LinesStream>,
+        is_reconnect: bool,
     ) -> Self {
         let inner = ConnectionInner::new(
             http_client,
@@ -125,19 +224,23 @@ impl Connection {
             call_timeout,
             initialize_result,
             initial_sse_lines,
+            is_reconnect,
         )
         .await;
         Self { inner }
     }
 
-
     pub(super) fn new_mock(url: String) -> Self {
-        Self { inner: ConnectionInner::new_mock(url) }
+        Self {
+            inner: ConnectionInner::new_mock(url),
+        }
     }
 
     #[cfg(test)]
     pub(crate) fn new_for_test(name: String, url: String) -> Self {
-        Self { inner: ConnectionInner::new_for_test(name, url) }
+        Self {
+            inner: ConnectionInner::new_for_test(name, url),
+        }
     }
 
     /// Send a JSON-RPC notification to the upstream. Used by `Client`
@@ -180,10 +283,8 @@ impl Connection {
         &self,
         params: &super::tool::CallToolRequestParams,
         tool_call_id: String,
-    ) -> Result<
-        crate::agent::completions::message::ToolMessage,
-        super::Error,
-    > {
+    ) -> Result<crate::agent::completions::message::ToolMessage, super::Error>
+    {
         self.inner.call_tool_as_message(params, tool_call_id).await
     }
 
@@ -253,7 +354,9 @@ impl Connection {
     /// restart) is mapped to `Ok(false)` for the same reason as the
     /// drain path: callers do not need to distinguish "no
     /// notifications" from "lost session" at the use site.
-    pub async fn has_pending_notifications(&self) -> Result<bool, super::Error> {
+    pub async fn has_pending_notifications(
+        &self,
+    ) -> Result<bool, super::Error> {
         self.inner.has_pending_notifications().await
     }
 
@@ -347,6 +450,35 @@ pub struct ConnectionInner {
     /// If true, all RPC/notify calls are no-ops. Used for mock orchestrator URLs.
     mock: bool,
 
+    /// `true` iff this connection was opened by resuming an existing
+    /// upstream session — i.e. [`Client::connect`](super::Client::connect)
+    /// was called with `session_id: Some(...)`. Set once at
+    /// construction; never mutated.
+    ///
+    /// Used by the drop-time orphan-DELETE gate in
+    /// [`ConnectionInner::Drop`]: reconnects are **excluded** from
+    /// orphan DELETE because their `any_calls == false` only means
+    /// "this `Connection` instance didn't use it" — an earlier
+    /// instance that opened the upstream session may have. Only
+    /// freshly-minted connections (`is_reconnect == false`) that no
+    /// one used get the drop-time orphan DELETE.
+    is_reconnect: bool,
+
+    /// `true` once any [`Self::call_tool`] or [`Self::read_resource`]
+    /// has been issued through this connection. Listings
+    /// ([`Self::list_tools`], [`Self::list_resources`]) and the
+    /// proxy-side notification helpers do NOT flip this — only
+    /// deliberate use of the upstream session counts.
+    ///
+    /// Stored atomically because the setters live behind `&self`-only
+    /// call paths; `Ordering::Relaxed` is sufficient (we never
+    /// synchronize anything else against this load/store).
+    ///
+    /// Also flipped to `true` at the top of [`super::Connection::delete`]
+    /// so an explicit teardown of a fresh-mint connection can't race
+    /// the drop-time orphan-DELETE into a double-fire.
+    any_calls: AtomicBool,
+
     /// Auto-incrementing request ID (starts at 2; 1 was used for initialize).
     next_id: AtomicU64,
 
@@ -358,11 +490,13 @@ pub struct ConnectionInner {
     /// stream ends so `list_tools` will re-paginate against the
     /// upstream rather than return stale state). `Some(_)` = last
     /// known result, `Ok` or `Err`.
-    tools: RwLock<Option<Result<Arc<Vec<super::tool::Tool>>, Arc<super::Error>>>>,
+    tools:
+        RwLock<Option<Result<Arc<Vec<super::tool::Tool>>, Arc<super::Error>>>>,
     /// All resources from the server, populated by background pagination.
     /// Same `None`/`Some` semantics as [`Self::tools`].
-    resources:
-        RwLock<Option<Result<Arc<Vec<super::resource::Resource>>, Arc<super::Error>>>>,
+    resources: RwLock<
+        Option<Result<Arc<Vec<super::resource::Resource>>, Arc<super::Error>>>,
+    >,
 
     /// Cancellation token for the long-lived `listen_for_list_changes`
     /// task. The listener selects this against every blocking await
@@ -376,7 +510,14 @@ pub struct ConnectionInner {
     /// The listener itself holds a sibling `CancellationToken` (clone),
     /// not the guard, so its task does not extend the connection's
     /// lifetime.
-    _listener_cancel_guard: Option<DropGuard>,
+    ///
+    /// Wrapped in `Mutex<Option<_>>` so explicit teardown paths
+    /// ([`Connection::delete`]) can drop the guard in place — firing
+    /// the cancel token *before* the surrounding `Arc<ConnectionInner>`
+    /// goes away. Regular drop still works: `Mutex<Option<DropGuard>>`
+    /// drops its inner `DropGuard` automatically when the mutex itself
+    /// drops, so existing `Connection::Drop` semantics are unchanged.
+    _listener_cancel_guard: std::sync::Mutex<Option<DropGuard>>,
 
     /// Optional callback fired *after* the listener has refreshed the
     /// tool cache in response to an upstream `notifications/tools/list_changed`.
@@ -439,13 +580,15 @@ impl ConnectionInner {
                 _meta: None,
             },
             mock: true,
+            is_reconnect: false,
+            any_calls: AtomicBool::new(false),
             next_id: AtomicU64::new(2),
             // Mock has no listener and never refreshes; seed with an
             // empty Ok so `list_tools` returns immediately instead of
             // trying to paginate over a non-existent upstream.
             tools: RwLock::new(Some(Ok(Arc::new(Vec::new())))),
             resources: RwLock::new(Some(Ok(Arc::new(Vec::new())))),
-            _listener_cancel_guard: None,
+            _listener_cancel_guard: std::sync::Mutex::new(None),
             on_tools_list_changed: CallbackSlot::new(),
             on_resources_list_changed: CallbackSlot::new(),
             tools_changed: Notify::new(),
@@ -470,16 +613,15 @@ impl ConnectionInner {
             call_timeout: Duration::from_secs(30),
             initialize_result: super::initialize_result::InitializeResult {
                 protocol_version: "2025-03-26".into(),
-                capabilities:
-                    super::initialize_result::ServerCapabilities {
-                        experimental: None,
-                        logging: None,
-                        completions: None,
-                        prompts: None,
-                        resources: None,
-                        tools: None,
-                        tasks: None,
-                    },
+                capabilities: super::initialize_result::ServerCapabilities {
+                    experimental: None,
+                    logging: None,
+                    completions: None,
+                    prompts: None,
+                    resources: None,
+                    tools: None,
+                    tasks: None,
+                },
                 server_info: super::initialize_result::Implementation {
                     name,
                     title: None,
@@ -492,12 +634,14 @@ impl ConnectionInner {
                 _meta: None,
             },
             mock: false,
+            is_reconnect: false,
+            any_calls: AtomicBool::new(false),
             next_id: AtomicU64::new(2),
             // Test connection has no listener and never refreshes; seed
             // with an empty Ok so `list_tools` doesn't try to paginate.
             tools: RwLock::new(Some(Ok(Arc::new(Vec::new())))),
             resources: RwLock::new(Some(Ok(Arc::new(Vec::new())))),
-            _listener_cancel_guard: None,
+            _listener_cancel_guard: std::sync::Mutex::new(None),
             on_tools_list_changed: CallbackSlot::new(),
             on_resources_list_changed: CallbackSlot::new(),
             tools_changed: Notify::new(),
@@ -530,6 +674,7 @@ impl ConnectionInner {
         call_timeout: Duration,
         initialize_result: super::initialize_result::InitializeResult,
         initial_sse_lines: Option<super::LinesStream>,
+        is_reconnect: bool,
     ) -> Arc<Self> {
         // Cancel-the-listener machinery: store the DropGuard inside the
         // inner so the cancellation fires deterministically when the
@@ -552,13 +697,17 @@ impl ConnectionInner {
             call_timeout,
             initialize_result,
             mock: false,
+            is_reconnect,
+            any_calls: AtomicBool::new(false),
             next_id: AtomicU64::new(2),
             // Start empty; `refresh_tools_signaling` below installs
             // `Some(_)` before `new` returns (the lock-handoff oneshot
             // gates the return on the writer holding the lock).
             tools: RwLock::new(None),
             resources: RwLock::new(None),
-            _listener_cancel_guard: Some(listener_cancel.drop_guard()),
+            _listener_cancel_guard: std::sync::Mutex::new(Some(
+                listener_cancel.drop_guard(),
+            )),
             on_tools_list_changed: CallbackSlot::new(),
             on_resources_list_changed: CallbackSlot::new(),
             tools_changed: Notify::new(),
@@ -695,12 +844,13 @@ impl ConnectionInner {
 
         let attempt_one = || async {
             let url = self.url.clone();
-            let response = self.post().json(&body).send().await.map_err(|source| {
-                backoff::Error::transient(super::Error::Request {
-                    url: url.clone(),
-                    source,
-                })
-            })?;
+            let response =
+                self.post().json(&body).send().await.map_err(|source| {
+                    backoff::Error::transient(super::Error::Request {
+                        url: url.clone(),
+                        source,
+                    })
+                })?;
 
             if response.status() == reqwest::StatusCode::NOT_FOUND {
                 return Err(backoff::Error::transient(
@@ -711,7 +861,11 @@ impl ConnectionInner {
                 let code = response.status();
                 let body = response.text().await.unwrap_or_default();
                 return Err(backoff::Error::transient(
-                    super::Error::BadStatus { url: url.clone(), code, body },
+                    super::Error::BadStatus {
+                        url: url.clone(),
+                        code,
+                        body,
+                    },
                 ));
             }
 
@@ -737,7 +891,8 @@ impl ConnectionInner {
             backoff::future::retry(self.backoff(), attempt_one).await
         } else {
             attempt_one().await.map_err(|e| match e {
-                backoff::Error::Permanent(err) | backoff::Error::Transient { err, .. } => err,
+                backoff::Error::Permanent(err)
+                | backoff::Error::Transient { err, .. } => err,
             })
         }
     }
@@ -751,7 +906,9 @@ impl ConnectionInner {
         method: &str,
         params: &P,
     ) -> Result<(), super::Error> {
-        if self.mock { return Ok(()); }
+        if self.mock {
+            return Ok(());
+        }
         let body = serde_json::json!({
             "jsonrpc": "2.0",
             "method": method,
@@ -760,12 +917,13 @@ impl ConnectionInner {
 
         backoff::future::retry(self.backoff(), || async {
             let url = self.url.clone();
-            let response = self.post().json(&body).send().await.map_err(|source| {
-                backoff::Error::transient(super::Error::Request {
-                    url: url.clone(),
-                    source,
-                })
-            })?;
+            let response =
+                self.post().json(&body).send().await.map_err(|source| {
+                    backoff::Error::transient(super::Error::Request {
+                        url: url.clone(),
+                        source,
+                    })
+                })?;
 
             if response.status() == reqwest::StatusCode::NOT_FOUND {
                 return Err(backoff::Error::transient(
@@ -776,7 +934,11 @@ impl ConnectionInner {
                 let code = response.status();
                 let body = response.text().await.unwrap_or_default();
                 return Err(backoff::Error::transient(
-                    super::Error::BadStatus { url: url.clone(), code, body },
+                    super::Error::BadStatus {
+                        url: url.clone(),
+                        code,
+                        body,
+                    },
                 ));
             }
 
@@ -817,10 +979,14 @@ impl ConnectionInner {
         // the invariant in `Self::post`.
         request = request.header("Mcp-Session-Id", &self.session_id);
 
-        let response = request.send().await.map_err(|source| super::Error::Request {
-            url: url.clone(),
-            source,
-        })?;
+        let response =
+            request
+                .send()
+                .await
+                .map_err(|source| super::Error::Request {
+                    url: url.clone(),
+                    source,
+                })?;
 
         if response.status() == reqwest::StatusCode::NOT_FOUND {
             return Ok(Vec::new());
@@ -867,10 +1033,14 @@ impl ConnectionInner {
         // the invariant in `Self::drain_notifications`.
         request = request.header("Mcp-Session-Id", &self.session_id);
 
-        let response = request.send().await.map_err(|source| super::Error::Request {
-            url: url.clone(),
-            source,
-        })?;
+        let response =
+            request
+                .send()
+                .await
+                .map_err(|source| super::Error::Request {
+                    url: url.clone(),
+                    source,
+                })?;
 
         if response.status() == reqwest::StatusCode::NOT_FOUND {
             return Err(super::Error::SessionExpired { url });
@@ -908,10 +1078,14 @@ impl ConnectionInner {
         // the invariant in `Self::drain_notifications`.
         request = request.header("Mcp-Session-Id", &self.session_id);
 
-        let response = request.send().await.map_err(|source| super::Error::Request {
-            url: url.clone(),
-            source,
-        })?;
+        let response =
+            request
+                .send()
+                .await
+                .map_err(|source| super::Error::Request {
+                    url: url.clone(),
+                    source,
+                })?;
 
         if response.status() == reqwest::StatusCode::NOT_FOUND {
             return Ok(false);
@@ -981,154 +1155,127 @@ impl ConnectionInner {
             .clone()
     }
 
-    /// Calls a tool on the MCP server.
+    /// Calls a tool on the MCP server. The returned
+    /// `CallToolResult.content` is **fully resolved**: every
+    /// `ContentBlock::ResourceLink { uri }` whose URI appears in
+    /// `list_resources` has already been replaced by one or more
+    /// `ContentBlock::EmbeddedResource` blocks carrying the fetched
+    /// contents (via `read_resource`). Unknown-URI links pass through
+    /// untouched — the upstream server may have its own out-of-band
+    /// resolution path the caller should preserve.
+    ///
+    /// Resolving inside `call_tool` (rather than downstream in
+    /// `call_tool_as_message`) means every consumer of the result
+    /// sees `EmbeddedResource` shapes uniformly; the stateless
+    /// `From<ContentBlock>` impl is then enough to convert the whole
+    /// result to `RichContent` with no further connection work.
     async fn call_tool(
         &self,
         params: &super::tool::CallToolRequestParams,
     ) -> Result<super::tool::CallToolResult, super::Error> {
+        // Mark the connection as deliberately used. Flipped at the top
+        // of the method (not after success) because even a failed
+        // `tools/call` may have mutated upstream state — we don't want
+        // the drop-time orphan-DELETE second-guessing that.
+        self.any_calls.store(true, Ordering::Relaxed);
         if self.mock {
             return Ok(super::tool::CallToolResult {
-                content: vec![super::tool::ContentBlock::Text(super::tool::TextContent {
-                    text: "mock".to_string(),
-                    annotations: None,
-                    _meta: None,
-                })],
+                content: vec![super::tool::ContentBlock::Text(
+                    super::tool::TextContent {
+                        text: "mock".to_string(),
+                        annotations: None,
+                        _meta: None,
+                    },
+                )],
                 structured_content: None,
                 is_error: None,
                 _meta: None,
             });
         }
-        self.rpc("tools/call", params, false).await
+        let mut result: super::tool::CallToolResult =
+            self.rpc("tools/call", params, false).await?;
+
+        // Build the known-resource URI set for ResourceLink
+        // resolution. `list_resources` failure → empty set (same
+        // safe fallback the resolution path used previously).
+        let known_uris: std::collections::HashSet<String> =
+            match self.list_resources().await {
+                Ok(rs) => rs.iter().map(|r| r.uri.clone()).collect(),
+                Err(_) => std::collections::HashSet::new(),
+            };
+
+        // Walk the blocks, replacing each resolvable ResourceLink
+        // with one EmbeddedResource per returned ResourceContentsUnion.
+        // Everything else (Text, Image, Audio, EmbeddedResource,
+        // unknown-URI ResourceLinks) passes through.
+        let mut resolved: Vec<super::tool::ContentBlock> =
+            Vec::with_capacity(result.content.len());
+        for block in std::mem::take(&mut result.content) {
+            match block {
+                super::tool::ContentBlock::ResourceLink(link)
+                    if known_uris.contains(&link.uri) =>
+                {
+                    let read = self.read_resource(&link.uri).await?;
+                    for contents in read.contents {
+                        resolved.push(
+                            super::tool::ContentBlock::EmbeddedResource(
+                                super::tool::EmbeddedResource {
+                                    resource: contents,
+                                    // ResourceLink's annotations
+                                    // don't have a perfect home on
+                                    // EmbeddedResource — both fields
+                                    // exist but they describe different
+                                    // shapes (the link vs the inlined
+                                    // contents). Drop them on the way
+                                    // in; the EmbeddedResource is now
+                                    // a fresh authoritative block.
+                                    annotations: None,
+                                    _meta: None,
+                                },
+                            ),
+                        );
+                    }
+                }
+                other => resolved.push(other),
+            }
+        }
+        result.content = resolved;
+        Ok(result)
     }
 
-    /// Calls a tool and converts the result into a [`ToolMessage`].
+    /// Calls a tool and converts the (already-resolved) result into a
+    /// [`ToolMessage`]. Resource resolution happens inside
+    /// [`Self::call_tool`] — by the time we get the blocks here every
+    /// resolvable `ResourceLink` has already been replaced with an
+    /// `EmbeddedResource`, so the conversion is a pure stateless
+    /// element-wise map through [`From<ContentBlock> for
+    /// RichContentPart`](crate::agent::completions::message::RichContentPart).
     ///
-    /// Content blocks are mapped as follows:
+    /// Content-block mapping (handled by the `From` impl):
     /// - `text` → text part
     /// - `image` → image_url part (data URL)
     /// - `audio` → input_audio part
-    /// - `resource` (embedded text) → text part
-    /// - `resource` (embedded blob, image mime) → image_url part (data URL)
-    /// - `resource` (embedded blob, other mime) → file part
-    /// - `resource_link` → if the URI appears in `list_resources`, fetches
-    ///   via `read_resource` and inlines the content using the same
-    ///   text/blob rules; otherwise serializes the link as JSON text
-    ///
-    /// If `is_error` is set on the result, the content is prefixed with
-    /// an error indicator.
+    /// - `embedded_resource` (text) → text part
+    /// - `embedded_resource` (blob, image mime) → image_url part
+    /// - `embedded_resource` (blob, audio mime) → input_audio part
+    /// - `embedded_resource` (blob, video mime) → input_video part
+    /// - `embedded_resource` (blob, other mime) → file part
+    /// - `resource_link` (unknown URI) → JSON-text fallback
+    ///   (resolvable URIs were already resolved upstream)
     async fn call_tool_as_message(
         &self,
         params: &super::tool::CallToolRequestParams,
         tool_call_id: String,
-    ) -> Result<
-        crate::agent::completions::message::ToolMessage,
-        super::Error,
-    > {
+    ) -> Result<crate::agent::completions::message::ToolMessage, super::Error>
+    {
         use crate::agent::completions::message::{
-            File, ImageUrl, RichContentPart, ToolMessage, ToolResponseMetadata,
+            RichContentPart, ToolMessage, ToolResponseMetadata,
         };
-        use super::shared::ResourceContentsUnion;
-        use super::tool::ContentBlock;
 
         let result = self.call_tool(params).await?;
 
-        // Build the set of known resource URIs for resource_link resolution.
-        let known_resource_uris: std::collections::HashSet<String> =
-            match self.list_resources().await {
-                Ok(resources) => {
-                    resources.iter().map(|r| r.uri.clone()).collect()
-                }
-                Err(_) => std::collections::HashSet::new(),
-            };
-
-        /// Converts a `ResourceContentsUnion` into one or more rich content
-        /// parts. Text resources become text parts. Blob resources with an
-        /// image MIME type become image_url parts (data URL); all other blobs
-        /// become file parts. This conversion is connection-local (the
-        /// `ResourceContentsUnion` shape doesn't exist outside the proxy
-        /// fetch path), so it doesn't go through a generic `From` impl.
-        fn resource_contents_to_part(
-            contents: ResourceContentsUnion,
-        ) -> RichContentPart {
-            match contents {
-                ResourceContentsUnion::Text(text) => RichContentPart::Text {
-                    text: text.text,
-                },
-                ResourceContentsUnion::Blob(blob) => {
-                    let mime = blob
-                        .base
-                        .mime_type
-                        .as_deref()
-                        .unwrap_or("application/octet-stream");
-
-                    if mime.starts_with("image/") {
-                        RichContentPart::ImageUrl {
-                            image_url: ImageUrl {
-                                url: format!(
-                                    "data:{};base64,{}",
-                                    mime, blob.blob
-                                ),
-                                detail: None,
-                            },
-                        }
-                    } else {
-                        // Extract a filename from the URI path, if any.
-                        let filename = blob
-                            .base
-                            .uri
-                            .rsplit('/')
-                            .next()
-                            .filter(|s| !s.is_empty())
-                            .map(String::from);
-
-                        RichContentPart::File {
-                            file: File {
-                                file_data: Some(blob.blob),
-                                filename,
-                                file_id: None,
-                                file_url: None,
-                            },
-                        }
-                    }
-                }
-            }
-        }
-
-        let mut parts: Vec<RichContentPart> = Vec::new();
-
-        for block in result.content {
-            match block {
-                // Text / Image / Audio go through the shared
-                // `From<ContentBlock> for RichContentPart` impl so
-                // every call site converges on one mapping.
-                ContentBlock::Text(_)
-                | ContentBlock::Image(_)
-                | ContentBlock::Audio(_) => {
-                    parts.push(block.into());
-                }
-                // EmbeddedResource needs connection-local resolution
-                // into its inlined content shape — can't go through
-                // the stateless `From` impl (which would JSON-text-
-                // fallback instead of inlining).
-                ContentBlock::EmbeddedResource(embedded) => {
-                    parts.push(resource_contents_to_part(embedded.resource));
-                }
-                // ResourceLink: when the URI is known, fetch + inline;
-                // otherwise delegate to `From<ContentBlock>` which
-                // text-falls-back to the JSON-serialized link.
-                ContentBlock::ResourceLink(link) => {
-                    if known_resource_uris.contains(&link.uri) {
-                        let read_result =
-                            self.read_resource(&link.uri).await?;
-                        for contents in read_result.contents {
-                            parts.push(resource_contents_to_part(contents));
-                        }
-                    } else {
-                        parts.push(ContentBlock::ResourceLink(link).into());
-                    }
-                }
-            }
-        }
+        let parts: Vec<RichContentPart> =
+            result.content.into_iter().map(Into::into).collect();
 
         // Lossy-decode the MCP `_meta` extension bag into our typed
         // `ToolResponseMetadata`. Unknown keys (set by non-objectiveai
@@ -1247,6 +1394,9 @@ impl ConnectionInner {
         &self,
         uri: &str,
     ) -> Result<super::resource::ReadResourceResult, super::Error> {
+        // Mark the connection as deliberately used (same reasoning as
+        // `call_tool` — see the drop-time orphan-DELETE gate).
+        self.any_calls.store(true, Ordering::Relaxed);
         self.rpc(
             "resources/read",
             &super::resource::ReadResourceRequestParams {
@@ -1285,10 +1435,8 @@ impl ConnectionInner {
         // guard, *after* `*guard = result`, so anyone awoken by them
         // queues on the read lock, waits for the guard to drop, and
         // observes the post-swap state.
-        let (mut guard, result) = tokio::join!(
-            self.tools.write(),
-            self.paginate_tools(),
-        );
+        let (mut guard, result) =
+            tokio::join!(self.tools.write(), self.paginate_tools(),);
         *guard = Some(result);
         self.tools_changed.notify_waiters();
         if let Some(cb) = on_change {
@@ -1364,10 +1512,8 @@ impl ConnectionInner {
         // Same paginate-while-acquiring-the-write-lock pattern as
         // `refresh_tools` — see that comment for the visibility +
         // performance rationale.
-        let (mut guard, result) = tokio::join!(
-            self.resources.write(),
-            self.paginate_resources(),
-        );
+        let (mut guard, result) =
+            tokio::join!(self.resources.write(), self.paginate_resources(),);
         *guard = Some(result);
         self.resources_changed.notify_waiters();
         if let Some(cb) = on_change {
@@ -1549,7 +1695,9 @@ impl ConnectionInner {
                 // recovery isn't sequential.
                 let _ = tokio::join!(
                     this.refresh_tools(this.on_tools_list_changed.get()),
-                    this.refresh_resources(this.on_resources_list_changed.get()),
+                    this.refresh_resources(
+                        this.on_resources_list_changed.get()
+                    ),
                 );
             }
             is_reconnect = true;
@@ -1627,6 +1775,106 @@ impl ConnectionInner {
     }
 }
 
+impl Drop for ConnectionInner {
+    /// Orphan-DELETE hook: when a **freshly-minted** connection (not a
+    /// resume) is dropped without any deliberate use — no `call_tool`,
+    /// no `read_resource`, no explicit `Connection::delete` — spawn a
+    /// fire-and-forget HTTP DELETE so the upstream session we just
+    /// opened doesn't sit there accruing per-session state for nothing.
+    ///
+    /// Reconnect-resumes are deliberately excluded: a reconnect's
+    /// `any_calls == false` only means *this* `Connection` instance
+    /// never called anything — the underlying upstream session may
+    /// well have been used by an earlier `Connection` that opened it,
+    /// did real work, and let us re-attach. Tearing it down here would
+    /// kill a still-live session out from under whoever owns it.
+    /// Reconnects rely on the proxy's explicit `Connection::delete`
+    /// (or `Client::delete`) for upstream cleanup instead.
+    ///
+    /// Skip conditions (any one triggers a no-op):
+    ///
+    /// - `mock` is `true` — there was never an HTTP session to begin with.
+    /// - `is_reconnect` is `true` — see above; the upstream session
+    ///   pre-existed this connection and isn't ours to tear down on drop.
+    /// - `any_calls` is `true` — the connection was deliberately used,
+    ///   or an explicit `Connection::delete` already ran.
+    /// - No tokio runtime is in scope — `tokio::spawn` would panic.
+    ///   Silently leak the upstream session in this case (sync
+    ///   teardown paths e.g. `cfg(test)` blocks not driven by tokio).
+    ///
+    /// The listener-cancel `DropGuard` inside `_listener_cancel_guard`
+    /// fires automatically as part of this same `drop` call, so by the
+    /// time the orphan DELETE goes out the listener task has already
+    /// been told to cancel — no SSE/GET race with the upstream DELETE.
+    fn drop(&mut self) {
+        if self.mock {
+            return;
+        }
+        if self.is_reconnect {
+            return;
+        }
+        if self.any_calls.load(Ordering::Relaxed) {
+            return;
+        }
+
+        // Clone out the bits the orphan task needs. None of these are
+        // big: `reqwest::Client` is itself an `Arc` bump,
+        // `IndexMap<String, String>` is the per-connection header bag
+        // (small), and the `String`s are the per-session id + URL.
+        let http_client = self.http_client.clone();
+        let url = self.url.clone();
+        let session_id = self.session_id.clone();
+        let headers = self.headers.clone();
+        let timeout = self.call_timeout;
+
+        // Spawn only if a tokio runtime is in scope. `tokio::spawn`
+        // panics outside one — sync teardown paths (e.g. a test that
+        // builds a `Connection` and lets it drop on a non-async stack)
+        // would crash without this guard.
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            handle.spawn(orphan_delete(
+                http_client,
+                url,
+                session_id,
+                headers,
+                timeout,
+            ));
+        }
+    }
+}
+
+/// Fire-and-forget HTTP `DELETE` used by [`ConnectionInner::drop`] to
+/// release a resumed upstream session that was never used. Mirrors
+/// [`super::Connection::delete`]'s wire shape (same `Mcp-Session-Id`
+/// header behavior, same header-loop with the explicit session id
+/// winning over any `Mcp-Session-Id` entry in `headers`) but never
+/// surfaces errors — there's no caller left to surface them to. The
+/// `timeout` (sourced from the originating connection's `call_timeout`)
+/// caps the request so a hanging upstream can't keep the spawned task
+/// alive forever.
+async fn orphan_delete(
+    http_client: reqwest::Client,
+    url: String,
+    session_id: String,
+    headers: IndexMap<String, String>,
+    timeout: Duration,
+) {
+    let mut request = http_client
+        .delete(&url)
+        .timeout(timeout)
+        .header("Mcp-Session-Id", &session_id);
+    for (name, value) in &headers {
+        if name.eq_ignore_ascii_case("Mcp-Session-Id") {
+            continue;
+        }
+        request = request.header(name, value);
+    }
+    // Errors silently swallowed: no caller, and the listener-cancel
+    // guard has already fired (it runs as part of the regular
+    // `_listener_cancel_guard` drop inside the same `drop` call).
+    let _ = request.send().await;
+}
+
 #[cfg(test)]
 mod subscribe_tests {
     use super::*;
@@ -1677,9 +1925,7 @@ mod subscribe_tests {
         *conn.inner.tools.write().await = Some(Err(Arc::new(err)));
 
         let start = std::time::Instant::now();
-        let got = conn
-            .subscribe_tools(&[], Duration::from_secs(5))
-            .await;
+        let got = conn.subscribe_tools(&[], Duration::from_secs(5)).await;
         assert!(start.elapsed() < Duration::from_millis(100));
         assert!(got.is_err());
     }
@@ -1805,11 +2051,15 @@ mod drain_notifications_tests {
         let blocks = conn.drain_notifications().await.expect("drain ok");
         assert_eq!(blocks.len(), 2);
         match &blocks[0] {
-            ContentBlock::Text(TextContent { text, .. }) => assert_eq!(text, "first"),
+            ContentBlock::Text(TextContent { text, .. }) => {
+                assert_eq!(text, "first")
+            }
             other => panic!("expected text, got {other:?}"),
         }
         match &blocks[1] {
-            ContentBlock::Text(TextContent { text, .. }) => assert_eq!(text, "second"),
+            ContentBlock::Text(TextContent { text, .. }) => {
+                assert_eq!(text, "second")
+            }
             other => panic!("expected text, got {other:?}"),
         }
     }
@@ -1858,10 +2108,7 @@ mod drain_notifications_tests {
             .await;
 
         let conn = Connection::new_for_test("t".into(), server.uri());
-        let err = conn
-            .drain_notifications()
-            .await
-            .expect_err("5xx → err");
+        let err = conn.drain_notifications().await.expect_err("5xx → err");
         match err {
             super::super::Error::BadStatus { code, body, .. } => {
                 assert_eq!(code.as_u16(), 500);
@@ -1909,7 +2156,9 @@ mod has_pending_notifications_tests {
         let server = MockServer::start().await;
         Mock::given(method("GET"))
             .and(path("/notify/queued"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!(false)))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(json!(false)),
+            )
             .mount(&server)
             .await;
 

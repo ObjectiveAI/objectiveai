@@ -5,9 +5,11 @@
 //! type declared in the input schema actually appears in at least one compiled
 //! task's messages or responses.
 
-use crate::agent::completions::message::{Message, RichContent, RichContentPart};
-use crate::functions::expression::InputSchema;
+use crate::agent::completions::message::{
+    Message, RichContent, RichContentPart,
+};
 use crate::functions::VectorCompletionTask;
+use crate::functions::expression::InputSchema;
 
 /// Indices: 0 = image, 1 = audio, 2 = video, 3 = file.
 pub type ModalityFlags = [bool; 4];
@@ -18,7 +20,10 @@ const VIDEO: usize = 2;
 const FILE: usize = 3;
 
 /// Walks an `InputSchema` recursively and sets flags for any multimodal types found.
-pub fn collect_schema_modalities(schema: &InputSchema, flags: &mut ModalityFlags) {
+pub fn collect_schema_modalities(
+    schema: &InputSchema,
+    flags: &mut ModalityFlags,
+) {
     match schema {
         InputSchema::Image(_) => flags[IMAGE] = true,
         InputSchema::Audio(_) => flags[AUDIO] = true,
@@ -108,9 +113,8 @@ fn collect_rich_content_modalities(
             match part {
                 RichContentPart::ImageUrl { .. } => flags[IMAGE] = true,
                 RichContentPart::InputAudio { .. } => flags[AUDIO] = true,
-                RichContentPart::InputVideo { .. } | RichContentPart::VideoUrl { .. } => {
-                    flags[VIDEO] = true
-                }
+                RichContentPart::InputVideo { .. }
+                | RichContentPart::VideoUrl { .. } => flags[VIDEO] = true,
                 RichContentPart::File { .. } => flags[FILE] = true,
                 RichContentPart::Text { .. } => {}
             }

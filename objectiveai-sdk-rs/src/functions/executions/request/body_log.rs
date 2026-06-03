@@ -15,12 +15,14 @@
 
 use crate::{agent, functions};
 use schemars::JsonSchema;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-use crate::filesystem::logs::LogReference;
+use crate::logs::LogReference;
 
-#[derive(Debug, Clone, Serialize, JsonSchema)]
-#[schemars(rename = "functions.executions.request.FunctionExecutionCreateParamsLog")]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(
+    rename = "functions.executions.request.FunctionExecutionCreateParamsLog"
+)]
 pub struct FunctionExecutionCreateParamsLog {
     pub function: functions::FullInlineFunctionOrRemoteCommitOptional,
     pub profile: functions::InlineProfileOrRemoteCommitOptional,

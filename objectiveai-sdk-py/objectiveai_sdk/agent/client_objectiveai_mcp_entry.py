@@ -6,7 +6,9 @@ from pydantic import BaseModel, ConfigDict
 
 class ClientObjectiveaiMcpEntry(BaseModel):
     """A single `owner` / `name` / `version` reference identifying one
-plugin or one tool inside [`ClientObjectiveaiMcp`]."""
+tool inside [`ClientObjectiveaiMcp::tools`]. Plugin references
+use the larger [`ClientObjectiveaiMcpPluginEntry`] — they carry
+extra `executable` / `mcp_servers` fields tools don't have."""
     model_config = ConfigDict(title='agent.ClientObjectiveaiMcpEntry')
 
     name: str

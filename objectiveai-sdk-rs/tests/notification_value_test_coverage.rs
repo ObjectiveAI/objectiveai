@@ -1,9 +1,17 @@
-//! Asserts every `NotificationValue` variant has a corresponding
+//! Asserts every concrete notification variant has a corresponding
 //! round-trip test in `src/cli/output/tests.rs`. When a new variant
-//! is added to the enum, this test fails until a matching
-//! `nv_<snake_case_variant>_roundtrip` (or
+//! is added to `TypedNotificationValue` (or to the outer
+//! `NotificationValue`'s non-`Typed` variants), this test fails
+//! until a matching `nv_<snake_case_variant>_roundtrip` (or
 //! `nv_<snake_case_variant>_<sub>_roundtrip` for variants that
 //! split across sub-cases) lands too.
+//!
+//! The outer `NotificationValue` is a two-variant pass-through
+//! (`Typed(TypedNotificationValue)` + `Other(Map)`). The original
+//! coverage guarantee was per-payload-type; after the two-layer
+//! refactor it lives on `TypedNotificationValue`. `Typed` itself is
+//! skipped (no payload of its own) and only the typed sub-variants
+//! plus the outer `Other` are required to have round-trip coverage.
 //!
 //! Pattern mirrors `tests/arbitrary_with_coverage.rs` — read a known
 //! source path, parse with `syn`, panic with a sorted list of all
@@ -39,26 +47,40 @@ fn every_notification_value_variant_has_a_roundtrip_test() {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
     let nv_path = Path::new(manifest_dir)
         .join("src/cli/output/notification/notification_value.rs");
-    let tests_path = Path::new(manifest_dir)
-        .join("src/cli/output/tests.rs");
+    let tests_path = Path::new(manifest_dir).join("src/cli/output/tests.rs");
 
-    let nv_src = fs::read_to_string(&nv_path).expect("read notification_value.rs");
-    let nv_file = syn::parse_file(&nv_src).expect("parse notification_value.rs");
+    let nv_src =
+        fs::read_to_string(&nv_path).expect("read notification_value.rs");
+    let nv_file =
+        syn::parse_file(&nv_src).expect("parse notification_value.rs");
 
-    let variants: Vec<String> = nv_file
-        .items
-        .iter()
-        .find_map(|item| {
-            if let Item::Enum(e) = item {
-                if e.ident == "NotificationValue" {
-                    return Some(
-                        e.variants.iter().map(|v| v.ident.to_string()).collect(),
-                    );
+    let mut variants: Vec<String> = Vec::new();
+    for item in &nv_file.items {
+        let Item::Enum(e) = item else { continue };
+        match e.ident.to_string().as_str() {
+            "NotificationValue" => {
+                // Outer pass-through enum. `Typed` is unpacked below;
+                // every other variant (`Other`, future siblings)
+                // needs its own `nv_*_roundtrip`.
+                for v in &e.variants {
+                    let ident = v.ident.to_string();
+                    if ident != "Typed" {
+                        variants.push(ident);
+                    }
                 }
             }
-            None
-        })
-        .expect("NotificationValue enum not found in notification_value.rs");
+            "TypedNotificationValue" => {
+                for v in &e.variants {
+                    variants.push(v.ident.to_string());
+                }
+            }
+            _ => {}
+        }
+    }
+    assert!(
+        !variants.is_empty(),
+        "neither NotificationValue nor TypedNotificationValue found in notification_value.rs",
+    );
 
     let tests_src = fs::read_to_string(&tests_path).expect("read tests.rs");
     let tests_file = syn::parse_file(&tests_src).expect("parse tests.rs");

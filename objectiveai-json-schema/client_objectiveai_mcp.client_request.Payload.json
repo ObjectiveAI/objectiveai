@@ -1,14 +1,33 @@
 {
   "title": "client_objectiveai_mcp.client_request.Payload",
-  "description": "Tagged union of request shapes the API can push down the\nreverse-attach channel to the client-app layer.",
-  "type": "object",
-  "$ref": "agent.completions.request.AgentCompletionNotifyParams",
-  "properties": {
-    "type": {
-      "type": "string",
-      "enum": [
-        "agent_completion_notify"
-      ]
+  "description": "Tagged union of request shapes the client-app layer can push down\nthe reverse-attach channel.\n\nDespite the module name, payloads flow in BOTH directions:\n- **API → client**: `AgentCompletionNotify` (the API pushes a\n  user message into a running agent completion).\n- **client → API**: `McpListChanged` (the CLI's upstream\n  `mcp::Connection` fired\n  `notifications/{tools,resources}/list_changed` and the API\n  re-emits it as an SSE event on the matching\n  `/objectiveai-mcp/{ws_session_id}` GET stream).\n\nThe wire envelope's `id` field always belongs to whichever side\noriginated the request; the receiver's `client_response::Response`\nechoes the same `id`.",
+  "anyOf": [
+    {
+      "title": "AgentCompletionNotify",
+      "type": "object",
+      "$ref": "agent.completions.request.AgentCompletionNotifyParams",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "agent_completion_notify"
+          ]
+        }
+      }
+    },
+    {
+      "title": "McpListChanged",
+      "description": "The CLI's upstream `mcp::Connection` for `mcp_session_id`\nfired `notifications/<kind>/list_changed`. The API\ndispatches this onto its per-`(ws_session_id, mcp_session_id)`\nbroadcast so every matching MCP GET-SSE listener sees a\nstandard MCP notification frame.",
+      "type": "object",
+      "$ref": "client_objectiveai_mcp.client_request.McpListChanged",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "mcp_list_changed"
+          ]
+        }
+      }
     }
-  }
+  ]
 }

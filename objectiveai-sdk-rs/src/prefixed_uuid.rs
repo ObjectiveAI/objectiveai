@@ -33,7 +33,9 @@ use std::str::FromStr;
 /// let key = ApiKey::new();
 /// println!("{}", key); // Outputs: apk<uuid>
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, JsonSchema)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, JsonSchema,
+)]
 #[schemars(rename = "PrefixedUuid")]
 pub struct PrefixedUuid<const PFX_1: char, const PFX_2: char, const PFX_3: char>
 {

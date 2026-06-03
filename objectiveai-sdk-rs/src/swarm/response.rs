@@ -1,7 +1,7 @@
 //! Response types for Swarm API endpoints.
 
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// Response containing a list of Swarms.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

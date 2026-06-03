@@ -1,5 +1,7 @@
 {
   "description": "References a swarm that does not exist.",
   "swarm": "nonexistent-swarm-id",
-  "weights": [1.0]
+  "weights": [
+    1.0
+  ]
 }

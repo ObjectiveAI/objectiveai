@@ -1,6 +1,6 @@
 use crate::{agent, laboratories::executions::response};
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// A single builder agent completion within a laboratory execution (non-streaming).
 #[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]

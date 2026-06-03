@@ -11,5 +11,8 @@
       "output_mode": "json_schema"
     }
   ],
-  "weights": [0.7, 0.3]
+  "weights": [
+    0.7,
+    0.3
+  ]
 }

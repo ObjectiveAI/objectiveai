@@ -1,7 +1,7 @@
 //! Invention prompt listing and usage response types.
 
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// Response from listing prompts.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

@@ -1,8 +1,8 @@
 //! Retry token for reusing votes from previous executions.
 
 use base64::Engine;
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// Token that enables reusing votes from a previous function execution.
 ///

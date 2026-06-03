@@ -33,7 +33,8 @@ pub async fn create_function_invention_recursive_streaming<H: McpHandler>(
                 super::response::streaming::FunctionInventionRecursiveChunk,
                 HttpError,
             >,
-        > + Send
+        >
+        + Send
         + Unpin
         + 'static
         + use<H>,

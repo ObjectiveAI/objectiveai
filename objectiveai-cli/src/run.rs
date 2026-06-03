@@ -1,18 +1,12 @@
-use clap::{Parser, Subcommand};
-use envconfig::Envconfig;
+use std::pin::Pin;
 
-use crate::api;
-use crate::agents;
-use crate::swarms;
-use crate::functions;
-use crate::viewer;
-use crate::mcp;
-use crate::schemas;
-use crate::logs;
-use crate::plugins;
-use crate::tools;
-use crate::vector;
-use crate::error;
+use envconfig::Envconfig;
+use futures::{Stream, StreamExt};
+use objectiveai_sdk::cli::command::{ResponseItem, parse_request};
+
+use crate::context::Context;
+use crate::error::Error;
+use crate::instance::InstanceEmission;
 
 #[derive(Envconfig)]
 struct EnvConfigBuilder {
@@ -24,26 +18,14 @@ struct EnvConfigBuilder {
     commit_author_name: Option<String>,
     #[envconfig(from = "COMMIT_AUTHOR_EMAIL")]
     commit_author_email: Option<String>,
-    /// Consumed by the auto-updater to authenticate against GitHub's
-    /// release API — matches the env name the rest of the CLI honours
-    /// (see `objectiveai_sdk::HttpClient::new` in
-    /// `objectiveai-rs/src/http/client.rs`).
     #[envconfig(from = "GITHUB_AUTHORIZATION")]
     github_authorization: Option<String>,
+    #[envconfig(from = "OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY")]
+    agent_instance_hierarchy: Option<String>,
     #[envconfig(from = "OBJECTIVEAI_AGENT_ID")]
     agent_id: Option<String>,
-    /// MCP session id, propagated by `objectiveai-mcp` when it
-    /// invokes this cli to run a tool, and by the cli further
-    /// into every tool subprocess it spawns. Same string as the
-    /// `Mcp-Session-Id` HTTP header.
     #[envconfig(from = "MCP_SESSION_ID")]
     mcp_session_id: Option<String>,
-    /// Boolean marker set by `objectiveai-mcp` at startup. When true,
-    /// every plugin / tool subprocess this cli spawns also gets the
-    /// flag in its env so descendants can tell they're under MCP.
-    /// Constant: `objectiveai_sdk::mcp::OBJECTIVEAI_MCP_ENV`.
-    #[envconfig(from = "OBJECTIVEAI_MCP")]
-    mcp: Option<String>,
 }
 
 impl EnvConfigBuilder {
@@ -58,9 +40,9 @@ impl EnvConfigBuilder {
             commit_author_name: self.commit_author_name,
             commit_author_email: self.commit_author_email,
             github_authorization: self.github_authorization,
+            agent_instance_hierarchy: self.agent_instance_hierarchy,
             agent_id: self.agent_id,
             mcp_session_id: self.mcp_session_id,
-            mcp: self.mcp.map(|s| parse_bool(&s)),
         }
     }
 }
@@ -72,9 +54,9 @@ pub struct ConfigBuilder {
     pub commit_author_name: Option<String>,
     pub commit_author_email: Option<String>,
     pub github_authorization: Option<String>,
+    pub agent_instance_hierarchy: Option<String>,
     pub agent_id: Option<String>,
     pub mcp_session_id: Option<String>,
-    pub mcp: Option<bool>,
 }
 
 impl Envconfig for ConfigBuilder {
@@ -87,7 +69,9 @@ impl Envconfig for ConfigBuilder {
         EnvConfigBuilder::init_from_env().map(|e| e.build())
     }
 
-    fn init_from_hashmap(hashmap: &std::collections::HashMap<String, String>) -> Result<Self, envconfig::Error> {
+    fn init_from_hashmap(
+        hashmap: &std::collections::HashMap<String, String>,
+    ) -> Result<Self, envconfig::Error> {
         EnvConfigBuilder::init_from_hashmap(hashmap).map(|e| e.build())
     }
 }
@@ -100,9 +84,11 @@ impl ConfigBuilder {
             commit_author_name: self.commit_author_name,
             commit_author_email: self.commit_author_email,
             github_authorization: self.github_authorization,
-            agent_id: self.agent_id.unwrap_or_else(|| "cli".to_string()),
+            agent_instance_hierarchy: self
+                .agent_instance_hierarchy
+                .unwrap_or_else(|| "cli".to_string()),
+            agent_id: self.agent_id,
             mcp_session_id: self.mcp_session_id,
-            mcp: self.mcp.unwrap_or(false),
         }
     }
 }
@@ -114,206 +100,32 @@ pub struct Config {
     pub commit_author_name: Option<String>,
     pub commit_author_email: Option<String>,
     pub github_authorization: Option<String>,
-    /// Always populated. Defaults to `"cli"` for direct CLI invocations
-    /// (the `ConfigBuilder` fills it in if `OBJECTIVEAI_AGENT_ID` is
-    /// unset). Programmatic embedders that build a `Config` directly
-    /// (e.g. `objectiveai-mcp`) supply their own default — `"mcp"`
-    /// for MCP-routed calls, then per-request overridden from the
-    /// `X-OBJECTIVEAI-AGENT-ID` header.
-    pub agent_id: String,
+    pub agent_instance_hierarchy: String,
+    pub agent_id: Option<String>,
     pub mcp_session_id: Option<String>,
-    pub mcp: bool,
 }
 
-#[derive(Parser)]
-#[command(name = "objectiveai")]
-#[command(about = "ObjectiveAI CLI")]
-#[command(after_help = "\
-JSON schemas for every public type are available via `objectiveai schemas`. \
-Run `objectiveai schemas --help` to browse them, or pipe a specific schema \
-into your tool of choice to drive structured-output generation.")]
-struct Cli {
-    #[command(subcommand)]
-    command: Commands,
+/// One typed item yielded by [`run`]. The two variants reflect the
+/// two dispatch paths: the bare-naked command tree (the SDK's typed
+/// `ResponseItem` aggregator) or the instance subprocess runtime (its
+/// own typed [`InstanceEmission`] enum).
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(untagged)]
+pub enum RunItem {
+    Command(ResponseItem),
+    Instance(InstanceEmission),
 }
 
-#[derive(Subcommand)]
-enum Commands {
-    /// API configuration and operations
-    Api {
-        #[command(subcommand)]
-        command: api::Commands,
-    },
-    /// Agents management
-    Agents {
-        #[command(subcommand)]
-        command: agents::Commands,
-    },
-    /// Swarms management
-    Swarms {
-        #[command(subcommand)]
-        command: swarms::Commands,
-    },
-    /// Functions management
-    Functions {
-        #[command(subcommand)]
-        command: functions::Commands,
-    },
-    /// Viewer management
-    Viewer {
-        #[command(subcommand)]
-        command: viewer::Commands,
-    },
-    /// MCP server management
-    Mcp {
-        #[command(subcommand)]
-        command: mcp::Commands,
-    },
-    /// Browse JSON schemas
-    Schemas {
-        #[command(subcommand)]
-        command: schemas::Commands,
-    },
-    /// Vector completions
-    Vector {
-        #[command(subcommand)]
-        command: vector::Commands,
-    },
-    /// Browse and read logs
-    Logs {
-        #[command(subcommand)]
-        command: logs::Commands,
-    },
-    /// Plugins management
-    Plugins {
-        #[command(subcommand)]
-        command: plugins::Commands,
-    },
-    /// Local-filesystem tools — list, get, install (instructions only).
-    Tools {
-        #[command(subcommand)]
-        command: tools::Commands,
-    },
-    /// Update the cli and all managed binaries (api, viewer, mcp) from
-    /// the latest GitHub release. Refuses to proceed unless all four
-    /// expected assets are present for the host triple.
-    Update,
-    /// Run a plugin from `~/.objectiveai/plugins/`. First element is
-    /// the plugin name; the rest are forwarded as the plugin's argv.
-    /// Captured via clap's external-subcommand mechanism — any first
-    /// arg that isn't a known built-in lands here.
-    #[command(external_subcommand)]
-    External(Vec<String>),
-}
-
-impl Commands {
-    pub async fn handle(
-        self,
-        cli_config: &Config,
-        handle: &objectiveai_sdk::cli::output::Handle,
-    ) -> Result<(), error::Error> {
-        match self {
-            Commands::Api { command } => command.handle(cli_config, handle).await,
-            Commands::Agents { command } => command.handle(cli_config, handle).await,
-            Commands::Swarms { command } => command.handle(cli_config, handle).await,
-            Commands::Functions { command } => command.handle(cli_config, handle).await,
-            Commands::Viewer { command } => command.handle(cli_config, handle).await,
-            Commands::Mcp { command } => command.handle(cli_config, handle).await,
-            Commands::Schemas { command } => command.handle(handle).await,
-            Commands::Vector { command } => command.handle(cli_config, handle).await,
-            Commands::Logs { command } => command.handle(cli_config, handle).await,
-            Commands::Plugins { command } => command.handle(cli_config, handle).await,
-            Commands::Tools { command } => command.handle(cli_config, handle).await,
-            Commands::Update => crate::updater::run_update(cli_config, handle).await,
-            Commands::External(args) => crate::plugins::dispatch_external(args, cli_config, handle).await,
-        }
-    }
-}
+pub type RunStream = Pin<Box<dyn Stream<Item = Result<RunItem, Error>> + Send>>;
 
 /// Build the top-level CLI config from the process environment.
-///
-/// Isolated so `main.rs` can construct a single `Config` and share it
-/// with both the auto-updater (before parsing argv) and `run` itself.
 pub fn load_config() -> Config {
     ConfigBuilder::init_from_env().unwrap_or_default().build()
 }
 
-/// Run the CLI, parsing arguments from the provided iterator.
-/// The iterator should include the binary name as the first element
-/// (e.g., `["objectiveai", "agents", "list"]`).
-///
-/// Emits [`objectiveai_sdk::cli::output::BEGIN`] as the very first line
-/// and [`objectiveai_sdk::cli::output::END`] as the very last line.
-/// Everything else (handler output, error notifications) appears
-/// between those bookends.
-///
-/// Returns an exit code: `0` on success, `1` on any failure. Errors
-/// are emitted internally as `Output::Error` via `handle` before the
-/// function returns — the caller doesn't see them. Handlers emit
-/// their own [`objectiveai_sdk::cli::output::Output`] lines for
-/// successful runs.
-pub async fn run<I, T>(
-    args: I,
-    cli_config: &Config,
-    handle: objectiveai_sdk::cli::output::Handle,
-) -> i32
-where
-    I: IntoIterator<Item = T>,
-    T: Into<std::ffi::OsString> + Clone,
-{
-    use objectiveai_sdk::cli::output::{Error as OutputError, Level, Notification, Output};
-
-    let code = match Cli::try_parse_from(args) {
-        Ok(cli) => match cli.command.handle(cli_config, &handle).await {
-            Ok(()) => 0,
-            Err(e) => {
-                let exit_code = match &e {
-                    error::Error::ToolExit(code) => *code,
-                    _ => 1,
-                };
-                let err = e.to_output(Level::Error, true);
-                Output::Error(err).emit(&handle).await;
-                exit_code
-            }
-        },
-        Err(e) if is_informational(&e) => {
-            // --help, --version, or "no subcommand → show help". Not
-            // an error — render as a single notification with the help
-            // text as a plain string. Exit 0 so scripts can run
-            // `objectiveai --help` without `&&` short-circuiting.
-            //
-            // Going through Output::Error here would also cause a
-            // stderr-mirror double-print (handle.rs emits fatal errors
-            // to both stdout AND stderr so they survive stdout
-            // capture), which is wrong for help output.
-            Output::Notification(Notification { agent_id: None,
-                value: objectiveai_sdk::cli::output::Help { help: e.to_string() }.into(),
-            })
-            .emit(&handle)
-            .await;
-            0
-        }
-        Err(e) => {
-            let err = OutputError {
-                level: Level::Error,
-                fatal: true,
-                message: e.to_string().into(),
-                agent_id: None,
-            };
-            Output::Error(err).emit(&handle).await;
-            1
-        }
-    };
-
-    code
-}
-
 /// Did clap exit with one of the "successful informational output"
-/// variants? `--help`, `--version`, or a missing-subcommand bail. These
-/// aren't errors — they're rendered as Notifications rather than
-/// fatal Errors so consumers don't treat them as failures and the
-/// stderr-mirror dance doesn't double-print to mixed terminals.
-fn is_informational(e: &clap::Error) -> bool {
+/// variants? `--help`, `--version`, or a missing-subcommand bail.
+pub fn is_informational(e: &clap::Error) -> bool {
     use clap::error::ErrorKind;
     matches!(
         e.kind(),
@@ -321,4 +133,46 @@ fn is_informational(e: &clap::Error) -> bool {
             | ErrorKind::DisplayVersion
             | ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand
     )
+}
+
+/// Run the CLI.
+///
+/// Step 1: if argv[1] is `"instance"`, fast-path into the
+/// FD-handshake instance subcommand — no clap, no [`Context`],
+/// no SDK [`Request`]. The instance handler returns its own typed
+/// [`InstanceEmission`] stream which we wrap as
+/// [`RunItem::Instance`].
+///
+/// Step 2: otherwise, clap-parse argv against the SDK's top-level
+/// [`SdkCommand`]; `TryFrom` it into [`Request`]; resolve
+/// [`Context`] (caller-supplied or built from env); dispatch through
+/// `crate::command::command::execute`. Each yielded
+/// [`ResponseItem`] is wrapped as [`RunItem::Command`].
+///
+/// Pre-dispatch failures (clap parse error, arg-conversion error,
+/// context build) and child-function errors propagate as the outer
+/// `Err`. On success the caller consumes the stream.
+pub async fn run(
+    args: Vec<String>,
+    ctx: Option<Context>,
+) -> Result<RunStream, Error> {
+    if args.get(1).map(String::as_str) == Some("instance") {
+        let inst = crate::instance::run().await?;
+        return Ok(Box::pin(inst.map(|r| r.map(RunItem::Instance))));
+    }
+
+    let request = parse_request(&args).map_err(|e| match e {
+        objectiveai_sdk::cli::command::ParseError::Clap(e) => Error::ClapParse(e),
+        objectiveai_sdk::cli::command::ParseError::FromArgs(e) => Error::FromArgs(e),
+    })?;
+
+    let ctx = match ctx {
+        Some(c) => c,
+        None => Context::new(load_config()).await?,
+    };
+
+    // TODO(jq): if the resolved request carries a `jq` filter, extract
+    // it here and apply to the returned stream before wrapping.
+    let typed = crate::command::command::execute(&ctx, request).await?;
+    Ok(Box::pin(typed.map(|r| r.map(RunItem::Command))))
 }

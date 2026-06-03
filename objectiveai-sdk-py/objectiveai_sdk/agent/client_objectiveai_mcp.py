@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 from objectiveai_sdk.agent.client_objectiveai_mcp_entry import ClientObjectiveaiMcpEntry
+from objectiveai_sdk.agent.client_objectiveai_mcp_plugin_entry import ClientObjectiveaiMcpPluginEntry
 
 
 class ClientObjectiveaiMcp(BaseModel):
@@ -12,11 +13,12 @@ class ClientObjectiveaiMcp(BaseModel):
 - `objectiveai`: whether the calling client exposes the built-in
   `objectiveai-mcp`. `None` means unspecified; `Some(true)` /
   `Some(false)` explicitly opt in / out.
-- `plugins`: specific plugins (by `owner` / `name` / `version`).
+- `plugins`: specific plugins (by `owner` / `name` / `version`)
+  plus per-plugin `executable` + `mcp_servers`.
 - `tools`: specific tools (by `owner` / `name` / `version`)."""
     model_config = ConfigDict(title='agent.ClientObjectiveaiMcp')
 
     objectiveai: Optional[bool] = Field(None, json_schema_extra={'omitempty': True})
-    plugins: list[ClientObjectiveaiMcpEntry] = Field(..., json_schema_extra={'omitempty': True})
+    plugins: list[ClientObjectiveaiMcpPluginEntry] = Field(..., json_schema_extra={'omitempty': True})
     tools: list[ClientObjectiveaiMcpEntry] = Field(..., json_schema_extra={'omitempty': True})
 

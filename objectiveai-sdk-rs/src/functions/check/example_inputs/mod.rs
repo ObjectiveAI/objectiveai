@@ -17,10 +17,10 @@ mod array_tests;
 #[cfg(test)]
 mod tests;
 
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 
-use crate::functions::expression::{InputValue, InputSchema};
+use crate::functions::expression::{InputSchema, InputValue};
 
 pub fn permutations(schema: &InputSchema) -> usize {
     optional::inner_permutations(schema)

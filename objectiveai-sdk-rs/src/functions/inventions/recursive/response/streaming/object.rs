@@ -1,7 +1,16 @@
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "functions.inventions.recursive.response.streaming.Object")]
 pub enum Object {
     #[serde(rename = "alpha.scalar.function.invention.recursive.chunk")]
@@ -10,7 +19,9 @@ pub enum Object {
     AlphaVectorFunctionInventionRecursiveChunk,
 }
 
-impl From<Object> for crate::functions::inventions::response::streaming::Object {
+impl From<Object>
+    for crate::functions::inventions::response::streaming::Object
+{
     fn from(object: Object) -> Self {
         match object {
             Object::AlphaScalarFunctionInventionRecursiveChunk => {

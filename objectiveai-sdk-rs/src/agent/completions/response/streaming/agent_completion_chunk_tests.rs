@@ -1,10 +1,14 @@
-use crate::tests::stream_push::stream_push_test;
 use super::*;
+use crate::tests::stream_push::stream_push_test;
 
 stream_push_test!(
     single_chunk_unchanged,
     vec![AgentCompletionChunk {
         id: "acc-1".into(),
+        agent_instance_hierarchy: String::new(),
+        agent_id: String::new(),
+        agent_full_id: String::new(),
+        agent_remote: None,
         created: 100,
         messages: vec![],
         object: Object::AgentCompletionChunk,
@@ -16,6 +20,10 @@ stream_push_test!(
     }],
     AgentCompletionChunk {
         id: "acc-1".into(),
+        agent_instance_hierarchy: String::new(),
+        agent_id: String::new(),
+        agent_full_id: String::new(),
+        agent_remote: None,
         created: 100,
         messages: vec![],
         object: Object::AgentCompletionChunk,
@@ -32,12 +40,15 @@ stream_push_test!(
     vec![
         AgentCompletionChunk {
             id: "acc-2".into(),
+            agent_instance_hierarchy: String::new(),
+            agent_id: String::new(),
+            agent_full_id: String::new(),
+            agent_remote: None,
             created: 100,
             messages: vec![MessageChunk::Assistant(AssistantResponseChunk {
                 role: crate::agent::completions::response::AssistantRole::Assistant,
                 index: 0,
                 created: 0,
-                agent: String::new(),
                 model: "openai/gpt-4o".into(),
                 upstream_id: String::new(),
                 reasoning: None,
@@ -62,12 +73,15 @@ stream_push_test!(
         },
         AgentCompletionChunk {
             id: "acc-2".into(),
+            agent_instance_hierarchy: String::new(),
+            agent_id: String::new(),
+            agent_full_id: String::new(),
+            agent_remote: None,
             created: 100,
             messages: vec![MessageChunk::Assistant(AssistantResponseChunk {
                 role: crate::agent::completions::response::AssistantRole::Assistant,
                 index: 0,
                 created: 0,
-                agent: String::new(),
                 model: "openai/gpt-4o".into(),
                 upstream_id: String::new(),
                 reasoning: None,
@@ -93,12 +107,15 @@ stream_push_test!(
     ],
     AgentCompletionChunk {
         id: "acc-2".into(),
+        agent_instance_hierarchy: String::new(),
+        agent_id: String::new(),
+        agent_full_id: String::new(),
+        agent_remote: None,
         created: 100,
         messages: vec![MessageChunk::Assistant(AssistantResponseChunk {
             role: crate::agent::completions::response::AssistantRole::Assistant,
             index: 0,
             created: 0,
-            agent: String::new(),
             model: "openai/gpt-4o".into(),
             upstream_id: String::new(),
             reasoning: None,
@@ -128,12 +145,15 @@ stream_push_test!(
     vec![
         AgentCompletionChunk {
             id: "acc-3".into(),
+            agent_instance_hierarchy: String::new(),
+            agent_id: String::new(),
+            agent_full_id: String::new(),
+            agent_remote: None,
             created: 200,
             messages: vec![MessageChunk::Assistant(AssistantResponseChunk {
                 role: crate::agent::completions::response::AssistantRole::Assistant,
                 index: 0,
                 created: 0,
-                agent: String::new(),
                 model: "google/gemini-3.0-pro".into(),
                 upstream_id: String::new(),
                 reasoning: None,
@@ -158,12 +178,15 @@ stream_push_test!(
         },
         AgentCompletionChunk {
             id: "acc-3".into(),
+            agent_instance_hierarchy: String::new(),
+            agent_id: String::new(),
+            agent_full_id: String::new(),
+            agent_remote: None,
             created: 200,
             messages: vec![MessageChunk::Assistant(AssistantResponseChunk {
                 role: crate::agent::completions::response::AssistantRole::Assistant,
                 index: 0,
                 created: 0,
-                agent: String::new(),
                 model: "google/gemini-3.0-pro".into(),
                 upstream_id: String::new(),
                 reasoning: None,
@@ -188,12 +211,15 @@ stream_push_test!(
         },
         AgentCompletionChunk {
             id: "acc-3".into(),
+            agent_instance_hierarchy: String::new(),
+            agent_id: String::new(),
+            agent_full_id: String::new(),
+            agent_remote: None,
             created: 200,
             messages: vec![MessageChunk::Assistant(AssistantResponseChunk {
                 role: crate::agent::completions::response::AssistantRole::Assistant,
                 index: 0,
                 created: 0,
-                agent: String::new(),
                 model: "google/gemini-3.0-pro".into(),
                 upstream_id: String::new(),
                 reasoning: None,
@@ -219,12 +245,15 @@ stream_push_test!(
     ],
     AgentCompletionChunk {
         id: "acc-3".into(),
+        agent_instance_hierarchy: String::new(),
+        agent_id: String::new(),
+        agent_full_id: String::new(),
+        agent_remote: None,
         created: 200,
         messages: vec![MessageChunk::Assistant(AssistantResponseChunk {
             role: crate::agent::completions::response::AssistantRole::Assistant,
             index: 0,
             created: 0,
-            agent: String::new(),
             model: "google/gemini-3.0-pro".into(),
             upstream_id: String::new(),
             reasoning: None,
@@ -254,6 +283,10 @@ stream_push_test!(
     vec![
         AgentCompletionChunk {
             id: "acc-4".into(),
+            agent_instance_hierarchy: String::new(),
+            agent_id: String::new(),
+            agent_full_id: String::new(),
+            agent_remote: None,
             created: 100,
             messages: vec![],
             object: Object::AgentCompletionChunk,
@@ -265,6 +298,10 @@ stream_push_test!(
         },
         AgentCompletionChunk {
             id: "acc-4".into(),
+            agent_instance_hierarchy: String::new(),
+            agent_id: String::new(),
+            agent_full_id: String::new(),
+            agent_remote: None,
             created: 100,
             messages: vec![],
             object: Object::AgentCompletionChunk,
@@ -286,6 +323,10 @@ stream_push_test!(
     ],
     AgentCompletionChunk {
         id: "acc-4".into(),
+        agent_instance_hierarchy: String::new(),
+        agent_id: String::new(),
+        agent_full_id: String::new(),
+        agent_remote: None,
         created: 100,
         messages: vec![],
         object: Object::AgentCompletionChunk,
@@ -311,6 +352,10 @@ stream_push_test!(
     vec![
         AgentCompletionChunk {
             id: "acc-5".into(),
+            agent_instance_hierarchy: String::new(),
+            agent_id: String::new(),
+            agent_full_id: String::new(),
+            agent_remote: None,
             created: 100,
             messages: vec![],
             object: Object::AgentCompletionChunk,
@@ -325,6 +370,10 @@ stream_push_test!(
         },
         AgentCompletionChunk {
             id: "acc-5".into(),
+            agent_instance_hierarchy: String::new(),
+            agent_id: String::new(),
+            agent_full_id: String::new(),
+            agent_remote: None,
             created: 100,
             messages: vec![],
             object: Object::AgentCompletionChunk,
@@ -340,6 +389,10 @@ stream_push_test!(
     ],
     AgentCompletionChunk {
         id: "acc-5".into(),
+        agent_instance_hierarchy: String::new(),
+        agent_id: String::new(),
+        agent_full_id: String::new(),
+        agent_remote: None,
         created: 100,
         messages: vec![],
         object: Object::AgentCompletionChunk,

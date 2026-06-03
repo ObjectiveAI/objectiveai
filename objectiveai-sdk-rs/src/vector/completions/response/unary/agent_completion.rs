@@ -1,8 +1,8 @@
 //! Agent completion wrapper for vector completions.
 
 use crate::{agent, vector::completions::response};
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// A agent completion from a single agent within a vector completion.
 ///

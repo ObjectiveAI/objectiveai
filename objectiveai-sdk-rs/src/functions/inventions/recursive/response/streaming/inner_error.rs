@@ -31,7 +31,9 @@ use crate::error;
 /// The recursive chunk has no top-level `.error` field of its own,
 /// so there is nothing to exclude at this level.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "functions.inventions.recursive.response.streaming.InnerError")]
+#[schemars(
+    rename = "functions.inventions.recursive.response.streaming.InnerError"
+)]
 pub struct InnerError<'a> {
     /// Index of the wrapped non-recursive `FunctionInventionChunk`.
     pub function_invention_index: u64,

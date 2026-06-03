@@ -12,5 +12,8 @@
       "top_logprobs": 20
     }
   ],
-  "weights": [0.5, 0.5]
+  "weights": [
+    0.5,
+    0.5
+  ]
 }

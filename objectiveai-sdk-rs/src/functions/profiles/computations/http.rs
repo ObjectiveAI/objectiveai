@@ -29,7 +29,8 @@ pub async fn compute_profile_streaming<H: McpHandler>(
                 super::response::streaming::FunctionProfileComputationChunk,
                 HttpError,
             >,
-        > + Send
+        >
+        + Send
         + Unpin
         + 'static
         + use<H>,

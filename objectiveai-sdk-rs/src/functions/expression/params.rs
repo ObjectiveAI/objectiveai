@@ -28,7 +28,9 @@ impl JsonSchema for Params<'static, 'static> {
     fn schema_name() -> std::borrow::Cow<'static, str> {
         ParamsOwned::schema_name()
     }
-    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    fn json_schema(
+        generator: &mut schemars::SchemaGenerator,
+    ) -> schemars::Schema {
         ParamsOwned::json_schema(generator)
     }
 }
@@ -113,7 +115,9 @@ impl JsonSchema for TaskOutput<'static> {
     fn schema_name() -> std::borrow::Cow<'static, str> {
         TaskOutputOwned::schema_name()
     }
-    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    fn json_schema(
+        generator: &mut schemars::SchemaGenerator,
+    ) -> schemars::Schema {
         TaskOutputOwned::json_schema(generator)
     }
 }
@@ -142,19 +146,42 @@ impl<'de> serde::Deserialize<'de> for TaskOutput<'static> {
 
 /// Owned task output variants.
 #[schema_override(Owned)]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[serde(untagged)]
 #[schemars(rename = "functions.expression.TaskOutput")]
 pub enum TaskOutputOwned {
     /// A single scalar score.
     #[schemars(title = "Scalar")]
-    Scalar(#[serde(deserialize_with = "crate::serde_util::decimal")] #[schemars(with = "f64")] #[arbitrary(with = crate::arbitrary_util::arbitrary_rust_decimal)] rust_decimal::Decimal),
+    Scalar(
+        #[serde(deserialize_with = "crate::serde_util::decimal")]
+        #[schemars(with = "f64")]
+        #[arbitrary(with = crate::arbitrary_util::arbitrary_rust_decimal)]
+        rust_decimal::Decimal,
+    ),
     /// A vector of scores.
     #[schemars(title = "Vector")]
-    Vector(#[serde(deserialize_with = "crate::serde_util::vec_decimal")] #[schemars(with = "Vec<f64>")] #[arbitrary(with = crate::arbitrary_util::arbitrary_vec_rust_decimal)] Vec<rust_decimal::Decimal>),
+    Vector(
+        #[serde(deserialize_with = "crate::serde_util::vec_decimal")]
+        #[schemars(with = "Vec<f64>")]
+        #[arbitrary(with = crate::arbitrary_util::arbitrary_vec_rust_decimal)]
+        Vec<rust_decimal::Decimal>,
+    ),
     /// Multiple vectors of scores (from mapped tasks).
     #[schemars(title = "Vectors")]
-    Vectors(#[serde(deserialize_with = "crate::serde_util::vec_vec_decimal")] #[schemars(with = "Vec<Vec<f64>>")] #[arbitrary(with = crate::arbitrary_util::arbitrary_vec_vec_rust_decimal)] Vec<Vec<rust_decimal::Decimal>>),
+    Vectors(
+        #[serde(deserialize_with = "crate::serde_util::vec_vec_decimal")]
+        #[schemars(with = "Vec<Vec<f64>>")]
+        #[arbitrary(with = crate::arbitrary_util::arbitrary_vec_vec_rust_decimal)]
+        Vec<Vec<rust_decimal::Decimal>>,
+    ),
     /// An error occurred during execution.
     #[schemars(title = "Err")]
     Err {
@@ -205,8 +232,7 @@ impl FromStarlarkValue for TaskOutputOwned {
                     let mut inner_all_numeric = true;
                     for iv in inner_list.iter() {
                         if let Ok(Some(i)) = i64::unpack_value(iv) {
-                            inner_decimals
-                                .push(rust_decimal::Decimal::from(i));
+                            inner_decimals.push(rust_decimal::Decimal::from(i));
                         } else if let Ok(Some(UnpackFloat(f))) =
                             UnpackFloat::unpack_value(iv)
                         {
@@ -265,9 +291,7 @@ impl FromStarlarkValue for TaskOutputOwned {
             }
         }
         if let Ok(Some(i)) = i64::unpack_value(*value) {
-            return Ok(TaskOutputOwned::Scalar(
-                rust_decimal::Decimal::from(i),
-            ));
+            return Ok(TaskOutputOwned::Scalar(rust_decimal::Decimal::from(i)));
         }
         if let Ok(Some(UnpackFloat(f))) = UnpackFloat::unpack_value(*value) {
             if let Ok(d) = rust_decimal::Decimal::try_from(f) {
@@ -403,11 +427,13 @@ mod tests {
         assert!(matches!(parsed, TaskOutputOwned::Scalar(_)));
 
         // JSON array of numbers → Vector
-        let parsed: TaskOutputOwned = serde_json::from_str("[1, 2, 3]").unwrap();
+        let parsed: TaskOutputOwned =
+            serde_json::from_str("[1, 2, 3]").unwrap();
         assert!(matches!(parsed, TaskOutputOwned::Vector(_)));
 
         // JSON array of arrays → Vectors
-        let parsed: TaskOutputOwned = serde_json::from_str("[[1, 2], [3, 4]]").unwrap();
+        let parsed: TaskOutputOwned =
+            serde_json::from_str("[[1, 2], [3, 4]]").unwrap();
         assert!(matches!(parsed, TaskOutputOwned::Vectors(_)));
 
         // Bare values that previously fell through to Err must now FAIL,
@@ -429,7 +455,9 @@ mod tests {
             serde_json::from_str(r#"{"error": null}"#).unwrap();
         assert!(matches!(
             parsed,
-            TaskOutputOwned::Err { error: serde_json::Value::Null }
+            TaskOutputOwned::Err {
+                error: serde_json::Value::Null
+            }
         ));
 
         // Round-trip: Err { error: String("94") } ↔ {"error":"94"}.
@@ -438,7 +466,8 @@ mod tests {
         };
         let json = serde_json::to_string(&original).unwrap();
         assert_eq!(json, r#"{"error":"94"}"#);
-        let roundtripped: TaskOutputOwned = serde_json::from_str(&json).unwrap();
+        let roundtripped: TaskOutputOwned =
+            serde_json::from_str(&json).unwrap();
         assert!(matches!(
             roundtripped,
             TaskOutputOwned::Err { error: serde_json::Value::String(ref s) } if s == "94"
@@ -477,8 +506,8 @@ fn weighted_sum(scores: &[rust_decimal::Decimal]) -> rust_decimal::Decimal {
     let mut ws = rust_decimal::Decimal::ZERO;
     let last = len - 1;
     for (i, score) in scores.iter().enumerate() {
-        let weight = rust_decimal::Decimal::from(i)
-            / rust_decimal::Decimal::from(last);
+        let weight =
+            rust_decimal::Decimal::from(i) / rust_decimal::Decimal::from(last);
         ws += score * weight;
     }
     ws

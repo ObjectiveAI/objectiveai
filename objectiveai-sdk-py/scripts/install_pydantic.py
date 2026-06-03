@@ -651,7 +651,13 @@ def _generate_variant_class(
     if has_ref:
         ref_type = _convert_inner_type(variant_schema, self_title, all_titles)
         collect_refs(variant_schema, refs)
-        code = _make_root_model(class_name, safe_desc, ref_type, variant_title=variant_title)
+        # Preserve schemars's `type: "object"` stamp alongside the $ref.
+        outer_object = variant_schema.get("type") == "object"
+        code = _make_root_model(
+            class_name, safe_desc, ref_type,
+            variant_title=variant_title,
+            variant_outer_object=outer_object,
+        )
         return code, class_name, refs
 
     # enum (Literal)
@@ -677,6 +683,7 @@ def _make_root_model(
     expanded_ref: str | None = None,
     expanded_ref_props: list[str] | None = None,
     variant_title: str | None = None,
+    variant_outer_object: bool = False,
 ) -> str:
     """Generate a plain RootModel."""
     lines = [f"class {pascal_name}(RootModel):"]
@@ -692,6 +699,13 @@ def _make_root_model(
             extra["_expanded_ref_props"] = expanded_ref_props
     if variant_title:
         extra["_variant_title"] = variant_title
+    if variant_outer_object:
+        # Source schema had `type: "object"` next to the variant's `$ref`
+        # (schemars stamps this when the outer schema is committed to being
+        # an object — a struct that flattens an untagged enum, or an
+        # internally-tagged enum). Roundtrip harness reads this marker to
+        # emit `type: "object"` alongside the `$ref` it produces.
+        extra["_outer_object"] = True
     if extra:
         config_parts.append(f"json_schema_extra={extra!r}")
     if config_parts:

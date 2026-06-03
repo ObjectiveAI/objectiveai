@@ -1,1 +1,1 @@
-{"type":"cli_command","destination":"test-iframe","value":{"type":"notification","value":{"kind":"schemas","schemas":["Event"]}}}
+{"type":"cli_command","destination":"test-iframe","value":{"type":"schemas","schemas":["Event"]}}

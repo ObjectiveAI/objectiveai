@@ -1,12 +1,21 @@
 //! Effort settings for Agent output.
 
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// The effort level for model output.
 ///
 /// This setting hints to the model how detailed its responses should be.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "agent.claude_agent_sdk.Effort")]
 pub enum Effort {
     /// Minimal output, concise responses.
@@ -21,6 +30,10 @@ pub enum Effort {
     #[schemars(title = "High")]
     #[serde(rename = "high")]
     High,
+    /// Extra-high effort, above `High` but below `Max`.
+    #[schemars(title = "Xhigh")]
+    #[serde(rename = "xhigh")]
+    Xhigh,
     /// Maximum effort, most detailed output possible.
     #[schemars(title = "Max")]
     #[serde(rename = "max")]
@@ -50,6 +63,7 @@ impl Effort {
             Effort::Low => "low",
             Effort::Medium => "medium",
             Effort::High => "high",
+            Effort::Xhigh => "xhigh",
             Effort::Max => "max",
         }
     }

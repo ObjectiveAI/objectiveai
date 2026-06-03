@@ -14,7 +14,8 @@ pub mod scalar_function_input_value_expression {
     }
 }
 
-pub type ScalarFunctionInputValue = IndexMap<String, functions::expression::InputValue>;
+pub type ScalarFunctionInputValue =
+    IndexMap<String, functions::expression::InputValue>;
 
 pub mod scalar_function_input_value {
     use crate::functions;

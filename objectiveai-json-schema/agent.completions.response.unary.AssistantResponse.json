@@ -3,9 +3,6 @@
   "description": "An assistant response in a unary agent completion.",
   "type": "object",
   "properties": {
-    "agent": {
-      "type": "string"
-    },
     "content": {
       "anyOf": [
         {

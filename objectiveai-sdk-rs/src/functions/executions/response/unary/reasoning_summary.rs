@@ -1,7 +1,7 @@
 use crate::functions::executions::response;
 use crate::{agent, error};
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
 #[schemars(rename = "functions.executions.response.unary.ReasoningSummary")]

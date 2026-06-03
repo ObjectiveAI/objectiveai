@@ -1,9 +1,15 @@
-use crate::tests::stream_push::stream_push_test;
 use super::*;
+use crate::tests::stream_push::stream_push_test;
 
-fn agent_completion(error: Option<crate::error::ResponseError>) -> crate::agent::completions::response::streaming::AgentCompletionChunk {
+fn agent_completion(
+    error: Option<crate::error::ResponseError>,
+) -> crate::agent::completions::response::streaming::AgentCompletionChunk {
     crate::agent::completions::response::streaming::AgentCompletionChunk {
         id: String::new(),
+        agent_instance_hierarchy: String::new(),
+        agent_id: String::new(),
+        agent_full_id: String::new(),
+        agent_remote: None,
         created: 0,
         messages: vec![],
         object: crate::agent::completions::response::streaming::Object::AgentCompletionChunk,
@@ -15,12 +21,29 @@ fn agent_completion(error: Option<crate::error::ResponseError>) -> crate::agent:
     }
 }
 
-fn builder(index: u64, agent_index: u64, error: Option<crate::error::ResponseError>) -> BuilderChunk {
-    BuilderChunk { index, agent_index, inner: agent_completion(error) }
+fn builder(
+    index: u64,
+    agent_index: u64,
+    error: Option<crate::error::ResponseError>,
+) -> BuilderChunk {
+    BuilderChunk {
+        index,
+        agent_index,
+        inner: agent_completion(error),
+    }
 }
 
-fn evaluation(index: u64, agent_index: u64, error: Option<crate::error::ResponseError>) -> EvaluationChunk {
-    EvaluationChunk { index, agent_index, inner: agent_completion(error), output: None }
+fn evaluation(
+    index: u64,
+    agent_index: u64,
+    error: Option<crate::error::ResponseError>,
+) -> EvaluationChunk {
+    EvaluationChunk {
+        index,
+        agent_index,
+        inner: agent_completion(error),
+        output: None,
+    }
 }
 
 fn lab_chunk_with(
@@ -40,7 +63,10 @@ fn lab_chunk_with(
 }
 
 fn err(code: u16, message: &str) -> crate::error::ResponseError {
-    crate::error::ResponseError { code, message: message.into() }
+    crate::error::ResponseError {
+        code,
+        message: message.into(),
+    }
 }
 
 #[test]
@@ -68,11 +94,18 @@ fn inner_errors_only_builder_errors() {
     let collected: Vec<_> = chunk.inner_errors().collect();
     assert_eq!(collected.len(), 1);
     match &collected[0] {
-        InnerError::Builder { builder_index, agent_completion_index, error } => {
+        InnerError::Builder {
+            builder_index,
+            agent_completion_index,
+            error,
+        } => {
             assert_eq!(*builder_index, 1);
             assert_eq!(*agent_completion_index, 2);
             assert_eq!(error.code, 429);
-            assert_eq!(error.message, serde_json::Value::String("rate limit".into()));
+            assert_eq!(
+                error.message,
+                serde_json::Value::String("rate limit".into())
+            );
         }
         other => panic!("expected Builder, got {other:?}"),
     }
@@ -91,7 +124,11 @@ fn inner_errors_only_evaluation_errors() {
     let collected: Vec<_> = chunk.inner_errors().collect();
     assert_eq!(collected.len(), 2);
     match &collected[0] {
-        InnerError::Evaluation { evaluation_index, agent_completion_index, error } => {
+        InnerError::Evaluation {
+            evaluation_index,
+            agent_completion_index,
+            error,
+        } => {
             assert_eq!(*evaluation_index, 0);
             assert_eq!(*agent_completion_index, 1);
             assert_eq!(error.code, 500);
@@ -99,7 +136,11 @@ fn inner_errors_only_evaluation_errors() {
         other => panic!("expected Evaluation, got {other:?}"),
     }
     match &collected[1] {
-        InnerError::Evaluation { evaluation_index, agent_completion_index, error } => {
+        InnerError::Evaluation {
+            evaluation_index,
+            agent_completion_index,
+            error,
+        } => {
             assert_eq!(*evaluation_index, 1);
             assert_eq!(*agent_completion_index, 0);
             assert_eq!(error.code, 502);
@@ -123,8 +164,22 @@ fn inner_errors_mixed_builders_and_evaluations() {
     );
     let collected: Vec<_> = chunk.inner_errors().collect();
     assert_eq!(collected.len(), 2);
-    assert!(matches!(&collected[0], InnerError::Builder { builder_index: 0, agent_completion_index: 0, .. }));
-    assert!(matches!(&collected[1], InnerError::Evaluation { evaluation_index: 1, agent_completion_index: 0, .. }));
+    assert!(matches!(
+        &collected[0],
+        InnerError::Builder {
+            builder_index: 0,
+            agent_completion_index: 0,
+            ..
+        }
+    ));
+    assert!(matches!(
+        &collected[1],
+        InnerError::Evaluation {
+            evaluation_index: 1,
+            agent_completion_index: 0,
+            ..
+        }
+    ));
 }
 
 #[test]
@@ -142,11 +197,18 @@ fn inner_error_serde_roundtrip_builder() {
     );
     let round: InnerError<'static> = serde_json::from_str(&wire).unwrap();
     match round {
-        InnerError::Builder { builder_index, agent_completion_index, error } => {
+        InnerError::Builder {
+            builder_index,
+            agent_completion_index,
+            error,
+        } => {
             assert_eq!(builder_index, 3);
             assert_eq!(agent_completion_index, 4);
             assert_eq!(error.code, 404);
-            assert_eq!(error.message, serde_json::Value::String("missing".into()));
+            assert_eq!(
+                error.message,
+                serde_json::Value::String("missing".into())
+            );
         }
         other => panic!("expected Builder, got {other:?}"),
     }
@@ -167,11 +229,18 @@ fn inner_error_serde_roundtrip_evaluation() {
     );
     let round: InnerError<'static> = serde_json::from_str(&wire).unwrap();
     match round {
-        InnerError::Evaluation { evaluation_index, agent_completion_index, error } => {
+        InnerError::Evaluation {
+            evaluation_index,
+            agent_completion_index,
+            error,
+        } => {
             assert_eq!(evaluation_index, 5);
             assert_eq!(agent_completion_index, 6);
             assert_eq!(error.code, 418);
-            assert_eq!(error.message, serde_json::Value::String("teapot".into()));
+            assert_eq!(
+                error.message,
+                serde_json::Value::String("teapot".into())
+            );
         }
         other => panic!("expected Evaluation, got {other:?}"),
     }
@@ -375,7 +444,9 @@ stream_push_test!(
                 index: 0,
                 agent_index: 0,
                 inner: Default::default(),
-                output: Some(crate::functions::expression::InputValue::Integer(42)),
+                output: Some(
+                    crate::functions::expression::InputValue::Integer(42)
+                ),
             }],
             error: None,
             created: 100,

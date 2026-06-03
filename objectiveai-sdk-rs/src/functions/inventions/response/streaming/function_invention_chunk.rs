@@ -1,10 +1,20 @@
-use crate::{agent, error, functions};
 use crate::agent::completions::response::streaming::AgentCompletionIds;
-use serde::{Deserialize, Serialize};
+use crate::{agent, error, functions};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
-#[schemars(rename = "functions.inventions.response.streaming.FunctionInventionChunk")]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
+#[schemars(
+    rename = "functions.inventions.response.streaming.FunctionInventionChunk"
+)]
 pub struct FunctionInventionChunk {
     pub id: String,
     pub completions: Vec<super::AgentCompletionChunk>,
@@ -31,21 +41,14 @@ pub struct FunctionInventionChunk {
 }
 
 impl AgentCompletionIds for FunctionInventionChunk {
-    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> {
-        self.completions.iter().flat_map(|c| c.agent_completion_ids())
+    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> + Send {
+        self.completions
+            .iter()
+            .flat_map(|c| c.agent_completion_ids())
     }
 }
 
 impl FunctionInventionChunk {
-    /// Flat-maps message rows from every inner agent completion. Lazy.
-    #[cfg(feature = "filesystem")]
-    pub fn produce_message_rows(
-        &self,
-    ) -> impl Iterator<Item = crate::filesystem::db::schema::MessageRow> + Send + '_ {
-        self.completions
-            .iter()
-            .flat_map(|c| c.produce_message_rows())
-    }
 }
 
 impl FunctionInventionChunk {
@@ -132,54 +135,4 @@ impl FunctionInventionChunk {
         }
     }
 
-    /// Produces the [`LogFile`]s for the log file structure.
-    ///
-    /// Returns `(reference, files)`. All paths relative to `logs/`.
-    #[cfg(feature = "filesystem")]
-    pub fn produce_files(
-        &self,
-    ) -> Option<(crate::filesystem::logs::LogReference, Vec<crate::filesystem::logs::LogFile>)> {
-        use crate::filesystem::logs::{LogFile, LogReference};
-        const ROUTE: &str = "functions/inventions/response";
-
-        let id = &self.id;
-        if id.is_empty() {
-            return None;
-        }
-
-        let mut files: Vec<LogFile> = Vec::new();
-        let mut completion_refs:
-            Vec<crate::filesystem::logs::indexed_reference::LogReference> = Vec::new();
-
-        for completion in &self.completions {
-            let (reference, completion_files) = completion.produce_files();
-            completion_refs.push(reference);
-            files.extend(completion_files);
-        }
-
-        let log = super::FunctionInventionChunkLog {
-            id: self.id.clone(),
-            completions: completion_refs,
-            state: self.state.clone(),
-            path: self.path.clone(),
-            function: self.function.clone(),
-            created: self.created,
-            object: self.object,
-            usage: self.usage.clone(),
-            error: self.error.clone(),
-        };
-
-        let root_file = LogFile {
-            route: ROUTE.to_string(),
-            id: id.clone(),
-            message_index: None,
-            media_index: None,
-            extension: "json".to_string(),
-            content: serde_json::to_vec_pretty(&log).unwrap(),
-        };
-        let reference = LogReference::new(root_file.path());
-        files.push(root_file);
-
-        Some((reference, files))
-    }
 }

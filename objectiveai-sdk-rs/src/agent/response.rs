@@ -1,7 +1,7 @@
 //! Response types for Agent API endpoints.
 
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// Response containing a list of Agents.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -23,7 +23,9 @@ pub struct GetAgentResponse {
     pub path: crate::RemotePath,
     /// The Agent definition.
     #[serde(flatten)]
-    #[schemars(schema_with = "crate::flatten_schema::<super::RemoteAgentWithFallbacks>")]
+    #[schemars(
+        schema_with = "crate::flatten_schema::<super::RemoteAgentWithFallbacks>"
+    )]
     pub inner: super::RemoteAgentWithFallbacks,
 }
 

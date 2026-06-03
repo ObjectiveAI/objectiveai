@@ -2,6 +2,7 @@
 
 #![cfg(test)]
 
+use crate::functions::alpha_scalar::check::check_alpha_branch_scalar_function;
 use crate::functions::alpha_scalar::{
     BranchTaskExpression, PlaceholderScalarFunctionTaskExpression,
     RemoteFunction, ScalarFunctionTaskExpression,
@@ -9,7 +10,6 @@ use crate::functions::alpha_scalar::{
 use crate::functions::expression::{
     Expression, IntegerInputSchema, ObjectInputSchema, StringInputSchema,
 };
-use crate::functions::alpha_scalar::check::check_alpha_branch_scalar_function;
 use crate::test_util::index_map;
 
 fn test(f: &RemoteFunction) {
@@ -237,15 +237,17 @@ fn valid_multiple_tasks() {
             required: Some(vec!["value".to_string()]),
         },
         tasks: vec![
-            BranchTaskExpression::ScalarFunction(ScalarFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            BranchTaskExpression::ScalarFunction(
+                ScalarFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: Expression::Starlark("input".to_string()),
                 },
-                skip: None,
-                input: Expression::Starlark("input".to_string()),
-            }),
+            ),
             BranchTaskExpression::PlaceholderScalarFunction(
                 PlaceholderScalarFunctionTaskExpression {
                     params: crate::functions::inventions::Params {
@@ -298,24 +300,30 @@ fn scalar_diversity_fail_fixed_input() {
             required: Some(vec!["value".to_string()]),
         },
         tasks: vec![
-            BranchTaskExpression::ScalarFunction(ScalarFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            BranchTaskExpression::ScalarFunction(
+                ScalarFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: Expression::Starlark("input".to_string()),
                 },
-                skip: None,
-                input: Expression::Starlark("input".to_string()),
-            }),
-            BranchTaskExpression::ScalarFunction(ScalarFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            ),
+            BranchTaskExpression::ScalarFunction(
+                ScalarFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: Expression::Starlark(
+                        "'always_the_same'".to_string(),
+                    ),
                 },
-                skip: None,
-                input: Expression::Starlark("'always_the_same'".to_string()),
-            }),
+            ),
         ],
     };
     test_err(&f, "AB10");
@@ -339,24 +347,28 @@ fn scalar_diversity_fail_fixed_integer() {
             required: Some(vec!["value".to_string()]),
         },
         tasks: vec![
-            BranchTaskExpression::ScalarFunction(ScalarFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            BranchTaskExpression::ScalarFunction(
+                ScalarFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: Expression::Starlark("42".to_string()),
                 },
-                skip: None,
-                input: Expression::Starlark("42".to_string()),
-            }),
-            BranchTaskExpression::ScalarFunction(ScalarFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            ),
+            BranchTaskExpression::ScalarFunction(
+                ScalarFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: Expression::Starlark("99".to_string()),
                 },
-                skip: None,
-                input: Expression::Starlark("99".to_string()),
-            }),
+            ),
         ],
     };
     test_err(&f, "AB10");
@@ -385,35 +397,41 @@ fn scalar_diversity_fail_third_task_fixed_object() {
             required: Some(vec!["name".to_string(), "score".to_string()]),
         },
         tasks: vec![
-            BranchTaskExpression::ScalarFunction(ScalarFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            BranchTaskExpression::ScalarFunction(
+                ScalarFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: Expression::Starlark("input".to_string()),
                 },
-                skip: None,
-                input: Expression::Starlark("input".to_string()),
-            }),
-            BranchTaskExpression::ScalarFunction(ScalarFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            ),
+            BranchTaskExpression::ScalarFunction(
+                ScalarFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: Expression::Starlark("input['name']".to_string()),
                 },
-                skip: None,
-                input: Expression::Starlark("input['name']".to_string()),
-            }),
-            BranchTaskExpression::ScalarFunction(ScalarFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            ),
+            BranchTaskExpression::ScalarFunction(
+                ScalarFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: Expression::Starlark(
+                        "{'name': 'fixed', 'score': 50}".to_string(),
+                    ),
                 },
-                skip: None,
-                input: Expression::Starlark(
-                    "{'name': 'fixed', 'score': 50}".to_string(),
-                ),
-            }),
+            ),
         ],
     };
     test_err(&f, "AB10");
@@ -438,26 +456,30 @@ fn scalar_diversity_pass_string_passthrough() {
             required: Some(vec!["value".to_string()]),
         },
         tasks: vec![
-            BranchTaskExpression::ScalarFunction(ScalarFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            BranchTaskExpression::ScalarFunction(
+                ScalarFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: Expression::Starlark("input".to_string()),
                 },
-                skip: None,
-                input: Expression::Starlark("input".to_string()),
-            }),
-            BranchTaskExpression::ScalarFunction(ScalarFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            ),
+            BranchTaskExpression::ScalarFunction(
+                ScalarFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: Expression::Starlark(
+                        "input['value'] + ' suffix'".to_string(),
+                    ),
                 },
-                skip: None,
-                input: Expression::Starlark(
-                    "input['value'] + ' suffix'".to_string(),
-                ),
-            }),
+            ),
         ],
     };
     test(&f);
@@ -481,24 +503,30 @@ fn scalar_diversity_pass_integer_derived() {
             required: Some(vec!["value".to_string()]),
         },
         tasks: vec![
-            BranchTaskExpression::ScalarFunction(ScalarFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            BranchTaskExpression::ScalarFunction(
+                ScalarFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: Expression::Starlark("input".to_string()),
                 },
-                skip: None,
-                input: Expression::Starlark("input".to_string()),
-            }),
-            BranchTaskExpression::ScalarFunction(ScalarFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            ),
+            BranchTaskExpression::ScalarFunction(
+                ScalarFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: Expression::Starlark(
+                        "input['value'] + 1".to_string(),
+                    ),
                 },
-                skip: None,
-                input: Expression::Starlark("input['value'] + 1".to_string()),
-            }),
+            ),
         ],
     };
     test(&f);
@@ -526,24 +554,28 @@ fn scalar_diversity_pass_object_extract_field() {
             required: Some(vec!["title".to_string(), "author".to_string()]),
         },
         tasks: vec![
-            BranchTaskExpression::ScalarFunction(ScalarFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            BranchTaskExpression::ScalarFunction(
+                ScalarFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: Expression::Starlark("input['title']".to_string()),
                 },
-                skip: None,
-                input: Expression::Starlark("input['title']".to_string()),
-            }),
-            BranchTaskExpression::ScalarFunction(ScalarFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            ),
+            BranchTaskExpression::ScalarFunction(
+                ScalarFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: Expression::Starlark("input['author']".to_string()),
                 },
-                skip: None,
-                input: Expression::Starlark("input['author']".to_string()),
-            }),
+            ),
         ],
     };
     test(&f);
@@ -657,24 +689,28 @@ fn scalar_diversity_pass_optional_field_used() {
             required: Some(vec!["name".to_string()]),
         },
         tasks: vec![
-            BranchTaskExpression::ScalarFunction(ScalarFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            BranchTaskExpression::ScalarFunction(
+                ScalarFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: Expression::Starlark("input".to_string()),
                 },
-                skip: None,
-                input: Expression::Starlark("input".to_string()),
-            }),
-            BranchTaskExpression::ScalarFunction(ScalarFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            ),
+            BranchTaskExpression::ScalarFunction(
+                ScalarFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: Expression::Starlark("input['name']".to_string()),
                 },
-                skip: None,
-                input: Expression::Starlark("input['name']".to_string()),
-            }),
+            ),
         ],
     };
     test(&f);
@@ -705,26 +741,30 @@ fn valid_with_skip_last_task_boolean() {
             required: Some(vec!["text".to_string()]),
         },
         tasks: vec![
-            BranchTaskExpression::ScalarFunction(ScalarFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            BranchTaskExpression::ScalarFunction(
+                ScalarFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: Expression::Starlark("input".to_string()),
                 },
-                skip: None,
-                input: Expression::Starlark("input".to_string()),
-            }),
-            BranchTaskExpression::ScalarFunction(ScalarFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            ),
+            BranchTaskExpression::ScalarFunction(
+                ScalarFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: Some(Expression::Starlark(
+                        "input.get('skip_last_task', False)".to_string(),
+                    )),
+                    input: Expression::Starlark("input['text']".to_string()),
                 },
-                skip: Some(Expression::Starlark(
-                    "input.get('skip_last_task', False)".to_string(),
-                )),
-                input: Expression::Starlark("input['text']".to_string()),
-            }),
+            ),
         ],
     };
     test(&f);
@@ -753,29 +793,33 @@ fn valid_with_skip_on_low_priority() {
             required: Some(vec!["text".to_string(), "priority".to_string()]),
         },
         tasks: vec![
-            BranchTaskExpression::ScalarFunction(ScalarFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            BranchTaskExpression::ScalarFunction(
+                ScalarFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: Expression::Starlark("input".to_string()),
                 },
-                skip: None,
-                input: Expression::Starlark("input".to_string()),
-            }),
-            BranchTaskExpression::ScalarFunction(ScalarFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            ),
+            BranchTaskExpression::ScalarFunction(
+                ScalarFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: Some(Expression::Starlark(
+                        "input['priority'] < 4".to_string(),
+                    )),
+                    input: Expression::Starlark(
+                        "input['text'] + ' [p=' + str(input['priority']) + ']'"
+                            .to_string(),
+                    ),
                 },
-                skip: Some(Expression::Starlark(
-                    "input['priority'] < 4".to_string(),
-                )),
-                input: Expression::Starlark(
-                    "input['text'] + ' [p=' + str(input['priority']) + ']'"
-                        .to_string(),
-                ),
-            }),
+            ),
         ],
     };
     test(&f);
@@ -865,24 +909,28 @@ fn all_tasks_skipped() {
             required: Some(vec!["value".to_string()]),
         },
         tasks: vec![
-            BranchTaskExpression::ScalarFunction(ScalarFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            BranchTaskExpression::ScalarFunction(
+                ScalarFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: Some(Expression::Starlark("True".to_string())),
+                    input: Expression::Starlark("input".to_string()),
                 },
-                skip: Some(Expression::Starlark("True".to_string())),
-                input: Expression::Starlark("input".to_string()),
-            }),
-            BranchTaskExpression::ScalarFunction(ScalarFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test2".to_string(),
-                    commit: "abc123".to_string(),
+            ),
+            BranchTaskExpression::ScalarFunction(
+                ScalarFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test2".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: Some(Expression::Starlark("True".to_string())),
+                    input: Expression::Starlark("input".to_string()),
                 },
-                skip: Some(Expression::Starlark("True".to_string())),
-                input: Expression::Starlark("input".to_string()),
-            }),
+            ),
         ],
     };
     test_err(&f, "CV42");
@@ -930,15 +978,17 @@ fn placeholder_field_validation_single_permutation() {
             required: Some(vec!["name".to_string(), "x".to_string()]),
         },
         tasks: vec![
-            BranchTaskExpression::ScalarFunction(ScalarFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            BranchTaskExpression::ScalarFunction(
+                ScalarFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: Expression::Starlark("input['name']".to_string()),
                 },
-                skip: None,
-                input: Expression::Starlark("input['name']".to_string()),
-            }),
+            ),
             BranchTaskExpression::PlaceholderScalarFunction(
                 PlaceholderScalarFunctionTaskExpression {
                     params: crate::functions::inventions::Params {

@@ -12,11 +12,12 @@ import (
 // - `objectiveai`: whether the calling client exposes the built-in
 //   `objectiveai-mcp`. `None` means unspecified; `Some(true)` /
 //   `Some(false)` explicitly opt in / out.
-// - `plugins`: specific plugins (by `owner` / `name` / `version`).
+// - `plugins`: specific plugins (by `owner` / `name` / `version`)
+//   plus per-plugin `executable` + `mcp_servers`.
 // - `tools`: specific tools (by `owner` / `name` / `version`).
 type AgentClientObjectiveaiMcp struct {
 	Objectiveai *bool `json:"objectiveai,omitempty"`
-	Plugins []AgentClientObjectiveaiMcpEntry `json:"plugins,omitempty"`
+	Plugins []AgentClientObjectiveaiMcpPluginEntry `json:"plugins,omitempty"`
 	Tools []AgentClientObjectiveaiMcpEntry `json:"tools,omitempty"`
 }
 

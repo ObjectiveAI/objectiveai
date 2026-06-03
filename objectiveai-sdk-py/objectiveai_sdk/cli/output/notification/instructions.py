@@ -5,9 +5,11 @@ from pydantic import BaseModel, ConfigDict
 
 
 class Instructions(BaseModel):
-    """Wire shape for `<scope> instructions get` (and the global
-`instructions get`). The body is the instruction text the user is
-meant to follow plus the generated instructions ID line."""
+    """Markdown instructions rendered to the JSONL stream by
+`objectiveai plugins install` and `objectiveai tools install`
+— text the caller is meant to read before continuing.
+
+Wire: `{"type":"notification","value":{"kind":"instructions","instructions":"…markdown…"}}`."""
     model_config = ConfigDict(title='cli.output.notification.Instructions')
 
     instructions: str

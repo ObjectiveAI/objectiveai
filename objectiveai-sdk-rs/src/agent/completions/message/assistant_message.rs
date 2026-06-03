@@ -5,13 +5,21 @@ use crate::functions;
 use functions::expression::{
     ExpressionError, FromStarlarkValue, WithExpression,
 };
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use starlark::values::dict::DictRef as StarlarkDictRef;
 use starlark::values::{UnpackValue, Value as StarlarkValue};
-use schemars::JsonSchema;
 
 /// An assistant message (model's previous response).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "agent.completions.message.AssistantMessage")]
 pub struct AssistantMessage {
     /// The message content, if any.
@@ -62,88 +70,6 @@ impl AssistantMessage {
         }
     }
 
-    /// Extract this message's content into per-leaf log files,
-    /// returning an [`super::AssistantMessageLog`] with each of
-    /// `content` / `reasoning` / `refusal` / `tool_calls` swapped
-    /// for [`crate::filesystem::logs::LogReference`]s pointing at
-    /// the files this method writes. Only `name` stays inline.
-    /// Mirrors the response-side
-    /// [`crate::agent::completions::response::streaming::AssistantResponseChunk::produce_files`].
-    #[cfg(feature = "filesystem")]
-    pub fn extract(
-        self,
-        route_base: &str,
-        id: &str,
-        message_index: u64,
-    ) -> (super::AssistantMessageLog, Vec<crate::filesystem::logs::LogFile>) {
-        use crate::filesystem::logs::{LogFile, LogReference};
-
-        let mut files = Vec::new();
-
-        let reasoning_ref = self.reasoning.map(|reasoning| {
-            let f = LogFile {
-                route: format!("{route_base}/messages/reasoning"),
-                id: id.to_string(),
-                message_index: Some(message_index),
-                media_index: None,
-                extension: "json".to_string(),
-                content: serde_json::to_vec_pretty(&reasoning).unwrap(),
-            };
-            let r = LogReference::new(f.path());
-            files.push(f);
-            r
-        });
-
-        let refusal_ref = self.refusal.map(|refusal| {
-            let f = LogFile {
-                route: format!("{route_base}/messages/refusal"),
-                id: id.to_string(),
-                message_index: Some(message_index),
-                media_index: None,
-                extension: "json".to_string(),
-                content: serde_json::to_vec_pretty(&refusal).unwrap(),
-            };
-            let r = LogReference::new(f.path());
-            files.push(f);
-            r
-        });
-
-        let tool_call_refs = self.tool_calls.map(|tcs| {
-            tcs.into_iter()
-                .enumerate()
-                .map(|(tc_idx, tc)| {
-                    let f = LogFile {
-                        route: format!("{route_base}/messages/tool_calls"),
-                        id: id.to_string(),
-                        message_index: Some(message_index),
-                        media_index: Some(tc_idx as u64),
-                        extension: "json".to_string(),
-                        content: serde_json::to_vec_pretty(&tc).unwrap(),
-                    };
-                    let r = LogReference::new(f.path());
-                    files.push(f);
-                    r
-                })
-                .collect::<Vec<_>>()
-        });
-
-        let content_log = self.content.map(|content| {
-            let (log, content_files) = content.extract_media(&format!("{route_base}/messages"), id, message_index);
-            files.extend(content_files);
-            log
-        });
-
-        (
-            super::AssistantMessageLog {
-                content: content_log,
-                name: self.name,
-                refusal: refusal_ref,
-                tool_calls: tool_call_refs,
-                reasoning: reasoning_ref,
-            },
-            files,
-        )
-    }
 }
 
 impl FromStarlarkValue for AssistantMessage {
@@ -201,36 +127,57 @@ impl FromStarlarkValue for AssistantMessage {
 }
 
 /// Expression variant of [`AssistantMessage`] for dynamic content.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "agent.completions.message.AssistantMessageExpression")]
 pub struct AssistantMessageExpression {
     /// The content expression.
-    #[serde(default, skip_serializing_if = "functions::expression::WithExpression::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "functions::expression::WithExpression::is_none"
+    )]
     #[schemars(with = "Option<functions::expression::WithExpression<RichContentExpression>>", extend("omitempty" = true))]
     pub content:
         functions::expression::WithExpression<Option<RichContentExpression>>,
-    #[serde(default, skip_serializing_if = "functions::expression::WithExpression::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "functions::expression::WithExpression::is_none"
+    )]
     #[schemars(with = "Option<functions::expression::WithExpression<String>>", extend("omitempty" = true))]
     pub name: functions::expression::WithExpression<Option<String>>,
-    #[serde(default, skip_serializing_if = "functions::expression::WithExpression::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "functions::expression::WithExpression::is_none"
+    )]
     #[schemars(with = "Option<functions::expression::WithExpression<String>>", extend("omitempty" = true))]
     pub refusal: functions::expression::WithExpression<Option<String>>,
-    #[serde(default, skip_serializing_if = "functions::expression::WithExpression::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "functions::expression::WithExpression::is_none"
+    )]
     #[schemars(with = "Option<functions::expression::WithExpression<Vec<functions::expression::WithExpression<AssistantToolCallExpression>>>>", extend("omitempty" = true))]
-    pub tool_calls:
-        functions::expression::WithExpression<
-            Option<
-                Vec<
-                    functions::expression::WithExpression<
-                        AssistantToolCallExpression,
-                    >,
+    pub tool_calls: functions::expression::WithExpression<
+        Option<
+            Vec<
+                functions::expression::WithExpression<
+                    AssistantToolCallExpression,
                 >,
             >,
         >,
-    #[serde(default, skip_serializing_if = "functions::expression::WithExpression::is_none")]
+    >,
+    #[serde(
+        default,
+        skip_serializing_if = "functions::expression::WithExpression::is_none"
+    )]
     #[schemars(with = "Option<functions::expression::WithExpression<String>>", extend("omitempty" = true))]
-    pub reasoning:
-        functions::expression::WithExpression<Option<String>>,
+    pub reasoning: functions::expression::WithExpression<Option<String>>,
 }
 
 impl AssistantMessageExpression {
@@ -361,7 +308,15 @@ impl FromStarlarkValue for AssistantMessageExpression {
 }
 
 /// A tool call made by the assistant.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[schemars(rename = "agent.completions.message.AssistantToolCall")]
 pub enum AssistantToolCall {
@@ -440,7 +395,15 @@ impl FromStarlarkValue for AssistantToolCall {
 }
 
 /// Expression variant of [`AssistantToolCall`] for dynamic content.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[schemars(rename = "agent.completions.message.AssistantToolCallExpression")]
 pub enum AssistantToolCallExpression {
@@ -495,7 +458,15 @@ impl FromStarlarkValue for AssistantToolCallExpression {
 }
 
 /// Details of a function call made by the assistant.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "agent.completions.message.AssistantToolCallFunction")]
 pub struct AssistantToolCallFunction {
     /// The name of the function to call.
@@ -568,7 +539,15 @@ impl FromStarlarkValue for AssistantToolCallFunction {
 }
 
 /// A tool call delta in a streaming response.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "agent.completions.message.AssistantToolCallDelta")]
 pub struct AssistantToolCallDelta {
     /// The index of this tool call.
@@ -610,7 +589,17 @@ impl AssistantToolCallDelta {
 }
 
 /// The type of tool call.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    Default,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "agent.completions.message.AssistantToolCallType")]
 pub enum AssistantToolCallType {
     /// A function call.
@@ -620,7 +609,16 @@ pub enum AssistantToolCallType {
 }
 
 /// Function call details in a streaming tool call.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    Default,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "agent.completions.message.AssistantToolCallFunctionDelta")]
 pub struct AssistantToolCallFunctionDelta {
     /// The function name (only present in the first delta).
@@ -652,8 +650,18 @@ impl AssistantToolCallFunctionDelta {
 }
 
 /// Expression variant of [`AssistantToolCallFunction`] for dynamic content.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
-#[schemars(rename = "agent.completions.message.AssistantToolCallFunctionExpression")]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
+#[schemars(
+    rename = "agent.completions.message.AssistantToolCallFunctionExpression"
+)]
 pub struct AssistantToolCallFunctionExpression {
     /// The function name expression.
     pub name: functions::expression::WithExpression<String>,

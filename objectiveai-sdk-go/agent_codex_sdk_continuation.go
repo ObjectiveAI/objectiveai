@@ -8,6 +8,12 @@ import (
 )
 
 type AgentCodexSdkContinuation struct {
+	// Full slash-separated lineage of the agent this continuation
+	// belongs to (e.g. `A/B/agtcpl-<uuid>-<created>`). Minted on the
+	// agent's first spawn and preserved verbatim across every
+	// continuation round so the agent's identity stays stable
+	// regardless of who resumes the conversation.
+	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
 	MCPSessions OrderedMap[string, string] `json:"mcp_sessions"`
 	ThreadID string `json:"thread_id"`
 	Upstream AgentCodexSdkUpstream `json:"upstream"`
@@ -29,7 +35,7 @@ func (v *AgentCodexSdkContinuation) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"mcp_sessions", "thread_id", "upstream"} {
+	for _, key := range []string{"agent_instance_hierarchy", "mcp_sessions", "thread_id", "upstream"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("AgentCodexSdkContinuation: missing required field %q", key)
 		}

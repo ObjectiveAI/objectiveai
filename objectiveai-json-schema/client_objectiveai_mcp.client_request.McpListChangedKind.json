@@ -1,0 +1,9 @@
+{
+  "title": "client_objectiveai_mcp.client_request.McpListChangedKind",
+  "description": "Distinguishes `tools/list_changed` from `resources/list_changed`.",
+  "type": "string",
+  "enum": [
+    "tools",
+    "resources"
+  ]
+}

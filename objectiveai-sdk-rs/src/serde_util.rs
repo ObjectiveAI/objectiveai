@@ -6,8 +6,8 @@
 //! These helpers use a `Visitor` that only accepts numeric types.
 
 use rust_decimal::Decimal;
-use serde::de::{self, Deserializer, SeqAccess, Visitor};
 use serde::Deserialize;
+use serde::de::{self, Deserializer, SeqAccess, Visitor};
 use std::fmt;
 
 struct NumericDecimalVisitor;
@@ -33,22 +33,31 @@ impl<'de> Visitor<'de> for NumericDecimalVisitor {
 }
 
 /// Deserializes a `Decimal` from numeric JSON values only (rejects strings).
-pub fn decimal<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Decimal, D::Error> {
+pub fn decimal<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Decimal, D::Error> {
     deserializer.deserialize_any(NumericDecimalVisitor)
 }
 
 /// Deserializes an `Option<Decimal>` from numeric JSON values only.
-pub fn option_decimal<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<Decimal>, D::Error> {
-    Option::<DecimalFromNumeric>::deserialize(deserializer).map(|opt| opt.map(|d| d.0))
+pub fn option_decimal<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<Decimal>, D::Error> {
+    Option::<DecimalFromNumeric>::deserialize(deserializer)
+        .map(|opt| opt.map(|d| d.0))
 }
 
 /// Deserializes a `Vec<Decimal>` from an array of numeric JSON values only.
-pub fn vec_decimal<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<Decimal>, D::Error> {
+pub fn vec_decimal<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Vec<Decimal>, D::Error> {
     deserializer.deserialize_seq(VecDecimalVisitor)
 }
 
 /// Deserializes a `Vec<Vec<Decimal>>` from a nested array of numeric JSON values only.
-pub fn vec_vec_decimal<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<Vec<Decimal>>, D::Error> {
+pub fn vec_vec_decimal<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Vec<Vec<Decimal>>, D::Error> {
     deserializer.deserialize_seq(VecVecDecimalVisitor)
 }
 
@@ -60,8 +69,12 @@ pub fn vec_vec_decimal<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec
 struct DecimalFromNumeric(Decimal);
 
 impl<'de> Deserialize<'de> for DecimalFromNumeric {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        deserializer.deserialize_any(NumericDecimalVisitor).map(DecimalFromNumeric)
+    fn deserialize<D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Self, D::Error> {
+        deserializer
+            .deserialize_any(NumericDecimalVisitor)
+            .map(DecimalFromNumeric)
     }
 }
 
@@ -74,7 +87,10 @@ impl<'de> Visitor<'de> for VecDecimalVisitor {
         f.write_str("an array of numbers")
     }
 
-    fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Vec<Decimal>, A::Error> {
+    fn visit_seq<A: SeqAccess<'de>>(
+        self,
+        mut seq: A,
+    ) -> Result<Vec<Decimal>, A::Error> {
         let mut v = Vec::with_capacity(seq.size_hint().unwrap_or(0));
         while let Some(d) = seq.next_element_seed(NumericDecimalSeed)? {
             v.push(d);
@@ -92,7 +108,10 @@ impl<'de> Visitor<'de> for VecVecDecimalVisitor {
         f.write_str("an array of arrays of numbers")
     }
 
-    fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Vec<Vec<Decimal>>, A::Error> {
+    fn visit_seq<A: SeqAccess<'de>>(
+        self,
+        mut seq: A,
+    ) -> Result<Vec<Vec<Decimal>>, A::Error> {
         let mut v = Vec::with_capacity(seq.size_hint().unwrap_or(0));
         while let Some(inner) = seq.next_element_seed(VecDecimalSeed)? {
             v.push(inner);
@@ -107,7 +126,10 @@ struct NumericDecimalSeed;
 impl<'de> de::DeserializeSeed<'de> for NumericDecimalSeed {
     type Value = Decimal;
 
-    fn deserialize<D: Deserializer<'de>>(self, deserializer: D) -> Result<Decimal, D::Error> {
+    fn deserialize<D: Deserializer<'de>>(
+        self,
+        deserializer: D,
+    ) -> Result<Decimal, D::Error> {
         deserializer.deserialize_any(NumericDecimalVisitor)
     }
 }
@@ -118,7 +140,10 @@ struct VecDecimalSeed;
 impl<'de> de::DeserializeSeed<'de> for VecDecimalSeed {
     type Value = Vec<Decimal>;
 
-    fn deserialize<D: Deserializer<'de>>(self, deserializer: D) -> Result<Vec<Decimal>, D::Error> {
+    fn deserialize<D: Deserializer<'de>>(
+        self,
+        deserializer: D,
+    ) -> Result<Vec<Decimal>, D::Error> {
         deserializer.deserialize_seq(VecDecimalVisitor)
     }
 }

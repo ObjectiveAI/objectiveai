@@ -46,10 +46,6 @@ run_phase() {
 # Phase 1: build tools + json schema
 run_phase build-bin.sh objectiveai-json-schema/build.sh
 
-# CLI schema codegen (depends on phase 1, runs concurrently with phases 2+3)
-bash "$REPO_ROOT/objectiveai-cli/build.sh" &
-CLI_PID=$!
-
 # Embedded binaries (depend on phase 1, run concurrently with phases 2+3).
 # mcp-filesystem is a cargo build pinned to linux-musl (Docker container
 # injection); claude-agent-sdk-runner and codex-sdk-runner are PyInstaller.
@@ -75,7 +71,7 @@ run_phase objectiveai-sdk-js/build.sh objectiveai-sdk-py/build.sh objectiveai-sd
 
 # Wait for background builds before running viewer (viewer depends on objectiveai-sdk-js)
 FAILED=false
-for pid in $CLI_PID $MCP_FILESYSTEM_PID $CLAUDE_RUNNER_PID $CODEX_RUNNER_PID; do
+for pid in $MCP_FILESYSTEM_PID $CLAUDE_RUNNER_PID $CODEX_RUNNER_PID; do
   if ! wait "$pid"; then
     FAILED=true
   fi

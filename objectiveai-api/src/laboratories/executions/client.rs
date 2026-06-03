@@ -186,7 +186,7 @@ where
         )
         .map_err(&send_err)?;
 
-        let eval_agent = resolved_eval_agent.map(|wf| {
+        let eval_agent = resolved_eval_agent.map(|(wf, _path)| {
             let eval_agent_base = wf.inline().inner.clone().into_base();
             objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
                 objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
@@ -197,7 +197,7 @@ where
         });
 
         let mut builder_inline_agents = Vec::with_capacity(request.builder_agents.len());
-        for (i, builder_agent_wf) in resolved_builder_agents.into_iter().enumerate() {
+        for (i, (builder_agent_wf, _path)) in resolved_builder_agents.into_iter().enumerate() {
             let mut builder_agent_base = builder_agent_wf.inline().inner.clone().into_base();
             inject_mcp_server(&mut builder_agent_base, mcp_urls[i].clone());
             builder_inline_agents.push(builder_agent_base);

@@ -541,7 +541,7 @@ fn test_request_continuation_session_id_fallback() {
 
     let rc = objectiveai_sdk::agent::claude_agent_sdk::Continuation {
         upstream: objectiveai_sdk::agent::claude_agent_sdk::Upstream::default(),
-        agent_id: String::new(),
+        agent_instance_hierarchy: String::new(),
         session_id: "req-sess-123".to_string(),
         mcp_sessions: indexmap::IndexMap::new(),
         ws_session_id: None,
@@ -574,7 +574,7 @@ fn test_internal_session_id_takes_precedence_over_request() {
 
     let rc = objectiveai_sdk::agent::claude_agent_sdk::Continuation {
         upstream: objectiveai_sdk::agent::claude_agent_sdk::Upstream::default(),
-        agent_id: String::new(),
+        agent_instance_hierarchy: String::new(),
         session_id: "req-sess-456".to_string(),
         mcp_sessions: indexmap::IndexMap::new(),
         ws_session_id: None,

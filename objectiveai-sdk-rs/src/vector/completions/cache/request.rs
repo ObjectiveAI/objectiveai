@@ -1,7 +1,7 @@
 use crate::agent;
 use objectiveai_sdk_macros::schema_override;
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// Request body for retrieving completion votes by vector completion ID.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -23,7 +23,9 @@ impl schemars::JsonSchema for CacheVoteRequest<'static> {
     fn schema_name() -> std::borrow::Cow<'static, str> {
         CacheVoteRequestOwned::schema_name()
     }
-    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    fn json_schema(
+        generator: &mut schemars::SchemaGenerator,
+    ) -> schemars::Schema {
         CacheVoteRequestOwned::json_schema(generator)
     }
 }

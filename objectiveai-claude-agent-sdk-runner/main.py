@@ -382,13 +382,13 @@ async def handle_run(
         ua = params.get("user_agent")
         if ua:
             env["CLAUDE_AGENT_SDK_CLIENT_APP"] = ua
-        agent_id = params.get("agent_id")
-        if agent_id:
+        agent_instance_hierarchy = params.get("agent_instance_hierarchy")
+        if agent_instance_hierarchy:
             # Propagates through any objectiveai cli invocation the
             # subprocess makes via the filesystem — the cli reads
-            # OBJECTIVEAI_AGENT_ID at startup and stamps it on every
-            # outgoing X-OBJECTIVEAI-AGENT-ID header.
-            env["OBJECTIVEAI_AGENT_ID"] = agent_id
+            # OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY at startup and stamps it on every
+            # outgoing X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY header.
+            env["OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY"] = agent_instance_hierarchy
 
         opts = ClaudeAgentOptions(
             model=params["model"],

@@ -2,8 +2,9 @@
 
 #![cfg(test)]
 
+use crate::functions::alpha_vector::check::check_alpha_branch_vector_function;
 use crate::functions::alpha_vector::expression::{
-    VectorFunctionInputValueExpression, VectorFunctionInputSchema,
+    VectorFunctionInputSchema, VectorFunctionInputValueExpression,
 };
 use crate::functions::alpha_vector::{
     BranchTaskExpression, PlaceholderScalarFunctionTaskExpression,
@@ -11,10 +12,9 @@ use crate::functions::alpha_vector::{
     ScalarFunctionTaskExpression, VectorFunctionTaskExpression,
 };
 use crate::functions::expression::{
-    BooleanInputSchema, Expression, InputSchema,
-    ObjectInputSchema, StringInputSchema,
+    BooleanInputSchema, Expression, InputSchema, ObjectInputSchema,
+    StringInputSchema,
 };
-use crate::functions::alpha_vector::check::check_alpha_branch_vector_function;
 use crate::test_util::index_map;
 
 fn test(f: &RemoteFunction) {
@@ -210,36 +210,44 @@ fn over_50_percent_scalar_tasks() {
             }),
         },
         tasks: vec![
-            BranchTaskExpression::ScalarFunction(ScalarFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            BranchTaskExpression::ScalarFunction(
+                ScalarFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: Expression::Starlark("input".to_string()),
                 },
-                skip: None,
-                input: Expression::Starlark("input".to_string()),
-            }),
-            BranchTaskExpression::ScalarFunction(ScalarFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test2".to_string(),
-                    commit: "abc123".to_string(),
+            ),
+            BranchTaskExpression::ScalarFunction(
+                ScalarFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test2".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: Expression::Starlark("input".to_string()),
                 },
-                skip: None,
-                input: Expression::Starlark("input".to_string()),
-            }),
-            BranchTaskExpression::VectorFunction(VectorFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            ),
+            BranchTaskExpression::VectorFunction(
+                VectorFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: VectorFunctionInputValueExpression {
+                        context: None,
+                        items: Expression::Starlark(
+                            "input['items']".to_string(),
+                        ),
+                    },
                 },
-                skip: None,
-                input: VectorFunctionInputValueExpression {
-                    context: None,
-                    items: Expression::Starlark("input['items']".to_string()),
-                },
-            }),
+            ),
         ],
     };
     test_err(&f, "AW09");
@@ -332,30 +340,38 @@ fn valid_all_vector_tasks() {
             }),
         },
         tasks: vec![
-            BranchTaskExpression::VectorFunction(VectorFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            BranchTaskExpression::VectorFunction(
+                VectorFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: VectorFunctionInputValueExpression {
+                        context: None,
+                        items: Expression::Starlark(
+                            "input['items']".to_string(),
+                        ),
+                    },
                 },
-                skip: None,
-                input: VectorFunctionInputValueExpression {
-                    context: None,
-                    items: Expression::Starlark("input['items']".to_string()),
+            ),
+            BranchTaskExpression::VectorFunction(
+                VectorFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test2".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: VectorFunctionInputValueExpression {
+                        context: None,
+                        items: Expression::Starlark(
+                            "input['items']".to_string(),
+                        ),
+                    },
                 },
-            }),
-            BranchTaskExpression::VectorFunction(VectorFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test2".to_string(),
-                    commit: "abc123".to_string(),
-                },
-                skip: None,
-                input: VectorFunctionInputValueExpression {
-                    context: None,
-                    items: Expression::Starlark("input['items']".to_string()),
-                },
-            }),
+            ),
         ],
     };
     test(&f);
@@ -374,18 +390,22 @@ fn valid_mixed_placeholder_vector_tasks() {
             }),
         },
         tasks: vec![
-            BranchTaskExpression::VectorFunction(VectorFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            BranchTaskExpression::VectorFunction(
+                VectorFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: VectorFunctionInputValueExpression {
+                        context: None,
+                        items: Expression::Starlark(
+                            "input['items']".to_string(),
+                        ),
+                    },
                 },
-                skip: None,
-                input: VectorFunctionInputValueExpression {
-                    context: None,
-                    items: Expression::Starlark("input['items']".to_string()),
-                },
-            }),
+            ),
             BranchTaskExpression::PlaceholderVectorFunction(
                 PlaceholderVectorFunctionTaskExpression {
                     params: crate::functions::inventions::Params {
@@ -434,30 +454,36 @@ fn input_diversity_fail_fixed_input() {
             }),
         },
         tasks: vec![
-            BranchTaskExpression::VectorFunction(VectorFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            BranchTaskExpression::VectorFunction(
+                VectorFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: VectorFunctionInputValueExpression {
+                        context: None,
+                        items: Expression::Starlark(
+                            "input['items']".to_string(),
+                        ),
+                    },
                 },
-                skip: None,
-                input: VectorFunctionInputValueExpression {
-                    context: None,
-                    items: Expression::Starlark("input['items']".to_string()),
+            ),
+            BranchTaskExpression::VectorFunction(
+                VectorFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test2".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: VectorFunctionInputValueExpression {
+                        context: None,
+                        items: Expression::Starlark("['A', 'B']".to_string()),
+                    },
                 },
-            }),
-            BranchTaskExpression::VectorFunction(VectorFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test2".to_string(),
-                    commit: "abc123".to_string(),
-                },
-                skip: None,
-                input: VectorFunctionInputValueExpression {
-                    context: None,
-                    items: Expression::Starlark("['A', 'B']".to_string()),
-                },
-            }),
+            ),
         ],
     };
     test_err(&f, "AW18");
@@ -476,30 +502,38 @@ fn input_diversity_pass_all_derived() {
             }),
         },
         tasks: vec![
-            BranchTaskExpression::VectorFunction(VectorFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            BranchTaskExpression::VectorFunction(
+                VectorFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: VectorFunctionInputValueExpression {
+                        context: None,
+                        items: Expression::Starlark(
+                            "input['items']".to_string(),
+                        ),
+                    },
                 },
-                skip: None,
-                input: VectorFunctionInputValueExpression {
-                    context: None,
-                    items: Expression::Starlark("input['items']".to_string()),
+            ),
+            BranchTaskExpression::VectorFunction(
+                VectorFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test2".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: VectorFunctionInputValueExpression {
+                        context: None,
+                        items: Expression::Starlark(
+                            "input['items']".to_string(),
+                        ),
+                    },
                 },
-            }),
-            BranchTaskExpression::VectorFunction(VectorFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test2".to_string(),
-                    commit: "abc123".to_string(),
-                },
-                skip: None,
-                input: VectorFunctionInputValueExpression {
-                    context: None,
-                    items: Expression::Starlark("input['items']".to_string()),
-                },
-            }),
+            ),
         ],
     };
     test(&f);
@@ -540,7 +574,9 @@ fn input_diversity_pass_placeholder_vector_tasks() {
                     skip: None,
                     input: VectorFunctionInputValueExpression {
                         context: None,
-                        items: Expression::Starlark("input['items']".to_string()),
+                        items: Expression::Starlark(
+                            "input['items']".to_string(),
+                        ),
                     },
                 },
             ),
@@ -592,30 +628,38 @@ fn all_tasks_skipped() {
             }),
         },
         tasks: vec![
-            BranchTaskExpression::VectorFunction(VectorFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            BranchTaskExpression::VectorFunction(
+                VectorFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: Some(Expression::Starlark("True".to_string())),
+                    input: VectorFunctionInputValueExpression {
+                        context: None,
+                        items: Expression::Starlark(
+                            "input['items']".to_string(),
+                        ),
+                    },
                 },
-                skip: Some(Expression::Starlark("True".to_string())),
-                input: VectorFunctionInputValueExpression {
-                    context: None,
-                    items: Expression::Starlark("input['items']".to_string()),
+            ),
+            BranchTaskExpression::VectorFunction(
+                VectorFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test2".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: Some(Expression::Starlark("True".to_string())),
+                    input: VectorFunctionInputValueExpression {
+                        context: None,
+                        items: Expression::Starlark(
+                            "input['items']".to_string(),
+                        ),
+                    },
                 },
-            }),
-            BranchTaskExpression::VectorFunction(VectorFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test2".to_string(),
-                    commit: "abc123".to_string(),
-                },
-                skip: Some(Expression::Starlark("True".to_string())),
-                input: VectorFunctionInputValueExpression {
-                    context: None,
-                    items: Expression::Starlark("input['items']".to_string()),
-                },
-            }),
+            ),
         ],
     };
     test_err(&f, "CV42");
@@ -648,36 +692,47 @@ fn valid_with_skip_on_boolean() {
                         description: None,
                     })
                 },
-                required: Some(vec!["text".to_string(), "skip_last".to_string()]),
+                required: Some(vec![
+                    "text".to_string(),
+                    "skip_last".to_string(),
+                ]),
             }),
         },
         tasks: vec![
-            BranchTaskExpression::VectorFunction(VectorFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            BranchTaskExpression::VectorFunction(
+                VectorFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: VectorFunctionInputValueExpression {
+                        context: None,
+                        items: Expression::Starlark(
+                            "input['items']".to_string(),
+                        ),
+                    },
                 },
-                skip: None,
-                input: VectorFunctionInputValueExpression {
-                    context: None,
-                    items: Expression::Starlark("input['items']".to_string()),
+            ),
+            BranchTaskExpression::VectorFunction(
+                VectorFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test2".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: Some(Expression::Starlark(
+                        "input['items'][0]['skip_last']".to_string(),
+                    )),
+                    input: VectorFunctionInputValueExpression {
+                        context: None,
+                        items: Expression::Starlark(
+                            "input['items']".to_string(),
+                        ),
+                    },
                 },
-            }),
-            BranchTaskExpression::VectorFunction(VectorFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test2".to_string(),
-                    commit: "abc123".to_string(),
-                },
-                skip: Some(Expression::Starlark(
-                    "input['items'][0]['skip_last']".to_string(),
-                )),
-                input: VectorFunctionInputValueExpression {
-                    context: None,
-                    items: Expression::Starlark("input['items']".to_string()),
-                },
-            }),
+            ),
         ],
     };
     test(&f);
@@ -708,32 +763,40 @@ fn valid_with_skip_on_mode_enum() {
             }),
         },
         tasks: vec![
-            BranchTaskExpression::VectorFunction(VectorFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test".to_string(),
-                    commit: "abc123".to_string(),
+            BranchTaskExpression::VectorFunction(
+                VectorFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: None,
+                    input: VectorFunctionInputValueExpression {
+                        context: None,
+                        items: Expression::Starlark(
+                            "input['items']".to_string(),
+                        ),
+                    },
                 },
-                skip: None,
-                input: VectorFunctionInputValueExpression {
-                    context: None,
-                    items: Expression::Starlark("input['items']".to_string()),
+            ),
+            BranchTaskExpression::VectorFunction(
+                VectorFunctionTaskExpression {
+                    path: crate::RemotePath::Github {
+                        owner: "test".to_string(),
+                        repository: "test2".to_string(),
+                        commit: "abc123".to_string(),
+                    },
+                    skip: Some(Expression::Starlark(
+                        "input['items'][0]['mode'] == 'quick'".to_string(),
+                    )),
+                    input: VectorFunctionInputValueExpression {
+                        context: None,
+                        items: Expression::Starlark(
+                            "input['items']".to_string(),
+                        ),
+                    },
                 },
-            }),
-            BranchTaskExpression::VectorFunction(VectorFunctionTaskExpression {
-                path: crate::RemotePath::Github {
-                    owner: "test".to_string(),
-                    repository: "test2".to_string(),
-                    commit: "abc123".to_string(),
-                },
-                skip: Some(Expression::Starlark(
-                    "input['items'][0]['mode'] == 'quick'".to_string(),
-                )),
-                input: VectorFunctionInputValueExpression {
-                    context: None,
-                    items: Expression::Starlark("input['items']".to_string()),
-                },
-            }),
+            ),
         ],
     };
     test(&f);

@@ -26,15 +26,23 @@
 //! the function's output directly (with weight 1.0).
 
 use crate::agent;
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// A task definition with expressions (pre-compilation).
 ///
 /// Task expressions contain dynamic fields (JMESPath or Starlark) that are
 /// resolved against input data during compilation. Use [`compile`](Self::compile)
 /// to produce a concrete [`Task`].
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[serde(tag = "type")]
 #[schemars(rename = "functions.TaskExpression")]
 pub enum TaskExpression {
@@ -177,7 +185,15 @@ impl Task {
 }
 
 /// Expression for a task that calls a scalar function (pre-compilation).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "functions.ScalarFunctionTaskExpression")]
 pub struct ScalarFunctionTaskExpression {
     #[serde(flatten)]
@@ -197,8 +213,9 @@ pub struct ScalarFunctionTaskExpression {
 
     /// Expression for the input to pass to the function.
     /// Receives: `input`, `map` (if mapped).
-    pub input:
-        super::expression::WithExpression<super::expression::InputValueExpression>,
+    pub input: super::expression::WithExpression<
+        super::expression::InputValueExpression,
+    >,
 
     /// Expression to transform the task result into a valid function output.
     ///
@@ -284,7 +301,15 @@ impl ScalarFunctionTask {
 }
 
 /// Expression for a task that calls a vector function (pre-compilation).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "functions.VectorFunctionTaskExpression")]
 pub struct VectorFunctionTaskExpression {
     #[serde(flatten)]
@@ -304,8 +329,9 @@ pub struct VectorFunctionTaskExpression {
 
     /// Expression for the input to pass to the function.
     /// Receives: `input`, `map` (if mapped).
-    pub input:
-        super::expression::WithExpression<super::expression::InputValueExpression>,
+    pub input: super::expression::WithExpression<
+        super::expression::InputValueExpression,
+    >,
 
     /// Expression to transform the task result into a valid function output.
     ///
@@ -391,7 +417,15 @@ impl VectorFunctionTask {
 }
 
 /// Expression for a task that runs a vector completion (pre-compilation).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "functions.VectorCompletionTaskExpression")]
 pub struct VectorCompletionTaskExpression {
     /// If this expression evaluates to true, skip the task. Receives: `input`.
@@ -529,7 +563,15 @@ impl VectorCompletionTask {
 ///
 /// Like [`ScalarFunctionTaskExpression`] but without owner/repository/commit.
 /// Always produces a fixed output of 0.5.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "functions.PlaceholderScalarFunctionTaskExpression")]
 pub struct PlaceholderScalarFunctionTaskExpression {
     /// JSON Schema defining the expected input structure.
@@ -548,8 +590,9 @@ pub struct PlaceholderScalarFunctionTaskExpression {
 
     /// Expression for the input to pass to the placeholder function.
     /// Receives: `input`, `map` (if mapped).
-    pub input:
-        super::expression::WithExpression<super::expression::InputValueExpression>,
+    pub input: super::expression::WithExpression<
+        super::expression::InputValueExpression,
+    >,
 
     /// Expression to transform the fixed 0.5 output.
     /// Receives: `input`, `output` as `Scalar(0.5)`.
@@ -615,7 +658,15 @@ impl PlaceholderScalarFunctionTask {
 ///
 /// Like [`VectorFunctionTaskExpression`] but without owner/repository/commit.
 /// Always produces an equalized vector of length `output_length`.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "functions.PlaceholderVectorFunctionTaskExpression")]
 pub struct PlaceholderVectorFunctionTaskExpression {
     /// JSON Schema defining the expected input structure.
@@ -646,8 +697,9 @@ pub struct PlaceholderVectorFunctionTaskExpression {
 
     /// Expression for the input to pass to the placeholder function.
     /// Receives: `input`, `map` (if mapped).
-    pub input:
-        super::expression::WithExpression<super::expression::InputValueExpression>,
+    pub input: super::expression::WithExpression<
+        super::expression::InputValueExpression,
+    >,
 
     /// Expression to transform the equalized vector output.
     /// Receives: `input`, `output` as `Vector(equalized)`.

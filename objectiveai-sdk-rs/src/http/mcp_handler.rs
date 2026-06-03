@@ -40,7 +40,10 @@ pub trait McpHandler: Send + Sync + 'static {
 pub struct RejectHandler;
 
 impl McpHandler for RejectHandler {
-    async fn handle(&self, request: server_request::Request) -> server_response::Response {
+    async fn handle(
+        &self,
+        request: server_request::Request,
+    ) -> server_response::Response {
         server_response::Response {
             id: request.id,
             status: 501,

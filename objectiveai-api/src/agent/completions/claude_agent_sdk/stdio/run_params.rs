@@ -31,11 +31,11 @@ pub struct RunParams<'a> {
     pub user_agent: Option<&'a str>,
 
     /// Composite agent id forwarded by the api at MCP-connect time
-    /// (`X-OBJECTIVEAI-AGENT-ID`). The Python runner sets this as
-    /// `OBJECTIVEAI_AGENT_ID` in the per-Run env dict it hands to the
+    /// (`X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY`). The Python runner sets this as
+    /// `OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY` in the per-Run env dict it hands to the
     /// claude-agent-sdk subprocess.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub agent_id: Option<&'a str>,
+    pub agent_instance_hierarchy: Option<&'a str>,
 
     pub rate_limit_max_retries: u64,
     pub rate_limit_max_wait_secs: u64,

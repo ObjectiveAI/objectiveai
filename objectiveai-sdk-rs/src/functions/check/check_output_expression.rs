@@ -18,10 +18,8 @@
 
 use rust_decimal::Decimal;
 
-use crate::functions::expression::{
-    InputValue, TaskOutput, TaskOutputOwned,
-};
 use crate::functions::Task;
+use crate::functions::expression::{InputValue, TaskOutput, TaskOutputOwned};
 
 /// Number of systematic trials for distribution checks.
 const TRIALS: usize = 1000;
@@ -89,9 +87,7 @@ fn systematic_map_scalar(k: usize, len: usize) -> Vec<Decimal> {
     }
     if len == 1 {
         let v = k as f64 / 999.0;
-        return vec![
-            Decimal::from_f64_retain(v).unwrap_or(Decimal::ZERO),
-        ];
+        return vec![Decimal::from_f64_retain(v).unwrap_or(Decimal::ZERO)];
     }
 
     // Trial 0: all zeros — tests expressions that assume non-zero sums
@@ -156,9 +152,9 @@ pub(crate) fn check_scalar_distribution(
 
     for k in 0..TRIALS {
         let mock_output = match shape {
-            ScalarOutputShape::Scalar => TaskOutput::Owned(
-                TaskOutputOwned::Scalar(systematic_scalar(k)),
-            ),
+            ScalarOutputShape::Scalar => {
+                TaskOutput::Owned(TaskOutputOwned::Scalar(systematic_scalar(k)))
+            }
             ScalarOutputShape::VectorCompletion(n) => TaskOutput::Owned(
                 TaskOutputOwned::Vector(systematic_vc_scores(k, *n)),
             ),
@@ -259,9 +255,7 @@ pub(crate) fn check_vector_distribution(
                 TaskOutputOwned::Vector(systematic_map_scalar(k, *len)),
             ),
             VectorOutputShape::Vector(n) => TaskOutput::Owned(
-                TaskOutputOwned::Vector(
-                    systematic_vector(k, *n as usize),
-                ),
+                TaskOutputOwned::Vector(systematic_vector(k, *n as usize)),
             ),
             VectorOutputShape::VectorCompletion(n) => TaskOutput::Owned(
                 TaskOutputOwned::Vector(systematic_vc_scores(k, *n)),

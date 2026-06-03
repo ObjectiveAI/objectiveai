@@ -2,6 +2,7 @@
 
 #![cfg(test)]
 
+use crate::functions::alpha_vector::check::check_alpha_leaf_vector_function;
 use crate::functions::alpha_vector::expression::VectorFunctionInputSchema;
 use crate::functions::alpha_vector::{
     LeafTaskExpression, RemoteFunction, VectorCompletionTaskExpression,
@@ -10,7 +11,6 @@ use crate::functions::expression::{
     ArrayInputSchema, BooleanInputSchema, Expression, ImageInputSchema,
     InputSchema, IntegerInputSchema, ObjectInputSchema, StringInputSchema,
 };
-use crate::functions::alpha_vector::check::check_alpha_leaf_vector_function;
 use crate::test_util::index_map;
 
 fn test(f: &RemoteFunction) {

@@ -1,11 +1,22 @@
 //! Remote source types for function, profile, and agent hosting.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use schemars::JsonSchema;
 
 /// The remote source where a function, profile, or agent is hosted.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    Hash,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[serde(rename_all = "snake_case")]
 #[schemars(rename = "Remote")]
 pub enum Remote {
@@ -30,7 +41,17 @@ impl fmt::Display for Remote {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    Hash,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[serde(tag = "remote", rename_all = "snake_case")]
 #[schemars(rename = "RemotePath")]
 pub enum RemotePath {
@@ -47,9 +68,7 @@ pub enum RemotePath {
         commit: String,
     },
     #[schemars(title = "Mock")]
-    Mock {
-        name: String,
-    },
+    Mock { name: String },
 }
 
 impl RemotePath {
@@ -71,10 +90,18 @@ impl RemotePath {
 
     pub fn key(&self) -> String {
         match self {
-            RemotePath::Github { owner, repository, commit } => {
+            RemotePath::Github {
+                owner,
+                repository,
+                commit,
+            } => {
                 format!("{}/{}/{}/{}", self.remote(), owner, repository, commit)
             }
-            RemotePath::Filesystem { owner, repository, commit } => {
+            RemotePath::Filesystem {
+                owner,
+                repository,
+                commit,
+            } => {
                 format!("{}/{}/{}/{}", self.remote(), owner, repository, commit)
             }
             RemotePath::Mock { name } => {
@@ -85,23 +112,38 @@ impl RemotePath {
 
     pub fn url(&self) -> String {
         match self {
-            RemotePath::Github { owner, repository, commit } => format!(
+            RemotePath::Github {
+                owner,
+                repository,
+                commit,
+            } => format!(
                 "[{}](https://github.com/{}/{}/commit/{})",
                 repository, owner, repository, commit
             ),
-            RemotePath::Filesystem { owner, repository, commit } => format!(
+            RemotePath::Filesystem {
+                owner,
+                repository,
+                commit,
+            } => format!(
                 "[{}](file://{}/{}) ({})",
                 repository, owner, repository, commit
             ),
-            RemotePath::Mock { name } => format!(
-                "[{}](mock://{})",
-                name, name
-            ),
+            RemotePath::Mock { name } => format!("[{}](mock://{})", name, name),
         }
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    Hash,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[serde(tag = "remote", rename_all = "snake_case")]
 #[schemars(rename = "RemotePathCommitOptional")]
 pub enum RemotePathCommitOptional {
@@ -118,9 +160,7 @@ pub enum RemotePathCommitOptional {
         commit: Option<String>,
     },
     #[schemars(title = "Mock")]
-    Mock {
-        name: String,
-    },
+    Mock { name: String },
 }
 
 impl RemotePathCommitOptional {
@@ -136,12 +176,24 @@ impl RemotePathCommitOptional {
 impl From<RemotePath> for RemotePathCommitOptional {
     fn from(path: RemotePath) -> Self {
         match path {
-            RemotePath::Github { owner, repository, commit } => {
-                RemotePathCommitOptional::Github { owner, repository, commit: Some(commit) }
-            }
-            RemotePath::Filesystem { owner, repository, commit } => {
-                RemotePathCommitOptional::Filesystem { owner, repository, commit: Some(commit) }
-            }
+            RemotePath::Github {
+                owner,
+                repository,
+                commit,
+            } => RemotePathCommitOptional::Github {
+                owner,
+                repository,
+                commit: Some(commit),
+            },
+            RemotePath::Filesystem {
+                owner,
+                repository,
+                commit,
+            } => RemotePathCommitOptional::Filesystem {
+                owner,
+                repository,
+                commit: Some(commit),
+            },
             RemotePath::Mock { name } => {
                 RemotePathCommitOptional::Mock { name }
             }

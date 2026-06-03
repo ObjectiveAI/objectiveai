@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Optional
 from objectiveai_sdk.json_value import JsonValue
 from pydantic import BaseModel, ConfigDict, Field
+from objectiveai_sdk.cli.output.error_type import ErrorType
 from objectiveai_sdk.cli.output.level import Level
 
 
@@ -16,11 +17,18 @@ command still ran).
 `message` is an arbitrary JSON value so producers can emit
 structured payloads (e.g. `{"code": ..., "detail": ...}`). Wrap
 a plain string as `Value::String(...)` (or use `.into()`) and the
-wire bytes stay identical to the old `String`-only shape."""
+wire bytes stay identical to the old `String`-only shape.
+
+The `type` field is a single-variant `ErrorType` enum that
+always serializes to `"error"`. This is what disambiguates the
+untagged `Output` enum from a notification — `Output` tries
+`Error` first, and the constant `type:"error"` tag is what
+rejects every non-error wire shape."""
     model_config = ConfigDict(title='cli.output.Error')
 
-    agent_id: Optional[str] = Field(None, description='Stamped at emit time by [`super::Handle`] when its `agent_id`\nfield is set; producers leave this `None` and let the handle\nfill it. Serde-skipped when `None`.', json_schema_extra={'omitempty': True})
+    agent_instance_hierarchy: Optional[str] = Field(None, description='Stamped at emit time by [`super::Handle`] when its `agent_instance_hierarchy`\nfield is set; producers leave this `None` and let the handle\nfill it. Serde-skipped when `None`.', json_schema_extra={'omitempty': True})
     fatal: bool
     level: Level
     message: JsonValue
+    type_: ErrorType = Field('error', alias='type')
 

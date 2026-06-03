@@ -15,6 +15,7 @@ from .image_input_schema_type import ImageInputSchemaType  # noqa: F401
 from .input_schema import InputSchema, InputSchemaAnyOf, InputSchemaArray, InputSchemaAudio, InputSchemaBoolean, InputSchemaFile, InputSchemaImage, InputSchemaInteger, InputSchemaNumber, InputSchemaObject, InputSchemaString, InputSchemaVideo  # noqa: F401
 from .input_value import InputValue, InputValueArray, InputValueBoolean, InputValueInteger, InputValueNumber, InputValueObject, InputValueRichContentPart, InputValueString  # noqa: F401
 from .input_value_expression import InputValueExpression, InputValueExpressionArray, InputValueExpressionBoolean, InputValueExpressionInteger, InputValueExpressionNumber, InputValueExpressionObject, InputValueExpressionRichContentPart, InputValueExpressionString, Item, ItemExpression, ItemValue, Value, ValueExpression, ValueValue  # noqa: F401
+from .input_value_log import InputValueLog, InputValueLogArray, InputValueLogObject, InputValueLogReference  # noqa: F401
 from .integer_input_schema import IntegerInputSchema  # noqa: F401
 from .integer_input_schema_type import IntegerInputSchemaType  # noqa: F401
 from .number_input_schema import NumberInputSchema  # noqa: F401

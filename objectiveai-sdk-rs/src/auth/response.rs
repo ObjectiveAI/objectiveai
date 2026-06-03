@@ -4,8 +4,8 @@
 //! endpoints, including credit balances, API key metadata, and OpenRouter
 //! BYOK configuration.
 
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// Response containing the user's credit balance information.
 ///

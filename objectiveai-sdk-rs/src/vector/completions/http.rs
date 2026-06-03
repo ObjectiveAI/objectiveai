@@ -32,7 +32,8 @@ pub async fn create_vector_completion_streaming<H: McpHandler>(
                 super::response::streaming::VectorCompletionChunk,
                 HttpError,
             >,
-        > + Send
+        >
+        + Send
         + Unpin
         + 'static
         + use<H>,

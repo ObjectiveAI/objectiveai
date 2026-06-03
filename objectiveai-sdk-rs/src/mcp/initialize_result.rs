@@ -126,18 +126,24 @@ pub struct ToolsCapability {
 
 /// Marker capability for logging support. Presence indicates the server
 /// supports sending log messages to the client.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema,
+)]
 #[schemars(rename = "mcp.LoggingCapability", extend("additionalProperties" = false))]
 pub struct LoggingCapability {}
 
 /// Marker capability for completions support. Presence indicates the server
 /// supports argument value completions.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema,
+)]
 #[schemars(rename = "mcp.CompletionsCapability", extend("additionalProperties" = false))]
 pub struct CompletionsCapability {}
 
 /// Capabilities for task creation and management.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema,
+)]
 #[schemars(rename = "mcp.TasksCapability")]
 pub struct TasksCapability {
     /// Present if the server supports listing tasks.
@@ -155,17 +161,23 @@ pub struct TasksCapability {
 }
 
 /// Marker capability for task listing support.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema,
+)]
 #[schemars(rename = "mcp.TasksListCapability", extend("additionalProperties" = false))]
 pub struct TasksListCapability {}
 
 /// Marker capability for task cancellation support.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema,
+)]
 #[schemars(rename = "mcp.TasksCancelCapability", extend("additionalProperties" = false))]
 pub struct TasksCancelCapability {}
 
 /// Task creation capabilities scoped to request types.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema,
+)]
 #[schemars(rename = "mcp.TasksRequestsCapability")]
 pub struct TasksRequestsCapability {
     /// Task support for tool-related requests.
@@ -175,7 +187,9 @@ pub struct TasksRequestsCapability {
 }
 
 /// Task capabilities for tool requests.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema,
+)]
 #[schemars(rename = "mcp.TasksToolsCapability")]
 pub struct TasksToolsCapability {
     /// Present if tools/call supports task creation.
@@ -185,6 +199,8 @@ pub struct TasksToolsCapability {
 }
 
 /// Marker capability for tools/call task creation support.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema,
+)]
 #[schemars(rename = "mcp.TasksToolsCallCapability", extend("additionalProperties" = false))]
 pub struct TasksToolsCallCapability {}

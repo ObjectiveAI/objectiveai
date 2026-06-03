@@ -44,16 +44,17 @@ pub struct Context<CTXEXT, PC> {
     commit_author_name: Option<Arc<String>>,
     /// Per-request commit author email.
     commit_author_email: Option<Arc<String>>,
-    /// Per-request caller-supplied agent id (`X-OBJECTIVEAI-AGENT-ID`).
+    /// Per-request caller-supplied agent id (`X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY`).
     /// Plays the role of the *parent* when composing the agent id we
     /// forward to the MCP proxy inside agent completions.
-    agent_id: Option<Arc<String>>,
-    /// Local TCP port the API process is bound on. Used to synthesize
-    /// `http://127.0.0.1:{api_port}/objectiveai-mcp/{ws_session_id}`
+    agent_instance_hierarchy: Option<Arc<String>>,
+    /// Loopback-only MCP listener port the API process bound. Used
+    /// to synthesize
+    /// `http://127.0.0.1:{mcp_port}/objectiveai-mcp/{ws_session_id}`
     /// reverse-attach URLs when an agent declares `client_objectiveai_mcp`.
     /// `None` on HTTP/SSE requests (no reverse-attach possible) and
     /// when running outside a bound server.
-    api_port: Option<u16>,
+    mcp_port: Option<u16>,
     /// Handle for registering per-agent `ws_session_id`s against the
     /// current WS reverse channel. Set on WS-attached requests by the
     /// streaming handlers; `None` on HTTP/SSE. Many ids may register
@@ -164,8 +165,8 @@ impl<CTXEXT, PC> Clone for Context<CTXEXT, PC> {
             viewer_address: self.viewer_address.clone(),
             commit_author_name: self.commit_author_name.clone(),
             commit_author_email: self.commit_author_email.clone(),
-            agent_id: self.agent_id.clone(),
-            api_port: self.api_port,
+            agent_instance_hierarchy: self.agent_instance_hierarchy.clone(),
+            mcp_port: self.mcp_port,
             reverse_attach: self.reverse_attach.clone(),
             openrouter_authorization_cached: self.openrouter_authorization_cached.clone(),
             github_authorization_cached: self.github_authorization_cached.clone(),
@@ -262,9 +263,9 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
             .and_then(|v| v.to_str().ok())
             .map(|s| Arc::new(s.to_owned()));
 
-        let agent_id = headers
-            .get("X-OBJECTIVEAI-AGENT-ID")
-            .or_else(|| headers.get("OBJECTIVEAI-AGENT-ID"))
+        let agent_instance_hierarchy = headers
+            .get("X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY")
+            .or_else(|| headers.get("OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY"))
             .and_then(|v| v.to_str().ok())
             .map(|s| Arc::new(s.to_owned()));
 
@@ -281,8 +282,8 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
             viewer_address,
             commit_author_name,
             commit_author_email,
-            agent_id,
-            api_port: None,
+            agent_instance_hierarchy,
+            mcp_port: None,
             reverse_attach: None,
             openrouter_authorization_cached: Arc::new(OnceCell::new()),
             github_authorization_cached: Arc::new(OnceCell::new()),
@@ -307,17 +308,17 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
         self.objectiveai_authorization.as_ref()
     }
 
-    /// Returns the caller-supplied agent id from `X-OBJECTIVEAI-AGENT-ID`,
+    /// Returns the caller-supplied agent id from `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY`,
     /// if present. This is the *parent* prefix used when composing the
     /// agent id we forward to the MCP proxy.
-    pub fn agent_id(&self) -> Option<&str> {
-        self.agent_id.as_deref().map(|s| s.as_str())
+    pub fn agent_instance_hierarchy(&self) -> Option<&str> {
+        self.agent_instance_hierarchy.as_deref().map(|s| s.as_str())
     }
 
-    /// Returns the local TCP port the API process is bound on, if a
-    /// streaming WS handler stamped one on this context.
-    pub fn api_port(&self) -> Option<u16> {
-        self.api_port
+    /// Returns the loopback-only MCP listener port the API process
+    /// bound, if a streaming WS handler stamped one on this context.
+    pub fn mcp_port(&self) -> Option<u16> {
+        self.mcp_port
     }
 
     /// Returns the shared reverse-attach handle for registering
@@ -329,10 +330,11 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
         self.reverse_attach.as_ref()
     }
 
-    /// Stamps the local TCP port (from `ReverseAttachConfig.api_port`)
-    /// on the context. Returns the modified context for chaining.
-    pub fn with_api_port(mut self, port: u16) -> Self {
-        self.api_port = Some(port);
+    /// Stamps the loopback MCP listener port (from
+    /// `ReverseAttachConfig.mcp_port`) on the context. Returns the
+    /// modified context for chaining.
+    pub fn with_mcp_port(mut self, port: u16) -> Self {
+        self.mcp_port = Some(port);
         self
     }
 

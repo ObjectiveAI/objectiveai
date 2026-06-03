@@ -258,8 +258,13 @@ fn untagged_enum_string_not_stolen_by_scalar() {
     #[derive(Deserialize, Debug, PartialEq)]
     #[serde(untagged)]
     enum Output {
-        Scalar(#[serde(deserialize_with = "crate::serde_util::decimal")] Decimal),
-        Vector(#[serde(deserialize_with = "crate::serde_util::vec_decimal")] Vec<Decimal>),
+        Scalar(
+            #[serde(deserialize_with = "crate::serde_util::decimal")] Decimal,
+        ),
+        Vector(
+            #[serde(deserialize_with = "crate::serde_util::vec_decimal")]
+            Vec<Decimal>,
+        ),
         Err(serde_json::Value),
     }
 
@@ -273,8 +278,11 @@ fn untagged_enum_string_not_stolen_by_scalar() {
 
     // String "94" → Err (NOT Scalar!)
     let o: Output = serde_json::from_str(r#""94""#).unwrap();
-    assert!(matches!(o, Output::Err(serde_json::Value::String(_))),
-        "string \"94\" must fall through to Err, got: {:?}", o);
+    assert!(
+        matches!(o, Output::Err(serde_json::Value::String(_))),
+        "string \"94\" must fall through to Err, got: {:?}",
+        o
+    );
 
     // String "hello" → Err
     let o: Output = serde_json::from_str(r#""hello""#).unwrap();
@@ -301,7 +309,8 @@ fn untagged_enum_string_not_stolen_by_scalar() {
 
 #[test]
 fn all_fields_happy_path() {
-    let json = r#"{"bare": 1, "opt": 2.5, "vec": [3, 4], "vecs": [[5], [6, 7]]}"#;
+    let json =
+        r#"{"bare": 1, "opt": 2.5, "vec": [3, 4], "vecs": [[5], [6, 7]]}"#;
     let a: All = serde_json::from_str(json).unwrap();
     assert_eq!(a.bare, Decimal::from(1));
     assert!(a.opt.is_some());

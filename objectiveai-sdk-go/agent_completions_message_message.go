@@ -180,15 +180,15 @@ func (AgentCompletionsMessageMessageTool) SchemaVariantTitle() string { return "
 // A message in the conversation.
 type AgentCompletionsMessageMessage struct {
 	// A developer message (similar to system, but from the developer).
-	Developer *AgentCompletionsMessageMessageDeveloper 
+	Developer *AgentCompletionsMessageMessageDeveloper `outerObject:"true"`
 	// A system message setting context or instructions.
-	System *AgentCompletionsMessageMessageSystem 
+	System *AgentCompletionsMessageMessageSystem `outerObject:"true"`
 	// A user message from the end user.
-	User *AgentCompletionsMessageMessageUser 
+	User *AgentCompletionsMessageMessageUser `outerObject:"true"`
 	// An assistant message (model's previous response).
-	Assistant *AgentCompletionsMessageMessageAssistant 
+	Assistant *AgentCompletionsMessageMessageAssistant `outerObject:"true"`
 	// A tool message containing the result of a tool call.
-	Tool *AgentCompletionsMessageMessageTool 
+	Tool *AgentCompletionsMessageMessageTool `outerObject:"true"`
 }
 
 func (v AgentCompletionsMessageMessage) MarshalJSON() ([]byte, error) {

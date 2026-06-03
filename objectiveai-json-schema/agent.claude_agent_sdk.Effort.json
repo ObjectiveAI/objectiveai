@@ -27,6 +27,14 @@
       ]
     },
     {
+      "title": "Xhigh",
+      "description": "Extra-high effort, above `High` but below `Max`.",
+      "type": "string",
+      "enum": [
+        "xhigh"
+      ]
+    },
+    {
       "title": "Max",
       "description": "Maximum effort, most detailed output possible.",
       "type": "string",

@@ -1,7 +1,7 @@
 use crate::functions::inventions::response;
 use crate::{agent, error, functions};
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "functions.inventions.response.unary.FunctionInvention")]

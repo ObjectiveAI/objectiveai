@@ -53,7 +53,8 @@ pub async fn create_agent_completion_streaming<H: McpHandler>(
                 super::response::streaming::AgentCompletionChunk,
                 HttpError,
             >,
-        > + Send
+        >
+        + Send
         + Unpin
         + 'static
         + use<H>,
@@ -63,7 +64,11 @@ pub async fn create_agent_completion_streaming<H: McpHandler>(
 > {
     params.stream = Some(true);
     client
-        .send_streaming_ws(reqwest::Method::POST, "agent/completions", params, handler)
+        .send_streaming_ws(
+            reqwest::Method::POST,
+            "agent/completions",
+            params,
+            handler,
+        )
         .await
 }
-

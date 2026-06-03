@@ -4,10 +4,10 @@ use crate::agent;
 use crate::weights::{Weights, WeightsEntry};
 use indexmap::IndexMap;
 use rust_decimal::Decimal;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use twox_hash::XxHash3_128;
-use schemars::JsonSchema;
 
 // ── Pre-validation types (no computed ID) ──────────────────────────
 
@@ -15,7 +15,15 @@ use schemars::JsonSchema;
 ///
 /// Contains a list of agent configurations that will be validated, deduplicated,
 /// and sorted when converting to an [`InlineSwarm`].
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "swarm.InlineSwarmBase")]
 pub struct InlineSwarmBase {
     /// The LLMs in this swarm, with optional counts and fallbacks.
@@ -33,7 +41,9 @@ impl InlineSwarmBase {
     /// Remote agent references are resolved from the provided hashmap.
     pub fn convert(
         self,
-        remote_agents: Option<&HashMap<String, agent::RemoteAgentBaseWithFallbacks>>,
+        remote_agents: Option<
+            &HashMap<String, (agent::RemoteAgentBaseWithFallbacks, crate::RemotePath)>,
+        >,
     ) -> Result<InlineSwarm, String> {
         convert_base(self.agents, self.weights, remote_agents)
     }
@@ -56,7 +66,9 @@ impl RemoteSwarmBase {
     /// Validates and converts to a [`RemoteSwarm`] with computed ID.
     pub fn convert(
         self,
-        remote_agents: Option<&HashMap<String, agent::RemoteAgentBaseWithFallbacks>>,
+        remote_agents: Option<
+            &HashMap<String, (agent::RemoteAgentBaseWithFallbacks, crate::RemotePath)>,
+        >,
     ) -> Result<RemoteSwarm, String> {
         Ok(RemoteSwarm {
             description: self.description,
@@ -80,11 +92,17 @@ impl SwarmBase {
     /// Validates and converts to a [`Swarm`] with computed ID.
     pub fn convert(
         self,
-        remote_agents: Option<&HashMap<String, agent::RemoteAgentBaseWithFallbacks>>,
+        remote_agents: Option<
+            &HashMap<String, (agent::RemoteAgentBaseWithFallbacks, crate::RemotePath)>,
+        >,
     ) -> Result<Swarm, String> {
         match self {
-            SwarmBase::Remote(r) => Ok(Swarm::Remote(r.convert(remote_agents)?)),
-            SwarmBase::Inline(i) => Ok(Swarm::Inline(i.convert(remote_agents)?)),
+            SwarmBase::Remote(r) => {
+                Ok(Swarm::Remote(r.convert(remote_agents)?))
+            }
+            SwarmBase::Inline(i) => {
+                Ok(Swarm::Inline(i.convert(remote_agents)?))
+            }
         }
     }
 }
@@ -141,23 +159,40 @@ impl InlineSwarm {
     /// Converts back to an `InlineSwarmBase`, dropping the computed ID.
     pub fn into_base(self) -> InlineSwarmBase {
         InlineSwarmBase {
-            agents: self.agents.into_iter().map(|a| {
-                agent::InlineAgentBaseWithFallbacksOrRemoteWithCount {
+            agents: self
+                .agents
+                .into_iter()
+                .map(|a| agent::InlineAgentBaseWithFallbacksOrRemoteWithCount {
                     count: a.count,
-                    inner: agent::InlineAgentBaseWithFallbacksOrRemote::AgentBase(
-                        match a.inner {
-                            agent::AgentWithFallbacks::Inline(i) => agent::InlineAgentBaseWithFallbacks {
-                                inner: i.inner.into_base(),
-                                fallbacks: i.fallbacks.map(|fbs| fbs.into_iter().map(|fb| fb.into_base()).collect()),
+                    inner:
+                        agent::InlineAgentBaseWithFallbacksOrRemote::AgentBase(
+                            match a.inner {
+                                agent::AgentWithFallbacks::Inline(i) => {
+                                    agent::InlineAgentBaseWithFallbacks {
+                                        inner: i.inner.into_base(),
+                                        fallbacks: i.fallbacks.map(|fbs| {
+                                            fbs.into_iter()
+                                                .map(|fb| fb.into_base())
+                                                .collect()
+                                        }),
+                                    }
+                                }
+                                agent::AgentWithFallbacks::Remote(r) => {
+                                    agent::InlineAgentBaseWithFallbacks {
+                                        inner: r.inner.inner.into_base(),
+                                        fallbacks: r.inner.fallbacks.map(
+                                            |fbs| {
+                                                fbs.into_iter()
+                                                    .map(|fb| fb.into_base())
+                                                    .collect()
+                                            },
+                                        ),
+                                    }
+                                }
                             },
-                            agent::AgentWithFallbacks::Remote(r) => agent::InlineAgentBaseWithFallbacks {
-                                inner: r.inner.inner.into_base(),
-                                fallbacks: r.inner.fallbacks.map(|fbs| fbs.into_iter().map(|fb| fb.into_base()).collect()),
-                            },
-                        },
-                    ),
-                }
-            }).collect(),
+                        ),
+                })
+                .collect(),
             weights: Some(self.weights),
         }
     }
@@ -210,7 +245,9 @@ pub enum InlineSwarmBaseOrRemoteCommitOptional {
 // ── Private helpers ────────────────────────────────────────────────
 
 /// Validates agent fallbacks for duplicate IDs.
-fn validate_agent_fallbacks(agent: &agent::AgentWithFallbacks) -> Result<(), String> {
+fn validate_agent_fallbacks(
+    agent: &agent::AgentWithFallbacks,
+) -> Result<(), String> {
     let inline = match agent {
         agent::AgentWithFallbacks::Remote(a) => &a.inner,
         agent::AgentWithFallbacks::Inline(a) => a,
@@ -239,12 +276,16 @@ fn validate_agent_fallbacks(agent: &agent::AgentWithFallbacks) -> Result<(), Str
 /// Converts an agent slot (inline or remote reference) to a validated agent.
 fn convert_agent_slot(
     slot: agent::InlineAgentBaseWithFallbacksOrRemote,
-    remote_agents: Option<&HashMap<String, agent::RemoteAgentBaseWithFallbacks>>,
+    remote_agents: Option<
+        &HashMap<String, (agent::RemoteAgentBaseWithFallbacks, crate::RemotePath)>,
+    >,
 ) -> Result<agent::AgentWithFallbacks, String> {
     match slot {
-        agent::InlineAgentBaseWithFallbacksOrRemote::AgentBase(base_with_fallbacks) => {
-            Ok(agent::AgentWithFallbacks::Inline(base_with_fallbacks.convert()?))
-        }
+        agent::InlineAgentBaseWithFallbacksOrRemote::AgentBase(
+            base_with_fallbacks,
+        ) => Ok(agent::AgentWithFallbacks::Inline(
+            base_with_fallbacks.convert()?,
+        )),
         agent::InlineAgentBaseWithFallbacksOrRemote::Remote(path) => {
             let key = path.key();
             let remote_agents = remote_agents.ok_or_else(|| {
@@ -254,12 +295,14 @@ fn convert_agent_slot(
                 )
             })?;
             let agent_base = remote_agents.get(&key).ok_or_else(|| {
-                format!(
-                    "remote agent '{}' not found in agents hashmap",
-                    key
-                )
+                format!("remote agent '{}' not found in agents hashmap", key)
             })?;
-            Ok(agent::AgentWithFallbacks::Remote(agent_base.clone().convert()?))
+            // `.0` is the agent base; `.1` is the source `RemotePath`,
+            // which the converted agent has no field to hold (callers use
+            // it separately to populate `agent_remote`).
+            Ok(agent::AgentWithFallbacks::Remote(
+                agent_base.0.clone().convert()?,
+            ))
         }
     }
 }
@@ -270,7 +313,9 @@ fn convert_agent_slot(
 fn convert_base(
     agents: Vec<agent::InlineAgentBaseWithFallbacksOrRemoteWithCount>,
     weights: Option<Weights>,
-    remote_agents: Option<&HashMap<String, agent::RemoteAgentBaseWithFallbacks>>,
+    remote_agents: Option<
+        &HashMap<String, (agent::RemoteAgentBaseWithFallbacks, crate::RemotePath)>,
+    >,
 ) -> Result<InlineSwarm, String> {
     // Resolve weights: use provided or default to uniform
     let weight_pairs: Vec<(Decimal, bool)> = match &weights {
@@ -301,9 +346,7 @@ fn convert_base(
         }
     }
     if !has_positive {
-        return Err(
-            "weights must have at least one positive value".to_string(),
-        );
+        return Err("weights must have at least one positive value".to_string());
     }
 
     let mut agents_with_full_id: IndexMap<
@@ -332,12 +375,7 @@ fn convert_base(
             inner: converted,
         };
         match agents_with_full_id.get_mut(&full_id) {
-            Some((
-                existing,
-                weighted_sum,
-                total_count,
-                existing_invert,
-            )) => {
+            Some((existing, weighted_sum, total_count, existing_invert)) => {
                 if *existing_invert != invert {
                     return Err(format!(
                         "conflicting invert flags for merged agent with full_id: {}",
@@ -349,7 +387,8 @@ fn convert_base(
                 existing.count += agent_with_count.count;
             }
             None => {
-                let weighted_sum = weight * Decimal::from(agent_with_count.count);
+                let weighted_sum =
+                    weight * Decimal::from(agent_with_count.count);
                 let total_count = agent_with_count.count;
                 agents_with_full_id.insert(
                     full_id,
@@ -360,10 +399,8 @@ fn convert_base(
     }
 
     if count == 0 || count > 128 {
-        return Err(
-            "`swarm.agents` must contain between 1 and 128 total LLMs"
-                .to_string(),
-        );
+        return Err("`swarm.agents` must contain between 1 and 128 total LLMs"
+            .to_string());
     }
 
     agents_with_full_id.sort_unstable_keys();
@@ -378,9 +415,7 @@ fn convert_base(
 
     let mut result_agents = Vec::with_capacity(agents_with_full_id.len());
     let mut entries = Vec::with_capacity(agents_with_full_id.len());
-    for (_, (agent, weighted_sum, total_count, invert)) in
-        agents_with_full_id
-    {
+    for (_, (agent, weighted_sum, total_count, invert)) in agents_with_full_id {
         result_agents.push(agent);
         let merged_weight = weighted_sum / Decimal::from(total_count);
         entries.push(WeightsEntry {
@@ -398,7 +433,10 @@ fn convert_base(
 
 /// Merge a validated agent into the dedup map.
 fn merge_agent(
-    agents_with_full_id: &mut IndexMap<String, agent::AgentWithFallbacksWithCount>,
+    agents_with_full_id: &mut IndexMap<
+        String,
+        agent::AgentWithFallbacksWithCount,
+    >,
     agent_with_count: agent::AgentWithFallbacksWithCount,
 ) {
     let full_id = agent_with_count.inner.full_id();

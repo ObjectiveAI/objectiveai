@@ -184,7 +184,7 @@ fn build_mcp_servers(
 ///
 /// Only `None` or `Text` formats are supported.
 fn validate_response_format(
-    agent_id: &str,
+    agent_instance_hierarchy: &str,
     response_format: &Option<objectiveai_sdk::agent::completions::request::ResponseFormatParam>,
 ) -> Result<(), super::Error> {
     use objectiveai_sdk::agent::completions::request::{ResponseFormat, ResponseFormatParam};
@@ -193,7 +193,7 @@ fn validate_response_format(
         None => Ok(()),
         Some(ResponseFormatParam::Single(ResponseFormat::Text)) => Ok(()),
         Some(ResponseFormatParam::PerAgent(map)) => {
-            match map.get(agent_id) {
+            match map.get(agent_instance_hierarchy) {
                 None => Ok(()),
                 Some(ResponseFormat::Text) => Ok(()),
                 Some(_) => Err(super::Error::UnsupportedResponseFormat),
@@ -228,7 +228,10 @@ impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai
         _invention_step: Option<usize>,
         _invention_tasks_min: Option<u64>,
         _invention_input_schema: Option<String>,
-        agent_id_header: Option<&str>,
+        agent_instance_hierarchy: &str,
+        agent_id: &str,
+        agent_full_id: &str,
+        agent_remote: Option<&objectiveai_sdk::RemotePath>,
     ) -> impl Future<
         Output = Result<
             Self::Stream,
@@ -246,7 +249,10 @@ impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai
         let continuation = continuation.map(|c| c.to_vec());
         let request_continuation = request_continuation.cloned();
         let client = self.clone();
-        let agent_id_header = agent_id_header.map(|s| s.to_string());
+        let agent_instance_hierarchy = agent_instance_hierarchy.to_string();
+        let agent_id = agent_id.to_string();
+        let agent_full_id = agent_full_id.to_string();
+        let agent_remote = agent_remote.cloned();
 
         async move {
             if !enabled {
@@ -307,7 +313,7 @@ impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai
                 mcp_servers: &mcp_servers,
                 resume: resume_arg,
                 user_agent: user_agent_arg,
-                agent_id: agent_id_header.as_deref(),
+                agent_instance_hierarchy: Some(agent_instance_hierarchy.as_str()),
                 rate_limit_max_retries: client.rate_limit_max_retries,
                 rate_limit_max_wait_secs: client.rate_limit_max_wait_secs,
             };
@@ -325,7 +331,13 @@ impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai
                 .map_err(|e| super::Error::Spawn(e.to_string()))?;
 
             let id_for_chunks = id.clone();
-            let agent_id = agent.id.clone();
+            let agent_instance_hierarchy = agent.id.clone();
+            // Clones for the outer error-mapping closure, taken before
+            // `internal_stream` moves the originals into its generator.
+            let agent_instance_hierarchy_for_stream = agent_instance_hierarchy.clone();
+            let agent_id_for_stream = agent_id.clone();
+            let agent_full_id_for_stream = agent_full_id.clone();
+            let agent_remote_for_stream = agent_remote.clone();
 
             let internal_stream = async_stream::stream! {
                 // RunnerStream's Drop handles cancellation automatically.
@@ -378,11 +390,14 @@ impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai
                             match sdk_msg.into_downstream(
                                 id_for_chunks.clone(),
                                 created,
-                                agent_id.clone(),
                                 effective_index,
                                 is_byok,
                                 cost_multiplier,
                                 objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
+                                agent_instance_hierarchy.clone(),
+                                agent_id.clone(),
+                                agent_full_id.clone(),
+                                agent_remote.clone(),
                             ) {
                                 Some(Ok(chunk)) => {
                                     use objectiveai_sdk::agent::completions::response::streaming::MessageChunk;
@@ -466,6 +481,10 @@ impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai
                             StreamItem::Chunk(
                                 objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
                                     id: id_for_stream.clone(),
+                                    agent_instance_hierarchy: agent_instance_hierarchy_for_stream.clone(),
+                                    agent_id: agent_id_for_stream.clone(),
+                                    agent_full_id: agent_full_id_for_stream.clone(),
+                                    agent_remote: agent_remote_for_stream.clone(),
                                     error: Some(objectiveai_sdk::error::ResponseError {
                                         code: e.status(),
                                         message: e.message()
@@ -491,6 +510,7 @@ impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai
         request_continuation: Option<&objectiveai_sdk::agent::claude_agent_sdk::Continuation>,
         _messages: &[objectiveai_sdk::agent::completions::message::Message],
         continuation: Option<&[ContinuationItem<Self::State>]>,
+        agent_instance_hierarchy: &str,
     ) -> objectiveai_sdk::agent::claude_agent_sdk::Continuation {
         // Extract session_id from last State in continuation, fall back to request continuation.
         let session_id = continuation
@@ -507,9 +527,7 @@ impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai
 
         objectiveai_sdk::agent::claude_agent_sdk::Continuation {
             upstream: objectiveai_sdk::agent::claude_agent_sdk::Upstream::default(),
-            // Stamped by the agent-completions client immediately
-            // after this method returns; empty here is fine.
-            agent_id: String::new(),
+            agent_instance_hierarchy: agent_instance_hierarchy.to_string(),
             session_id,
             mcp_sessions,
             ws_session_id: None,

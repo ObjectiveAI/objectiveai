@@ -1,6 +1,6 @@
 use rand::rngs::StdRng;
 
-use crate::functions::expression::{InputValue, InputSchema};
+use crate::functions::expression::{InputSchema, InputValue};
 
 pub fn generate(schema: &InputSchema, rng: StdRng) -> Generator {
     match schema {
@@ -25,9 +25,7 @@ pub fn generate(schema: &InputSchema, rng: StdRng) -> Generator {
         InputSchema::Video(s) => {
             Generator::Video(super::video::generate(s, rng))
         }
-        InputSchema::File(s) => {
-            Generator::File(super::file::generate(s, rng))
-        }
+        InputSchema::File(s) => Generator::File(super::file::generate(s, rng)),
         InputSchema::Object(s) => {
             Generator::Object(super::object::generate(s, rng))
         }

@@ -85,7 +85,11 @@ mod tests {
 
         let back: Event = serde_json::from_str(&s).unwrap();
         match back {
-            Event::Inbound { destination, sub_type, value } => {
+            Event::Inbound {
+                destination,
+                sub_type,
+                value,
+            } => {
                 assert_eq!(destination, "objectiveai");
                 assert_eq!(sub_type, "agent_completions");
                 assert_eq!(value, json!({"id": "abc"}));

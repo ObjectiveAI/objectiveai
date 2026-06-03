@@ -2,8 +2,8 @@
 //!
 //! Verifies that the input schema produces enough diverse example inputs.
 
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 use serde::Deserialize;
 
 use super::check_input_schema::check_input_schema;

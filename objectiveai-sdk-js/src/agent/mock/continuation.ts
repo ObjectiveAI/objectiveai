@@ -5,6 +5,7 @@ import { AgentCompletionsMessageMessageSchema } from "../completions/message/mes
 import { AgentMockUpstreamSchema } from "./upstream";
 
 export const AgentMockContinuationSchema = z.object({
+  agent_instance_hierarchy: z.string().describe("Full slash-separated lineage of the agent this continuation\nbelongs to (e.g. `A/B/agtcpl-<uuid>-<created>`). Minted on the\nagent's first spawn and preserved verbatim across every\ncontinuation round so the agent's identity stays stable\nregardless of who resumes the conversation."),
   mcp_sessions: z.record(z.string(), z.string()),
   messages: z.array(AgentCompletionsMessageMessageSchema),
   upstream: AgentMockUpstreamSchema,

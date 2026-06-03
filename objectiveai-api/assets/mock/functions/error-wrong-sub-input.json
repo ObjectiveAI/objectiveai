@@ -4,16 +4,22 @@
   "input_schema": {
     "type": "object",
     "properties": {
-      "text": { "type": "string" }
+      "text": {
+        "type": "string"
+      }
     },
-    "required": ["text"]
+    "required": [
+      "text"
+    ]
   },
   "tasks": [
     {
       "type": "alpha.scalar.function",
       "remote": "mock",
       "name": "binary-classifier",
-      "input": { "$starlark": "{'wrong_field': input['text']}" }
+      "input": {
+        "$starlark": "{'wrong_field': input['text']}"
+      }
     }
   ]
 }

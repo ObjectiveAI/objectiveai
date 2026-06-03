@@ -53,7 +53,7 @@ type FunctionsExpressionTaskOutput struct {
 	// Multiple vectors of scores (from mapped tasks).
 	Vectors *FunctionsExpressionTaskOutputVectors `validate:"omitempty,dive,dive,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 	// An error occurred during execution.
-	Err *FunctionsExpressionTaskOutputErr 
+	Err *FunctionsExpressionTaskOutputErr `outerObject:"true"`
 }
 
 func (v FunctionsExpressionTaskOutput) MarshalJSON() ([]byte, error) {

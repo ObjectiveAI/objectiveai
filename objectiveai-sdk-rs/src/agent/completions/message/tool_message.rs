@@ -5,16 +5,25 @@ use crate::functions;
 use functions::expression::{
     ExpressionError, FromStarlarkValue, WithExpression,
 };
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use starlark::values::dict::DictRef as StarlarkDictRef;
 use starlark::values::{UnpackValue, Value as StarlarkValue};
-use schemars::JsonSchema;
 
 /// Vendor-extension metadata attached to a tool response. The
 /// `objectiveai-mcp-proxy` populates known keys (currently
 /// `notifications`); the SDK lossy-decodes the MCP `_meta` bag into
 /// this typed shape. Unknown keys are dropped.
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Default,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "agent.completions.message.ToolResponseMetadata")]
 pub struct ToolResponseMetadata {
     /// Count of pending notifications the proxy drained and prepended
@@ -27,7 +36,15 @@ pub struct ToolResponseMetadata {
 }
 
 /// A tool message containing the result of a tool call.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "agent.completions.message.ToolMessage")]
 pub struct ToolMessage {
     /// The content of the tool response.
@@ -47,28 +64,6 @@ impl ToolMessage {
         self.content.prepare();
     }
 
-    /// Extract this message's content into per-leaf log files,
-    /// returning a [`super::ToolMessageLog`] (with
-    /// [`super::RichContentLog`] in place of `content`) plus the
-    /// [`crate::filesystem::logs::LogFile`]s the caller writes.
-    /// `tool_call_id` + `metadata` stay inline.
-    #[cfg(feature = "filesystem")]
-    pub fn extract(
-        self,
-        route_base: &str,
-        id: &str,
-        message_index: u64,
-    ) -> (super::ToolMessageLog, Vec<crate::filesystem::logs::LogFile>) {
-        let (content, files) = self.content.extract_media(&format!("{route_base}/messages"), id, message_index);
-        (
-            super::ToolMessageLog {
-                content,
-                tool_call_id: self.tool_call_id,
-                metadata: self.metadata,
-            },
-            files,
-        )
-    }
 }
 
 impl FromStarlarkValue for ToolMessage {
@@ -122,7 +117,15 @@ impl FromStarlarkValue for ToolMessage {
 }
 
 /// Expression variant of [`ToolMessage`] for dynamic content.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "agent.completions.message.ToolMessageExpression")]
 pub struct ToolMessageExpression {
     /// The content expression.

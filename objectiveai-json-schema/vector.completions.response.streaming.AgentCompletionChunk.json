@@ -3,6 +3,30 @@
   "description": "A streaming agent completion chunk from a single agent within a vector completion.\n\nThe `index` field is used to correlate chunks belonging to the same\nunderlying completion when accumulating via [`push`](Self::push).",
   "type": "object",
   "properties": {
+    "agent_full_id": {
+      "description": "WF-level id: concatenation of the primary agent's id with all\nfallback ids (see `InlineAgentWithFallbacks::full_id`). Same\nfor every slot in the same WF request.",
+      "type": "string"
+    },
+    "agent_id": {
+      "description": "Leaf agent id of the slot that produced this chunk. For the\nprimary attempt this is the primary agent's id; on fallback it\nis the fallback agent's id. Same on every chunk of a slot.",
+      "type": "string"
+    },
+    "agent_instance_hierarchy": {
+      "description": "Full agent instance hierarchy for this completion's slot —\n`{ctx lineage}/{agent_full_id}-{response_id}`, or the fixed\ncontinuation value on resume. Same on every chunk of a slot.",
+      "type": "string"
+    },
+    "agent_remote": {
+      "description": "`RemotePath` the WF was fetched from. `None` when the WF was\nsupplied inline. Same for every slot in the same WF request.",
+      "anyOf": [
+        {
+          "$ref": "RemotePath"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "continuation": {
       "description": "Continuation state for multi-turn conversations (only present in the final chunk).",
       "anyOf": [

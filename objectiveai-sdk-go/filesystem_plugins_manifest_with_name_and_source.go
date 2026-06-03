@@ -41,6 +41,14 @@ type FilesystemPluginsManifestWithNameAndSource struct {
 	Homepage *string `json:"homepage,omitempty"`
 	// SPDX license identifier (or any string).
 	License *string `json:"license,omitempty"`
+	// MCP servers the plugin wants the host to expose. Each entry
+	// has a `name` (the identifier agents reference via
+	// [`crate::agent::ClientObjectiveaiMcpPluginEntry::mcp_servers`])
+	// plus the same `url` + `authorization` shape
+	// [`crate::agent::McpServer`] uses. Auth-requiring entries flag
+	// `authorization = true`; credentials are resolved by the host
+	// (env vars / config), not the manifest.
+	MCPServers []FilesystemPluginsMcpServer `json:"mcp_servers,omitempty"`
 	// Plugin author opts in to mobile viewer support by setting
 	// this. Mobile viewer builds only surface plugins with this
 	// flag true — mobile has no local backend binary, so plugin
@@ -101,7 +109,7 @@ func (v *FilesystemPluginsManifestWithNameAndSource) UnmarshalJSON(data []byte) 
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"binaries", "description", "mobile_ready", "name", "owner", "source", "version", "viewer_routes"} {
+	for _, key := range []string{"binaries", "description", "mcp_servers", "mobile_ready", "name", "owner", "source", "version", "viewer_routes"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("FilesystemPluginsManifestWithNameAndSource: missing required field %q", key)
 		}

@@ -100,7 +100,10 @@ fn has_serialize_derive(attrs: &[syn::Attribute]) -> bool {
 }
 
 /// Check if attributes contain a specific `skip_serializing_if` value.
-fn has_skip_serializing_if_value(attrs: &[syn::Attribute], value: &str) -> bool {
+fn has_skip_serializing_if_value(
+    attrs: &[syn::Attribute],
+    value: &str,
+) -> bool {
     attrs.iter().any(|attr| {
         if attr.path().is_ident("serde") {
             let tokens = attr
@@ -203,7 +206,12 @@ fn all_optional_skip_fields_have_schemars_omitempty() {
                     if !has_serialize_derive(&s.attrs) {
                         continue;
                     }
-                    check_omitempty_fields(&s.fields, &name, &relative, &mut errors);
+                    check_omitempty_fields(
+                        &s.fields,
+                        &name,
+                        &relative,
+                        &mut errors,
+                    );
                 }
                 Item::Enum(e) if matches!(e.vis, Visibility::Public(_)) => {
                     let name = e.ident.to_string();
@@ -211,8 +219,14 @@ fn all_optional_skip_fields_have_schemars_omitempty() {
                         continue;
                     }
                     for variant in &e.variants {
-                        let variant_name = format!("{}::{}", name, variant.ident);
-                        check_omitempty_fields(&variant.fields, &variant_name, &relative, &mut errors);
+                        let variant_name =
+                            format!("{}::{}", name, variant.ident);
+                        check_omitempty_fields(
+                            &variant.fields,
+                            &variant_name,
+                            &relative,
+                            &mut errors,
+                        );
                     }
                 }
                 _ => {}
@@ -265,7 +279,10 @@ fn all_with_expression_option_fields_have_skip_serializing_if() {
                         continue;
                     }
                     check_with_expression_option_skip(
-                        &s.fields, &name, &relative, &mut errors,
+                        &s.fields,
+                        &name,
+                        &relative,
+                        &mut errors,
                     );
                 }
                 Item::Enum(e) if matches!(e.vis, Visibility::Public(_)) => {

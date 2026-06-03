@@ -15,11 +15,13 @@
 
 mod client;
 mod error;
+#[cfg(feature = "mcp")]
 mod mcp_handler;
 mod notifier;
 pub mod viewer;
 
 pub use client::*;
 pub use error::*;
+#[cfg(feature = "mcp")]
 pub use mcp_handler::*;
 pub use notifier::*;

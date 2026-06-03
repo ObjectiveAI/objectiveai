@@ -1,10 +1,12 @@
 use crate::functions;
 use crate::functions::inventions::recursive::response;
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "functions.inventions.recursive.response.unary.FunctionInvention")]
+#[schemars(
+    rename = "functions.inventions.recursive.response.unary.FunctionInvention"
+)]
 pub struct FunctionInvention {
     pub index: u64,
     #[serde(flatten)]

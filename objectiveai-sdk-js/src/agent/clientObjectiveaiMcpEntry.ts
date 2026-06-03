@@ -6,5 +6,5 @@ export const AgentClientObjectiveaiMcpEntrySchema = z.object({
   name: z.string(),
   owner: z.string(),
   version: z.string(),
-}).describe("A single `owner` / `name` / `version` reference identifying one\nplugin or one tool inside [`ClientObjectiveaiMcp`].").meta({ title: "agent.ClientObjectiveaiMcpEntry" });
+}).describe("A single `owner` / `name` / `version` reference identifying one\ntool inside [`ClientObjectiveaiMcp::tools`]. Plugin references\nuse the larger [`ClientObjectiveaiMcpPluginEntry`] — they carry\nextra `executable` / `mcp_servers` fields tools don't have.").meta({ title: "agent.ClientObjectiveaiMcpEntry" });
 export type AgentClientObjectiveaiMcpEntry = z.infer<typeof AgentClientObjectiveaiMcpEntrySchema>;

@@ -14,9 +14,10 @@ cargo test --package objectiveai-cli
 The CLI command tree maps directly to the filesystem:
 
 ```
-objectiveai agents get          → src/agents/mod.rs (Commands::Get)
-objectiveai agents list         → src/agents/mod.rs (Commands::List)
-objectiveai agents config get   → src/agents/config/mod.rs (Commands::Get)
+objectiveai agents get             → src/agents/mod.rs (Commands::Get)
+objectiveai agents list active     → src/agents/list/mod.rs (Commands::Active)
+objectiveai agents list available  → src/agents/list/mod.rs (Commands::Available)
+objectiveai agents config get      → src/agents/config/mod.rs (Commands::Get)
 objectiveai functions executions create → src/functions/executions/create/mod.rs
 ```
 

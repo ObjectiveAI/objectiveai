@@ -166,17 +166,17 @@ func (AgentCompletionsMessageRichContentPartFile) SchemaVariantTitle() string { 
 // A part of rich content.
 type AgentCompletionsMessageRichContentPart struct {
 	// Text content.
-	Text *AgentCompletionsMessageRichContentPartText 
+	Text *AgentCompletionsMessageRichContentPartText `outerObject:"true"`
 	// An image URL.
-	ImageUrl *AgentCompletionsMessageRichContentPartImageUrl 
+	ImageUrl *AgentCompletionsMessageRichContentPartImageUrl `outerObject:"true"`
 	// Audio input.
-	InputAudio *AgentCompletionsMessageRichContentPartInputAudio 
+	InputAudio *AgentCompletionsMessageRichContentPartInputAudio `outerObject:"true"`
 	// Video input.
-	InputVideo *AgentCompletionsMessageRichContentPartInputVideo 
+	InputVideo *AgentCompletionsMessageRichContentPartInputVideo `outerObject:"true"`
 	// A video URL.
-	VideoUrl *AgentCompletionsMessageRichContentPartVideoUrl 
+	VideoUrl *AgentCompletionsMessageRichContentPartVideoUrl `outerObject:"true"`
 	// A file.
-	File *AgentCompletionsMessageRichContentPartFile 
+	File *AgentCompletionsMessageRichContentPartFile `outerObject:"true"`
 }
 
 func (v AgentCompletionsMessageRichContentPart) MarshalJSON() ([]byte, error) {

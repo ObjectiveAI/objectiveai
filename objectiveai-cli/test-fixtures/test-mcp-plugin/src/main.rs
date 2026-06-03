@@ -3,7 +3,7 @@
 //! Invoked by the CLI's `dial_plugin_upstream` as
 //! `<exe> mcp <server_name> begin`. Spins up `rmcp`'s
 //! `StreamableHttpService` on `127.0.0.1:0`, announces the bound URL
-//! on stdout as a `PluginOutput::Mcp { url }` line
+//! on stdout as a `cli::plugins::Output::Mcp { url }` line
 //! (`{"type":"mcp","url":"http://127.0.0.1:<port>"}`), and serves
 //! forever.
 //!
@@ -17,13 +17,10 @@ use rmcp::{
     ServerHandler,
     handler::server::router::tool::ToolRouter,
     handler::server::wrapper::Parameters,
-    model::{
-        Implementation, ProtocolVersion, ServerCapabilities, ServerInfo,
-    },
+    model::{Implementation, ProtocolVersion, ServerCapabilities, ServerInfo},
     schemars, tool, tool_handler, tool_router,
     transport::streamable_http_server::{
-        StreamableHttpServerConfig, StreamableHttpService,
-        session::local::LocalSessionManager,
+        StreamableHttpServerConfig, StreamableHttpService, session::local::LocalSessionManager,
     },
 };
 use tokio_util::sync::CancellationToken;
@@ -110,25 +107,22 @@ impl ServerHandler for TestMcp {
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     let args: Vec<String> = std::env::args().collect();
-    let ok = args.len() >= 4
-        && args[1] == "mcp"
-        && args[3] == "begin";
+    let ok = args.len() >= 4 && args[1] == "mcp" && args[3] == "begin";
     if !ok {
         eprintln!("usage: test-mcp-plugin mcp <server_name> begin");
         std::process::exit(2);
     }
 
-    let service: StreamableHttpService<TestMcp, LocalSessionManager> =
-        StreamableHttpService::new(
-            move || Ok(TestMcp::new()),
-            Default::default(),
-            StreamableHttpServerConfig {
-                stateful_mode: true,
-                sse_keep_alive: None,
-                cancellation_token: CancellationToken::new().child_token(),
-                ..Default::default()
-            },
-        );
+    let service: StreamableHttpService<TestMcp, LocalSessionManager> = StreamableHttpService::new(
+        move || Ok(TestMcp::new()),
+        Default::default(),
+        StreamableHttpServerConfig {
+            stateful_mode: true,
+            sse_keep_alive: None,
+            cancellation_token: CancellationToken::new().child_token(),
+            ..Default::default()
+        },
+    );
     let router = axum::Router::new().fallback_service(service);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
     let addr = listener.local_addr()?;

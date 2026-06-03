@@ -92,15 +92,18 @@ pub fn new_reverse_channel_registry() -> ReverseChannelRegistry {
 ///
 /// - [`ReverseChannelRegistry`] so the handler can insert/remove its
 ///   session.
-/// - `api_port` so the agent client can build a synthetic
-///   `http://127.0.0.1:<port>/objectiveai-mcp` URL the proxy will dial.
+/// - `mcp_port` — the API's loopback-only MCP listener port. The
+///   agent client uses it to build a synthetic
+///   `http://127.0.0.1:<mcp_port>/objectiveai-mcp` URL that the
+///   proxy will dial. Kernel-enforced: the listener binds
+///   `127.0.0.1` so non-loopback callers cannot reach it.
 /// - [`McpListenerRegistry`] so the recv loop's `McpListChanged`
 ///   dispatch can publish to the per-(ws_session_id, mcp_session_id)
 ///   broadcast feeding the API's GET-SSE notifications stream.
 #[derive(Clone)]
 pub struct ReverseAttachConfig {
     pub registry: ReverseChannelRegistry,
-    pub api_port: u16,
+    pub mcp_port: u16,
     pub mcp_listeners: McpListenerRegistry,
 }
 

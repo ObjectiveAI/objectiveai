@@ -1,13 +1,22 @@
-use crate::tests::stream_push::stream_push_test;
 use super::*;
+use crate::tests::stream_push::stream_push_test;
 
 fn err(code: u16, message: &str) -> crate::error::ResponseError {
-    crate::error::ResponseError { code, message: message.into() }
+    crate::error::ResponseError {
+        code,
+        message: message.into(),
+    }
 }
 
-fn agent_completion(error: Option<crate::error::ResponseError>) -> crate::agent::completions::response::streaming::AgentCompletionChunk {
+fn agent_completion(
+    error: Option<crate::error::ResponseError>,
+) -> crate::agent::completions::response::streaming::AgentCompletionChunk {
     crate::agent::completions::response::streaming::AgentCompletionChunk {
         id: String::new(),
+        agent_instance_hierarchy: String::new(),
+        agent_id: String::new(),
+        agent_full_id: String::new(),
+        agent_remote: None,
         created: 0,
         messages: vec![],
         object: crate::agent::completions::response::streaming::Object::AgentCompletionChunk,
@@ -30,7 +39,9 @@ fn vector_agent_completion(
 }
 
 fn vector_completion_chunk(
-    completions: Vec<crate::vector::completions::response::streaming::AgentCompletionChunk>,
+    completions: Vec<
+        crate::vector::completions::response::streaming::AgentCompletionChunk,
+    >,
 ) -> crate::vector::completions::response::streaming::VectorCompletionChunk {
     crate::vector::completions::response::streaming::VectorCompletionChunk {
         id: String::new(),
@@ -48,7 +59,9 @@ fn vector_completion_chunk(
 fn vct(
     task_path: Vec<u64>,
     own_error: Option<crate::error::ResponseError>,
-    completions: Vec<crate::vector::completions::response::streaming::AgentCompletionChunk>,
+    completions: Vec<
+        crate::vector::completions::response::streaming::AgentCompletionChunk,
+    >,
 ) -> VectorCompletionTaskChunk {
     VectorCompletionTaskChunk {
         index: *task_path.last().unwrap_or(&0),
@@ -135,7 +148,11 @@ fn inner_errors_function_task_error() {
     assert_eq!(collected.len(), 1);
     match &collected[0] {
         InnerError::FunctionTaskError {
-            task_path, swiss_pool_index, swiss_round, split_index, error,
+            task_path,
+            swiss_pool_index,
+            swiss_round,
+            split_index,
+            error,
         } => {
             assert_eq!(task_path, &vec![0]);
             assert_eq!(*swiss_pool_index, Some(2));
@@ -158,7 +175,11 @@ fn inner_errors_vector_completion_task_own_error() {
     let collected: Vec<_> = c.inner_errors().collect();
     assert_eq!(collected.len(), 1);
     match &collected[0] {
-        InnerError::VectorCompletionTaskError { task_path, agent_completion_index, error } => {
+        InnerError::VectorCompletionTaskError {
+            task_path,
+            agent_completion_index,
+            error,
+        } => {
             assert_eq!(task_path, &vec![1]);
             assert_eq!(*agent_completion_index, None);
             assert_eq!(error.code, 429);
@@ -182,14 +203,22 @@ fn inner_errors_vector_completion_agent_errors() {
     let collected: Vec<_> = c.inner_errors().collect();
     assert_eq!(collected.len(), 2);
     match &collected[0] {
-        InnerError::VectorCompletionTaskError { agent_completion_index, error, .. } => {
+        InnerError::VectorCompletionTaskError {
+            agent_completion_index,
+            error,
+            ..
+        } => {
             assert_eq!(*agent_completion_index, Some(0));
             assert_eq!(error.code, 500);
         }
         other => panic!("expected VectorCompletionTaskError, got {other:?}"),
     }
     match &collected[1] {
-        InnerError::VectorCompletionTaskError { agent_completion_index, error, .. } => {
+        InnerError::VectorCompletionTaskError {
+            agent_completion_index,
+            error,
+            ..
+        } => {
             assert_eq!(*agent_completion_index, Some(2));
             assert_eq!(error.code, 502);
         }
@@ -199,13 +228,21 @@ fn inner_errors_vector_completion_agent_errors() {
 
 #[test]
 fn inner_errors_skips_reasoning_summary_own_error() {
-    let c = chunk(vec![], Some(reasoning(Some(err(500, "summary failed")), None)), None);
+    let c = chunk(
+        vec![],
+        Some(reasoning(Some(err(500, "summary failed")), None)),
+        None,
+    );
     assert!(c.inner_errors().next().is_none());
 }
 
 #[test]
 fn inner_errors_reasoning_agent_completion_error() {
-    let c = chunk(vec![], Some(reasoning(None, Some(err(500, "agent failed")))), None);
+    let c = chunk(
+        vec![],
+        Some(reasoning(None, Some(err(500, "agent failed")))),
+        None,
+    );
     let collected: Vec<_> = c.inner_errors().collect();
     assert_eq!(collected.len(), 1);
     match &collected[0] {
@@ -213,7 +250,9 @@ fn inner_errors_reasoning_agent_completion_error() {
             assert!(task_path.is_empty());
             assert_eq!(error.code, 500);
         }
-        other => panic!("expected ReasoningAgentCompletionError, got {other:?}"),
+        other => {
+            panic!("expected ReasoningAgentCompletionError, got {other:?}")
+        }
     }
 }
 
@@ -228,14 +267,24 @@ fn inner_errors_recursion_two_levels_deep() {
         ],
     ));
     let nested_exec = chunk(vec![inner_vector_task], None, None);
-    let outer_task = TaskChunk::FunctionExecution(fet(vec![0], None, None, None, nested_exec));
+    let outer_task = TaskChunk::FunctionExecution(fet(
+        vec![0],
+        None,
+        None,
+        None,
+        nested_exec,
+    ));
     let c = chunk(vec![outer_task], None, None);
 
     let collected: Vec<_> = c.inner_errors().collect();
     assert_eq!(collected.len(), 2);
     // No FunctionTaskError because the wrapper's inner.error is None.
     match &collected[0] {
-        InnerError::VectorCompletionTaskError { task_path, agent_completion_index, error } => {
+        InnerError::VectorCompletionTaskError {
+            task_path,
+            agent_completion_index,
+            error,
+        } => {
             assert_eq!(task_path, &vec![0, 0]);
             assert_eq!(*agent_completion_index, None);
             assert_eq!(error.code, 400);
@@ -243,7 +292,11 @@ fn inner_errors_recursion_two_levels_deep() {
         other => panic!("expected VectorCompletionTaskError, got {other:?}"),
     }
     match &collected[1] {
-        InnerError::VectorCompletionTaskError { task_path, agent_completion_index, error } => {
+        InnerError::VectorCompletionTaskError {
+            task_path,
+            agent_completion_index,
+            error,
+        } => {
             assert_eq!(task_path, &vec![0, 0]);
             assert_eq!(*agent_completion_index, Some(1));
             assert_eq!(error.code, 503);
@@ -259,7 +312,13 @@ fn inner_errors_recursion_nested_reasoning() {
         Some(reasoning(None, Some(err(500, "nested reasoning agent")))),
         None,
     );
-    let outer_task = TaskChunk::FunctionExecution(fet(vec![3], None, None, None, nested_exec));
+    let outer_task = TaskChunk::FunctionExecution(fet(
+        vec![3],
+        None,
+        None,
+        None,
+        nested_exec,
+    ));
     let c = chunk(vec![outer_task], None, None);
 
     let collected: Vec<_> = c.inner_errors().collect();
@@ -269,7 +328,9 @@ fn inner_errors_recursion_nested_reasoning() {
             assert_eq!(task_path, &vec![3]);
             assert_eq!(error.code, 500);
         }
-        other => panic!("expected ReasoningAgentCompletionError, got {other:?}"),
+        other => {
+            panic!("expected ReasoningAgentCompletionError, got {other:?}")
+        }
     }
 }
 
@@ -280,7 +341,13 @@ fn inner_errors_mixed_kitchen_sink() {
     //   tasks[1]: vector-completion wrapper at [1], own error + one agent error at completion idx 4.
     //   reasoning: agent inner.error set.
     let nested_exec = chunk(vec![], None, Some(err(503, "deep nested"))); // its .error is set
-    let t0 = TaskChunk::FunctionExecution(fet(vec![0], None, None, None, nested_exec));
+    let t0 = TaskChunk::FunctionExecution(fet(
+        vec![0],
+        None,
+        None,
+        None,
+        nested_exec,
+    ));
     let t1 = TaskChunk::VectorCompletion(vct(
         vec![1],
         Some(err(429, "task1 own")),
@@ -298,10 +365,18 @@ fn inner_errors_mixed_kitchen_sink() {
     let collected: Vec<_> = c.inner_errors().collect();
     assert_eq!(collected.len(), 4);
     // Order: t0 FunctionTaskError, t1 VectorCompletionTaskError(None), t1 VectorCompletionTaskError(Some(4)), reasoning agent
-    assert!(matches!(&collected[0], InnerError::FunctionTaskError { task_path, .. } if task_path == &vec![0]));
-    assert!(matches!(&collected[1], InnerError::VectorCompletionTaskError { task_path, agent_completion_index: None, .. } if task_path == &vec![1]));
-    assert!(matches!(&collected[2], InnerError::VectorCompletionTaskError { task_path, agent_completion_index: Some(4), .. } if task_path == &vec![1]));
-    assert!(matches!(&collected[3], InnerError::ReasoningAgentCompletionError { task_path, .. } if task_path.is_empty()));
+    assert!(
+        matches!(&collected[0], InnerError::FunctionTaskError { task_path, .. } if task_path == &vec![0])
+    );
+    assert!(
+        matches!(&collected[1], InnerError::VectorCompletionTaskError { task_path, agent_completion_index: None, .. } if task_path == &vec![1])
+    );
+    assert!(
+        matches!(&collected[2], InnerError::VectorCompletionTaskError { task_path, agent_completion_index: Some(4), .. } if task_path == &vec![1])
+    );
+    assert!(
+        matches!(&collected[3], InnerError::ReasoningAgentCompletionError { task_path, .. } if task_path.is_empty())
+    );
 }
 
 #[test]
@@ -423,9 +498,11 @@ stream_push_test!(
             tasks: vec![],
             tasks_errors: None,
             reasoning: None,
-            output: Some(super::super::Output { output: crate::functions::expression::TaskOutputOwned::Scalar(
-                rust_decimal::Decimal::new(75, 2),
-            ) }),
+            output: Some(super::super::Output {
+                output: crate::functions::expression::TaskOutputOwned::Scalar(
+                    rust_decimal::Decimal::new(75, 2),
+                )
+            }),
             error: None,
             retry_token: None,
             created: 100,
@@ -440,9 +517,11 @@ stream_push_test!(
         tasks: vec![],
         tasks_errors: None,
         reasoning: None,
-        output: Some(super::super::Output { output: crate::functions::expression::TaskOutputOwned::Scalar(
-            rust_decimal::Decimal::new(75, 2),
-        ) }),
+        output: Some(super::super::Output {
+            output: crate::functions::expression::TaskOutputOwned::Scalar(
+                rust_decimal::Decimal::new(75, 2),
+            )
+        }),
         error: None,
         retry_token: None,
         created: 100,
@@ -461,9 +540,11 @@ stream_push_test!(
             tasks: vec![],
             tasks_errors: None,
             reasoning: None,
-            output: Some(super::super::Output { output: crate::functions::expression::TaskOutputOwned::Scalar(
-                rust_decimal::Decimal::new(25, 2),
-            ) }),
+            output: Some(super::super::Output {
+                output: crate::functions::expression::TaskOutputOwned::Scalar(
+                    rust_decimal::Decimal::new(25, 2),
+                )
+            }),
             error: None,
             retry_token: None,
             created: 100,
@@ -477,9 +558,11 @@ stream_push_test!(
             tasks: vec![],
             tasks_errors: None,
             reasoning: None,
-            output: Some(super::super::Output { output: crate::functions::expression::TaskOutputOwned::Scalar(
-                rust_decimal::Decimal::new(75, 2),
-            ) }),
+            output: Some(super::super::Output {
+                output: crate::functions::expression::TaskOutputOwned::Scalar(
+                    rust_decimal::Decimal::new(75, 2),
+                )
+            }),
             error: None,
             retry_token: None,
             created: 100,
@@ -494,9 +577,11 @@ stream_push_test!(
         tasks: vec![],
         tasks_errors: None,
         reasoning: None,
-        output: Some(super::super::Output { output: crate::functions::expression::TaskOutputOwned::Scalar(
-            rust_decimal::Decimal::new(75, 2),
-        ) }),
+        output: Some(super::super::Output {
+            output: crate::functions::expression::TaskOutputOwned::Scalar(
+                rust_decimal::Decimal::new(75, 2),
+            )
+        }),
         error: None,
         retry_token: None,
         created: 100,

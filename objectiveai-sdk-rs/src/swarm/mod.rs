@@ -72,9 +72,9 @@
 //! println!("Swarm ID: {}", swarm.id);
 //! ```
 
-mod swarm;
 pub mod request;
 pub mod response;
+mod swarm;
 
 pub use swarm::*;
 

@@ -13,8 +13,8 @@ use std::process::Command;
 
 use serde_json::Value;
 use wiremock::{
-    matchers::{body_json, header, method, path},
     Mock, MockServer, ResponseTemplate,
+    matchers::{body_json, header, method, path},
 };
 
 const SIGNATURE: &str = "sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
@@ -43,15 +43,12 @@ async fn viewer_send_remote_mode_posts_to_configured_address() {
         .mount(&mock_server)
         .await;
 
-    let fs_client = objectiveai_sdk::filesystem::Client::new(
+    let fs_client = objectiveai_cli::filesystem::Client::new(
         Some(base.clone()),
         None::<String>,
         None::<String>,
     );
-    let mut config = fs_client
-        .read_config()
-        .await
-        .expect("read_config failed");
+    let mut config = fs_client.read_config().await.expect("read_config failed");
     config.viewer().set_address(mock_server.uri());
     config.viewer().set_signature(SIGNATURE.to_string());
     fs_client
@@ -75,29 +72,19 @@ async fn viewer_send_remote_mode_posts_to_configured_address() {
         output.status,
     );
 
+    // Each JSON line is a `RunItem::Command(ResponseItem::Viewer(viewer::Response::Send(send::Response)))`
+    // — externally tagged at root + tier, so the wire shape is
+    // `{"Viewer":{"Send":{"status":200,"body":...}}}`.
     let lines: Vec<&str> = stdout.lines().collect();
-    assert!(
-        lines.len() >= 3,
-        "expected at least begin/notification/end, got: {lines:?}"
-    );
-
-    let first: Value =
-        serde_json::from_str(lines.first().unwrap()).expect("first line not JSON");
-    let last: Value =
-        serde_json::from_str(lines.last().unwrap()).expect("last line not JSON");
-    assert_eq!(first.get("type"), Some(&Value::String("begin".into())));
-    assert_eq!(last.get("type"), Some(&Value::String("end".into())));
-
     let matching = lines
         .iter()
         .filter_map(|line| serde_json::from_str::<Value>(line).ok())
-        .filter(|v| v.get("type") == Some(&Value::String("notification".into())))
-        .filter(|v| v.pointer("/value/status") == Some(&Value::Number(200.into())))
-        .filter(|v| v.pointer("/value/body") == Some(&response_body))
+        .filter(|v| v.pointer("/Viewer/Send/status") == Some(&Value::Number(200.into())))
+        .filter(|v| v.pointer("/Viewer/Send/body") == Some(&response_body))
         .count();
     assert_eq!(
         matching, 1,
-        "expected exactly one notification with status=200 and body={response_body} in {lines:?}",
+        "expected exactly one Viewer/Send line with status=200 and body={response_body} in {lines:?}",
     );
 
     mock_server.verify().await;

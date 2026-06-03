@@ -140,10 +140,10 @@ func (v FunctionsAlphaVectorBranchTaskExpressionPlaceholderVectorFunction) Marsh
 func (FunctionsAlphaVectorBranchTaskExpressionPlaceholderVectorFunction) SchemaVariantTitle() string { return "PlaceholderVectorFunction" }
 
 type FunctionsAlphaVectorBranchTaskExpression struct {
-	ScalarFunction *FunctionsAlphaVectorBranchTaskExpressionScalarFunction 
-	VectorFunction *FunctionsAlphaVectorBranchTaskExpressionVectorFunction 
-	PlaceholderScalarFunction *FunctionsAlphaVectorBranchTaskExpressionPlaceholderScalarFunction 
-	PlaceholderVectorFunction *FunctionsAlphaVectorBranchTaskExpressionPlaceholderVectorFunction 
+	ScalarFunction *FunctionsAlphaVectorBranchTaskExpressionScalarFunction `outerObject:"true"`
+	VectorFunction *FunctionsAlphaVectorBranchTaskExpressionVectorFunction `outerObject:"true"`
+	PlaceholderScalarFunction *FunctionsAlphaVectorBranchTaskExpressionPlaceholderScalarFunction `outerObject:"true"`
+	PlaceholderVectorFunction *FunctionsAlphaVectorBranchTaskExpressionPlaceholderVectorFunction `outerObject:"true"`
 }
 
 func (v FunctionsAlphaVectorBranchTaskExpression) MarshalJSON() ([]byte, error) {

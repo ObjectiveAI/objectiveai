@@ -11,6 +11,9 @@ import (
 type AgentCompletionsMessageToolMessage struct {
 	// The content of the tool response.
 	Content AgentCompletionsMessageRichContent `json:"content"`
+	// Optional vendor-extension metadata, populated by
+	// `objectiveai-mcp-proxy` via MCP's `_meta` extension bag.
+	Metadata *AgentCompletionsMessageToolResponseMetadata `json:"metadata,omitempty"`
 	// The ID of the tool call this message responds to.
 	ToolCallID string `json:"tool_call_id"`
 }

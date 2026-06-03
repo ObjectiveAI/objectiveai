@@ -16,14 +16,21 @@ import (
 // structured payloads (e.g. `{"code": ..., "detail": ...}`). Wrap
 // a plain string as `Value::String(...)` (or use `.into()`) and the
 // wire bytes stay identical to the old `String`-only shape.
+//
+// The `type` field is a single-variant `ErrorType` enum that
+// always serializes to `"error"`. This is what disambiguates the
+// untagged `Output` enum from a notification — `Output` tries
+// `Error` first, and the constant `type:"error"` tag is what
+// rejects every non-error wire shape.
 type CliOutputError struct {
-	// Stamped at emit time by [`super::Handle`] when its `agent_id`
+	// Stamped at emit time by [`super::Handle`] when its `agent_instance_hierarchy`
 	// field is set; producers leave this `None` and let the handle
 	// fill it. Serde-skipped when `None`.
-	AgentID *string `json:"agent_id,omitempty"`
+	AgentInstanceHierarchy *string `json:"agent_instance_hierarchy,omitempty"`
 	Fatal bool `json:"fatal"`
 	Level CliOutputLevel `json:"level"`
 	Message JsonValue `json:"message"`
+	Type CliOutputErrorType `json:"type" default:"error"`
 }
 
 func (CliOutputError) SchemaTitle() string { return "cli.output.Error" }
@@ -36,7 +43,7 @@ func (v *CliOutputError) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"fatal", "level", "message"} {
+	for _, key := range []string{"fatal", "level", "message", "type"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliOutputError: missing required field %q", key)
 		}

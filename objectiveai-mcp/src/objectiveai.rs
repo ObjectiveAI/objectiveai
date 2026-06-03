@@ -2,54 +2,72 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 use futures::FutureExt;
-use http::request::Parts;
-use objectiveai_sdk::filesystem::plugins::ManifestWithNameAndSource as PluginManifest;
-use objectiveai_sdk::filesystem::tools::ManifestWithNameAndSource as ToolManifest;
+use futures::StreamExt;
+use objectiveai_sdk::cli::Error as CliError;
+use objectiveai_sdk::cli::ErrorType as CliErrorType;
+use objectiveai_sdk::cli::Level as CliLevel;
+use objectiveai_sdk::cli::command::CommandExecutor;
+use objectiveai_sdk::cli::command::CommandResponse;
+use objectiveai_sdk::cli::command::McpResponseItem;
+use objectiveai_sdk::cli::command::Request;
+use objectiveai_sdk::cli::command::ResponseItem;
+use objectiveai_sdk::cli::command::binary;
+use objectiveai_sdk::cli::command::parse_request;
+use objectiveai_sdk::cli::command::plugins;
+use objectiveai_sdk::cli::command::tools;
 use rmcp::{
     ServerHandler,
     handler::server::router::tool::{ToolRoute, ToolRouter},
-    handler::server::tool::{Extension, parse_json_object, schema_for_type},
+    handler::server::tool::{parse_json_object, schema_for_type},
     handler::server::wrapper::Parameters,
     model::{
-        CallToolResult, Content, Implementation, ProtocolVersion, ServerCapabilities, ServerInfo,
-        Tool,
+        CallToolResult, Implementation, ProtocolVersion, ServerCapabilities, ServerInfo, Tool,
     },
     schemars, tool, tool_handler, tool_router,
 };
 
-use crate::format::{OutputMode, format_outputs};
+use crate::format::format_items;
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct ObjectiveAiRequest {
-    #[schemars(description = "The command arguments to pass to the ObjectiveAI CLI (e.g. [\"agents\", \"list\"] or [\"functions\", \"executions\", \"create\", \"--help\"])")]
+    #[schemars(
+        description = "The command arguments to pass to the ObjectiveAI CLI (e.g. [\"agents\", \"list\"] or [\"functions\", \"executions\", \"create\", \"--help\"])"
+    )]
     pub command: Vec<String>,
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct PluginRequest {
-    #[schemars(description = "Args forwarded to the plugin's argv (prefixed automatically with `plugins <name>` when invoking the CLI).")]
+    #[schemars(
+        description = "Args forwarded to the plugin's argv (prefixed automatically with `plugins run <name>` when invoking the CLI)."
+    )]
     pub args: Vec<String>,
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct ToolRequest {
-    #[schemars(description = "Args forwarded to the tool's argv (prefixed automatically with `tools <name>` when invoking the CLI).")]
+    #[schemars(
+        description = "Args forwarded to the tool's argv (prefixed automatically with `tools run <name>` when invoking the CLI)."
+    )]
     pub args: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
-pub struct ObjectiveAiMcpCli {
+pub struct ObjectiveAiMcpCli<E> {
     pub tool_router: ToolRouter<Self>,
-    pub cli_config: Arc<objectiveai_cli::Config>,
+    pub executor: Arc<E>,
 }
 
 #[tool_router]
-impl ObjectiveAiMcpCli {
+impl<E> ObjectiveAiMcpCli<E>
+where
+    E: CommandExecutor<Error = binary::Error> + Send + Sync + 'static,
+{
     /// Build a handler with one dynamic tool per discovered CLI plugin
-    /// and CLI tool, in addition to the static `ObjectiveAI` catch-all.
-    /// Plugins and tools are listed once at server startup (see
-    /// `run::setup`); this constructor is not re-invoked when either
-    /// is added later, so hot reload is intentionally out of scope.
+    /// and CLI tool, plus the static `ObjectiveAI` catch-all. Plugins
+    /// and tools are listed once at server startup (see `run::setup`);
+    /// this constructor is not re-invoked when either is added later,
+    /// so hot reload is intentionally out of scope.
     ///
     /// Name collisions: if a CLI plugin and a CLI tool happen to share
     /// a name (or with `ObjectiveAI`), the plugin registers first and
@@ -57,193 +75,166 @@ impl ObjectiveAiMcpCli {
     /// `ObjectiveAI` itself is always skipped on both sides so the
     /// built-in catch-all is never shadowed.
     pub fn with_plugins_and_tools(
-        cli_config: Arc<objectiveai_cli::Config>,
-        plugins: Vec<PluginManifest>,
-        tools: Vec<ToolManifest>,
+        executor: Arc<E>,
+        plugins_list: Vec<plugins::list::ResponseItem>,
+        tools_list: Vec<tools::list::ResponseItem>,
     ) -> Self {
         let mut tool_router = Self::tool_router();
-        for plugin in plugins {
+        for plugin in plugins_list {
             if plugin.name == "ObjectiveAI" {
                 continue;
             }
             let plugin_name = plugin.name.clone();
-            let cli_config_for_route = cli_config.clone();
+            let executor_for_route = executor.clone();
             let tool = Tool::new(
                 Cow::Owned(plugin.name.clone()),
-                Cow::Owned(plugin.manifest.description.clone()),
+                Cow::Owned(plugin.description.clone()),
                 schema_for_type::<PluginRequest>(),
             );
             tool_router.add_route(ToolRoute::new_dyn(tool, move |ctx| {
-                let cli_config = cli_config_for_route.clone();
+                let executor = executor_for_route.clone();
                 let plugin_name = plugin_name.clone();
                 async move {
                     let arguments = ctx.arguments.unwrap_or_default();
                     let req: PluginRequest = parse_json_object(arguments)?;
-                    let parts = ctx
-                        .request_context
-                        .extensions
-                        .get::<Parts>()
-                        .cloned()
-                        .unwrap_or_else(|| http::Request::new(()).into_parts().0);
-                    let args: Vec<String> =
-                        ["objectiveai".to_string(), "plugins".to_string(), plugin_name]
-                            .into_iter()
-                            .chain(req.args.into_iter())
-                            .collect();
-                    let buf = run_cli_and_collect(
-                        &cli_config,
-                        &parts,
-                        args,
-                        OutputMode::Plugin,
-                    )
-                    .await;
-                    Ok(CallToolResult::success(vec![Content::text(buf)]))
+                    let request = plugins::run::Request {
+                        name: plugin_name,
+                        args: req.args,
+                        jq: None,
+                    };
+                    let blocks = dispatch_plugins_run(&*executor, request).await;
+                    Ok(CallToolResult::success(blocks))
                 }
                 .boxed()
             }));
         }
-        for cli_tool in tools {
+        for cli_tool in tools_list {
             if cli_tool.name == "ObjectiveAI" {
                 continue;
             }
             let tool_name = cli_tool.name.clone();
-            let cli_config_for_route = cli_config.clone();
+            let executor_for_route = executor.clone();
             let tool = Tool::new(
                 Cow::Owned(cli_tool.name.clone()),
-                Cow::Owned(cli_tool.manifest.description.clone()),
+                Cow::Owned(cli_tool.description.clone()),
                 schema_for_type::<ToolRequest>(),
             );
             tool_router.add_route(ToolRoute::new_dyn(tool, move |ctx| {
-                let cli_config = cli_config_for_route.clone();
+                let executor = executor_for_route.clone();
                 let tool_name = tool_name.clone();
                 async move {
                     let arguments = ctx.arguments.unwrap_or_default();
                     let req: ToolRequest = parse_json_object(arguments)?;
-                    let parts = ctx
-                        .request_context
-                        .extensions
-                        .get::<Parts>()
-                        .cloned()
-                        .unwrap_or_else(|| http::Request::new(()).into_parts().0);
-                    let args: Vec<String> =
-                        ["objectiveai".to_string(), "tools".to_string(), tool_name.clone()]
-                            .into_iter()
-                            .chain(req.args.into_iter())
-                            .collect();
-                    let buf = run_cli_and_collect(
-                        &cli_config,
-                        &parts,
-                        args,
-                        OutputMode::Tool,
-                    )
-                    .await;
-                    Ok(CallToolResult::success(vec![Content::text(buf)]))
+                    let request = tools::run::Request {
+                        name: tool_name,
+                        args: req.args,
+                        jq: None,
+                    };
+                    let blocks = dispatch_tools_run(&*executor, request).await;
+                    Ok(CallToolResult::success(blocks))
                 }
                 .boxed()
             }));
         }
         Self {
             tool_router,
-            cli_config,
+            executor,
         }
     }
 
-    #[tool(
-        name = "ObjectiveAI",
-        description = "Run an ObjectiveAI command."
-    )]
+    #[tool(name = "ObjectiveAI", description = "Run an ObjectiveAI command.")]
     async fn objectiveai(
         &self,
         Parameters(req): Parameters<ObjectiveAiRequest>,
-        Extension(parts): Extension<Parts>,
-    ) -> String {
-        let args: Vec<String> = std::iter::once("objectiveai".to_string())
-            .chain(req.command)
-            .collect();
-        // Catch-all dispatches arbitrary `objectiveai …` commands.
-        // Plugin mode preserves the most structure (full
-        // NotificationValue rather than extracting ToolLine.line),
-        // which is the safer default when the underlying command
-        // is unknown.
-        run_cli_and_collect(
-            &self.cli_config,
-            &parts,
-            args,
-            OutputMode::Plugin,
-        )
-        .await
+    ) -> Result<CallToolResult, rmcp::ErrorData> {
+        let request = match parse_request(&req.command) {
+            Ok(r) => r,
+            Err(e) => {
+                let item = synthetic_error(e.to_string()).into_mcp();
+                return Ok(CallToolResult::success(format_items(vec![item])));
+            }
+        };
+        let blocks = dispatch_root(&*self.executor, request).await;
+        Ok(CallToolResult::success(blocks))
     }
 }
 
-/// Run the ObjectiveAI CLI in-process with `args`, collecting every
-/// emitted `Output`, and format the result for the MCP response.
-/// Applies the per-request `X-OBJECTIVEAI-AGENT-ID` header override
-/// (clones the server-wide `cli_config` so concurrent requests stay
-/// independent).
-///
-/// `mode` selects plugin vs. tool rendering — see [`crate::format`]
-/// for the full dispatch table. The formatter always strips
-/// `agent_id` from the response body regardless of any env vars.
-async fn run_cli_and_collect(
-    cli_config: &Arc<objectiveai_cli::Config>,
-    parts: &Parts,
-    args: Vec<String>,
-    mode: OutputMode,
-) -> String {
-    // Per-request: stamp agent_id + mcp_session_id from headers so
-    // every cli invocation (and every tool subprocess the cli spawns
-    // transitively) sees the values relevant to *this* request.
-    // Clone-then-mutate-then-Arc so concurrent requests see
-    // independent values.
-    //
-    // The MCP session id is read from `Mcp-Session-Id` (the rmcp
-    // transport's standard header). When the upstream MCP client
-    // doesn't actually manage sessions, fall back to the per-agent
-    // lineage id from `X-OBJECTIVEAI-AGENT-ID` — stable per agent and
-    // unique across agents, which is exactly what session-keyed tool
-    // state (e.g. per-session counters) wants.
-    let mut cfg = (**cli_config).clone();
-    let header_agent_id = parts
-        .headers
-        .get("X-OBJECTIVEAI-AGENT-ID")
-        .and_then(|h| h.to_str().ok());
-    // Always populate agent_id for MCP-routed calls. When the upstream
-    // MCP client didn't send the header, default to "MCP" so
-    // `agents me` (and any other code reading the field) reports
-    // the call's actual origin instead of inheriting the server-wide
-    // default ("CLI") — which would be misleading.
-    cfg.agent_id = header_agent_id.unwrap_or("mcp").to_string();
-    let header_session_id = parts
-        .headers
-        .get(objectiveai_sdk::mcp::MCP_SESSION_ID_HEADER)
-        .and_then(|h| h.to_str().ok());
-    // session_id falls back to the *header-provided* agent_id only —
-    // not the "MCP" default — so the per-session tool state key stays
-    // meaningful when the client doesn't actually manage sessions.
-    cfg.mcp_session_id = match header_session_id {
-        Some(s) => Some(s.to_string()),
-        None => header_agent_id.map(str::to_string),
+async fn dispatch_root<E>(executor: &E, request: Request) -> Vec<rmcp::model::Content>
+where
+    E: CommandExecutor<Error = binary::Error>,
+{
+    let stream = match objectiveai_sdk::cli::command::execute(executor, request).await {
+        Ok(s) => s,
+        Err(e) => return format_items(vec![convert::<ResponseItem>(Err(e))]),
     };
-    let cli_config: Arc<objectiveai_cli::Config> = Arc::new(cfg);
+    let items: Vec<McpResponseItem> = stream.map(convert::<ResponseItem>).collect().await;
+    format_items(items)
+}
 
-    let collected = Arc::new(tokio::sync::Mutex::new(Vec::new()));
-    // Per-request handle: stamp the agent_id from the per-request
-    // cli_config so every notification/error the cli emits during
-    // this Run carries `X-OBJECTIVEAI-AGENT-ID`. The Collect
-    // destination mirrors the same agent_id into the in-memory
-    // Vec the runner reassembles below.
-    let handle = objectiveai_sdk::cli::output::Handle {
-        destination: objectiveai_sdk::cli::output::HandleDestination::Collect(collected.clone()),
-        agent_id: Some(cli_config.agent_id.clone()),
+async fn dispatch_plugins_run<E>(
+    executor: &E,
+    request: plugins::run::Request,
+) -> Vec<rmcp::model::Content>
+where
+    E: CommandExecutor<Error = binary::Error>,
+{
+    let stream = match plugins::run::execute(executor, request).await {
+        Ok(s) => s,
+        Err(e) => return format_items(vec![convert::<plugins::run::ResponseItem>(Err(e))]),
     };
-    let _ = objectiveai_cli::run(args, &cli_config, handle).await;
+    let items: Vec<McpResponseItem> =
+        stream.map(convert::<plugins::run::ResponseItem>).collect().await;
+    format_items(items)
+}
 
-    let outputs = collected.lock().await;
-    format_outputs(mode, &outputs)
+async fn dispatch_tools_run<E>(
+    executor: &E,
+    request: tools::run::Request,
+) -> Vec<rmcp::model::Content>
+where
+    E: CommandExecutor<Error = binary::Error>,
+{
+    let stream = match tools::run::execute(executor, request).await {
+        Ok(s) => s,
+        Err(e) => return format_items(vec![convert::<tools::run::ResponseItem>(Err(e))]),
+    };
+    let items: Vec<McpResponseItem> =
+        stream.map(convert::<tools::run::ResponseItem>).collect().await;
+    format_items(items)
+}
+
+/// Collapse a `Result<T, binary::Error>` (the executor's per-item
+/// shape) into an `McpResponseItem`. `binary::Error::Cli` carries the
+/// CLI's structured error verbatim; any other `binary::Error`
+/// (infrastructure: spawn / io / json) gets wrapped in a synthetic
+/// `cli::Error` so it renders through the same `Result<T, cli::Error>:
+/// CommandResponse` path.
+fn convert<T: CommandResponse>(r: Result<T, binary::Error>) -> McpResponseItem {
+    let result: Result<T, CliError> = match r {
+        Ok(t) => Ok(t),
+        Err(binary::Error::Cli(e)) => Err(e),
+        Err(other) => Err(synthetic_error(format!("{other:?}"))),
+    };
+    result.into_mcp()
+}
+
+/// Build a `cli::Error` envelope from a free-form message. Used at the
+/// pre-dispatch failure sites (clap parse errors, `TryFrom<Command>`
+/// errors) and as the wrapper for non-`Cli` `binary::Error` variants.
+fn synthetic_error(message: impl Into<String>) -> CliError {
+    CliError {
+        r#type: CliErrorType::Error,
+        level: Some(CliLevel::Error),
+        fatal: Some(true),
+        message: serde_json::Value::String(message.into()),
+    }
 }
 
 #[tool_handler]
-impl ServerHandler for ObjectiveAiMcpCli {
+impl<E> ServerHandler for ObjectiveAiMcpCli<E>
+where
+    E: CommandExecutor<Error = binary::Error> + Send + Sync + 'static,
+{
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
             protocol_version: ProtocolVersion::V_2025_06_18,

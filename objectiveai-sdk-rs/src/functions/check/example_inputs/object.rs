@@ -1,9 +1,11 @@
 use indexmap::IndexMap;
 use rand::Rng;
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 
-use crate::functions::expression::{InputValue, InputSchema, ObjectInputSchema};
+use crate::functions::expression::{
+    InputSchema, InputValue, ObjectInputSchema,
+};
 
 pub fn permutations(schema: &ObjectInputSchema) -> usize {
     let required = schema.required.as_deref().unwrap_or(&[]);
@@ -60,7 +62,11 @@ impl FieldSource {
     }
 }
 
-fn make_field_source(schema: &InputSchema, is_optional: bool, rng: StdRng) -> FieldSource {
+fn make_field_source(
+    schema: &InputSchema,
+    is_optional: bool,
+    rng: StdRng,
+) -> FieldSource {
     if is_optional {
         FieldSource::Optional(super::optional::generate(schema, rng))
     } else {

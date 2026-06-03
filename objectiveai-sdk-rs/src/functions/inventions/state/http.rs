@@ -8,6 +8,10 @@ pub async fn get_function_invention_state(
     params: crate::RemotePathCommitOptional,
 ) -> Result<super::response::GetFunctionInventionStateResponse, HttpError> {
     client
-        .send_unary(reqwest::Method::POST, "functions/inventions/state", Some(params))
+        .send_unary(
+            reqwest::Method::POST,
+            "functions/inventions/state",
+            Some(params),
+        )
         .await
 }

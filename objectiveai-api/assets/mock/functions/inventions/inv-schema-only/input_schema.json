@@ -3,8 +3,16 @@
   "schema": {
     "type": "object",
     "properties": {
-      "sentiment": { "type": "string", "enum": ["positive", "negative"] }
+      "sentiment": {
+        "type": "string",
+        "enum": [
+          "positive",
+          "negative"
+        ]
+      }
     },
-    "required": ["sentiment"]
+    "required": [
+      "sentiment"
+    ]
   }
 }

@@ -4,8 +4,8 @@
 //! a set of predefined responses during vector completion. This setting
 //! is **only used for vector completions** and is ignored for agent completions.
 
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// The method used to constrain LLM output to valid response keys.
 ///
@@ -15,7 +15,16 @@ use schemars::JsonSchema;
 /// **Note:** This setting is only relevant for vector completions and is
 /// completely ignored for agent completions.
 #[derive(
-    Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Hash, JsonSchema, arbitrary::Arbitrary,
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Hash,
+    JsonSchema,
+    arbitrary::Arbitrary,
 )]
 #[serde(rename_all = "snake_case")]
 #[schemars(rename = "agent.claude_agent_sdk.OutputMode")]

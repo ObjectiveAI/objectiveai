@@ -1,8 +1,8 @@
 //! Profile listing and usage response types.
 
 use crate::functions;
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// Response from listing profiles.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -22,7 +22,9 @@ pub struct GetProfileResponse {
     #[schemars(schema_with = "crate::flatten_schema::<crate::RemotePath>")]
     pub path: crate::RemotePath,
     #[serde(flatten)]
-    #[schemars(schema_with = "crate::flatten_schema::<functions::RemoteProfile>")]
+    #[schemars(
+        schema_with = "crate::flatten_schema::<functions::RemoteProfile>"
+    )]
     pub inner: functions::RemoteProfile,
 }
 

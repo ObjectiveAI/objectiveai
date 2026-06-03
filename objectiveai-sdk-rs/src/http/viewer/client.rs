@@ -17,10 +17,11 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 
 use super::request::{
-    AgentCompletionCreateParams, AgentCompletionRequest, FunctionExecutionCreateParams,
-    FunctionExecutionRequest, FunctionInventionRecursiveCreateParams,
-    FunctionInventionRecursiveRequest, LaboratoryExecutionCreateParams,
-    LaboratoryExecutionRequest, Request, ResponseError,
+    AgentCompletionCreateParams, AgentCompletionRequest,
+    FunctionExecutionCreateParams, FunctionExecutionRequest,
+    FunctionInventionRecursiveCreateParams, FunctionInventionRecursiveRequest,
+    LaboratoryExecutionCreateParams, LaboratoryExecutionRequest, Request,
+    ResponseError,
 };
 
 /// Resolved per-request override pair.
@@ -104,7 +105,9 @@ impl Client {
                 let (address, signature) = match viewer_data.address {
                     Some(addr) => (addr, viewer_data.signature),
                     None => match &bg_default_address {
-                        Some(addr) => (addr.clone(), bg_default_signature.clone()),
+                        Some(addr) => {
+                            (addr.clone(), bg_default_signature.clone())
+                        }
                         None => continue,
                     },
                 };
@@ -155,10 +158,14 @@ impl Client {
                                 .body(body.clone());
 
                             if let Some(sig) = signature {
-                                req = req.header("X-VIEWER-SIGNATURE", sig.as_str());
+                                req = req
+                                    .header("X-VIEWER-SIGNATURE", sig.as_str());
                             }
 
-                            let response = req.send().await.map_err(backoff::Error::transient)?;
+                            let response = req
+                                .send()
+                                .await
+                                .map_err(backoff::Error::transient)?;
 
                             if response.status().is_success() {
                                 Ok(())
@@ -215,7 +222,9 @@ impl Client {
         address: Option<Arc<String>>,
         signature: Option<Arc<String>>,
         id: String,
-        request: Arc<crate::agent::completions::request::AgentCompletionCreateParams>,
+        request: Arc<
+            crate::agent::completions::request::AgentCompletionCreateParams,
+        >,
     ) {
         self.enqueue(
             address,
@@ -249,10 +258,9 @@ impl Client {
         self.enqueue(
             address,
             signature,
-            Request::AgentCompletion(AgentCompletionRequest::Error(ResponseError {
-                id,
-                inner: error,
-            })),
+            Request::AgentCompletion(AgentCompletionRequest::Error(
+                ResponseError { id, inner: error },
+            )),
         );
     }
 
@@ -281,7 +289,9 @@ impl Client {
         self.enqueue(
             address,
             signature,
-            Request::FunctionExecution(FunctionExecutionRequest::Continue(chunk)),
+            Request::FunctionExecution(FunctionExecutionRequest::Continue(
+                chunk,
+            )),
         );
     }
 
@@ -295,10 +305,9 @@ impl Client {
         self.enqueue(
             address,
             signature,
-            Request::FunctionExecution(FunctionExecutionRequest::Error(ResponseError {
-                id,
-                inner: error,
-            })),
+            Request::FunctionExecution(FunctionExecutionRequest::Error(
+                ResponseError { id, inner: error },
+            )),
         );
     }
 
@@ -314,9 +323,14 @@ impl Client {
         self.enqueue(
             address,
             signature,
-            Request::FunctionInventionRecursive(FunctionInventionRecursiveRequest::Begin(
-                FunctionInventionRecursiveCreateParams { id, inner: request },
-            )),
+            Request::FunctionInventionRecursive(
+                FunctionInventionRecursiveRequest::Begin(
+                    FunctionInventionRecursiveCreateParams {
+                        id,
+                        inner: request,
+                    },
+                ),
+            ),
         );
     }
 
@@ -329,7 +343,9 @@ impl Client {
         self.enqueue(
             address,
             signature,
-            Request::FunctionInventionRecursive(FunctionInventionRecursiveRequest::Continue(chunk)),
+            Request::FunctionInventionRecursive(
+                FunctionInventionRecursiveRequest::Continue(chunk),
+            ),
         );
     }
 
@@ -343,9 +359,12 @@ impl Client {
         self.enqueue(
             address,
             signature,
-            Request::FunctionInventionRecursive(FunctionInventionRecursiveRequest::Error(
-                ResponseError { id, inner: error },
-            )),
+            Request::FunctionInventionRecursive(
+                FunctionInventionRecursiveRequest::Error(ResponseError {
+                    id,
+                    inner: error,
+                }),
+            ),
         );
     }
 
@@ -374,7 +393,9 @@ impl Client {
         self.enqueue(
             address,
             signature,
-            Request::LaboratoryExecution(LaboratoryExecutionRequest::Continue(chunk)),
+            Request::LaboratoryExecution(LaboratoryExecutionRequest::Continue(
+                chunk,
+            )),
         );
     }
 
@@ -388,10 +409,9 @@ impl Client {
         self.enqueue(
             address,
             signature,
-            Request::LaboratoryExecution(LaboratoryExecutionRequest::Error(ResponseError {
-                id,
-                inner: error,
-            })),
+            Request::LaboratoryExecution(LaboratoryExecutionRequest::Error(
+                ResponseError { id, inner: error },
+            )),
         );
     }
 

@@ -23,7 +23,7 @@ fn test_empty_messages_no_continuation() {
     );
     assert_eq!(result, objectiveai_sdk::agent::openrouter::Continuation {
         upstream: objectiveai_sdk::agent::openrouter::Upstream::Openrouter,
-        agent_id: String::new(),
+        agent_instance_hierarchy: String::new(),
         messages: vec![],
         mcp_sessions: indexmap::IndexMap::new(),
         ws_session_id: None,
@@ -47,7 +47,7 @@ fn test_messages_only() {
     );
     assert_eq!(result, objectiveai_sdk::agent::openrouter::Continuation {
         upstream: objectiveai_sdk::agent::openrouter::Upstream::Openrouter,
-        agent_id: String::new(),
+        agent_instance_hierarchy: String::new(),
         messages: vec![
             Message::User(UserMessage {
                 content: RichContent::Text("Hello".into()),
@@ -86,7 +86,7 @@ fn test_messages_with_continuation() {
     );
     assert_eq!(result, objectiveai_sdk::agent::openrouter::Continuation {
         upstream: objectiveai_sdk::agent::openrouter::Upstream::Openrouter,
-        agent_id: String::new(),
+        agent_instance_hierarchy: String::new(),
         messages: vec![
             Message::User(UserMessage {
                 content: RichContent::Text("Hello".into()),
@@ -117,7 +117,7 @@ fn test_request_continuation_messages_come_first() {
     ];
     let rc = objectiveai_sdk::agent::openrouter::Continuation {
         upstream: objectiveai_sdk::agent::openrouter::Upstream::Openrouter,
-        agent_id: String::new(),
+        agent_instance_hierarchy: String::new(),
         messages: vec![
             Message::User(UserMessage {
                 content: RichContent::Text("Previous turn".into()),
@@ -139,7 +139,7 @@ fn test_request_continuation_messages_come_first() {
     );
     assert_eq!(result, objectiveai_sdk::agent::openrouter::Continuation {
         upstream: objectiveai_sdk::agent::openrouter::Upstream::Openrouter,
-        agent_id: String::new(),
+        agent_instance_hierarchy: String::new(),
         messages: vec![
             Message::User(UserMessage {
                 content: RichContent::Text("Previous turn".into()),

@@ -1,14 +1,25 @@
 //! Aggregated token usage and cost information for agent completions.
 
-use super::{CompletionTokensDetails, CostDetails, PromptTokensDetails, UpstreamUsage};
-use serde::{Deserialize, Serialize};
+use super::{
+    CompletionTokensDetails, CostDetails, PromptTokensDetails, UpstreamUsage,
+};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// Aggregated token and cost usage for an agent completion.
 ///
 /// This is the "primary" usage type that aggregates across all upstream
 /// assistant responses within a single agent completion.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    Default,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "agent.completions.response.Usage")]
 pub struct Usage {
     /// Total tokens generated across all assistant responses.

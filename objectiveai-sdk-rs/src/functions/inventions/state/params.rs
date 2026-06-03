@@ -1,7 +1,15 @@
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "functions.inventions.state.Params")]
 pub struct Params {
     #[arbitrary(with = crate::arbitrary_util::arbitrary_u64)]
@@ -22,7 +30,9 @@ impl Params {
     /// Validate that the params are usable for invention.
     pub fn validate(&self) -> Result<(), String> {
         if self.min_leaf_width == 0 || self.max_leaf_width == 0 {
-            return Err("min_leaf_width and max_leaf_width must be >= 1".to_string());
+            return Err(
+                "min_leaf_width and max_leaf_width must be >= 1".to_string()
+            );
         }
         if self.min_leaf_width > self.max_leaf_width {
             return Err(format!(

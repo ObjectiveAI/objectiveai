@@ -1,10 +1,12 @@
 use crate::{agent, error, laboratories::executions::response};
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// A complete laboratory execution response (non-streaming).
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "laboratories.executions.response.unary.LaboratoryExecution")]
+#[schemars(
+    rename = "laboratories.executions.response.unary.LaboratoryExecution"
+)]
 pub struct LaboratoryExecution {
     /// Unique identifier for this execution.
     pub id: String,
@@ -61,7 +63,10 @@ fn normalize_error(error: &mut Option<crate::error::ResponseError>) {
             // Replace localhost:<port> with localhost:0
             while let Some(start) = s.find("localhost:") {
                 let after = start + "localhost:".len();
-                let end = s[after..].find(|c: char| !c.is_ascii_digit()).map(|i| after + i).unwrap_or(s.len());
+                let end = s[after..]
+                    .find(|c: char| !c.is_ascii_digit())
+                    .map(|i| after + i)
+                    .unwrap_or(s.len());
                 if end > after {
                     s.replace_range(after..end, "0");
                 } else {
@@ -72,7 +77,9 @@ fn normalize_error(error: &mut Option<crate::error::ResponseError>) {
     }
 }
 
-impl From<response::streaming::LaboratoryExecutionChunk> for LaboratoryExecution {
+impl From<response::streaming::LaboratoryExecutionChunk>
+    for LaboratoryExecution
+{
     fn from(
         response::streaming::LaboratoryExecutionChunk {
             id,

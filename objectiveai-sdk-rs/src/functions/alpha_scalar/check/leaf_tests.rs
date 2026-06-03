@@ -3,6 +3,7 @@
 #![cfg(test)]
 
 use crate::agent::completions::message::{RichContent, RichContentPart};
+use crate::functions::alpha_scalar::check::check_alpha_leaf_scalar_function;
 use crate::functions::alpha_scalar::{
     LeafTaskExpression, RemoteFunction, VectorCompletionTaskExpression,
 };
@@ -10,7 +11,6 @@ use crate::functions::expression::{
     Expression, ImageInputSchema, InputSchema, IntegerInputSchema,
     ObjectInputSchema, StringInputSchema,
 };
-use crate::functions::alpha_scalar::check::check_alpha_leaf_scalar_function;
 use crate::test_util::index_map;
 
 fn test(f: &RemoteFunction) {
@@ -180,7 +180,6 @@ fn responses_less_than_2() {
     };
     test_err(&f, "AS10");
 }
-
 
 // --- Success cases ---
 

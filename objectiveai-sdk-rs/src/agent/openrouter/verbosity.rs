@@ -1,13 +1,22 @@
 //! Verbosity settings for Agent output.
 
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// The verbosity level for model output.
 ///
 /// This setting hints to the model how detailed its responses should be.
 /// Not all models support this parameter.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "agent.openrouter.Verbosity")]
 pub enum Verbosity {
     /// Minimal output, concise responses.

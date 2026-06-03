@@ -3,8 +3,8 @@
 use std::collections::{HashMap, HashSet};
 
 use rand::Rng;
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 use crate::functions::alpha_vector::{self, RemoteFunction};
 use crate::functions::expression::{InputValue, Params, ParamsRef};
@@ -12,18 +12,17 @@ use crate::functions::{CompiledTask, Function, TaskExpression};
 
 use crate::functions::check::check_description;
 use crate::functions::check::check_input_schema;
-use crate::functions::check::{
-    VectorOutputShape, check_vector_distribution,
-};
+use crate::functions::check::example_inputs;
 use crate::functions::check::{ScalarFieldsValidation, check_scalar_fields};
 use crate::functions::check::{
     VectorFieldsValidation, check_vector_fields, check_vector_fields_for_input,
     random_subsets,
 };
+use crate::functions::check::{VectorOutputShape, check_vector_distribution};
 use crate::functions::check::{
-    compile_and_validate_one_input, extract_task_input, extract_task_input_value,
+    compile_and_validate_one_input, extract_task_input,
+    extract_task_input_value,
 };
-use crate::functions::check::example_inputs;
 
 /// Validates quality requirements for an alpha branch vector function.
 ///
@@ -62,9 +61,7 @@ pub fn check_alpha_branch_vector_function(
 
     // Must have at least one task
     if tasks.is_empty() {
-        return Err(
-            "AW02: Functions must have at least one task".to_string(),
-        );
+        return Err("AW02: Functions must have at least one task".to_string());
     }
 
     // Composition rules: count scalar-like vs vector-like tasks
@@ -74,11 +71,15 @@ pub fn check_alpha_branch_vector_function(
     for task in tasks.iter() {
         match task {
             alpha_vector::BranchTaskExpression::ScalarFunction(_)
-            | alpha_vector::BranchTaskExpression::PlaceholderScalarFunction(_) => {
+            | alpha_vector::BranchTaskExpression::PlaceholderScalarFunction(
+                _,
+            ) => {
                 scalar_like_count += 1;
             }
             alpha_vector::BranchTaskExpression::VectorFunction(_)
-            | alpha_vector::BranchTaskExpression::PlaceholderVectorFunction(_) => {
+            | alpha_vector::BranchTaskExpression::PlaceholderVectorFunction(
+                _,
+            ) => {
                 vector_like_count += 1;
             }
         }
@@ -147,7 +148,9 @@ pub fn check_alpha_branch_vector_function(
     let mut count = 0usize;
 
     let transpiled_children = children.map(|c| {
-        c.iter().map(|(k, v)| (k.clone(), v.clone().transpile())).collect::<HashMap<_, _>>()
+        c.iter()
+            .map(|(k, v)| (k.clone(), v.clone().transpile()))
+            .collect::<HashMap<_, _>>()
     });
 
     let mut rng = match seed {
@@ -155,12 +158,20 @@ pub fn check_alpha_branch_vector_function(
         None => StdRng::from_os_rng(),
     };
 
-    for ref input in example_inputs::generate_seeded(transpiled_input_schema_ref, StdRng::seed_from_u64(rng.random::<u64>())) {
+    for ref input in example_inputs::generate_seeded(
+        transpiled_input_schema_ref,
+        StdRng::seed_from_u64(rng.random::<u64>()),
+    ) {
         count += 1;
         let input_label = serde_json::to_string(input).unwrap_or_default();
 
         // Vector fields validation
-        check_vector_fields_for_input(&vector_fields, &input_label, input, &mut rng)?;
+        check_vector_fields_for_input(
+            &vector_fields,
+            &input_label,
+            input,
+            &mut rng,
+        )?;
 
         // Compile and validate
         let compiled_tasks = compile_and_validate_one_input(
@@ -266,9 +277,7 @@ pub fn check_alpha_branch_vector_function(
                 // Not all equal
                 if !per_task_has_varying[j] && tasks_vec.len() >= 2 {
                     let first = extract_task_input_value(&tasks_vec[0])
-                        .map(|v| {
-                            serde_json::to_string(v).unwrap_or_default()
-                        });
+                        .map(|v| serde_json::to_string(v).unwrap_or_default());
                     let has_different = tasks_vec[1..].iter().any(|t| {
                         extract_task_input_value(t).map(|v| {
                             serde_json::to_string(v).unwrap_or_default()
@@ -344,8 +353,8 @@ pub fn check_alpha_branch_vector_function(
     if count >= 2 {
         // Function input diversity
         for (j, unique_inputs) in per_task_inputs.iter().enumerate() {
-            let effective = unique_inputs.len()
-                + if per_task_skipped[j] { 1 } else { 0 };
+            let effective =
+                unique_inputs.len() + if per_task_skipped[j] { 1 } else { 0 };
             if effective < 2 {
                 return Err(format!(
                     "AW18: Task [{}]: task input is a fixed value — task inputs must \
@@ -358,8 +367,8 @@ pub fn check_alpha_branch_vector_function(
         // Mapped scalar per-index diversity
         for (j, indexed) in per_task_indexed.iter().enumerate() {
             for (&mi, (occurrences, unique_inputs)) in indexed {
-                let total = *occurrences
-                    + if per_task_skipped[j] { 1 } else { 0 };
+                let total =
+                    *occurrences + if per_task_skipped[j] { 1 } else { 0 };
                 if total <= 1 {
                     continue;
                 }

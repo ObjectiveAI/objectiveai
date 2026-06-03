@@ -8,7 +8,9 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::agent::completions::message::{RichContentLog, ToolResponseMetadata};
+use crate::agent::completions::message::{
+    RichContentLog, ToolResponseMetadata,
+};
 
 use super::ToolRole;
 

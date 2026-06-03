@@ -4,8 +4,8 @@ use crate::{
     agent, error,
     functions::{self, executions::response},
 };
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// A complete function execution response (non-streaming).
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

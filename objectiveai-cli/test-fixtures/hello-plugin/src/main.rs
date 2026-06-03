@@ -8,7 +8,9 @@
 use std::io::Write;
 
 fn main() {
-    let arg = std::env::args().nth(1).unwrap_or_else(|| "anonymous".into());
+    let arg = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "anonymous".into());
     let line = format!(r#"{{"type":"notification","hello":"{arg}"}}"#);
     let stdout = std::io::stdout();
     let mut h = stdout.lock();

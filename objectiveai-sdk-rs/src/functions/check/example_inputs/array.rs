@@ -1,7 +1,7 @@
 use rand::Rng;
+use rand::SeedableRng;
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
-use rand::SeedableRng;
 
 use crate::functions::expression::{ArrayInputSchema, InputValue};
 
@@ -42,7 +42,12 @@ pub fn generate<R: Rng>(schema: &ArrayInputSchema, mut rng: R) -> Generator<R> {
         .iter()
         .map(|&len| {
             (0..len)
-                .map(|_| Box::new(super::multi::generate(&item_schema, StdRng::seed_from_u64(rng.random::<u64>()))))
+                .map(|_| {
+                    Box::new(super::multi::generate(
+                        &item_schema,
+                        StdRng::seed_from_u64(rng.random::<u64>()),
+                    ))
+                })
                 .collect()
         })
         .collect();

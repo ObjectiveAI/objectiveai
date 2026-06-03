@@ -32,7 +32,15 @@ pub enum OneOrMany<T> {
 /// ```json
 /// {"$starlark": "input['items'][0]['name']"}
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[serde(deny_unknown_fields)]
 #[schemars(rename = "functions.expression.Expression")]
 pub enum Expression {
@@ -153,7 +161,15 @@ impl Expression {
 /// ```json
 /// {"$starlark": "input['greeting']"}
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[serde(untagged)]
 #[schemars(rename = "functions.expression.WithExpression.{T}")]
 pub enum WithExpression<T> {
@@ -239,4 +255,3 @@ impl<T> WithExpression<Option<T>> {
         matches!(self, WithExpression::Value(None))
     }
 }
-

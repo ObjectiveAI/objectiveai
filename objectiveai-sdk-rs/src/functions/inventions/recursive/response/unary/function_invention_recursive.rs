@@ -1,10 +1,12 @@
-use crate::functions::inventions::recursive::response;
 use crate::agent;
-use serde::{Deserialize, Serialize};
+use crate::functions::inventions::recursive::response;
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "functions.inventions.recursive.response.unary.FunctionInventionRecursive")]
+#[schemars(
+    rename = "functions.inventions.recursive.response.unary.FunctionInventionRecursive"
+)]
 pub struct FunctionInventionRecursive {
     pub id: String,
     pub inventions: Vec<super::FunctionInvention>,
@@ -24,7 +26,8 @@ impl FunctionInventionRecursive {
         }
 
         // sort inventions by JSON representation since ordering is non-deterministic
-        self.inventions.sort_by_cached_key(|i| serde_json::to_string(&i.inner).unwrap());
+        self.inventions
+            .sort_by_cached_key(|i| serde_json::to_string(&i.inner).unwrap());
 
         // re-apply invention indices since indices are non-determinstic
         let mut i = 0;

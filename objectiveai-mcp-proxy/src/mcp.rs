@@ -159,10 +159,40 @@ fn handle_cancelled_notification(
 
 // ---- DELETE handler (explicit session termination) ------------------------
 
-/// DELETE `/`: end the session named by `Mcp-Session-Id`. Per
-/// 2025-06-18/basic/transports#session-management the client uses this to
-/// explicitly terminate its session; the server responds 200 on success
-/// and 404 if the id is unknown.
+/// DELETE `/`: end the session named by `Mcp-Session-Id`.
+///
+/// Per 2025-06-18/basic/transports#session-management the client uses
+/// this to explicitly terminate its session. The proxy doesn't just
+/// drop its own state — it fans the deletion out to every upstream
+/// MCP session embedded inside the (AEAD-encrypted) session id so the
+/// upstreams stop accruing per-session state on our behalf.
+///
+/// Resolution branches:
+///
+/// - **Decode fails** (bad base62, AEAD failure, unknown version,
+///   malformed JSON): return `404 unknown session`. Same shape as the
+///   pre-refactor handler.
+/// - **Cached** (the session is currently in the in-memory registry):
+///   pop it from the registry, then fan
+///   [`objectiveai_sdk::mcp::Connection::delete`] over every held
+///   connection concurrently. Each connection's `delete()` cancels its
+///   own listener task before issuing the upstream DELETE and treats
+///   upstream `404 / 401 / 403` as success.
+/// - **Uncached** (the session decrypted cleanly but isn't held in
+///   memory — e.g. the proxy restarted, or this is a stateless caller
+///   that never opened a `Connection`): fan
+///   [`objectiveai_sdk::mcp::Client::delete`] over every `(url,
+///   upstream-sid, headers)` triple parsed from the payload. The
+///   per-URL header map is taken straight from the payload — each
+///   upstream gets the same `Authorization` / custom-header set the
+///   connection was originally opened with. Stateless `Client::delete`
+///   does NOT absorb `404 / 401 / 403`; an uncached request whose
+///   upstream is gone will surface as a `500`.
+///
+/// **Both branches run every per-upstream DELETE to completion.** No
+/// short-circuit on first error: `join_all` collects every result,
+/// and the handler only returns an error if *any* per-upstream call
+/// failed.
 pub async fn handle_delete(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -172,9 +202,75 @@ pub async fn handle_delete(
         Err(resp) => return resp,
     };
 
-    match state.sessions.remove(&session_id) {
-        Some(_) => StatusCode::OK.into_response(),
-        None => (StatusCode::NOT_FOUND, "unknown session").into_response(),
+    // Decrypt the wire id. We need the URL → header_map list even
+    // when the session isn't in the in-memory registry. AEAD failure
+    // / malformed payload → same shape as today's "unknown session".
+    let payload = match state.sessions.decode_session_id(&session_id) {
+        Some(p) => p,
+        None => {
+            return (StatusCode::NOT_FOUND, "unknown session").into_response();
+        }
+    };
+
+    // Cached path: pop the in-memory entry and fan `Connection::delete`
+    // out concurrently to every held connection. The connections carry
+    // their own listener-cancel guards that `delete()` releases before
+    // the upstream DELETE goes out.
+    if let Some(session) = state.sessions.remove(&session_id) {
+        let results = futures::future::join_all(
+            session.connections.values().map(|c| c.delete()),
+        )
+        .await;
+        return finalize_delete_results(&results);
+    }
+
+    // Uncached path: fan stateless `Client::delete` over every
+    // `(url, upstream-sid, headers)` triple parsed straight from the
+    // encrypted id. Each upstream gets its own per-URL header set
+    // (`Authorization`, custom `X-*`, etc.) from the payload — those
+    // are the credentials that opened the upstream session in the
+    // first place, so they're the credentials we need to tear it down.
+    let attempts: Vec<_> = payload
+        .connections
+        .into_iter()
+        .map(|(url, mut header_map)| {
+            let sid = header_map
+                .shift_remove(crate::upstream::MCP_SESSION_ID_KEY)
+                .unwrap_or_default();
+            let client = state.client.clone();
+            async move {
+                client.delete(url, sid, Some(header_map)).await
+            }
+        })
+        .collect();
+    let results = futures::future::join_all(attempts).await;
+    finalize_delete_results(&results)
+}
+
+/// Reduce a `Vec<Result<(), E>>` collected from a concurrent DELETE
+/// fan-out into a single HTTP response. `200` iff every per-upstream
+/// delete succeeded; `500` with a body listing every failure if any
+/// failed. Every call has already been awaited to completion before
+/// this runs — we never short-circuit on the first error.
+fn finalize_delete_results<E: std::fmt::Display>(
+    results: &[Result<(), E>],
+) -> Response {
+    let failures: Vec<String> = results
+        .iter()
+        .filter_map(|r| r.as_ref().err())
+        .map(|e| e.to_string())
+        .collect();
+    if failures.is_empty() {
+        StatusCode::OK.into_response()
+    } else {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!(
+                "delete failed for some upstreams:\n{}",
+                failures.join("\n"),
+            ),
+        )
+            .into_response()
     }
 }
 
@@ -315,12 +411,29 @@ async fn handle_initialize(
             return ok_response_resume_sse(request.id);
         }
         // Branch 2 — decrypt and reconnect strictly from the payload.
-        let (connections_with_headers, decoded_agent_id, decoded_tool_allowlists) = match state.sessions.decode_session_id(sid) {
+        let (
+            connections_with_headers,
+            decoded_agent_instance_hierarchy,
+            decoded_agent_id,
+            decoded_agent_full_id,
+            decoded_agent_remote,
+            decoded_tool_allowlists,
+        ) = match state.sessions.decode_session_id(sid) {
             Some(payload) => {
+                let agent_instance_hierarchy = payload.agent_instance_hierarchy.clone();
                 let agent_id = payload.agent_id.clone();
+                let agent_full_id = payload.agent_full_id.clone();
+                let agent_remote = payload.agent_remote.clone();
                 let tool_allowlists = payload.tool_allowlists.clone();
                 match crate::upstream::reconnect_from_payload(&state.client, &payload).await {
-                    Ok(pairs) => (pairs, agent_id, tool_allowlists),
+                    Ok(pairs) => (
+                        pairs,
+                        agent_instance_hierarchy,
+                        agent_id,
+                        agent_full_id,
+                        agent_remote,
+                        tool_allowlists,
+                    ),
                     Err(e @ BadInit::UpstreamConnectFailed { .. }) => {
                         return internal_error_response(request.id, e.to_string());
                     }
@@ -345,7 +458,10 @@ async fn handle_initialize(
         // doesn't echo the id back.
         let _ = state.sessions.add(
             connections_with_headers,
+            decoded_agent_instance_hierarchy,
             decoded_agent_id,
+            decoded_agent_full_id,
+            decoded_agent_remote,
             decoded_tool_allowlists,
         );
         ok_response_resume_sse(request.id)
@@ -357,18 +473,37 @@ async fn handle_initialize(
         // SSE-deliver the `InitializeResult`.
         // Capture the caller-supplied agent id at session-open. The
         // value rides inside the encrypted session id we mint below,
-        // is recoverable from `session.payload.agent_id` on every
+        // is recoverable from `session.payload.agent_instance_hierarchy` on every
         // subsequent call, AND gets stamped on every outbound request
         // each upstream connection makes (via connect_all_fresh below).
+        let agent_instance_hierarchy = headers
+            .get("X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY")
+            .or_else(|| headers.get("OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY"))
+            .and_then(|v| v.to_str().ok())
+            .map(str::to_owned);
         let agent_id = headers
             .get("X-OBJECTIVEAI-AGENT-ID")
             .or_else(|| headers.get("OBJECTIVEAI-AGENT-ID"))
             .and_then(|v| v.to_str().ok())
             .map(str::to_owned);
+        let agent_full_id = headers
+            .get("X-OBJECTIVEAI-AGENT-FULL-ID")
+            .or_else(|| headers.get("OBJECTIVEAI-AGENT-FULL-ID"))
+            .and_then(|v| v.to_str().ok())
+            .map(str::to_owned);
+        let agent_remote = headers
+            .get("X-OBJECTIVEAI-AGENT-REMOTE")
+            .or_else(|| headers.get("OBJECTIVEAI-AGENT-REMOTE"))
+            .and_then(|v| v.to_str().ok())
+            .filter(|s| !s.is_empty())
+            .map(str::to_owned);
         let (connections_with_headers, tool_allowlists) = match crate::upstream::connect_all_fresh(
             &state.client,
             headers,
+            agent_instance_hierarchy.as_deref(),
             agent_id.as_deref(),
+            agent_full_id.as_deref(),
+            agent_remote.as_deref(),
         ).await {
             Ok(pair) => pair,
             Err(e @ (BadInit::NotUtf8 { .. } | BadInit::NotJson { .. })) => {
@@ -378,7 +513,14 @@ async fn handle_initialize(
                 return internal_error_response(request.id, e.to_string());
             }
         };
-        let session_id = state.sessions.add(connections_with_headers, agent_id, tool_allowlists);
+        let session_id = state.sessions.add(
+            connections_with_headers,
+            agent_instance_hierarchy,
+            agent_id,
+            agent_full_id,
+            agent_remote,
+            tool_allowlists,
+        );
         ok_response_fresh_sse(request.id, session_id)
     }
 }

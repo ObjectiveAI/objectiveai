@@ -92,9 +92,9 @@ When the host dispatches your plugin, it spawns the binary at `<plugins_dir>/<re
 - **argv** = `[binary_path, ...trailing_args]` (the same args the user typed).
 - **stdin** = `/dev/null` (no stdin protocol yet).
 - **stderr** = forwarded raw to the host's stderr.
-- **stdout** = parsed one line at a time as JSONL `PluginOutput`.
+- **stdout** = parsed one line at a time as JSONL `cli::plugins::Output`.
 
-### PluginOutput variants
+### `Output` variants
 
 Internally tagged on `"type"` (snake_case). Defined in [`objectiveai-sdk-rs/src/cli/plugins/output.rs`](../objectiveai-sdk-rs/src/cli/plugins/output.rs).
 
@@ -109,10 +109,10 @@ Internally tagged on `"type"` (snake_case). Defined in [`objectiveai-sdk-rs/src/
 //   fatal   = true terminates the host with exit code 1; false is informational
 
 // 3. A command — the host re-spawns itself with this command, fire-and-forget.
-{"type": "command", "command": "agents list --remote github"}
+{"type": "command", "command": "agents list available all"}
 ```
 
-Unparseable lines (anything that isn't valid JSON or doesn't match a `PluginOutput` variant) are forwarded as string-valued notifications to the host's output — they still appear in the stream rather than being silently dropped.
+Unparseable lines (anything that isn't valid JSON or doesn't match an `Output` variant) are forwarded as string-valued notifications to the host's output — they still appear in the stream rather than being silently dropped.
 
 ### Smallest compliant plugin
 

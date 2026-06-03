@@ -1,8 +1,19 @@
 {
   "description": "Pairs a JSON schema agent with a tool call agent, favoring schema output 60/40.",
   "agents": [
-    {"remote": "mock", "name": "schema-logprobs", "count": 1},
-    {"remote": "mock", "name": "tool-call", "count": 1}
+    {
+      "remote": "mock",
+      "name": "schema-logprobs",
+      "count": 1
+    },
+    {
+      "remote": "mock",
+      "name": "tool-call",
+      "count": 1
+    }
   ],
-  "weights": [0.6, 0.4]
+  "weights": [
+    0.6,
+    0.4
+  ]
 }

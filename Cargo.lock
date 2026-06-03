@@ -4261,58 +4261,46 @@ dependencies = [
 name = "objectiveai-cli"
 version = "2.0.11"
 dependencies = [
+ "async-stream",
  "base62",
  "base64 0.22.1",
  "clap 4.6.0",
  "dashmap",
+ "dirs",
  "dotenv",
  "envconfig",
  "futures",
+ "git2",
  "indexmap 2.13.0",
  "insta",
  "interprocess",
+ "jaq-core",
+ "jaq-json",
+ "jaq-std",
+ "mime_guess",
  "objectiveai-sdk",
+ "os_pipe",
+ "rand 0.9.2",
  "ratatui",
  "regex",
  "reqwest 0.12.28",
  "reqwest-eventsource",
+ "rusqlite",
  "rustpython",
+ "schemars 1.2.1",
  "semver",
  "serde",
  "serde_json",
  "serde_path_to_error",
+ "sha2",
  "sysinfo",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
+ "tokio-stream",
  "uuid",
  "wiremock",
-]
-
-[[package]]
-name = "objectiveai-cli-builder"
-version = "2.0.11"
-dependencies = [
- "serde_json",
-]
-
-[[package]]
-name = "objectiveai-cli-stream"
-version = "2.0.11"
-dependencies = [
- "base64 0.22.1",
- "clap 4.6.0",
- "dashmap",
- "futures",
- "indexmap 2.13.0",
- "interprocess",
- "objectiveai-sdk",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "serde_path_to_error",
- "thiserror 2.0.18",
- "tokio",
+ "zip",
 ]
 
 [[package]]
@@ -4334,7 +4322,7 @@ dependencies = [
  "envconfig",
  "futures",
  "http",
- "objectiveai-cli",
+ "json-escape",
  "objectiveai-sdk",
  "rmcp",
  "schemars 1.2.1",
@@ -4342,8 +4330,6 @@ dependencies = [
  "serde_json",
  "tokio",
  "tokio-util",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]
@@ -4410,35 +4396,28 @@ dependencies = [
  "base62",
  "base64 0.22.1",
  "chrono",
+ "clap 4.6.0",
  "dashmap",
  "dirs",
  "eventsource-stream",
  "futures",
  "futures-util",
  "getrandom 0.3.4",
- "git2",
  "indexmap 2.13.0",
- "jaq-core",
- "jaq-json",
- "jaq-std",
  "jmespath",
  "json-escape",
  "mime2ext",
- "mime_guess",
  "objectiveai-sdk-macros",
  "proc-macro2",
  "quote",
  "rand 0.9.2",
- "regex",
  "reqwest 0.12.28",
  "reqwest-eventsource",
- "rusqlite",
  "rust_decimal",
  "schemars 1.2.1",
  "serde",
  "serde_json",
  "serde_path_to_error",
- "sha2",
  "starlark",
  "syn 2.0.117",
  "tempfile",
@@ -4450,7 +4429,6 @@ dependencies = [
  "uuid",
  "walkdir",
  "wiremock",
- "zip",
 ]
 
 [[package]]
@@ -4572,6 +4550,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7bb71e1b3fa6ca1c61f383464aaf2bb0e2f8e772a1f01d486832464de363b951"
 dependencies = [
  "num-traits",
+]
+
+[[package]]
+name = "os_pipe"
+version = "1.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d8fae84b431384b68627d0f9b3b1245fcf9f46f6c0e3dc902e9dce64edd1967"
+dependencies = [
+ "libc",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

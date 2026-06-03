@@ -1,8 +1,8 @@
 //! Function listing and usage response types.
 
 use crate::functions;
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// Response from listing functions.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -22,7 +22,9 @@ pub struct GetFunctionResponse {
     #[schemars(schema_with = "crate::flatten_schema::<crate::RemotePath>")]
     pub path: crate::RemotePath,
     #[serde(flatten)]
-    #[schemars(schema_with = "crate::flatten_schema::<functions::FullRemoteFunction>")]
+    #[schemars(
+        schema_with = "crate::flatten_schema::<functions::FullRemoteFunction>"
+    )]
     pub inner: functions::FullRemoteFunction,
 }
 

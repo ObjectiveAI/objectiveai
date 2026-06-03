@@ -91,10 +91,13 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::agent::ClientObjectiveaiMcp),
         schemars::schema_for!(crate::agent::ClientObjectiveaiMcpEntry),
         schemars::schema_for!(crate::agent::ClientObjectiveaiMcpPluginEntry),
+        schemars::schema_for!(crate::agent::ClientObjectiveaiMcpPluginMcpServer),
         schemars::schema_for!(crate::agent::claude_agent_sdk::Continuation),
         schemars::schema_for!(crate::agent::codex_sdk::Continuation),
         schemars::schema_for!(crate::agent::mock::AgentBase),
         schemars::schema_for!(crate::agent::mock::Agent),
+        schemars::schema_for!(crate::agent::mock::Call),
+        schemars::schema_for!(crate::agent::mock::CallToolCall),
         schemars::schema_for!(crate::agent::mock::Continuation),
         schemars::schema_for!(crate::agent::mock::Mode),
         schemars::schema_for!(crate::agent::mock::OutputMode),
@@ -408,6 +411,8 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
             schemars::schema_for!(crate::mcp::initialize_result::TasksToolsCallCapability),
             schemars::schema_for!(crate::client_objectiveai_mcp::client_request::Request),
             schemars::schema_for!(crate::client_objectiveai_mcp::client_request::Payload),
+            schemars::schema_for!(crate::client_objectiveai_mcp::client_request::McpListChanged),
+            schemars::schema_for!(crate::client_objectiveai_mcp::client_request::McpListChangedKind),
             schemars::schema_for!(crate::client_objectiveai_mcp::client_response::Response),
             schemars::schema_for!(crate::client_objectiveai_mcp::server_request::Request),
             schemars::schema_for!(crate::client_objectiveai_mcp::server_response::Response),
@@ -489,7 +494,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
             schemars::schema_for!(crate::functions::inventions::response::streaming::FunctionInventionChunkLog),
             schemars::schema_for!(crate::vector::completions::response::streaming::VectorCompletionChunkLog),
             // Typed queue-reader schemas (Client::read_new_from_queue).
-            schemars::schema_for!(crate::filesystem::logs::queue::Id),
             schemars::schema_for!(crate::filesystem::logs::queue::Content),
             schemars::schema_for!(crate::filesystem::logs::queue::QueueMessage),
             schemars::schema_for!(crate::filesystem::logs::queue::QueueItem),
@@ -508,73 +512,43 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
     #[cfg(feature = "cli")]
     {
         schemas.extend([
-            schemars::schema_for!(crate::cli::output::Output),
-            schemars::schema_for!(crate::cli::output::Notification),
-            schemars::schema_for!(crate::cli::output::NotificationValue),
-            schemars::schema_for!(crate::cli::output::Error),
-            schemars::schema_for!(crate::cli::output::Level),
-            schemars::schema_for!(crate::cli::output::notification::Me),
-            schemars::schema_for!(crate::cli::output::notification::Ok),
-            schemars::schema_for!(crate::cli::output::notification::Cleared),
-            schemars::schema_for!(crate::cli::output::notification::Help),
-            schemars::schema_for!(crate::cli::output::notification::Instructions),
-            schemars::schema_for!(crate::cli::output::notification::ViewerSendResult),
-            schemars::schema_for!(crate::cli::output::notification::JqResults),
-            schemars::schema_for!(crate::cli::output::notification::ListItem),
-            schemars::schema_for!(crate::cli::output::notification::LogContent),
-            schemars::schema_for!(crate::cli::output::notification::LogStreamReady),
-            schemars::schema_for!(crate::cli::output::notification::PairListItem),
-            schemars::schema_for!(crate::cli::output::notification::Plugin),
-            schemars::schema_for!(crate::cli::output::notification::Plugins),
-            schemars::schema_for!(crate::cli::output::notification::Installed),
-            schemars::schema_for!(crate::cli::output::notification::Tool),
-            schemars::schema_for!(crate::cli::output::notification::Tools),
-            schemars::schema_for!(crate::cli::output::notification::ToolLine),
-            schemars::schema_for!(crate::cli::output::notification::Published),
-            schemars::schema_for!(crate::cli::output::notification::Updater),
-            schemars::schema_for!(crate::cli::output::notification::SkipReason),
-            schemars::schema_for!(crate::cli::output::notification::Schema),
-            schemars::schema_for!(crate::cli::output::notification::Schemas),
-            schemars::schema_for!(crate::cli::output::notification::agents::ActiveAgent),
-            schemars::schema_for!(crate::cli::output::notification::agents::Agent),
-            schemars::schema_for!(crate::cli::output::notification::agents::AgentItems),
-            schemars::schema_for!(crate::cli::output::notification::agents::MessageDelivered),
-            schemars::schema_for!(crate::cli::output::notification::agents::MessageQueued),
-            schemars::schema_for!(crate::cli::output::notification::agents::Spawned),
-            schemars::schema_for!(crate::cli::output::notification::api::Detached),
-            schemars::schema_for!(crate::cli::output::notification::functions::Function),
-            schemars::schema_for!(crate::cli::output::notification::functions::Execution),
-            schemars::schema_for!(crate::cli::output::notification::functions::ExecutionResult),
-            schemars::schema_for!(crate::cli::output::notification::functions::State),
-            schemars::schema_for!(crate::cli::output::notification::functions::Inventions),
-            schemars::schema_for!(crate::cli::output::notification::functions::InventionResultItem),
-            schemars::schema_for!(crate::cli::output::notification::functions::Profile),
-            schemars::schema_for!(crate::cli::output::notification::functions::Pair),
-            schemars::schema_for!(crate::cli::output::notification::functions::FunctionProfilePair),
-            schemars::schema_for!(crate::cli::output::notification::laboratories::Laboratory),
-            schemars::schema_for!(crate::cli::output::notification::laboratories::LabResultItem),
-            schemars::schema_for!(crate::cli::output::notification::swarms::Swarm),
-            schemars::schema_for!(crate::cli::plugins::PluginOutput),
+            schemars::schema_for!(crate::cli::Error),
+            schemars::schema_for!(crate::cli::ErrorType),
+            schemars::schema_for!(crate::cli::Level),
+            schemars::schema_for!(crate::cli::plugins::Mcp),
+            schemars::schema_for!(crate::cli::plugins::Output),
+            schemars::schema_for!(crate::cli::plugins::TypedOutput),
         ]);
     }
-    #[cfg(feature = "viewer")]
-    {
-        schemas.extend([
-            schemars::schema_for!(crate::viewer::Event),
-        ]);
-    }
+    // Viewer-side schemas removed: the `crate::viewer` module is
+    // currently commented out in lib.rs (broken cli::output bridge).
+    // Re-add when the module is restored.
     #[cfg(feature = "http")]
     {
         schemas.extend([
             schemars::schema_for!(crate::http::viewer::ResponseError),
-            schemars::schema_for!(crate::http::viewer::AgentCompletionCreateParams),
+            schemars::schema_for!(
+                crate::http::viewer::AgentCompletionCreateParams
+            ),
             schemars::schema_for!(crate::http::viewer::AgentCompletionRequest),
-            schemars::schema_for!(crate::http::viewer::FunctionExecutionCreateParams),
-            schemars::schema_for!(crate::http::viewer::FunctionExecutionRequest),
-            schemars::schema_for!(crate::http::viewer::FunctionInventionRecursiveCreateParams),
-            schemars::schema_for!(crate::http::viewer::FunctionInventionRecursiveRequest),
-            schemars::schema_for!(crate::http::viewer::LaboratoryExecutionCreateParams),
-            schemars::schema_for!(crate::http::viewer::LaboratoryExecutionRequest),
+            schemars::schema_for!(
+                crate::http::viewer::FunctionExecutionCreateParams
+            ),
+            schemars::schema_for!(
+                crate::http::viewer::FunctionExecutionRequest
+            ),
+            schemars::schema_for!(
+                crate::http::viewer::FunctionInventionRecursiveCreateParams
+            ),
+            schemars::schema_for!(
+                crate::http::viewer::FunctionInventionRecursiveRequest
+            ),
+            schemars::schema_for!(
+                crate::http::viewer::LaboratoryExecutionCreateParams
+            ),
+            schemars::schema_for!(
+                crate::http::viewer::LaboratoryExecutionRequest
+            ),
             schemars::schema_for!(crate::http::viewer::Request),
         ]);
     }

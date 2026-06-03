@@ -62,14 +62,18 @@ impl Client {
 
     /// Processes the SSE EventSource into a stream of agent completion chunks
     /// (or typed errors), followed by a final accumulated state.
+    #[allow(clippy::too_many_arguments)]
     fn create_streaming_stream(
         mut event_source: EventSource,
         id: String,
         created: u64,
-        agent: String,
         index: u64,
         is_byok: bool,
         cost_multiplier: rust_decimal::Decimal,
+        agent_instance_hierarchy: String,
+        agent_id: String,
+        agent_full_id: String,
+        agent_remote: Option<objectiveai_sdk::RemotePath>,
     ) -> impl Stream<
         Item = Result<
             StreamItem<
@@ -110,10 +114,13 @@ impl Client {
                                 let downstream = chunk.into_downstream(
                                     id.clone(),
                                     created,
-                                    agent.clone(),
                                     index,
                                     is_byok,
                                     cost_multiplier,
+                                    agent_instance_hierarchy.clone(),
+                                    agent_id.clone(),
+                                    agent_full_id.clone(),
+                                    agent_remote.clone(),
                                 );
 
                                 // Accumulate the assistant response chunk.
@@ -246,7 +253,10 @@ impl UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::
         _invention_step: Option<usize>,
         _invention_tasks_min: Option<u64>,
         _invention_input_schema: Option<String>,
-        _agent_id_header: Option<&str>,
+        agent_instance_hierarchy: &str,
+        agent_id: &str,
+        agent_full_id: &str,
+        agent_remote: Option<&objectiveai_sdk::RemotePath>,
     ) -> impl Future<
         Output = Result<
             Self::Stream,
@@ -262,6 +272,10 @@ impl UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::
         let continuation = continuation.map(|c| c.to_vec());
         let request_continuation = request_continuation.cloned();
         let client = self.clone();
+        let agent_instance_hierarchy = agent_instance_hierarchy.to_string();
+        let agent_id = agent_id.to_string();
+        let agent_full_id = agent_full_id.to_string();
+        let agent_remote = agent_remote.cloned();
         let is_byok = byok.is_some();
         let byok = byok.map(String::from);
 
@@ -338,10 +352,13 @@ impl UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::
                 event_source,
                 id.clone(),
                 created,
-                agent.id.clone(),
                 index,
                 is_byok,
                 cost_multiplier,
+                agent_instance_hierarchy.clone(),
+                agent_id.clone(),
+                agent_full_id.clone(),
+                agent_remote.clone(),
             );
 
 
@@ -357,6 +374,10 @@ impl UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::
                     // Map the remaining internal stream: typed errors become
                     // error chunks for mid-stream delivery to the client.
                     let id_for_stream = id.clone();
+                    let agent_instance_hierarchy_for_stream = agent_instance_hierarchy.clone();
+                    let agent_id_for_stream = agent_id.clone();
+                    let agent_full_id_for_stream = agent_full_id.clone();
+                    let agent_remote_for_stream = agent_remote.clone();
                     let rest = stream.map(move |item| match item {
                         Ok(si) => si,
                         Err(e) => {
@@ -364,6 +385,10 @@ impl UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::
                             StreamItem::Chunk(
                                 objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
                                     id: id_for_stream.clone(),
+                                    agent_instance_hierarchy: agent_instance_hierarchy_for_stream.clone(),
+                                    agent_id: agent_id_for_stream.clone(),
+                                    agent_full_id: agent_full_id_for_stream.clone(),
+                                    agent_remote: agent_remote_for_stream.clone(),
                                     error: Some(objectiveai_sdk::error::ResponseError {
                                         code: e.status(),
                                         message: e.message()
@@ -391,6 +416,7 @@ impl UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::
         request_continuation: Option<&objectiveai_sdk::agent::openrouter::Continuation>,
         messages: &[objectiveai_sdk::agent::completions::message::Message],
         continuation: Option<&[ContinuationItem<Self::State>]>,
+        agent_instance_hierarchy: &str,
     ) -> objectiveai_sdk::agent::openrouter::Continuation {
         use objectiveai_sdk::agent::completions::message::Message;
         let rc_len = request_continuation.map_or(0, |rc| rc.messages.len());
@@ -409,9 +435,7 @@ impl UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::
         }
         objectiveai_sdk::agent::openrouter::Continuation {
             upstream: objectiveai_sdk::agent::openrouter::Upstream::default(),
-            // Stamped by the agent-completions client immediately
-            // after this method returns; empty here is fine.
-            agent_id: String::new(),
+            agent_instance_hierarchy: agent_instance_hierarchy.to_string(),
             messages: all_messages,
             mcp_sessions,
             ws_session_id: None,

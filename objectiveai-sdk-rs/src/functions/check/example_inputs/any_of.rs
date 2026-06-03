@@ -1,7 +1,7 @@
 use rand::Rng;
+use rand::SeedableRng;
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
-use rand::SeedableRng;
 
 use crate::functions::expression::{AnyOfInputSchema, InputValue};
 
@@ -28,7 +28,12 @@ pub fn generate<R: Rng>(schema: &AnyOfInputSchema, mut rng: R) -> Generator<R> {
     let generators: Vec<super::multi::Generator> = schema
         .any_of
         .iter()
-        .map(|v| super::multi::generate(v, StdRng::seed_from_u64(rng.random::<u64>())))
+        .map(|v| {
+            super::multi::generate(
+                v,
+                StdRng::seed_from_u64(rng.random::<u64>()),
+            )
+        })
         .collect();
 
     // Each variant appears max_inner times per cycle

@@ -1,20 +1,30 @@
 use super::*;
-use crate::agent::{self, InlineAgentBaseWithFallbacksOrRemote, InlineAgentBaseWithFallbacksOrRemoteWithCount};
+use crate::agent::{
+    self, InlineAgentBaseWithFallbacksOrRemote,
+    InlineAgentBaseWithFallbacksOrRemoteWithCount,
+};
 
 use crate::weights::{Weights, WeightsEntry};
-use rust_decimal::dec;
 use rust_decimal::Decimal;
+use rust_decimal::dec;
 
-fn make_agent(model: &str, count: u64) -> InlineAgentBaseWithFallbacksOrRemoteWithCount {
+fn make_agent(
+    model: &str,
+    count: u64,
+) -> InlineAgentBaseWithFallbacksOrRemoteWithCount {
     InlineAgentBaseWithFallbacksOrRemoteWithCount {
         count,
-        inner: InlineAgentBaseWithFallbacksOrRemote::AgentBase(agent::InlineAgentBaseWithFallbacks {
-            inner: agent::InlineAgentBase::Openrouter(agent::openrouter::AgentBase {
-                model: model.to_string(),
-                ..Default::default()
-            }),
-            fallbacks: None,
-        }),
+        inner: InlineAgentBaseWithFallbacksOrRemote::AgentBase(
+            agent::InlineAgentBaseWithFallbacks {
+                inner: agent::InlineAgentBase::Openrouter(
+                    agent::openrouter::AgentBase {
+                        model: model.to_string(),
+                        ..Default::default()
+                    },
+                ),
+                fallbacks: None,
+            },
+        ),
     }
 }
 
@@ -44,12 +54,26 @@ fn filter_removes_count_zero_llms_and_profile_entries() {
         ],
     };
     let profile = Weights::Entries(vec![
-        WeightsEntry { weight: dec!(0.6), invert: None },
-        WeightsEntry { weight: dec!(0.9), invert: None }, // should be filtered
-        WeightsEntry { weight: dec!(0.4), invert: None },
+        WeightsEntry {
+            weight: dec!(0.6),
+            invert: None,
+        },
+        WeightsEntry {
+            weight: dec!(0.9),
+            invert: None,
+        }, // should be filtered
+        WeightsEntry {
+            weight: dec!(0.4),
+            invert: None,
+        },
     ]);
 
-    let result = InlineSwarmBase { agents: base.agents, weights: Some(profile) }.convert(None).unwrap();
+    let result = InlineSwarmBase {
+        agents: base.agents,
+        weights: Some(profile),
+    }
+    .convert(None)
+    .unwrap();
     let swarm = &result;
     let aligned = &result.weights;
     assert_eq!(swarm.agents.len(), 2);
@@ -73,11 +97,22 @@ fn merge_duplicates_with_weighted_average() {
         ],
     };
     let profile = Weights::Entries(vec![
-        WeightsEntry { weight: dec!(1.0), invert: None },
-        WeightsEntry { weight: dec!(0.5), invert: None },
+        WeightsEntry {
+            weight: dec!(1.0),
+            invert: None,
+        },
+        WeightsEntry {
+            weight: dec!(0.5),
+            invert: None,
+        },
     ]);
 
-    let result = InlineSwarmBase { agents: base.agents, weights: Some(profile) }.convert(None).unwrap();
+    let result = InlineSwarmBase {
+        agents: base.agents,
+        weights: Some(profile),
+    }
+    .convert(None)
+    .unwrap();
     let swarm = &result;
     let aligned = &result.weights;
     assert_eq!(swarm.agents.len(), 1);
@@ -99,11 +134,22 @@ fn sort_reorders_profile_entries() {
         ],
     };
     let profile = Weights::Entries(vec![
-        WeightsEntry { weight: dec!(0.7), invert: None },
-        WeightsEntry { weight: dec!(0.3), invert: Some(true) },
+        WeightsEntry {
+            weight: dec!(0.7),
+            invert: None,
+        },
+        WeightsEntry {
+            weight: dec!(0.3),
+            invert: Some(true),
+        },
     ]);
 
-    let result = InlineSwarmBase { agents: base.agents, weights: Some(profile) }.convert(None).unwrap();
+    let result = InlineSwarmBase {
+        agents: base.agents,
+        weights: Some(profile),
+    }
+    .convert(None)
+    .unwrap();
     let swarm = &result;
     let aligned = &result.weights;
     let pairs = aligned.to_weights_and_invert();
@@ -136,13 +182,30 @@ fn combined_filter_merge_sort() {
         ],
     };
     let profile = Weights::Entries(vec![
-        WeightsEntry { weight: dec!(0.8), invert: None },
-        WeightsEntry { weight: dec!(0.5), invert: None }, // filtered
-        WeightsEntry { weight: dec!(0.4), invert: None }, // merged: (0.8*2 + 0.4*2)/4 = 0.6
-        WeightsEntry { weight: dec!(0.9), invert: None },
+        WeightsEntry {
+            weight: dec!(0.8),
+            invert: None,
+        },
+        WeightsEntry {
+            weight: dec!(0.5),
+            invert: None,
+        }, // filtered
+        WeightsEntry {
+            weight: dec!(0.4),
+            invert: None,
+        }, // merged: (0.8*2 + 0.4*2)/4 = 0.6
+        WeightsEntry {
+            weight: dec!(0.9),
+            invert: None,
+        },
     ]);
 
-    let result = InlineSwarmBase { agents: base.agents, weights: Some(profile) }.convert(None).unwrap();
+    let result = InlineSwarmBase {
+        agents: base.agents,
+        weights: Some(profile),
+    }
+    .convert(None)
+    .unwrap();
     let swarm = &result;
     let aligned = &result.weights;
     assert_eq!(swarm.agents.len(), 2);
@@ -171,11 +234,21 @@ fn error_on_conflicting_invert_flags() {
         ],
     };
     let profile = Weights::Entries(vec![
-        WeightsEntry { weight: dec!(0.5), invert: None },
-        WeightsEntry { weight: dec!(0.5), invert: Some(true) },
+        WeightsEntry {
+            weight: dec!(0.5),
+            invert: None,
+        },
+        WeightsEntry {
+            weight: dec!(0.5),
+            invert: Some(true),
+        },
     ]);
 
-    let result = InlineSwarmBase { agents: base.agents, weights: Some(profile) }.convert(None);
+    let result = InlineSwarmBase {
+        agents: base.agents,
+        weights: Some(profile),
+    }
+    .convert(None);
     assert!(result.is_err());
     assert!(result.unwrap_err().contains("conflicting invert flags"));
 }
@@ -189,11 +262,16 @@ fn error_on_profile_length_mismatch() {
             make_agent("anthropic/claude-3.5-sonnet", 1),
         ],
     };
-    let profile = Weights::Entries(vec![
-        WeightsEntry { weight: dec!(0.5), invert: None },
-    ]);
+    let profile = Weights::Entries(vec![WeightsEntry {
+        weight: dec!(0.5),
+        invert: None,
+    }]);
 
-    let result = InlineSwarmBase { agents: base.agents, weights: Some(profile) }.convert(None);
+    let result = InlineSwarmBase {
+        agents: base.agents,
+        weights: Some(profile),
+    }
+    .convert(None);
     assert!(result.is_err());
     assert!(result.unwrap_err().contains("does not match"));
 }
@@ -209,7 +287,12 @@ fn legacy_weights_format() {
     };
     let profile = Weights::Weights(vec![dec!(0.7), dec!(0.3)]);
 
-    let result = InlineSwarmBase { agents: base.agents, weights: Some(profile) }.convert(None).unwrap();
+    let result = InlineSwarmBase {
+        agents: base.agents,
+        weights: Some(profile),
+    }
+    .convert(None)
+    .unwrap();
     let swarm = &result;
     let aligned = &result.weights;
     assert_eq!(swarm.agents.len(), 2);
@@ -233,12 +316,24 @@ fn produces_same_swarm_id_as_convert() {
     let profile = Weights::Weights(vec![dec!(0.5), dec!(0.5), dec!(0.5)]);
 
     let swarm_from_convert: InlineSwarm = base.clone().convert(None).unwrap();
-    let result = InlineSwarmBase { agents: base.agents, weights: Some(profile) }.convert(None).unwrap();
+    let result = InlineSwarmBase {
+        agents: base.agents,
+        weights: Some(profile),
+    }
+    .convert(None)
+    .unwrap();
     let swarm_with_profile = result;
 
     assert_eq!(swarm_from_convert.id, swarm_with_profile.id);
-    assert_eq!(swarm_from_convert.agents.len(), swarm_with_profile.agents.len());
-    for (a, b) in swarm_from_convert.agents.iter().zip(swarm_with_profile.agents.iter()) {
+    assert_eq!(
+        swarm_from_convert.agents.len(),
+        swarm_with_profile.agents.len()
+    );
+    for (a, b) in swarm_from_convert
+        .agents
+        .iter()
+        .zip(swarm_with_profile.agents.iter())
+    {
         assert_eq!(a.count, b.count);
         assert_eq!(a.inner.full_id(), b.inner.full_id());
     }
@@ -255,16 +350,36 @@ fn assert_parity(base: InlineSwarmBase) {
     let profile = Weights::Weights(vec![dec!(0.5); n]);
 
     let swarm_convert: InlineSwarm = base.clone().convert(None).unwrap();
-    let swarm_wp = InlineSwarmBase { agents: base.agents, weights: Some(profile) }.convert(None).unwrap();
+    let swarm_wp = InlineSwarmBase {
+        agents: base.agents,
+        weights: Some(profile),
+    }
+    .convert(None)
+    .unwrap();
 
-    assert_eq!(swarm_convert.id, swarm_wp.id,
-        "IDs differ: convert={}, with_profile={}", swarm_convert.id, swarm_wp.id);
-    assert_eq!(swarm_convert.agents.len(), swarm_wp.agents.len(),
-        "agent count differs");
+    assert_eq!(
+        swarm_convert.id, swarm_wp.id,
+        "IDs differ: convert={}, with_profile={}",
+        swarm_convert.id, swarm_wp.id
+    );
+    assert_eq!(
+        swarm_convert.agents.len(),
+        swarm_wp.agents.len(),
+        "agent count differs"
+    );
     for (a, b) in swarm_convert.agents.iter().zip(swarm_wp.agents.iter()) {
-        assert_eq!(a.count, b.count, "count differs for full_id {}", a.inner.full_id());
+        assert_eq!(
+            a.count,
+            b.count,
+            "count differs for full_id {}",
+            a.inner.full_id()
+        );
         assert_eq!(a.inner.full_id(), b.inner.full_id(), "full_id differs");
-        assert_eq!(agent_model(&a.inner), agent_model(&b.inner), "model differs");
+        assert_eq!(
+            agent_model(&a.inner),
+            agent_model(&b.inner),
+            "model differs"
+        );
     }
 }
 
@@ -320,7 +435,7 @@ fn parity_with_count_zero_filtered() {
     assert_parity(InlineSwarmBase {
         weights: None,
         agents: vec![
-            make_agent("openai/gpt-4o", 0),       // filtered
+            make_agent("openai/gpt-4o", 0), // filtered
             make_agent("anthropic/claude-3.5-sonnet", 1),
             make_agent("google/gemini-2.0-flash", 0), // filtered
             make_agent("meta/llama-3-70b", 2),
@@ -338,9 +453,9 @@ fn parity_interleaved_duplicates_and_zeros() {
             make_agent("anthropic/claude-3.5-sonnet", 0), // filtered
             make_agent("openai/gpt-4o", 3),               // merged -> count 5
             make_agent("google/gemini-2.0-flash", 1),
-            make_agent("google/gemini-2.0-flash", 0),     // filtered (count 0)
+            make_agent("google/gemini-2.0-flash", 0), // filtered (count 0)
             make_agent("meta/llama-3-70b", 1),
-            make_agent("openai/gpt-4o", 1),               // merged -> count 6
+            make_agent("openai/gpt-4o", 1), // merged -> count 6
         ],
     });
 }
@@ -354,25 +469,34 @@ fn parity_different_output_modes_are_distinct() {
         agents: vec![
             InlineAgentBaseWithFallbacksOrRemoteWithCount {
                 count: 1,
-                inner: InlineAgentBaseWithFallbacksOrRemote::AgentBase(agent::InlineAgentBaseWithFallbacks {
-                    inner: agent::InlineAgentBase::Openrouter(openrouter::AgentBase {
-                        model: "openai/gpt-4o".to_string(),
-                        output_mode: openrouter::OutputMode::Instruction,
-                        ..Default::default()
-                    }),
-                    fallbacks: None,
-                }),
+                inner: InlineAgentBaseWithFallbacksOrRemote::AgentBase(
+                    agent::InlineAgentBaseWithFallbacks {
+                        inner: agent::InlineAgentBase::Openrouter(
+                            openrouter::AgentBase {
+                                model: "openai/gpt-4o".to_string(),
+                                output_mode:
+                                    openrouter::OutputMode::Instruction,
+                                ..Default::default()
+                            },
+                        ),
+                        fallbacks: None,
+                    },
+                ),
             },
             InlineAgentBaseWithFallbacksOrRemoteWithCount {
                 count: 1,
-                inner: InlineAgentBaseWithFallbacksOrRemote::AgentBase(agent::InlineAgentBaseWithFallbacks {
-                    inner: agent::InlineAgentBase::Openrouter(openrouter::AgentBase {
-                        model: "openai/gpt-4o".to_string(),
-                        output_mode: openrouter::OutputMode::JsonSchema,
-                        ..Default::default()
-                    }),
-                    fallbacks: None,
-                }),
+                inner: InlineAgentBaseWithFallbacksOrRemote::AgentBase(
+                    agent::InlineAgentBaseWithFallbacks {
+                        inner: agent::InlineAgentBase::Openrouter(
+                            openrouter::AgentBase {
+                                model: "openai/gpt-4o".to_string(),
+                                output_mode: openrouter::OutputMode::JsonSchema,
+                                ..Default::default()
+                            },
+                        ),
+                        fallbacks: None,
+                    },
+                ),
             },
         ],
     };
@@ -387,25 +511,33 @@ fn parity_different_temperatures_are_distinct() {
         agents: vec![
             InlineAgentBaseWithFallbacksOrRemoteWithCount {
                 count: 1,
-                inner: InlineAgentBaseWithFallbacksOrRemote::AgentBase(agent::InlineAgentBaseWithFallbacks {
-                    inner: agent::InlineAgentBase::Openrouter(openrouter::AgentBase {
-                        model: "openai/gpt-4o".to_string(),
-                        temperature: Some(0.0),
-                        ..Default::default()
-                    }),
-                    fallbacks: None,
-                }),
+                inner: InlineAgentBaseWithFallbacksOrRemote::AgentBase(
+                    agent::InlineAgentBaseWithFallbacks {
+                        inner: agent::InlineAgentBase::Openrouter(
+                            openrouter::AgentBase {
+                                model: "openai/gpt-4o".to_string(),
+                                temperature: Some(0.0),
+                                ..Default::default()
+                            },
+                        ),
+                        fallbacks: None,
+                    },
+                ),
             },
             InlineAgentBaseWithFallbacksOrRemoteWithCount {
                 count: 1,
-                inner: InlineAgentBaseWithFallbacksOrRemote::AgentBase(agent::InlineAgentBaseWithFallbacks {
-                    inner: agent::InlineAgentBase::Openrouter(openrouter::AgentBase {
-                        model: "openai/gpt-4o".to_string(),
-                        temperature: Some(1.5),
-                        ..Default::default()
-                    }),
-                    fallbacks: None,
-                }),
+                inner: InlineAgentBaseWithFallbacksOrRemote::AgentBase(
+                    agent::InlineAgentBaseWithFallbacks {
+                        inner: agent::InlineAgentBase::Openrouter(
+                            openrouter::AgentBase {
+                                model: "openai/gpt-4o".to_string(),
+                                temperature: Some(1.5),
+                                ..Default::default()
+                            },
+                        ),
+                        fallbacks: None,
+                    },
+                ),
             },
         ],
     };
@@ -419,10 +551,12 @@ fn parity_with_fallbacks() {
         agents: vec![
             InlineAgentBaseWithFallbacksOrRemoteWithCount {
                 count: 2,
-                inner: InlineAgentBaseWithFallbacksOrRemote::AgentBase(agent::InlineAgentBaseWithFallbacks {
-                    inner: make_or("openai/gpt-4o"),
-                    fallbacks: Some(vec![make_or("openai/gpt-4o-mini")]),
-                }),
+                inner: InlineAgentBaseWithFallbacksOrRemote::AgentBase(
+                    agent::InlineAgentBaseWithFallbacks {
+                        inner: make_or("openai/gpt-4o"),
+                        fallbacks: Some(vec![make_or("openai/gpt-4o-mini")]),
+                    },
+                ),
             },
             make_agent("anthropic/claude-3.5-sonnet", 1),
         ],
@@ -435,10 +569,12 @@ fn parity_duplicate_llms_with_fallbacks_merged() {
     // Two entries with same primary+fallback config -> should merge
     let make_with_fallback = || InlineAgentBaseWithFallbacksOrRemoteWithCount {
         count: 2,
-        inner: InlineAgentBaseWithFallbacksOrRemote::AgentBase(agent::InlineAgentBaseWithFallbacks {
-            inner: make_or("openai/gpt-4o"),
-            fallbacks: Some(vec![make_or("openai/gpt-4o-mini")]),
-        }),
+        inner: InlineAgentBaseWithFallbacksOrRemote::AgentBase(
+            agent::InlineAgentBaseWithFallbacks {
+                inner: make_or("openai/gpt-4o"),
+                fallbacks: Some(vec![make_or("openai/gpt-4o-mini")]),
+            },
+        ),
     };
     assert_parity(InlineSwarmBase {
         weights: None,
@@ -497,14 +633,33 @@ fn parity_reverse_input_order() {
 
     let convert_a: InlineSwarm = base_a.clone().convert(None).unwrap();
     let convert_b: InlineSwarm = base_b.clone().convert(None).unwrap();
-    assert_eq!(convert_a.id, convert_b.id, "convert should be order-independent");
+    assert_eq!(
+        convert_a.id, convert_b.id,
+        "convert should be order-independent"
+    );
 
     let profile_a = Weights::Weights(vec![dec!(0.5); 3]);
     let profile_b = Weights::Weights(vec![dec!(0.5); 3]);
-    let wp_a = InlineSwarmBase { agents: base_a.agents, weights: Some(profile_a) }.convert(None).unwrap();
-    let wp_b = InlineSwarmBase { agents: base_b.agents, weights: Some(profile_b) }.convert(None).unwrap();
-    assert_eq!(wp_a.id, wp_b.id, "WithWeights::convert should be order-independent");
-    assert_eq!(convert_a.id, wp_a.id, "convert and WithWeights::convert should match");
+    let wp_a = InlineSwarmBase {
+        agents: base_a.agents,
+        weights: Some(profile_a),
+    }
+    .convert(None)
+    .unwrap();
+    let wp_b = InlineSwarmBase {
+        agents: base_b.agents,
+        weights: Some(profile_b),
+    }
+    .convert(None)
+    .unwrap();
+    assert_eq!(
+        wp_a.id, wp_b.id,
+        "WithWeights::convert should be order-independent"
+    );
+    assert_eq!(
+        convert_a.id, wp_a.id,
+        "convert and WithWeights::convert should match"
+    );
 }
 
 #[test]
@@ -519,13 +674,27 @@ fn parity_entries_profile_format() {
         ],
     };
     let profile = Weights::Entries(vec![
-        WeightsEntry { weight: dec!(0.8), invert: Some(true) },
-        WeightsEntry { weight: dec!(0.3), invert: None },
-        WeightsEntry { weight: dec!(0.2), invert: Some(true) },
+        WeightsEntry {
+            weight: dec!(0.8),
+            invert: Some(true),
+        },
+        WeightsEntry {
+            weight: dec!(0.3),
+            invert: None,
+        },
+        WeightsEntry {
+            weight: dec!(0.2),
+            invert: Some(true),
+        },
     ]);
 
     let swarm_convert: InlineSwarm = base.clone().convert(None).unwrap();
-    let swarm_wp = InlineSwarmBase { agents: base.agents, weights: Some(profile) }.convert(None).unwrap();
+    let swarm_wp = InlineSwarmBase {
+        agents: base.agents,
+        weights: Some(profile),
+    }
+    .convert(None)
+    .unwrap();
 
     assert_eq!(swarm_convert.id, swarm_wp.id);
     assert_eq!(swarm_convert.agents.len(), swarm_wp.agents.len());
@@ -561,8 +730,18 @@ fn parity_both_error_on_all_zero_counts() {
     let profile = Weights::Weights(vec![dec!(0.5), dec!(0.5)]);
 
     let convert_result: Result<InlineSwarm, _> = base.clone().convert(None);
-    let wp_result = InlineSwarmBase { agents: base.agents, weights: Some(profile) }.convert(None);
+    let wp_result = InlineSwarmBase {
+        agents: base.agents,
+        weights: Some(profile),
+    }
+    .convert(None);
 
-    assert!(convert_result.is_err(), "convert should error on all-zero counts");
-    assert!(wp_result.is_err(), "WithWeights::convert should error on all-zero counts");
+    assert!(
+        convert_result.is_err(),
+        "convert should error on all-zero counts"
+    );
+    assert!(
+        wp_result.is_err(),
+        "WithWeights::convert should error on all-zero counts"
+    );
 }

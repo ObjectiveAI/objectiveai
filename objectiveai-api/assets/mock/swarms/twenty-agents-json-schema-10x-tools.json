@@ -1,6 +1,10 @@
 {
   "description": "20 instances of `json-schema-10x-tools`. Equal weights (omitted). Drives the CLI vector-completion snapshot test that exercises swarm count expansion + content-hash inclusion of client_objectiveai_mcp.tools with single-pass JsonSchema vote extraction.",
   "agents": [
-    {"remote": "mock", "name": "json-schema-10x-tools", "count": 20}
+    {
+      "remote": "mock",
+      "name": "json-schema-10x-tools",
+      "count": 20
+    }
   ]
 }

@@ -206,12 +206,12 @@ func (v FunctionsInventionsStateParamsStateAlphaVector) MarshalJSON() ([]byte, e
 func (FunctionsInventionsStateParamsStateAlphaVector) SchemaVariantTitle() string { return "AlphaVector" }
 
 type FunctionsInventionsStateParamsState struct {
-	AlphaScalarBranch *FunctionsInventionsStateParamsStateAlphaScalarBranch 
-	AlphaScalarLeaf *FunctionsInventionsStateParamsStateAlphaScalarLeaf 
-	AlphaVectorBranch *FunctionsInventionsStateParamsStateAlphaVectorBranch 
-	AlphaVectorLeaf *FunctionsInventionsStateParamsStateAlphaVectorLeaf 
-	AlphaScalar *FunctionsInventionsStateParamsStateAlphaScalar 
-	AlphaVector *FunctionsInventionsStateParamsStateAlphaVector 
+	AlphaScalarBranch *FunctionsInventionsStateParamsStateAlphaScalarBranch `outerObject:"true"`
+	AlphaScalarLeaf *FunctionsInventionsStateParamsStateAlphaScalarLeaf `outerObject:"true"`
+	AlphaVectorBranch *FunctionsInventionsStateParamsStateAlphaVectorBranch `outerObject:"true"`
+	AlphaVectorLeaf *FunctionsInventionsStateParamsStateAlphaVectorLeaf `outerObject:"true"`
+	AlphaScalar *FunctionsInventionsStateParamsStateAlphaScalar `outerObject:"true"`
+	AlphaVector *FunctionsInventionsStateParamsStateAlphaVector `outerObject:"true"`
 }
 
 func (v FunctionsInventionsStateParamsState) MarshalJSON() ([]byte, error) {

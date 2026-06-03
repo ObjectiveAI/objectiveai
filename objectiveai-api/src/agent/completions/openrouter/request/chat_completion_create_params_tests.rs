@@ -845,7 +845,7 @@ async fn test_per_agent_response_format_miss() {
 
     let mut per_agent_map = indexmap::IndexMap::new();
     per_agent_map.insert(
-        "nonexistent_agent_id".to_string(),
+        "nonexistent_agent_instance_hierarchy".to_string(),
         objectiveai_sdk::agent::completions::request::ResponseFormat::Text,
     );
 
@@ -2260,7 +2260,7 @@ async fn test_request_continuation_messages_come_first() {
 
     let request_continuation = objectiveai_sdk::agent::openrouter::Continuation {
         upstream: objectiveai_sdk::agent::openrouter::Upstream::default(),
-        agent_id: String::new(),
+        agent_instance_hierarchy: String::new(),
         messages: vec![
             Message::User(UserMessage {
                 content: RichContent::Text("Previous turn".into()),

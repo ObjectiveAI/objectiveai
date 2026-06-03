@@ -58,8 +58,8 @@ func (v *FunctionsAlphaVectorInlineFunctionLeaf) UnmarshalJSON(data []byte) erro
 func (FunctionsAlphaVectorInlineFunctionLeaf) SchemaVariantTitle() string { return "Leaf" }
 
 type FunctionsAlphaVectorInlineFunction struct {
-	Branch *FunctionsAlphaVectorInlineFunctionBranch 
-	Leaf *FunctionsAlphaVectorInlineFunctionLeaf 
+	Branch *FunctionsAlphaVectorInlineFunctionBranch `outerObject:"true"`
+	Leaf *FunctionsAlphaVectorInlineFunctionLeaf `outerObject:"true"`
 }
 
 func (v FunctionsAlphaVectorInlineFunction) MarshalJSON() ([]byte, error) {

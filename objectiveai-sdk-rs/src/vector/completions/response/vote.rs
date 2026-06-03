@@ -1,10 +1,10 @@
 //! Vote type representing a single LLM's selection in a vector completion.
 
 use crate::functions::expression::ToStarlarkValue;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use starlark::values::dict::AllocDict as StarlarkAllocDict;
 use starlark::values::{Heap as StarlarkHeap, Value as StarlarkValue};
-use schemars::JsonSchema;
 
 /// A single LLM's vote in a vector completion.
 ///
@@ -18,11 +18,18 @@ use schemars::JsonSchema;
 /// in the request. Typically one element is 1.0 and the rest are 0.0 (discrete
 /// selection), but when `top_logprobs` is used, votes may be probability
 /// distributions.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "vector.completions.response.Vote")]
 pub struct Vote {
     // --- Identifiers ---
-
     /// The agent that produced this vote (content-addressed ID).
     pub agent: String,
     /// Index of the agent configuration within the swarm.
@@ -37,7 +44,6 @@ pub struct Vote {
     pub responses_ids: Vec<String>,
 
     // --- Vote data ---
-
     /// The vote distribution. Each index corresponds to a response from the
     /// request. Typically one element is 1.0 (selected) and the rest are 0.0.
     #[serde(deserialize_with = "crate::serde_util::vec_decimal")]
@@ -52,7 +58,6 @@ pub struct Vote {
     pub weight: rust_decimal::Decimal,
 
     // --- Source flags ---
-
     /// If true, this vote was reused from a previous request via the `retry`
     /// parameter. All fields reflect the original request's values.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -65,7 +70,6 @@ pub struct Vote {
     pub from_cache: Option<bool>,
 
     // --- Internal ---
-
     /// Internal index for correlating with completions. Not serialized.
     #[serde(skip)]
     #[arbitrary(with = crate::arbitrary_util::arbitrary_option_u64)]
@@ -73,11 +77,17 @@ pub struct Vote {
 }
 
 impl ToStarlarkValue for Vote {
-    fn to_starlark_value<'v>(&self, heap: &'v StarlarkHeap) -> StarlarkValue<'v> {
+    fn to_starlark_value<'v>(
+        &self,
+        heap: &'v StarlarkHeap,
+    ) -> StarlarkValue<'v> {
         heap.alloc(StarlarkAllocDict([
             ("agent", self.agent.to_starlark_value(heap)),
             ("swarm_index", self.swarm_index.to_starlark_value(heap)),
-            ("flat_swarm_index", self.flat_swarm_index.to_starlark_value(heap)),
+            (
+                "flat_swarm_index",
+                self.flat_swarm_index.to_starlark_value(heap),
+            ),
             ("prompt_id", self.prompt_id.to_starlark_value(heap)),
             ("responses_ids", self.responses_ids.to_starlark_value(heap)),
             ("vote", self.vote.to_starlark_value(heap)),

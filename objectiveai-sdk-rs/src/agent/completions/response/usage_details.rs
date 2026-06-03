@@ -2,11 +2,20 @@
 //! [`UpstreamUsage`](super::UpstreamUsage).
 
 use super::util;
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// Detailed breakdown of completion token usage.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    Default,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "agent.completions.response.CompletionTokensDetails")]
 pub struct CompletionTokensDetails {
     /// Tokens from accepted predictions (speculative decoding).
@@ -59,7 +68,16 @@ impl CompletionTokensDetails {
 }
 
 /// Detailed breakdown of prompt token usage.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    Default,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "agent.completions.response.PromptTokensDetails")]
 pub struct PromptTokensDetails {
     /// Audio input tokens.
@@ -106,7 +124,15 @@ impl PromptTokensDetails {
 }
 
 /// Detailed cost breakdown.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "agent.completions.response.CostDetails")]
 pub struct CostDetails {
     /// Cost charged by the immediate upstream (e.g., OpenRouter).

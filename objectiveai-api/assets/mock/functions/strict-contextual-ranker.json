@@ -12,7 +12,9 @@
           "type": "boolean"
         }
       },
-      "required": ["query"]
+      "required": [
+        "query"
+      ]
     },
     "items": {
       "type": "string"

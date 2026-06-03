@@ -170,9 +170,55 @@ fn normalize(value: &mut serde_json::Value, inside_properties: bool, title: &str
                             }
                         }
                     } else {
+                        // Multi-variant anyOf with sibling `properties` /
+                        // `type` at the parent: schemars produces this
+                        // shape for a `#[serde(flatten)]` of an
+                        // internally-tagged enum inside a struct (e.g.
+                        // `Request { id, #[flatten] payload: Payload }`).
+                        // Downstream codegens (`no_any_of_with_sibling_*`
+                        // tests, all SDK generators) require the
+                        // discriminator-bearing variants to be the
+                        // schema's only top-level shape. Push the parent
+                        // `properties` into each variant and drop the
+                        // sibling `properties` / `type` at the parent.
+                        let sibling_props = map.remove("properties");
+                        let sibling_type = map.remove("type");
+                        let merged: Vec<serde_json::Value> = variants
+                            .into_iter()
+                            .map(|mut variant| {
+                                if let serde_json::Value::Object(vmap) =
+                                    &mut variant
+                                {
+                                    if let Some(serde_json::Value::Object(p)) =
+                                        &sibling_props
+                                    {
+                                        let vprops = vmap
+                                            .entry("properties".to_string())
+                                            .or_insert_with(|| {
+                                                serde_json::Value::Object(
+                                                    serde_json::Map::new(),
+                                                )
+                                            });
+                                        if let serde_json::Value::Object(vp) =
+                                            vprops
+                                        {
+                                            for (k, v) in p {
+                                                vp.entry(k.clone())
+                                                    .or_insert_with(|| v.clone());
+                                            }
+                                        }
+                                    }
+                                    if let Some(t) = &sibling_type {
+                                        vmap.entry("type".to_string())
+                                            .or_insert_with(|| t.clone());
+                                    }
+                                }
+                                variant
+                            })
+                            .collect();
                         map.insert(
                             "anyOf".to_string(),
-                            serde_json::Value::Array(variants),
+                            serde_json::Value::Array(merged),
                         );
                     }
                 }

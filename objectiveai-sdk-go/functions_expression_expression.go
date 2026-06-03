@@ -105,11 +105,11 @@ func (FunctionsExpressionExpressionSpecial) SchemaVariantTitle() string { return
 // ```
 type FunctionsExpressionExpression struct {
 	// A JMESPath expression.
-	JMESPath *FunctionsExpressionExpressionJMESPath 
+	JMESPath *FunctionsExpressionExpressionJMESPath `outerObject:"true"`
 	// A Starlark expression.
-	Starlark *FunctionsExpressionExpressionStarlark 
+	Starlark *FunctionsExpressionExpressionStarlark `outerObject:"true"`
 	// A predefined special expression variant.
-	Special *FunctionsExpressionExpressionSpecial 
+	Special *FunctionsExpressionExpressionSpecial `outerObject:"true"`
 }
 
 func (v FunctionsExpressionExpression) MarshalJSON() ([]byte, error) {

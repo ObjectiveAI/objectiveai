@@ -35,8 +35,11 @@ impl Files {
         ]
     }
 
-    pub fn from_hashmap(map: HashMap<&'static str, String>) -> Result<Self, super::error::Error> {
-        let parameters_json = map.get(Self::PARAMETERS_JSON)
+    pub fn from_hashmap(
+        map: HashMap<&'static str, String>,
+    ) -> Result<Self, super::error::Error> {
+        let parameters_json = map
+            .get(Self::PARAMETERS_JSON)
             .cloned()
             .ok_or(super::error::Error::MissingFile(Self::PARAMETERS_JSON))?;
 

@@ -58,7 +58,11 @@ fn main() {
         }
     }
     if let Err(e) = fs::rename(&tmp_path, &count_path) {
-        eprintln!("rename {} -> {}: {e}", tmp_path.display(), count_path.display());
+        eprintln!(
+            "rename {} -> {}: {e}",
+            tmp_path.display(),
+            count_path.display()
+        );
         std::process::exit(1);
     }
 

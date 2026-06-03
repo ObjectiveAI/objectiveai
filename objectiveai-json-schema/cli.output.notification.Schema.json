@@ -1,8 +1,0 @@
-{
-  "title": "cli.output.notification.Schema",
-  "description": "A single JSON Schema document, emitted by `schemas <category> <type> get`.\nThe body is the raw schema as a `Value` since JSON Schemas have an\nopen recursive structure.\n\nWire: `{\"type\":\"notification\",\"schema\":{...JSON Schema...}}`.",
-  "type": "object",
-  "properties": {
-    "schema": {}
-  }
-}

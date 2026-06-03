@@ -33,18 +33,20 @@
 pub mod agent;
 pub mod arbitrary_util;
 pub mod auth;
-pub mod swarm;
+pub mod data_url;
 pub mod error;
 pub mod functions;
-pub mod laboratories;
 mod json_schema;
+pub mod laboratories;
+pub mod swarm;
 pub use json_schema::*;
+pub mod logs;
 pub mod prefixed_uuid;
 mod remote;
 pub(crate) mod serde_util;
+mod util;
 pub mod vector;
 mod weights;
-mod util;
 
 pub use remote::*;
 pub use weights::*;
@@ -57,9 +59,6 @@ mod tests;
 #[cfg(test)]
 mod test_util;
 
-#[cfg(feature = "filesystem")]
-pub mod filesystem;
-
 #[cfg(feature = "http")]
 pub mod http;
 
@@ -69,16 +68,18 @@ pub use http::*;
 #[cfg(feature = "mcp")]
 pub mod mcp;
 
-// `client_objectiveai_mcp` is pure type definitions (request /
-// response envelopes for the reverse-attach protocol); the `http`
-// transport layer uses it without needing the full `mcp` client.
-// Gating it behind `mcp` would force `http` consumers to also pull
-// in the heavier mcp deps for no benefit.
+// `client_objectiveai_mcp` is the reverse-attach protocol's wire
+// envelope. The typed `server_request::Payload` and
+// `server_response::Payload` variants reference `mcp::tool::*` /
+// `mcp::resource::*` shapes, so the module is gated behind the same
+// feature. Pure-`http` consumers (no MCP) wouldn't have anything to
+// do with it anyway — the McpHandler trait + WS streaming path also
+// require this module.
+#[cfg(feature = "mcp")]
 pub mod client_objectiveai_mcp;
 
 #[cfg(feature = "cli")]
 pub mod cli;
 
-#[cfg(feature = "viewer")]
-pub mod viewer;
-
+// #[cfg(feature = "viewer")]
+// pub mod viewer;

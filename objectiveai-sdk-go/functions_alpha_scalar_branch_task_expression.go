@@ -74,8 +74,8 @@ func (v FunctionsAlphaScalarBranchTaskExpressionPlaceholderScalarFunction) Marsh
 func (FunctionsAlphaScalarBranchTaskExpressionPlaceholderScalarFunction) SchemaVariantTitle() string { return "PlaceholderScalarFunction" }
 
 type FunctionsAlphaScalarBranchTaskExpression struct {
-	ScalarFunction *FunctionsAlphaScalarBranchTaskExpressionScalarFunction 
-	PlaceholderScalarFunction *FunctionsAlphaScalarBranchTaskExpressionPlaceholderScalarFunction 
+	ScalarFunction *FunctionsAlphaScalarBranchTaskExpressionScalarFunction `outerObject:"true"`
+	PlaceholderScalarFunction *FunctionsAlphaScalarBranchTaskExpressionPlaceholderScalarFunction `outerObject:"true"`
 }
 
 func (v FunctionsAlphaScalarBranchTaskExpression) MarshalJSON() ([]byte, error) {

@@ -626,9 +626,9 @@ where
                     .into_iter()
                     .flat_map(|fallbacks| fallbacks.iter()),
             ) {
-                let agent_id = a.id().to_string();
+                let agent_instance_hierarchy = a.id().to_string();
                 let mut rng = make_rng(
-                    request.seed.map(|s| per_agent_seed(s, &agent_id, flat_swarm_index, &prompt_id, &responses_ids) as u64),
+                    request.seed.map(|s| per_agent_seed(s, &agent_instance_hierarchy, flat_swarm_index, &prompt_id, &responses_ids) as u64),
                 );
                 let top_logprobs = a.top_logprobs();
                 let pfx_tree = super::PfxTree::new(
@@ -642,14 +642,14 @@ where
                 let pfx_indices = pfx_tree.pfx_indices(&mut rng, request_responses_len);
                 let responses_key_pattern = pfx_tree.regex_pattern(&pfx_indices);
                 vector_pfx_data.insert(
-                    agent_id.clone(),
+                    agent_instance_hierarchy.clone(),
                     super::PfxData {
                         pfx_tree,
                         responses_key_pattern,
                         invert_vote,
                     },
                 );
-                vector_pfx_indices.insert(agent_id, pfx_indices);
+                vector_pfx_indices.insert(agent_instance_hierarchy, pfx_indices);
             }
         }
 
@@ -659,13 +659,13 @@ where
         // Build per-agent transform_messages closures
         let transform_messages: agent::completions::TransformMessages = {
             let mut map: agent::completions::TransformMessages = HashMap::new();
-            for (agent_id, pfx_indices) in &vector_pfx_indices {
+            for (agent_instance_hierarchy, pfx_indices) in &vector_pfx_indices {
                 let responses = request.responses.clone();
                 let pfx_indices = pfx_indices.clone();
                 let output_mode = output_mode;
 
                 map.insert(
-                    agent_id.clone(),
+                    agent_instance_hierarchy.clone(),
                     Box::new(move |messages: Vec<Message>| -> Vec<Message> {
                         transform_messages_for_vector(
                             messages,
@@ -693,10 +693,10 @@ where
         let response_format = match output_mode {
             objectiveai_sdk::agent::OutputMode::JsonSchema => {
                 let mut per_agent = indexmap::IndexMap::new();
-                for (agent_id, pfx_indices) in &vector_pfx_indices {
+                for (agent_instance_hierarchy, pfx_indices) in &vector_pfx_indices {
                     let keys: Vec<String> = pfx_indices.iter().map(|(k, _)| k.clone()).collect();
                     per_agent.insert(
-                        agent_id.clone(),
+                        agent_instance_hierarchy.clone(),
                         super::ResponseKey::response_format(keys, synthetic_reasoning),
                     );
                 }
@@ -704,10 +704,10 @@ where
             }
             objectiveai_sdk::agent::OutputMode::ToolCall => {
                 let mut per_agent = indexmap::IndexMap::new();
-                for (agent_id, pfx_indices) in &vector_pfx_indices {
+                for (agent_instance_hierarchy, pfx_indices) in &vector_pfx_indices {
                     let keys: Vec<String> = pfx_indices.iter().map(|(k, _)| k.clone()).collect();
                     per_agent.insert(
-                        agent_id.clone(),
+                        agent_instance_hierarchy.clone(),
                         super::ResponseKey::tool(keys, synthetic_reasoning),
                     );
                 }
@@ -837,11 +837,11 @@ where
             };
 
             // Get the agent ID that was actually used
-            let agent_id = extract_agent_id(&response);
+            let agent_instance_hierarchy = extract_agent_instance_hierarchy(&response);
             drop(response);
 
             // Look up pfx data for the agent ID
-            let pfx_data = vector_pfx_data.get(&agent_id)
+            let pfx_data = vector_pfx_data.get(&agent_instance_hierarchy)
                 .or_else(|| vector_pfx_data.get(&primary_id));
 
             let mut votes = Vec::new();
@@ -864,7 +864,7 @@ where
                                 vote
                             };
                             votes.push(objectiveai_sdk::vector::completions::response::Vote {
-                                agent: agent_id.clone(),
+                                agent: agent_instance_hierarchy.clone(),
                                 swarm_index: swarm_index as u64,
                                 flat_swarm_index: flat_swarm_index as u64,
                                 prompt_id: prompt_id.clone(),
@@ -877,7 +877,7 @@ where
                             });
                         } else if let Some(mut cont) = continuation.take() {
                             // Retry via continuation — stream chunks immediately
-                            let model_pfx_indices = vector_pfx_indices.get(&agent_id)
+                            let model_pfx_indices = vector_pfx_indices.get(&agent_instance_hierarchy)
                                 .or_else(|| vector_pfx_indices.get(&primary_id))
                                 .unwrap();
                             let instruction_suffix = {
@@ -951,7 +951,7 @@ where
                                                 retry_vote
                                             };
                                             votes.push(objectiveai_sdk::vector::completions::response::Vote {
-                                                agent: agent_id.clone(),
+                                                agent: agent_instance_hierarchy.clone(),
                                                 swarm_index: swarm_index as u64,
                                                 flat_swarm_index: flat_swarm_index as u64,
                                                 prompt_id: prompt_id.clone(),
@@ -974,7 +974,7 @@ where
                                             vote
                                         };
                                         votes.push(objectiveai_sdk::vector::completions::response::Vote {
-                                            agent: agent_id.clone(),
+                                            agent: agent_instance_hierarchy.clone(),
                                             swarm_index: swarm_index as u64,
                                             flat_swarm_index: flat_swarm_index as u64,
                                             prompt_id: prompt_id.clone(),
@@ -998,7 +998,7 @@ where
                                 vote
                             };
                             votes.push(objectiveai_sdk::vector::completions::response::Vote {
-                                agent: agent_id.clone(),
+                                agent: agent_instance_hierarchy.clone(),
                                 swarm_index: swarm_index as u64,
                                 flat_swarm_index: flat_swarm_index as u64,
                                 prompt_id: prompt_id.clone(),
@@ -1012,11 +1012,11 @@ where
                         } else if let Some(mut cont) = continuation.take() {
                             // Retry with required: true — stream chunks immediately
                             let mut retry_rf = indexmap::IndexMap::new();
-                            for (agent_id, pfx_indices) in &vector_pfx_indices {
+                            for (agent_instance_hierarchy, pfx_indices) in &vector_pfx_indices {
                                 let keys: Vec<String> = pfx_indices.iter().map(|(k, _)| k.clone()).collect();
                                 let think = synthetic_reasoning;
                                 retry_rf.insert(
-                                    agent_id.clone(),
+                                    agent_instance_hierarchy.clone(),
                                     super::ResponseKey::tool_required(keys, think),
                                 );
                             }
@@ -1069,8 +1069,8 @@ where
                                         let retry_response: objectiveai_sdk::agent::completions::response::unary::AgentCompletion = retry_agg.into();
                                         let (_, retry_logprobs, retry_tc_text) = extract_assistant_content(&retry_response);
                                         if let Some(tc_text) = retry_tc_text {
-                                            let retry_agent_id = extract_agent_id(&retry_response);
-                                            let retry_pfx = vector_pfx_data.get(&retry_agent_id)
+                                            let retry_agent_instance_hierarchy = extract_agent_instance_hierarchy(&retry_response);
+                                            let retry_pfx = vector_pfx_data.get(&retry_agent_instance_hierarchy)
                                                 .or_else(|| vector_pfx_data.get(&primary_id));
                                             if let Some(retry_pfx) = retry_pfx {
                                                 let (retry_count, retry_vote) = super::get_vote(
@@ -1087,7 +1087,7 @@ where
                                                         retry_vote
                                                     };
                                                     votes.push(objectiveai_sdk::vector::completions::response::Vote {
-                                                        agent: agent_id.clone(),
+                                                        agent: agent_instance_hierarchy.clone(),
                                                         swarm_index: swarm_index as u64,
                                                         flat_swarm_index: flat_swarm_index as u64,
                                                         prompt_id: prompt_id.clone(),
@@ -1117,7 +1117,7 @@ where
                                 vote
                             };
                             votes.push(objectiveai_sdk::vector::completions::response::Vote {
-                                agent: agent_id.clone(),
+                                agent: agent_instance_hierarchy.clone(),
                                 swarm_index: swarm_index as u64,
                                 flat_swarm_index: flat_swarm_index as u64,
                                 prompt_id: prompt_id.clone(),
@@ -1223,18 +1223,13 @@ fn extract_assistant_content(
     (text, logprobs, tool_call_text)
 }
 
-/// Extracts the agent ID from the last assistant message in a response.
-fn extract_agent_id(
+/// Returns the slot's `agent_instance_hierarchy` directly off the
+/// outer completion. Identity used to live on the last assistant
+/// message; now the outer completion carries it, so no walk is needed.
+fn extract_agent_instance_hierarchy(
     response: &objectiveai_sdk::agent::completions::response::unary::AgentCompletion,
 ) -> String {
-    use objectiveai_sdk::agent::completions::response::unary::Message;
-
-    for msg in response.messages.iter().rev() {
-        if let Message::Assistant(assistant) = msg {
-            return assistant.agent.clone();
-        }
-    }
-    String::new()
+    response.agent_instance_hierarchy.clone()
 }
 
 /// Converts RichContent to a plain string.
@@ -1263,13 +1258,13 @@ fn rich_content_to_string(
 /// responses) also get different seeds for the same agent.
 fn per_agent_seed(
     seed: i64,
-    agent_id: &str,
+    agent_instance_hierarchy: &str,
     flat_swarm_index: usize,
     prompt_id: &str,
     responses_ids: &[String],
 ) -> i64 {
     let mut hasher = twox_hash::XxHash3_64::with_seed(seed as u64);
-    hasher.write(agent_id.as_bytes());
+    hasher.write(agent_instance_hierarchy.as_bytes());
     hasher.write(&(flat_swarm_index as u64).to_le_bytes());
     hasher.write(prompt_id.as_bytes());
     for rid in responses_ids {

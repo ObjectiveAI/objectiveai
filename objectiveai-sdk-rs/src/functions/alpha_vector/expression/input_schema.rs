@@ -14,8 +14,18 @@ pub mod scalar_function_input_schema {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
-#[schemars(rename = "functions.alpha_vector.expression.VectorFunctionInputSchema")]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
+#[schemars(
+    rename = "functions.alpha_vector.expression.VectorFunctionInputSchema"
+)]
 pub struct VectorFunctionInputSchema {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
@@ -26,7 +36,9 @@ pub struct VectorFunctionInputSchema {
 impl VectorFunctionInputSchema {
     /// Returns which media modalities are present in context and/or items.
     pub fn modalities(&self) -> functions::expression::Modalities {
-        let ctx = self.context.as_ref()
+        let ctx = self
+            .context
+            .as_ref()
             .map(|c| c.modalities())
             .unwrap_or_default();
         ctx.merge(self.items.modalities())

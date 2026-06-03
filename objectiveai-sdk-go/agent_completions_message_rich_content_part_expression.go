@@ -739,12 +739,12 @@ func (AgentCompletionsMessageRichContentPartExpressionFile) SchemaVariantTitle()
 
 // Expression variant of [`RichContentPart`] for dynamic content.
 type AgentCompletionsMessageRichContentPartExpression struct {
-	Text *AgentCompletionsMessageRichContentPartExpressionText 
-	ImageUrl *AgentCompletionsMessageRichContentPartExpressionImageUrl 
-	InputAudio *AgentCompletionsMessageRichContentPartExpressionInputAudio 
-	InputVideo *AgentCompletionsMessageRichContentPartExpressionInputVideo 
-	VideoUrl *AgentCompletionsMessageRichContentPartExpressionVideoUrl 
-	File *AgentCompletionsMessageRichContentPartExpressionFile 
+	Text *AgentCompletionsMessageRichContentPartExpressionText `outerObject:"true"`
+	ImageUrl *AgentCompletionsMessageRichContentPartExpressionImageUrl `outerObject:"true"`
+	InputAudio *AgentCompletionsMessageRichContentPartExpressionInputAudio `outerObject:"true"`
+	InputVideo *AgentCompletionsMessageRichContentPartExpressionInputVideo `outerObject:"true"`
+	VideoUrl *AgentCompletionsMessageRichContentPartExpressionVideoUrl `outerObject:"true"`
+	File *AgentCompletionsMessageRichContentPartExpressionFile `outerObject:"true"`
 }
 
 func (v AgentCompletionsMessageRichContentPartExpression) MarshalJSON() ([]byte, error) {

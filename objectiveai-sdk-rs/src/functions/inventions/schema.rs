@@ -39,19 +39,42 @@ impl JsonSchema for AnyObjectJsonSchema {
 }
 
 /// Helper to build a single-string-property schema with a description.
-fn string_property_schema(prop_name: &str, description: &str) -> serde_json::Map<String, serde_json::Value> {
+fn string_property_schema(
+    prop_name: &str,
+    description: &str,
+) -> serde_json::Map<String, serde_json::Value> {
     let mut prop = serde_json::Map::with_capacity(2);
-    prop.insert("type".to_string(), serde_json::Value::String("string".to_string()));
-    prop.insert("description".to_string(), serde_json::Value::String(description.to_string()));
+    prop.insert(
+        "type".to_string(),
+        serde_json::Value::String("string".to_string()),
+    );
+    prop.insert(
+        "description".to_string(),
+        serde_json::Value::String(description.to_string()),
+    );
 
     let mut properties = serde_json::Map::with_capacity(1);
     properties.insert(prop_name.to_string(), serde_json::Value::Object(prop));
 
     let mut map = serde_json::Map::with_capacity(4);
-    map.insert("type".to_string(), serde_json::Value::String("object".to_string()));
-    map.insert("properties".to_string(), serde_json::Value::Object(properties));
-    map.insert("required".to_string(), serde_json::Value::Array(vec![serde_json::Value::String(prop_name.to_string())]));
-    map.insert("additionalProperties".to_string(), serde_json::Value::Bool(false));
+    map.insert(
+        "type".to_string(),
+        serde_json::Value::String("object".to_string()),
+    );
+    map.insert(
+        "properties".to_string(),
+        serde_json::Value::Object(properties),
+    );
+    map.insert(
+        "required".to_string(),
+        serde_json::Value::Array(vec![serde_json::Value::String(
+            prop_name.to_string(),
+        )]),
+    );
+    map.insert(
+        "additionalProperties".to_string(),
+        serde_json::Value::Bool(false),
+    );
     map
 }
 
@@ -65,7 +88,10 @@ pub struct ScalarInputSchemaObject {
 
 impl JsonSchema for ScalarInputSchemaObject {
     fn json_schema() -> serde_json::Map<String, serde_json::Value> {
-        string_property_schema("schema", "A JSON string conforming to the functions.expression.ObjectInputSchema schema. Use the ReadObjectInputSchemaSchema tool to see the schema definition.")
+        string_property_schema(
+            "schema",
+            "A JSON string conforming to the functions.expression.ObjectInputSchema schema. Use the ReadObjectInputSchemaSchema tool to see the schema definition.",
+        )
     }
 }
 
@@ -79,7 +105,10 @@ pub struct VectorInputSchemaObject {
 
 impl JsonSchema for VectorInputSchemaObject {
     fn json_schema() -> serde_json::Map<String, serde_json::Value> {
-        string_property_schema("schema", "A JSON string conforming to the functions.alpha_vector.expression.VectorFunctionInputSchema schema. Use the Readfunctions_alpha_vector_expression_VectorFunctionInputSchemaSchema tool to see the schema definition.")
+        string_property_schema(
+            "schema",
+            "A JSON string conforming to the functions.alpha_vector.expression.VectorFunctionInputSchema schema. Use the Readfunctions_alpha_vector_expression_VectorFunctionInputSchemaSchema tool to see the schema definition.",
+        )
     }
 }
 
@@ -93,7 +122,10 @@ pub struct ScalarLeafTaskObject {
 
 impl JsonSchema for ScalarLeafTaskObject {
     fn json_schema() -> serde_json::Map<String, serde_json::Value> {
-        string_property_schema("task", "A JSON string conforming to the functions.alpha_scalar.LeafTaskExpression schema. Use the Readfunctions_alpha_scalar_LeafTaskExpressionSchema tool to see the schema definition.")
+        string_property_schema(
+            "task",
+            "A JSON string conforming to the functions.alpha_scalar.LeafTaskExpression schema. Use the Readfunctions_alpha_scalar_LeafTaskExpressionSchema tool to see the schema definition.",
+        )
     }
 }
 
@@ -107,7 +139,10 @@ pub struct ScalarBranchTaskObject {
 
 impl JsonSchema for ScalarBranchTaskObject {
     fn json_schema() -> serde_json::Map<String, serde_json::Value> {
-        string_property_schema("task", "A JSON string conforming to the functions.alpha_scalar.PartialPlaceholderBranchTaskExpression schema. Use the Readfunctions_alpha_scalar_PartialPlaceholderBranchTaskExpressionSchema tool to see the schema definition.")
+        string_property_schema(
+            "task",
+            "A JSON string conforming to the functions.alpha_scalar.PartialPlaceholderBranchTaskExpression schema. Use the Readfunctions_alpha_scalar_PartialPlaceholderBranchTaskExpressionSchema tool to see the schema definition.",
+        )
     }
 }
 
@@ -121,7 +156,10 @@ pub struct VectorLeafTaskObject {
 
 impl JsonSchema for VectorLeafTaskObject {
     fn json_schema() -> serde_json::Map<String, serde_json::Value> {
-        string_property_schema("task", "A JSON string conforming to the functions.alpha_vector.LeafTaskExpression schema. Use the Readfunctions_alpha_vector_LeafTaskExpressionSchema tool to see the schema definition.")
+        string_property_schema(
+            "task",
+            "A JSON string conforming to the functions.alpha_vector.LeafTaskExpression schema. Use the Readfunctions_alpha_vector_LeafTaskExpressionSchema tool to see the schema definition.",
+        )
     }
 }
 
@@ -135,7 +173,10 @@ pub struct VectorBranchTaskObject {
 
 impl JsonSchema for VectorBranchTaskObject {
     fn json_schema() -> serde_json::Map<String, serde_json::Value> {
-        string_property_schema("task", "A JSON string conforming to the functions.alpha_vector.PartialPlaceholderBranchTaskExpression schema. Use the Readfunctions_alpha_vector_PartialPlaceholderBranchTaskExpressionSchema tool to see the schema definition.")
+        string_property_schema(
+            "task",
+            "A JSON string conforming to the functions.alpha_vector.PartialPlaceholderBranchTaskExpression schema. Use the Readfunctions_alpha_vector_PartialPlaceholderBranchTaskExpressionSchema tool to see the schema definition.",
+        )
     }
 }
 
@@ -154,10 +195,8 @@ impl JsonSchema for IndexObject {
         );
 
         let mut properties = serde_json::Map::with_capacity(1);
-        properties.insert(
-            "index".to_string(),
-            serde_json::Value::Object(index_prop),
-        );
+        properties
+            .insert("index".to_string(), serde_json::Value::Object(index_prop));
 
         let mut map = serde_json::Map::with_capacity(4);
         map.insert(
@@ -197,10 +236,8 @@ impl JsonSchema for EssayObject {
         );
 
         let mut properties = serde_json::Map::with_capacity(1);
-        properties.insert(
-            "essay".to_string(),
-            serde_json::Value::Object(essay_prop),
-        );
+        properties
+            .insert("essay".to_string(), serde_json::Value::Object(essay_prop));
 
         let mut map = serde_json::Map::with_capacity(4);
         map.insert(

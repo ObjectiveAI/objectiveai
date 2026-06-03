@@ -8,7 +8,17 @@ use std::path::Path;
 use syn::{Attribute, Fields, Item, Type};
 use walkdir::WalkDir;
 
-const NEEDS_CUSTOM_ARBITRARY: &[&str] = &["u64", "i64", "f64", "usize", "isize", "Decimal", "rust_decimal", "IndexMap", "indexmap"];
+const NEEDS_CUSTOM_ARBITRARY: &[&str] = &[
+    "u64",
+    "i64",
+    "f64",
+    "usize",
+    "isize",
+    "Decimal",
+    "rust_decimal",
+    "IndexMap",
+    "indexmap",
+];
 
 fn type_to_string(ty: &Type) -> String {
     quote::quote!(#ty).to_string()
@@ -56,7 +66,11 @@ struct FieldCheck {
     file: String,
 }
 
-fn check_fields(fields: &Fields, type_name: &str, file: &str) -> Vec<FieldCheck> {
+fn check_fields(
+    fields: &Fields,
+    type_name: &str,
+    file: &str,
+) -> Vec<FieldCheck> {
     let field_list: Vec<_> = match fields {
         Fields::Named(named) => named
             .named
@@ -139,7 +153,9 @@ fn all_arbitrary_types_have_custom_with_on_special_fields() {
                     for variant in &e.variants {
                         let variant_name = variant.ident.to_string();
                         let qualified = format!("{name}::{variant_name}");
-                        for fc in check_fields(&variant.fields, &qualified, &relative) {
+                        for fc in
+                            check_fields(&variant.fields, &qualified, &relative)
+                        {
                             errors.push(format!(
                                 "{}.{} in {} has type `{}` which requires #[arbitrary(with = ...)]",
                                 fc.type_name, fc.field_name, fc.file, fc.type_str

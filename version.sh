@@ -215,7 +215,6 @@ ensure_py_module_version() {
 CARGO_TOMLS=(
   objectiveai-api/Cargo.toml
   objectiveai-cli/Cargo.toml
-  objectiveai-cli/builder/Cargo.toml
   objectiveai-cli/test-fixtures/hello-plugin/Cargo.toml
   objectiveai-json-schema/builder/Cargo.toml
   objectiveai-mcp/Cargo.toml

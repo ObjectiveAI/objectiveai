@@ -12,6 +12,9 @@ type AgentCompletionsResponseToolResponse struct {
 	// The content of the tool response.
 	Content AgentCompletionsMessageRichContent `json:"content"`
 	Index uint64 `json:"index" validate:"min=0,max=18446744073709551615"`
+	// Optional vendor-extension metadata, populated by
+	// `objectiveai-mcp-proxy` via MCP's `_meta` extension bag.
+	Metadata *AgentCompletionsMessageToolResponseMetadata `json:"metadata,omitempty"`
 	Role AgentCompletionsResponseToolRole `json:"role"`
 	// The ID of the tool call this message responds to.
 	ToolCallID string `json:"tool_call_id"`

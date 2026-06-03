@@ -50,14 +50,17 @@ pub fn exec_code<T: serde::de::DeserializeOwned>(code: &str) -> Result<T, crate:
     match serde_path_to_error::deserialize(&mut de) {
         Ok(result) => Ok(result),
         Err(stdout_err) => Err(crate::error::Error::PythonDeserialize(
-            eval_err.unwrap_or(stdout_err)
+            eval_err.unwrap_or(stdout_err),
         )),
     }
 }
 
 /// Execute inline Python code with string arguments passed as sys.argv[1:],
 /// and deserialize the output as JSON into `T`.
-pub fn exec_code_with_args<T: serde::de::DeserializeOwned>(code: &str, args: &[String]) -> Result<T, crate::error::Error> {
+pub fn exec_code_with_args<T: serde::de::DeserializeOwned>(
+    code: &str,
+    args: &[String],
+) -> Result<T, crate::error::Error> {
     let raw = exec_code_raw_with_args(code, args)?;
     let envelope: HarnessOutput = serde_json::from_str(&raw)
         .map_err(|e| crate::error::Error::PythonHarnessBroken(e.to_string()))?;
@@ -77,7 +80,7 @@ pub fn exec_code_with_args<T: serde::de::DeserializeOwned>(code: &str, args: &[S
     match serde_path_to_error::deserialize(&mut de) {
         Ok(result) => Ok(result),
         Err(stdout_err) => Err(crate::error::Error::PythonDeserialize(
-            eval_err.unwrap_or(stdout_err)
+            eval_err.unwrap_or(stdout_err),
         )),
     }
 }
@@ -168,7 +171,10 @@ fn exec_code_raw_with_args(code: &str, args: &[String]) -> Result<String, crate:
 }
 
 #[cfg(feature = "systempython")]
-fn try_system_python_code_with_args(code: &str, args: &[String]) -> Option<Result<String, crate::error::Error>> {
+fn try_system_python_code_with_args(
+    code: &str,
+    args: &[String],
+) -> Option<Result<String, crate::error::Error>> {
     use std::process::Command;
     let python = find_system_python()?;
     let output = Command::new(&python)
@@ -189,11 +195,7 @@ fn try_system_python_code_with_args(code: &str, args: &[String]) -> Option<Resul
 fn try_system_python_code(code: &str) -> Option<Result<String, crate::error::Error>> {
     use std::process::Command;
     let python = find_system_python()?;
-    let output = Command::new(&python)
-        .arg("-c")
-        .arg(code)
-        .output()
-        .ok()?;
+    let output = Command::new(&python).arg("-c").arg(code).output().ok()?;
     if output.status.success() {
         Some(Ok(String::from_utf8_lossy(&output.stdout).into_owned()))
     } else {
@@ -226,12 +228,11 @@ fn exec_code_rustpython(code: &str) -> Result<String, crate::error::Error> {
                 // Extract __oai_result from the scope
                 match scope.globals.get_item("__oai_result", vm) {
                     Ok(val) => {
-                        let result = val.str(vm)
-                            .map_err(|exc| {
-                                let mut stderr = String::new();
-                                vm.write_exception(&mut stderr, &exc).ok();
-                                crate::error::Error::PythonException(stderr)
-                            })?;
+                        let result = val.str(vm).map_err(|exc| {
+                            let mut stderr = String::new();
+                            vm.write_exception(&mut stderr, &exc).ok();
+                            crate::error::Error::PythonException(stderr)
+                        })?;
                         Ok(result.to_string())
                     }
                     Err(_) => Ok(String::new()),

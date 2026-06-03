@@ -3,23 +3,21 @@
 use std::collections::HashSet;
 
 use rand::Rng;
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 use crate::functions::alpha_scalar::RemoteFunction;
 use crate::functions::{CompiledTask, Task};
 
 use crate::functions::check::check_description;
 use crate::functions::check::check_input_schema;
+use crate::functions::check::compile_and_validate_one_input;
+use crate::functions::check::example_inputs;
 use crate::functions::check::{
     ModalityFlags, check_modality_coverage, collect_schema_modalities,
     collect_task_modalities,
 };
-use crate::functions::check::{
-    ScalarOutputShape, check_scalar_distribution,
-};
-use crate::functions::check::compile_and_validate_one_input;
-use crate::functions::check::example_inputs;
+use crate::functions::check::{ScalarOutputShape, check_scalar_distribution};
 
 /// Validates quality requirements for an alpha leaf scalar function.
 ///
@@ -59,9 +57,7 @@ pub fn check_alpha_leaf_scalar_function(
 
     // Must have at least one task
     if tasks.is_empty() {
-        return Err(
-            "AS03: Functions must have at least one task".to_string(),
-        );
+        return Err("AS03: Functions must have at least one task".to_string());
     }
 
     // Pre-compile checks on alpha tasks
@@ -76,7 +72,6 @@ pub fn check_alpha_leaf_scalar_function(
                 vc.responses.len()
             ));
         }
-
     }
 
     // --- Transpile and run generate() loop ---
@@ -100,7 +95,10 @@ pub fn check_alpha_leaf_scalar_function(
         None => StdRng::from_os_rng(),
     };
 
-    for ref input in example_inputs::generate_seeded(input_schema, StdRng::seed_from_u64(rng.random::<u64>())) {
+    for ref input in example_inputs::generate_seeded(
+        input_schema,
+        StdRng::seed_from_u64(rng.random::<u64>()),
+    ) {
         count += 1;
         let input_label = serde_json::to_string(input).unwrap_or_default();
         let compiled_tasks = compile_and_validate_one_input(
@@ -135,8 +133,7 @@ pub fn check_alpha_leaf_scalar_function(
                 per_task_skipped[j] = true;
                 continue;
             };
-            if let CompiledTask::One(Task::VectorCompletion(vc)) =
-                compiled_task
+            if let CompiledTask::One(Task::VectorCompletion(vc)) = compiled_task
             {
                 let key = serde_json::to_string(vc).unwrap_or_default();
                 per_task_serialized[j].insert(key);
@@ -155,8 +152,8 @@ pub fn check_alpha_leaf_scalar_function(
     // Post-loop: VC task diversity check
     if count >= 2 {
         for (j, unique_tasks) in per_task_serialized.iter().enumerate() {
-            let effective = unique_tasks.len()
-                + if per_task_skipped[j] { 1 } else { 0 };
+            let effective =
+                unique_tasks.len() + if per_task_skipped[j] { 1 } else { 0 };
             if effective < 2 {
                 return Err(format!(
                     "AS19: Task [{}]: task has fixed parameters — messages, tools, and/or \

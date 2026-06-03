@@ -1,8 +1,0 @@
-{
-  "title": "cli.output.notification.JqResults",
-  "description": "Result of a user-supplied jq filter applied to a config getter.\n`jq` is the one explicit escape hatch for untyped JSON: the filter\ncan produce literally any shape, so the body is `serde_json::Value`.\nWire: `{\"type\":\"notification\",\"jq\":<value>}`.",
-  "type": "object",
-  "properties": {
-    "jq": {}
-  }
-}

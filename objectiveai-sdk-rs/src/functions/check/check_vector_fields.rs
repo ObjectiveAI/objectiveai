@@ -4,13 +4,13 @@
 //! against randomized example inputs.
 
 use rand::Rng;
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 use serde::Deserialize;
 
 use super::check_input_schema::check_input_schema;
 use super::example_inputs;
-use crate::functions::expression::{Expression, InputValue, InputSchema};
+use crate::functions::expression::{Expression, InputSchema, InputValue};
 use crate::functions::{Function, RemoteFunction};
 use schemars::JsonSchema;
 
@@ -55,7 +55,10 @@ pub fn check_vector_fields(
     };
 
     let mut count = 0usize;
-    for ref input in example_inputs::generate_seeded(&fields.input_schema, StdRng::seed_from_u64(rng.random::<u64>())) {
+    for ref input in example_inputs::generate_seeded(
+        &fields.input_schema,
+        StdRng::seed_from_u64(rng.random::<u64>()),
+    ) {
         count += 1;
         let input_label = serde_json::to_string(input).unwrap_or_default();
         check_vector_fields_for_input(&fields, &input_label, input, &mut rng)?;
@@ -348,13 +351,19 @@ pub(crate) fn inputs_equal(a: &InputValue, b: &InputValue) -> bool {
                     b.get(ka).is_some_and(|vb| inputs_equal(va, vb))
                 })
         }
-        (InputValue::RichContentPart(a), InputValue::RichContentPart(b)) => a == b,
+        (InputValue::RichContentPart(a), InputValue::RichContentPart(b)) => {
+            a == b
+        }
         _ => false,
     }
 }
 
 /// Generate random subsets of indices for subset merge testing.
-pub(crate) fn random_subsets(length: usize, count: usize, rng: &mut impl Rng) -> Vec<Vec<usize>> {
+pub(crate) fn random_subsets(
+    length: usize,
+    count: usize,
+    rng: &mut impl Rng,
+) -> Vec<Vec<usize>> {
     if length < 2 {
         return vec![];
     }

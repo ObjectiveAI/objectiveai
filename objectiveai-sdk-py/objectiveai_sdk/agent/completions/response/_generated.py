@@ -8,6 +8,7 @@ from .logprob import Logprob  # noqa: F401
 from .logprobs import Logprobs  # noqa: F401
 from .prompt_tokens_details import PromptTokensDetails  # noqa: F401
 from .tool_response import ToolResponse  # noqa: F401
+from .tool_response_log import ToolResponseLog  # noqa: F401
 from .tool_role import ToolRole  # noqa: F401
 from .top_logprob import TopLogprob  # noqa: F401
 from .upstream_usage import UpstreamUsage  # noqa: F401

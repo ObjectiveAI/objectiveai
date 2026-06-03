@@ -10,7 +10,11 @@ pub async fn create_laboratory_execution_unary(
 ) -> Result<super::response::unary::LaboratoryExecution, HttpError> {
     params.stream = None;
     client
-        .send_unary(reqwest::Method::POST, "laboratories/executions", Some(params))
+        .send_unary(
+            reqwest::Method::POST,
+            "laboratories/executions",
+            Some(params),
+        )
         .await
 }
 
@@ -29,7 +33,8 @@ pub async fn create_laboratory_execution_streaming<H: McpHandler>(
                 super::response::streaming::LaboratoryExecutionChunk,
                 HttpError,
             >,
-        > + Send
+        >
+        + Send
         + Unpin
         + 'static
         + use<H>,

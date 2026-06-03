@@ -7,40 +7,26 @@ import (
 	"fmt"
 )
 
-// Tagged union of request shapes the API can push down the
-// reverse-attach channel to the client-app layer.
-type ClientObjectiveaiMcpClientRequestPayload struct {
+type ClientObjectiveaiMcpClientRequestPayloadAgentCompletionNotify struct {
 	AgentCompletionsRequestAgentCompletionNotifyParams
 	Type string `json:"type" validate:"oneof=agent_completion_notify"`
 }
 
-func (ClientObjectiveaiMcpClientRequestPayload) SchemaTitle() string { return "client_objectiveai_mcp.client_request.Payload" }
-func (v ClientObjectiveaiMcpClientRequestPayload) Validate() error {
-	return variantValidator.Struct(v)
-}
-
-func (v *ClientObjectiveaiMcpClientRequestPayload) UnmarshalJSON(data []byte) error {
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	for _, key := range []string{"type"} {
-		if _, ok := raw[key]; !ok {
-			return fmt.Errorf("ClientObjectiveaiMcpClientRequestPayload: missing required field %q", key)
-		}
-	}
+func (v *ClientObjectiveaiMcpClientRequestPayloadAgentCompletionNotify) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &v.AgentCompletionsRequestAgentCompletionNotifyParams); err != nil {
 		return err
 	}
-	if rawField, ok := raw["type"]; ok {
-		if err := json.Unmarshal(rawField, &v.Type); err != nil {
-			return err
-		}
+	var local struct {
+		Type string `json:"type"`
 	}
+	if err := json.Unmarshal(data, &local); err != nil {
+		return err
+	}
+	v.Type = local.Type
 	return nil
 }
 
-func (v ClientObjectiveaiMcpClientRequestPayload) MarshalJSON() ([]byte, error) {
+func (v ClientObjectiveaiMcpClientRequestPayloadAgentCompletionNotify) MarshalJSON() ([]byte, error) {
 	base, err := json.Marshal(v.AgentCompletionsRequestAgentCompletionNotifyParams)
 	if err != nil {
 		return nil, err
@@ -52,3 +38,115 @@ func (v ClientObjectiveaiMcpClientRequestPayload) MarshalJSON() ([]byte, error) 
 	}
 	return json.Marshal(merged)
 }
+func (ClientObjectiveaiMcpClientRequestPayloadAgentCompletionNotify) SchemaVariantTitle() string { return "AgentCompletionNotify" }
+
+// The CLI's upstream `mcp::Connection` for `mcp_session_id`
+// fired `notifications/<kind>/list_changed`. The API
+// dispatches this onto its per-`(ws_session_id, mcp_session_id)`
+// broadcast so every matching MCP GET-SSE listener sees a
+// standard MCP notification frame.
+type ClientObjectiveaiMcpClientRequestPayloadMcpListChanged struct {
+	ClientObjectiveaiMcpClientRequestMcpListChanged
+	Type string `json:"type" validate:"oneof=mcp_list_changed"`
+}
+
+func (v *ClientObjectiveaiMcpClientRequestPayloadMcpListChanged) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(data, &v.ClientObjectiveaiMcpClientRequestMcpListChanged); err != nil {
+		return err
+	}
+	var local struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(data, &local); err != nil {
+		return err
+	}
+	v.Type = local.Type
+	return nil
+}
+
+func (v ClientObjectiveaiMcpClientRequestPayloadMcpListChanged) MarshalJSON() ([]byte, error) {
+	base, err := json.Marshal(v.ClientObjectiveaiMcpClientRequestMcpListChanged)
+	if err != nil {
+		return nil, err
+	}
+	var merged map[string]json.RawMessage
+	json.Unmarshal(base, &merged)
+	if raw, err := json.Marshal(v.Type); err == nil {
+		merged["type"] = raw
+	}
+	return json.Marshal(merged)
+}
+func (ClientObjectiveaiMcpClientRequestPayloadMcpListChanged) SchemaVariantTitle() string { return "McpListChanged" }
+
+// Tagged union of request shapes the client-app layer can push down
+// the reverse-attach channel.
+//
+// Despite the module name, payloads flow in BOTH directions:
+// - **API → client**: `AgentCompletionNotify` (the API pushes a
+//   user message into a running agent completion).
+// - **client → API**: `McpListChanged` (the CLI's upstream
+//   `mcp::Connection` fired
+//   `notifications/{tools,resources}/list_changed` and the API
+//   re-emits it as an SSE event on the matching
+//   `/objectiveai-mcp/{ws_session_id}` GET stream).
+//
+// The wire envelope's `id` field always belongs to whichever side
+// originated the request; the receiver's `client_response::Response`
+// echoes the same `id`.
+type ClientObjectiveaiMcpClientRequestPayload struct {
+	AgentCompletionNotify *ClientObjectiveaiMcpClientRequestPayloadAgentCompletionNotify `outerObject:"true"`
+	// The CLI's upstream `mcp::Connection` for `mcp_session_id`
+	// fired `notifications/<kind>/list_changed`. The API
+	// dispatches this onto its per-`(ws_session_id, mcp_session_id)`
+	// broadcast so every matching MCP GET-SSE listener sees a
+	// standard MCP notification frame.
+	McpListChanged *ClientObjectiveaiMcpClientRequestPayloadMcpListChanged `outerObject:"true"`
+}
+
+func (v ClientObjectiveaiMcpClientRequestPayload) MarshalJSON() ([]byte, error) {
+	if v.AgentCompletionNotify != nil {
+		return json.Marshal(v.AgentCompletionNotify)
+	}
+	if v.McpListChanged != nil {
+		return json.Marshal(v.McpListChanged)
+	}
+	return []byte("null"), nil
+}
+
+func (v *ClientObjectiveaiMcpClientRequestPayload) UnmarshalJSON(data []byte) error {
+	{
+		var try ClientObjectiveaiMcpClientRequestPayloadAgentCompletionNotify
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := ClientObjectiveaiMcpClientRequestPayload{}
+			candidate.AgentCompletionNotify = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try ClientObjectiveaiMcpClientRequestPayloadMcpListChanged
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := ClientObjectiveaiMcpClientRequestPayload{}
+			candidate.McpListChanged = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("data did not match any variant of ClientObjectiveaiMcpClientRequestPayload")
+}
+
+func (v ClientObjectiveaiMcpClientRequestPayload) Validate() error {
+	count := 0
+	if v.AgentCompletionNotify != nil { count++ }
+	if v.McpListChanged != nil { count++ }
+	if count != 1 {
+		return fmt.Errorf("ClientObjectiveaiMcpClientRequestPayload: exactly one variant must be set, got %d", count)
+	}
+	return variantValidator.Struct(v)
+}
+func (ClientObjectiveaiMcpClientRequestPayload) SchemaTitle() string { return "client_objectiveai_mcp.client_request.Payload" }
+

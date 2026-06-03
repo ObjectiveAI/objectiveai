@@ -1,7 +1,7 @@
 use super::*;
 use crate::functions::expression::{
-    ExpressionError, InputValue, InputValueExpression, Params,
-    ParamsOwned, TaskOutputOwned,
+    ExpressionError, InputValue, InputValueExpression, Params, ParamsOwned,
+    TaskOutputOwned,
 };
 use indexmap::IndexMap;
 use rust_decimal::dec;
@@ -143,9 +143,7 @@ fn special_output_returns_scalar() {
 fn special_output_returns_vector() {
     let params = Params::Owned(ParamsOwned {
         input: InputValue::Boolean(true),
-        output: Some(TaskOutputOwned::Vector(
-            vec![dec!(0.3), dec!(0.7)],
-        )),
+        output: Some(TaskOutputOwned::Vector(vec![dec!(0.3), dec!(0.7)])),
         map: None,
         tasks_min: None,
         tasks_max: None,
@@ -203,9 +201,7 @@ fn special_output_fails_for_u64() {
 fn special_l1_norm_normalizes_vector() {
     let params = Params::Owned(ParamsOwned {
         input: InputValue::Boolean(true),
-        output: Some(TaskOutputOwned::Vector(
-            vec![dec!(2), dec!(3), dec!(5)],
-        )),
+        output: Some(TaskOutputOwned::Vector(vec![dec!(2), dec!(3), dec!(5)])),
         map: None,
         tasks_min: None,
         tasks_max: None,
@@ -231,9 +227,7 @@ fn special_l1_norm_normalizes_mapped_scalars_as_vector() {
     // Mapped scalars are now represented as Vector
     let params = Params::Owned(ParamsOwned {
         input: InputValue::Boolean(true),
-        output: Some(TaskOutputOwned::Vector(
-            vec![dec!(1), dec!(3)],
-        )),
+        output: Some(TaskOutputOwned::Vector(vec![dec!(1), dec!(3)])),
         map: None,
         tasks_min: None,
         tasks_max: None,
@@ -314,8 +308,7 @@ fn special_items_output_length_returns_count() {
         spec: None,
     });
     let result =
-        u64::from_special(&Special::InputItemsOutputLength, &params)
-            .unwrap();
+        u64::from_special(&Special::InputItemsOutputLength, &params).unwrap();
     assert_eq!(result, 3);
 }
 
@@ -334,8 +327,7 @@ fn special_items_output_length_returns_zero_for_empty() {
         spec: None,
     });
     let result =
-        u64::from_special(&Special::InputItemsOutputLength, &params)
-            .unwrap();
+        u64::from_special(&Special::InputItemsOutputLength, &params).unwrap();
     assert_eq!(result, 0);
 }
 
@@ -353,8 +345,7 @@ fn special_items_output_length_fails_for_non_object_input() {
         name: None,
         spec: None,
     });
-    let result =
-        u64::from_special(&Special::InputItemsOutputLength, &params);
+    let result = u64::from_special(&Special::InputItemsOutputLength, &params);
     assert!(matches!(result, Err(ExpressionError::UnsupportedSpecial)));
 }
 
@@ -372,8 +363,7 @@ fn special_items_output_length_fails_for_missing_items() {
         name: None,
         spec: None,
     });
-    let result =
-        u64::from_special(&Special::InputItemsOutputLength, &params);
+    let result = u64::from_special(&Special::InputItemsOutputLength, &params);
     assert!(matches!(result, Err(ExpressionError::UnsupportedSpecial)));
 }
 
@@ -662,7 +652,10 @@ fn special_merge_fails_for_non_array_input() {
 #[test]
 fn special_merge_fails_for_non_object_elements() {
     let params = Params::Owned(ParamsOwned {
-        input: InputValue::Array(vec![InputValue::Integer(1), InputValue::Integer(2)]),
+        input: InputValue::Array(vec![
+            InputValue::Integer(1),
+            InputValue::Integer(2),
+        ]),
         output: None,
         map: None,
         tasks_min: None,
@@ -684,9 +677,7 @@ fn special_merge_fails_for_non_object_elements() {
 fn special_output_returns_scores_vector() {
     let params = Params::Owned(ParamsOwned {
         input: InputValue::Boolean(true),
-        output: Some(TaskOutputOwned::Vector(
-            vec![dec!(0.6), dec!(0.4)],
-        )),
+        output: Some(TaskOutputOwned::Vector(vec![dec!(0.6), dec!(0.4)])),
         map: None,
         tasks_min: None,
         tasks_max: None,
@@ -708,9 +699,11 @@ fn special_output_returns_scores_vector() {
 fn special_output_returns_three_scores() {
     let params = Params::Owned(ParamsOwned {
         input: InputValue::Boolean(true),
-        output: Some(TaskOutputOwned::Vector(
-            vec![dec!(0.2), dec!(0.3), dec!(0.5)],
-        )),
+        output: Some(TaskOutputOwned::Vector(vec![
+            dec!(0.2),
+            dec!(0.3),
+            dec!(0.5),
+        ])),
         map: None,
         tasks_min: None,
         tasks_max: None,
@@ -734,9 +727,7 @@ fn special_output_returns_three_scores() {
 fn special_output_fails_for_input_type() {
     let params = Params::Owned(ParamsOwned {
         input: InputValue::Boolean(true),
-        output: Some(TaskOutputOwned::Vector(
-            vec![dec!(0.5), dec!(0.5)],
-        )),
+        output: Some(TaskOutputOwned::Vector(vec![dec!(0.5), dec!(0.5)])),
         map: None,
         tasks_min: None,
         tasks_max: None,
@@ -744,8 +735,7 @@ fn special_output_fails_for_input_type() {
         name: None,
         spec: None,
     });
-    let result =
-        InputValue::from_special(&Special::Output, &params);
+    let result = InputValue::from_special(&Special::Output, &params);
     assert!(matches!(result, Err(ExpressionError::UnsupportedSpecial)));
 }
 
@@ -761,8 +751,7 @@ fn special_output_fails_for_no_output() {
         name: None,
         spec: None,
     });
-    let result =
-        TaskOutputOwned::from_special(&Special::Output, &params);
+    let result = TaskOutputOwned::from_special(&Special::Output, &params);
     assert!(matches!(result, Err(ExpressionError::UnsupportedSpecial)));
 }
 
@@ -774,9 +763,7 @@ fn special_weighted_sum_two_scores() {
     // weighted_sum = 0.6*0 + 0.4*1 = 0.4
     let params = Params::Owned(ParamsOwned {
         input: InputValue::Boolean(true),
-        output: Some(TaskOutputOwned::Vector(
-            vec![dec!(0.6), dec!(0.4)],
-        )),
+        output: Some(TaskOutputOwned::Vector(vec![dec!(0.6), dec!(0.4)])),
         map: None,
         tasks_min: None,
         tasks_max: None,
@@ -784,11 +771,9 @@ fn special_weighted_sum_two_scores() {
         name: None,
         spec: None,
     });
-    let result = TaskOutputOwned::from_special(
-        &Special::TaskOutputWeightedSum,
-        &params,
-    )
-    .unwrap();
+    let result =
+        TaskOutputOwned::from_special(&Special::TaskOutputWeightedSum, &params)
+            .unwrap();
     assert!(matches!(result, TaskOutputOwned::Scalar(d) if d == dec!(0.4)));
 }
 
@@ -798,9 +783,11 @@ fn special_weighted_sum_three_scores() {
     // weighted_sum = 0.2*0 + 0.3*0.5 + 0.5*1 = 0 + 0.15 + 0.5 = 0.65
     let params = Params::Owned(ParamsOwned {
         input: InputValue::Boolean(true),
-        output: Some(TaskOutputOwned::Vector(
-            vec![dec!(0.2), dec!(0.3), dec!(0.5)],
-        )),
+        output: Some(TaskOutputOwned::Vector(vec![
+            dec!(0.2),
+            dec!(0.3),
+            dec!(0.5),
+        ])),
         map: None,
         tasks_min: None,
         tasks_max: None,
@@ -808,11 +795,9 @@ fn special_weighted_sum_three_scores() {
         name: None,
         spec: None,
     });
-    let result = TaskOutputOwned::from_special(
-        &Special::TaskOutputWeightedSum,
-        &params,
-    )
-    .unwrap();
+    let result =
+        TaskOutputOwned::from_special(&Special::TaskOutputWeightedSum, &params)
+            .unwrap();
     assert!(matches!(result, TaskOutputOwned::Scalar(d) if d == dec!(0.65)));
 }
 
@@ -822,9 +807,7 @@ fn special_weighted_sum_three_scores() {
 fn special_weighted_sum_fails_for_input() {
     let params = Params::Owned(ParamsOwned {
         input: InputValue::Boolean(true),
-        output: Some(TaskOutputOwned::Vector(
-            vec![dec!(0.5), dec!(0.5)],
-        )),
+        output: Some(TaskOutputOwned::Vector(vec![dec!(0.5), dec!(0.5)])),
         map: None,
         tasks_min: None,
         tasks_max: None,
@@ -832,10 +815,8 @@ fn special_weighted_sum_fails_for_input() {
         name: None,
         spec: None,
     });
-    let result = InputValue::from_special(
-        &Special::TaskOutputWeightedSum,
-        &params,
-    );
+    let result =
+        InputValue::from_special(&Special::TaskOutputWeightedSum, &params);
     assert!(matches!(result, Err(ExpressionError::UnsupportedSpecial)));
 }
 
@@ -851,9 +832,7 @@ fn special_weighted_sum_fails_for_no_output() {
         name: None,
         spec: None,
     });
-    let result = TaskOutputOwned::from_special(
-        &Special::TaskOutputWeightedSum,
-        &params,
-    );
+    let result =
+        TaskOutputOwned::from_special(&Special::TaskOutputWeightedSum, &params);
     assert!(matches!(result, Err(ExpressionError::UnsupportedSpecial)));
 }

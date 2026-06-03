@@ -85,9 +85,9 @@ func (FunctionsInlineFunctionVector) SchemaVariantTitle() string { return "Vecto
 // schema fields.
 type FunctionsInlineFunction struct {
 	// Produces a single score in [0, 1].
-	Scalar *FunctionsInlineFunctionScalar 
+	Scalar *FunctionsInlineFunctionScalar `outerObject:"true"`
 	// Produces a vector of scores that sums to 1.
-	Vector *FunctionsInlineFunctionVector 
+	Vector *FunctionsInlineFunctionVector `outerObject:"true"`
 }
 
 func (v FunctionsInlineFunction) MarshalJSON() ([]byte, error) {

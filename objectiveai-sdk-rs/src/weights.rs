@@ -7,11 +7,19 @@
 //! combined.
 
 use rust_decimal::Decimal;
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// An entry in weights with an explicit weight and optional invert flag.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "WeightsEntry")]
 pub struct WeightsEntry {
     /// The weight for this agent in the swarm. Must be in [0, 1].
@@ -31,13 +39,26 @@ pub struct WeightsEntry {
 ///
 /// - `Weights(Vec<Decimal>)` - simple representation (no inversion)
 /// - `Entries(Vec<WeightsEntry>)` - weights with optional per-agent `invert`
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[serde(untagged)]
 #[schemars(rename = "Weights")]
 pub enum Weights {
     /// Simple vector of decimal weights.
     #[schemars(title = "Weights")]
-    Weights(#[serde(deserialize_with = "crate::serde_util::vec_decimal")] #[schemars(with = "Vec<f64>")] #[arbitrary(with = crate::arbitrary_util::arbitrary_vec_rust_decimal)] Vec<Decimal>),
+    Weights(
+        #[serde(deserialize_with = "crate::serde_util::vec_decimal")]
+        #[schemars(with = "Vec<f64>")]
+        #[arbitrary(with = crate::arbitrary_util::arbitrary_vec_rust_decimal)]
+        Vec<Decimal>,
+    ),
     /// Vector of entries with optional invert flags.
     #[schemars(title = "Entries")]
     Entries(Vec<WeightsEntry>),

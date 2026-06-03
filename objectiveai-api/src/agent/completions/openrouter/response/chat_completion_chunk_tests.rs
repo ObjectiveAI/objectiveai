@@ -37,7 +37,6 @@ fn test_text_only_content() {
     let result = chunk.into_downstream(
         "obj-1".to_string(),
         1000,
-        "agent-a".to_string(),
         0,
         false,
         Decimal::from(1),
@@ -45,6 +44,10 @@ fn test_text_only_content() {
 
     let expected = objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
         id: "obj-1".to_string(),
+        agent_instance_hierarchy: String::new(),
+        agent_id: String::new(),
+        agent_full_id: String::new(),
+        agent_remote: None,
         created: 1000,
         messages: vec![
             objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
@@ -52,7 +55,6 @@ fn test_text_only_content() {
                     role: Default::default(),
                     index: 0,
                     created: 1000,
-                    agent: "agent-a".to_string(),
                     model: "openai/gpt-4o".to_string(),
                     upstream_id: "or-123".to_string(),
                     reasoning: None,
@@ -94,7 +96,6 @@ fn test_empty_delta() {
     let result = chunk.into_downstream(
         "obj-2".to_string(),
         1000,
-        "agent-b".to_string(),
         0,
         false,
         Decimal::from(1),
@@ -102,6 +103,10 @@ fn test_empty_delta() {
 
     let expected = objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
         id: "obj-2".to_string(),
+        agent_instance_hierarchy: String::new(),
+        agent_id: String::new(),
+        agent_full_id: String::new(),
+        agent_remote: None,
         created: 1000,
         messages: vec![
             objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
@@ -109,7 +114,6 @@ fn test_empty_delta() {
                     role: Default::default(),
                     index: 0,
                     created: 1000,
-                    agent: "agent-b".to_string(),
                     model: "google/gemini-2.5-pro".to_string(),
                     upstream_id: "or-empty".to_string(),
                     reasoning: None,
@@ -161,7 +165,6 @@ fn test_images_only() {
     let result = chunk.into_downstream(
         "obj-3".to_string(),
         1000,
-        "agent-c".to_string(),
         0,
         false,
         Decimal::from(1),
@@ -169,6 +172,10 @@ fn test_images_only() {
 
     let expected = objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
         id: "obj-3".to_string(),
+        agent_instance_hierarchy: String::new(),
+        agent_id: String::new(),
+        agent_full_id: String::new(),
+        agent_remote: None,
         created: 1000,
         messages: vec![
             objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
@@ -176,7 +183,6 @@ fn test_images_only() {
                     role: Default::default(),
                     index: 0,
                     created: 1000,
-                    agent: "agent-c".to_string(),
                     model: "openai/gpt-4o".to_string(),
                     upstream_id: "or-img".to_string(),
                     reasoning: None,
@@ -237,7 +243,6 @@ fn test_text_and_images_merged() {
     let result = chunk.into_downstream(
         "obj-4".to_string(),
         1000,
-        "agent-d".to_string(),
         0,
         false,
         Decimal::from(1),
@@ -245,6 +250,10 @@ fn test_text_and_images_merged() {
 
     let expected = objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
         id: "obj-4".to_string(),
+        agent_instance_hierarchy: String::new(),
+        agent_id: String::new(),
+        agent_full_id: String::new(),
+        agent_remote: None,
         created: 1000,
         messages: vec![
             objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
@@ -252,7 +261,6 @@ fn test_text_and_images_merged() {
                     role: Default::default(),
                     index: 0,
                     created: 1000,
-                    agent: "agent-d".to_string(),
                     model: "openai/gpt-4o".to_string(),
                     upstream_id: "or-mix".to_string(),
                     reasoning: None,
@@ -327,7 +335,6 @@ fn test_usage_with_cost_multiplier() {
     let result = chunk.into_downstream(
         "obj-5".to_string(),
         2000,
-        "agent-e".to_string(),
         0,
         false,
         multiplier,
@@ -335,6 +342,10 @@ fn test_usage_with_cost_multiplier() {
 
     let expected = objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
         id: "obj-5".to_string(),
+        agent_instance_hierarchy: String::new(),
+        agent_id: String::new(),
+        agent_full_id: String::new(),
+        agent_remote: None,
         created: 2000,
         messages: vec![
             objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
@@ -342,7 +353,6 @@ fn test_usage_with_cost_multiplier() {
                     role: Default::default(),
                     index: 0,
                     created: 2000,
-                    agent: "agent-e".to_string(),
                     model: "openai/gpt-4o".to_string(),
                     upstream_id: "or-usage".to_string(),
                     reasoning: None,
@@ -415,7 +425,6 @@ fn test_reasoning_and_tool_calls() {
     let result = chunk.into_downstream(
         "obj-6".to_string(),
         1000,
-        "agent-f".to_string(),
         0,
         false,
         Decimal::from(1),
@@ -423,6 +432,10 @@ fn test_reasoning_and_tool_calls() {
 
     let expected = objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
         id: "obj-6".to_string(),
+        agent_instance_hierarchy: String::new(),
+        agent_id: String::new(),
+        agent_full_id: String::new(),
+        agent_remote: None,
         created: 1000,
         messages: vec![
             objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
@@ -430,7 +443,6 @@ fn test_reasoning_and_tool_calls() {
                     role: Default::default(),
                     index: 0,
                     created: 1000,
-                    agent: "agent-f".to_string(),
                     model: "anthropic/claude-sonnet-4".to_string(),
                     upstream_id: "or-tools".to_string(),
                     reasoning: Some("Let me think...".to_string()),
@@ -506,7 +518,6 @@ fn test_byok_cost_splitting() {
     let result = chunk.into_downstream(
         "obj-7".to_string(),
         3000,
-        "agent-g".to_string(),
         0,
         true,
         multiplier,
@@ -517,6 +528,10 @@ fn test_byok_cost_splitting() {
     // cost (byok) = 0.036 - 0.018 = 0.018
     let expected = objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
         id: "obj-7".to_string(),
+        agent_instance_hierarchy: String::new(),
+        agent_id: String::new(),
+        agent_full_id: String::new(),
+        agent_remote: None,
         created: 3000,
         messages: vec![
             objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
@@ -524,7 +539,6 @@ fn test_byok_cost_splitting() {
                     role: Default::default(),
                     index: 0,
                     created: 3000,
-                    agent: "agent-g".to_string(),
                     model: "openai/gpt-4o".to_string(),
                     upstream_id: "or-byok".to_string(),
                     reasoning: None,

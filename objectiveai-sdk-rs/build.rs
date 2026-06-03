@@ -30,7 +30,10 @@ fn extract_refs(content: &str) -> Vec<String> {
         if let Some(end) = rest.find('"') {
             let ref_name = &rest[..end];
             // Only include simple names (no URIs, no paths)
-            if !ref_name.contains('/') && !ref_name.contains('#') && !ref_name.is_empty() {
+            if !ref_name.contains('/')
+                && !ref_name.contains('#')
+                && !ref_name.is_empty()
+            {
                 refs.push(ref_name.to_string());
             }
         }
@@ -48,11 +51,7 @@ fn main() {
     let packaged = manifest_dir.join("schemas");
     let sibling = manifest_dir.join("..").join("objectiveai-json-schema");
 
-    let schema_dir = if packaged.is_dir() {
-        packaged
-    } else {
-        sibling
-    };
+    let schema_dir = if packaged.is_dir() { packaged } else { sibling };
 
     let schema_dir = schema_dir
         .canonicalize()
@@ -64,22 +63,13 @@ fn main() {
     let mut entries: Vec<_> = fs::read_dir(&schema_dir)
         .expect("failed to read schema directory")
         .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.path()
-                .extension()
-                .is_some_and(|ext| ext == "json")
-        })
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "json"))
         .collect();
     entries.sort_by_key(|e| e.file_name());
 
     for entry in &entries {
         let path = entry.path();
-        let stem = path
-            .file_stem()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_string();
+        let stem = path.file_stem().unwrap().to_str().unwrap().to_string();
         let abs_path = path
             .canonicalize()
             .unwrap()
@@ -101,14 +91,15 @@ fn main() {
     let mut out = fs::File::create(&out_path).unwrap();
 
     // schema_content function
-    writeln!(out, "pub fn schema_content(name: &str) -> Option<&'static str> {{").unwrap();
+    writeln!(
+        out,
+        "pub fn schema_content(name: &str) -> Option<&'static str> {{"
+    )
+    .unwrap();
     writeln!(out, "    match name {{").unwrap();
     for (name, (abs_path, _)) in &schemas {
-        writeln!(
-            out,
-            "        {name:?} => Some(include_str!({abs_path:?})),"
-        )
-        .unwrap();
+        writeln!(out, "        {name:?} => Some(include_str!({abs_path:?})),")
+            .unwrap();
     }
     writeln!(out, "        _ => None,").unwrap();
     writeln!(out, "    }}").unwrap();
@@ -116,7 +107,11 @@ fn main() {
     writeln!(out).unwrap();
 
     // schema_refs function
-    writeln!(out, "pub fn schema_refs(name: &str) -> &'static [&'static str] {{").unwrap();
+    writeln!(
+        out,
+        "pub fn schema_refs(name: &str) -> &'static [&'static str] {{"
+    )
+    .unwrap();
     writeln!(out, "    match name {{").unwrap();
     for (name, (_, refs)) in &schemas {
         if refs.is_empty() {
@@ -142,7 +137,11 @@ fn main() {
     writeln!(out).unwrap();
 
     // tool_name function
-    writeln!(out, "pub fn tool_name(name: &str) -> Option<&'static str> {{").unwrap();
+    writeln!(
+        out,
+        "pub fn tool_name(name: &str) -> Option<&'static str> {{"
+    )
+    .unwrap();
     writeln!(out, "    match name {{").unwrap();
     for name in schemas.keys() {
         // Dotted form here is fine — `InventionTool::new_sync` normalises
@@ -156,7 +155,11 @@ fn main() {
     writeln!(out).unwrap();
 
     // tool_description function
-    writeln!(out, "pub fn tool_description(name: &str) -> Option<&'static str> {{").unwrap();
+    writeln!(
+        out,
+        "pub fn tool_description(name: &str) -> Option<&'static str> {{"
+    )
+    .unwrap();
     writeln!(out, "    match name {{").unwrap();
     for name in schemas.keys() {
         let tool_desc = format!("Read {name} Schema");

@@ -11,11 +11,7 @@ use tokio::process::Command;
 /// processes matching it.
 pub fn running_pids(exe_name: &str) -> Vec<u32> {
     let mut sys = System::new();
-    sys.refresh_processes_specifics(
-        ProcessesToUpdate::All,
-        true,
-        ProcessRefreshKind::nothing(),
-    );
+    sys.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::nothing());
     sys.processes()
         .values()
         .filter(|p| matches_exe(p.name().to_string_lossy().as_ref(), exe_name))
@@ -41,17 +37,15 @@ pub fn ensure_not_running(exe_name: &str) -> Result<(), crate::error::Error> {
 /// a count of zero is not an error.
 pub fn kill_by_name(exe_name: &str) -> usize {
     let mut sys = System::new();
-    sys.refresh_processes_specifics(
-        ProcessesToUpdate::All,
-        true,
-        ProcessRefreshKind::nothing(),
-    );
+    sys.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::nothing());
     let mut count = 0usize;
     for process in sys.processes().values() {
         if matches_exe(process.name().to_string_lossy().as_ref(), exe_name) {
             // `kill_with(Term)` falls back to a hard kill on Windows
             // (no SIGTERM equivalent) and sends SIGTERM on Unix.
-            let _ = process.kill_with(Signal::Term).or_else(|| Some(process.kill()));
+            let _ = process
+                .kill_with(Signal::Term)
+                .or_else(|| Some(process.kill()));
             count += 1;
         }
     }
@@ -133,9 +127,7 @@ pub async fn spawn_and_wait_for_listening(
     // Drain the rest of stderr in a fire-and-forget task so the child
     // doesn't EPIPE on its next write. The task ends when the child
     // closes stderr (or when the cli exits, whichever first).
-    tokio::spawn(async move {
-        while let Ok(Some(_)) = reader.next_line().await {}
-    });
+    tokio::spawn(async move { while let Ok(Some(_)) = reader.next_line().await {} });
 
     // tokio's Child drops without killing (kill_on_drop is false by
     // default), so once `child` goes out of scope when this function
@@ -145,6 +137,42 @@ pub async fn spawn_and_wait_for_listening(
     drop(child);
 
     Ok(line)
+}
+
+/// Stamp every field of the cli's [`crate::Config`] onto `cmd`'s env
+/// using the same env-var names the [`crate::run::EnvConfigBuilder`]
+/// reads on the receiving side. So a child cli (or any subprocess
+/// that uses the same `Envconfig`-based loader) round-trips its
+/// parent's config byte-identically.
+///
+/// `Option`-typed fields are skipped on `None`. Boolean fields are
+/// stamped only when `true`. The plugin-MCP spawn in
+/// `objectiveai-cli-stream` does **not** call this — it uses the
+/// per-request agent identity from the upstream's headers instead;
+/// see `dial_plugin_upstream`.
+pub fn apply_config_env(cmd: &mut Command, cfg: &crate::Config) {
+    if cfg.config_set_forbidden {
+        cmd.env("CONFIG_SET_FORBIDDEN", "true");
+    }
+    if let Some(v) = cfg.config_base_dir.as_deref() {
+        cmd.env("CONFIG_BASE_DIR", v);
+    }
+    if let Some(v) = cfg.commit_author_name.as_deref() {
+        cmd.env("COMMIT_AUTHOR_NAME", v);
+    }
+    if let Some(v) = cfg.commit_author_email.as_deref() {
+        cmd.env("COMMIT_AUTHOR_EMAIL", v);
+    }
+    if let Some(v) = cfg.github_authorization.as_deref() {
+        cmd.env("GITHUB_AUTHORIZATION", v);
+    }
+    cmd.env("OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY", &cfg.agent_instance_hierarchy);
+    if let Some(v) = cfg.agent_id.as_deref() {
+        cmd.env("OBJECTIVEAI_AGENT_ID", v);
+    }
+    if let Some(v) = cfg.mcp_session_id.as_deref() {
+        cmd.env(objectiveai_sdk::mcp::MCP_SESSION_ID_ENV, v);
+    }
 }
 
 /// Case-insensitive match between an observed process name and a target

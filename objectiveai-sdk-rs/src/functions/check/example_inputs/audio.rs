@@ -8,7 +8,10 @@ pub const fn permutations(_schema: &AudioInputSchema) -> usize {
     2usize
 }
 
-pub fn generate<R: Rng>(_schema: &AudioInputSchema, mut rng: R) -> Generator<R> {
+pub fn generate<R: Rng>(
+    _schema: &AudioInputSchema,
+    mut rng: R,
+) -> Generator<R> {
     let mut indices: Vec<usize> = (0..2).collect();
     indices.shuffle(&mut rng);
     Generator {

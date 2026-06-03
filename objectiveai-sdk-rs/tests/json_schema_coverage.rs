@@ -177,7 +177,10 @@ fn all_serializable_types_have_json_schema() {
             let has_schema = has_json_schema_derive(attrs);
 
             // schema_override(Ref) and schema_override(RefOwnedEnum) must NOT derive JsonSchema
-            if matches!(schema_override.as_deref(), Some("Ref") | Some("RefOwnedEnum")) {
+            if matches!(
+                schema_override.as_deref(),
+                Some("Ref") | Some("RefOwnedEnum")
+            ) {
                 if has_schema {
                     errors.push(format!(
                         "{name} in {relative} has #[schema_override({0})] \
@@ -197,7 +200,8 @@ fn all_serializable_types_have_json_schema() {
                     ));
                     continue;
                 }
-                let expected_rename = full_name.strip_suffix("Owned").unwrap_or(&full_name);
+                let expected_rename =
+                    full_name.strip_suffix("Owned").unwrap_or(&full_name);
                 match get_schemars_rename(attrs) {
                     Some(rename) if rename == expected_rename => {}
                     Some(rename) => {
@@ -307,14 +311,10 @@ fn json_schemas_covers_all_types() {
         let prefix = module_prefix(&relative);
         for item in &file.items {
             let (name, attrs) = match item {
-                Item::Struct(s)
-                    if matches!(s.vis, Visibility::Public(_)) =>
-                {
+                Item::Struct(s) if matches!(s.vis, Visibility::Public(_)) => {
                     (s.ident.to_string(), &s.attrs)
                 }
-                Item::Enum(e)
-                    if matches!(e.vis, Visibility::Public(_)) =>
-                {
+                Item::Enum(e) if matches!(e.vis, Visibility::Public(_)) => {
                     (e.ident.to_string(), &e.attrs)
                 }
                 _ => continue,
@@ -328,14 +328,15 @@ fn json_schemas_covers_all_types() {
                 continue;
             }
             // For schema_override(Owned), use the schemars rename as the expected title
-            let full_name = if get_schema_override(attrs).as_deref() == Some("Owned") {
-                match get_schemars_rename(attrs) {
-                    Some(rename) => rename,
-                    None => format!("{prefix}{name}"),
-                }
-            } else {
-                format!("{prefix}{name}")
-            };
+            let full_name =
+                if get_schema_override(attrs).as_deref() == Some("Owned") {
+                    match get_schemars_rename(attrs) {
+                        Some(rename) => rename,
+                        None => format!("{prefix}{name}"),
+                    }
+                } else {
+                    format!("{prefix}{name}")
+                };
             expected.insert(full_name);
         }
     }
@@ -409,8 +410,7 @@ fn json_schemas_refs_are_complete() {
     }
 
     // Every $ref target must exist as a title of some schema
-    let unresolved: Vec<&String> =
-        all_refs.difference(&all_titles).collect();
+    let unresolved: Vec<&String> = all_refs.difference(&all_titles).collect();
 
     if !unresolved.is_empty() {
         panic!(

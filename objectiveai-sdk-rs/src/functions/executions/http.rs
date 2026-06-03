@@ -29,7 +29,8 @@ pub async fn create_function_execution_streaming<H: McpHandler>(
                 super::response::streaming::FunctionExecutionChunk,
                 HttpError,
             >,
-        > + Send
+        >
+        + Send
         + Unpin
         + 'static
         + use<H>,

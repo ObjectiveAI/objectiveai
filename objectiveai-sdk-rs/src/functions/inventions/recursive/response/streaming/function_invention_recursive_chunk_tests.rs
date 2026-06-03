@@ -1,5 +1,5 @@
-use crate::tests::stream_push::stream_push_test;
 use super::*;
+use crate::tests::stream_push::stream_push_test;
 
 fn agent_completion_wrapper(
     index: u64,
@@ -9,6 +9,10 @@ fn agent_completion_wrapper(
         index,
         inner: crate::agent::completions::response::streaming::AgentCompletionChunk {
             id: format!("acc-{index}"),
+            agent_instance_hierarchy: String::new(),
+            agent_id: String::new(),
+            agent_full_id: String::new(),
+            agent_remote: None,
             created: 0,
             messages: vec![],
             object: crate::agent::completions::response::streaming::Object::AgentCompletionChunk,
@@ -22,7 +26,9 @@ fn agent_completion_wrapper(
 }
 
 fn non_recursive_invention(
-    completions: Vec<crate::functions::inventions::response::streaming::AgentCompletionChunk>,
+    completions: Vec<
+        crate::functions::inventions::response::streaming::AgentCompletionChunk,
+    >,
     own_error: Option<crate::error::ResponseError>,
 ) -> crate::functions::inventions::response::streaming::FunctionInventionChunk {
     crate::functions::inventions::response::streaming::FunctionInventionChunk {
@@ -45,7 +51,9 @@ fn wrapper(
     FunctionInventionChunk { index, inner }
 }
 
-fn rec_chunk(inventions: Vec<FunctionInventionChunk>) -> FunctionInventionRecursiveChunk {
+fn rec_chunk(
+    inventions: Vec<FunctionInventionChunk>,
+) -> FunctionInventionRecursiveChunk {
     FunctionInventionRecursiveChunk {
         id: "firc-ie".into(),
         inventions,
@@ -57,7 +65,10 @@ fn rec_chunk(inventions: Vec<FunctionInventionChunk>) -> FunctionInventionRecurs
 }
 
 fn err(code: u16, message: &str) -> crate::error::ResponseError {
-    crate::error::ResponseError { code, message: message.into() }
+    crate::error::ResponseError {
+        code,
+        message: message.into(),
+    }
 }
 
 #[test]
@@ -69,7 +80,13 @@ fn inner_errors_empty_inventions() {
 #[test]
 fn inner_errors_no_invention_errors() {
     let chunk = rec_chunk(vec![
-        wrapper(0, non_recursive_invention(vec![agent_completion_wrapper(0, None)], None)),
+        wrapper(
+            0,
+            non_recursive_invention(
+                vec![agent_completion_wrapper(0, None)],
+                None,
+            ),
+        ),
         wrapper(1, non_recursive_invention(vec![], None)),
     ]);
     assert!(chunk.inner_errors().next().is_none());
@@ -77,32 +94,37 @@ fn inner_errors_no_invention_errors() {
 
 #[test]
 fn inner_errors_invention_own_error() {
-    let chunk = rec_chunk(vec![
-        wrapper(1, non_recursive_invention(
+    let chunk = rec_chunk(vec![wrapper(
+        1,
+        non_recursive_invention(
             vec![agent_completion_wrapper(0, None)],
             Some(err(500, "invention crashed")),
-        )),
-    ]);
+        ),
+    )]);
     let collected: Vec<_> = chunk.inner_errors().collect();
     assert_eq!(collected.len(), 1);
     assert_eq!(collected[0].function_invention_index, 1);
     assert_eq!(collected[0].agent_completion_index, None);
     assert_eq!(collected[0].error.code, 500);
-    assert_eq!(collected[0].error.message, serde_json::Value::String("invention crashed".into()));
+    assert_eq!(
+        collected[0].error.message,
+        serde_json::Value::String("invention crashed".into())
+    );
 }
 
 #[test]
 fn inner_errors_invention_inner_only() {
-    let chunk = rec_chunk(vec![
-        wrapper(0, non_recursive_invention(
+    let chunk = rec_chunk(vec![wrapper(
+        0,
+        non_recursive_invention(
             vec![
                 agent_completion_wrapper(0, None),
                 agent_completion_wrapper(1, None),
                 agent_completion_wrapper(2, Some(err(429, "rate limited"))),
             ],
             None,
-        )),
-    ]);
+        ),
+    )]);
     let collected: Vec<_> = chunk.inner_errors().collect();
     assert_eq!(collected.len(), 1);
     assert_eq!(collected[0].function_invention_index, 0);
@@ -112,14 +134,13 @@ fn inner_errors_invention_inner_only() {
 
 #[test]
 fn inner_errors_invention_own_and_inner_combined() {
-    let chunk = rec_chunk(vec![
-        wrapper(3, non_recursive_invention(
-            vec![
-                agent_completion_wrapper(0, Some(err(503, "unavailable"))),
-            ],
+    let chunk = rec_chunk(vec![wrapper(
+        3,
+        non_recursive_invention(
+            vec![agent_completion_wrapper(0, Some(err(503, "unavailable")))],
             Some(err(500, "invention crashed")),
-        )),
-    ]);
+        ),
+    )]);
     let collected: Vec<_> = chunk.inner_errors().collect();
     assert_eq!(collected.len(), 2);
     // own first
@@ -150,9 +171,10 @@ fn inner_errors_multiple_inventions() {
 
 #[test]
 fn inner_error_serde_roundtrip_invention_own() {
-    let chunk = rec_chunk(vec![
-        wrapper(7, non_recursive_invention(vec![], Some(err(404, "missing")))),
-    ]);
+    let chunk = rec_chunk(vec![wrapper(
+        7,
+        non_recursive_invention(vec![], Some(err(404, "missing"))),
+    )]);
     let item = chunk.inner_errors().next().unwrap();
     let wire = serde_json::to_string(&item).unwrap();
     assert_eq!(
@@ -163,17 +185,21 @@ fn inner_error_serde_roundtrip_invention_own() {
     assert_eq!(round.function_invention_index, 7);
     assert_eq!(round.agent_completion_index, None);
     assert_eq!(round.error.code, 404);
-    assert_eq!(round.error.message, serde_json::Value::String("missing".into()));
+    assert_eq!(
+        round.error.message,
+        serde_json::Value::String("missing".into())
+    );
 }
 
 #[test]
 fn inner_error_serde_roundtrip_invention_inner() {
-    let chunk = rec_chunk(vec![
-        wrapper(4, non_recursive_invention(
+    let chunk = rec_chunk(vec![wrapper(
+        4,
+        non_recursive_invention(
             vec![agent_completion_wrapper(9, Some(err(418, "teapot")))],
             None,
-        )),
-    ]);
+        ),
+    )]);
     let item = chunk.inner_errors().next().unwrap();
     let wire = serde_json::to_string(&item).unwrap();
     assert_eq!(
@@ -184,7 +210,10 @@ fn inner_error_serde_roundtrip_invention_inner() {
     assert_eq!(round.function_invention_index, 4);
     assert_eq!(round.agent_completion_index, Some(9));
     assert_eq!(round.error.code, 418);
-    assert_eq!(round.error.message, serde_json::Value::String("teapot".into()));
+    assert_eq!(
+        round.error.message,
+        serde_json::Value::String("teapot".into())
+    );
 }
 
 stream_push_test!(

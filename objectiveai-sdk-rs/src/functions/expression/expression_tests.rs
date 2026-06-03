@@ -6,8 +6,8 @@ use crate::agent::completions::message::{
     SimpleContentPartExpression, VideoUrl,
 };
 use crate::functions::expression::{
-    ExpressionError, InputValue, InputValueExpression, Params,
-    ParamsOwned, TaskOutputOwned,
+    ExpressionError, InputValue, InputValueExpression, Params, ParamsOwned,
+    TaskOutputOwned,
 };
 use indexmap::IndexMap;
 
@@ -155,16 +155,16 @@ fn withexpression_expression_uses_underlying_expression_for_one_and_many() {
     ]);
 
     // compile_one with scalar output
-    let with_scalar = WithExpression::Expression::<i64>(
-        Expression::Starlark("input['value']".to_string()),
-    );
+    let with_scalar = WithExpression::Expression::<i64>(Expression::Starlark(
+        "input['value']".to_string(),
+    ));
     let scalar = with_scalar.compile_one(&params).unwrap();
     assert_eq!(scalar, 42);
 
     // compile_one_or_many with array output
-    let with_many = WithExpression::Expression::<i64>(
-        Expression::Starlark("input['values']".to_string()),
-    );
+    let with_many = WithExpression::Expression::<i64>(Expression::Starlark(
+        "input['values']".to_string(),
+    ));
     let result = with_many.compile_one_or_many(&params).unwrap();
     match result {
         OneOrMany::Many(values) => assert_eq!(values, vec![1, 2, 3]),
@@ -188,10 +188,9 @@ fn expression_outputs_primitives_and_options() {
     // represent null. A *starlark expression* that evaluates to None is
     // treated as an empty array by `compile_one_or_many`, which makes
     // `compile_one` return ExpectedOneValueFoundMany.
-    let none_s: Option<String> =
-        WithExpression::Value::<Option<String>>(None)
-            .compile_one(&params)
-            .unwrap();
+    let none_s: Option<String> = WithExpression::Value::<Option<String>>(None)
+        .compile_one(&params)
+        .unwrap();
     assert_eq!(none_s, None);
     let err = Expression::Starlark("None".to_string())
         .compile_one::<Option<String>>(&params)
@@ -259,10 +258,9 @@ fn expression_outputs_content_expression_types() {
         starlark_one("{\"type\": \"text\", \"text\": \"hi\"}", &params);
     match rcp {
         RichContentPartExpression::Text { .. } => {}
-        other => panic!(
-            "expected RichContentPartExpression::Text, got {:?}",
-            other
-        ),
+        other => {
+            panic!("expected RichContentPartExpression::Text, got {:?}", other)
+        }
     }
 }
 
@@ -274,10 +272,8 @@ fn expression_outputs_rich_media_structs() {
         starlark_one("{\"url\": \"https://example.com/img.png\"}", &params);
     assert_eq!(image.url, "https://example.com/img.png");
 
-    let audio: InputAudio = starlark_one(
-        "{\"data\": \"BASE64\", \"format\": \"wav\"}",
-        &params,
-    );
+    let audio: InputAudio =
+        starlark_one("{\"data\": \"BASE64\", \"format\": \"wav\"}", &params);
     assert_eq!(audio.format, "wav");
 
     let video: VideoUrl =
@@ -329,11 +325,10 @@ fn expression_outputs_assistant_tool_call_types() {
         AssistantToolCallExpression::Function { .. } => {}
     }
 
-    let atcs: Vec<WithExpression<AssistantToolCallExpression>> =
-        starlark_one(
-            "[{\"type\": \"function\", \"id\": \"call_1\", \"function\": {\"name\": \"do_thing\", \"arguments\": \"{}\"}}]",
-            &params,
-        );
+    let atcs: Vec<WithExpression<AssistantToolCallExpression>> = starlark_one(
+        "[{\"type\": \"function\", \"id\": \"call_1\", \"function\": {\"name\": \"do_thing\", \"arguments\": \"{}\"}}]",
+        &params,
+    );
     assert_eq!(atcs.len(), 1);
 }
 

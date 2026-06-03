@@ -4,30 +4,77 @@
   "input_schema": {
     "type": "object",
     "properties": {
-      "items": { "type": "array", "items": { "type": "string" } }
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
     },
-    "required": ["items"]
+    "required": [
+      "items"
+    ]
   },
   "tasks": [
     {
       "type": "scalar.function",
       "remote": "mock",
       "name": "spam-importance-branch",
-      "map": { "$starlark": "len(input['items'])" },
-      "input": { "$starlark": "{'text': input['items'][map], 'subject': input['items'][map]}" },
-      "output": { "$starlark": "output[0]" }
+      "map": {
+        "$starlark": "len(input['items'])"
+      },
+      "input": {
+        "$starlark": "{'text': input['items'][map], 'subject': input['items'][map]}"
+      },
+      "output": {
+        "$starlark": "output[0]"
+      }
     },
     {
       "type": "vector.completion",
-      "messages": { "$starlark": "[{'role': 'user', 'content': [{'type': 'text', 'text': 'Rate positivity: ' + input['items'][0]}]}]" },
-      "responses": [[{"type": "text", "text": "Positive"}], [{"type": "text", "text": "Negative"}]],
-      "output": { "$special": "task_output_weighted_sum" }
+      "messages": {
+        "$starlark": "[{'role': 'user', 'content': [{'type': 'text', 'text': 'Rate positivity: ' + input['items'][0]}]}]"
+      },
+      "responses": [
+        [
+          {
+            "type": "text",
+            "text": "Positive"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "Negative"
+          }
+        ]
+      ],
+      "output": {
+        "$special": "task_output_weighted_sum"
+      }
     },
     {
       "type": "vector.completion",
-      "messages": { "$starlark": "[{'role': 'user', 'content': [{'type': 'text', 'text': 'Rate relevance: ' + input['items'][0]}]}]" },
-      "responses": [[{"type": "text", "text": "Relevant"}], [{"type": "text", "text": "Irrelevant"}]],
-      "output": { "$special": "task_output_weighted_sum" }
+      "messages": {
+        "$starlark": "[{'role': 'user', 'content': [{'type': 'text', 'text': 'Rate relevance: ' + input['items'][0]}]}]"
+      },
+      "responses": [
+        [
+          {
+            "type": "text",
+            "text": "Relevant"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "Irrelevant"
+          }
+        ]
+      ],
+      "output": {
+        "$special": "task_output_weighted_sum"
+      }
     }
   ]
 }

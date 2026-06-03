@@ -8,8 +8,8 @@
 //! exits and the WS closes cleanly.
 
 use crate::client_objectiveai_mcp::{client_request, client_response};
-use futures::stream::SplitSink;
 use futures::SinkExt;
+use futures::stream::SplitSink;
 use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio::sync::{Mutex, oneshot};
@@ -20,7 +20,12 @@ use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, tungstenite};
 /// handler dispatch) hold a clone; the mutex serializes writes so
 /// frames don't interleave on the wire.
 pub(crate) type SharedSink = Arc<
-    Mutex<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, tungstenite::Message>>,
+    Mutex<
+        SplitSink<
+            WebSocketStream<MaybeTlsStream<TcpStream>>,
+            tungstenite::Message,
+        >,
+    >,
 >;
 
 /// Per-connection registry of outstanding notify ids and the
@@ -102,9 +107,8 @@ impl Notifier {
 
         {
             let mut guard = self.sink.lock().await;
-            if let Err(e) = guard
-                .send(tungstenite::Message::Text(frame.into()))
-                .await
+            if let Err(e) =
+                guard.send(tungstenite::Message::Text(frame.into())).await
             {
                 drop(guard);
                 self.pending.remove(&id);

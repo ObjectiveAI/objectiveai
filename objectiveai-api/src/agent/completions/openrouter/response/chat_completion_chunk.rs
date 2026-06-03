@@ -37,14 +37,18 @@ impl ChatCompletionChunk {
     ///
     /// OpenRouter completions always have exactly one choice and only
     /// produce assistant responses (no tool responses).
+    #[allow(clippy::too_many_arguments)]
     pub fn into_downstream(
         self,
         id: String,
         created: u64,
-        agent: String,
         index: u64,
         is_byok: bool,
         cost_multiplier: rust_decimal::Decimal,
+        agent_instance_hierarchy: String,
+        agent_id: String,
+        agent_full_id: String,
+        agent_remote: Option<objectiveai_sdk::RemotePath>,
     ) -> objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
         // OpenRouter always returns exactly one choice.
         let choice = self.choices.into_iter().next().unwrap_or_default();
@@ -81,7 +85,6 @@ impl ChatCompletionChunk {
                 role: Default::default(),
                 index,
                 created: self.created,
-                agent,
                 model: self.model,
                 upstream_id: self.id,
                 reasoning: choice.delta.reasoning,
@@ -101,6 +104,10 @@ impl ChatCompletionChunk {
 
         objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
             id,
+            agent_instance_hierarchy,
+            agent_id,
+            agent_full_id,
+            agent_remote,
             created,
             messages: vec![message],
             object: Default::default(),

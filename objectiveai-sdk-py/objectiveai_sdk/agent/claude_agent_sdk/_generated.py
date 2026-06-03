@@ -3,6 +3,6 @@
 from .agent import Agent  # noqa: F401
 from .agent_base import AgentBase  # noqa: F401
 from .continuation import Continuation  # noqa: F401
-from .effort import Effort, EffortHigh, EffortLow, EffortMax, EffortMedium  # noqa: F401
+from .effort import Effort, EffortHigh, EffortLow, EffortMax, EffortMedium, EffortXhigh  # noqa: F401
 from .output_mode import OutputMode  # noqa: F401
 from .upstream import Upstream  # noqa: F401

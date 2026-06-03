@@ -1,10 +1,18 @@
 use crate::functions;
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// Wrapper for function execution output, distinguishing between
 /// a null output value and a missing output.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "functions.executions.response.Output")]
 pub struct Output {
     pub output: functions::expression::TaskOutputOwned,

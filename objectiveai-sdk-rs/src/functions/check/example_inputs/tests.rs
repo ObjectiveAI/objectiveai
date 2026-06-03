@@ -1,11 +1,12 @@
 #[cfg(test)]
 mod tests {
-    use crate::functions::expression::{
-        AnyOfInputSchema, ArrayInputSchema, AudioInputSchema, BooleanInputSchema,
-        FileInputSchema, ImageInputSchema, InputSchema, IntegerInputSchema, NumberInputSchema,
-        ObjectInputSchema, StringInputSchema, VideoInputSchema,
-    };
     use crate::functions::check::example_inputs;
+    use crate::functions::expression::{
+        AnyOfInputSchema, ArrayInputSchema, AudioInputSchema,
+        BooleanInputSchema, FileInputSchema, ImageInputSchema, InputSchema,
+        IntegerInputSchema, NumberInputSchema, ObjectInputSchema,
+        StringInputSchema, VideoInputSchema,
+    };
     use crate::test_util::index_map;
 
     fn test(schema: &InputSchema, expected_perms: usize) {
@@ -559,7 +560,10 @@ mod tests {
                         description: None,
                     }),
                 },
-                required: Some(vec!["scores".to_string(), "active".to_string()]),
+                required: Some(vec![
+                    "scores".to_string(),
+                    "active".to_string(),
+                ]),
             }),
             3,
         );

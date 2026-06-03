@@ -5,13 +5,21 @@ use crate::functions;
 use functions::expression::{
     ExpressionError, FromStarlarkValue, WithExpression,
 };
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use starlark::values::dict::DictRef as StarlarkDictRef;
 use starlark::values::{UnpackValue, Value as StarlarkValue};
-use schemars::JsonSchema;
 
 /// A developer message.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "agent.completions.message.DeveloperMessage")]
 pub struct DeveloperMessage {
     /// The message content.
@@ -42,20 +50,6 @@ impl DeveloperMessage {
         }
     }
 
-    /// Extract this message's content into per-leaf log files,
-    /// returning a [`super::DeveloperMessageLog`] (with
-    /// [`super::SimpleContentLog`] in place of `content`) plus the
-    /// [`crate::filesystem::logs::LogFile`]s the caller writes.
-    #[cfg(feature = "filesystem")]
-    pub fn extract(
-        self,
-        route_base: &str,
-        id: &str,
-        message_index: u64,
-    ) -> (super::DeveloperMessageLog, Vec<crate::filesystem::logs::LogFile>) {
-        let (content, files) = self.content.extract_media(&format!("{route_base}/messages"), id, message_index);
-        (super::DeveloperMessageLog { content, name: self.name }, files)
-    }
 }
 
 impl FromStarlarkValue for DeveloperMessage {
@@ -99,13 +93,24 @@ impl FromStarlarkValue for DeveloperMessage {
 }
 
 /// Expression variant of [`DeveloperMessage`] for dynamic content.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "agent.completions.message.DeveloperMessageExpression")]
 pub struct DeveloperMessageExpression {
     /// The message content expression.
     pub content: functions::expression::WithExpression<SimpleContentExpression>,
     /// Optional name expression.
-    #[serde(default, skip_serializing_if = "functions::expression::WithExpression::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "functions::expression::WithExpression::is_none"
+    )]
     #[schemars(with = "Option<functions::expression::WithExpression<String>>", extend("omitempty" = true))]
     pub name: functions::expression::WithExpression<Option<String>>,
 }

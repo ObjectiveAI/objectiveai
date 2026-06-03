@@ -482,61 +482,28 @@ where
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        // Composite agent id — the agent's identity. Resolution order:
-        //   1. Internal `continuation` (server-side retry from the
-        //      vector / laboratory layer): reuse the composite baked
-        //      into the in-process state.
-        //   2. Wire `request_continuation` (client-side resume): reuse
-        //      the composite carried in the base64 token. This is what
-        //      keeps the agent's identity stable across separate
-        //      client requests, regardless of which caller's
-        //      `X-OBJECTIVEAI-AGENT-ID` header is on the resuming
-        //      request.
-        //   3. Fresh first call: mint a local id and prefix it with
-        //      the current request's `ctx.agent_id()` (the spawner's
-        //      full lineage). Empty parent is its own first-class
-        //      slot, yielding a root composite of just the local id.
-        //
-        // The local `id` (used as `AgentCompletionChunk.id`, viewer
-        // correlation, notify-target keys) is the trailing
-        // slash-separated segment of the composite — stable across
-        // every round for the same reason.
-        let request_composite = request_continuation
+        // Capture the internal continuation's instance hierarchy before
+        // `continuation` is consumed during item extraction below. The wire
+        // composite (`request_continuation`) stays live until the per-slot
+        // builder, where `continuation_agent_instance_hierarchy` is resolved.
+        let continuation_internal_aih: Option<String> = continuation
             .as_ref()
-            .map(|c| c.agent_id())
-            .filter(|s| !s.is_empty());
-        let agent_id: String = match (
-            continuation.as_ref().map(|c| c.agent_id()),
-            request_composite,
-        ) {
-            (Some(s), _) => s.to_string(),
-            (None, Some(s)) => s.to_string(),
-            (None, None) => {
-                let local = response_id(created);
-                match ctx.agent_id() {
-                    Some(prefix) => format!("{prefix}/{local}"),
-                    None => local,
+            .map(|c| c.agent_instance_hierarchy().to_string());
+        // Pre-yield errors correlate against an agent's response id, passed
+        // explicitly at each call site (the primary's response id).
+        let send_viewer_err = {
+            let viewer_client = self.viewer_client.clone();
+            let ctx_for_err = ctx.clone();
+            move |response_id: &str, e: super::Error| -> super::Error {
+                if viewer {
+                    viewer_client.send_agent_completion_error(
+                        ctx_for_err.clone(),
+                        response_id.to_string(),
+                        &e,
+                    );
                 }
+                e
             }
-        };
-        let id: String = agent_id
-            .rsplit_once('/')
-            .map(|(_, tail)| tail.to_string())
-            .unwrap_or_else(|| agent_id.clone());
-
-        // Send viewer begin.
-        if viewer {
-            self.viewer_client.send_agent_completion_begin(
-                ctx.clone(), id.clone(), params.clone(),
-            );
-        }
-        let send_viewer_err = |e: super::Error| -> super::Error {
-            if viewer {
-                self.viewer_client.send_agent_completion_error(
-                    ctx.clone(), id.clone(), &e,
-                );
-            }
-            e
         };
 
         // 1. Panic if internal and request continuation upstream types conflict.
@@ -572,12 +539,19 @@ where
         };
 
         // 3. Always resolve agents from params.agent.
-        let agent_wf = self
+        // `agent_remote` is `Some(path)` when the WF was fetched from a
+        // remote (stamped on every chunk + outbound MCP-proxy header),
+        // `None` when the request supplied the WF inline.
+        let (agent_wf, agent_remote) = self
             .retrieve_router
             .get_agent(&ctx, params.agent.clone())
             .await
             .map_err(|e| super::Error::InvalidAgent(e.message.to_string()))?;
         let inline = agent_wf.inline();
+        // WF-level identity: concatenation of the primary id with all
+        // fallback ids. See `InlineAgentWithFallbacks::full_id`. Same
+        // value for every slot in this completion.
+        let agent_full_id = inline.full_id();
         let mut all_agents: Vec<objectiveai_sdk::agent::InlineAgent> = vec![inline.inner.clone()];
         if let Some(fallbacks) = &inline.fallbacks {
             all_agents.extend(fallbacks.iter().cloned());
@@ -596,6 +570,47 @@ where
             self.mcp_authorization.as_deref(),
         );
 
+        // Per-agent identities. `response_ids` are freshly minted, one per
+        // slot, and stay pure (no dash) so the `-`-joined RESPONSE-IDS group
+        // and X-OBJECTIVEAI-RESPONSE-ID are unaffected. An agent *instance* is
+        // `{agent.id()}-{response_id}`; the hierarchy is the spawner lineage
+        // (`ctx.agent_instance_hierarchy()`) joined by `/` with this instance.
+        let response_ids: Vec<String> =
+            filtered_agents.iter().map(|_| response_id(created)).collect();
+        // Primary id for pre-yield viewer-error correlation (empty when no
+        // agents survived filtering).
+        let primary_response_id: String =
+            response_ids.first().cloned().unwrap_or_default();
+        // Reuse on resume: internal continuation first, else the wire
+        // continuation; `None` on a fresh call.
+        let continuation_agent_instance_hierarchy: Option<String> =
+            continuation_internal_aih.or_else(|| {
+                request_continuation
+                    .as_ref()
+                    .map(|c| c.agent_instance_hierarchy().to_string())
+                    .filter(|s| !s.is_empty())
+            });
+        // When resuming, the hierarchy is fixed: every slot gets that exact
+        // value. Otherwise build a fresh per-agent instance. The first
+        // segment is the WF-level `agent_full_id` (constant across all
+        // slots in this completion) followed by `-{response_id}` to
+        // disambiguate slots.
+        let agent_instance_hierarchies: Vec<String> =
+            match &continuation_agent_instance_hierarchy {
+                Some(h) => vec![h.clone(); filtered_agents.len()],
+                None => filtered_agents
+                    .iter()
+                    .enumerate()
+                    .map(|(i, _agent)| {
+                        let agent_instance = format!("{}-{}", agent_full_id, response_ids[i]);
+                        match ctx.agent_instance_hierarchy() {
+                            Some(prefix) => format!("{prefix}/{agent_instance}"),
+                            None => agent_instance,
+                        }
+                    })
+                    .collect(),
+            };
+
         // 5. Boot the in-process proxy (idempotent — first call wins,
         //    subsequent calls reuse the same handle) and kick off one
         //    connect per agent in parallel. Awaiting each `JoinHandle`
@@ -605,25 +620,24 @@ where
             .proxy_spawner
             .get()
             .await
-            .map_err(|e| send_viewer_err(super::Error::McpProxyBootstrap(e.to_string())))?;
+            .map_err(|e| send_viewer_err(&primary_response_id, super::Error::McpProxyBootstrap(e.to_string())))?;
         let proxy_url = proxy_handle.url.clone();
 
         let request_mcp_auth_owned = request_mcp_auth.clone();
         let default_mcp_auth_owned = self.mcp_authorization.clone();
         let internal_conn_for_resume = internal_conn.clone();
-
-        // 6.5. Compose the `X-OBJECTIVEAI-AGENT-ID` header we forward
-        //      to the proxy for every attempt.
-        //
-        // `agent_id` was resolved at the top of this fn
-        // (internal continuation > wire continuation > fresh build).
-        // All attempts (primary + fallbacks) within one
-        // `create_streaming` share the same composite — they're
-        // sequential alternatives and only one ever runs to completion.
-        let agent_ids: Vec<String> = filtered_agents
-            .iter()
-            .map(|_| agent_id.clone())
-            .collect();
+        // Client-side resume path: when the wire continuation carries
+        // a `mcp_sessions[proxy_url]`, use it to resume the proxy
+        // session so upstream MCP sessions (and therefore tool
+        // subprocess `MCP_SESSION_ID`s) stay stable across separate
+        // `agents message` / `agent completions create` invocations.
+        // Without this fallback, every continuation turn creates a
+        // fresh proxy session, which dials upstream MCPs fresh, and
+        // any per-session tool state (counters, caches keyed on
+        // `MCP_SESSION_ID`) resets per turn.
+        let wire_proxy_session_id: Option<String> = request_continuation
+            .as_ref()
+            .and_then(|rc| rc.mcp_sessions().get(&proxy_url).cloned());
 
         // Resolve a per-agent `ws_session_id` for any agent that
         // declares `client_objectiveai_mcp`. For the primary agent
@@ -648,7 +662,7 @@ where
                 if agent.base().client_objectiveai_mcp().is_none() {
                     return None;
                 }
-                let handle = match (ctx.api_port(), ctx.reverse_attach()) {
+                let handle = match (ctx.mcp_port(), ctx.reverse_attach()) {
                     (Some(_), Some(h)) => h.clone(),
                     _ => return None,
                 };
@@ -663,7 +677,15 @@ where
                 Some(id)
             })
             .collect();
-        let api_port_for_synth = ctx.api_port();
+        let mcp_port_for_synth = ctx.mcp_port();
+
+        // Dash-joined list of every per-agent response_id leaf in
+        // this completion. Stamped identically on every per-agent
+        // proxy connect (`X-OBJECTIVEAI-RESPONSE-IDS`) so cli-stream
+        // learns the sibling set from whichever connect lands first
+        // — driving the group-local loser sweep in
+        // `ConduitMcpHandler::select_response_ids`.
+        let response_ids_group: String = response_ids.join("-");
 
         let connect_handles: Vec<
             Option<
@@ -681,9 +703,10 @@ where
             >,
         > = filtered_agents
             .iter()
-            .zip(agent_ids.iter())
+            .zip(agent_instance_hierarchies.iter())
+            .zip(response_ids.iter())
             .zip(agent_ws_session_ids.iter())
-            .map(|((agent, agent_id), agent_ws_session_id)| {
+            .map(|(((agent, agent_instance_hierarchy), id), agent_ws_session_id)| {
                 // Build the per-agent X-MCP-* header set: the agent's
                 // declared `mcp_servers` plus any caller-supplied
                 // `extra_mcp_servers` (e.g. the function-inventions
@@ -707,9 +730,9 @@ where
                 // conduit on the other side picks per-agent MCP
                 // connections out of its `Mcp-Session-Id` DashMap.
                 let client_mcp_synthetic_url: Option<String> =
-                    match (agent_ws_session_id.as_deref(), api_port_for_synth) {
-                        (Some(_), Some(api_port)) => Some(format!(
-                            "http://127.0.0.1:{api_port}/objectiveai-mcp"
+                    match (agent_ws_session_id.as_deref(), mcp_port_for_synth) {
+                        (Some(_), Some(mcp_port)) => Some(format!(
+                            "http://127.0.0.1:{mcp_port}/objectiveai-mcp"
                         )),
                         _ => None,
                     };
@@ -817,10 +840,17 @@ where
                         );
 
                         #[derive(serde::Serialize)]
+                        struct McpServerConfig<'a> {
+                            plugin: &'a str,
+                            name: &'a str,
+                            #[serde(skip_serializing_if = "Option::is_none")]
+                            arguments: Option<&'a indexmap::IndexMap<String, Option<String>>>,
+                        }
+                        #[derive(serde::Serialize)]
                         struct McpConfig<'a> {
                             names: Vec<&'a str>,
                             objectiveai_builtins: bool,
-                            mcp_servers: Vec<(&'a str, &'a str)>,
+                            mcp_servers: Vec<McpServerConfig<'a>>,
                         }
                         let config = McpConfig {
                             names: client_mcp
@@ -847,8 +877,10 @@ where
                                         .as_deref()
                                         .unwrap_or(&[])
                                         .iter()
-                                        .map(move |name| {
-                                            (plugin.name.as_str(), name.as_str())
+                                        .map(move |entry| McpServerConfig {
+                                            plugin: plugin.name.as_str(),
+                                            name: entry.name.as_str(),
+                                            arguments: entry.arguments.as_ref(),
                                         })
                                 })
                                 .collect(),
@@ -863,20 +895,48 @@ where
                     }
                 }
 
+                // Both `agent_instance_hierarchy` and `id` here are the closure's
+                // per-slot bindings (zipped in from `agent_instance_hierarchies` and
+                // `response_ids` above). `agent_instance_hierarchy` is the full
+                // hierarchy (caller-lineage joined with this slot's instance,
+                // `{agent_full_id}-{response_id}`); `id` is this slot's pure
+                // response id — same value used downstream as `attempt.id`
+                // (chunk id, notify key) and `X-OBJECTIVEAI-RESPONSE-ID`.
+                // `RESPONSE-IDS` is the dash-joined group of every
+                // sibling response_id in this completion, stamped
+                // identically on every per-agent connect.
+                // `AGENT-ID` is the per-slot leaf id; `AGENT-FULL-ID` is
+                // the WF-level id (same across slots); `AGENT-REMOTE` is
+                // JSON-encoded `RemotePath` when the WF was fetched
+                // remotely, or empty when inline.
                 let proxy_request_headers: indexmap::IndexMap<String, String> =
                     indexmap::indexmap! {
                         "X-MCP-Servers".to_string() => serde_json::to_string(&urls).unwrap(),
                         "X-MCP-Headers".to_string() => serde_json::to_string(&per_url_headers).unwrap(),
-                        "X-OBJECTIVEAI-AGENT-ID".to_string() => agent_id.clone(),
+                        "X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY".to_string() => agent_instance_hierarchy.clone(),
+                        "X-OBJECTIVEAI-AGENT-ID".to_string() => agent.id().to_string(),
+                        "X-OBJECTIVEAI-AGENT-FULL-ID".to_string() => agent_full_id.clone(),
+                        "X-OBJECTIVEAI-AGENT-REMOTE".to_string() => agent_remote
+                            .as_ref()
+                            .map(|r| serde_json::to_string(r).unwrap_or_default())
+                            .unwrap_or_default(),
+                        "X-OBJECTIVEAI-RESPONSE-ID".to_string() => id.clone(),
+                        "X-OBJECTIVEAI-RESPONSE-IDS".to_string() => response_ids_group.clone(),
                     };
 
                 let mcp_client = self.mcp_client.clone();
                 let proxy_url = proxy_url.clone();
                 // Resume the proxy session if we're continuing — the
-                // upstream sessions already live behind it.
+                // upstream sessions already live behind it. Prefer the
+                // internal continuation (server-side retry; in-memory
+                // Connection still warm) over the wire continuation
+                // (client-side resume; only the encoded session id is
+                // available — proxy reconstructs upstreams via its
+                // AEAD payload).
                 let session_id = internal_conn_for_resume
                     .as_ref()
-                    .map(|c| c.session_id.clone());
+                    .map(|c| c.session_id.clone())
+                    .or_else(|| wire_proxy_session_id.clone());
                 // Only agents that declared `client_objectiveai_mcp`
                 // need a `list_tools` round-trip — they're the ones
                 // we have a declaration to validate against. Agents
@@ -937,21 +997,31 @@ where
                     >,
                 >,
             >,
-            /// Composite agent id forwarded as `X-OBJECTIVEAI-AGENT-ID`
-            /// to the MCP proxy and (for runner-backed upstreams) as
-            /// `OBJECTIVEAI_AGENT_ID` in the env dict the runner hands
-            /// to its child SDK subprocess. Derived from the response
-            /// id (see step 6.5 above).
-            agent_id: String,
+            /// Composite per-slot agent id forwarded as
+            /// `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY` to the MCP proxy and (for
+            /// runner-backed upstreams) as `OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY` in
+            /// the env dict the runner hands to its child SDK
+            /// subprocess. Derived from the response id (see step
+            /// 6.5 above).
+            agent_instance_hierarchy: String,
+            /// Per-slot response-id leaf — trailing slash-segment of
+            /// `agent_instance_hierarchy`. The value passed into `run_agent_loop`
+            /// as the `id` argument, which becomes
+            /// `AgentCompletionChunk.id`, the `notify_targets` key,
+            /// and the value cli-stream's conduit cache + sibling-
+            /// group sweep match on.
+            id: String,
         }
         let mut attempts: Vec<AgentAttempt> = filtered_agents
             .into_iter()
             .zip(connect_handles)
-            .zip(agent_ids)
-            .map(|((agent, connect_handle), agent_id)| AgentAttempt {
+            .zip(agent_instance_hierarchies)
+            .zip(response_ids)
+            .map(|(((agent, connect_handle), agent_instance_hierarchy), id)| AgentAttempt {
                 agent,
                 connect_handle,
-                agent_id,
+                agent_instance_hierarchy,
+                id,
             })
             .collect();
         // Slot of resolved-or-None per attempt — populated lazily on
@@ -1064,7 +1134,7 @@ where
                     attempt_connections[idx].clone();
                 if agent_needs_mcp && mcp_connection.is_none() {
                     if attempt.agent.base().client_objectiveai_mcp().is_some()
-                        && (ctx.api_port().is_none() || ctx.reverse_attach().is_none())
+                        && (ctx.mcp_port().is_none() || ctx.reverse_attach().is_none())
                     {
                         errors.push(super::Error::ClientObjectiveaiMcpUnavailable);
                     }
@@ -1094,12 +1164,12 @@ where
                             };
                             match self.run_agent_loop(
                                 self.openrouter.clone(), or_agent, rc, &params, mcp_connection.clone(),
-                                &mut cont_items_or, &id, created,
+                                &mut cont_items_or, &attempt.id, created,
                                 *byok_attempt, ctx.cost_multiplier,
                                 {
-                                    let agent_id = agent_id.clone();
+                                    let agent_instance_hierarchy = attempt.agent_instance_hierarchy.clone();
                                     move |items| super::Continuation::Openrouter {
-                                        items, mcp_connection: c, agent_id,
+                                        items, mcp_connection: c, agent_instance_hierarchy,
                                     }
                                 },
                                 |e| super::Error::UpstreamOpenrouter(Box::new(e)),
@@ -1111,14 +1181,25 @@ where
                                 invention_step,
                                 invention_tasks_min,
                                 invention_input_schema.clone(),
-                                Some(attempt.agent_id.as_str()),
+                                attempt.agent_instance_hierarchy.as_str(),
+                                attempt.agent.id(),
+                                agent_full_id.as_str(),
+                                agent_remote.as_ref(),
                             ).await {
                                 Ok(stream) => {
                                     if !viewer { return Ok(stream); }
                                     let vc = self.viewer_client.clone();
                                     let vctx = ctx.clone();
+                                    let params_for_viewer = params.clone();
+                                    let mut sent_begin = false;
                                     return Ok(Box::pin(futures::StreamExt::inspect(stream, move |item| {
                                         if let super::StreamItem::Chunk(chunk) = item {
+                                            if !sent_begin {
+                                                sent_begin = true;
+                                                vc.send_agent_completion_begin(
+                                                    vctx.clone(), chunk.id.clone(), params_for_viewer.clone(),
+                                                );
+                                            }
                                             vc.send_agent_completion_continue(vctx.clone(), chunk.clone());
                                         }
                                     })));
@@ -1134,12 +1215,12 @@ where
                             };
                             match self.run_agent_loop(
                                 self.claude_agent_sdk.clone(), cas_agent, rc, &params, mcp_connection.clone(),
-                                &mut cont_items_cas, &id, created,
+                                &mut cont_items_cas, &attempt.id, created,
                                 *byok_attempt, ctx.cost_multiplier,
                                 {
-                                    let agent_id = agent_id.clone();
+                                    let agent_instance_hierarchy = attempt.agent_instance_hierarchy.clone();
                                     move |items| super::Continuation::ClaudeAgentSdk {
-                                        items, mcp_connection: c, agent_id,
+                                        items, mcp_connection: c, agent_instance_hierarchy,
                                     }
                                 },
                                 |e| super::Error::UpstreamClaudeAgentSdk(Box::new(e)),
@@ -1151,14 +1232,25 @@ where
                                 invention_step,
                                 invention_tasks_min,
                                 invention_input_schema.clone(),
-                                Some(attempt.agent_id.as_str()),
+                                attempt.agent_instance_hierarchy.as_str(),
+                                attempt.agent.id(),
+                                agent_full_id.as_str(),
+                                agent_remote.as_ref(),
                             ).await {
                                 Ok(stream) => {
                                     if !viewer { return Ok(stream); }
                                     let vc = self.viewer_client.clone();
                                     let vctx = ctx.clone();
+                                    let params_for_viewer = params.clone();
+                                    let mut sent_begin = false;
                                     return Ok(Box::pin(futures::StreamExt::inspect(stream, move |item| {
                                         if let super::StreamItem::Chunk(chunk) = item {
+                                            if !sent_begin {
+                                                sent_begin = true;
+                                                vc.send_agent_completion_begin(
+                                                    vctx.clone(), chunk.id.clone(), params_for_viewer.clone(),
+                                                );
+                                            }
                                             vc.send_agent_completion_continue(vctx.clone(), chunk.clone());
                                         }
                                     })));
@@ -1174,12 +1266,12 @@ where
                             };
                             match self.run_agent_loop(
                                 self.codex_sdk.clone(), cdx_agent, rc, &params, mcp_connection.clone(),
-                                &mut cont_items_cdx, &id, created,
+                                &mut cont_items_cdx, &attempt.id, created,
                                 *byok_attempt, ctx.cost_multiplier,
                                 {
-                                    let agent_id = agent_id.clone();
+                                    let agent_instance_hierarchy = attempt.agent_instance_hierarchy.clone();
                                     move |items| super::Continuation::CodexSdk {
-                                        items, mcp_connection: c, agent_id,
+                                        items, mcp_connection: c, agent_instance_hierarchy,
                                     }
                                 },
                                 |e| super::Error::UpstreamCodexSdk(Box::new(e)),
@@ -1191,14 +1283,25 @@ where
                                 invention_step,
                                 invention_tasks_min,
                                 invention_input_schema.clone(),
-                                Some(attempt.agent_id.as_str()),
+                                attempt.agent_instance_hierarchy.as_str(),
+                                attempt.agent.id(),
+                                agent_full_id.as_str(),
+                                agent_remote.as_ref(),
                             ).await {
                                 Ok(stream) => {
                                     if !viewer { return Ok(stream); }
                                     let vc = self.viewer_client.clone();
                                     let vctx = ctx.clone();
+                                    let params_for_viewer = params.clone();
+                                    let mut sent_begin = false;
                                     return Ok(Box::pin(futures::StreamExt::inspect(stream, move |item| {
                                         if let super::StreamItem::Chunk(chunk) = item {
+                                            if !sent_begin {
+                                                sent_begin = true;
+                                                vc.send_agent_completion_begin(
+                                                    vctx.clone(), chunk.id.clone(), params_for_viewer.clone(),
+                                                );
+                                            }
                                             vc.send_agent_completion_continue(vctx.clone(), chunk.clone());
                                         }
                                     })));
@@ -1214,12 +1317,12 @@ where
                             };
                             match self.run_agent_loop(
                                 self.mock.clone(), mock_agent, rc, &params, mcp_connection.clone(),
-                                &mut cont_items_mock, &id, created,
+                                &mut cont_items_mock, &attempt.id, created,
                                 *byok_attempt, ctx.cost_multiplier,
                                 {
-                                    let agent_id = agent_id.clone();
+                                    let agent_instance_hierarchy = attempt.agent_instance_hierarchy.clone();
                                     move |items| super::Continuation::Mock {
-                                        items, mcp_connection: c, agent_id,
+                                        items, mcp_connection: c, agent_instance_hierarchy,
                                     }
                                 },
                                 |e| super::Error::UpstreamMock(Box::new(e)),
@@ -1231,14 +1334,25 @@ where
                                 invention_step,
                                 invention_tasks_min,
                                 invention_input_schema.clone(),
-                                Some(attempt.agent_id.as_str()),
+                                attempt.agent_instance_hierarchy.as_str(),
+                                attempt.agent.id(),
+                                agent_full_id.as_str(),
+                                agent_remote.as_ref(),
                             ).await {
                                 Ok(stream) => {
                                     if !viewer { return Ok(stream); }
                                     let vc = self.viewer_client.clone();
                                     let vctx = ctx.clone();
+                                    let params_for_viewer = params.clone();
+                                    let mut sent_begin = false;
                                     return Ok(Box::pin(futures::StreamExt::inspect(stream, move |item| {
                                         if let super::StreamItem::Chunk(chunk) = item {
+                                            if !sent_begin {
+                                                sent_begin = true;
+                                                vc.send_agent_completion_begin(
+                                                    vctx.clone(), chunk.id.clone(), params_for_viewer.clone(),
+                                                );
+                                            }
                                             vc.send_agent_completion_continue(vctx.clone(), chunk.clone());
                                         }
                                     })));
@@ -1253,13 +1367,13 @@ where
 
             // All agents failed this round — apply backoff or give up.
             if errors.is_empty() {
-                return Err(send_viewer_err(super::Error::NoAgentsResolved));
+                return Err(send_viewer_err(&primary_response_id, super::Error::NoAgentsResolved));
             }
             use backoff::backoff::Backoff;
             match backoff.next_backoff() {
                 Some(d) => tokio::time::sleep(d).await,
                 None => {
-                    return Err(send_viewer_err(if errors.len() == 1 {
+                    return Err(send_viewer_err(&primary_response_id, if errors.len() == 1 {
                         errors.into_iter().next().unwrap()
                     } else {
                         super::Error::MultipleErrors(errors)
@@ -1301,7 +1415,10 @@ where
         invention_step: Option<usize>,
         invention_tasks_min: Option<u64>,
         invention_input_schema: Option<String>,
-        agent_id_header: Option<&str>,
+        agent_instance_hierarchy_header: &str,
+        agent_id: &str,
+        agent_full_id: &str,
+        agent_remote: Option<&objectiveai_sdk::RemotePath>,
     ) -> Result<
         Pin<Box<dyn futures::Stream<Item = super::StreamItem<CONT>> + Send>>,
         super::Error,
@@ -1315,6 +1432,16 @@ where
         // --- Merge messages, drain proxy-queued notifications, prepare,
         // and apply transform. ---
         //
+        // `merged_messages` injects the agent's personality (system_prompt,
+        // prefix/suffix content, etc.) and bakes in `params.messages`. It
+        // must run **only on a fresh conversation**. On resumption — either
+        // a wire-level resume (`request_continuation.is_some()`) or an
+        // in-process resume (`!cont_items.is_empty()`) — the merged prefix
+        // is already part of the prior turn's accumulated state (e.g.
+        // OpenRouter's `Continuation.messages`, Claude SDK's session). Re-
+        // merging here would prepend a duplicate personality block on every
+        // turn, snowballing linearly with the conversation length.
+        //
         // The drained-notifications user message is inserted at the FRONT
         // of `messages` (index 0) so the notifications lead the prompt —
         // ahead of any system / developer / user content from the caller.
@@ -1324,8 +1451,15 @@ where
         // still drains in-flight notifications during a turn; this
         // init-time drain covers the gap *between* turns — i.e. when the
         // previous turn ended without a tool call, or when the user is
-        // starting a fresh continuation.
-        let mut messages = agent_base.merged_messages(params.messages.clone());
+        // starting a fresh continuation. On resumption with an empty merged
+        // prefix the drain message simply leads the new turn's content,
+        // landing before the continuation items in the upstream request.
+        let resuming = request_continuation.is_some() || !cont_items.is_empty();
+        let mut messages = if resuming {
+            Vec::new()
+        } else {
+            agent_base.merged_messages(params.messages.clone())
+        };
 
         if let Some(conn) = &mcp_connection {
             let blocks = conn.drain_notifications().await.map_err(|error| {
@@ -1372,7 +1506,10 @@ where
             invention_step,
             invention_tasks_min,
             invention_input_schema.clone(),
-            agent_id_header,
+            agent_instance_hierarchy_header,
+            agent_id,
+            agent_full_id,
+            agent_remote,
         );
         let initial_stream =
             tokio::time::timeout(self.first_chunk_timeout, create_fut)
@@ -1403,7 +1540,10 @@ where
         let params = params.clone();
         let id = id.to_string();
         let byok = byok.map(|s| s.to_string());
-        let agent_id_header = agent_id_header.map(|s| s.to_string());
+        let agent_instance_hierarchy_header = agent_instance_hierarchy_header.to_string();
+        let agent_id = agent_id.to_string();
+        let agent_full_id = agent_full_id.to_string();
+        let agent_remote = agent_remote.cloned();
         let request_continuation = request_continuation.cloned();
 
         // Register this completion's notify target(s) before the stream
@@ -1445,6 +1585,11 @@ where
                 loop {
                     match tokio::time::timeout(other_chunk_timeout, stream.next()).await {
                         Ok(Some(super::StreamItem::Chunk(chunk))) => {
+                            // Identity (`agent_instance_hierarchy`,
+                            // `agent_id`, `agent_full_id`, `agent_remote`)
+                            // is stamped at the upstream-client level
+                            // when each chunk is constructed — no need
+                            // to re-stamp here.
                             // Import usage from assistant response chunks.
                             for msg in &chunk.messages {
                                 if let objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(asst) = msg {
@@ -1561,7 +1706,17 @@ where
                     match result {
                         Ok(tool_msg) => {
                             let idx = continuation_items.len() as u64;
-                            let chunk = make_tool_chunk(&id, created, upstream_kind, idx, &tool_msg);
+                            let chunk = make_tool_chunk(
+                                &id,
+                                &agent_instance_hierarchy_header,
+                                &agent_id,
+                                &agent_full_id,
+                                agent_remote.as_ref(),
+                                created,
+                                upstream_kind,
+                                idx,
+                                &tool_msg,
+                            );
                             if let Some(ref mut agg) = aggregate {
                                 agg.push(&chunk);
                             }
@@ -1612,7 +1767,10 @@ where
                         invention_step,
                         invention_tasks_min,
                         invention_input_schema.clone(),
-                        agent_id_header.as_deref(),
+                        agent_instance_hierarchy_header.as_str(),
+                        agent_id.as_str(),
+                        agent_full_id.as_str(),
+                        agent_remote.as_ref(),
                     )
                     .await
                 {
@@ -1642,20 +1800,17 @@ where
                 })
                 .unwrap_or_default();
 
-            // Build response continuation token.
+            // Build response continuation token. The upstream stamps
+            // `agent_instance_hierarchy` on the returned continuation
+            // itself — no post-stamp from the orchestrator.
             let response_cont = upstream.response_continuation(
                 mcp_sessions,
                 request_continuation.as_ref(),
                 &messages,
                 Some(&continuation_items),
+                &agent_instance_hierarchy_header,
             );
-            let mut continuation_token: objectiveai_sdk::agent::Continuation = response_cont.into();
-            // Stamp the agent's full lineage on the outgoing wire
-            // continuation so the next round (whoever resumes — same
-            // caller or any other) reuses the same identity verbatim.
-            continuation_token.set_agent_id(
-                agent_id_header.clone().unwrap_or_default(),
-            );
+            let continuation_token: objectiveai_sdk::agent::Continuation = response_cont.into();
             let continuation_token = continuation_token.to_string();
 
             // Set cancellation error if the stream was cancelled.
@@ -1721,6 +1876,10 @@ where
             yield super::StreamItem::Chunk(
                 objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
                     id: id.clone(),
+                    agent_instance_hierarchy: agent_instance_hierarchy_header.clone(),
+                    agent_id: agent_id.clone(),
+                    agent_full_id: agent_full_id.clone(),
+                    agent_remote: agent_remote.clone(),
                     created,
                     upstream: upstream_kind,
                     usage: Some(usage),
@@ -1739,13 +1898,13 @@ where
 
 /// Resolves the response format for a given agent from the request params.
 fn resolve_response_format(
-    agent_id: &str,
+    agent_instance_hierarchy: &str,
     params: &objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams,
 ) -> Option<objectiveai_sdk::agent::completions::request::ResponseFormat> {
     use objectiveai_sdk::agent::completions::request::ResponseFormatParam;
     match params.response_format.as_ref()? {
         ResponseFormatParam::Single(rf) => Some(rf.clone()),
-        ResponseFormatParam::PerAgent(map) => map.get(agent_id).cloned(),
+        ResponseFormatParam::PerAgent(map) => map.get(agent_instance_hierarchy).cloned(),
     }
 }
 
@@ -1823,6 +1982,10 @@ fn build_drain_user_message(
 /// Builds an `AgentCompletionChunk` containing a single tool-response message.
 fn make_tool_chunk(
     id: &str,
+    agent_instance_hierarchy: &str,
+    agent_id: &str,
+    agent_full_id: &str,
+    agent_remote: Option<&objectiveai_sdk::RemotePath>,
     created: u64,
     upstream: objectiveai_sdk::agent::Upstream,
     index: u64,
@@ -1834,6 +1997,10 @@ fn make_tool_chunk(
     use objectiveai_sdk::agent::completions::response::ToolResponse;
     AgentCompletionChunk {
         id: id.to_string(),
+        agent_instance_hierarchy: agent_instance_hierarchy.to_string(),
+        agent_id: agent_id.to_string(),
+        agent_full_id: agent_full_id.to_string(),
+        agent_remote: agent_remote.cloned(),
         created,
         upstream,
         messages: vec![MessageChunk::Tool(ToolResponse {

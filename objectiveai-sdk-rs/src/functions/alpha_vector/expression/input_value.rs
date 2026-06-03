@@ -16,8 +16,18 @@ pub mod scalar_function_input_value_expression {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
-#[schemars(rename = "functions.alpha_vector.expression.VectorFunctionInputValueExpression")]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
+#[schemars(
+    rename = "functions.alpha_vector.expression.VectorFunctionInputValueExpression"
+)]
 pub struct VectorFunctionInputValueExpression {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
@@ -59,7 +69,8 @@ impl VectorFunctionInputValueExpression {
     }
 }
 
-pub type ScalarFunctionInputValue = IndexMap<String, functions::expression::InputValue>;
+pub type ScalarFunctionInputValue =
+    IndexMap<String, functions::expression::InputValue>;
 
 pub mod scalar_function_input_value {
     use crate::functions;
@@ -71,7 +82,9 @@ pub mod scalar_function_input_value {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
-#[schemars(rename = "functions.alpha_vector.expression.VectorFunctionInputValue")]
+#[schemars(
+    rename = "functions.alpha_vector.expression.VectorFunctionInputValue"
+)]
 pub struct VectorFunctionInputValue {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]

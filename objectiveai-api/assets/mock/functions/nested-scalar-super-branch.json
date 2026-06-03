@@ -11,7 +11,10 @@
         "type": "string"
       }
     },
-    "required": ["text", "subject"]
+    "required": [
+      "text",
+      "subject"
+    ]
   },
   "tasks": [
     {

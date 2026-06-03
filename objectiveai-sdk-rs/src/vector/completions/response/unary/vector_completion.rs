@@ -1,8 +1,8 @@
 //! Unary (non-streaming) vector completion response.
 
 use crate::{agent, vector::completions::response};
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// A complete vector completion response (non-streaming).
 ///
@@ -48,7 +48,8 @@ impl VectorCompletion {
         self.votes.sort_by_key(|v| v.flat_swarm_index);
 
         // sort completions by JSON representation since ordering is non-determinstic
-        self.completions.sort_by_cached_key(|c| serde_json::to_string(&c.inner).unwrap());
+        self.completions
+            .sort_by_cached_key(|c| serde_json::to_string(&c.inner).unwrap());
 
         // re-apply completion indices since indices are non-deterministic
         let mut i = 0;

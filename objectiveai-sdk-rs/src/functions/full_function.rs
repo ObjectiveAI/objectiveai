@@ -1,7 +1,15 @@
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[serde(untagged)]
 #[schemars(rename = "functions.FullRemoteFunction")]
 pub enum FullRemoteFunction {
@@ -13,11 +21,22 @@ pub enum FullRemoteFunction {
 
 impl FullRemoteFunction {
     pub fn remotes(&self) -> impl Iterator<Item = &crate::RemotePath> {
-        enum Remotes<A, B> { A(A), B(B) }
-        impl<'a, A: Iterator<Item = &'a crate::RemotePath>, B: Iterator<Item = &'a crate::RemotePath>> Iterator for Remotes<A, B> {
+        enum Remotes<A, B> {
+            A(A),
+            B(B),
+        }
+        impl<
+            'a,
+            A: Iterator<Item = &'a crate::RemotePath>,
+            B: Iterator<Item = &'a crate::RemotePath>,
+        > Iterator for Remotes<A, B>
+        {
             type Item = &'a crate::RemotePath;
             fn next(&mut self) -> Option<Self::Item> {
-                match self { Remotes::A(a) => a.next(), Remotes::B(b) => b.next() }
+                match self {
+                    Remotes::A(a) => a.next(),
+                    Remotes::B(b) => b.next(),
+                }
             }
         }
         match self {
@@ -46,11 +65,22 @@ pub enum FullInlineFunction {
 
 impl FullInlineFunction {
     pub fn remotes(&self) -> impl Iterator<Item = &crate::RemotePath> {
-        enum Remotes<A, B> { A(A), B(B) }
-        impl<'a, A: Iterator<Item = &'a crate::RemotePath>, B: Iterator<Item = &'a crate::RemotePath>> Iterator for Remotes<A, B> {
+        enum Remotes<A, B> {
+            A(A),
+            B(B),
+        }
+        impl<
+            'a,
+            A: Iterator<Item = &'a crate::RemotePath>,
+            B: Iterator<Item = &'a crate::RemotePath>,
+        > Iterator for Remotes<A, B>
+        {
             type Item = &'a crate::RemotePath;
             fn next(&mut self) -> Option<Self::Item> {
-                match self { Remotes::A(a) => a.next(), Remotes::B(b) => b.next() }
+                match self {
+                    Remotes::A(a) => a.next(),
+                    Remotes::B(b) => b.next(),
+                }
             }
         }
         match self {
@@ -67,7 +97,15 @@ impl FullInlineFunction {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[serde(untagged)]
 #[schemars(rename = "functions.AlphaRemoteFunction")]
 pub enum AlphaRemoteFunction {
@@ -79,11 +117,22 @@ pub enum AlphaRemoteFunction {
 
 impl AlphaRemoteFunction {
     pub fn remotes(&self) -> impl Iterator<Item = &crate::RemotePath> {
-        enum Remotes<A, B> { A(A), B(B) }
-        impl<'a, A: Iterator<Item = &'a crate::RemotePath>, B: Iterator<Item = &'a crate::RemotePath>> Iterator for Remotes<A, B> {
+        enum Remotes<A, B> {
+            A(A),
+            B(B),
+        }
+        impl<
+            'a,
+            A: Iterator<Item = &'a crate::RemotePath>,
+            B: Iterator<Item = &'a crate::RemotePath>,
+        > Iterator for Remotes<A, B>
+        {
             type Item = &'a crate::RemotePath;
             fn next(&mut self) -> Option<Self::Item> {
-                match self { Remotes::A(a) => a.next(), Remotes::B(b) => b.next() }
+                match self {
+                    Remotes::A(a) => a.next(),
+                    Remotes::B(b) => b.next(),
+                }
             }
         }
         match self {
@@ -112,11 +161,22 @@ pub enum AlphaInlineFunction {
 
 impl AlphaInlineFunction {
     pub fn remotes(&self) -> impl Iterator<Item = &crate::RemotePath> {
-        enum Remotes<A, B> { A(A), B(B) }
-        impl<'a, A: Iterator<Item = &'a crate::RemotePath>, B: Iterator<Item = &'a crate::RemotePath>> Iterator for Remotes<A, B> {
+        enum Remotes<A, B> {
+            A(A),
+            B(B),
+        }
+        impl<
+            'a,
+            A: Iterator<Item = &'a crate::RemotePath>,
+            B: Iterator<Item = &'a crate::RemotePath>,
+        > Iterator for Remotes<A, B>
+        {
             type Item = &'a crate::RemotePath;
             fn next(&mut self) -> Option<Self::Item> {
-                match self { Remotes::A(a) => a.next(), Remotes::B(b) => b.next() }
+                match self {
+                    Remotes::A(a) => a.next(),
+                    Remotes::B(b) => b.next(),
+                }
             }
         }
         match self {
@@ -146,11 +206,22 @@ pub enum FullFunction {
 
 impl FullFunction {
     pub fn remotes(&self) -> impl Iterator<Item = &crate::RemotePath> {
-        enum Remotes<A, B> { A(A), B(B) }
-        impl<'a, A: Iterator<Item = &'a crate::RemotePath>, B: Iterator<Item = &'a crate::RemotePath>> Iterator for Remotes<A, B> {
+        enum Remotes<A, B> {
+            A(A),
+            B(B),
+        }
+        impl<
+            'a,
+            A: Iterator<Item = &'a crate::RemotePath>,
+            B: Iterator<Item = &'a crate::RemotePath>,
+        > Iterator for Remotes<A, B>
+        {
             type Item = &'a crate::RemotePath;
             fn next(&mut self) -> Option<Self::Item> {
-                match self { Remotes::A(a) => a.next(), Remotes::B(b) => b.next() }
+                match self {
+                    Remotes::A(a) => a.next(),
+                    Remotes::B(b) => b.next(),
+                }
             }
         }
         match self {

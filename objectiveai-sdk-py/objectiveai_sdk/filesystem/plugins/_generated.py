@@ -4,6 +4,7 @@ from .binaries import Binaries  # noqa: F401
 from .http_method import HttpMethod  # noqa: F401
 from .manifest import Manifest  # noqa: F401
 from .manifest_with_name_and_source import ManifestWithNameAndSource  # noqa: F401
+from .mcp_server import McpServer  # noqa: F401
 from .platform import Platform  # noqa: F401
 from .viewer_route import ViewerRoute  # noqa: F401
 from .whitelist_entry import WhitelistEntry  # noqa: F401

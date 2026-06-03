@@ -4,3 +4,4 @@ from .agent_completion_chunk import AgentCompletionChunk  # noqa: F401
 from .inner_error import InnerError  # noqa: F401
 from .object import Object  # noqa: F401
 from .vector_completion_chunk import VectorCompletionChunk  # noqa: F401
+from .vector_completion_chunk_log import VectorCompletionChunkLog  # noqa: F401

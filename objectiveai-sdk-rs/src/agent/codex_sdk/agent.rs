@@ -1,11 +1,20 @@
 //! Codex SDK Agent types and validation logic.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use twox_hash::XxHash3_128;
-use schemars::JsonSchema;
 
 /// The base configuration for a Codex SDK Agent (without computed ID).
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "agent.codex_sdk.AgentBase")]
 pub struct AgentBase {
     /// The upstream provider marker.
@@ -65,7 +74,11 @@ impl AgentBase {
             Some(prefix_content) if prefix_content.is_empty() => None,
             Some(mut prefix_content) => {
                 prefix_content.prepare();
-                if prefix_content.is_empty() { None } else { Some(prefix_content) }
+                if prefix_content.is_empty() {
+                    None
+                } else {
+                    Some(prefix_content)
+                }
             }
             None => None,
         };
@@ -73,12 +86,18 @@ impl AgentBase {
             Some(suffix_content) if suffix_content.is_empty() => None,
             Some(mut suffix_content) => {
                 suffix_content.prepare();
-                if suffix_content.is_empty() { None } else { Some(suffix_content) }
+                if suffix_content.is_empty() {
+                    None
+                } else {
+                    Some(suffix_content)
+                }
             }
             None => None,
         };
         self.mcp_servers = match self.mcp_servers.take() {
-            Some(mcp_servers) => super::super::mcp::mcp_servers::prepare(mcp_servers),
+            Some(mcp_servers) => {
+                super::super::mcp::mcp_servers::prepare(mcp_servers)
+            }
             None => None,
         };
         self.client_objectiveai_mcp = match self.client_objectiveai_mcp.take() {
@@ -125,7 +144,8 @@ impl AgentBase {
         use super::super::completions::message::{Message, UserMessage};
         let prefix_len = if self.prefix_content.is_some() { 1 } else { 0 };
         let suffix_len = if self.suffix_content.is_some() { 1 } else { 0 };
-        let mut merged = Vec::with_capacity(prefix_len + messages.len() + suffix_len);
+        let mut merged =
+            Vec::with_capacity(prefix_len + messages.len() + suffix_len);
         let mut prefix_inserted = self.prefix_content.is_none();
         for msg in messages {
             if !prefix_inserted {

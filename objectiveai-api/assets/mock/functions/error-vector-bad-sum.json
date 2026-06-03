@@ -6,20 +6,36 @@
     "properties": {
       "items": {
         "type": "array",
-        "items": { "type": "string" }
+        "items": {
+          "type": "string"
+        }
       }
     },
-    "required": ["items"]
+    "required": [
+      "items"
+    ]
   },
   "tasks": [
     {
       "type": "vector.completion",
-      "messages": { "$starlark": "[{'role': 'user', 'content': [{'type': 'text', 'text': 'rank: ' + ', '.join(input['items'])}]}]" },
-      "responses": { "$starlark": "[[{'type': 'text', 'text': item}] for item in input['items']]" },
-      "output": { "$starlark": "[x * 2 for x in output]" }
+      "messages": {
+        "$starlark": "[{'role': 'user', 'content': [{'type': 'text', 'text': 'rank: ' + ', '.join(input['items'])}]}]"
+      },
+      "responses": {
+        "$starlark": "[[{'type': 'text', 'text': item}] for item in input['items']]"
+      },
+      "output": {
+        "$starlark": "[x * 2 for x in output]"
+      }
     }
   ],
-  "output_length": { "$starlark": "len(input['items'])" },
-  "input_split": { "$special": "input_items_optional_context_split" },
-  "input_merge": { "$special": "input_items_optional_context_merge" }
+  "output_length": {
+    "$starlark": "len(input['items'])"
+  },
+  "input_split": {
+    "$special": "input_items_optional_context_split"
+  },
+  "input_merge": {
+    "$special": "input_items_optional_context_merge"
+  }
 }

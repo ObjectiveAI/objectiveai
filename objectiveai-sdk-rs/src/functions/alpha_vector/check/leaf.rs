@@ -3,26 +3,24 @@
 use std::collections::{HashMap, HashSet};
 
 use rand::Rng;
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 use crate::functions::alpha_vector::RemoteFunction;
-use crate::functions::expression::InputValue;
-use crate::functions::{CompiledTask, Function, Task};
 use crate::functions::check::check_description;
 use crate::functions::check::check_input_schema;
+use crate::functions::check::compile_and_validate_one_input;
+use crate::functions::check::example_inputs;
 use crate::functions::check::{
     ModalityFlags, check_modality_coverage, collect_schema_modalities,
     collect_task_modalities,
 };
 use crate::functions::check::{
-    VectorOutputShape, check_vector_distribution,
-};
-use crate::functions::check::{
     VectorFieldsValidation, check_vector_fields_for_input, random_subsets,
 };
-use crate::functions::check::compile_and_validate_one_input;
-use crate::functions::check::example_inputs;
+use crate::functions::check::{VectorOutputShape, check_vector_distribution};
+use crate::functions::expression::InputValue;
+use crate::functions::{CompiledTask, Function, Task};
 
 /// Validates quality requirements for an alpha leaf vector function.
 ///
@@ -61,9 +59,7 @@ pub fn check_alpha_leaf_vector_function(
 
     // Must have at least one task
     if _tasks.is_empty() {
-        return Err(
-            "AV03: Functions must have at least one task".to_string(),
-        );
+        return Err("AV03: Functions must have at least one task".to_string());
     }
 
     // --- Transpile and run generate() loop ---
@@ -104,7 +100,10 @@ pub fn check_alpha_leaf_vector_function(
 
     // Multimodal coverage tracking
     let mut schema_modalities: ModalityFlags = [false; 4];
-    collect_schema_modalities(transpiled_input_schema_ref, &mut schema_modalities);
+    collect_schema_modalities(
+        transpiled_input_schema_ref,
+        &mut schema_modalities,
+    );
     let mut task_modalities: ModalityFlags = [false; 4];
 
     let mut rng = match seed {
@@ -112,12 +111,20 @@ pub fn check_alpha_leaf_vector_function(
         None => StdRng::from_os_rng(),
     };
 
-    for ref input in example_inputs::generate_seeded(transpiled_input_schema_ref, StdRng::seed_from_u64(rng.random::<u64>())) {
+    for ref input in example_inputs::generate_seeded(
+        transpiled_input_schema_ref,
+        StdRng::seed_from_u64(rng.random::<u64>()),
+    ) {
         count += 1;
         let input_label = serde_json::to_string(input).unwrap_or_default();
 
         // Vector fields validation
-        check_vector_fields_for_input(&vector_fields, &input_label, input, &mut rng)?;
+        check_vector_fields_for_input(
+            &vector_fields,
+            &input_label,
+            input,
+            &mut rng,
+        )?;
 
         // Compile and validate
         let compiled_tasks = compile_and_validate_one_input(
@@ -159,8 +166,7 @@ pub fn check_alpha_leaf_vector_function(
                 per_task_skipped[j] = true;
                 continue;
             };
-            if let CompiledTask::One(Task::VectorCompletion(vc)) =
-                compiled_task
+            if let CompiledTask::One(Task::VectorCompletion(vc)) = compiled_task
             {
                 collect_task_modalities(vc, &mut task_modalities);
 
@@ -252,8 +258,8 @@ pub fn check_alpha_leaf_vector_function(
     if count >= 2 {
         for (j, indexed) in per_task_indexed.iter().enumerate() {
             for (&ri, (occurrences, unique_values)) in indexed {
-                let total = *occurrences
-                    + if per_task_skipped[j] { 1 } else { 0 };
+                let total =
+                    *occurrences + if per_task_skipped[j] { 1 } else { 0 };
                 if total <= 1 {
                     continue;
                 }

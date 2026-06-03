@@ -20,7 +20,8 @@ pub struct ResponseError {
 pub struct AgentCompletionCreateParams {
     pub id: String,
     #[serde(flatten)]
-    pub inner: Arc<crate::agent::completions::request::AgentCompletionCreateParams>,
+    pub inner:
+        Arc<crate::agent::completions::request::AgentCompletionCreateParams>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -30,7 +31,9 @@ pub enum AgentCompletionRequest {
     #[schemars(title = "Begin")]
     Begin(AgentCompletionCreateParams),
     #[schemars(title = "Continue")]
-    Continue(crate::agent::completions::response::streaming::AgentCompletionChunk),
+    Continue(
+        crate::agent::completions::response::streaming::AgentCompletionChunk,
+    ),
     #[schemars(title = "Error")]
     Error(ResponseError),
 }
@@ -40,7 +43,9 @@ pub enum AgentCompletionRequest {
 pub struct FunctionExecutionCreateParams {
     pub id: String,
     #[serde(flatten)]
-    pub inner: Arc<crate::functions::executions::request::FunctionExecutionCreateParams>,
+    pub inner: Arc<
+        crate::functions::executions::request::FunctionExecutionCreateParams,
+    >,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

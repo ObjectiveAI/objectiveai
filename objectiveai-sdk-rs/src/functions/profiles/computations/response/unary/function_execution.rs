@@ -1,9 +1,11 @@
 use crate::functions::{self, profiles::computations::response};
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "functions.profiles.computations.response.unary.FunctionExecution")]
+#[schemars(
+    rename = "functions.profiles.computations.response.unary.FunctionExecution"
+)]
 pub struct FunctionExecution {
     pub index: u64,
     pub dataset: u64,

@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 from objectiveai_sdk.filesystem.plugins.binaries import Binaries
+from objectiveai_sdk.filesystem.plugins.mcp_server import McpServer
 from objectiveai_sdk.filesystem.plugins.viewer_route import ViewerRoute
 
 
@@ -25,6 +26,7 @@ and `source` last."""
     description: str = Field(..., description="One-line description of what the plugin does. Surfaced in\nlistings and the plugin's `--help`-equivalent UI.")
     homepage: Optional[str] = Field(None, description='Homepage or repository URL.', json_schema_extra={'omitempty': True})
     license: Optional[str] = Field(None, description='SPDX license identifier (or any string).', json_schema_extra={'omitempty': True})
+    mcp_servers: list[McpServer] = Field(..., description='MCP servers the plugin wants the host to expose. Each entry\nhas a `name` (the identifier agents reference via\n[`crate::agent::ClientObjectiveaiMcpPluginEntry::mcp_servers`])\nplus the same `url` + `authorization` shape\n[`crate::agent::McpServer`] uses. Auth-requiring entries flag\n`authorization = true`; credentials are resolved by the host\n(env vars / config), not the manifest.', json_schema_extra={'omitempty': True})
     mobile_ready: bool = Field(..., description='Plugin author opts in to mobile viewer support by setting\nthis. Mobile viewer builds only surface plugins with this\nflag true — mobile has no local backend binary, so plugin\nUIs that require a backend will misbehave unless their\nauthors specifically design for "no-backend" mode. Defaults\nto false (desktop-only).')
     name: str = Field(..., description="The plugin's identifier — the filename it lives under in the\nplugins directory (e.g. `psyops` for `~/.objectiveai/plugins/psyops`).")
     owner: str = Field(..., description="GitHub `<owner>` segment of the source repo. Authors write\ntheir canonical owner here; the installer overwrites this\nfield with whatever owner it was actually installed from (so\nforks land on disk with the fork's owner, not the upstream's).")

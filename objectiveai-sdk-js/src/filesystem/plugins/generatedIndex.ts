@@ -4,6 +4,7 @@ export * from "./binaries";
 export * from "./httpMethod";
 export * from "./manifest";
 export * from "./manifestWithNameAndSource";
+export * from "./mcpServer";
 export * from "./platform";
 export * from "./viewerRoute";
 export * from "./whitelistEntry";

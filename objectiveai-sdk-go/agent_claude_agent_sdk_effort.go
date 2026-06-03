@@ -19,6 +19,10 @@ type AgentClaudeAgentSdkEffortHigh string
 
 func (AgentClaudeAgentSdkEffortHigh) SchemaVariantTitle() string { return "High" }
 
+type AgentClaudeAgentSdkEffortXhigh string
+
+func (AgentClaudeAgentSdkEffortXhigh) SchemaVariantTitle() string { return "Xhigh" }
+
 type AgentClaudeAgentSdkEffortMax string
 
 func (AgentClaudeAgentSdkEffortMax) SchemaVariantTitle() string { return "Max" }
@@ -33,6 +37,8 @@ type AgentClaudeAgentSdkEffort struct {
 	Medium *AgentClaudeAgentSdkEffortMedium `validate:"omitempty,oneof=medium"`
 	// Detailed output with thorough explanations.
 	High *AgentClaudeAgentSdkEffortHigh `validate:"omitempty,oneof=high"`
+	// Extra-high effort, above `High` but below `Max`.
+	Xhigh *AgentClaudeAgentSdkEffortXhigh `validate:"omitempty,oneof=xhigh"`
 	// Maximum effort, most detailed output possible.
 	Max *AgentClaudeAgentSdkEffortMax `validate:"omitempty,oneof=max"`
 }
@@ -46,6 +52,9 @@ func (v AgentClaudeAgentSdkEffort) MarshalJSON() ([]byte, error) {
 	}
 	if v.High != nil {
 		return json.Marshal(v.High)
+	}
+	if v.Xhigh != nil {
+		return json.Marshal(v.Xhigh)
 	}
 	if v.Max != nil {
 		return json.Marshal(v.Max)
@@ -88,6 +97,17 @@ func (v *AgentClaudeAgentSdkEffort) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
+		var try AgentClaudeAgentSdkEffortXhigh
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := AgentClaudeAgentSdkEffort{}
+			candidate.Xhigh = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
 		var try AgentClaudeAgentSdkEffortMax
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := AgentClaudeAgentSdkEffort{}
@@ -106,6 +126,7 @@ func (v AgentClaudeAgentSdkEffort) Validate() error {
 	if v.Low != nil { count++ }
 	if v.Medium != nil { count++ }
 	if v.High != nil { count++ }
+	if v.Xhigh != nil { count++ }
 	if v.Max != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("AgentClaudeAgentSdkEffort: exactly one variant must be set, got %d", count)

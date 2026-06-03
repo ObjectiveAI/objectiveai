@@ -6,7 +6,16 @@ use serde::{Deserialize, Serialize};
 use twox_hash::XxHash3_128;
 
 /// The base configuration for an OpenRouter Agent (without computed ID).
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "agent.openrouter.AgentBase")]
 pub struct AgentBase {
     /// The upstream provider marker.
@@ -37,17 +46,20 @@ pub struct AgentBase {
     /// Messages prepended to the user's prompt.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub prefix_messages: Option<Vec<super::super::completions::message::Message>>,
+    pub prefix_messages:
+        Option<Vec<super::super::completions::message::Message>>,
 
     /// Messages inserted after the leading chain of system/developer messages.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub post_system_prefix_messages: Option<Vec<super::super::completions::message::Message>>,
+    pub post_system_prefix_messages:
+        Option<Vec<super::super::completions::message::Message>>,
 
     /// Messages appended after the user's prompt.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub suffix_messages: Option<Vec<super::super::completions::message::Message>>,
+    pub suffix_messages:
+        Option<Vec<super::super::completions::message::Message>>,
 
     /// MCP servers the agent can connect to.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -151,12 +163,21 @@ impl AgentBase {
         self.prefix_messages = match self.prefix_messages.take() {
             Some(prefix_messages) if prefix_messages.is_empty() => None,
             Some(mut prefix_messages) => {
-                super::super::completions::message::prompt::prepare(&mut prefix_messages);
-                if prefix_messages.is_empty() { None } else { Some(prefix_messages) }
+                super::super::completions::message::prompt::prepare(
+                    &mut prefix_messages,
+                );
+                if prefix_messages.is_empty() {
+                    None
+                } else {
+                    Some(prefix_messages)
+                }
             }
             None => None,
         };
-        self.post_system_prefix_messages = match self.post_system_prefix_messages.take() {
+        self.post_system_prefix_messages = match self
+            .post_system_prefix_messages
+            .take()
+        {
             Some(msgs) if msgs.is_empty() => None,
             Some(mut msgs) => {
                 super::super::completions::message::prompt::prepare(&mut msgs);
@@ -167,13 +188,21 @@ impl AgentBase {
         self.suffix_messages = match self.suffix_messages.take() {
             Some(suffix_messages) if suffix_messages.is_empty() => None,
             Some(mut suffix_messages) => {
-                super::super::completions::message::prompt::prepare(&mut suffix_messages);
-                if suffix_messages.is_empty() { None } else { Some(suffix_messages) }
+                super::super::completions::message::prompt::prepare(
+                    &mut suffix_messages,
+                );
+                if suffix_messages.is_empty() {
+                    None
+                } else {
+                    Some(suffix_messages)
+                }
             }
             None => None,
         };
         self.mcp_servers = match self.mcp_servers.take() {
-            Some(mcp_servers) => super::super::mcp::mcp_servers::prepare(mcp_servers),
+            Some(mcp_servers) => {
+                super::super::mcp::mcp_servers::prepare(mcp_servers)
+            }
             None => None,
         };
         self.client_objectiveai_mcp = match self.client_objectiveai_mcp.take() {
@@ -365,9 +394,14 @@ impl AgentBase {
     ) -> Vec<super::super::completions::message::Message> {
         use super::super::completions::message::Message;
         let prefix_len = self.prefix_messages.as_ref().map_or(0, |m| m.len());
-        let post_sys_len = self.post_system_prefix_messages.as_ref().map_or(0, |m| m.len());
+        let post_sys_len = self
+            .post_system_prefix_messages
+            .as_ref()
+            .map_or(0, |m| m.len());
         let suffix_len = self.suffix_messages.as_ref().map_or(0, |m| m.len());
-        let mut merged = Vec::with_capacity(prefix_len + post_sys_len + messages.len() + suffix_len);
+        let mut merged = Vec::with_capacity(
+            prefix_len + post_sys_len + messages.len() + suffix_len,
+        );
         if let Some(prefix) = &self.prefix_messages {
             merged.extend(prefix.iter().cloned());
         }
@@ -375,14 +409,26 @@ impl AgentBase {
         for msg in messages {
             if !post_sys_inserted {
                 if !matches!(msg, Message::System(_) | Message::Developer(_)) {
-                    merged.extend(self.post_system_prefix_messages.as_ref().unwrap().iter().cloned());
+                    merged.extend(
+                        self.post_system_prefix_messages
+                            .as_ref()
+                            .unwrap()
+                            .iter()
+                            .cloned(),
+                    );
                     post_sys_inserted = true;
                 }
             }
             merged.push(msg);
         }
         if !post_sys_inserted {
-            merged.extend(self.post_system_prefix_messages.as_ref().unwrap().iter().cloned());
+            merged.extend(
+                self.post_system_prefix_messages
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .cloned(),
+            );
         }
         if let Some(suffix) = &self.suffix_messages {
             merged.extend(suffix.iter().cloned());

@@ -5,10 +5,12 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::filesystem::logs::LogReferenceTag;
+use crate::logs::LogReferenceTag;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "functions.executions.response.streaming.vector_completion_task_log_reference.LogReference")]
+#[schemars(
+    rename = "functions.executions.response.streaming.vector_completion_task_log_reference.LogReference"
+)]
 pub struct LogReference {
     #[serde(rename = "type")]
     pub r#type: LogReferenceTag,

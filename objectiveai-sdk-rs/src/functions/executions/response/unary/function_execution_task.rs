@@ -1,9 +1,11 @@
 use crate::functions::executions::response;
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "functions.executions.response.unary.FunctionExecutionTask")]
+#[schemars(
+    rename = "functions.executions.response.unary.FunctionExecutionTask"
+)]
 pub struct FunctionExecutionTask {
     pub index: u64,
     pub task_index: u64,

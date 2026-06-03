@@ -12,22 +12,22 @@ pub enum Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK> {
         /// client-side resume — so the agent's identity stays stable
         /// regardless of who resumes the conversation. The trailing
         /// segment is the local `id` used as `AgentCompletionChunk.id`.
-        agent_id: String,
+        agent_instance_hierarchy: String,
     },
     ClaudeAgentSdk {
         items: Vec<ContinuationItem<CLAUDEAGENTSDK>>,
         mcp_connection: Option<mcp::Connection>,
-        agent_id: String,
+        agent_instance_hierarchy: String,
     },
     CodexSdk {
         items: Vec<ContinuationItem<CODEXSDK>>,
         mcp_connection: Option<mcp::Connection>,
-        agent_id: String,
+        agent_instance_hierarchy: String,
     },
     Mock {
         items: Vec<ContinuationItem<MOCK>>,
         mcp_connection: Option<mcp::Connection>,
-        agent_id: String,
+        agent_instance_hierarchy: String,
     },
 }
 
@@ -75,12 +75,12 @@ impl<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>
     /// Full slash-separated lineage of the agent this continuation
     /// belongs to. Stable across every continuation round. See the
     /// per-variant field doc.
-    pub fn agent_id(&self) -> &str {
+    pub fn agent_instance_hierarchy(&self) -> &str {
         match self {
-            Self::Openrouter { agent_id, .. }
-            | Self::ClaudeAgentSdk { agent_id, .. }
-            | Self::CodexSdk { agent_id, .. }
-            | Self::Mock { agent_id, .. } => agent_id.as_str(),
+            Self::Openrouter { agent_instance_hierarchy, .. }
+            | Self::ClaudeAgentSdk { agent_instance_hierarchy, .. }
+            | Self::CodexSdk { agent_instance_hierarchy, .. }
+            | Self::Mock { agent_instance_hierarchy, .. } => agent_instance_hierarchy.as_str(),
         }
     }
 }

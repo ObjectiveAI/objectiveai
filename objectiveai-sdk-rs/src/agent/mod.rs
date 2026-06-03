@@ -27,8 +27,8 @@
 //! - Collections are sorted for deterministic ordering
 
 mod agent;
-mod client_objectiveai_mcp;
 pub mod claude_agent_sdk;
+mod client_objectiveai_mcp;
 pub mod codex_sdk;
 pub mod completions;
 mod continuation;

@@ -1,7 +1,9 @@
 //! Plugin protocol wire types and (future) helpers.
 
+mod mcp;
 mod output;
 
+pub use mcp::*;
 pub use output::*;
 
 #[cfg(test)]

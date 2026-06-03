@@ -38,7 +38,11 @@ pub async fn list_function_profile_pairs(
     params: super::request::ListFunctionProfilePairsRequest,
 ) -> Result<super::response::ListFunctionProfilePairResponse, HttpError> {
     client
-        .send_unary(reqwest::Method::POST, "functions/profiles/pairs/list", Some(params))
+        .send_unary(
+            reqwest::Method::POST,
+            "functions/profiles/pairs/list",
+            Some(params),
+        )
         .await
 }
 
@@ -48,6 +52,10 @@ pub async fn get_function_profile_pair_usage(
     params: super::request::GetFunctionProfilePairUsageRequest,
 ) -> Result<super::response::UsageFunctionProfilePairResponse, HttpError> {
     client
-        .send_unary(reqwest::Method::POST, "functions/profiles/pairs/usage", Some(params))
+        .send_unary(
+            reqwest::Method::POST,
+            "functions/profiles/pairs/usage",
+            Some(params),
+        )
         .await
 }

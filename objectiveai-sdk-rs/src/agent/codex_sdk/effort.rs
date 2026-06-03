@@ -1,14 +1,26 @@
 //! Effort settings for Codex SDK Agent output.
 
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// Reasoning-effort level for the Codex model. Maps to Codex's
 /// `model_reasoning_effort` (see `openai_codex_sdk` `ModelReasoningEffort`).
 ///
 /// `Medium` is the default and is normalized to `None` during preparation
 /// for content-addressing stability.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "agent.codex_sdk.Effort")]
 pub enum Effort {
     /// Minimal reasoning, fastest responses.

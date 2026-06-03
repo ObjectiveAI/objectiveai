@@ -1,10 +1,19 @@
 use crate::agent;
 use crate::agent::completions::response::streaming::AgentCompletionIds;
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// Streaming chunk for a single builder agent completion within a laboratory execution.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    Default,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "laboratories.executions.response.streaming.BuilderChunk")]
 pub struct BuilderChunk {
     /// Builder index (0-based).
@@ -18,7 +27,7 @@ pub struct BuilderChunk {
 }
 
 impl AgentCompletionIds for BuilderChunk {
-    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> {
+    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> + Send {
         self.inner.agent_completion_ids()
     }
 }

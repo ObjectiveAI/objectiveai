@@ -87,13 +87,13 @@ type ViewerEvent struct {
 	// `functions_executions` / `functions_inventions_recursive` /
 	// `laboratories_executions`; plugins: whatever they declared in
 	// their manifest's `viewer_routes[i].type`).
-	Inbound *ViewerEventInbound 
+	Inbound *ViewerEventInbound `outerObject:"true"`
 	// Host → iframe. One JSON line of cli output emitted by an
 	// in-process `objectiveai_cli::run()` invocation started by
 	// this iframe via `invokeCli`. `value` is the cli's `Output<T>`
 	// envelope. No sub_type — a single invocation produces a single
 	// stream of lines.
-	CliCommand *ViewerEventCliCommand 
+	CliCommand *ViewerEventCliCommand `outerObject:"true"`
 }
 
 func (v ViewerEvent) MarshalJSON() ([]byte, error) {

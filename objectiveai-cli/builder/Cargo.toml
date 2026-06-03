@@ -1,7 +1,0 @@
-[package]
-name = "objectiveai-cli-builder"
-version = "2.0.11"
-edition = "2024"
-
-[dependencies]
-serde_json = { version = "1.0.149", features = ["preserve_order"] }

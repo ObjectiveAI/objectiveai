@@ -1,6 +1,6 @@
 {
   "title": "agent.ClientObjectiveaiMcp",
-  "description": "Client-side MCP surface the agent expects:\n\n- `objectiveai`: whether the calling client exposes the built-in\n  `objectiveai-mcp`. `None` means unspecified; `Some(true)` /\n  `Some(false)` explicitly opt in / out.\n- `plugins`: specific plugins (by `owner` / `name` / `version`).\n- `tools`: specific tools (by `owner` / `name` / `version`).",
+  "description": "Client-side MCP surface the agent expects:\n\n- `objectiveai`: whether the calling client exposes the built-in\n  `objectiveai-mcp`. `None` means unspecified; `Some(true)` /\n  `Some(false)` explicitly opt in / out.\n- `plugins`: specific plugins (by `owner` / `name` / `version`)\n  plus per-plugin `executable` + `mcp_servers`.\n- `tools`: specific tools (by `owner` / `name` / `version`).",
   "type": "object",
   "properties": {
     "objectiveai": {
@@ -17,7 +17,7 @@
     "plugins": {
       "type": "array",
       "items": {
-        "$ref": "agent.ClientObjectiveaiMcpEntry"
+        "$ref": "agent.ClientObjectiveaiMcpPluginEntry"
       },
       "omitempty": true
     },

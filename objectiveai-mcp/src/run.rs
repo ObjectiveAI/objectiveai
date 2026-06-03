@@ -1,15 +1,21 @@
 //! ObjectiveAI MCP server.
 //!
-//! Mirrors the `objectiveai-mcp-proxy` `run.rs` shape so other crates can
-//! `use objectiveai_mcp::{ConfigBuilder, run}` and spawn the server
-//! in-process without going through the binary.
+//! Other crates can `use objectiveai_mcp::{ConfigBuilder, run}` and
+//! spawn the server in-process without going through the binary. The
+//! executor is a required argument — `main.rs` builds a
+//! `BinaryExecutor` from `Config.config_base_dir`; other callers can
+//! pass any `CommandExecutor` impl.
 
 use std::sync::Arc;
 
 use envconfig::Envconfig;
+use futures::StreamExt;
+use objectiveai_sdk::cli::command::CommandExecutor;
+use objectiveai_sdk::cli::command::binary;
+use objectiveai_sdk::cli::command::plugins;
+use objectiveai_sdk::cli::command::tools;
 use rmcp::transport::streamable_http_server::{
-    StreamableHttpServerConfig, StreamableHttpService,
-    session::local::LocalSessionManager,
+    StreamableHttpServerConfig, StreamableHttpService, session::local::LocalSessionManager,
 };
 use tokio_util::sync::CancellationToken;
 
@@ -25,10 +31,6 @@ struct EnvConfigBuilder {
     suppress_output: Option<String>,
     #[envconfig(from = "CONFIG_BASE_DIR")]
     config_base_dir: Option<String>,
-    #[envconfig(from = "COMMIT_AUTHOR_NAME")]
-    commit_author_name: Option<String>,
-    #[envconfig(from = "COMMIT_AUTHOR_EMAIL")]
-    commit_author_email: Option<String>,
 }
 
 impl EnvConfigBuilder {
@@ -36,12 +38,10 @@ impl EnvConfigBuilder {
         ConfigBuilder {
             address: self.address,
             port: self.port,
-            suppress_output: self.suppress_output.map(|v| {
-                matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on")
-            }),
+            suppress_output: self
+                .suppress_output
+                .map(|v| matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on")),
             config_base_dir: self.config_base_dir,
-            commit_author_name: self.commit_author_name,
-            commit_author_email: self.commit_author_email,
         }
     }
 }
@@ -52,8 +52,6 @@ pub struct ConfigBuilder {
     pub port: Option<u16>,
     pub suppress_output: Option<bool>,
     pub config_base_dir: Option<String>,
-    pub commit_author_name: Option<String>,
-    pub commit_author_email: Option<String>,
 }
 
 impl Envconfig for ConfigBuilder {
@@ -80,8 +78,6 @@ impl ConfigBuilder {
             port: self.port.unwrap_or(3000),
             suppress_output: self.suppress_output.unwrap_or(false),
             config_base_dir: self.config_base_dir,
-            commit_author_name: self.commit_author_name,
-            commit_author_email: self.commit_author_email,
         }
     }
 }
@@ -91,48 +87,38 @@ pub struct Config {
     pub port: u16,
     pub suppress_output: bool,
     pub config_base_dir: Option<String>,
-    pub commit_author_name: Option<String>,
-    pub commit_author_email: Option<String>,
 }
 
-pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, axum::Router)> {
+/// Build the rmcp `(TcpListener, axum::Router)` pair. The executor is
+/// `Arc`-wrapped internally so the dynamic plugin / tool route
+/// closures and the static `ObjectiveAI` handler share a single
+/// instance.
+pub async fn setup<E>(
+    config: Config,
+    executor: E,
+) -> std::io::Result<(tokio::net::TcpListener, axum::Router)>
+where
+    E: CommandExecutor<Error = binary::Error> + Send + Sync + 'static,
+{
     let Config {
         address,
         port,
         suppress_output: _,
-        config_base_dir,
-        commit_author_name,
-        commit_author_email,
+        config_base_dir: _,
     } = config;
 
-    let cli_config = Arc::new(objectiveai_cli::Config {
-        config_set_forbidden: false,
-        config_base_dir: config_base_dir.clone(),
-        commit_author_name: commit_author_name.clone(),
-        commit_author_email: commit_author_email.clone(),
-        github_authorization: None,
-        // Server-wide default. Per-request, `run_cli_and_collect`
-        // overrides this with the `X-OBJECTIVEAI-AGENT-ID` header
-        // when present; otherwise the call stays stamped as `"mcp"`.
-        agent_id: "mcp".to_string(),
-        mcp_session_id: None,
-        mcp: true,
-    });
+    let executor = Arc::new(executor);
 
-    let fs_client = objectiveai_sdk::filesystem::Client::new(
-        config_base_dir,
-        commit_author_name,
-        commit_author_email,
-    );
-    let (plugins, tools) = tokio::join!(
-        fs_client.list_plugins(0, usize::MAX),
-        fs_client.list_tools(0, usize::MAX),
-    );
+    // Discover registered plugins + tools concurrently — both are
+    // independent SDK calls that each spawn one cli subprocess.
+    let (plugins_list, tools_list) =
+        tokio::join!(list_plugins(&executor), list_tools(&executor));
 
-    let server = ObjectiveAiMcpCli::with_plugins_and_tools(cli_config, plugins, tools);
+    let server =
+        ObjectiveAiMcpCli::with_plugins_and_tools(executor.clone(), plugins_list, tools_list);
     let ct = CancellationToken::new();
 
-    let service: StreamableHttpService<ObjectiveAiMcpCli, LocalSessionManager> =
+    let service: StreamableHttpService<ObjectiveAiMcpCli<E>, LocalSessionManager> =
         StreamableHttpService::new(
             move || Ok(server.clone()),
             Default::default(),
@@ -144,26 +130,61 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
             },
         );
 
-    // axum 0.8 removed nest_service at "/"; fallback_service mounts the
-    // service at the root catch-all without the path-prefix-stripping
-    // semantics nest_service had (which we never needed since the rmcp
-    // service handles every path it cares about itself).
     let router = axum::Router::new().fallback_service(service);
     let listener = tokio::net::TcpListener::bind(format!("{address}:{port}")).await?;
-
     Ok((listener, router))
 }
 
-pub async fn serve(listener: tokio::net::TcpListener, app: axum::Router) -> std::io::Result<()> {
+pub async fn serve(
+    listener: tokio::net::TcpListener,
+    app: axum::Router,
+) -> std::io::Result<()> {
     axum::serve(listener, app).await
 }
 
-pub async fn run(config: Config) -> std::io::Result<()> {
+pub async fn run<E>(config: Config, executor: E) -> std::io::Result<()>
+where
+    E: CommandExecutor<Error = binary::Error> + Send + Sync + 'static,
+{
     let suppress_output = config.suppress_output;
-    let (listener, app) = setup(config).await?;
+    let (listener, app) = setup(config, executor).await?;
     if !suppress_output {
         let addr = listener.local_addr()?;
         eprintln!("listening on {addr}");
     }
     serve(listener, app).await
+}
+
+/// Best-effort plugin discovery: drain `plugins list`, drop per-item
+/// errors. A discovery failure (cli binary missing, etc.) returns an
+/// empty list so the server still starts.
+async fn list_plugins<E>(executor: &E) -> Vec<plugins::list::ResponseItem>
+where
+    E: CommandExecutor<Error = binary::Error> + Send + Sync + 'static,
+{
+    let request = plugins::list::Request {
+        offset: None,
+        limit: None,
+        jq: None,
+    };
+    match plugins::list::execute(executor, request).await {
+        Ok(stream) => stream.filter_map(|r| async move { r.ok() }).collect().await,
+        Err(_) => Vec::new(),
+    }
+}
+
+/// Best-effort tool discovery; same shape as `list_plugins`.
+async fn list_tools<E>(executor: &E) -> Vec<tools::list::ResponseItem>
+where
+    E: CommandExecutor<Error = binary::Error> + Send + Sync + 'static,
+{
+    let request = tools::list::Request {
+        offset: None,
+        limit: None,
+        jq: None,
+    };
+    match tools::list::execute(executor, request).await {
+        Ok(stream) => stream.filter_map(|r| async move { r.ok() }).collect().await,
+        Err(_) => Vec::new(),
+    }
 }

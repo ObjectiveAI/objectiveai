@@ -2,15 +2,26 @@
 
 use crate::agent;
 use crate::agent::completions::response::streaming::AgentCompletionIds;
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// A streaming agent completion chunk from a single agent within a vector completion.
 ///
 /// The `index` field is used to correlate chunks belonging to the same
 /// underlying completion when accumulating via [`push`](Self::push).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, JsonSchema, arbitrary::Arbitrary)]
-#[schemars(rename = "vector.completions.response.streaming.AgentCompletionChunk")]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    Default,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
+#[schemars(
+    rename = "vector.completions.response.streaming.AgentCompletionChunk"
+)]
 pub struct AgentCompletionChunk {
     /// Index used to correlate chunks from the same completion.
     #[arbitrary(with = crate::arbitrary_util::arbitrary_u64)]
@@ -21,7 +32,7 @@ pub struct AgentCompletionChunk {
 }
 
 impl AgentCompletionIds for AgentCompletionChunk {
-    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> {
+    fn agent_completion_ids(&self) -> impl Iterator<Item = &str> + Send {
         self.inner.agent_completion_ids()
     }
 }
@@ -31,36 +42,4 @@ impl AgentCompletionChunk {
         self.inner.push(&other.inner);
     }
 
-    /// Produces log files for this agent completion within a vector completion.
-    ///
-    /// Returns `(reference, files)` where `reference` is an
-    /// [`indexed_reference::LogReference`] carrying `index`. Files
-    /// are written under `agent/completions/` (shared with standalone
-    /// agent completions).
-    ///
-    /// [`indexed_reference::LogReference`]: crate::filesystem::logs::indexed_reference::LogReference
-    #[cfg(feature = "filesystem")]
-    pub fn produce_files(
-        &self,
-    ) -> (
-        crate::filesystem::logs::indexed_reference::LogReference,
-        Vec<crate::filesystem::logs::LogFile>,
-    ) {
-        let (path, files) = match self.inner.produce_files() {
-            Some((inner_ref, files)) => (inner_ref.path, files),
-            None => (String::new(), Vec::new()),
-        };
-        (
-            crate::filesystem::logs::indexed_reference::LogReference::new(path, self.index),
-            files,
-        )
-    }
-
-    /// Delegates to the inner agent completion's message-row extractor.
-    #[cfg(feature = "filesystem")]
-    pub fn produce_message_rows(
-        &self,
-    ) -> impl Iterator<Item = crate::filesystem::db::schema::MessageRow> + Send + '_ {
-        self.inner.produce_message_rows()
-    }
 }

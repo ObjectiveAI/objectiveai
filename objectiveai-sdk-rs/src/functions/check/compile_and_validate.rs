@@ -1,8 +1,5 @@
 //! Per-input validation of compiled tasks and output expressions.
 
-use std::collections::{HashMap, HashSet};
-use rand::Rng;
-use rust_decimal::Decimal;
 use crate::agent::completions::message::{Message, RichContent, SimpleContent};
 use crate::functions::expression::{
     Params, ParamsRef, TaskOutput, TaskOutputOwned,
@@ -10,6 +7,9 @@ use crate::functions::expression::{
 use crate::functions::{
     CompiledTask, Function, RemoteFunction, Task, VectorCompletionTask,
 };
+use rand::Rng;
+use rust_decimal::Decimal;
+use std::collections::{HashMap, HashSet};
 
 /// Number of randomized output expression evaluations to verify variance.
 const OUTPUT_EXPRESSION_TRIALS: usize = 100;
@@ -296,7 +296,10 @@ fn validate_function_output(
                 v.len()
             ));
         }
-        (FunctionType::Vector { output_length }, TaskOutputOwned::Vector(v)) => {
+        (
+            FunctionType::Vector { output_length },
+            TaskOutputOwned::Vector(v),
+        ) => {
             if v.len() as u64 != *output_length {
                 return Err(format!(
                     "CV14: {}: output expression produced a vector of length {} but \
@@ -375,10 +378,7 @@ fn task_output_shape(
         }
         Task::VectorFunction(t) => {
             let Some(n) = resolve_vector_function_output_length(
-                &t.path,
-                &t.input,
-                children,
-                location,
+                &t.path, &t.input, children, location,
             )?
             else {
                 return Ok(None);
@@ -445,10 +445,7 @@ fn mapped_task_output_shape(
                 match task {
                     Task::VectorFunction(t) => {
                         let Some(n) = resolve_vector_function_output_length(
-                            &t.path,
-                            &t.input,
-                            children,
-                            location,
+                            &t.path, &t.input, children, location,
                         )?
                         else {
                             return Ok(None);
@@ -509,18 +506,18 @@ fn random_task_output<'a>(
     rng: &mut impl Rng,
 ) -> TaskOutput<'a> {
     match shape {
-        OutputShape::VectorCompletion(n) => TaskOutput::Owned(
-            TaskOutputOwned::Vector(random_scores(*n, rng)),
-        ),
+        OutputShape::VectorCompletion(n) => {
+            TaskOutput::Owned(TaskOutputOwned::Vector(random_scores(*n, rng)))
+        }
         OutputShape::Scalar => {
             let v: f64 = rng.random_range(0.01..0.99);
             TaskOutput::Owned(TaskOutputOwned::Scalar(
                 Decimal::from_f64_retain(v).unwrap_or(Decimal::new(5, 1)),
             ))
         }
-        OutputShape::Vector(n) => TaskOutput::Owned(
-            TaskOutputOwned::Vector(random_scores(*n as usize, rng)),
-        ),
+        OutputShape::Vector(n) => TaskOutput::Owned(TaskOutputOwned::Vector(
+            random_scores(*n as usize, rng),
+        )),
         OutputShape::MapVectorCompletion(sizes) => {
             let outputs: Vec<Vec<Decimal>> =
                 sizes.iter().map(|&n| random_scores(n, rng)).collect();
@@ -530,8 +527,7 @@ fn random_task_output<'a>(
             let scalars: Vec<Decimal> = (0..*count)
                 .map(|_| {
                     let v: f64 = rng.random_range(0.01..0.99);
-                    Decimal::from_f64_retain(v)
-                        .unwrap_or(Decimal::new(5, 1))
+                    Decimal::from_f64_retain(v).unwrap_or(Decimal::new(5, 1))
                 })
                 .collect();
             TaskOutput::Owned(TaskOutputOwned::Vector(scalars))

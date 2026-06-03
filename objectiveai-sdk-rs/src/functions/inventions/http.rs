@@ -10,11 +10,7 @@ pub async fn create_function_invention_unary(
 ) -> Result<super::response::unary::FunctionInvention, HttpError> {
     params.stream = None;
     client
-        .send_unary(
-            reqwest::Method::POST,
-            "functions/inventions",
-            Some(params),
-        )
+        .send_unary(reqwest::Method::POST, "functions/inventions", Some(params))
         .await
 }
 
@@ -33,7 +29,8 @@ pub async fn create_function_invention_streaming<H: McpHandler>(
                 super::response::streaming::FunctionInventionChunk,
                 HttpError,
             >,
-        > + Send
+        >
+        + Send
         + Unpin
         + 'static
         + use<H>,

@@ -24,10 +24,10 @@ pub async fn create_error_streaming<H: McpHandler>(
 ) -> Result<
     (
         impl Stream<Item = Result<super::response::ErrorResponse, HttpError>>
-            + Send
-            + Unpin
-            + 'static
-            + use<H>,
+        + Send
+        + Unpin
+        + 'static
+        + use<H>,
         Notifier,
     ),
     HttpError,

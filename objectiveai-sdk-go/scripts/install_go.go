@@ -870,6 +870,16 @@ func generateAnyOfStruct(typeName string, anyOf []any, selfTitle string, schema 
 			inner = strings.Replace(inner, `validate:"`, `validate:"omitempty,`, 1)
 			variantTags = append(variantTags, inner)
 		}
+		// Preserve schemars's `type: "object"` stamp alongside a variant's
+		// `$ref`. schemars adds this whenever the outer schema is committed
+		// to being an object (a struct that flattens an untagged enum, or
+		// an internally-tagged enum). The roundtrip harness reads this tag
+		// to re-emit `"type": "object"` next to the `$ref`. Inline-struct
+		// variants already emit `type: "object"` naturally; the marker is
+		// only needed for the pure-$ref path.
+		if t, _ := m["type"].(string); t == "object" {
+			variantTags = append(variantTags, `outerObject:"true"`)
+		}
 		var tagStr string
 		if len(variantTags) > 0 {
 			tagStr = "`" + strings.Join(variantTags, " ") + "`"

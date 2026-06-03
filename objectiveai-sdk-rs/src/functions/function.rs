@@ -16,8 +16,8 @@
 //!
 //! [`TaskOutputOwned`]: super::expression::TaskOutputOwned
 
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// A Function definition, either remote or inline.
 ///
@@ -466,7 +466,15 @@ impl Function {
 /// Remote functions are stored as `function.json` in repositories and
 /// referenced by `remote/owner/repository`. They include documentation fields
 /// that inline functions lack.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[serde(tag = "type")]
 #[schemars(rename = "functions.RemoteFunction")]
 pub enum RemoteFunction {
@@ -646,7 +654,9 @@ impl InlineFunction {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
+#[derive(
+    Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, JsonSchema,
+)]
 #[schemars(rename = "functions.FunctionType")]
 pub enum FunctionType {
     #[schemars(title = "Scalar")]

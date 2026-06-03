@@ -94,9 +94,9 @@ func (FunctionsRemoteFunctionVector) SchemaVariantTitle() string { return "Vecto
 // that inline functions lack.
 type FunctionsRemoteFunction struct {
 	// Produces a single score in [0, 1].
-	Scalar *FunctionsRemoteFunctionScalar 
+	Scalar *FunctionsRemoteFunctionScalar `outerObject:"true"`
 	// Produces a vector of scores that sums to 1.
-	Vector *FunctionsRemoteFunctionVector 
+	Vector *FunctionsRemoteFunctionVector `outerObject:"true"`
 }
 
 func (v FunctionsRemoteFunction) MarshalJSON() ([]byte, error) {

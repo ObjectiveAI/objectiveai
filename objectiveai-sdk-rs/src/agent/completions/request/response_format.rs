@@ -1,9 +1,9 @@
 //! Response format configuration for agent completions.
 
-use std::hash::{Hash, Hasher};
 use indexmap::IndexMap;
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use std::hash::{Hash, Hasher};
 
 /// The format of the model's response.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

@@ -4,8 +4,8 @@ use crate::functions;
 use functions::expression::{
     ExpressionError, FromStarlarkValue, ToStarlarkValue, WithExpression,
 };
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use starlark::values::dict::{
     AllocDict as StarlarkAllocDict, DictRef as StarlarkDictRef,
 };
@@ -14,7 +14,15 @@ use starlark::values::{
 };
 
 /// Rich content for user/assistant messages (supports multimodal input).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[serde(untagged)]
 #[schemars(rename = "agent.completions.message.RichContent")]
 pub enum RichContent {
@@ -117,145 +125,6 @@ impl RichContent {
         }
     }
 
-    /// Extracts every chunk of this content into its own on-disk
-    /// log file, returning a [`super::RichContentLog`] of
-    /// [`LogReference`]s pointing at the written files (no inline
-    /// content — the log is purely references).
-    ///
-    /// Per-chunk write rules:
-    ///
-    /// - `RichContent::Text(text)` → one `.txt` file at
-    ///   `<media_root>/text/<id>-<idx>.txt` containing the raw
-    ///   UTF-8 text. Return `RichContentLog::Reference(ref)`.
-    /// - `RichContent::Parts(parts)` → one file per part (rules
-    ///   below in [`Self::extract_one_part`]). Return
-    ///   `RichContentLog::Parts(vec_of_refs)` in original order.
-    ///
-    /// `media_root` is the parent directory under which the
-    /// per-media-type subdirs (`text`, `image`, `audio`, `video`,
-    /// `file`) get created. Callers pass things like
-    /// `"agents/completions/request/messages"` for message extraction
-    /// or `"agents/completions/request/notifications"` for notification
-    /// extraction.
-    ///
-    /// `id` and `message_index` identify the parent record.
-    #[cfg(feature = "filesystem")]
-    pub fn extract_media(
-        self,
-        media_root: &str,
-        id: &str,
-        message_index: u64,
-    ) -> (super::RichContentLog, Vec<crate::filesystem::logs::LogFile>) {
-        use crate::filesystem::logs::{LogFile, LogReference};
-        use super::RichContentLog;
-
-        match self {
-            RichContent::Text(text) => {
-                let log_file = LogFile {
-                    route: format!("{media_root}/text"),
-                    id: id.to_string(),
-                    message_index: Some(message_index),
-                    media_index: None,
-                    extension: "txt".to_string(),
-                    content: text.into_bytes(),
-                };
-                let reference = LogReference::new(log_file.path());
-                (RichContentLog::Reference(reference), vec![log_file])
-            }
-            RichContent::Parts(parts) => {
-                let mut log_refs = Vec::with_capacity(parts.len());
-                let mut files = Vec::with_capacity(parts.len());
-                for (part_idx, part) in parts.into_iter().enumerate() {
-                    let file = Self::extract_one_part(
-                        part,
-                        media_root,
-                        id,
-                        message_index,
-                        part_idx as u64,
-                    );
-                    log_refs.push(LogReference::new(file.path()));
-                    files.push(file);
-                }
-                (RichContentLog::Parts(log_refs), files)
-            }
-        }
-    }
-
-    /// Write one `RichContentPart` to its own [`LogFile`].
-    ///
-    /// File-type choice per part:
-    /// - `Text { text }` → `.txt` (raw UTF-8) under `<media_root>/text/`.
-    /// - Inline-decodable media (`ImageUrl` / `InputAudio` /
-    ///   `InputVideo` / `VideoUrl` / `File` whose `file_content()`
-    ///   yields a `FileContent` that successfully `decode()`s) → the
-    ///   decoded binary written under `<media_root>/<media_dir>/`
-    ///   with the `FileContent`'s native extension.
-    /// - Anything else (remote URLs, non-decodable inline data) →
-    ///   `serde_json::to_vec_pretty(&part)` written under
-    ///   `<media_root>/<media_dir>/` as a `.json` file. The reader
-    ///   can `serde_json::from_slice::<RichContentPart>` it back.
-    ///
-    /// `media_dir` is debug grouping only — `image|audio|video|file`
-    /// per variant. Not load-bearing for parsing (the reader keys
-    /// off the file extension).
-    #[cfg(feature = "filesystem")]
-    fn extract_one_part(
-        part: RichContentPart,
-        media_root: &str,
-        id: &str,
-        message_index: u64,
-        part_idx: u64,
-    ) -> crate::filesystem::logs::LogFile {
-        use crate::filesystem::logs::LogFile;
-
-        // Text branches out early — never goes through file_content().
-        if let RichContentPart::Text { text } = &part {
-            return LogFile {
-                route: format!("{media_root}/text"),
-                id: id.to_string(),
-                message_index: Some(message_index),
-                media_index: Some(part_idx),
-                extension: "txt".to_string(),
-                content: text.clone().into_bytes(),
-            };
-        }
-
-        let (media_dir, bin_attempt) = match &part {
-            RichContentPart::Text { .. } => unreachable!("handled above"),
-            RichContentPart::ImageUrl { image_url } => ("image", image_url.file_content()),
-            RichContentPart::InputAudio { input_audio } => ("audio", input_audio.file_content()),
-            RichContentPart::InputVideo { video_url }
-            | RichContentPart::VideoUrl { video_url } => ("video", video_url.file_content()),
-            RichContentPart::File { file } => ("file", file.file_content()),
-        };
-
-        if let Some(fc) = bin_attempt {
-            if let Ok(decoded) = fc.decode() {
-                return LogFile {
-                    route: format!("{media_root}/{media_dir}"),
-                    id: id.to_string(),
-                    message_index: Some(message_index),
-                    media_index: Some(part_idx),
-                    extension: fc.extension.to_string(),
-                    content: decoded,
-                };
-            }
-        }
-
-        // Fallback: serialize the part itself (covers remote URLs +
-        // any non-decodable inline data).
-        let json = serde_json::to_vec_pretty(&part)
-            .expect("RichContentPart serializes");
-        LogFile {
-            route: format!("{media_root}/{media_dir}"),
-            id: id.to_string(),
-            message_index: Some(message_index),
-            media_index: Some(part_idx),
-            extension: "json".to_string(),
-            content: json,
-        }
-    }
-
     /// Computes a content-addressed ID for this content.
     pub fn id(&self) -> String {
         let mut hasher = twox_hash::XxHash3_128::with_seed(0);
@@ -346,29 +215,264 @@ impl From<Vec<RichContentPart>> for RichContent {
     }
 }
 
+impl RichContentPart {
+    /// Build a part from a raw string. If `text` parses as a
+    /// `data:<mime>;base64,<payload>` URL, route it through the same
+    /// mime-prefix dispatch the inlined-resource path uses
+    /// (`image/*` → `ImageUrl`, `audio/*` → `InputAudio`, `video/*` →
+    /// `InputVideo`, else `File`). Otherwise return a plain
+    /// `RichContentPart::Text { text }`.
+    pub fn from_text_or_data_url(text: String) -> Self {
+        match crate::data_url::parse_data_url(&text) {
+            Some((mime, payload)) => {
+                Self::from_blob(mime, payload.to_string(), None)
+            }
+            None => RichContentPart::Text { text },
+        }
+    }
+
+    /// Build a `RichContentPart` from a raw base64 blob and explicit
+    /// mime. Routing rules:
+    ///
+    /// - `image/*` → `ImageUrl` (base64 data URL).
+    /// - `audio/*` → `InputAudio` (raw base64 + format string, matching
+    ///   the `From<AudioContent>` convention).
+    /// - `video/*` → `InputVideo` (base64 data URL in the `VideoUrl`
+    ///   shape).
+    /// - Anything else — including ambiguous container types like
+    ///   `application/ogg` or `application/mp4` where the bytes would
+    ///   be needed to disambiguate audio vs video — becomes a `File`
+    ///   part with the raw base64 data and the caller-supplied filename.
+    pub fn from_blob(
+        mime: &str,
+        blob: String,
+        filename: Option<String>,
+    ) -> Self {
+        if mime.starts_with("image/") {
+            RichContentPart::ImageUrl {
+                image_url: ImageUrl {
+                    url: format!("data:{};base64,{}", mime, blob),
+                    detail: None,
+                },
+            }
+        } else if mime.starts_with("audio/") {
+            RichContentPart::InputAudio {
+                input_audio: InputAudio {
+                    data: blob,
+                    format: mime.to_string(),
+                },
+            }
+        } else if mime.starts_with("video/") {
+            RichContentPart::InputVideo {
+                video_url: VideoUrl {
+                    url: format!("data:{};base64,{}", mime, blob),
+                },
+            }
+        } else {
+            RichContentPart::File {
+                file: File {
+                    file_data: Some(blob),
+                    filename,
+                    file_id: None,
+                    file_url: None,
+                },
+            }
+        }
+    }
+}
+
+impl RichContent {
+    /// Build a `RichContent` from a raw string. Wraps
+    /// [`RichContentPart::from_text_or_data_url`] and lets the
+    /// existing `From<Vec<RichContentPart>>` collapse demote a
+    /// single Text part back to `RichContent::Text` automatically.
+    pub fn from_text_or_data_url(text: String) -> Self {
+        Self::from(vec![RichContentPart::from_text_or_data_url(text)])
+    }
+}
+
+/// Convert an inlined MCP resource (`ResourceContentsUnion`) into a
+/// `RichContentPart`. Mapping rules:
+///
+/// - `Text` → text part.
+/// - `Blob` with `image/*` mime → `image_url` part (base64 data URL).
+/// - `Blob` with `audio/*` mime → `input_audio` part (raw base64 +
+///   format string, matching the `From<AudioContent>` convention).
+/// - `Blob` with `video/*` mime → `input_video` part (base64 data URL
+///   in the `VideoUrl` shape).
+/// - Any other blob — including ambiguous container types like
+///   `application/ogg` or `application/mp4` where the bytes would be
+///   needed to disambiguate audio vs video — becomes a file part
+///   with the raw base64 data and a filename lifted from the
+///   resource URI's trailing path segment.
+///
+/// Used by [`From<ContentBlock>`]'s `EmbeddedResource` arm and by
+/// [`crate::mcp::Connection::call_tool_as_message`]'s `ResourceLink`
+/// fetch path — both produce a `ResourceContentsUnion`, both want
+/// the same mapping.
+#[cfg(feature = "mcp")]
+impl From<crate::mcp::shared::ResourceContentsUnion> for RichContentPart {
+    fn from(contents: crate::mcp::shared::ResourceContentsUnion) -> Self {
+        use crate::mcp::shared::ResourceContentsUnion;
+        match contents {
+            ResourceContentsUnion::Text(text) => {
+                RichContentPart::Text { text: text.text }
+            }
+            ResourceContentsUnion::Blob(blob) => {
+                let mime = blob
+                    .base
+                    .mime_type
+                    .as_deref()
+                    .unwrap_or("application/octet-stream");
+                let filename = blob
+                    .base
+                    .uri
+                    .rsplit('/')
+                    .next()
+                    .filter(|s| !s.is_empty())
+                    .map(String::from);
+                RichContentPart::from_blob(mime, blob.blob, filename)
+            }
+        }
+    }
+}
+
 /// Convert an MCP `ContentBlock` into a `RichContentPart`. Lossless
-/// for text / image / audio; `ResourceLink` and `EmbeddedResource`
-/// fall back to a JSON-serialized text part so the content survives
-/// even when there's no rich representation. Mirrors the resource-
-/// resolution-free path of [`crate::mcp::Connection::call_tool_as_message`]
-/// (the connection-bound method does extra work to fetch resource
-/// contents, which this stateless `From` impl cannot do — callers
-/// that want resource resolution must do it before invoking this
-/// conversion).
+/// for image / audio / embedded_resource. The `Text` arm also peeks
+/// at the text body: if it parses as a `data:<mime>;base64,<payload>`
+/// URL it's routed through the same mime-prefix dispatch the blob
+/// path uses (so servers that pack media into a text block — common
+/// for sloppy upstreams — still land in the right `RichContentPart`
+/// variant). Plain text passes through unchanged. `ResourceLink` is
+/// the only stateful variant — resolving its URI requires a live
+/// `Connection` to call `read_resource`, which this `From` impl
+/// cannot do — so it falls back to a JSON-serialized text part. The
+/// connection-bound path in
+/// [`crate::mcp::Connection::call_tool_as_message`] handles
+/// `ResourceLink` properly by fetching its contents and routing
+/// them through [`From<ResourceContentsUnion>`].
+/// `_meta` string-value lookup. Returns `None` when the key is
+/// absent or the value isn't a JSON string.
+#[cfg(feature = "mcp")]
+fn meta_string(
+    meta: &Option<indexmap::IndexMap<String, serde_json::Value>>,
+    key: &str,
+) -> Option<String> {
+    meta.as_ref()?
+        .get(key)
+        .and_then(|v| v.as_str().map(String::from))
+}
+
+/// Deserialize a `_meta` entry into [`ImageUrlDetail`]. Accepts a
+/// string value (`"auto"` / `"low"` / `"high"`) that serde_json
+/// reads back via the type's `Deserialize` impl.
+#[cfg(feature = "mcp")]
+fn meta_image_detail(
+    meta: &Option<indexmap::IndexMap<String, serde_json::Value>>,
+    key: &str,
+) -> Option<ImageUrlDetail> {
+    let v = meta.as_ref()?.get(key)?.clone();
+    serde_json::from_value::<ImageUrlDetail>(v).ok()
+}
+
+/// Decode a Text carrier in the absence of an `objectiveai/kind`
+/// marker. Runs the existing `parse_data_url` heuristic and applies
+/// the `objectiveai/filename` marker for `File` outcomes.
+#[cfg(feature = "mcp")]
+fn decode_text_no_marker(
+    text: String,
+    meta: &Option<indexmap::IndexMap<String, serde_json::Value>>,
+) -> RichContentPart {
+    if let Some((mime, payload)) = crate::data_url::parse_data_url(&text) {
+        let filename = meta_string(meta, "objectiveai/filename");
+        RichContentPart::from_blob(mime, payload.to_string(), filename)
+    } else {
+        RichContentPart::Text { text }
+    }
+}
+
 #[cfg(feature = "mcp")]
 impl From<crate::mcp::tool::ContentBlock> for RichContentPart {
     fn from(block: crate::mcp::tool::ContentBlock) -> Self {
         use crate::mcp::tool::ContentBlock;
+        // `_meta` marker keys produced by `From<RichContentPart>` —
+        // every Text/Image carrier here may consult them. See
+        // `mcp/tool/content_block.rs` for the catalogue.
+        const META_KIND: &str = "objectiveai/kind";
+        const META_IMAGE_DETAIL: &str = "objectiveai/image_detail";
+        const META_FILENAME: &str = "objectiveai/filename";
+        const KIND_IMAGE_URL_REMOTE: &str = "image_url_remote";
+        const KIND_INPUT_VIDEO_REMOTE: &str = "input_video_remote";
+        const KIND_VIDEO_URL: &str = "video_url";
+        const KIND_FILE_URL: &str = "file_url";
+        const KIND_FILE_ID: &str = "file_id";
+
         match block {
-            ContentBlock::Text(t) => RichContentPart::Text { text: t.text },
-            ContentBlock::Image(i) => RichContentPart::ImageUrl {
-                image_url: i.into(),
-            },
+            ContentBlock::Text(t) => {
+                // 1) Marker-driven reconstruction. Read `kind` and
+                //    rebuild the corresponding RichContentPart
+                //    variant, pulling companion markers as needed.
+                let kind = meta_string(&t._meta, META_KIND);
+                if let Some(kind) = kind {
+                    return match kind.as_str() {
+                        KIND_IMAGE_URL_REMOTE => {
+                            let detail =
+                                meta_image_detail(&t._meta, META_IMAGE_DETAIL);
+                            RichContentPart::ImageUrl {
+                                image_url: ImageUrl {
+                                    url: t.text,
+                                    detail,
+                                },
+                            }
+                        }
+                        KIND_INPUT_VIDEO_REMOTE => {
+                            RichContentPart::InputVideo {
+                                video_url: VideoUrl { url: t.text },
+                            }
+                        }
+                        KIND_VIDEO_URL => RichContentPart::VideoUrl {
+                            video_url: VideoUrl { url: t.text },
+                        },
+                        KIND_FILE_URL => RichContentPart::File {
+                            file: File {
+                                file_data: None,
+                                filename: meta_string(&t._meta, META_FILENAME),
+                                file_id: None,
+                                file_url: Some(t.text),
+                            },
+                        },
+                        KIND_FILE_ID => RichContentPart::File {
+                            file: File {
+                                file_data: None,
+                                filename: meta_string(&t._meta, META_FILENAME),
+                                file_id: Some(t.text),
+                                file_url: None,
+                            },
+                        },
+                        // Unknown kind: fall through to the
+                        // marker-free decode below. Be lenient.
+                        _ => decode_text_no_marker(t.text, &t._meta),
+                    };
+                }
+                // 2) No `kind` marker: parse_data_url-driven
+                //    heuristic (image/audio/video/file by mime,
+                //    plain text otherwise). Filename meta may still
+                //    apply to the file_data case.
+                decode_text_no_marker(t.text, &t._meta)
+            }
+            ContentBlock::Image(i) => {
+                let detail = meta_image_detail(&i._meta, META_IMAGE_DETAIL);
+                let mut image_url: ImageUrl = i.into();
+                image_url.detail = detail;
+                RichContentPart::ImageUrl { image_url }
+            }
             ContentBlock::Audio(a) => RichContentPart::InputAudio {
                 input_audio: a.into(),
             },
-            block @ (ContentBlock::ResourceLink(_)
-            | ContentBlock::EmbeddedResource(_)) => RichContentPart::Text {
+            ContentBlock::EmbeddedResource(embedded) => {
+                embedded.resource.into()
+            }
+            block @ ContentBlock::ResourceLink(_) => RichContentPart::Text {
                 text: serde_json::to_string(&block).unwrap_or_default(),
             },
         }
@@ -390,7 +494,15 @@ impl From<Vec<crate::mcp::tool::ContentBlock>> for RichContent {
 }
 
 /// Expression variant of [`RichContent`] for dynamic content.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[serde(untagged)]
 #[schemars(rename = "agent.completions.message.RichContentExpression")]
 pub enum RichContentExpression {
@@ -460,7 +572,17 @@ impl FromStarlarkValue for RichContentExpression {
 }
 
 /// A part of rich content.
-#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    Hash,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[schemars(rename = "agent.completions.message.RichContentPart")]
 pub enum RichContentPart {
@@ -646,7 +768,15 @@ impl FromStarlarkValue for RichContentPart {
 }
 
 /// Expression variant of [`RichContentPart`] for dynamic content.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[schemars(rename = "agent.completions.message.RichContentPartExpression")]
 pub enum RichContentPartExpression {
@@ -785,7 +915,17 @@ impl FromStarlarkValue for RichContentPartExpression {
 }
 
 /// An image URL for multimodal input.
-#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    Hash,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "agent.completions.message.ImageUrl")]
 pub struct ImageUrl {
     /// The URL of the image (can be a data URL or HTTP URL).
@@ -813,7 +953,7 @@ impl ImageUrl {
     ///
     /// HTTP/HTTPS URLs return `None` (kept inline).
     pub fn file_content(&self) -> Option<super::FileContent<'_>> {
-        let (mime, payload) = super::file_content::parse_data_url(&self.url)?;
+        let (mime, payload) = crate::data_url::parse_data_url(&self.url)?;
         Some(super::FileContent {
             content: payload,
             extension: super::file_content::mime_to_ext(mime),
@@ -889,7 +1029,18 @@ impl FromStarlarkValue for ImageUrl {
 }
 
 /// Detail level for image processing.
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Hash,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "agent.completions.message.ImageUrlDetail")]
 pub enum ImageUrlDetail {
     /// Let the model decide the detail level.
@@ -945,7 +1096,17 @@ impl FromStarlarkValue for ImageUrlDetail {
 }
 
 /// Audio input for multimodal messages.
-#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    Hash,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "agent.completions.message.InputAudio")]
 pub struct InputAudio {
     /// Base64-encoded audio data.
@@ -970,7 +1131,11 @@ impl InputAudio {
         }
         Some(super::FileContent {
             content: &self.data,
-            extension: if self.format.is_empty() { "bin" } else { &self.format },
+            extension: if self.format.is_empty() {
+                "bin"
+            } else {
+                &self.format
+            },
         })
     }
 }
@@ -1036,7 +1201,17 @@ impl FromStarlarkValue for InputAudio {
 }
 
 /// A video URL for multimodal input.
-#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    Hash,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "agent.completions.message.VideoUrl")]
 pub struct VideoUrl {
     /// The URL of the video.
@@ -1053,7 +1228,7 @@ impl VideoUrl {
     ///
     /// HTTP/HTTPS URLs return `None` (kept inline).
     pub fn file_content(&self) -> Option<super::FileContent<'_>> {
-        let (mime, payload) = super::file_content::parse_data_url(&self.url)?;
+        let (mime, payload) = crate::data_url::parse_data_url(&self.url)?;
         Some(super::FileContent {
             content: payload,
             extension: super::file_content::mime_to_ext(mime),
@@ -1108,7 +1283,17 @@ impl FromStarlarkValue for VideoUrl {
 }
 
 /// A file attachment for multimodal input.
-#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    Hash,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "agent.completions.message.File")]
 pub struct File {
     /// Base64-encoded file data.
@@ -1162,7 +1347,9 @@ impl File {
         if data.is_empty() {
             return None;
         }
-        let ext = self.filename.as_deref()
+        let ext = self
+            .filename
+            .as_deref()
             .and_then(|name| name.rsplit_once('.'))
             .map(|(_, ext)| ext)
             .unwrap_or("bin");

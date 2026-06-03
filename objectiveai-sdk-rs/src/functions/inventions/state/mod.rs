@@ -17,19 +17,19 @@ mod params_state_or_remote;
 mod readme;
 pub mod response;
 
-pub use input_schema::*;
-pub use params_state_or_remote::*;
 pub use alpha_scalar_branch_state::*;
 pub use alpha_scalar_leaf_state::*;
 pub use alpha_scalar_state::*;
 pub use alpha_vector_branch_state::*;
 pub use alpha_vector_leaf_state::*;
 pub use alpha_vector_state::*;
+pub use input_schema::*;
 pub use params::*;
+pub use params_state_or_remote::*;
 
-use std::sync::{Arc, Mutex};
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use std::sync::{Arc, Mutex};
 
 /// Constructs a child name by appending the task index to the parent's path.
 ///
@@ -62,7 +62,8 @@ fn child_name(parent_name: &str, task_index: usize) -> String {
     }
     // Couldn't parse existing path segment — start a new one.
     let path = [task_index as u64];
-    let b62 = super::path::path_to_b62(&path).unwrap_or_else(|_| format!("{}", task_index));
+    let b62 = super::path::path_to_b62(&path)
+        .unwrap_or_else(|_| format!("{}", task_index));
     format!("{}-{}", parent_name, b62)
 }
 
@@ -154,11 +155,13 @@ mod child_name_tests {
             width = super::super::path::PATH_SUFFIX_LEN
         );
         let parent = format!("myfn-{padded}");
-        let decoded: Vec<u64> = super::super::path::b62_to_path(&padded).unwrap();
+        let decoded: Vec<u64> =
+            super::super::path::b62_to_path(&padded).unwrap();
         path = decoded;
         let child = child_name(&parent, 7);
         let suffix = child.strip_prefix("myfn-").expect("user half survives");
-        let extended: Vec<u64> = super::super::path::b62_to_path(suffix).unwrap();
+        let extended: Vec<u64> =
+            super::super::path::b62_to_path(suffix).unwrap();
         let mut expected = path.clone();
         expected.push(7);
         assert_eq!(extended, expected);
@@ -194,7 +197,8 @@ pub trait InventionState: Clone + Send + 'static {
     }
     fn validate_essay(this: &Arc<Mutex<Self>>) -> Result<(), String>;
 
-    fn input_schema_tools(this: &Arc<Mutex<Self>>) -> Vec<super::InventionTool>;
+    fn input_schema_tools(this: &Arc<Mutex<Self>>)
+    -> Vec<super::InventionTool>;
     fn input_schema_tool_names(this: &Arc<Mutex<Self>>) -> Vec<String> {
         Self::input_schema_tools(this)
             .into_iter()
@@ -220,7 +224,9 @@ pub trait InventionState: Clone + Send + 'static {
             .collect()
     }
     fn validate_function(this: &Arc<Mutex<Self>>) -> Result<(), String>;
-    fn build_function(this: &Arc<Mutex<Self>>) -> Option<crate::functions::FullRemoteFunction>;
+    fn build_function(
+        this: &Arc<Mutex<Self>>,
+    ) -> Option<crate::functions::FullRemoteFunction>;
 
     fn description_tools(this: &Arc<Mutex<Self>>) -> Vec<super::InventionTool>;
     fn description_tool_names(this: &Arc<Mutex<Self>>) -> Vec<String> {
@@ -239,7 +245,15 @@ pub trait InventionState: Clone + Send + 'static {
     );
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[serde(tag = "type")]
 #[schemars(rename = "functions.inventions.state.State")]
 pub enum State {
@@ -264,7 +278,12 @@ impl State {
     /// are not valid for the provided input schema.
     pub fn validate_initial_state(
         &self,
-        children: Option<&std::collections::HashMap<String, crate::functions::FullRemoteFunction>>,
+        children: Option<
+            &std::collections::HashMap<
+                String,
+                crate::functions::FullRemoteFunction,
+            >,
+        >,
     ) -> Result<(), String> {
         match self {
             State::AlphaScalarBranch(s) => s.validate_initial_state(children),
@@ -307,10 +326,18 @@ impl State {
     /// Returns the prompt type for this state variant.
     pub fn prompt_type(&self) -> super::prompts::StepPromptType {
         match self {
-            State::AlphaScalarBranch(_) => super::prompts::StepPromptType::AlphaScalarBranchFunction,
-            State::AlphaScalarLeaf(_) => super::prompts::StepPromptType::AlphaScalarLeafFunction,
-            State::AlphaVectorBranch(_) => super::prompts::StepPromptType::AlphaVectorBranchFunction,
-            State::AlphaVectorLeaf(_) => super::prompts::StepPromptType::AlphaVectorLeafFunction,
+            State::AlphaScalarBranch(_) => {
+                super::prompts::StepPromptType::AlphaScalarBranchFunction
+            }
+            State::AlphaScalarLeaf(_) => {
+                super::prompts::StepPromptType::AlphaScalarLeafFunction
+            }
+            State::AlphaVectorBranch(_) => {
+                super::prompts::StepPromptType::AlphaVectorBranchFunction
+            }
+            State::AlphaVectorLeaf(_) => {
+                super::prompts::StepPromptType::AlphaVectorLeafFunction
+            }
         }
     }
 
@@ -326,10 +353,7 @@ impl State {
 
     /// Replaces placeholder tasks with real function tasks using the given paths.
     /// Matches by `repository == name`. No-op for leaf states.
-    pub fn replace_placeholders(
-        &mut self,
-        paths: &[crate::RemotePath],
-    ) {
+    pub fn replace_placeholders(&mut self, paths: &[crate::RemotePath]) {
         match self {
             State::AlphaScalarBranch(s) => s.replace_placeholders(paths),
             State::AlphaScalarLeaf(s) => s.replace_placeholders(paths),
@@ -340,7 +364,9 @@ impl State {
 
     /// Builds the `FullRemoteFunction` from the current state.
     /// Returns `None` if required fields are missing.
-    pub fn build_function(&self) -> Option<crate::functions::FullRemoteFunction> {
+    pub fn build_function(
+        &self,
+    ) -> Option<crate::functions::FullRemoteFunction> {
         match self {
             State::AlphaScalarBranch(s) => s.build_function(),
             State::AlphaScalarLeaf(s) => s.build_function(),
@@ -403,7 +429,9 @@ impl State {
         }
     }
 
-    pub fn serialize_into_files(&self) -> std::collections::HashMap<&'static str, String> {
+    pub fn serialize_into_files(
+        &self,
+    ) -> std::collections::HashMap<&'static str, String> {
         let files = match self {
             State::AlphaScalarBranch(s) => s.serialize_into_files(),
             State::AlphaScalarLeaf(s) => s.serialize_into_files(),
@@ -412,7 +440,6 @@ impl State {
         };
         files.into_hashmap()
     }
-
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -450,10 +477,18 @@ impl ParamsState {
     /// For unrouted `AlphaScalar`/`AlphaVector`, routes based on depth.
     pub fn prompt_type(&self) -> super::prompts::StepPromptType {
         match self {
-            ParamsState::AlphaScalarBranch(_) => super::prompts::StepPromptType::AlphaScalarBranchFunction,
-            ParamsState::AlphaScalarLeaf(_) => super::prompts::StepPromptType::AlphaScalarLeafFunction,
-            ParamsState::AlphaVectorBranch(_) => super::prompts::StepPromptType::AlphaVectorBranchFunction,
-            ParamsState::AlphaVectorLeaf(_) => super::prompts::StepPromptType::AlphaVectorLeafFunction,
+            ParamsState::AlphaScalarBranch(_) => {
+                super::prompts::StepPromptType::AlphaScalarBranchFunction
+            }
+            ParamsState::AlphaScalarLeaf(_) => {
+                super::prompts::StepPromptType::AlphaScalarLeafFunction
+            }
+            ParamsState::AlphaVectorBranch(_) => {
+                super::prompts::StepPromptType::AlphaVectorBranchFunction
+            }
+            ParamsState::AlphaVectorLeaf(_) => {
+                super::prompts::StepPromptType::AlphaVectorLeafFunction
+            }
             ParamsState::AlphaScalar(s) => {
                 if s.params.depth == 0 {
                     super::prompts::StepPromptType::AlphaScalarLeafFunction
@@ -538,7 +573,9 @@ impl ParamsState {
         files::Files::filenames()
     }
 
-    pub fn serialize_into_files(&self) -> std::collections::HashMap<&'static str, String> {
+    pub fn serialize_into_files(
+        &self,
+    ) -> std::collections::HashMap<&'static str, String> {
         let files = match self {
             ParamsState::AlphaScalarBranch(s) => s.serialize_into_files(),
             ParamsState::AlphaScalarLeaf(s) => s.serialize_into_files(),
@@ -550,18 +587,23 @@ impl ParamsState {
         files.into_hashmap()
     }
 
-    pub fn deserialize_from_files(map: std::collections::HashMap<&'static str, String>) -> Result<Option<Self>, error::Error> {
+    pub fn deserialize_from_files(
+        map: std::collections::HashMap<&'static str, String>,
+    ) -> Result<Option<Self>, error::Error> {
         let files = files::Files::from_hashmap(map)?;
 
         // Deserialize function.json if present to determine the routed variant
-        let function: Option<crate::functions::FullRemoteFunction> = files.function_json.as_ref()
+        let function: Option<crate::functions::FullRemoteFunction> = files
+            .function_json
+            .as_ref()
             .map(|json| {
                 let mut de = serde_json::Deserializer::from_str(json);
-                serde_path_to_error::deserialize(&mut de)
-                    .map_err(|e| error::Error::Deserialize {
+                serde_path_to_error::deserialize(&mut de).map_err(|e| {
+                    error::Error::Deserialize {
                         file: files::Files::FUNCTION_JSON,
                         source: e,
-                    })
+                    }
+                })
             })
             .transpose()?;
 

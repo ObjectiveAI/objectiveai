@@ -28,15 +28,16 @@ use serde::{Deserialize, Serialize};
 
 use crate::agent::completions::message;
 use crate::agent::completions::response;
-use crate::filesystem::logs::LogReference;
+use crate::logs::LogReference;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "agent.completions.response.streaming.AssistantResponseChunkLog")]
+#[schemars(
+    rename = "agent.completions.response.streaming.AssistantResponseChunkLog"
+)]
 pub struct AssistantResponseChunkLog {
     pub role: response::AssistantRole,
     pub index: u64,
     pub created: u64,
-    pub agent: String,
     pub model: String,
     pub upstream_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -1,17 +1,16 @@
-use super::*;
 use super::starlark::with_eval_result;
+use super::*;
 use crate::agent::completions::message::{
     AssistantMessageExpression, AssistantToolCallExpression,
     AssistantToolCallFunctionExpression, DeveloperMessageExpression, File,
     ImageUrl, ImageUrlDetail, InputAudio, MessageExpression,
-    RichContentExpression, RichContentPartExpression,
-    SimpleContentExpression, SimpleContentPartExpression,
-    SystemMessageExpression, ToolMessageExpression,
-    UserMessageExpression, VideoUrl,
+    RichContentExpression, RichContentPartExpression, SimpleContentExpression,
+    SimpleContentPartExpression, SystemMessageExpression,
+    ToolMessageExpression, UserMessageExpression, VideoUrl,
 };
 use crate::functions::expression::{
-    InputValue, InputValueExpression, Params, ParamsOwned,
-    TaskOutputOwned, WithExpression,
+    InputValue, InputValueExpression, Params, ParamsOwned, TaskOutputOwned,
+    WithExpression,
 };
 use indexmap::IndexMap;
 use rust_decimal::dec;
@@ -177,8 +176,7 @@ fn test_nested_input_access() {
     )]);
     let params = make_params(input);
     let result: String =
-        starlark_eval("input['user']['profile']['email']", &params)
-            .unwrap();
+        starlark_eval("input['user']['profile']['email']", &params).unwrap();
     assert_eq!(result, "test@example.com");
 }
 
@@ -211,8 +209,7 @@ fn test_list_comprehension() {
     )]);
     let params = make_params(input);
     let result: Vec<i64> =
-        starlark_eval("[x * 2 for x in input['numbers']]", &params)
-            .unwrap();
+        starlark_eval("[x * 2 for x in input['numbers']]", &params).unwrap();
     assert_eq!(result, vec![2, 4, 6]);
 }
 
@@ -230,11 +227,9 @@ fn test_list_comprehension_with_filter() {
         ]),
     )]);
     let params = make_params(input);
-    let result: Vec<i64> = starlark_eval(
-        "[x for x in input['numbers'] if x % 2 == 0]",
-        &params,
-    )
-    .unwrap();
+    let result: Vec<i64> =
+        starlark_eval("[x for x in input['numbers'] if x % 2 == 0]", &params)
+            .unwrap();
     assert_eq!(result, vec![2, 4, 6]);
 }
 
@@ -254,8 +249,7 @@ fn test_builtin_functions() {
     assert_eq!(starlark_eval::<i64>("min([3, 1, 2])", &params).unwrap(), 1);
     assert_eq!(starlark_eval::<i64>("max([3, 1, 2])", &params).unwrap(), 3);
     assert_eq!(starlark_eval::<i64>("len([1, 2, 3])", &params).unwrap(), 3);
-    let sorted: Vec<i64> =
-        starlark_eval("sorted([3, 1, 2])", &params).unwrap();
+    let sorted: Vec<i64> = starlark_eval("sorted([3, 1, 2])", &params).unwrap();
     assert_eq!(sorted, vec![1, 2, 3]);
 }
 
@@ -263,28 +257,23 @@ fn test_builtin_functions() {
 fn test_conditional_expression() {
     let input = obj(vec![("value", InputValue::Integer(10))]);
     let params = make_params(input);
-    let result: String = starlark_eval(
-        "\"big\" if input['value'] > 5 else \"small\"",
-        &params,
-    )
-    .unwrap();
+    let result: String =
+        starlark_eval("\"big\" if input['value'] > 5 else \"small\"", &params)
+            .unwrap();
     assert_eq!(result, "big");
 
     let input2 = obj(vec![("value", InputValue::Integer(3))]);
     let params2 = make_params(input2);
-    let result2: String = starlark_eval(
-        "\"big\" if input['value'] > 5 else \"small\"",
-        &params2,
-    )
-    .unwrap();
+    let result2: String =
+        starlark_eval("\"big\" if input['value'] > 5 else \"small\"", &params2)
+            .unwrap();
     assert_eq!(result2, "small");
 }
 
 #[test]
 fn test_parse_error() {
     let params = make_params(empty_input());
-    let result: Result<i64, _> =
-        starlark_eval("invalid syntax [[[", &params);
+    let result: Result<i64, _> = starlark_eval("invalid syntax [[[", &params);
     assert!(matches!(
         result,
         Err(ExpressionError::StarlarkParseError(_))
@@ -294,8 +283,7 @@ fn test_parse_error() {
 #[test]
 fn test_eval_error() {
     let params = make_params(empty_input());
-    let result: Result<i64, _> =
-        starlark_eval("undefined_variable", &params);
+    let result: Result<i64, _> = starlark_eval("undefined_variable", &params);
     assert!(matches!(result, Err(ExpressionError::StarlarkEvalError(_))));
 }
 
@@ -329,8 +317,7 @@ fn test_map_as_index() {
     )]);
     let params = make_params_with_map(input, 1);
 
-    let result: String =
-        starlark_eval("input['items'][map]", &params).unwrap();
+    let result: String = starlark_eval("input['items'][map]", &params).unwrap();
     assert_eq!(result, "World");
 
     let result2: i64 = starlark_eval("map * 10", &params).unwrap();
@@ -373,11 +360,7 @@ fn test_output_scalar() {
 #[test]
 fn test_output_vector() {
     let input = empty_input();
-    let output = TaskOutputOwned::Vector(vec![
-        dec!(0.1),
-        dec!(0.2),
-        dec!(0.7),
-    ]);
+    let output = TaskOutputOwned::Vector(vec![dec!(0.1), dec!(0.2), dec!(0.7)]);
     let params = make_params_with_output(input, output);
 
     let result: i64 = starlark_eval("len(output)", &params).unwrap();
@@ -387,13 +370,11 @@ fn test_output_vector() {
 #[test]
 fn test_output_vector_scores() {
     let input = empty_input();
-    let output = TaskOutputOwned::Vector(
-        vec![dec!(0.25), dec!(0.25), dec!(0.5)],
-    );
+    let output =
+        TaskOutputOwned::Vector(vec![dec!(0.25), dec!(0.25), dec!(0.5)]);
     let params = make_params_with_output(input, output);
 
-    let result: i64 =
-        starlark_eval("len(output)", &params).unwrap();
+    let result: i64 = starlark_eval("len(output)", &params).unwrap();
     assert_eq!(result, 3);
 }
 
@@ -421,13 +402,10 @@ fn test_output_not_none() {
 #[test]
 fn test_full_params_all_fields() {
     let input = obj(vec![("base_score", InputValue::Number(0.5))]);
-    let output = TaskOutputOwned::Vector(
-        vec![dec!(0.3), dec!(0.7)],
-    );
+    let output = TaskOutputOwned::Vector(vec![dec!(0.3), dec!(0.7)]);
     let params = make_full_params(input, output, 1);
 
-    let result: i64 =
-        starlark_eval("len(output)", &params).unwrap();
+    let result: i64 = starlark_eval("len(output)", &params).unwrap();
     assert_eq!(result, 2);
 
     let result2: i64 = starlark_eval("map", &params).unwrap();
@@ -447,8 +425,7 @@ fn test_full_params_complex_expression() {
     let output = TaskOutputOwned::Scalar(dec!(0.5));
     let params = make_full_params(input, output, 1);
 
-    let result: String =
-        starlark_eval("input['items'][map]", &params).unwrap();
+    let result: String = starlark_eval("input['items'][map]", &params).unwrap();
     assert_eq!(result, "b");
 
     let result2: f64 = starlark_eval("output", &params).unwrap();
@@ -458,11 +435,7 @@ fn test_full_params_complex_expression() {
 #[test]
 fn test_map_function_outputs() {
     let input = empty_input();
-    let output = TaskOutputOwned::Vector(vec![
-        dec!(0.1),
-        dec!(0.5),
-        dec!(0.9),
-    ]);
+    let output = TaskOutputOwned::Vector(vec![dec!(0.1), dec!(0.5), dec!(0.9)]);
     let params = make_params_with_output(input, output);
 
     let result: i64 = starlark_eval("len(output)", &params).unwrap();
@@ -478,12 +451,10 @@ fn test_map_vector_outputs() {
     ]);
     let params = make_params_with_output(input, output);
 
-    let result: i64 =
-        starlark_eval("len(output[0])", &params).unwrap();
+    let result: i64 = starlark_eval("len(output[0])", &params).unwrap();
     assert_eq!(result, 2);
 
-    let result2: i64 =
-        starlark_eval("len(output[1])", &params).unwrap();
+    let result2: i64 = starlark_eval("len(output[1])", &params).unwrap();
     assert_eq!(result2, 2);
 }
 
@@ -492,16 +463,14 @@ fn test_map_vector_outputs() {
 #[test]
 fn test_sum_integers() {
     let params = make_params(empty_input());
-    let result: f64 =
-        starlark_eval("sum([1, 2, 3, 4, 5])", &params).unwrap();
+    let result: f64 = starlark_eval("sum([1, 2, 3, 4, 5])", &params).unwrap();
     assert_eq!(result, 15.0);
 }
 
 #[test]
 fn test_sum_floats() {
     let params = make_params(empty_input());
-    let result: f64 =
-        starlark_eval("sum([1.5, 2.5, 3.0])", &params).unwrap();
+    let result: f64 = starlark_eval("sum([1.5, 2.5, 3.0])", &params).unwrap();
     assert_eq!(result, 7.0);
 }
 
@@ -523,8 +492,7 @@ fn test_sum_from_input() {
         ]),
     )]);
     let params = make_params(input);
-    let result: f64 =
-        starlark_eval("sum(input['values'])", &params).unwrap();
+    let result: f64 = starlark_eval("sum(input['values'])", &params).unwrap();
     assert_eq!(result, 60.0);
 }
 
@@ -592,22 +560,16 @@ fn test_average_from_input() {
         ]),
     )]);
     let params = make_params(input);
-    let result: f64 = starlark_eval(
-        "sum(input['scores']) / len(input['scores'])",
-        &params,
-    )
-    .unwrap();
+    let result: f64 =
+        starlark_eval("sum(input['scores']) / len(input['scores'])", &params)
+            .unwrap();
     assert_eq!(result, 0.75);
 }
 
 #[test]
 fn test_average_mapped_outputs() {
     let input = empty_input();
-    let output = TaskOutputOwned::Vector(vec![
-        dec!(0.2),
-        dec!(0.4),
-        dec!(0.6),
-    ]);
+    let output = TaskOutputOwned::Vector(vec![dec!(0.2), dec!(0.4), dec!(0.6)]);
     let params = make_params_with_output(input, output);
 
     let result: f64 =
@@ -786,11 +748,7 @@ fn test_starlark_input_object() {
         ("a", InputValue::Integer(1)),
         ("b", InputValue::String("two".to_string())),
     ]);
-    assert_starlark_deep_eq(
-        "{\"a\": 1, \"b\": \"two\"}",
-        &params,
-        &expected,
-    );
+    assert_starlark_deep_eq("{\"a\": 1, \"b\": \"two\"}", &params, &expected);
 }
 
 #[test]
@@ -941,12 +899,11 @@ fn test_starlark_rich_content_expression_text() {
 #[test]
 fn test_starlark_rich_content_expression_parts() {
     let params = make_params(empty_input());
-    let expected =
-        RichContentExpression::Parts(vec![WithExpression::Value(
-            RichContentPartExpression::Text {
-                text: WithExpression::Value("x".to_string()),
-            },
-        )]);
+    let expected = RichContentExpression::Parts(vec![WithExpression::Value(
+        RichContentPartExpression::Text {
+            text: WithExpression::Value("x".to_string()),
+        },
+    )]);
     assert_starlark_deep_eq(
         "[{\"type\": \"text\", \"text\": \"x\"}]",
         &params,
@@ -1246,12 +1203,10 @@ fn test_starlark_assistant_tool_call_expression() {
     let params = make_params(empty_input());
     let expected = AssistantToolCallExpression::Function {
         id: WithExpression::Value("call_1".to_string()),
-        function: WithExpression::Value(
-            AssistantToolCallFunctionExpression {
-                name: WithExpression::Value("f".to_string()),
-                arguments: WithExpression::Value("{}".to_string()),
-            },
-        ),
+        function: WithExpression::Value(AssistantToolCallFunctionExpression {
+            name: WithExpression::Value("f".to_string()),
+            arguments: WithExpression::Value("{}".to_string()),
+        }),
     };
     assert_starlark_deep_eq(
         "{\"type\": \"function\", \"id\": \"call_1\", \"function\": {\"name\": \"f\", \"arguments\": \"{}\"}}",
@@ -1265,12 +1220,10 @@ fn test_starlark_assistant_tool_call_expression_id_default() {
     let params = make_params(empty_input());
     let expected = AssistantToolCallExpression::Function {
         id: WithExpression::Value(String::new()),
-        function: WithExpression::Value(
-            AssistantToolCallFunctionExpression {
-                name: WithExpression::Value("g".to_string()),
-                arguments: WithExpression::Value("{}".to_string()),
-            },
-        ),
+        function: WithExpression::Value(AssistantToolCallFunctionExpression {
+            name: WithExpression::Value("g".to_string()),
+            arguments: WithExpression::Value("{}".to_string()),
+        }),
     };
     assert_starlark_deep_eq(
         "{\"type\": \"function\", \"function\": {\"name\": \"g\", \"arguments\": \"{}\"}}",
@@ -1346,14 +1299,13 @@ fn test_starlark_message_system_with_name() {
 #[test]
 fn test_starlark_message_assistant_content_none() {
     let params = make_params(empty_input());
-    let expected =
-        MessageExpression::Assistant(AssistantMessageExpression {
-            content: WithExpression::Value(None),
-            name: WithExpression::Value(None),
-            refusal: WithExpression::Value(None),
-            tool_calls: WithExpression::Value(None),
-            reasoning: WithExpression::Value(None),
-        });
+    let expected = MessageExpression::Assistant(AssistantMessageExpression {
+        content: WithExpression::Value(None),
+        name: WithExpression::Value(None),
+        refusal: WithExpression::Value(None),
+        tool_calls: WithExpression::Value(None),
+        reasoning: WithExpression::Value(None),
+    });
     assert_starlark_deep_eq(
         "{\"role\": \"assistant\", \"content\": None}",
         &params,
@@ -1364,16 +1316,15 @@ fn test_starlark_message_assistant_content_none() {
 #[test]
 fn test_starlark_message_assistant_with_content() {
     let params = make_params(empty_input());
-    let expected =
-        MessageExpression::Assistant(AssistantMessageExpression {
-            content: WithExpression::Value(Some(
-                RichContentExpression::Text("ok".to_string()),
-            )),
-            name: WithExpression::Value(None),
-            refusal: WithExpression::Value(None),
-            tool_calls: WithExpression::Value(None),
-            reasoning: WithExpression::Value(None),
-        });
+    let expected = MessageExpression::Assistant(AssistantMessageExpression {
+        content: WithExpression::Value(Some(RichContentExpression::Text(
+            "ok".to_string(),
+        ))),
+        name: WithExpression::Value(None),
+        refusal: WithExpression::Value(None),
+        tool_calls: WithExpression::Value(None),
+        reasoning: WithExpression::Value(None),
+    });
     assert_starlark_deep_eq(
         "{\"role\": \"assistant\", \"content\": \"ok\"}",
         &params,
@@ -1384,16 +1335,13 @@ fn test_starlark_message_assistant_with_content() {
 #[test]
 fn test_starlark_message_assistant_with_refusal() {
     let params = make_params(empty_input());
-    let expected =
-        MessageExpression::Assistant(AssistantMessageExpression {
-            content: WithExpression::Value(None),
-            name: WithExpression::Value(None),
-            refusal: WithExpression::Value(Some(
-                "declined".to_string(),
-            )),
-            tool_calls: WithExpression::Value(None),
-            reasoning: WithExpression::Value(None),
-        });
+    let expected = MessageExpression::Assistant(AssistantMessageExpression {
+        content: WithExpression::Value(None),
+        name: WithExpression::Value(None),
+        refusal: WithExpression::Value(Some("declined".to_string())),
+        tool_calls: WithExpression::Value(None),
+        reasoning: WithExpression::Value(None),
+    });
     assert_starlark_deep_eq(
         "{\"role\": \"assistant\", \"content\": None, \"refusal\": \"declined\"}",
         &params,
@@ -1404,14 +1352,13 @@ fn test_starlark_message_assistant_with_refusal() {
 #[test]
 fn test_starlark_message_assistant_with_name() {
     let params = make_params(empty_input());
-    let expected =
-        MessageExpression::Assistant(AssistantMessageExpression {
-            content: WithExpression::Value(None),
-            name: WithExpression::Value(Some("asst".to_string())),
-            refusal: WithExpression::Value(None),
-            tool_calls: WithExpression::Value(None),
-            reasoning: WithExpression::Value(None),
-        });
+    let expected = MessageExpression::Assistant(AssistantMessageExpression {
+        content: WithExpression::Value(None),
+        name: WithExpression::Value(Some("asst".to_string())),
+        refusal: WithExpression::Value(None),
+        tool_calls: WithExpression::Value(None),
+        reasoning: WithExpression::Value(None),
+    });
     assert_starlark_deep_eq(
         "{\"role\": \"assistant\", \"content\": None, \"name\": \"asst\"}",
         &params,
@@ -1438,13 +1385,12 @@ fn test_starlark_message_tool() {
 #[test]
 fn test_starlark_message_developer() {
     let params = make_params(empty_input());
-    let expected =
-        MessageExpression::Developer(DeveloperMessageExpression {
-            content: WithExpression::Value(SimpleContentExpression::Text(
-                "dev".to_string(),
-            )),
-            name: WithExpression::Value(None),
-        });
+    let expected = MessageExpression::Developer(DeveloperMessageExpression {
+        content: WithExpression::Value(SimpleContentExpression::Text(
+            "dev".to_string(),
+        )),
+        name: WithExpression::Value(None),
+    });
     assert_starlark_deep_eq(
         "{\"role\": \"developer\", \"content\": \"dev\"}",
         &params,

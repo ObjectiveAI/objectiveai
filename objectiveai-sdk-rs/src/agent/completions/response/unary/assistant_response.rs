@@ -1,17 +1,18 @@
 //! Assistant response type for unary agent completions.
 
 use crate::agent::completions::{message, response};
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// An assistant response in a unary agent completion.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, JsonSchema)]
+#[derive(
+    Debug, Clone, PartialEq, Serialize, Deserialize, Default, JsonSchema,
+)]
 #[schemars(rename = "agent.completions.response.unary.AssistantResponse")]
 pub struct AssistantResponse {
     pub role: response::AssistantRole,
     pub index: u64,
     pub created: u64,
-    pub agent: String,
     pub model: String,
     pub upstream_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -41,7 +42,6 @@ impl From<response::streaming::AssistantResponseChunk> for AssistantResponse {
             role,
             index,
             created,
-            agent,
             model,
             upstream_id,
             reasoning,
@@ -60,7 +60,6 @@ impl From<response::streaming::AssistantResponseChunk> for AssistantResponse {
             role,
             index,
             created,
-            agent,
             model,
             upstream_id,
             reasoning,

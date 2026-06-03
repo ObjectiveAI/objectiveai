@@ -1,7 +1,7 @@
 //! Core API error type.
 
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// A trait for errors that have an HTTP status code and optional message.
 pub trait StatusError {
@@ -17,7 +17,16 @@ pub trait StatusError {
 /// This struct represents an API error response containing an HTTP status
 /// code and a message. The message can be any JSON value, allowing for
 /// both simple string errors and structured error objects.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, thiserror::Error, JsonSchema, arbitrary::Arbitrary)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    thiserror::Error,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[error("{}", &serde_json::to_string(self).unwrap_or_default())]
 #[schemars(rename = "error.ResponseError")]
 pub struct ResponseError {

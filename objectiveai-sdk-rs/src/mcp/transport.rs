@@ -50,18 +50,19 @@ pub(crate) async fn read_next_sse_event<T: serde::de::DeserializeOwned>(
 ) -> Result<T, super::Error> {
     let mut payload = String::new();
     loop {
-        let line = lines
-            .next_line()
-            .await
-            .map_err(|e| super::Error::MalformedResponse {
+        let line = lines.next_line().await.map_err(|e| {
+            super::Error::MalformedResponse {
                 url: url.to_string(),
                 message: format!("error reading SSE line: {e}"),
-            })?;
+            }
+        })?;
         match line {
             None => {
                 return Err(super::Error::MalformedResponse {
                     url: url.to_string(),
-                    message: "SSE stream ended before a complete event was delivered".into(),
+                    message:
+                        "SSE stream ended before a complete event was delivered"
+                            .into(),
                 });
             }
             Some(l) if l.is_empty() => {
@@ -78,7 +79,9 @@ pub(crate) async fn read_next_sse_event<T: serde::de::DeserializeOwned>(
                 });
             }
             Some(l) => {
-                if let Some(data) = l.strip_prefix("data: ").or_else(|| l.strip_prefix("data:")) {
+                if let Some(data) =
+                    l.strip_prefix("data: ").or_else(|| l.strip_prefix("data:"))
+                {
                     payload.push_str(data);
                 }
                 // Other SSE fields and comments are skipped silently.
@@ -96,14 +99,20 @@ pub(crate) async fn read_next_sse_event<T: serde::de::DeserializeOwned>(
 /// every subsequent RPC. The streaming variant
 /// ([`read_next_sse_event`]) is used when the caller wants to keep the
 /// underlying SSE stream alive for further events after the first one.
-pub(crate) async fn parse_streamable_http_response<T: serde::de::DeserializeOwned>(
+pub(crate) async fn parse_streamable_http_response<
+    T: serde::de::DeserializeOwned,
+>(
     url: &str,
     response: reqwest::Response,
 ) -> Result<T, super::Error> {
-    let bytes = response.bytes().await.map_err(|source| super::Error::Request {
-        url: url.to_string(),
-        source,
-    })?;
+    let bytes =
+        response
+            .bytes()
+            .await
+            .map_err(|source| super::Error::Request {
+                url: url.to_string(),
+                source,
+            })?;
     if let Ok(v) = serde_json::from_slice::<T>(&bytes) {
         return Ok(v);
     }
@@ -115,7 +124,9 @@ pub(crate) async fn parse_streamable_http_response<T: serde::de::DeserializeOwne
     })?;
     let collected: String = text
         .lines()
-        .filter_map(|l| l.strip_prefix("data: ").or_else(|| l.strip_prefix("data:")))
+        .filter_map(|l| {
+            l.strip_prefix("data: ").or_else(|| l.strip_prefix("data:"))
+        })
         .collect();
     serde_json::from_str(&collected).map_err(|e| {
         super::Error::MalformedResponse {

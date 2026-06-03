@@ -1,9 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::functions::expression::{
-    ArrayInputSchema, BooleanInputSchema, InputValue, InputSchema, StringInputSchema,
-};
 use crate::functions::check::example_inputs::array;
+use crate::functions::expression::{
+    ArrayInputSchema, BooleanInputSchema, InputSchema, InputValue,
+    StringInputSchema,
+};
 
 /// Collect all outputs from the array generator and verify:
 /// 1. Every unique length seen has every index covered with all item permutations.
@@ -16,7 +17,8 @@ fn assert_per_index_coverage(schema: &ArrayInputSchema) {
     let iter = array::generate(schema, rng);
 
     // length -> index -> set of observed items
-    let mut seen: HashMap<usize, HashMap<usize, HashSet<InputValue>>> = HashMap::new();
+    let mut seen: HashMap<usize, HashMap<usize, HashSet<InputValue>>> =
+        HashMap::new();
     let mut count = 0usize;
 
     for item in iter.take(total) {
@@ -32,7 +34,10 @@ fn assert_per_index_coverage(schema: &ArrayInputSchema) {
         }
     }
 
-    assert_eq!(count, total, "generator yielded {count} items, expected {total}");
+    assert_eq!(
+        count, total,
+        "generator yielded {count} items, expected {total}"
+    );
 
     let num_lengths = seen.len();
 

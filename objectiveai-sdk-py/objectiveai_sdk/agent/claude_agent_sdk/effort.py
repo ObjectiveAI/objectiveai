@@ -26,6 +26,13 @@ class EffortHigh(RootModel):
     root: Literal['high']
 
 
+class EffortXhigh(RootModel):
+    """Extra-high effort, above `High` but below `Max`."""
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Xhigh'})
+
+    root: Literal['xhigh']
+
+
 class EffortMax(RootModel):
     """Maximum effort, most detailed output possible."""
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Max'})
@@ -39,5 +46,5 @@ class Effort(RootModel):
 This setting hints to the model how detailed its responses should be."""
     model_config = ConfigDict(title='agent.claude_agent_sdk.Effort')
 
-    root: Union[EffortLow, EffortMedium, EffortHigh, EffortMax]
+    root: Union[EffortLow, EffortMedium, EffortHigh, EffortXhigh, EffortMax]
 

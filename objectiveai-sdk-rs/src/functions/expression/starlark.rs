@@ -476,15 +476,21 @@ where
                 );
                 module.set(
                     "name",
-                    owned.name.as_ref().map_or(StarlarkValue::new_none(), |v| {
-                        heap.alloc(v.as_str())
-                    }),
+                    owned
+                        .name
+                        .as_ref()
+                        .map_or(StarlarkValue::new_none(), |v| {
+                            heap.alloc(v.as_str())
+                        }),
                 );
                 module.set(
                     "spec",
-                    owned.spec.as_ref().map_or(StarlarkValue::new_none(), |v| {
-                        heap.alloc(v.as_str())
-                    }),
+                    owned
+                        .spec
+                        .as_ref()
+                        .map_or(StarlarkValue::new_none(), |v| {
+                            heap.alloc(v.as_str())
+                        }),
                 );
             }
             super::Params::Ref(r) => {
@@ -521,15 +527,11 @@ where
                 );
                 module.set(
                     "name",
-                    r.name.map_or(StarlarkValue::new_none(), |v| {
-                        heap.alloc(v)
-                    }),
+                    r.name.map_or(StarlarkValue::new_none(), |v| heap.alloc(v)),
                 );
                 module.set(
                     "spec",
-                    r.spec.map_or(StarlarkValue::new_none(), |v| {
-                        heap.alloc(v)
-                    }),
+                    r.spec.map_or(StarlarkValue::new_none(), |v| heap.alloc(v)),
                 );
             }
         }
@@ -590,4 +592,3 @@ impl<T: FromStarlarkValue> OneOrMany<T> {
         with_eval_result(code, params, svalue_to_one_or_many)
     }
 }
-

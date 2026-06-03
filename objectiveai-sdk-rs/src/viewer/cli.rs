@@ -32,7 +32,8 @@ pub fn cli_event_sink(events_tx: EventSender, destination: String) -> Handle {
     let handle = Handle::from(HandleDestination::Stream(tx));
     tokio::spawn(async move {
         while let Some(output) = rx.recv().await {
-            let value = serde_json::to_value(&output).unwrap_or(serde_json::Value::Null);
+            let value = serde_json::to_value(&output)
+                .unwrap_or(serde_json::Value::Null);
             if events_tx
                 .send(Event::CliCommand {
                     destination: destination.clone(),
@@ -50,7 +51,9 @@ pub fn cli_event_sink(events_tx: EventSender, destination: String) -> Handle {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cli::output::{Notification, NotificationValue, Ok, Output, OK};
+    use crate::cli::output::{
+        Notification, NotificationValue, OK, Ok, Output, TypedNotificationValue,
+    };
 
     #[tokio::test]
     async fn forwards_each_output_as_cli_command_event() {
@@ -58,14 +61,14 @@ mod tests {
         let handle = cli_event_sink(events_tx, "my_plugin".to_string());
 
         Output::Notification(Notification {
-            agent_id: None,
-            value: NotificationValue::Ok(OK),
+            value: NotificationValue::Typed(TypedNotificationValue::Ok(OK)),
         })
         .emit(&handle)
         .await;
         Output::Notification(Notification {
-            agent_id: None,
-            value: NotificationValue::Ok(Ok { ok: false }),
+            value: NotificationValue::Typed(TypedNotificationValue::Ok(Ok {
+                ok: false,
+            })),
         })
         .emit(&handle)
         .await;
@@ -91,15 +94,14 @@ mod tests {
         let Event::CliCommand { value: v0, .. } = &received[0] else {
             unreachable!()
         };
-        assert_eq!(v0["type"], "notification");
-        assert_eq!(v0["value"]["kind"], "ok");
-        assert_eq!(v0["value"]["ok"], true);
+        assert_eq!(v0["type"], "ok");
+        assert_eq!(v0["ok"], true);
 
         let Event::CliCommand { value: v1, .. } = &received[1] else {
             unreachable!()
         };
-        assert_eq!(v1["type"], "notification");
-        assert_eq!(v1["value"]["ok"], false);
+        assert_eq!(v1["type"], "ok");
+        assert_eq!(v1["ok"], false);
     }
 
     #[tokio::test]
@@ -112,8 +114,7 @@ mod tests {
 
         // Push one output to trigger a send attempt; the forwarder breaks out.
         Output::Notification(Notification {
-            agent_id: None,
-            value: NotificationValue::Ok(OK),
+            value: NotificationValue::Typed(TypedNotificationValue::Ok(OK)),
         })
         .emit(&handle)
         .await;

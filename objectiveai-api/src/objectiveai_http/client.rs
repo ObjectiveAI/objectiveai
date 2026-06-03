@@ -108,7 +108,7 @@ impl Client {
                 .or_else(|| self.x_commit_author_name.clone()),
             x_commit_author_email: ctx_commit_author_email
                 .or_else(|| self.x_commit_author_email.clone()),
-            agent_id: ctx.agent_id().map(|s| Arc::new(s.to_string())),
+            agent_instance_hierarchy: ctx.agent_instance_hierarchy().map(|s| Arc::new(s.to_string())),
             // No MCP session id surfaces through the per-request
             // `ctx` here. The api server's outgoing-MCP path stamps
             // its own session id when relevant; this http client is

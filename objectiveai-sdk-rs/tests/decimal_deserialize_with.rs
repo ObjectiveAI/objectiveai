@@ -8,7 +8,7 @@
 
 use std::fs;
 use std::path::Path;
-use syn::{Item, Fields, Type, Visibility};
+use syn::{Fields, Item, Type, Visibility};
 use walkdir::WalkDir;
 
 /// Recursively check if a type mentions "Decimal" anywhere.
@@ -20,7 +20,8 @@ fn type_contains_decimal(ty: &Type) -> bool {
                     return true;
                 }
                 // Check generic arguments (e.g. Vec<Decimal>, Option<Decimal>)
-                if let syn::PathArguments::AngleBracketed(args) = &seg.arguments {
+                if let syn::PathArguments::AngleBracketed(args) = &seg.arguments
+                {
                     for arg in &args.args {
                         if let syn::GenericArgument::Type(inner_ty) = arg {
                             if type_contains_decimal(inner_ty) {
@@ -128,8 +129,13 @@ fn check_fields(
     match fields {
         Fields::Named(named) => {
             for field in &named.named {
-                if type_contains_decimal(&field.ty) && !has_serde_deserialize_with(&field.attrs) {
-                    let field_name = field.ident.as_ref().map_or("?".to_string(), |i| i.to_string());
+                if type_contains_decimal(&field.ty)
+                    && !has_serde_deserialize_with(&field.attrs)
+                {
+                    let field_name = field
+                        .ident
+                        .as_ref()
+                        .map_or("?".to_string(), |i| i.to_string());
                     let ty_str = quote::quote!(#field).to_string();
                     errors.push(format!(
                         "{type_name}::{field_name} in {relative} contains Decimal but is missing #[serde(deserialize_with = \"...\")]\n    field type: {ty_str}"
@@ -139,7 +145,9 @@ fn check_fields(
         }
         Fields::Unnamed(unnamed) => {
             for (i, field) in unnamed.unnamed.iter().enumerate() {
-                if type_contains_decimal(&field.ty) && !has_serde_deserialize_with(&field.attrs) {
+                if type_contains_decimal(&field.ty)
+                    && !has_serde_deserialize_with(&field.attrs)
+                {
                     let ty_str = quote::quote!(#field).to_string();
                     errors.push(format!(
                         "{type_name}::{i} in {relative} contains Decimal but is missing #[serde(deserialize_with = \"...\")]\n    field type: {ty_str}"
@@ -184,19 +192,29 @@ fn all_decimal_fields_have_deserialize_with() {
                 Item::Struct(s) if matches!(s.vis, Visibility::Public(_)) => {
                     let name = s.ident.to_string();
                     // Only check types that derive Deserialize
-                    if !has_deserialize_derive(&s.attrs) && !has_manual_deserialize_impl(&file, &name) {
+                    if !has_deserialize_derive(&s.attrs)
+                        && !has_manual_deserialize_impl(&file, &name)
+                    {
                         continue;
                     }
                     check_fields(&s.fields, &name, &relative, &mut errors);
                 }
                 Item::Enum(e) if matches!(e.vis, Visibility::Public(_)) => {
                     let name = e.ident.to_string();
-                    if !has_deserialize_derive(&e.attrs) && !has_manual_deserialize_impl(&file, &name) {
+                    if !has_deserialize_derive(&e.attrs)
+                        && !has_manual_deserialize_impl(&file, &name)
+                    {
                         continue;
                     }
                     for variant in &e.variants {
-                        let variant_name = format!("{}::{}", name, variant.ident);
-                        check_fields(&variant.fields, &variant_name, &relative, &mut errors);
+                        let variant_name =
+                            format!("{}::{}", name, variant.ident);
+                        check_fields(
+                            &variant.fields,
+                            &variant_name,
+                            &relative,
+                            &mut errors,
+                        );
                     }
                 }
                 _ => {}

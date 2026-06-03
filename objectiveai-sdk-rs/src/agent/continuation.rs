@@ -86,25 +86,25 @@ impl Continuation {
     /// belongs to. See per-upstream struct docs for the semantic.
     /// Empty string if the continuation was minted before this field
     /// existed (pre-field tokens deserialize the default).
-    pub fn agent_id(&self) -> &str {
+    pub fn agent_instance_hierarchy(&self) -> &str {
         match self {
-            Self::Openrouter(c) => c.agent_id.as_str(),
-            Self::ClaudeAgentSdk(c) => c.agent_id.as_str(),
-            Self::CodexSdk(c) => c.agent_id.as_str(),
-            Self::Mock(c) => c.agent_id.as_str(),
+            Self::Openrouter(c) => c.agent_instance_hierarchy.as_str(),
+            Self::ClaudeAgentSdk(c) => c.agent_instance_hierarchy.as_str(),
+            Self::CodexSdk(c) => c.agent_instance_hierarchy.as_str(),
+            Self::Mock(c) => c.agent_instance_hierarchy.as_str(),
         }
     }
 
-    /// Stamps `agent_id` on the outgoing continuation.
+    /// Stamps `agent_instance_hierarchy` on the outgoing continuation.
     /// Mirrors [`Self::set_ws_session_id`]: the api server calls this
     /// just before returning the wire continuation so the next round
     /// inherits the same lineage.
-    pub fn set_agent_id(&mut self, id: String) {
+    pub fn set_agent_instance_hierarchy(&mut self, id: String) {
         match self {
-            Self::Openrouter(c) => c.agent_id = id,
-            Self::ClaudeAgentSdk(c) => c.agent_id = id,
-            Self::CodexSdk(c) => c.agent_id = id,
-            Self::Mock(c) => c.agent_id = id,
+            Self::Openrouter(c) => c.agent_instance_hierarchy = id,
+            Self::ClaudeAgentSdk(c) => c.agent_instance_hierarchy = id,
+            Self::CodexSdk(c) => c.agent_instance_hierarchy = id,
+            Self::Mock(c) => c.agent_instance_hierarchy = id,
         }
     }
 

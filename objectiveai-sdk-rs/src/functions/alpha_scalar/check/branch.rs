@@ -3,22 +3,20 @@
 use std::collections::{HashMap, HashSet};
 
 use rand::Rng;
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 use crate::functions::alpha_scalar::RemoteFunction;
 use crate::functions::{CompiledTask, TaskExpression};
 
 use crate::functions::check::check_description;
 use crate::functions::check::check_input_schema;
-use crate::functions::check::{
-    ScalarOutputShape, check_scalar_distribution,
-};
+use crate::functions::check::example_inputs;
 use crate::functions::check::{ScalarFieldsValidation, check_scalar_fields};
+use crate::functions::check::{ScalarOutputShape, check_scalar_distribution};
 use crate::functions::check::{
     compile_and_validate_one_input, extract_task_input,
 };
-use crate::functions::check::example_inputs;
 
 /// Validates quality requirements for an alpha branch scalar function.
 ///
@@ -59,9 +57,7 @@ pub fn check_alpha_branch_scalar_function(
 
     // Must have at least one task
     if tasks.is_empty() {
-        return Err(
-            "AB03: Functions must have at least one task".to_string(),
-        );
+        return Err("AB03: Functions must have at least one task".to_string());
     }
 
     // --- Transpile and run generate() loop ---
@@ -81,10 +77,15 @@ pub fn check_alpha_branch_scalar_function(
     };
 
     let transpiled_children = children.map(|c| {
-        c.iter().map(|(k, v)| (k.clone(), v.clone().transpile())).collect::<HashMap<_, _>>()
+        c.iter()
+            .map(|(k, v)| (k.clone(), v.clone().transpile()))
+            .collect::<HashMap<_, _>>()
     });
 
-    for ref input in example_inputs::generate_seeded(input_schema, StdRng::seed_from_u64(rng.random::<u64>())) {
+    for ref input in example_inputs::generate_seeded(
+        input_schema,
+        StdRng::seed_from_u64(rng.random::<u64>()),
+    ) {
         count += 1;
         let input_label = serde_json::to_string(input).unwrap_or_default();
         let compiled_tasks = compile_and_validate_one_input(
@@ -133,8 +134,8 @@ pub fn check_alpha_branch_scalar_function(
     // Post-loop: function input diversity check
     if count >= 2 {
         for (j, unique_inputs) in per_task_inputs.iter().enumerate() {
-            let effective = unique_inputs.len()
-                + if per_task_skipped[j] { 1 } else { 0 };
+            let effective =
+                unique_inputs.len() + if per_task_skipped[j] { 1 } else { 0 };
             if effective < 2 {
                 return Err(format!(
                     "AB10: Task [{}]: task input is a fixed value — task inputs must \

@@ -4,5 +4,5 @@ import { z } from "zod";
 
 export const CliOutputNotificationInstructionsSchema = z.object({
   instructions: z.string(),
-}).describe("Wire shape for `<scope> instructions get` (and the global\n`instructions get`). The body is the instruction text the user is\nmeant to follow plus the generated instructions ID line.").meta({ title: "cli.output.notification.Instructions" });
+}).describe("Markdown instructions rendered to the JSONL stream by\n`objectiveai plugins install` and `objectiveai tools install`\n— text the caller is meant to read before continuing.\n\nWire: `{\"type\":\"notification\",\"value\":{\"kind\":\"instructions\",\"instructions\":\"…markdown…\"}}`.").meta({ title: "cli.output.notification.Instructions" });
 export type CliOutputNotificationInstructions = z.infer<typeof CliOutputNotificationInstructionsSchema>;

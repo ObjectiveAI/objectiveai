@@ -1,6 +1,6 @@
 {
   "title": "agent.ClientObjectiveaiMcpEntry",
-  "description": "A single `owner` / `name` / `version` reference identifying one\nplugin or one tool inside [`ClientObjectiveaiMcp`].",
+  "description": "A single `owner` / `name` / `version` reference identifying one\ntool inside [`ClientObjectiveaiMcp::tools`]. Plugin references\nuse the larger [`ClientObjectiveaiMcpPluginEntry`] — they carry\nextra `executable` / `mcp_servers` fields tools don't have.",
   "type": "object",
   "properties": {
     "name": {

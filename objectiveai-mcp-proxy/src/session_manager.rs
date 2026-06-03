@@ -57,7 +57,7 @@ use crate::session::Session;
 /// field. URLs sort alphabetically when encoding for stable ids; the
 /// per-URL header map sorts the same way.
 ///
-/// `agent_id` carries the caller-supplied `X-OBJECTIVEAI-AGENT-ID`
+/// `agent_instance_hierarchy` carries the caller-supplied `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY`
 /// value at session-open time. Because the whole payload is
 /// AEAD-encrypted into the public session id, this value travels
 /// inside every Mcp-Session-Id the upstream sdk runners hand back to
@@ -66,7 +66,22 @@ use crate::session::Session;
 pub struct SessionPayload {
     pub connections: IndexMap<String, IndexMap<String, String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_instance_hierarchy: Option<String>,
+    /// Bare 22-character leaf identity from `X-OBJECTIVEAI-AGENT-ID`.
+    /// Travels alongside `agent_instance_hierarchy` inside the AEAD-
+    /// encrypted session id so runners don't have to re-send the
+    /// header on resume.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
+    /// WF-level identity from `X-OBJECTIVEAI-AGENT-FULL-ID`. Same
+    /// AEAD-recovery path as `agent_id`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_full_id: Option<String>,
+    /// JSON-encoded `RemotePath` from `X-OBJECTIVEAI-AGENT-REMOTE`.
+    /// `None` when the WF was inline. Same AEAD-recovery path as
+    /// `agent_id`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_remote: Option<String>,
     /// Per-upstream-URL allowlist of un-prefixed tool names. URLs
     /// present in this map have `tools/list` filtered to only those
     /// names (the proxy still applies its `<server_name>_` prefix
@@ -125,13 +140,24 @@ impl SessionManager {
     /// byte-identical too (modulo the random AEAD nonce, which makes
     /// the ciphertext different each time — intentional, prevents
     /// payload-recognition attacks).
+    #[allow(clippy::too_many_arguments)]
     pub fn add(
         &self,
         connections_with_headers: Vec<(Connection, IndexMap<String, String>)>,
+        agent_instance_hierarchy: Option<String>,
         agent_id: Option<String>,
+        agent_full_id: Option<String>,
+        agent_remote: Option<String>,
         tool_allowlists: IndexMap<String, Vec<String>>,
     ) -> String {
-        let payload = build_payload(&connections_with_headers, agent_id, tool_allowlists);
+        let payload = build_payload(
+            &connections_with_headers,
+            agent_instance_hierarchy,
+            agent_id,
+            agent_full_id,
+            agent_remote,
+            tool_allowlists,
+        );
         let id = encrypt_and_encode(&payload, &self.key);
         let connections: Vec<Connection> =
             connections_with_headers.into_iter().map(|(c, _)| c).collect();
@@ -189,7 +215,10 @@ impl SessionManager {
 ///   - sorted alphabetically.
 fn build_payload(
     pairs: &[(Connection, IndexMap<String, String>)],
+    agent_instance_hierarchy: Option<String>,
     agent_id: Option<String>,
+    agent_full_id: Option<String>,
+    agent_remote: Option<String>,
     tool_allowlists: IndexMap<String, Vec<String>>,
 ) -> SessionPayload {
     // Collect (url, sorted headers) pairs, then sort by URL.
@@ -228,7 +257,10 @@ fn build_payload(
 
     SessionPayload {
         connections,
+        agent_instance_hierarchy,
         agent_id,
+        agent_full_id,
+        agent_remote,
         tool_allowlists,
     }
 }
@@ -430,7 +462,7 @@ mod tests {
         let mut h_b: IndexMap<String, String> = IndexMap::new();
         h_b.insert("Mcp-Session-Id".into(), "sid-B".into());
         connections.insert("https://upstream-b.example/mcp".into(), h_b);
-        SessionPayload { connections, agent_id: None, tool_allowlists: IndexMap::new() }
+        SessionPayload { connections, agent_instance_hierarchy: None, agent_id: None, tool_allowlists: IndexMap::new() }
     }
 
     #[test]
@@ -513,7 +545,7 @@ mod tests {
         for (u, h) in url_entries {
             connections.insert(u, h);
         }
-        let payload = SessionPayload { connections, agent_id: None, tool_allowlists: IndexMap::new() };
+        let payload = SessionPayload { connections, agent_instance_hierarchy: None, agent_id: None, tool_allowlists: IndexMap::new() };
 
         let urls: Vec<&String> = payload.connections.keys().collect();
         assert_eq!(urls, vec![&conn_b_url, &conn_a_url]); // a.example before b.example

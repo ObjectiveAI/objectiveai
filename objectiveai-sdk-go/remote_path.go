@@ -87,9 +87,9 @@ func (v *RemotePathMock) UnmarshalJSON(data []byte) error {
 func (RemotePathMock) SchemaVariantTitle() string { return "Mock" }
 
 type RemotePath struct {
-	Github *RemotePathGithub 
-	Filesystem *RemotePathFilesystem 
-	Mock *RemotePathMock 
+	Github *RemotePathGithub `outerObject:"true"`
+	Filesystem *RemotePathFilesystem `outerObject:"true"`
+	Mock *RemotePathMock `outerObject:"true"`
 }
 
 func (v RemotePath) MarshalJSON() ([]byte, error) {

@@ -4,9 +4,13 @@
   "input_schema": {
     "type": "object",
     "properties": {
-      "text": { "type": "string" }
+      "text": {
+        "type": "string"
+      }
     },
-    "required": ["text"]
+    "required": [
+      "text"
+    ]
   },
   "tasks": [
     {
@@ -14,24 +18,40 @@
       "input_schema": {
         "type": "object",
         "properties": {
-          "text": { "type": "string" }
+          "text": {
+            "type": "string"
+          }
         },
-        "required": ["text"]
+        "required": [
+          "text"
+        ]
       },
-      "input": { "$starlark": "{'text': input['text']}" },
-      "output": { "$special": "output" }
+      "input": {
+        "$starlark": "{'text': input['text']}"
+      },
+      "output": {
+        "$special": "output"
+      }
     },
     {
       "type": "placeholder.scalar.function",
       "input_schema": {
         "type": "object",
         "properties": {
-          "text": { "type": "string" }
+          "text": {
+            "type": "string"
+          }
         },
-        "required": ["text"]
+        "required": [
+          "text"
+        ]
       },
-      "input": { "$starlark": "{'text': input['text']}" },
-      "output": { "$special": "output" }
+      "input": {
+        "$starlark": "{'text': input['text']}"
+      },
+      "output": {
+        "$special": "output"
+      }
     }
   ]
 }

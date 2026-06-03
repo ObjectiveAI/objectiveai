@@ -3,9 +3,6 @@
   "description": "A chunk of a streaming agent completion response.\n\nMultiple chunks are received via Server-Sent Events and can be\naccumulated into a complete [`AgentCompletion`](response::unary::AgentCompletion)\nusing the [`push`](Self::push) method.",
   "type": "object",
   "properties": {
-    "agent": {
-      "type": "string"
-    },
     "content": {
       "anyOf": [
         {

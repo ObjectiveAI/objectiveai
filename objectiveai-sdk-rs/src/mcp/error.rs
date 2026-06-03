@@ -70,7 +70,9 @@ pub enum Error {
         url: String,
     },
     /// The server did not return a session ID on initialization.
-    #[error("server did not return Mcp-Session-Id header at {url}; body: {body}")]
+    #[error(
+        "server did not return Mcp-Session-Id header at {url}; body: {body}"
+    )]
     NoSessionId {
         /// The URL we attempted to initialize against.
         url: String,
