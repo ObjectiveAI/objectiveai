@@ -101,6 +101,16 @@ impl<T: CommandResponse> CommandResponse for Option<T> {
 }
 
 #[cfg(feature = "mcp")]
+impl<T: CommandResponse> CommandResponse for Result<T, crate::cli::Error> {
+    fn into_mcp(self) -> McpResponseItem {
+        match self {
+            Ok(v) => v.into_mcp(),
+            Err(e) => e.into_mcp(),
+        }
+    }
+}
+
+#[cfg(feature = "mcp")]
 impl CommandResponse for crate::agent::completions::message::AssistantToolCallDelta {
     fn into_mcp(self) -> McpResponseItem {
         McpResponseItem::JSONL(

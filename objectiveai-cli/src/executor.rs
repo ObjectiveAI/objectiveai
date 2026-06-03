@@ -10,9 +10,7 @@
 use std::pin::Pin;
 
 use futures::{Stream, StreamExt};
-use objectiveai_sdk::cli::command::{
-    Command as SdkCommand, CommandExecutor, CommandRequest, Request as SdkRequest,
-};
+use objectiveai_sdk::cli::command::{CommandExecutor, CommandRequest, parse_request};
 use serde_json::Value;
 
 use crate::context::Context;
@@ -28,16 +26,6 @@ impl CliCommandExecutor {
     pub fn new(ctx: Context) -> Self {
         Self { ctx }
     }
-}
-
-/// Tiny clap wrapper matching `run.rs::Cli` — same shape, kept private
-/// so the executor can re-parse argv obtained from
-/// [`CommandRequest::into_command`] into a typed [`SdkCommand`].
-#[derive(clap::Parser)]
-#[command(name = "objectiveai")]
-struct Cli {
-    #[command(subcommand)]
-    command: SdkCommand,
 }
 
 /// Walk down externally-tagged enum wrappers (`{"<Variant>": <inner>}`)
@@ -72,11 +60,11 @@ impl CommandExecutor for CliCommandExecutor {
         R: CommandRequest + Send,
         T: serde::de::DeserializeOwned + Send + 'static,
     {
-        let argv: Vec<String> = std::iter::once("objectiveai".to_string())
-            .chain(request.into_command())
-            .collect();
-        let cli = <Cli as clap::Parser>::try_parse_from(&argv).map_err(Error::ClapParse)?;
-        let sdk_request = SdkRequest::try_from(cli.command).map_err(Error::FromArgs)?;
+        let argv = request.into_command();
+        let sdk_request = parse_request(&argv).map_err(|e| match e {
+            objectiveai_sdk::cli::command::ParseError::Clap(e) => Error::ClapParse(e),
+            objectiveai_sdk::cli::command::ParseError::FromArgs(e) => Error::FromArgs(e),
+        })?;
         let stream = crate::command::command::execute(&self.ctx, sdk_request).await?;
         let mapped = stream.map(|r| {
             r.and_then(|item| {

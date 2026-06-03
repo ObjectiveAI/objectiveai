@@ -9,4 +9,7 @@ mod format;
 mod objectiveai;
 mod run;
 
+#[cfg(test)]
+mod format_tests;
+
 pub use run::*;

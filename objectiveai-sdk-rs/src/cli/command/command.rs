@@ -2,7 +2,8 @@
 //! `ResponseItem` aggregators and conversions, mirroring the same
 //! pattern every tier `mod.rs` follows for its own subcommands.
 
-#[derive(clap::Subcommand)]
+#[derive(clap::Parser)]
+#[command(name = "objectiveai")]
 pub enum Command {
     Agents {
         #[command(subcommand)]
@@ -271,4 +272,63 @@ pub async fn execute_jq<E: super::CommandExecutor>(
             }
         };
     Ok(stream)
+}
+
+/// Parse an argv slice into a typed [`Request`]. Accepts either
+/// shape:
+///
+/// - With a program-name prefix (`["objectiveai", "agents", "list"]`)
+///   — matches `std::env::args()` and binary entry-point usage.
+/// - Without one (`["agents", "list"]`) — matches
+///   [`super::CommandRequest::into_command`]'s output shape and the
+///   "command-only" shape MCP callers send.
+///
+/// If `args[0]` is `"objectiveai"` we pass it straight through;
+/// otherwise we prepend so clap (which always treats argv[0] as the
+/// program name) sees a well-formed argv. Hides clap behind the SDK
+/// boundary so downstream crates can dispatch arbitrary argv without
+/// taking a clap dep themselves.
+pub fn parse_request(args: &[String]) -> Result<Request, ParseError> {
+    let command = if args.first().map(String::as_str) == Some("objectiveai") {
+        <Command as clap::Parser>::try_parse_from(args)?
+    } else {
+        let argv = std::iter::once("objectiveai".to_string())
+            .chain(args.iter().cloned());
+        <Command as clap::Parser>::try_parse_from(argv)?
+    };
+    Ok(Request::try_from(command)?)
+}
+
+/// Error from [`parse_request`]. Either clap rejected the argv
+/// ([`ParseError::Clap`] — `--help`, unknown subcommand, missing
+/// required arg, etc.) or the typed `Command` couldn't be lowered
+/// into a `Request` ([`ParseError::FromArgs`] — inline body JSON
+/// failed to parse, etc.).
+#[derive(Debug)]
+pub enum ParseError {
+    Clap(clap::Error),
+    FromArgs(super::FromArgsError),
+}
+
+impl std::fmt::Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ParseError::Clap(e) => write!(f, "{e}"),
+            ParseError::FromArgs(e) => write!(f, "{e}"),
+        }
+    }
+}
+
+impl std::error::Error for ParseError {}
+
+impl From<clap::Error> for ParseError {
+    fn from(e: clap::Error) -> Self {
+        ParseError::Clap(e)
+    }
+}
+
+impl From<super::FromArgsError> for ParseError {
+    fn from(e: super::FromArgsError) -> Self {
+        ParseError::FromArgs(e)
+    }
 }

@@ -4318,12 +4318,12 @@ version = "2.0.11"
 dependencies = [
  "anyhow",
  "axum",
+ "clap 4.6.0",
  "dotenv",
  "envconfig",
  "futures",
  "http",
  "json-escape",
- "objectiveai-cli",
  "objectiveai-sdk",
  "rmcp",
  "schemars 1.2.1",
@@ -4331,8 +4331,6 @@ dependencies = [
  "serde_json",
  "tokio",
  "tokio-util",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]

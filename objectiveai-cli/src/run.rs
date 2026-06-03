@@ -2,7 +2,7 @@ use std::pin::Pin;
 
 use envconfig::Envconfig;
 use futures::{Stream, StreamExt};
-use objectiveai_sdk::cli::command::{Command as SdkCommand, Request, ResponseItem};
+use objectiveai_sdk::cli::command::{ResponseItem, parse_request};
 
 use crate::context::Context;
 use crate::error::Error;
@@ -116,17 +116,6 @@ pub enum RunItem {
     Instance(InstanceEmission),
 }
 
-/// Tiny clap wrapper around the SDK's top-level `Command` enum. The
-/// SDK already derives `clap::Subcommand`, so this is the only clap
-/// surface left in `objectiveai-cli`.
-#[derive(clap::Parser)]
-#[command(name = "objectiveai")]
-#[command(about = "ObjectiveAI CLI")]
-struct Cli {
-    #[command(subcommand)]
-    command: SdkCommand,
-}
-
 pub type RunStream = Pin<Box<dyn Stream<Item = Result<RunItem, Error>> + Send>>;
 
 /// Build the top-level CLI config from the process environment.
@@ -172,8 +161,10 @@ pub async fn run(
         return Ok(Box::pin(inst.map(|r| r.map(RunItem::Instance))));
     }
 
-    let cli = <Cli as clap::Parser>::try_parse_from(&args).map_err(Error::ClapParse)?;
-    let request = Request::try_from(cli.command).map_err(Error::FromArgs)?;
+    let request = parse_request(&args).map_err(|e| match e {
+        objectiveai_sdk::cli::command::ParseError::Clap(e) => Error::ClapParse(e),
+        objectiveai_sdk::cli::command::ParseError::FromArgs(e) => Error::FromArgs(e),
+    })?;
 
     let ctx = match ctx {
         Some(c) => c,
