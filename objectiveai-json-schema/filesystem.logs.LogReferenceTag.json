@@ -1,8 +1,0 @@
-{
-  "title": "filesystem.logs.LogReferenceTag",
-  "description": "Constant `\"reference\"` discriminator — the `\"type\"` field on\nevery `LogReference` variant.",
-  "type": "string",
-  "enum": [
-    "reference"
-  ]
-}

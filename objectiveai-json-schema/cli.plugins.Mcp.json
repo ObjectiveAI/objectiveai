@@ -1,0 +1,24 @@
+{
+  "title": "cli.plugins.Mcp",
+  "description": "Emitted by a running plugin to announce an MCP server URL it wants\nthe host to expose. The host routes this through the standard\nplugin-notification pipeline and dials the URL the same way it would\nfor an entry in the plugin's manifest `mcp_servers` — runtime\nannouncements are functionally identical to manifest-time\ndeclarations.",
+  "type": "object",
+  "properties": {
+    "headers": {
+      "description": "Optional headers the host should attach to every request made to\n`url` (e.g. `Authorization`, custom routing keys). Insertion\norder is preserved on the wire.",
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "url": {
+      "type": "string"
+    }
+  }
+}

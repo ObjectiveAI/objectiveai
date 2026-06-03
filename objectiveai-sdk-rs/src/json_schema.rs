@@ -510,14 +510,17 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
     #[cfg(feature = "cli")]
     {
         schemas.extend([
+            schemars::schema_for!(crate::cli::Error),
+            schemars::schema_for!(crate::cli::ErrorType),
+            schemars::schema_for!(crate::cli::Level),
+            schemars::schema_for!(crate::cli::plugins::Mcp),
             schemars::schema_for!(crate::cli::plugins::Output),
             schemars::schema_for!(crate::cli::plugins::TypedOutput),
         ]);
     }
-    #[cfg(feature = "viewer")]
-    {
-        schemas.extend([schemars::schema_for!(crate::viewer::Event)]);
-    }
+    // Viewer-side schemas removed: the `crate::viewer` module is
+    // currently commented out in lib.rs (broken cli::output bridge).
+    // Re-add when the module is restored.
     #[cfg(feature = "http")]
     {
         schemas.extend([

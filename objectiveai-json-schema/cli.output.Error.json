@@ -3,28 +3,29 @@
   "description": "A failure or advisory written to stdout. `fatal: true` means the\nprocess is exiting with a non-zero status; `fatal: false` is a\nnon-blocking warning (e.g. auto-update failed but the requested\ncommand still ran).\n\n`message` is an arbitrary JSON value so producers can emit\nstructured payloads (e.g. `{\"code\": ..., \"detail\": ...}`). Wrap\na plain string as `Value::String(...)` (or use `.into()`) and the\nwire bytes stay identical to the old `String`-only shape.\n\nThe `type` field is a single-variant `ErrorType` enum that\nalways serializes to `\"error\"`. This is what disambiguates the\nuntagged `Output` enum from a notification — `Output` tries\n`Error` first, and the constant `type:\"error\"` tag is what\nrejects every non-error wire shape.",
   "type": "object",
   "properties": {
-    "agent_instance_hierarchy": {
-      "description": "Stamped at emit time by [`super::Handle`] when its `agent_instance_hierarchy`\nfield is set; producers leave this `None` and let the handle\nfill it. Serde-skipped when `None`.",
+    "fatal": {
       "anyOf": [
         {
-          "type": "string"
+          "type": "boolean"
         },
         {
           "type": "null"
         }
-      ],
-      "omitempty": true
-    },
-    "fatal": {
-      "type": "boolean"
+      ]
     },
     "level": {
-      "$ref": "cli.output.Level"
+      "anyOf": [
+        {
+          "$ref": "cli.output.Level"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "message": {},
     "type": {
-      "$ref": "cli.output.ErrorType",
-      "default": "error"
+      "$ref": "cli.output.ErrorType"
     }
   }
 }
