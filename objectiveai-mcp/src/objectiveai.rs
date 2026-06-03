@@ -1,10 +1,10 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use futures::FutureExt;
+use futures::{FutureExt, StreamExt};
 use http::request::Parts;
-use objectiveai_sdk::filesystem::plugins::ManifestWithNameAndSource as PluginManifest;
-use objectiveai_sdk::filesystem::tools::ManifestWithNameAndSource as ToolManifest;
+use objectiveai_cli::filesystem::plugins::ManifestWithNameAndSource as PluginManifest;
+use objectiveai_cli::filesystem::tools::ManifestWithNameAndSource as ToolManifest;
 use rmcp::{
     ServerHandler,
     handler::server::router::tool::{ToolRoute, ToolRouter},
@@ -16,7 +16,7 @@ use rmcp::{
     schemars, tool, tool_handler, tool_router,
 };
 
-use crate::format::format_outputs;
+use crate::format::format_items;
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct ObjectiveAiRequest {
@@ -29,7 +29,7 @@ pub struct ObjectiveAiRequest {
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct PluginRequest {
     #[schemars(
-        description = "Args forwarded to the plugin's argv (prefixed automatically with `plugins <name>` when invoking the CLI)."
+        description = "Args forwarded to the plugin's argv (prefixed automatically with `plugins run <name>` when invoking the CLI)."
     )]
     pub args: Vec<String>,
 }
@@ -37,7 +37,7 @@ pub struct PluginRequest {
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct ToolRequest {
     #[schemars(
-        description = "Args forwarded to the tool's argv (prefixed automatically with `tools <name>` when invoking the CLI)."
+        description = "Args forwarded to the tool's argv (prefixed automatically with `tools run <name>` when invoking the CLI)."
     )]
     pub args: Vec<String>,
 }
@@ -93,6 +93,7 @@ impl ObjectiveAiMcpCli {
                     let args: Vec<String> = [
                         "objectiveai".to_string(),
                         "plugins".to_string(),
+                        "run".to_string(),
                         plugin_name,
                     ]
                     .into_iter()
@@ -130,6 +131,7 @@ impl ObjectiveAiMcpCli {
                     let args: Vec<String> = [
                         "objectiveai".to_string(),
                         "tools".to_string(),
+                        "run".to_string(),
                         tool_name.clone(),
                     ]
                     .into_iter()
@@ -164,17 +166,17 @@ impl ObjectiveAiMcpCli {
     }
 }
 
-/// Run the ObjectiveAI CLI in-process with `args`, collecting every
-/// emitted `Output`, and format the result into the MCP tool
-/// response `Vec<Content>`. Applies the per-request
-/// `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY` header override (clones the server-wide
-/// `cli_config` so concurrent requests stay independent).
+/// Run the ObjectiveAI CLI in-process with `args`, drain its typed
+/// `RunItem` stream into a `Vec`, and format the result into the MCP
+/// tool response `Vec<Content>`. Applies the per-request
+/// `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY` header override (clones
+/// the server-wide `cli_config` so concurrent requests stay
+/// independent) by building a fresh [`objectiveai_cli::context::Context`]
+/// for every call — the agent_instance_hierarchy stamp is baked into
+/// the `HttpClient` at construction time, so per-request HTTP-header
+/// overrides require a fresh client anyway.
 ///
-/// See [`crate::format`] for the dispatch table. The formatter
-/// always strips `agent_instance_hierarchy` from the response body regardless of
-/// any env vars. Today the returned vector is always a single
-/// `Content::text` block; the shape leaves room for a future change
-/// to start emitting typed media blocks alongside.
+/// See [`crate::format`] for the dispatch table.
 async fn run_cli_and_collect(
     cli_config: &Arc<objectiveai_cli::Config>,
     parts: &Parts,
@@ -225,22 +227,18 @@ async fn run_cli_and_collect(
         Some(s) => Some(s.to_string()),
         None => header_agent_instance_hierarchy.map(str::to_string),
     };
-    let cli_config: Arc<objectiveai_cli::Config> = Arc::new(cfg);
 
-    let collected = Arc::new(tokio::sync::Mutex::new(Vec::new()));
-    // Per-request handle: stamp the agent_instance_hierarchy from the per-request
-    // cli_config so every notification/error the cli emits during
-    // this Run carries `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY`. The Collect
-    // destination mirrors the same agent_instance_hierarchy into the in-memory
-    // Vec the runner reassembles below.
-    let handle = objectiveai_sdk::cli::output::Handle {
-        destination: objectiveai_sdk::cli::output::HandleDestination::Collect(collected.clone()),
-        agent_instance_hierarchy: Some(cli_config.agent_instance_hierarchy.clone()),
+    let ctx = match objectiveai_cli::context::Context::new(cfg).await {
+        Ok(c) => c,
+        Err(e) => return format_items(&[Err(e)]),
     };
-    let _ = objectiveai_cli::run(args, &cli_config, handle).await;
-
-    let outputs = collected.lock().await;
-    format_outputs(&outputs)
+    let stream = match objectiveai_cli::run(args, Some(ctx)).await {
+        Ok(s) => s,
+        Err(e) => return format_items(&[Err(e)]),
+    };
+    let items: Vec<Result<objectiveai_cli::RunItem, objectiveai_cli::error::Error>> =
+        stream.collect().await;
+    format_items(&items)
 }
 
 #[tool_handler]

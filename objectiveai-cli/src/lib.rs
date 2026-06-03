@@ -1,6 +1,6 @@
 pub mod agent_ref;
 pub mod command;
-mod context;
+pub mod context;
 pub mod error;
 pub mod executor;
 pub mod favorite_ref;
