@@ -93,6 +93,37 @@ impl TryFrom<Args> for Request {
     }
 }
 
+#[cfg(feature = "mcp")]
+impl crate::cli::command::CommandResponse for Response {
+    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
+        // Every variant's payload type already implements
+        // `CommandResponse`, so each arm delegates straight through:
+        // media variants pick up `Media(ContentBlock)`, the typed
+        // log envelopes pick up `JSONL(serde_value)`, and `Text(String)`
+        // picks up the `Value::String` shortcut from the `String` impl.
+        match self {
+            Response::AgentsCompletionsResponse(v) => v.into_mcp(),
+            Response::AgentsCompletionsRequest(v) => v.into_mcp(),
+            Response::AgentsCompletionsResponseMessages(v) => v.into_mcp(),
+            Response::AgentsCompletionsResponseMessagesLogprobs(v) => v.into_mcp(),
+            Response::AgentsCompletionsResponseMessagesToolCalls(v) => v.into_mcp(),
+            Response::VectorCompletionsResponse(v) => v.into_mcp(),
+            Response::VectorCompletionsRequest(v) => v.into_mcp(),
+            Response::FunctionsExecutionsResponse(v) => v.into_mcp(),
+            Response::FunctionsExecutionsRequest(v) => v.into_mcp(),
+            Response::FunctionsInventionsResponse(v) => v.into_mcp(),
+            Response::FunctionsInventionsRequest(v) => v.into_mcp(),
+            Response::FunctionsInventionsRecursiveResponse(v) => v.into_mcp(),
+            Response::FunctionsInventionsRecursiveRequest(v) => v.into_mcp(),
+            Response::Text(v) => v.into_mcp(),
+            Response::Image(v) => v.into_mcp(),
+            Response::Audio(v) => v.into_mcp(),
+            Response::Video(v) => v.into_mcp(),
+            Response::File(v) => v.into_mcp(),
+        }
+    }
+}
+
 #[cfg(feature = "cli-executor")]
 pub async fn execute<E: crate::cli::command::CommandExecutor>(
     executor: &E,
