@@ -22,7 +22,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
             fav.path.clone()
         }
     };
-    Ok(objectiveai_sdk::functions::profiles::get_profile(&ctx.http, path).await?.inner)
+    Ok(objectiveai_sdk::functions::profiles::get_profile(&ctx.http, path).await?)
 }
 
 pub mod request_schema {

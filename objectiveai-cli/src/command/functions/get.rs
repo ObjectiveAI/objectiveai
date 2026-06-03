@@ -21,7 +21,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
             fav.path.clone()
         }
     };
-    Ok(objectiveai_sdk::functions::get_function(&ctx.http, path).await?.inner)
+    Ok(objectiveai_sdk::functions::get_function(&ctx.http, path).await?)
 }
 
 pub mod request_schema {

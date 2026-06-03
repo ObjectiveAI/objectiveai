@@ -24,7 +24,7 @@ impl CommandRequest for Request {
     }
 }
 
-pub type Response = crate::functions::FullRemoteFunction;
+pub type Response = crate::functions::response::GetFunctionResponse;
 
 #[derive(clap::Args)]
 pub struct Args {
