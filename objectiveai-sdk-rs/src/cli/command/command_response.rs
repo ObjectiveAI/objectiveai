@@ -82,7 +82,7 @@ impl CommandResponse for String {
 impl CommandResponse for crate::agent::completions::message::AssistantToolCallDelta {
     fn into_mcp(self) -> McpResponseItem {
         McpResponseItem::JSONL(
-            serde_json::to_value(self).expect("CommandResponse serializes"),
+            serde_json::to_value(self).unwrap(),
         )
     }
 }
@@ -91,7 +91,7 @@ impl CommandResponse for crate::agent::completions::message::AssistantToolCallDe
 impl CommandResponse for crate::agent::completions::message::MessageLog {
     fn into_mcp(self) -> McpResponseItem {
         McpResponseItem::JSONL(
-            serde_json::to_value(self).expect("CommandResponse serializes"),
+            serde_json::to_value(self).unwrap(),
         )
     }
 }
@@ -100,7 +100,7 @@ impl CommandResponse for crate::agent::completions::message::MessageLog {
 impl CommandResponse for crate::agent::completions::request::AgentCompletionCreateParamsLog {
     fn into_mcp(self) -> McpResponseItem {
         McpResponseItem::JSONL(
-            serde_json::to_value(self).expect("CommandResponse serializes"),
+            serde_json::to_value(self).unwrap(),
         )
     }
 }
@@ -109,7 +109,7 @@ impl CommandResponse for crate::agent::completions::request::AgentCompletionCrea
 impl CommandResponse for crate::agent::completions::response::Logprobs {
     fn into_mcp(self) -> McpResponseItem {
         McpResponseItem::JSONL(
-            serde_json::to_value(self).expect("CommandResponse serializes"),
+            serde_json::to_value(self).unwrap(),
         )
     }
 }
@@ -118,7 +118,7 @@ impl CommandResponse for crate::agent::completions::response::Logprobs {
 impl CommandResponse for crate::agent::completions::response::streaming::AgentCompletionChunkLog {
     fn into_mcp(self) -> McpResponseItem {
         McpResponseItem::JSONL(
-            serde_json::to_value(self).expect("CommandResponse serializes"),
+            serde_json::to_value(self).unwrap(),
         )
     }
 }
@@ -127,7 +127,7 @@ impl CommandResponse for crate::agent::completions::response::streaming::AgentCo
 impl CommandResponse for crate::agent::response::GetAgentResponse {
     fn into_mcp(self) -> McpResponseItem {
         McpResponseItem::JSONL(
-            serde_json::to_value(self).expect("CommandResponse serializes"),
+            serde_json::to_value(self).unwrap(),
         )
     }
 }
@@ -136,7 +136,7 @@ impl CommandResponse for crate::agent::response::GetAgentResponse {
 impl CommandResponse for crate::functions::executions::request::FunctionExecutionCreateParamsLog {
     fn into_mcp(self) -> McpResponseItem {
         McpResponseItem::JSONL(
-            serde_json::to_value(self).expect("CommandResponse serializes"),
+            serde_json::to_value(self).unwrap(),
         )
     }
 }
@@ -147,7 +147,7 @@ impl CommandResponse
 {
     fn into_mcp(self) -> McpResponseItem {
         McpResponseItem::JSONL(
-            serde_json::to_value(self).expect("CommandResponse serializes"),
+            serde_json::to_value(self).unwrap(),
         )
     }
 }
@@ -156,7 +156,7 @@ impl CommandResponse
 impl CommandResponse for crate::functions::inventions::request::FunctionInventionCreateParams {
     fn into_mcp(self) -> McpResponseItem {
         McpResponseItem::JSONL(
-            serde_json::to_value(self).expect("CommandResponse serializes"),
+            serde_json::to_value(self).unwrap(),
         )
     }
 }
@@ -167,7 +167,7 @@ impl CommandResponse
 {
     fn into_mcp(self) -> McpResponseItem {
         McpResponseItem::JSONL(
-            serde_json::to_value(self).expect("CommandResponse serializes"),
+            serde_json::to_value(self).unwrap(),
         )
     }
 }
@@ -178,7 +178,7 @@ impl CommandResponse
 {
     fn into_mcp(self) -> McpResponseItem {
         McpResponseItem::JSONL(
-            serde_json::to_value(self).expect("CommandResponse serializes"),
+            serde_json::to_value(self).unwrap(),
         )
     }
 }
@@ -189,7 +189,7 @@ impl CommandResponse
 {
     fn into_mcp(self) -> McpResponseItem {
         McpResponseItem::JSONL(
-            serde_json::to_value(self).expect("CommandResponse serializes"),
+            serde_json::to_value(self).unwrap(),
         )
     }
 }
@@ -200,7 +200,7 @@ impl CommandResponse
 {
     fn into_mcp(self) -> McpResponseItem {
         McpResponseItem::JSONL(
-            serde_json::to_value(self).expect("CommandResponse serializes"),
+            serde_json::to_value(self).unwrap(),
         )
     }
 }
@@ -209,7 +209,7 @@ impl CommandResponse
 impl CommandResponse for crate::functions::profiles::response::GetProfileResponse {
     fn into_mcp(self) -> McpResponseItem {
         McpResponseItem::JSONL(
-            serde_json::to_value(self).expect("CommandResponse serializes"),
+            serde_json::to_value(self).unwrap(),
         )
     }
 }
@@ -218,7 +218,7 @@ impl CommandResponse for crate::functions::profiles::response::GetProfileRespons
 impl CommandResponse for crate::functions::response::GetFunctionResponse {
     fn into_mcp(self) -> McpResponseItem {
         McpResponseItem::JSONL(
-            serde_json::to_value(self).expect("CommandResponse serializes"),
+            serde_json::to_value(self).unwrap(),
         )
     }
 }
@@ -227,7 +227,7 @@ impl CommandResponse for crate::functions::response::GetFunctionResponse {
 impl CommandResponse for crate::Remote {
     fn into_mcp(self) -> McpResponseItem {
         McpResponseItem::JSONL(
-            serde_json::to_value(self).expect("CommandResponse serializes"),
+            serde_json::to_value(self).unwrap(),
         )
     }
 }
@@ -236,7 +236,7 @@ impl CommandResponse for crate::Remote {
 impl CommandResponse for crate::swarm::response::GetSwarmResponse {
     fn into_mcp(self) -> McpResponseItem {
         McpResponseItem::JSONL(
-            serde_json::to_value(self).expect("CommandResponse serializes"),
+            serde_json::to_value(self).unwrap(),
         )
     }
 }
@@ -245,7 +245,7 @@ impl CommandResponse for crate::swarm::response::GetSwarmResponse {
 impl CommandResponse for crate::vector::completions::request::VectorCompletionCreateParams {
     fn into_mcp(self) -> McpResponseItem {
         McpResponseItem::JSONL(
-            serde_json::to_value(self).expect("CommandResponse serializes"),
+            serde_json::to_value(self).unwrap(),
         )
     }
 }
@@ -256,7 +256,7 @@ impl CommandResponse
 {
     fn into_mcp(self) -> McpResponseItem {
         McpResponseItem::JSONL(
-            serde_json::to_value(self).expect("CommandResponse serializes"),
+            serde_json::to_value(self).unwrap(),
         )
     }
 }
