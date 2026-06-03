@@ -2,6 +2,7 @@ pub mod agent_ref;
 pub mod command;
 mod context;
 pub mod error;
+pub mod executor;
 pub mod favorite_ref;
 pub mod filesystem;
 pub mod instance;
