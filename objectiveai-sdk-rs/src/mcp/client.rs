@@ -178,6 +178,65 @@ impl Client {
         }
     }
 
+    /// Issue a stateless HTTP `DELETE /` to one upstream MCP server,
+    /// telling it to terminate the session identified by `session_id`.
+    ///
+    /// This is the low-level primitive — no backoff, no listener
+    /// teardown, no connection state. Caller is responsible for any
+    /// retry semantics. For the stateful tear-down path that also
+    /// cancels the connection's own active streams and absorbs
+    /// upstream `404 / 401 / 403` as success, use
+    /// [`Connection::delete`](super::Connection::delete) instead.
+    ///
+    /// `headers` is merged with the same defaults `connect` applies
+    /// (`User-Agent`, `X-Title`, `Referer`, `HTTP-Referer`). The
+    /// explicit `session_id` argument always wins over any
+    /// `Mcp-Session-Id` entry that happens to appear in `headers` — the
+    /// shape mirrors `connect`'s argument split for the same reason.
+    ///
+    /// Returns `Ok(())` on any 2xx status. Any non-2xx (including
+    /// `404 Not Found`) surfaces as [`Error::BadStatus`]. Network /
+    /// transport failures surface as [`Error::Request`].
+    pub async fn delete(
+        &self,
+        url: String,
+        session_id: String,
+        headers: Option<IndexMap<String, String>>,
+    ) -> Result<(), super::Error> {
+        if url == "mock" {
+            return Ok(());
+        }
+        let headers = self.headers(headers);
+        let mut request = self
+            .http_client
+            .delete(&url)
+            .timeout(self.call_timeout)
+            .header("Mcp-Session-Id", &session_id);
+        for (name, value) in &headers {
+            // Explicit `session_id` arg always wins.
+            if name.eq_ignore_ascii_case("Mcp-Session-Id") {
+                continue;
+            }
+            request = request.header(name, value);
+        }
+        let response = request.send().await.map_err(|source| {
+            super::Error::Request {
+                url: url.clone(),
+                source,
+            }
+        })?;
+        if !response.status().is_success() {
+            let code = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(super::Error::BadStatus {
+                url,
+                code,
+                body: body.chars().take(800).collect(),
+            });
+        }
+        Ok(())
+    }
+
     /// One pass through the full Streamable-HTTP handshake. Caller
     /// applies the outer backoff retry loop in [`Self::connect`].
     /// `headers` is the already-merged map (defaults + caller overrides

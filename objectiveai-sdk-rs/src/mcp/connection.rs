@@ -98,6 +98,94 @@ impl Deref for Connection {
 }
 
 impl Connection {
+    /// Tear this connection down explicitly.
+    ///
+    /// 1. Cancels the long-lived list-changed listener task immediately
+    ///    (drops the [`DropGuard`] in
+    ///    [`ConnectionInner::_listener_cancel_guard`]), so by the time
+    ///    the HTTP DELETE goes out the listener isn't still holding an
+    ///    SSE read open against the upstream we're about to close.
+    /// 2. Issues `DELETE /` to the upstream with this connection's
+    ///    `Mcp-Session-Id` and the same merged header set every other
+    ///    RPC stamps. Reuses [`ConnectionInner::call_timeout`].
+    /// 3. Treats `404 / 401 / 403` as success — the upstream is
+    ///    unreachable from these credentials anyway, which is the
+    ///    desired terminal state. Other non-2xx surfaces as
+    ///    [`super::Error::BadStatus`].
+    ///
+    /// Takes `&self`: the listener cancel is in-place, and dropping
+    /// the surrounding `Arc<ConnectionInner>` (which closes the rest
+    /// of the connection's owned state) is the caller's responsibility
+    /// — usually by dropping the `Arc<Session>` holding it. Stateless
+    /// callers that don't hold a `Connection` should use
+    /// [`Client::delete`](super::Client::delete) instead.
+    ///
+    /// **In-flight RPC ordering.** This method does not block on
+    /// in-flight `call_tool` / `read_resource` / `list_tools` /
+    /// `list_resources` calls on the same connection. If one is
+    /// outstanding when `delete` lands, the upstream may see DELETE
+    /// before the RPC's reply makes it back; the in-flight call then
+    /// surfaces as a closed-connection error to whoever started it.
+    /// That's the spec-correct order (client said terminate) — drain
+    /// on the caller side first if you need different semantics.
+    pub async fn delete(&self) -> Result<(), super::Error> {
+        // 1. Drop the listener-cancel guard. Releasing the `DropGuard`
+        //    cancels the sibling `CancellationToken` the listener task
+        //    holds; the listener `tokio::select!`s against it on every
+        //    blocking await and exits inside one scheduler tick.
+        if let Ok(mut guard) = self.inner._listener_cancel_guard.lock() {
+            let _ = guard.take();
+        }
+
+        // 2. Mock connections never opened an HTTP session, so the
+        //    DELETE call would 404. Short-circuit to success.
+        if self.inner.mock {
+            return Ok(());
+        }
+
+        // 3. Build + send HTTP DELETE. Mirrors `Client::connect_once`'s
+        //    request-stamp shape: header loop first, explicit
+        //    `Mcp-Session-Id` always wins.
+        let mut request = self
+            .inner
+            .http_client
+            .delete(&self.inner.url)
+            .timeout(self.inner.call_timeout)
+            .header("Mcp-Session-Id", &self.inner.session_id);
+        for (name, value) in &self.inner.headers {
+            if name.eq_ignore_ascii_case("Mcp-Session-Id") {
+                continue;
+            }
+            request = request.header(name, value);
+        }
+        let response = request.send().await.map_err(|source| {
+            super::Error::Request {
+                url: self.inner.url.clone(),
+                source,
+            }
+        })?;
+
+        // 4. 404 / 401 / 403 → success; other non-2xx → real error.
+        let status = response.status();
+        if matches!(
+            status,
+            reqwest::StatusCode::NOT_FOUND
+                | reqwest::StatusCode::UNAUTHORIZED
+                | reqwest::StatusCode::FORBIDDEN
+        ) {
+            return Ok(());
+        }
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            return Err(super::Error::BadStatus {
+                url: self.inner.url.clone(),
+                code: status,
+                body: body.chars().take(800).collect(),
+            });
+        }
+        Ok(())
+    }
+
     pub(super) async fn new(
         http_client: reqwest::Client,
         url: String,
@@ -383,7 +471,14 @@ pub struct ConnectionInner {
     /// The listener itself holds a sibling `CancellationToken` (clone),
     /// not the guard, so its task does not extend the connection's
     /// lifetime.
-    _listener_cancel_guard: Option<DropGuard>,
+    ///
+    /// Wrapped in `Mutex<Option<_>>` so explicit teardown paths
+    /// ([`Connection::delete`]) can drop the guard in place — firing
+    /// the cancel token *before* the surrounding `Arc<ConnectionInner>`
+    /// goes away. Regular drop still works: `Mutex<Option<DropGuard>>`
+    /// drops its inner `DropGuard` automatically when the mutex itself
+    /// drops, so existing `Connection::Drop` semantics are unchanged.
+    _listener_cancel_guard: std::sync::Mutex<Option<DropGuard>>,
 
     /// Optional callback fired *after* the listener has refreshed the
     /// tool cache in response to an upstream `notifications/tools/list_changed`.
@@ -452,7 +547,7 @@ impl ConnectionInner {
             // trying to paginate over a non-existent upstream.
             tools: RwLock::new(Some(Ok(Arc::new(Vec::new())))),
             resources: RwLock::new(Some(Ok(Arc::new(Vec::new())))),
-            _listener_cancel_guard: None,
+            _listener_cancel_guard: std::sync::Mutex::new(None),
             on_tools_list_changed: CallbackSlot::new(),
             on_resources_list_changed: CallbackSlot::new(),
             tools_changed: Notify::new(),
@@ -503,7 +598,7 @@ impl ConnectionInner {
             // with an empty Ok so `list_tools` doesn't try to paginate.
             tools: RwLock::new(Some(Ok(Arc::new(Vec::new())))),
             resources: RwLock::new(Some(Ok(Arc::new(Vec::new())))),
-            _listener_cancel_guard: None,
+            _listener_cancel_guard: std::sync::Mutex::new(None),
             on_tools_list_changed: CallbackSlot::new(),
             on_resources_list_changed: CallbackSlot::new(),
             tools_changed: Notify::new(),
@@ -564,7 +659,9 @@ impl ConnectionInner {
             // gates the return on the writer holding the lock).
             tools: RwLock::new(None),
             resources: RwLock::new(None),
-            _listener_cancel_guard: Some(listener_cancel.drop_guard()),
+            _listener_cancel_guard: std::sync::Mutex::new(Some(
+                listener_cancel.drop_guard(),
+            )),
             on_tools_list_changed: CallbackSlot::new(),
             on_resources_list_changed: CallbackSlot::new(),
             tools_changed: Notify::new(),
