@@ -1,4 +1,5 @@
 pub mod agent_ref;
+mod child_io;
 pub mod command;
 pub mod context;
 pub mod error;
