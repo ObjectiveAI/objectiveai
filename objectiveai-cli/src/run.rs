@@ -163,8 +163,7 @@ pub fn is_informational(e: &clap::Error) -> bool {
 /// Step 2: otherwise, clap-parse argv against the SDK's top-level
 /// [`SdkCommand`]; `TryFrom` it into [`Request`]; resolve
 /// [`Context`] (caller-supplied or built from env); dispatch through
-/// the SDK's generic `execute<E>` driven by a
-/// [`crate::executor::CliCommandExecutor`]. Each yielded
+/// `crate::command::command::execute`. Each yielded
 /// [`ResponseItem`] is wrapped as [`RunItem::Command`].
 ///
 /// Pre-dispatch failures (clap parse error, arg-conversion error,
@@ -189,7 +188,6 @@ pub async fn run(
 
     // TODO(jq): if the resolved request carries a `jq` filter, extract
     // it here and apply to the returned stream before wrapping.
-    let executor = crate::executor::CliCommandExecutor::new(ctx);
-    let typed = objectiveai_sdk::cli::command::execute(&executor, request).await?;
+    let typed = crate::command::command::execute(&ctx, request).await?;
     Ok(Box::pin(typed.map(|r| r.map(RunItem::Command))))
 }
