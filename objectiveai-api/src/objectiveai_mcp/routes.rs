@@ -108,10 +108,9 @@ fn build_ctx(
 async fn handle_post_objectiveai(
     State(state): State<SharedState>,
     headers: HeaderMap,
-    uri: axum::http::Uri,
     body: Bytes,
 ) -> Response {
-    handle_post(McpKind::ObjectiveAi, state, headers, uri, body).await
+    handle_post(McpKind::ObjectiveAi, state, headers, body).await
 }
 
 async fn handle_get_objectiveai(
@@ -132,14 +131,12 @@ async fn handle_post_other(
     State(state): State<SharedState>,
     Path((owner, name, version, mcp)): Path<(String, String, String, String)>,
     headers: HeaderMap,
-    uri: axum::http::Uri,
     body: Bytes,
 ) -> Response {
     handle_post(
         McpKind::Other { owner, name, version, mcp },
         state,
         headers,
-        uri,
         body,
     )
     .await
@@ -169,7 +166,6 @@ async fn handle_post(
     mcp_kind: McpKind,
     state: SharedState,
     headers: HeaderMap,
-    uri: axum::http::Uri,
     body: Bytes,
 ) -> Response {
     if let Err(resp) = require_streamable_http_accept(&headers) {
@@ -198,14 +194,13 @@ async fn handle_post(
 
     let ctx = build_ctx(&state, response_id, headers);
 
-    // `initialize` is special-cased: the API replaces the CLI's
-    // response body with its canonical `InitializeResult` AND stamps
-    // the upstream's `Mcp-Session-Id` returned by the CLI onto the
-    // outbound HTTP response header. Plugin args ride on the URL
-    // query string; parse them here and pass through to the CLI
-    // via the typed Initialize variant.
+    // `initialize` is special-cased: the API forwards the CLI's
+    // verbatim `InitializeResult` AND stamps the upstream's
+    // `Mcp-Session-Id` returned by the CLI onto the outbound HTTP
+    // response header. Plugin args ride on `X-OBJECTIVEAI-ARGUMENTS`
+    // (JSON-serialized declaration-order IndexMap).
     if method == "initialize" {
-        let args = parse_query_args(&uri);
+        let args = parse_args_header(&ctx.headers);
         return match handlers::handle_initialize(ctx, mcp_kind, args).await {
             Ok((result, session_id)) => {
                 let value = serde_json::to_value(result)
@@ -237,43 +232,18 @@ async fn handle_post(
     }
 }
 
-/// Decode a URL query string into `IndexMap<String, Option<String>>`,
-/// preserving the bare-key vs `key=` distinction needed for
-/// `Option<String>` plugin args. Used only on the `initialize` POST
-/// — every other proxy request reuses the same URL but its args
+/// Decode the `X-OBJECTIVEAI-ARGUMENTS` header into an ordered
+/// argument map. Absent / non-UTF-8 / non-JSON / wrong-shape headers
+/// resolve to an empty map; the CLI then spawns the plugin with no
+/// `--<arg>` flags. Used only on the `initialize` POST — every other
+/// proxy request to the same URL reuses the same header but its args
 /// have already been delivered to the CLI at dial time.
-fn parse_query_args(uri: &axum::http::Uri) -> IndexMap<String, Option<String>> {
-    let mut out = IndexMap::new();
-    let Some(query) = uri.query() else { return out };
-    for pair in query.split('&') {
-        if pair.is_empty() {
-            continue;
-        }
-        match pair.split_once('=') {
-            Some((k, v)) => {
-                let key = url_decode(k);
-                let val = url_decode(v);
-                out.insert(key, Some(val));
-            }
-            None => {
-                let key = url_decode(pair);
-                out.insert(key, None);
-            }
-        }
-    }
-    out
-}
-
-/// Percent-decode a URL component. `+` decodes to space per
-/// application/x-www-form-urlencoded. Falls back to the raw input on
-/// decode failure so we surface plugin-side parse errors rather than
-/// silently swallowing.
-fn url_decode(s: &str) -> String {
-    let with_space: String = s.chars().map(|c| if c == '+' { ' ' } else { c }).collect();
-    percent_encoding::percent_decode_str(&with_space)
-        .decode_utf8()
-        .map(|s| s.into_owned())
-        .unwrap_or(with_space)
+fn parse_args_header(headers: &HeaderMap) -> IndexMap<String, Option<String>> {
+    headers
+        .get("X-OBJECTIVEAI-ARGUMENTS")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| serde_json::from_str(s).ok())
+        .unwrap_or_default()
 }
 
 // ────────────────────────────────────────────────────────────────

@@ -735,23 +735,31 @@ where
                 //   `tools`, set `objectiveai = true`, or declared an
                 //   `executable` plugin — non-executable plugins are
                 //   present purely for their `mcp_servers`).
-                // - One `/{owner}/{name}/{version}/{mcp}?<args>` per
-                //   declared plugin MCP server. `<args>` is the
-                //   form-urlencoded entry arguments; absent values
-                //   encode as bare keys (`?foo`), present values as
-                //   `?foo=bar`.
-                let client_mcp_synthetic_urls: Vec<String> = match (
+                // - One `/{owner}/{name}/{version}/{mcp}` per declared
+                //   plugin MCP server. Plugin args ride alongside as
+                //   `X-OBJECTIVEAI-ARGUMENTS` (per-URL header), JSON-
+                //   serialized in declaration order.
+                let client_mcp_synthetic_urls: Vec<(
+                    String,
+                    Option<indexmap::IndexMap<String, Option<String>>>,
+                )> = match (
                     agent_ws_session_id.as_deref(),
                     mcp_port_for_synth,
                     agent.base().client_objectiveai_mcp(),
                 ) {
                     (Some(_), Some(mcp_port), Some(client_mcp)) => {
-                        let mut out: Vec<String> = Vec::new();
+                        let mut out: Vec<(
+                            String,
+                            Option<indexmap::IndexMap<String, Option<String>>>,
+                        )> = Vec::new();
                         let needs_objectiveai = !client_mcp.tools.is_empty()
                             || client_mcp.objectiveai.unwrap_or(false)
                             || client_mcp.plugins.iter().any(|p| p.executable);
                         if needs_objectiveai {
-                            out.push(format!("http://127.0.0.1:{mcp_port}/objectiveai"));
+                            out.push((
+                                format!("http://127.0.0.1:{mcp_port}/objectiveai"),
+                                None,
+                            ));
                         }
                         for plugin in &client_mcp.plugins {
                             for entry in plugin.mcp_servers.as_deref().unwrap_or(&[]) {
@@ -762,20 +770,17 @@ where
                                     version = percent_encode_segment(&plugin.version),
                                     mcp = percent_encode_segment(&entry.name),
                                 );
-                                let query = encode_args_query(entry.arguments.as_ref());
-                                let url = if query.is_empty() {
-                                    format!("http://127.0.0.1:{mcp_port}/{path}")
-                                } else {
-                                    format!("http://127.0.0.1:{mcp_port}/{path}?{query}")
-                                };
-                                out.push(url);
+                                out.push((
+                                    format!("http://127.0.0.1:{mcp_port}/{path}"),
+                                    entry.arguments.clone(),
+                                ));
                             }
                         }
                         out
                     }
                     _ => Vec::new(),
                 };
-                urls.extend(client_mcp_synthetic_urls.iter().cloned());
+                urls.extend(client_mcp_synthetic_urls.iter().map(|(u, _)| u.clone()));
 
                 // No MCP servers → no proxy
                 // connection needed for this agent. Skipping the spawn
@@ -830,10 +835,12 @@ where
                 // Each synthetic per-MCP URL needs the
                 // `X-OBJECTIVEAI-RESPONSE-ID` header so the API's
                 // loopback MCP router can find the matching WS
-                // reverse channel when the proxy dials. The URL's
-                // path itself carries the McpKind discriminator —
-                // no per-URL config payload is necessary.
-                for url in &client_mcp_synthetic_urls {
+                // reverse channel when the proxy dials. Plugin URLs
+                // additionally carry `X-OBJECTIVEAI-ARGUMENTS` —
+                // JSON-serialized declaration-order IndexMap the CLI
+                // uses to spawn `<plugin> mcp <mcp> begin --<k> [v]`.
+                // The URL path carries the McpKind discriminator.
+                for (url, args) in &client_mcp_synthetic_urls {
                     let entry = per_url_headers
                         .entry(url.clone())
                         .or_insert_with(|| extra_mcp_headers.clone());
@@ -842,6 +849,14 @@ where
                             "X-OBJECTIVEAI-RESPONSE-ID".to_string(),
                             ws_session_id.to_string(),
                         );
+                    }
+                    if let Some(args) = args {
+                        if let Ok(json) = serde_json::to_string(args) {
+                            entry.insert(
+                                "X-OBJECTIVEAI-ARGUMENTS".to_string(),
+                                json,
+                            );
+                        }
                     }
                 }
 
@@ -1980,42 +1995,6 @@ fn percent_encode_segment(s: &str) -> String {
             .remove(b':')
             .remove(b'@');
     percent_encoding::utf8_percent_encode(s, SEGMENT).to_string()
-}
-
-/// Build a `application/x-www-form-urlencoded` query string from the
-/// plugin's `arguments` map. `None` values encode as bare keys
-/// (`foo`), `Some("")` as `foo=`, `Some(v)` as `foo=<encoded v>`.
-/// Order follows the IndexMap's insertion order so the CLI sees args
-/// in the same order the agent declared them. Returns empty when
-/// `arguments` is `None` or empty.
-fn encode_args_query(
-    args: Option<&indexmap::IndexMap<String, Option<String>>>,
-) -> String {
-    let Some(args) = args else { return String::new() };
-    if args.is_empty() {
-        return String::new();
-    }
-    /// `unreserved` per RFC 3986 for the query value. Everything else
-    /// gets percent-encoded, including `&` `=` `+` `?` so the split
-    /// on the parsing side stays unambiguous.
-    const QUERY: &percent_encoding::AsciiSet =
-        &percent_encoding::NON_ALPHANUMERIC
-            .remove(b'-')
-            .remove(b'.')
-            .remove(b'_')
-            .remove(b'~');
-    let mut out = String::new();
-    for (k, v) in args {
-        if !out.is_empty() {
-            out.push('&');
-        }
-        out.push_str(&percent_encoding::utf8_percent_encode(k, QUERY).to_string());
-        if let Some(v) = v {
-            out.push('=');
-            out.push_str(&percent_encoding::utf8_percent_encode(v, QUERY).to_string());
-        }
-    }
-    out
 }
 
 #[cfg(test)]

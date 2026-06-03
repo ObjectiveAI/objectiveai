@@ -77,9 +77,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
                     yield Ok(ResponseItem::Error(e));
                 }
                 Ok(PluginOutput::Typed(TypedPluginOutput::Mcp(mcp))) => {
-                    // `ResponseTyped::Mcp` only carries `url`; headers
-                    // are dropped on the bare-naked wire. Separate SDK
-                    // widening if a plugin needs them.
                     yield Ok(ResponseItem::Typed(ResponseTyped::Mcp { url: mcp.url }));
                 }
                 Ok(PluginOutput::Typed(TypedPluginOutput::Command { id, command })) => {
