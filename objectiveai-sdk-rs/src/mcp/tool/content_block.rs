@@ -212,6 +212,147 @@ impl From<crate::agent::completions::message::RichContentPart>
     }
 }
 
+/// Direct conversion from a typed `ImageUrl` to a `ContentBlock`.
+/// Same body as the `RichContentPart::ImageUrl` arm of
+/// [`From<RichContentPart> for ContentBlock`] — kept independent so
+/// per-leaf `CommandResponse::into_mcp` impls (whose `Response` is
+/// already an `ImageUrl`) can call `image_url.into()` without first
+/// wrapping in `RichContentPart`.
+impl From<crate::agent::completions::message::ImageUrl> for ContentBlock {
+    fn from(image_url: crate::agent::completions::message::ImageUrl) -> Self {
+        // Serialize detail (an enum) once via serde_json so
+        // we hand markers a Value::String("auto"|"low"|"high"),
+        // not the typed enum literal.
+        let detail_value = image_url
+            .detail
+            .as_ref()
+            .and_then(|d| serde_json::to_value(d).ok());
+        match super::ImageContent::try_from(image_url) {
+            Ok(mut ic) => {
+                // Data-URL path: lossless Image carrier.
+                // Detail (when present) rides in _meta.
+                if let Some(v) = detail_value {
+                    let mut m = indexmap::IndexMap::new();
+                    m.insert(META_IMAGE_DETAIL.to_string(), v);
+                    ic._meta = Some(m);
+                }
+                ContentBlock::Image(ic)
+            }
+            Err(err) => {
+                // Remote URL: stash on Text with kind marker
+                // so reverse can rebuild ImageUrl.
+                let mut meta = indexmap::IndexMap::new();
+                meta.insert(
+                    META_KIND.to_string(),
+                    serde_json::Value::String(
+                        KIND_IMAGE_URL_REMOTE.to_string(),
+                    ),
+                );
+                if let Some(v) = detail_value {
+                    meta.insert(META_IMAGE_DETAIL.to_string(), v);
+                }
+                ContentBlock::Text(super::TextContent {
+                    text: err.url,
+                    annotations: None,
+                    _meta: Some(meta),
+                })
+            }
+        }
+    }
+}
+
+/// Direct conversion from a typed `InputAudio` to a `ContentBlock`.
+/// Same body as the `RichContentPart::InputAudio` arm of
+/// [`From<RichContentPart> for ContentBlock`].
+impl From<crate::agent::completions::message::InputAudio> for ContentBlock {
+    fn from(input_audio: crate::agent::completions::message::InputAudio) -> Self {
+        ContentBlock::Audio(input_audio.into())
+    }
+}
+
+/// Direct conversion from a typed `VideoUrl` to a `ContentBlock`.
+/// Same body as the `RichContentPart::InputVideo` arm of
+/// [`From<RichContentPart> for ContentBlock`] (not the `VideoUrl`
+/// arm): data-URL videos round-trip via the default reverse
+/// heuristic (parse_data_url → video/* mime → InputVideo), so no
+/// marker. Remote URLs get `META_KIND = "input_video_remote"` so the
+/// reverse rebuilds an `InputVideo`.
+impl From<crate::agent::completions::message::VideoUrl> for ContentBlock {
+    fn from(video_url: crate::agent::completions::message::VideoUrl) -> Self {
+        if crate::data_url::parse_data_url(&video_url.url).is_some() {
+            ContentBlock::Text(super::TextContent {
+                text: video_url.url,
+                annotations: None,
+                _meta: None,
+            })
+        } else {
+            ContentBlock::Text(super::TextContent {
+                text: video_url.url,
+                annotations: None,
+                _meta: Some(single_meta(
+                    META_KIND,
+                    KIND_INPUT_VIDEO_REMOTE.to_string(),
+                )),
+            })
+        }
+    }
+}
+
+/// Direct conversion from a typed `File` to a `ContentBlock`. Same
+/// body as the private [`file_to_block`] helper — kept independent
+/// so per-leaf `CommandResponse::into_mcp` impls (whose `Response`
+/// is already a `File`) can call `file.into()` without first
+/// wrapping in `RichContentPart`. Multi-field collapse:
+/// `file_data` > `file_url` > `file_id` by precedence. Lower-priority
+/// fields are dropped; `filename` rides through via `_meta`.
+impl From<crate::agent::completions::message::File> for ContentBlock {
+    fn from(file: crate::agent::completions::message::File) -> Self {
+        let filename = file.filename.clone();
+        if let Some(blob) = file.file_data {
+            // Encode as a Text(data:application/octet-stream;base64,...)
+            // — the heuristic reverse decodes it into a File. Filename
+            // rides in _meta.
+            let body = format!("data:application/octet-stream;base64,{blob}");
+            let meta = filename.map(|n| single_meta(META_FILENAME, n));
+            ContentBlock::Text(super::TextContent {
+                text: body,
+                annotations: None,
+                _meta: meta,
+            })
+        } else if let Some(url) = file.file_url {
+            let mut m = single_meta(META_KIND, KIND_FILE_URL.to_string());
+            if let Some(n) = filename {
+                m.insert(META_FILENAME.to_string(), serde_json::Value::String(n));
+            }
+            ContentBlock::Text(super::TextContent {
+                text: url,
+                annotations: None,
+                _meta: Some(m),
+            })
+        } else if let Some(id) = file.file_id {
+            let mut m = single_meta(META_KIND, KIND_FILE_ID.to_string());
+            if let Some(n) = filename {
+                m.insert(META_FILENAME.to_string(), serde_json::Value::String(n));
+            }
+            ContentBlock::Text(super::TextContent {
+                text: id,
+                annotations: None,
+                _meta: Some(m),
+            })
+        } else {
+            // Empty File: nothing to encode. Produce a Text("") carrier
+            // with no markers. Reverse will land it as a Text part —
+            // which is a minor round-trip loss for the (unusual)
+            // empty-File case. Document this in the round-trip caveats.
+            ContentBlock::Text(super::TextContent {
+                text: String::new(),
+                annotations: None,
+                _meta: None,
+            })
+        }
+    }
+}
+
 /// Build a `ContentBlock` for a `File` part. Multi-field collapse:
 /// `file_data` > `file_url` > `file_id` by precedence. Lower-priority
 /// fields are dropped; `filename` rides through via `_meta`.
