@@ -10,6 +10,11 @@ pub use command::*;
 mod command_request;
 pub use command_request::*;
 
+#[cfg(feature = "mcp")]
+mod command_response;
+#[cfg(feature = "mcp")]
+pub use command_response::*;
+
 mod from_args_error;
 pub use from_args_error::*;
 
