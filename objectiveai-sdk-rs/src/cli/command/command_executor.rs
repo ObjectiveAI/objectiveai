@@ -1,6 +1,7 @@
 use futures::Stream;
 
 use crate::cli::command::CommandRequest;
+use crate::cli::command::CommandResponse;
 
 pub mod binary;
 pub mod plugin;
@@ -24,7 +25,7 @@ pub trait CommandExecutor {
     ) -> impl Future<Output = Result<Self::Stream<T>, Self::Error>> + Send
     where
         R: CommandRequest + Send,
-        T: serde::de::DeserializeOwned + Send + 'static;
+        T: CommandResponse + serde::de::DeserializeOwned + Send + 'static;
 
     /// Convenience for unary commands: run the request and resolve the
     /// first item from the stream. Implementations should error with
@@ -36,5 +37,5 @@ pub trait CommandExecutor {
     ) -> impl Future<Output = Result<T, Self::Error>> + Send
     where
         R: CommandRequest + Send,
-        T: serde::de::DeserializeOwned + Send + 'static;
+        T: CommandResponse + serde::de::DeserializeOwned + Send + 'static;
 }

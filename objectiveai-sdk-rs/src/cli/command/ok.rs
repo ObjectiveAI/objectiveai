@@ -6,3 +6,10 @@
 pub enum Ok {
     Ok,
 }
+
+#[cfg(feature = "mcp")]
+impl super::CommandResponse for Ok {
+    fn into_mcp(self) -> super::McpResponseItem {
+        super::McpResponseItem::JSONL(serde_json::to_value(self).unwrap())
+    }
+}

@@ -64,17 +64,39 @@ impl CommandResponse for crate::agent::completions::message::File {
 
 // JSONL passthrough — `serde_json::to_value(self)` is the body for
 // every alias target whose leaf simply emits its serde-shaped value
-// as one JSONL line. `String` gets a direct `Value::String` shortcut
-// (no fallible round-trip).
-//
-// Out of scope (per user): `crate::cli::command::Ok` and
-// `Option<ResponseManifest>` — both are alias targets but their
-// `into_mcp` is deferred.
+// as one JSONL line. Special-cased shortcuts: `String` constructs
+// `Value::String` directly; `serde_json::Value` rides through as-is;
+// `Option<T>` delegates to `T::into_mcp` on `Some` and emits a JSONL
+// null on `None`.
 
 #[cfg(feature = "mcp")]
 impl CommandResponse for String {
     fn into_mcp(self) -> McpResponseItem {
         McpResponseItem::JSONL(serde_json::Value::String(self))
+    }
+}
+
+#[cfg(feature = "mcp")]
+impl CommandResponse for serde_json::Value {
+    fn into_mcp(self) -> McpResponseItem {
+        McpResponseItem::JSONL(self)
+    }
+}
+
+#[cfg(feature = "mcp")]
+impl CommandResponse for schemars::Schema {
+    fn into_mcp(self) -> McpResponseItem {
+        McpResponseItem::JSONL(serde_json::to_value(self).unwrap())
+    }
+}
+
+#[cfg(feature = "mcp")]
+impl<T: CommandResponse> CommandResponse for Option<T> {
+    fn into_mcp(self) -> McpResponseItem {
+        match self {
+            Some(v) => v.into_mcp(),
+            None => McpResponseItem::JSONL(serde_json::Value::Null),
+        }
     }
 }
 

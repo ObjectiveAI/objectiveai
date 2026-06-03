@@ -205,6 +205,13 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
     executor.execute_one(request).await
 }
 
+#[cfg(feature = "mcp")]
+impl crate::cli::command::CommandResponse for Response {
+    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
+        crate::cli::command::McpResponseItem::JSONL(serde_json::to_value(self).unwrap())
+    }
+}
+
 pub mod request_schema {
     use crate::cli::command::CommandRequest;
 
