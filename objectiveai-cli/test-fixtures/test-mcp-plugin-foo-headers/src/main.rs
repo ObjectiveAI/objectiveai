@@ -9,19 +9,24 @@
 //! test-mcp-plugin-foo-headers mcp <name> begin --foo <value>
 //! ```
 //!
+//! The `--foo <value>` argv is the materialized form of the
+//! `X-OBJECTIVEAI-ARGUMENTS` map the API attaches to its initialize
+//! POST — the CLI conduit reads that header off `init.args` and
+//! translates each entry into `--<k> [v]` when it spawns this binary.
+//!
 //! Stdout (one JSON envelope, then the server runs):
 //!
 //! ```json
-//! {"type":"mcp","url":"http://127.0.0.1:<port>","headers":{"X-FOO":"<value>"}}
+//! {"type":"mcp","url":"http://127.0.0.1:<port>"}
 //! ```
 //!
 //! ## Server behavior
 //!
 //! - `initialize` → 200 + `Mcp-Session-Id: <foo>` response header.
 //! - `tools/list` → one tool named `invoke` with an open object schema.
-//! - `tools/call` for `invoke` → asserts incoming `X-FOO` and
-//!   `Mcp-Session-Id` both equal `<foo>` (returns 400 otherwise), then
-//!   appends `"<foo> - <session-id>\n"` to `<CONFIG_BASE_DIR>/<foo>.txt`.
+//! - `tools/call` for `invoke` → asserts incoming `Mcp-Session-Id`
+//!   equals `<foo>` (returns 400 otherwise), then appends
+//!   `"<foo> - <session-id>\n"` to `<CONFIG_BASE_DIR>/<foo>.txt`.
 //! - `notifications/initialized` → 202.
 //! - everything else → 404.
 //!
@@ -93,10 +98,11 @@ async fn main() -> std::io::Result<()> {
     // `dial_plugin_upstream` reads the first non-empty stdout line
     // and deserializes as `cli::plugins::Output`. Field order is
     // hand-stamped here so the test doesn't depend on whatever
-    // `serde_json::to_string` happens to emit.
-    let line = format!(
-        r#"{{"type":"mcp","url":"{url}","headers":{{"X-FOO":"{foo}"}}}}"#,
-    );
+    // `serde_json::to_string` happens to emit. The SDK's
+    // `cli::plugins::Mcp` shape is `{ url }` only — there is no
+    // `headers` field anymore; per-request headers ride through the
+    // proxy/conduit chain on their own.
+    let line = format!(r#"{{"type":"mcp","url":"{url}"}}"#);
     println!("{line}");
     std::io::stdout().flush()?;
 
@@ -163,24 +169,21 @@ async fn handle_post(
         }))
         .into_response(),
         "tools/call" => {
-            // Validate the routing invariants: both headers must
-            // equal the `--foo` value this plugin instance was
-            // launched with. The whole point of the fixture is to
-            // prove the host-side plugin → MCP → proxy header
-            // plumbing is wiring these correctly.
+            // Validate the routing invariant: the inbound
+            // `Mcp-Session-Id` must equal the `--foo` value this
+            // plugin instance was launched with. We mint the session
+            // id off `foo` on initialize, the proxy stamps it on
+            // every later request, so a mismatch here would mean a
+            // call landed on the wrong plugin instance.
             let sid = headers
                 .get("Mcp-Session-Id")
                 .and_then(|v| v.to_str().ok())
                 .unwrap_or_default();
-            let xfoo = headers
-                .get("X-FOO")
-                .and_then(|v| v.to_str().ok())
-                .unwrap_or_default();
-            if sid != state.inner.foo || xfoo != state.inner.foo {
+            if sid != state.inner.foo {
                 return (
                     StatusCode::BAD_REQUEST,
                     format!(
-                        "header mismatch: X-FOO={xfoo:?}, Mcp-Session-Id={sid:?}, expected {:?}",
+                        "session id mismatch: Mcp-Session-Id={sid:?}, expected {:?}",
                         state.inner.foo,
                     ),
                 )

@@ -1,16 +1,17 @@
 //! End-to-end: a two-agent mock swarm runs ONE vector-completion
 //! task inside a function execution; each agent uses the same plugin
 //! fixture (`test-mcp-plugin-foo-headers`) but with a different `foo`
-//! argument (`"A"` vs `"B"`). The plugin echoes `foo` as both the
-//! `X-FOO` header on the emitted MCP URL and the `Mcp-Session-Id` on
-//! initialize, and writes one line to `<CONFIG_BASE_DIR>/<foo>.txt`
-//! per `invoke` tool call.
+//! argument (`"A"` vs `"B"`). The plugin echoes `foo` as its
+//! `Mcp-Session-Id` on initialize and writes one line to
+//! `<CONFIG_BASE_DIR>/<foo>.txt` per `invoke` tool call.
 //!
 //! Each agent's `calls` override emits two scripted turns: turn 1
 //! calls the `invoke` tool, turn 2 closes out with content. After the
 //! run, the test asserts `A.txt` / `B.txt` were created with the
-//! expected line — proving plugin-MCP fan-out + per-agent header
-//! routing both work through the function-execution path.
+//! expected line — proving the per-agent `X-OBJECTIVEAI-ARGUMENTS`
+//! map round-trips through API → CLI conduit → plugin argv, and that
+//! `Mcp-Session-Id` routes calls back to the matching plugin
+//! instance.
 //!
 //! Skip-gate: `OBJECTIVEAI_TEST_PORT` must point at a running test
 //! API (same gate as every other cli e2e test).

@@ -407,7 +407,11 @@ async fn handle_initialize(
             // rmcp's resume behavior we omit the `Mcp-Session-Id`
             // response header.
             let new_id = state.sessions.mint_id(&session.payload);
-            let _ = (new_id, session);
+            // Re-apply the session-global transient headers from
+            // THIS reconnect's inbound HeaderMap. Full replace —
+            // missing keys drop from the bag.
+            session.apply_transient_headers(headers).await;
+            let _ = new_id;
             return ok_response_resume_sse(request.id);
         }
         // Branch 2 — decrypt and reconnect strictly from the payload.
@@ -453,13 +457,21 @@ async fn handle_initialize(
         // id is deterministic and matches what the client already
         // holds; we discard the return value because the resume path
         // doesn't echo the id back.
-        let _ = state.sessions.add(
+        let new_id = state.sessions.add(
             connections_with_headers,
             decoded_agent_instance_hierarchy,
             decoded_agent_id,
             decoded_agent_full_id,
             decoded_agent_remote,
         );
+        // Apply the session-global transient headers from THIS
+        // reconnect's inbound HeaderMap. Full replace — missing keys
+        // drop from the bag. The reconnect's `X-MCP-Headers` is
+        // ignored (per Branch 2 semantics), but the transient keys
+        // are extracted from the top-level HeaderMap.
+        if let Some(session) = state.sessions.get(&new_id) {
+            session.apply_transient_headers(headers).await;
+        }
         ok_response_resume_sse(request.id)
     } else {
         // Branch 3 — fresh init. `X-MCP-Servers` / `X-MCP-Headers`
@@ -516,6 +528,12 @@ async fn handle_initialize(
             agent_full_id,
             agent_remote,
         );
+        // Stamp the session-global transient headers extracted from
+        // the inbound HeaderMap. Stays in memory; not encoded in the
+        // session id.
+        if let Some(session) = state.sessions.get(&session_id) {
+            session.apply_transient_headers(headers).await;
+        }
         ok_response_fresh_sse(request.id, session_id)
     }
 }

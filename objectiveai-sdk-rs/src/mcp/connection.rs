@@ -154,18 +154,12 @@ impl Connection {
         // 4. Build + send HTTP DELETE. Mirrors `Client::connect_once`'s
         //    request-stamp shape: header loop first, explicit
         //    `Mcp-Session-Id` always wins.
-        let mut request = self
+        let request = self
             .inner
             .http_client
             .delete(&self.inner.url)
             .timeout(self.inner.call_timeout)
-            .header("Mcp-Session-Id", &self.inner.session_id);
-        for (name, value) in &self.inner.headers {
-            if name.eq_ignore_ascii_case("Mcp-Session-Id") {
-                continue;
-            }
-            request = request.header(name, value);
-        }
+            .headers(self.inner.build_request_headers(None, None).await);
         let response = request.send().await.map_err(|source| {
             super::Error::Request {
                 url: self.inner.url.clone(),
@@ -417,6 +411,25 @@ impl Connection {
     {
         self.inner.on_resources_list_changed.set(Arc::new(callback));
     }
+
+    /// Atomically replace the connection's [`ConnectionInner::extra_headers`]
+    /// bag. Every subsequent outbound HTTP request from this connection
+    /// stamps the new map AFTER `headers`, with `HeaderMap::insert`
+    /// REPLACE semantics — keys in `extras` override the same key in
+    /// the per-URL `headers` bag set at `Client::connect`. Caller
+    /// supplies the FULL replacement map; missing keys are dropped
+    /// (no merge).
+    ///
+    /// Used by the proxy to inject session-global headers
+    /// (`X-OBJECTIVEAI-RESPONSE-ID`, `X-OBJECTIVEAI-RESPONSE-IDS`)
+    /// that re-set on every inbound `initialize`, without re-dialing
+    /// the upstream.
+    pub async fn set_extra_headers(
+        &self,
+        extras: IndexMap<String, String>,
+    ) {
+        *self.inner.extra_headers.write().await = extras;
+    }
 }
 
 /// The actual connection state. Behind an `Arc` inside [`Connection`].
@@ -435,6 +448,15 @@ pub struct ConnectionInner {
     /// `Content-Type`, and `Accept` are still set by the request
     /// builders and override anything in `headers`.
     pub headers: IndexMap<String, String>,
+    /// Mutable per-request override layer stamped AFTER `headers` on
+    /// every outbound HTTP request. The request-builder uses
+    /// `reqwest::header::HeaderMap::insert` semantics so any key
+    /// present in `extra_headers` REPLACES the same key in `headers`.
+    /// Used by the proxy to inject session-global headers
+    /// (`X-OBJECTIVEAI-RESPONSE-ID` etc.) that override per-URL
+    /// values without re-dialing. Empty by default; set via
+    /// [`Connection::set_extra_headers`].
+    pub extra_headers: RwLock<IndexMap<String, String>>,
 
     pub backoff_current_interval: Duration,
     pub backoff_initial_interval: Duration,
@@ -550,6 +572,7 @@ impl ConnectionInner {
             url,
             session_id: String::new(),
             headers: IndexMap::new(),
+            extra_headers: RwLock::new(IndexMap::new()),
             backoff_current_interval: Duration::ZERO,
             backoff_initial_interval: Duration::ZERO,
             backoff_randomization_factor: 0.0,
@@ -604,6 +627,7 @@ impl ConnectionInner {
             url,
             session_id: String::new(),
             headers: IndexMap::new(),
+            extra_headers: RwLock::new(IndexMap::new()),
             backoff_current_interval: Duration::from_millis(500),
             backoff_initial_interval: Duration::from_millis(500),
             backoff_randomization_factor: 0.5,
@@ -688,6 +712,7 @@ impl ConnectionInner {
             url,
             session_id,
             headers,
+            extra_headers: RwLock::new(IndexMap::new()),
             backoff_current_interval,
             backoff_initial_interval,
             backoff_randomization_factor,
@@ -793,21 +818,70 @@ impl ConnectionInner {
     }
 
     /// Builds a POST request with all required headers and the call timeout.
-    fn post(&self) -> reqwest::RequestBuilder {
-        let mut request = self
-            .http_client
+    async fn post(&self) -> reqwest::RequestBuilder {
+        self.http_client
             .post(&self.url)
             .timeout(self.call_timeout)
-            .header("Content-Type", "application/json")
-            .header("Accept", "application/json, text/event-stream");
-        for (name, value) in &self.headers {
-            request = request.header(name, value);
+            .headers(
+                self.build_request_headers(
+                    Some("application/json"),
+                    Some("application/json, text/event-stream"),
+                )
+                .await,
+            )
+    }
+
+    /// Build the `HeaderMap` stamped on every outbound request. Order
+    /// of insertion drives override semantics — `HeaderMap::insert`
+    /// REPLACES existing values for the same key:
+    ///
+    /// 1. Content-Type / Accept (when supplied by the caller).
+    /// 2. `self.headers` (the per-URL bag set at `Client::connect`).
+    /// 3. `self.extra_headers` (the mutable, session-global overrides
+    ///    — proxies use this for `X-OBJECTIVEAI-RESPONSE-ID` etc).
+    /// 4. `Mcp-Session-Id` (the connection's own session id, always
+    ///    last so it can never be shadowed).
+    async fn build_request_headers(
+        &self,
+        content_type: Option<&str>,
+        accept: Option<&str>,
+    ) -> reqwest::header::HeaderMap {
+        use reqwest::header::{
+            ACCEPT, CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue,
+        };
+        let mut hmap = HeaderMap::new();
+        if let Some(ct) = content_type {
+            if let Ok(hv) = HeaderValue::from_str(ct) {
+                hmap.insert(CONTENT_TYPE, hv);
+            }
         }
-        // Mcp-Session-Id is applied last so a same-named entry in
-        // `headers` (e.g. the proxy's encoded session id) can never
-        // override the connection's own session id.
-        request = request.header("Mcp-Session-Id", &self.session_id);
-        request
+        if let Some(a) = accept {
+            if let Ok(hv) = HeaderValue::from_str(a) {
+                hmap.insert(ACCEPT, hv);
+            }
+        }
+        for (k, v) in &self.headers {
+            if let (Ok(hn), Ok(hv)) = (
+                HeaderName::try_from(k.as_str()),
+                HeaderValue::from_str(v),
+            ) {
+                hmap.insert(hn, hv);
+            }
+        }
+        let extras = self.extra_headers.read().await;
+        for (k, v) in extras.iter() {
+            if let (Ok(hn), Ok(hv)) = (
+                HeaderName::try_from(k.as_str()),
+                HeaderValue::from_str(v),
+            ) {
+                hmap.insert(hn, hv);
+            }
+        }
+        drop(extras);
+        if let Ok(hv) = HeaderValue::from_str(&self.session_id) {
+            hmap.insert(HeaderName::from_static("mcp-session-id"), hv);
+        }
+        hmap
     }
 
     /// Sends a JSON-RPC request, retrying transient errors when
@@ -845,7 +919,7 @@ impl ConnectionInner {
         let attempt_one = || async {
             let url = self.url.clone();
             let response =
-                self.post().json(&body).send().await.map_err(|source| {
+                self.post().await.json(&body).send().await.map_err(|source| {
                     backoff::Error::transient(super::Error::Request {
                         url: url.clone(),
                         source,
@@ -918,7 +992,7 @@ impl ConnectionInner {
         backoff::future::retry(self.backoff(), || async {
             let url = self.url.clone();
             let response =
-                self.post().json(&body).send().await.map_err(|source| {
+                self.post().await.json(&body).send().await.map_err(|source| {
                     backoff::Error::transient(super::Error::Request {
                         url: url.clone(),
                         source,
@@ -966,18 +1040,14 @@ impl ConnectionInner {
         }
 
         let url = format!("{}/notify", self.url.trim_end_matches('/'));
-        let mut request = self
+        let request = self
             .http_client
             .get(&url)
             .timeout(self.call_timeout)
-            .header("Accept", "application/json");
-        for (name, value) in &self.headers {
-            request = request.header(name, value);
-        }
-        // Mcp-Session-Id applied last so a same-named entry in `headers`
-        // can never override the connection's own session id — matches
-        // the invariant in `Self::post`.
-        request = request.header("Mcp-Session-Id", &self.session_id);
+            .headers(
+                self.build_request_headers(None, Some("application/json"))
+                    .await,
+            );
 
         let response =
             request
@@ -1018,20 +1088,18 @@ impl ConnectionInner {
         }
 
         let url = format!("{}/notify", self.url.trim_end_matches('/'));
-        let mut request = self
+        let request = self
             .http_client
             .post(&url)
             .timeout(self.call_timeout)
-            .header("Content-Type", "application/json")
-            .header("Accept", "application/json")
+            .headers(
+                self.build_request_headers(
+                    Some("application/json"),
+                    Some("application/json"),
+                )
+                .await,
+            )
             .json(blocks);
-        for (name, value) in &self.headers {
-            request = request.header(name, value);
-        }
-        // Mcp-Session-Id applied last so a same-named entry in `headers`
-        // can never override the connection's own session id — matches
-        // the invariant in `Self::drain_notifications`.
-        request = request.header("Mcp-Session-Id", &self.session_id);
 
         let response =
             request
@@ -1065,18 +1133,14 @@ impl ConnectionInner {
         }
 
         let url = format!("{}/notify/queued", self.url.trim_end_matches('/'));
-        let mut request = self
+        let request = self
             .http_client
             .get(&url)
             .timeout(self.call_timeout)
-            .header("Accept", "application/json");
-        for (name, value) in &self.headers {
-            request = request.header(name, value);
-        }
-        // Mcp-Session-Id applied last so a same-named entry in `headers`
-        // can never override the connection's own session id — matches
-        // the invariant in `Self::drain_notifications`.
-        request = request.header("Mcp-Session-Id", &self.session_id);
+            .headers(
+                self.build_request_headers(None, Some("application/json"))
+                    .await,
+            );
 
         let response =
             request
@@ -1574,17 +1638,13 @@ impl ConnectionInner {
 
     /// Builds a GET request to the MCP endpoint for receiving server
     /// notifications via SSE.
-    fn get(&self) -> reqwest::RequestBuilder {
-        let mut request = self
-            .http_client
+    async fn get(&self) -> reqwest::RequestBuilder {
+        self.http_client
             .get(&self.url)
-            .header("Accept", "text/event-stream");
-        for (name, value) in &self.headers {
-            request = request.header(name, value);
-        }
-        // Mcp-Session-Id last so it always wins over `headers`.
-        request = request.header("Mcp-Session-Id", &self.session_id);
-        request
+            .headers(
+                self.build_request_headers(None, Some("text/event-stream"))
+                    .await,
+            )
     }
 
     /// Listens for `notifications/tools/list_changed` and
@@ -1662,7 +1722,9 @@ impl ConnectionInner {
                     // burst of 401 retries against a now-dead session
                     // under heavy churn).
                     let send_outcome = tokio::select! {
-                        out = this.get().send() => out,
+                        out = async {
+                            this.get().await.send().await
+                        } => out,
                         _ = cancel.cancelled() => {
                             drop(this);
                             return;

@@ -267,6 +267,19 @@ fn parse_init_headers(
             None => IndexMap::new(),
         };
 
+    // Strip the session-global transient keys from every per-URL bag.
+    // These keys live on `Session::transient_headers` (in-memory only,
+    // never encoded into the session id) and re-stamp on every
+    // outbound request via the SDK's `Connection.extra_headers`. A
+    // caller-supplied per-URL entry for either key is dropped at parse
+    // time so it can never leak into `SessionPayload.connections[url]`
+    // or `Connection.headers`.
+    for inner in per_url_headers.values_mut() {
+        for key in crate::session::Session::TRANSIENT_HEADER_KEYS {
+            inner.shift_remove(key);
+        }
+    }
+
     let mut seen = std::collections::HashSet::new();
     let mut specs = Vec::with_capacity(servers.len());
     for url in servers {

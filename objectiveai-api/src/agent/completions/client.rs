@@ -832,24 +832,19 @@ where
                         }
                     }
                 }
-                // Each synthetic per-MCP URL needs the
-                // `X-OBJECTIVEAI-RESPONSE-ID` header so the API's
-                // loopback MCP router can find the matching WS
-                // reverse channel when the proxy dials. Plugin URLs
-                // additionally carry `X-OBJECTIVEAI-ARGUMENTS` —
+                // Plugin URLs carry `X-OBJECTIVEAI-ARGUMENTS` —
                 // JSON-serialized declaration-order IndexMap the CLI
                 // uses to spawn `<plugin> mcp <mcp> begin --<k> [v]`.
                 // The URL path carries the McpKind discriminator.
+                // `X-OBJECTIVEAI-RESPONSE-ID` is NOT stamped per-URL —
+                // it's session-global, transmitted at the top level
+                // (`proxy_request_headers` below) and stored on the
+                // proxy's `Session::transient_headers` for re-stamping
+                // on every outbound request.
                 for (url, args) in &client_mcp_synthetic_urls {
                     let entry = per_url_headers
                         .entry(url.clone())
                         .or_insert_with(|| extra_mcp_headers.clone());
-                    if let Some(ws_session_id) = agent_ws_session_id.as_deref() {
-                        entry.insert(
-                            "X-OBJECTIVEAI-RESPONSE-ID".to_string(),
-                            ws_session_id.to_string(),
-                        );
-                    }
                     if let Some(args) = args {
                         if let Ok(json) = serde_json::to_string(args) {
                             entry.insert(

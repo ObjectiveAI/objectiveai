@@ -15,7 +15,8 @@ use objectiveai_sdk::mcp::{
     resource::{ListResourcesResult, ReadResourceResult, Resource},
     tool::{CallToolRequestParams, CallToolResult, ContentBlock, ListToolsResult, Tool},
 };
-use tokio::sync::{Mutex, broadcast};
+use axum::http::HeaderMap;
+use tokio::sync::{Mutex, RwLock, broadcast};
 use tokio_util::sync::CancellationToken;
 
 /// Capacity of the per-session outbound notification channel. Sized so
@@ -81,6 +82,19 @@ pub struct Session {
     /// `Connection`s rotated their internal state, the id remains
     /// derivable from the immutable per-upstream header set.
     pub payload: crate::session_manager::SessionPayload,
+    /// Session-global header overrides stamped on every outbound
+    /// request to every upstream. Lives only in memory (NOT encoded
+    /// into the session id) so it doesn't survive proxy restart. The
+    /// only keys ever recorded are `X-OBJECTIVEAI-RESPONSE-ID` and
+    /// `X-OBJECTIVEAI-RESPONSE-IDS` — extracted from inbound
+    /// `initialize` HeaderMaps by [`Self::apply_transient_headers`].
+    ///
+    /// Reads dominate writes: every outbound request through any
+    /// upstream Connection reads (via [`Connection::set_extra_headers`]
+    /// applied on the Connection's own RwLock); writes fire only on
+    /// inbound `initialize` (alive, decrypt+reconnect, fresh).
+    /// `RwLock` matches the read/write ratio.
+    pub transient_headers: RwLock<IndexMap<String, String>>,
 }
 
 impl Session {
@@ -122,6 +136,38 @@ impl Session {
             in_flight: DashMap::new(),
             pending_notifications: Mutex::new(Vec::new()),
             payload,
+            transient_headers: RwLock::new(IndexMap::new()),
+        }
+    }
+
+    /// Header keys persisted on the session-global transient bag —
+    /// extracted from inbound `initialize` headers and stamped on
+    /// every outbound upstream request via
+    /// [`Connection::set_extra_headers`]. Closed set; not extensible.
+    pub const TRANSIENT_HEADER_KEYS: [&'static str; 2] = [
+        "X-OBJECTIVEAI-RESPONSE-ID",
+        "X-OBJECTIVEAI-RESPONSE-IDS",
+    ];
+
+    /// Build the transient bag from an inbound `initialize` HeaderMap,
+    /// FULL-REPLACE [`Self::transient_headers`] with it, then fan the
+    /// new bag onto every upstream `Connection`'s `extra_headers` via
+    /// [`Connection::set_extra_headers`].
+    ///
+    /// Missing keys in `src` → absent from the new bag → dropped from
+    /// every Connection's `extra_headers` too. Never merges with the
+    /// previous bag; this is the "replace, even if missing some" rule.
+    pub async fn apply_transient_headers(&self, src: &HeaderMap) {
+        let mut bag = IndexMap::new();
+        for key in Self::TRANSIENT_HEADER_KEYS {
+            if let Some(v) = src.get(key).and_then(|v| v.to_str().ok()) {
+                bag.insert(key.to_string(), v.to_string());
+            }
+        }
+        let snapshot = bag.clone();
+        *self.transient_headers.write().await = bag;
+        for connection in self.connections.values() {
+            connection.set_extra_headers(snapshot.clone()).await;
         }
     }
 
