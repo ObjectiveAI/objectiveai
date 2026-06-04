@@ -49,6 +49,7 @@ pub enum Request {
 #[objectiveai_sdk_macros::json_schema_ignore]
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.logs.agents.completions.response.messages.tool.Response")]
+#[serde(untagged)]
 pub enum Response {
     #[schemars(title = "Audio")]
     Audio(audio::Response),

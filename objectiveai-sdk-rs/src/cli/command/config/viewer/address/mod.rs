@@ -30,6 +30,7 @@ pub enum Request {
 #[objectiveai_sdk_macros::json_schema_ignore]
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.config.viewer.address.Response")]
+#[serde(untagged)]
 pub enum Response {
     #[schemars(title = "Get")]
     Get(get::Response),

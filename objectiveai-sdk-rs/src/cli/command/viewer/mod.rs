@@ -46,6 +46,7 @@ pub enum Request {
 #[objectiveai_sdk_macros::json_schema_ignore]
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.viewer.Response")]
+#[serde(untagged)]
 pub enum Response {
     #[schemars(title = "GenerateSecretSignaturePair")]
     GenerateSecretSignaturePair(generate_secret_signature_pair::Response),

@@ -50,6 +50,7 @@ pub enum Request {
 #[objectiveai_sdk_macros::json_schema_ignore]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.read.ResponseItem")]
+#[serde(untagged)]
 pub enum ResponseItem {
     #[schemars(title = "All")]
     All(all::ResponseItem),

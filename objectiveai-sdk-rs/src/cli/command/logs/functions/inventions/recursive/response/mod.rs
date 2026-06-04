@@ -46,6 +46,7 @@ pub enum Request {
 #[objectiveai_sdk_macros::json_schema_ignore]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.logs.functions.inventions.recursive.response.ResponseItem")]
+#[serde(untagged)]
 pub enum ResponseItem {
     #[schemars(title = "Clear")]
     Clear(clear::Response),
