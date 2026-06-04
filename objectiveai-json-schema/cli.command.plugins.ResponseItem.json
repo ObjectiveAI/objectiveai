@@ -1,0 +1,112 @@
+{
+  "title": "cli.command.plugins.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Get",
+      "type": "object",
+      "properties": {
+        "Get": {
+          "anyOf": [
+            {
+              "$ref": "cli.command.plugins.get.ResponseManifest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "GetRequestSchema",
+      "type": "object",
+      "properties": {
+        "GetRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "GetResponseSchema",
+      "type": "object",
+      "properties": {
+        "GetResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Install",
+      "type": "object",
+      "properties": {
+        "Install": {
+          "$ref": "cli.command.plugins.install.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "List",
+      "type": "object",
+      "properties": {
+        "List": {
+          "$ref": "cli.command.plugins.get.ResponseManifest"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "ListRequestSchema",
+      "type": "object",
+      "properties": {
+        "ListRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "ListResponseSchema",
+      "type": "object",
+      "properties": {
+        "ListResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Run",
+      "type": "object",
+      "properties": {
+        "Run": {
+          "$ref": "cli.command.plugins.run.ResponseItem"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "RunRequestSchema",
+      "type": "object",
+      "properties": {
+        "RunRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "RunResponseSchema",
+      "type": "object",
+      "properties": {
+        "RunResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

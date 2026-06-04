@@ -37,7 +37,9 @@ impl CommandRequest for Request {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.agents.read.all.ResponseContent")]
 pub enum ResponseContent {
+    #[schemars(title = "One")]
     One(i64),
+    #[schemars(title = "Many")]
     Many(Vec<i64>),
 }
 
@@ -45,21 +47,25 @@ pub enum ResponseContent {
 #[serde(tag = "type", rename_all = "snake_case")]
 #[schemars(rename = "cli.command.agents.read.all.ResponseQueueMessage")]
 pub enum ResponseQueueMessage {
+    #[schemars(title = "Developer")]
     Developer {
         content: ResponseContent,
         #[serde(skip_serializing_if = "Option::is_none")]
         name: Option<String>,
     },
+    #[schemars(title = "System")]
     System {
         content: ResponseContent,
         #[serde(skip_serializing_if = "Option::is_none")]
         name: Option<String>,
     },
+    #[schemars(title = "User")]
     User {
         content: ResponseContent,
         #[serde(skip_serializing_if = "Option::is_none")]
         name: Option<String>,
     },
+    #[schemars(title = "Assistant")]
     Assistant {
         #[serde(skip_serializing_if = "Option::is_none")]
         content: Option<ResponseContent>,
@@ -72,6 +78,7 @@ pub enum ResponseQueueMessage {
         #[serde(skip_serializing_if = "Option::is_none")]
         refusal: Option<i64>,
     },
+    #[schemars(title = "Tool")]
     Tool {
         content: ResponseContent,
         tool_call_id: String,
@@ -82,6 +89,7 @@ pub enum ResponseQueueMessage {
 #[serde(tag = "type", rename_all = "snake_case")]
 #[schemars(rename = "cli.command.agents.read.all.ResponseQueueItem")]
 pub enum ResponseQueueItem {
+    #[schemars(title = "AssistantResponse")]
     AssistantResponse {
         #[serde(skip_serializing_if = "Option::is_none")]
         reasoning: Option<i64>,
@@ -92,19 +100,24 @@ pub enum ResponseQueueItem {
         #[serde(skip_serializing_if = "Option::is_none")]
         refusal: Option<i64>,
     },
+    #[schemars(title = "ToolResponse")]
     ToolResponse {
         tool_call_id: String,
         content: ResponseContent,
     },
+    #[schemars(title = "Notification")]
     Notification {
         content: ResponseContent,
     },
+    #[schemars(title = "AgentCompletionRequest")]
     AgentCompletionRequest {
         messages: Vec<ResponseQueueMessage>,
     },
+    #[schemars(title = "FunctionExecutionRequest")]
     FunctionExecutionRequest {
         id: i64,
     },
+    #[schemars(title = "FunctionInventionRecursiveRequest")]
     FunctionInventionRecursiveRequest {
         id: i64,
     },

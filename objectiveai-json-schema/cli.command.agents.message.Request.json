@@ -1,0 +1,49 @@
+{
+  "title": "cli.command.agents.message.Request",
+  "type": "object",
+  "properties": {
+    "agent_instance": {
+      "description": "Leaf id of the target agent. Combined with\n[`Self::parent_agent_instance_hierarchy`] (or the cli's\ncaller position when that is `None`) to form the full\nhierarchy.",
+      "type": "string"
+    },
+    "jq": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "message": {
+      "$ref": "cli.command.agents.message.RequestMessage"
+    },
+    "parent_agent_instance_hierarchy": {
+      "description": "Lineage prefix to prepend to [`Self::agent_instance`]. When\n`None`, the CLI substitutes its own\n`Config.agent_instance_hierarchy` (the cli's \"caller\"\nposition). Full target lineage is `\"{parent}/{instance}\"`.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "path_type": {
+      "$ref": "cli.command.agents.message.Path"
+    },
+    "seed": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

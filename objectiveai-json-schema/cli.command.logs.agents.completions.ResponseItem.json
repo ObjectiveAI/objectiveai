@@ -1,0 +1,25 @@
+{
+  "title": "cli.command.logs.agents.completions.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Request",
+      "type": "object",
+      "properties": {
+        "Request": {
+          "$ref": "cli.command.logs.agents.completions.request.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Response",
+      "type": "object",
+      "properties": {
+        "Response": {
+          "$ref": "cli.command.logs.agents.completions.response.ResponseItem"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

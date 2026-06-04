@@ -1,0 +1,195 @@
+{
+  "title": "cli.command.logs.agents.completions.response.messages.Response",
+  "anyOf": [
+    {
+      "title": "Audio",
+      "type": "object",
+      "properties": {
+        "Audio": {
+          "$ref": "cli.command.logs.agents.completions.response.messages.audio.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Clear",
+      "type": "object",
+      "properties": {
+        "Clear": {
+          "$ref": "cli.command.logs.agents.completions.response.messages.clear.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "ClearRequestSchema",
+      "type": "object",
+      "properties": {
+        "ClearRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "ClearResponseSchema",
+      "type": "object",
+      "properties": {
+        "ClearResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "File",
+      "type": "object",
+      "properties": {
+        "File": {
+          "$ref": "cli.command.logs.agents.completions.response.messages.file.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Get",
+      "type": "object",
+      "properties": {
+        "Get": {
+          "$ref": "agent.completions.message.MessageLog"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "GetRequestSchema",
+      "type": "object",
+      "properties": {
+        "GetRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "GetResponseSchema",
+      "type": "object",
+      "properties": {
+        "GetResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Image",
+      "type": "object",
+      "properties": {
+        "Image": {
+          "$ref": "cli.command.logs.agents.completions.response.messages.image.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Logprobs",
+      "type": "object",
+      "properties": {
+        "Logprobs": {
+          "$ref": "cli.command.logs.agents.completions.response.messages.logprobs.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Reasoning",
+      "type": "object",
+      "properties": {
+        "Reasoning": {
+          "$ref": "cli.command.logs.agents.completions.response.messages.reasoning.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Refusal",
+      "type": "object",
+      "properties": {
+        "Refusal": {
+          "$ref": "cli.command.logs.agents.completions.response.messages.refusal.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Subscribe",
+      "type": "object",
+      "properties": {
+        "Subscribe": {
+          "$ref": "agent.completions.message.MessageLog"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "SubscribeRequestSchema",
+      "type": "object",
+      "properties": {
+        "SubscribeRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "SubscribeResponseSchema",
+      "type": "object",
+      "properties": {
+        "SubscribeResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Text",
+      "type": "object",
+      "properties": {
+        "Text": {
+          "$ref": "cli.command.logs.agents.completions.response.messages.text.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Tool",
+      "type": "object",
+      "properties": {
+        "Tool": {
+          "$ref": "cli.command.logs.agents.completions.response.messages.tool.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "ToolCalls",
+      "type": "object",
+      "properties": {
+        "ToolCalls": {
+          "$ref": "cli.command.logs.agents.completions.response.messages.tool_calls.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Video",
+      "type": "object",
+      "properties": {
+        "Video": {
+          "$ref": "cli.command.logs.agents.completions.response.messages.video.Response"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

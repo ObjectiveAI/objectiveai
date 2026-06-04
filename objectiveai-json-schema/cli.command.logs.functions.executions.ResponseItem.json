@@ -1,0 +1,25 @@
+{
+  "title": "cli.command.logs.functions.executions.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Request",
+      "type": "object",
+      "properties": {
+        "Request": {
+          "$ref": "cli.command.logs.functions.executions.request.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Response",
+      "type": "object",
+      "properties": {
+        "Response": {
+          "$ref": "cli.command.logs.functions.executions.response.ResponseItem"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

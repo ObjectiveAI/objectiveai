@@ -35,7 +35,9 @@ impl CommandRequest for Request {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.tools.run.ResponseItem")]
 pub enum ResponseItem {
+    #[schemars(title = "Stdout")]
     Stdout(String),
+    #[schemars(title = "Stderr")]
     Stderr(crate::cli::Error),
 }
 

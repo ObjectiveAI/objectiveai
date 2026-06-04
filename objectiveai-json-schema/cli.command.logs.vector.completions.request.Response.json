@@ -1,0 +1,65 @@
+{
+  "title": "cli.command.logs.vector.completions.request.Response",
+  "anyOf": [
+    {
+      "title": "Get",
+      "type": "object",
+      "properties": {
+        "Get": {
+          "$ref": "vector.completions.request.VectorCompletionCreateParams"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "GetRequestSchema",
+      "type": "object",
+      "properties": {
+        "GetRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "GetResponseSchema",
+      "type": "object",
+      "properties": {
+        "GetResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Subscribe",
+      "type": "object",
+      "properties": {
+        "Subscribe": {
+          "$ref": "vector.completions.request.VectorCompletionCreateParams"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "SubscribeRequestSchema",
+      "type": "object",
+      "properties": {
+        "SubscribeRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "SubscribeResponseSchema",
+      "type": "object",
+      "properties": {
+        "SubscribeResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

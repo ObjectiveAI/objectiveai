@@ -29,24 +29,38 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.config.viewer.Request")]
 pub enum Request {
+    #[schemars(title = "Get")]
     Get(get::Request),
+    #[schemars(title = "GetRequestSchema")]
     GetRequestSchema(get::request_schema::Request),
+    #[schemars(title = "GetResponseSchema")]
     GetResponseSchema(get::response_schema::Request),
+    #[schemars(title = "Address")]
     Address(address::Request),
+    #[schemars(title = "Port")]
     Port(port::Request),
+    #[schemars(title = "Secret")]
     Secret(secret::Request),
+    #[schemars(title = "Signature")]
     Signature(signature::Request),
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.config.viewer.Response")]
 pub enum Response {
+    #[schemars(title = "Get")]
     Get(get::Response),
+    #[schemars(title = "GetRequestSchema")]
     GetRequestSchema(get::request_schema::Response),
+    #[schemars(title = "GetResponseSchema")]
     GetResponseSchema(get::response_schema::Response),
+    #[schemars(title = "Address")]
     Address(address::Response),
+    #[schemars(title = "Port")]
     Port(port::Response),
+    #[schemars(title = "Secret")]
     Secret(secret::Response),
+    #[schemars(title = "Signature")]
     Signature(signature::Response),
 }
 

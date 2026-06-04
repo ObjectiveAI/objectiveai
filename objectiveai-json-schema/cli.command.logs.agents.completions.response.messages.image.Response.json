@@ -1,0 +1,95 @@
+{
+  "title": "cli.command.logs.agents.completions.response.messages.image.Response",
+  "anyOf": [
+    {
+      "title": "Clear",
+      "type": "object",
+      "properties": {
+        "Clear": {
+          "$ref": "cli.command.logs.agents.completions.response.messages.image.clear.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "ClearRequestSchema",
+      "type": "object",
+      "properties": {
+        "ClearRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "ClearResponseSchema",
+      "type": "object",
+      "properties": {
+        "ClearResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Get",
+      "type": "object",
+      "properties": {
+        "Get": {
+          "$ref": "agent.completions.message.ImageUrl"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "GetRequestSchema",
+      "type": "object",
+      "properties": {
+        "GetRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "GetResponseSchema",
+      "type": "object",
+      "properties": {
+        "GetResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Subscribe",
+      "type": "object",
+      "properties": {
+        "Subscribe": {
+          "$ref": "agent.completions.message.ImageUrl"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "SubscribeRequestSchema",
+      "type": "object",
+      "properties": {
+        "SubscribeRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "SubscribeResponseSchema",
+      "type": "object",
+      "properties": {
+        "SubscribeResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

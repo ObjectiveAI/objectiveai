@@ -17,14 +17,18 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.logs.functions.Request")]
 pub enum Request {
+    #[schemars(title = "Executions")]
     Executions(executions::Request),
+    #[schemars(title = "Inventions")]
     Inventions(inventions::Request),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.logs.functions.ResponseItem")]
 pub enum ResponseItem {
+    #[schemars(title = "Executions")]
     Executions(executions::ResponseItem),
+    #[schemars(title = "Inventions")]
     Inventions(inventions::ResponseItem),
 }
 

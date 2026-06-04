@@ -1,0 +1,125 @@
+{
+  "title": "cli.command.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Agents",
+      "type": "object",
+      "properties": {
+        "Agents": {
+          "$ref": "cli.command.agents.ResponseItem"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Config",
+      "type": "object",
+      "properties": {
+        "Config": {
+          "$ref": "cli.command.config.ResponseItem"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Functions",
+      "type": "object",
+      "properties": {
+        "Functions": {
+          "$ref": "cli.command.functions.ResponseItem"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Logs",
+      "type": "object",
+      "properties": {
+        "Logs": {
+          "$ref": "cli.command.logs.ResponseItem"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Mcp",
+      "type": "object",
+      "properties": {
+        "Mcp": {
+          "$ref": "cli.command.mcp.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Plugins",
+      "type": "object",
+      "properties": {
+        "Plugins": {
+          "$ref": "cli.command.plugins.ResponseItem"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Swarms",
+      "type": "object",
+      "properties": {
+        "Swarms": {
+          "$ref": "cli.command.swarms.ResponseItem"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Tools",
+      "type": "object",
+      "properties": {
+        "Tools": {
+          "$ref": "cli.command.tools.ResponseItem"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Update",
+      "type": "object",
+      "properties": {
+        "Update": {
+          "$ref": "cli.command.update.ResponseItem"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "UpdateRequestSchema",
+      "type": "object",
+      "properties": {
+        "UpdateRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "UpdateResponseSchema",
+      "type": "object",
+      "properties": {
+        "UpdateResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Viewer",
+      "type": "object",
+      "properties": {
+        "Viewer": {
+          "$ref": "cli.command.viewer.Response"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

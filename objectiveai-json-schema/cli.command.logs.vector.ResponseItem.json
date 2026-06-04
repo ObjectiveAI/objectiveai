@@ -1,0 +1,10 @@
+{
+  "title": "cli.command.logs.vector.ResponseItem",
+  "type": "object",
+  "properties": {
+    "Completions": {
+      "$ref": "cli.command.logs.vector.completions.ResponseItem"
+    }
+  },
+  "additionalProperties": false
+}

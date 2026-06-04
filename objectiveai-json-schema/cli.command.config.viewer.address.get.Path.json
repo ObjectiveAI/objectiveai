@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.config.viewer.address.get.Path",
+  "type": "string",
+  "enum": [
+    "config/viewer/address/get"
+  ]
+}

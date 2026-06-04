@@ -22,16 +22,22 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.logs.functions.inventions.Request")]
 pub enum Request {
+    #[schemars(title = "Recursive")]
     Recursive(recursive::Request),
+    #[schemars(title = "Request")]
     Request(request::Request),
+    #[schemars(title = "Response")]
     Response(response::Request),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.logs.functions.inventions.ResponseItem")]
 pub enum ResponseItem {
+    #[schemars(title = "Recursive")]
     Recursive(recursive::ResponseItem),
+    #[schemars(title = "Request")]
     Request(request::Response),
+    #[schemars(title = "Response")]
     Response(response::ResponseItem),
 }
 

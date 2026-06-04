@@ -1,0 +1,45 @@
+{
+  "title": "cli.command.functions.profiles.publish.RequestBody",
+  "anyOf": [
+    {
+      "title": "Inline",
+      "type": "object",
+      "properties": {
+        "Inline": {
+          "$ref": "functions.RemoteProfile"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "File",
+      "type": "object",
+      "properties": {
+        "File": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "PythonInline",
+      "type": "object",
+      "properties": {
+        "PythonInline": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "PythonFile",
+      "type": "object",
+      "properties": {
+        "PythonFile": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

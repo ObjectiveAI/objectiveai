@@ -19,34 +19,58 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.agents.read.Request")]
 pub enum Request {
+    #[schemars(title = "All")]
     All(all::Request),
+    #[schemars(title = "AllRequestSchema")]
     AllRequestSchema(all::request_schema::Request),
+    #[schemars(title = "AllResponseSchema")]
     AllResponseSchema(all::response_schema::Request),
+    #[schemars(title = "Id")]
     Id(id::Request),
+    #[schemars(title = "IdRequestSchema")]
     IdRequestSchema(id::request_schema::Request),
+    #[schemars(title = "IdResponseSchema")]
     IdResponseSchema(id::response_schema::Request),
+    #[schemars(title = "Pending")]
     Pending(pending::Request),
+    #[schemars(title = "PendingRequestSchema")]
     PendingRequestSchema(pending::request_schema::Request),
+    #[schemars(title = "PendingResponseSchema")]
     PendingResponseSchema(pending::response_schema::Request),
+    #[schemars(title = "Subscribe")]
     Subscribe(subscribe::Request),
+    #[schemars(title = "SubscribeRequestSchema")]
     SubscribeRequestSchema(subscribe::request_schema::Request),
+    #[schemars(title = "SubscribeResponseSchema")]
     SubscribeResponseSchema(subscribe::response_schema::Request),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.read.ResponseItem")]
 pub enum ResponseItem {
+    #[schemars(title = "All")]
     All(all::ResponseItem),
+    #[schemars(title = "AllRequestSchema")]
     AllRequestSchema(all::request_schema::Response),
+    #[schemars(title = "AllResponseSchema")]
     AllResponseSchema(all::response_schema::Response),
+    #[schemars(title = "Id")]
     Id(id::Response),
+    #[schemars(title = "IdRequestSchema")]
     IdRequestSchema(id::request_schema::Response),
+    #[schemars(title = "IdResponseSchema")]
     IdResponseSchema(id::response_schema::Response),
+    #[schemars(title = "Pending")]
     Pending(pending::ResponseItem),
+    #[schemars(title = "PendingRequestSchema")]
     PendingRequestSchema(pending::request_schema::Response),
+    #[schemars(title = "PendingResponseSchema")]
     PendingResponseSchema(pending::response_schema::Response),
+    #[schemars(title = "Subscribe")]
     Subscribe(subscribe::ResponseItem),
+    #[schemars(title = "SubscribeRequestSchema")]
     SubscribeRequestSchema(subscribe::request_schema::Response),
+    #[schemars(title = "SubscribeResponseSchema")]
     SubscribeResponseSchema(subscribe::response_schema::Response),
 }
 

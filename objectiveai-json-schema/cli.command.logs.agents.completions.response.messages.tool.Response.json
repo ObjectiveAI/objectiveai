@@ -1,0 +1,55 @@
+{
+  "title": "cli.command.logs.agents.completions.response.messages.tool.Response",
+  "anyOf": [
+    {
+      "title": "Audio",
+      "type": "object",
+      "properties": {
+        "Audio": {
+          "$ref": "cli.command.logs.agents.completions.response.messages.tool.audio.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "File",
+      "type": "object",
+      "properties": {
+        "File": {
+          "$ref": "cli.command.logs.agents.completions.response.messages.tool.file.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Image",
+      "type": "object",
+      "properties": {
+        "Image": {
+          "$ref": "cli.command.logs.agents.completions.response.messages.tool.image.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Text",
+      "type": "object",
+      "properties": {
+        "Text": {
+          "$ref": "cli.command.logs.agents.completions.response.messages.tool.text.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Video",
+      "type": "object",
+      "properties": {
+        "Video": {
+          "$ref": "cli.command.logs.agents.completions.response.messages.tool.video.Response"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

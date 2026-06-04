@@ -1,0 +1,19 @@
+{
+  "title": "cli.command.config.functions.get.Response",
+  "type": "object",
+  "properties": {
+    "favorites": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "cli.command.config.functions.favorites.get.ResponseItem"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

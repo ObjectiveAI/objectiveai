@@ -11,22 +11,34 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.config.viewer.address.Request")]
 pub enum Request {
+    #[schemars(title = "Get")]
     Get(get::Request),
+    #[schemars(title = "GetRequestSchema")]
     GetRequestSchema(get::request_schema::Request),
+    #[schemars(title = "GetResponseSchema")]
     GetResponseSchema(get::response_schema::Request),
+    #[schemars(title = "Set")]
     Set(set::Request),
+    #[schemars(title = "SetRequestSchema")]
     SetRequestSchema(set::request_schema::Request),
+    #[schemars(title = "SetResponseSchema")]
     SetResponseSchema(set::response_schema::Request),
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.config.viewer.address.Response")]
 pub enum Response {
+    #[schemars(title = "Get")]
     Get(get::Response),
+    #[schemars(title = "GetRequestSchema")]
     GetRequestSchema(get::request_schema::Response),
+    #[schemars(title = "GetResponseSchema")]
     GetResponseSchema(get::response_schema::Response),
+    #[schemars(title = "Set")]
     Set(set::Response),
+    #[schemars(title = "SetRequestSchema")]
     SetRequestSchema(set::request_schema::Response),
+    #[schemars(title = "SetResponseSchema")]
     SetResponseSchema(set::response_schema::Response),
 }
 

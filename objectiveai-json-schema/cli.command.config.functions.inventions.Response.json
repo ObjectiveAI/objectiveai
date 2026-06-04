@@ -1,0 +1,45 @@
+{
+  "title": "cli.command.config.functions.inventions.Response",
+  "anyOf": [
+    {
+      "title": "Get",
+      "type": "object",
+      "properties": {
+        "Get": {
+          "$ref": "cli.command.config.functions.inventions.get.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "GetRequestSchema",
+      "type": "object",
+      "properties": {
+        "GetRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "GetResponseSchema",
+      "type": "object",
+      "properties": {
+        "GetResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Remote",
+      "type": "object",
+      "properties": {
+        "Remote": {
+          "$ref": "cli.command.config.functions.inventions.remote.Response"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

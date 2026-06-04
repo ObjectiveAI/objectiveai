@@ -1,0 +1,95 @@
+{
+  "title": "cli.command.functions.profiles.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Get",
+      "type": "object",
+      "properties": {
+        "Get": {
+          "$ref": "functions.profiles.GetProfileResponse"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "GetRequestSchema",
+      "type": "object",
+      "properties": {
+        "GetRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "GetResponseSchema",
+      "type": "object",
+      "properties": {
+        "GetResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "List",
+      "type": "object",
+      "properties": {
+        "List": {
+          "$ref": "cli.command.functions.profiles.list.ResponseItem"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "ListRequestSchema",
+      "type": "object",
+      "properties": {
+        "ListRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "ListResponseSchema",
+      "type": "object",
+      "properties": {
+        "ListResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Publish",
+      "type": "object",
+      "properties": {
+        "Publish": {
+          "$ref": "cli.command.functions.profiles.publish.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "PublishRequestSchema",
+      "type": "object",
+      "properties": {
+        "PublishRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "PublishResponseSchema",
+      "type": "object",
+      "properties": {
+        "PublishResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

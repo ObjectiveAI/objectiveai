@@ -32,20 +32,30 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.logs.agents.completions.request.messages.Request")]
 pub enum Request {
+    #[schemars(title = "Audio")]
     Audio(audio::Request),
+    #[schemars(title = "File")]
     File(file::Request),
+    #[schemars(title = "Image")]
     Image(image::Request),
+    #[schemars(title = "Text")]
     Text(text::Request),
+    #[schemars(title = "Video")]
     Video(video::Request),
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.logs.agents.completions.request.messages.Response")]
 pub enum Response {
+    #[schemars(title = "Audio")]
     Audio(audio::Response),
+    #[schemars(title = "File")]
     File(file::Response),
+    #[schemars(title = "Image")]
     Image(image::Response),
+    #[schemars(title = "Text")]
     Text(text::Response),
+    #[schemars(title = "Video")]
     Video(video::Response),
 }
 

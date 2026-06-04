@@ -1,0 +1,17 @@
+{
+  "title": "cli.command.functions.inventions.state.Request",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.functions.inventions.state.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.functions.inventions.state.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.functions.inventions.state.get.response_schema.Request"
+    }
+  ]
+}

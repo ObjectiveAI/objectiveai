@@ -1,0 +1,65 @@
+{
+  "title": "cli.command.agents.list.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Active",
+      "type": "object",
+      "properties": {
+        "Active": {
+          "$ref": "cli.command.agents.list.active.ResponseItem"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "ActiveRequestSchema",
+      "type": "object",
+      "properties": {
+        "ActiveRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "ActiveResponseSchema",
+      "type": "object",
+      "properties": {
+        "ActiveResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Available",
+      "type": "object",
+      "properties": {
+        "Available": {
+          "$ref": "cli.command.agents.list.available.ResponseItem"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "AvailableRequestSchema",
+      "type": "object",
+      "properties": {
+        "AvailableRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "AvailableResponseSchema",
+      "type": "object",
+      "properties": {
+        "AvailableResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

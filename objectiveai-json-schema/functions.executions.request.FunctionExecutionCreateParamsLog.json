@@ -1,0 +1,127 @@
+{
+  "title": "functions.executions.request.FunctionExecutionCreateParamsLog",
+  "type": "object",
+  "properties": {
+    "continuation": {
+      "anyOf": [
+        {
+          "$ref": "LogReference"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "from_cache": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "function": {
+      "$ref": "functions.FullInlineFunctionOrRemoteCommitOptional"
+    },
+    "input": {
+      "$ref": "functions.expression.InputValueLog"
+    },
+    "invert": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "profile": {
+      "$ref": "functions.InlineProfileOrRemoteCommitOptional"
+    },
+    "provider": {
+      "anyOf": [
+        {
+          "$ref": "agent.completions.request.Provider"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "reasoning": {
+      "anyOf": [
+        {
+          "$ref": "functions.executions.request.Reasoning"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "retry_token": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "seed": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "split": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "strategy": {
+      "anyOf": [
+        {
+          "$ref": "functions.executions.request.Strategy"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "stream": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

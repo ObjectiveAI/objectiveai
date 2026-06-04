@@ -70,7 +70,9 @@ pub struct ResponseFavorite {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.agents.list.available.ResponseItem")]
 pub enum ResponseItem {
+    #[schemars(title = "Favorite")]
     Favorite(ResponseFavorite),
+    #[schemars(title = "Item")]
     Item(crate::RemotePath),
 }
 

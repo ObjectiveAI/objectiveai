@@ -1,0 +1,53 @@
+{
+  "title": "cli.command.Request",
+  "anyOf": [
+    {
+      "title": "Agents",
+      "$ref": "cli.command.agents.Request"
+    },
+    {
+      "title": "Config",
+      "$ref": "cli.command.config.Request"
+    },
+    {
+      "title": "Functions",
+      "$ref": "cli.command.functions.Request"
+    },
+    {
+      "title": "Logs",
+      "$ref": "cli.command.logs.Request"
+    },
+    {
+      "title": "Mcp",
+      "$ref": "cli.command.mcp.Request"
+    },
+    {
+      "title": "Plugins",
+      "$ref": "cli.command.plugins.Request"
+    },
+    {
+      "title": "Swarms",
+      "$ref": "cli.command.swarms.Request"
+    },
+    {
+      "title": "Tools",
+      "$ref": "cli.command.tools.Request"
+    },
+    {
+      "title": "Update",
+      "$ref": "cli.command.update.Request"
+    },
+    {
+      "title": "UpdateRequestSchema",
+      "$ref": "cli.command.update.request_schema.Request"
+    },
+    {
+      "title": "UpdateResponseSchema",
+      "$ref": "cli.command.update.response_schema.Request"
+    },
+    {
+      "title": "Viewer",
+      "$ref": "cli.command.viewer.Request"
+    }
+  ]
+}

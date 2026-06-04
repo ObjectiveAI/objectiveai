@@ -13,28 +13,46 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.functions.inventions.recursive.create.Request")]
 pub enum Request {
+    #[schemars(title = "AlphaScalar")]
     AlphaScalar(alpha_scalar::Request),
+    #[schemars(title = "AlphaScalarRequestSchema")]
     AlphaScalarRequestSchema(alpha_scalar::request_schema::Request),
+    #[schemars(title = "AlphaScalarResponseSchema")]
     AlphaScalarResponseSchema(alpha_scalar::response_schema::Request),
+    #[schemars(title = "AlphaVector")]
     AlphaVector(alpha_vector::Request),
+    #[schemars(title = "AlphaVectorRequestSchema")]
     AlphaVectorRequestSchema(alpha_vector::request_schema::Request),
+    #[schemars(title = "AlphaVectorResponseSchema")]
     AlphaVectorResponseSchema(alpha_vector::response_schema::Request),
+    #[schemars(title = "Remote")]
     Remote(remote::Request),
+    #[schemars(title = "RemoteRequestSchema")]
     RemoteRequestSchema(remote::request_schema::Request),
+    #[schemars(title = "RemoteResponseSchema")]
     RemoteResponseSchema(remote::response_schema::Request),
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.functions.inventions.recursive.create.ResponseItem")]
 pub enum ResponseItem {
+    #[schemars(title = "AlphaScalar")]
     AlphaScalar(alpha_scalar::ResponseItem),
+    #[schemars(title = "AlphaScalarRequestSchema")]
     AlphaScalarRequestSchema(alpha_scalar::request_schema::Response),
+    #[schemars(title = "AlphaScalarResponseSchema")]
     AlphaScalarResponseSchema(alpha_scalar::response_schema::Response),
+    #[schemars(title = "AlphaVector")]
     AlphaVector(alpha_vector::ResponseItem),
+    #[schemars(title = "AlphaVectorRequestSchema")]
     AlphaVectorRequestSchema(alpha_vector::request_schema::Response),
+    #[schemars(title = "AlphaVectorResponseSchema")]
     AlphaVectorResponseSchema(alpha_vector::response_schema::Response),
+    #[schemars(title = "Remote")]
     Remote(remote::ResponseItem),
+    #[schemars(title = "RemoteRequestSchema")]
     RemoteRequestSchema(remote::request_schema::Response),
+    #[schemars(title = "RemoteResponseSchema")]
     RemoteResponseSchema(remote::response_schema::Response),
 }
 

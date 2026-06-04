@@ -1,0 +1,45 @@
+{
+  "title": "cli.command.config.swarms.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Get",
+      "type": "object",
+      "properties": {
+        "Get": {
+          "$ref": "cli.command.config.swarms.get.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "GetRequestSchema",
+      "type": "object",
+      "properties": {
+        "GetRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "GetResponseSchema",
+      "type": "object",
+      "properties": {
+        "GetResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Favorites",
+      "type": "object",
+      "properties": {
+        "Favorites": {
+          "$ref": "cli.command.config.swarms.favorites.ResponseItem"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

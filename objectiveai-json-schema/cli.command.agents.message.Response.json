@@ -1,0 +1,26 @@
+{
+  "title": "cli.command.agents.message.Response",
+  "anyOf": [
+    {
+      "title": "Queued",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "response_id": {
+          "type": "string"
+        }
+      }
+    },
+    {
+      "title": "Delivered",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        }
+      }
+    }
+  ]
+}

@@ -77,10 +77,12 @@ pub use super::all::{ResponseContent, ResponseQueueItem, ResponseQueueMessage};
 #[serde(untagged)]
 #[schemars(rename = "cli.command.agents.read.subscribe.ResponseItem")]
 pub enum ResponseItem {
+    #[schemars(title = "Items")]
     Items {
         agent_id: String,
         items: Vec<ResponseQueueItem>,
     },
+    #[schemars(title = "Inactive")]
     Inactive {
         agent_id: String,
     },

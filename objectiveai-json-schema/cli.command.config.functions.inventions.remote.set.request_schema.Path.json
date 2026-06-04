@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.config.functions.inventions.remote.set.request_schema.Path",
+  "type": "string",
+  "enum": [
+    "config/functions/inventions/remote/set/request_schema"
+  ]
+}

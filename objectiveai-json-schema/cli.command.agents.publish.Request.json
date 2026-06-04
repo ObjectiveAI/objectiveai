@@ -1,0 +1,31 @@
+{
+  "title": "cli.command.agents.publish.Request",
+  "type": "object",
+  "properties": {
+    "body": {
+      "$ref": "cli.command.agents.publish.RequestBody"
+    },
+    "jq": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "message": {
+      "$ref": "cli.command.agents.publish.RequestPublishMessage"
+    },
+    "overwrite": {
+      "type": "boolean"
+    },
+    "path_type": {
+      "$ref": "cli.command.agents.publish.Path"
+    },
+    "repository": {
+      "type": "string"
+    }
+  }
+}

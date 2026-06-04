@@ -1,0 +1,12 @@
+{
+  "title": "cli.Level",
+  "description": "Severity matching the conventions used by bunyan / pino / `log` crate\nJSON encoders. `fatal` is encoded separately on [`Error`].",
+  "type": "string",
+  "enum": [
+    "trace",
+    "debug",
+    "info",
+    "warn",
+    "error"
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "title": "cli.command.plugins.get.ResponseManifest",
+  "type": "object",
+  "properties": {
+    "author": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "binaries": {
+      "$ref": "cli.command.plugins.get.ResponseBinaries"
+    },
+    "description": {
+      "type": "string"
+    },
+    "homepage": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "license": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "mcp_servers": {
+      "type": "array",
+      "items": {
+        "$ref": "cli.command.plugins.get.ResponseMcpServer"
+      }
+    },
+    "mobile_ready": {
+      "type": "boolean"
+    },
+    "name": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "viewer_routes": {
+      "type": "array",
+      "items": {
+        "$ref": "cli.command.plugins.get.ResponseViewerRoute"
+      }
+    },
+    "viewer_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "viewer_zip": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "title": "cli.command.plugins.install.Response",
+  "anyOf": [
+    {
+      "title": "Filesystem",
+      "type": "object",
+      "properties": {
+        "Filesystem": {
+          "$ref": "cli.command.plugins.install.filesystem.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "FilesystemRequestSchema",
+      "type": "object",
+      "properties": {
+        "FilesystemRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "FilesystemResponseSchema",
+      "type": "object",
+      "properties": {
+        "FilesystemResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Github",
+      "type": "object",
+      "properties": {
+        "Github": {
+          "$ref": "cli.command.plugins.install.github.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "GithubRequestSchema",
+      "type": "object",
+      "properties": {
+        "GithubRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "GithubResponseSchema",
+      "type": "object",
+      "properties": {
+        "GithubResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

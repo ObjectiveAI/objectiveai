@@ -1,0 +1,48 @@
+{
+  "title": "cli.command.config.viewer.get.Response",
+  "type": "object",
+  "properties": {
+    "address": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "port": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "secret": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "signature": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

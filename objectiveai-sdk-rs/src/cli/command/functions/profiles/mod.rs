@@ -13,28 +13,46 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.functions.profiles.Request")]
 pub enum Request {
+    #[schemars(title = "Get")]
     Get(get::Request),
+    #[schemars(title = "GetRequestSchema")]
     GetRequestSchema(get::request_schema::Request),
+    #[schemars(title = "GetResponseSchema")]
     GetResponseSchema(get::response_schema::Request),
+    #[schemars(title = "List")]
     List(list::Request),
+    #[schemars(title = "ListRequestSchema")]
     ListRequestSchema(list::request_schema::Request),
+    #[schemars(title = "ListResponseSchema")]
     ListResponseSchema(list::response_schema::Request),
+    #[schemars(title = "Publish")]
     Publish(publish::Request),
+    #[schemars(title = "PublishRequestSchema")]
     PublishRequestSchema(publish::request_schema::Request),
+    #[schemars(title = "PublishResponseSchema")]
     PublishResponseSchema(publish::response_schema::Request),
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.functions.profiles.ResponseItem")]
 pub enum ResponseItem {
+    #[schemars(title = "Get")]
     Get(get::Response),
+    #[schemars(title = "GetRequestSchema")]
     GetRequestSchema(get::request_schema::Response),
+    #[schemars(title = "GetResponseSchema")]
     GetResponseSchema(get::response_schema::Response),
+    #[schemars(title = "List")]
     List(list::ResponseItem),
+    #[schemars(title = "ListRequestSchema")]
     ListRequestSchema(list::request_schema::Response),
+    #[schemars(title = "ListResponseSchema")]
     ListResponseSchema(list::response_schema::Response),
+    #[schemars(title = "Publish")]
     Publish(publish::Response),
+    #[schemars(title = "PublishRequestSchema")]
     PublishRequestSchema(publish::request_schema::Response),
+    #[schemars(title = "PublishResponseSchema")]
     PublishResponseSchema(publish::response_schema::Response),
 }
 

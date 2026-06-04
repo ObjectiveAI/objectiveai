@@ -15,34 +15,58 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.config.agents.favorites.Request")]
 pub enum Request {
+    #[schemars(title = "Add")]
     Add(add::Request),
+    #[schemars(title = "AddRequestSchema")]
     AddRequestSchema(add::request_schema::Request),
+    #[schemars(title = "AddResponseSchema")]
     AddResponseSchema(add::response_schema::Request),
+    #[schemars(title = "Del")]
     Del(del::Request),
+    #[schemars(title = "DelRequestSchema")]
     DelRequestSchema(del::request_schema::Request),
+    #[schemars(title = "DelResponseSchema")]
     DelResponseSchema(del::response_schema::Request),
+    #[schemars(title = "Edit")]
     Edit(edit::Request),
+    #[schemars(title = "EditRequestSchema")]
     EditRequestSchema(edit::request_schema::Request),
+    #[schemars(title = "EditResponseSchema")]
     EditResponseSchema(edit::response_schema::Request),
+    #[schemars(title = "Get")]
     Get(get::Request),
+    #[schemars(title = "GetRequestSchema")]
     GetRequestSchema(get::request_schema::Request),
+    #[schemars(title = "GetResponseSchema")]
     GetResponseSchema(get::response_schema::Request),
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.config.agents.favorites.ResponseItem")]
 pub enum ResponseItem {
+    #[schemars(title = "Add")]
     Add(add::Response),
+    #[schemars(title = "AddRequestSchema")]
     AddRequestSchema(add::request_schema::Response),
+    #[schemars(title = "AddResponseSchema")]
     AddResponseSchema(add::response_schema::Response),
+    #[schemars(title = "Del")]
     Del(del::Response),
+    #[schemars(title = "DelRequestSchema")]
     DelRequestSchema(del::request_schema::Response),
+    #[schemars(title = "DelResponseSchema")]
     DelResponseSchema(del::response_schema::Response),
+    #[schemars(title = "Edit")]
     Edit(edit::Response),
+    #[schemars(title = "EditRequestSchema")]
     EditRequestSchema(edit::request_schema::Response),
+    #[schemars(title = "EditResponseSchema")]
     EditResponseSchema(edit::response_schema::Response),
+    #[schemars(title = "Get")]
     Get(get::ResponseItem),
+    #[schemars(title = "GetRequestSchema")]
     GetRequestSchema(get::request_schema::Response),
+    #[schemars(title = "GetResponseSchema")]
     GetResponseSchema(get::response_schema::Response),
 }
 

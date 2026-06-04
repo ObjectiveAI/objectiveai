@@ -1,0 +1,25 @@
+{
+  "title": "cli.command.swarms.publish.RequestPublishMessage",
+  "anyOf": [
+    {
+      "title": "Inline",
+      "type": "object",
+      "properties": {
+        "Inline": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "File",
+      "type": "object",
+      "properties": {
+        "File": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

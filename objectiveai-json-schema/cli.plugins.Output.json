@@ -12,7 +12,7 @@
     },
     {
       "title": "Error",
-      "$ref": "cli.output.Error"
+      "$ref": "cli.Error"
     },
     {
       "title": "Notification",

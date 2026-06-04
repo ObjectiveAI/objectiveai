@@ -40,30 +40,48 @@ pub enum Response {
     // Typed log envelopes — each variant name is the PascalCase form
     // of its full leaf path under `logs/`, and the payload aliases the
     // matching `… ::get::Response` so the type stays in one place.
+    #[schemars(title = "AgentsCompletionsResponse")]
     AgentsCompletionsResponse(crate::cli::command::logs::agents::completions::response::get::Response),
+    #[schemars(title = "AgentsCompletionsRequest")]
     AgentsCompletionsRequest(crate::cli::command::logs::agents::completions::request::get::Response),
+    #[schemars(title = "AgentsCompletionsResponseMessages")]
     AgentsCompletionsResponseMessages(crate::cli::command::logs::agents::completions::response::messages::get::Response),
+    #[schemars(title = "AgentsCompletionsResponseMessagesLogprobs")]
     AgentsCompletionsResponseMessagesLogprobs(crate::cli::command::logs::agents::completions::response::messages::logprobs::get::Response),
+    #[schemars(title = "AgentsCompletionsResponseMessagesToolCalls")]
     AgentsCompletionsResponseMessagesToolCalls(crate::cli::command::logs::agents::completions::response::messages::tool_calls::get::Response),
 
+    #[schemars(title = "VectorCompletionsResponse")]
     VectorCompletionsResponse(crate::cli::command::logs::vector::completions::response::get::Response),
+    #[schemars(title = "VectorCompletionsRequest")]
     VectorCompletionsRequest(crate::cli::command::logs::vector::completions::request::get::Response),
 
+    #[schemars(title = "FunctionsExecutionsResponse")]
     FunctionsExecutionsResponse(crate::cli::command::logs::functions::executions::response::get::Response),
+    #[schemars(title = "FunctionsExecutionsRequest")]
     FunctionsExecutionsRequest(crate::cli::command::logs::functions::executions::request::get::Response),
 
+    #[schemars(title = "FunctionsInventionsResponse")]
     FunctionsInventionsResponse(crate::cli::command::logs::functions::inventions::response::get::Response),
+    #[schemars(title = "FunctionsInventionsRequest")]
     FunctionsInventionsRequest(crate::cli::command::logs::functions::inventions::request::get::Response),
 
+    #[schemars(title = "FunctionsInventionsRecursiveResponse")]
     FunctionsInventionsRecursiveResponse(crate::cli::command::logs::functions::inventions::recursive::response::get::Response),
+    #[schemars(title = "FunctionsInventionsRecursiveRequest")]
     FunctionsInventionsRecursiveRequest(crate::cli::command::logs::functions::inventions::recursive::request::get::Response),
 
     // Collapsed text/media — one variant per content kind, regardless
     // of where the file lives. Untagged tuple variants, no wrapper keys.
+    #[schemars(title = "Text")]
     Text(String),
+    #[schemars(title = "Image")]
     Image(crate::agent::completions::message::ImageUrl),
+    #[schemars(title = "Audio")]
     Audio(crate::agent::completions::message::InputAudio),
+    #[schemars(title = "Video")]
     Video(crate::agent::completions::message::VideoUrl),
+    #[schemars(title = "File")]
     File(crate::agent::completions::message::File),
 }
 

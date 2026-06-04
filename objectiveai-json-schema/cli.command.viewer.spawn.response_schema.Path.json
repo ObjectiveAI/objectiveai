@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.viewer.spawn.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "viewer/spawn/response_schema"
+  ]
+}

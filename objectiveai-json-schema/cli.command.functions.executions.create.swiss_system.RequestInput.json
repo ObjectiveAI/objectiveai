@@ -1,0 +1,35 @@
+{
+  "title": "cli.command.functions.executions.create.swiss_system.RequestInput",
+  "anyOf": [
+    {
+      "title": "Inline",
+      "type": "object",
+      "properties": {
+        "Inline": {
+          "$ref": "functions.expression.InputValue"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "PythonInline",
+      "type": "object",
+      "properties": {
+        "PythonInline": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "PythonFile",
+      "type": "object",
+      "properties": {
+        "PythonFile": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

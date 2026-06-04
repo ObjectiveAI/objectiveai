@@ -1,0 +1,16 @@
+{
+  "title": "functions.executions.response.streaming.reasoning_summary_log_reference.LogReference",
+  "type": "object",
+  "properties": {
+    "error": {
+      "omitempty": true
+    },
+    "path": {
+      "type": "string",
+      "omitempty": true
+    },
+    "type": {
+      "$ref": "LogReferenceTag"
+    }
+  }
+}

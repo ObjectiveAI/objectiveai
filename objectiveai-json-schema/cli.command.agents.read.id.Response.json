@@ -1,0 +1,77 @@
+{
+  "title": "cli.command.agents.read.id.Response",
+  "anyOf": [
+    {
+      "title": "AgentsCompletionsResponse",
+      "$ref": "agent.completions.response.streaming.AgentCompletionChunkLog"
+    },
+    {
+      "title": "AgentsCompletionsRequest",
+      "$ref": "agent.completions.request.AgentCompletionCreateParamsLog"
+    },
+    {
+      "title": "AgentsCompletionsResponseMessages",
+      "$ref": "agent.completions.message.MessageLog"
+    },
+    {
+      "title": "AgentsCompletionsResponseMessagesLogprobs",
+      "$ref": "agent.completions.response.Logprobs"
+    },
+    {
+      "title": "AgentsCompletionsResponseMessagesToolCalls",
+      "$ref": "agent.completions.message.AssistantToolCallDelta"
+    },
+    {
+      "title": "VectorCompletionsResponse",
+      "$ref": "vector.completions.response.streaming.VectorCompletionChunkLog"
+    },
+    {
+      "title": "VectorCompletionsRequest",
+      "$ref": "vector.completions.request.VectorCompletionCreateParams"
+    },
+    {
+      "title": "FunctionsExecutionsResponse",
+      "$ref": "functions.executions.response.streaming.FunctionExecutionChunkLog"
+    },
+    {
+      "title": "FunctionsExecutionsRequest",
+      "$ref": "functions.executions.request.FunctionExecutionCreateParamsLog"
+    },
+    {
+      "title": "FunctionsInventionsResponse",
+      "$ref": "functions.inventions.response.streaming.FunctionInventionChunkLog"
+    },
+    {
+      "title": "FunctionsInventionsRequest",
+      "$ref": "functions.inventions.request.FunctionInventionCreateParams"
+    },
+    {
+      "title": "FunctionsInventionsRecursiveResponse",
+      "$ref": "functions.inventions.recursive.response.streaming.FunctionInventionRecursiveChunkLog"
+    },
+    {
+      "title": "FunctionsInventionsRecursiveRequest",
+      "$ref": "functions.inventions.recursive.request.FunctionInventionRecursiveCreateParamsLog"
+    },
+    {
+      "title": "Text",
+      "type": "string"
+    },
+    {
+      "title": "Image",
+      "$ref": "agent.completions.message.ImageUrl"
+    },
+    {
+      "title": "Audio",
+      "$ref": "agent.completions.message.InputAudio"
+    },
+    {
+      "title": "Video",
+      "$ref": "agent.completions.message.VideoUrl"
+    },
+    {
+      "title": "File",
+      "$ref": "agent.completions.message.File"
+    }
+  ]
+}

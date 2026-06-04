@@ -1,0 +1,29 @@
+{
+  "title": "cli.command.agents.list.active.Request",
+  "type": "object",
+  "properties": {
+    "jq": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "parent_agent_instance_hierarchy": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "path_type": {
+      "$ref": "cli.command.agents.list.active.Path"
+    }
+  }
+}

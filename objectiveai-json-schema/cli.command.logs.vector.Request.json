@@ -1,0 +1,4 @@
+{
+  "title": "cli.command.logs.vector.Request",
+  "$ref": "cli.command.logs.vector.completions.Request"
+}

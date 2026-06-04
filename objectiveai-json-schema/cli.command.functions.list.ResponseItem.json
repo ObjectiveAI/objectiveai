@@ -1,0 +1,13 @@
+{
+  "title": "cli.command.functions.list.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Favorite",
+      "$ref": "cli.command.functions.list.ResponseFavorite"
+    },
+    {
+      "title": "Item",
+      "$ref": "RemotePath"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "title": "cli.command.functions.list.RequestSource",
+  "type": "string",
+  "enum": [
+    "Filesystem",
+    "Favorites",
+    "Objectiveai",
+    "Mock",
+    "All"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "title": "cli.command.functions.executions.create.FunctionSpec",
+  "description": "CLI-surface form for the `--function-inline` argument: either a fully\nresolved inline-or-remote spec, or a bare favorite name that the CLI\nresolves to one of those at handler time. Untagged: an inline function\nobject or remote-path object lands on `Resolved`; a bare JSON string\nlands on `Favorite`.",
+  "anyOf": [
+    {
+      "title": "Resolved",
+      "$ref": "functions.FullInlineFunctionOrRemoteCommitOptional"
+    },
+    {
+      "title": "Favorite",
+      "type": "string"
+    }
+  ]
+}

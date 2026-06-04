@@ -21,7 +21,9 @@ pub enum Path {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.config.functions.favorites.edit.RequestCommitChange")]
 pub enum RequestCommitChange {
+    #[schemars(title = "Set")]
     Set(String),
+    #[schemars(title = "Remove")]
     Remove,
 }
 

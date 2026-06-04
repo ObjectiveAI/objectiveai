@@ -17,14 +17,18 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.functions.inventions.Request")]
 pub enum Request {
+    #[schemars(title = "Recursive")]
     Recursive(recursive::Request),
+    #[schemars(title = "State")]
     State(state::Request),
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.functions.inventions.ResponseItem")]
 pub enum ResponseItem {
+    #[schemars(title = "Recursive")]
     Recursive(recursive::ResponseItem),
+    #[schemars(title = "State")]
     State(state::Response),
 }
 

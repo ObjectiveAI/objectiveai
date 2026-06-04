@@ -24,16 +24,22 @@ pub enum Path {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.publish.RequestBody")]
 pub enum RequestBody {
+    #[schemars(title = "Inline")]
     Inline(RemoteAgentBaseWithFallbacks),
+    #[schemars(title = "File")]
     File(std::path::PathBuf),
+    #[schemars(title = "PythonInline")]
     PythonInline(String),
+    #[schemars(title = "PythonFile")]
     PythonFile(std::path::PathBuf),
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.publish.RequestPublishMessage")]
 pub enum RequestPublishMessage {
+    #[schemars(title = "Inline")]
     Inline(String),
+    #[schemars(title = "File")]
     File(std::path::PathBuf),
 }
 

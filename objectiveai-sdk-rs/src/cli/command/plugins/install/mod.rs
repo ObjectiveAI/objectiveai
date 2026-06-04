@@ -11,22 +11,34 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.plugins.install.Request")]
 pub enum Request {
+    #[schemars(title = "Filesystem")]
     Filesystem(filesystem::Request),
+    #[schemars(title = "FilesystemRequestSchema")]
     FilesystemRequestSchema(filesystem::request_schema::Request),
+    #[schemars(title = "FilesystemResponseSchema")]
     FilesystemResponseSchema(filesystem::response_schema::Request),
+    #[schemars(title = "Github")]
     Github(github::Request),
+    #[schemars(title = "GithubRequestSchema")]
     GithubRequestSchema(github::request_schema::Request),
+    #[schemars(title = "GithubResponseSchema")]
     GithubResponseSchema(github::response_schema::Request),
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.plugins.install.Response")]
 pub enum Response {
+    #[schemars(title = "Filesystem")]
     Filesystem(filesystem::Response),
+    #[schemars(title = "FilesystemRequestSchema")]
     FilesystemRequestSchema(filesystem::request_schema::Response),
+    #[schemars(title = "FilesystemResponseSchema")]
     FilesystemResponseSchema(filesystem::response_schema::Response),
+    #[schemars(title = "Github")]
     Github(github::Response),
+    #[schemars(title = "GithubRequestSchema")]
     GithubRequestSchema(github::request_schema::Response),
+    #[schemars(title = "GithubResponseSchema")]
     GithubResponseSchema(github::response_schema::Response),
 }
 

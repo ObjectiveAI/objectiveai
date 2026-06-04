@@ -34,8 +34,11 @@ pub enum Path {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.functions.executions.create.standard.RequestInput")]
 pub enum RequestInput {
+    #[schemars(title = "Inline")]
     Inline(InputValue),
+    #[schemars(title = "PythonInline")]
     PythonInline(String),
+    #[schemars(title = "PythonFile")]
     PythonFile(std::path::PathBuf),
 }
 
@@ -115,7 +118,9 @@ pub struct RequestDangerousAdvanced {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.functions.executions.create.standard.ResponseItem")]
 pub enum ResponseItem {
+    #[schemars(title = "Chunk")]
     Chunk(crate::functions::executions::response::streaming::FunctionExecutionChunk),
+    #[schemars(title = "Id")]
     Id(String),
 }
 

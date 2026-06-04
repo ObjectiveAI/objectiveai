@@ -11,22 +11,34 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.mcp.Request")]
 pub enum Request {
+    #[schemars(title = "Kill")]
     Kill(kill::Request),
+    #[schemars(title = "KillRequestSchema")]
     KillRequestSchema(kill::request_schema::Request),
+    #[schemars(title = "KillResponseSchema")]
     KillResponseSchema(kill::response_schema::Request),
+    #[schemars(title = "Spawn")]
     Spawn(spawn::Request),
+    #[schemars(title = "SpawnRequestSchema")]
     SpawnRequestSchema(spawn::request_schema::Request),
+    #[schemars(title = "SpawnResponseSchema")]
     SpawnResponseSchema(spawn::response_schema::Request),
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.mcp.Response")]
 pub enum Response {
+    #[schemars(title = "Kill")]
     Kill(kill::Response),
+    #[schemars(title = "KillRequestSchema")]
     KillRequestSchema(kill::request_schema::Response),
+    #[schemars(title = "KillResponseSchema")]
     KillResponseSchema(kill::response_schema::Response),
+    #[schemars(title = "Spawn")]
     Spawn(spawn::Response),
+    #[schemars(title = "SpawnRequestSchema")]
     SpawnRequestSchema(spawn::request_schema::Response),
+    #[schemars(title = "SpawnResponseSchema")]
     SpawnResponseSchema(spawn::response_schema::Response),
 }
 

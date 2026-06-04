@@ -25,38 +25,66 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.logs.agents.completions.response.Request")]
 pub enum Request {
+    #[schemars(title = "Clear")]
     Clear(clear::Request),
+    #[schemars(title = "ClearRequestSchema")]
     ClearRequestSchema(clear::request_schema::Request),
+    #[schemars(title = "ClearResponseSchema")]
     ClearResponseSchema(clear::response_schema::Request),
+    #[schemars(title = "Continuations")]
     Continuations(continuations::Request),
+    #[schemars(title = "Get")]
     Get(get::Request),
+    #[schemars(title = "GetRequestSchema")]
     GetRequestSchema(get::request_schema::Request),
+    #[schemars(title = "GetResponseSchema")]
     GetResponseSchema(get::response_schema::Request),
+    #[schemars(title = "List")]
     List(list::Request),
+    #[schemars(title = "ListRequestSchema")]
     ListRequestSchema(list::request_schema::Request),
+    #[schemars(title = "ListResponseSchema")]
     ListResponseSchema(list::response_schema::Request),
+    #[schemars(title = "Messages")]
     Messages(messages::Request),
+    #[schemars(title = "Subscribe")]
     Subscribe(subscribe::Request),
+    #[schemars(title = "SubscribeRequestSchema")]
     SubscribeRequestSchema(subscribe::request_schema::Request),
+    #[schemars(title = "SubscribeResponseSchema")]
     SubscribeResponseSchema(subscribe::response_schema::Request),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.logs.agents.completions.response.ResponseItem")]
 pub enum ResponseItem {
+    #[schemars(title = "Clear")]
     Clear(clear::Response),
+    #[schemars(title = "ClearRequestSchema")]
     ClearRequestSchema(clear::request_schema::Response),
+    #[schemars(title = "ClearResponseSchema")]
     ClearResponseSchema(clear::response_schema::Response),
+    #[schemars(title = "Continuations")]
     Continuations(continuations::Response),
+    #[schemars(title = "Get")]
     Get(get::Response),
+    #[schemars(title = "GetRequestSchema")]
     GetRequestSchema(get::request_schema::Response),
+    #[schemars(title = "GetResponseSchema")]
     GetResponseSchema(get::response_schema::Response),
+    #[schemars(title = "List")]
     List(list::ResponseItem),
+    #[schemars(title = "ListRequestSchema")]
     ListRequestSchema(list::request_schema::Response),
+    #[schemars(title = "ListResponseSchema")]
     ListResponseSchema(list::response_schema::Response),
+    #[schemars(title = "Messages")]
     Messages(messages::Response),
+    #[schemars(title = "Subscribe")]
     Subscribe(subscribe::Response),
+    #[schemars(title = "SubscribeRequestSchema")]
     SubscribeRequestSchema(subscribe::request_schema::Response),
+    #[schemars(title = "SubscribeResponseSchema")]
     SubscribeResponseSchema(subscribe::response_schema::Response),
 }
 

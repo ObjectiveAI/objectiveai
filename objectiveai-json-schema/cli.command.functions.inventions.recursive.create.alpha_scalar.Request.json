@@ -1,0 +1,57 @@
+{
+  "title": "cli.command.functions.inventions.recursive.create.alpha_scalar.Request",
+  "type": "object",
+  "properties": {
+    "agent": {
+      "$ref": "cli.command.agents.spawn.AgentSpec"
+    },
+    "continuation": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "dangerous_advanced": {
+      "anyOf": [
+        {
+          "$ref": "cli.command.functions.inventions.recursive.create.alpha_scalar.RequestDangerousAdvanced"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "jq": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "params": {
+      "$ref": "cli.command.functions.inventions.recursive.create.alpha_scalar.RequestParams"
+    },
+    "path_type": {
+      "$ref": "cli.command.functions.inventions.recursive.create.alpha_scalar.Path"
+    },
+    "seed": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

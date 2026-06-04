@@ -15,34 +15,58 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.viewer.Request")]
 pub enum Request {
+    #[schemars(title = "GenerateSecretSignaturePair")]
     GenerateSecretSignaturePair(generate_secret_signature_pair::Request),
+    #[schemars(title = "GenerateSecretSignaturePairRequestSchema")]
     GenerateSecretSignaturePairRequestSchema(generate_secret_signature_pair::request_schema::Request),
+    #[schemars(title = "GenerateSecretSignaturePairResponseSchema")]
     GenerateSecretSignaturePairResponseSchema(generate_secret_signature_pair::response_schema::Request),
+    #[schemars(title = "Kill")]
     Kill(kill::Request),
+    #[schemars(title = "KillRequestSchema")]
     KillRequestSchema(kill::request_schema::Request),
+    #[schemars(title = "KillResponseSchema")]
     KillResponseSchema(kill::response_schema::Request),
+    #[schemars(title = "Send")]
     Send(send::Request),
+    #[schemars(title = "SendRequestSchema")]
     SendRequestSchema(send::request_schema::Request),
+    #[schemars(title = "SendResponseSchema")]
     SendResponseSchema(send::response_schema::Request),
+    #[schemars(title = "Spawn")]
     Spawn(spawn::Request),
+    #[schemars(title = "SpawnRequestSchema")]
     SpawnRequestSchema(spawn::request_schema::Request),
+    #[schemars(title = "SpawnResponseSchema")]
     SpawnResponseSchema(spawn::response_schema::Request),
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.viewer.Response")]
 pub enum Response {
+    #[schemars(title = "GenerateSecretSignaturePair")]
     GenerateSecretSignaturePair(generate_secret_signature_pair::Response),
+    #[schemars(title = "GenerateSecretSignaturePairRequestSchema")]
     GenerateSecretSignaturePairRequestSchema(generate_secret_signature_pair::request_schema::Response),
+    #[schemars(title = "GenerateSecretSignaturePairResponseSchema")]
     GenerateSecretSignaturePairResponseSchema(generate_secret_signature_pair::response_schema::Response),
+    #[schemars(title = "Kill")]
     Kill(kill::Response),
+    #[schemars(title = "KillRequestSchema")]
     KillRequestSchema(kill::request_schema::Response),
+    #[schemars(title = "KillResponseSchema")]
     KillResponseSchema(kill::response_schema::Response),
+    #[schemars(title = "Send")]
     Send(send::Response),
+    #[schemars(title = "SendRequestSchema")]
     SendRequestSchema(send::request_schema::Response),
+    #[schemars(title = "SendResponseSchema")]
     SendResponseSchema(send::response_schema::Response),
+    #[schemars(title = "Spawn")]
     Spawn(spawn::Response),
+    #[schemars(title = "SpawnRequestSchema")]
     SpawnRequestSchema(spawn::request_schema::Response),
+    #[schemars(title = "SpawnResponseSchema")]
     SpawnResponseSchema(spawn::response_schema::Response),
 }
 

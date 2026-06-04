@@ -35,12 +35,15 @@ impl CommandRequest for Request {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.plugins.run.ResponseItem")]
 pub enum ResponseItem {
+    #[schemars(title = "Mcp")]
     Mcp(Mcp),
     // `cli::Error` already carries `type:"error"`. Placement above
     // `Notification` is load-bearing: serde untagged tries variants
     // in source order, so a `cli::Error`-shaped JSON must match
     // `Error` before falling through to the catch-all.
+    #[schemars(title = "Error")]
     Error(crate::cli::Error),
+    #[schemars(title = "Notification")]
     Notification(serde_json::Value),
 }
 

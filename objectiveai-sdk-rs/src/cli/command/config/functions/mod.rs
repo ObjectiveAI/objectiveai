@@ -24,22 +24,34 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.config.functions.Request")]
 pub enum Request {
+    #[schemars(title = "Get")]
     Get(get::Request),
+    #[schemars(title = "GetRequestSchema")]
     GetRequestSchema(get::request_schema::Request),
+    #[schemars(title = "GetResponseSchema")]
     GetResponseSchema(get::response_schema::Request),
+    #[schemars(title = "Favorites")]
     Favorites(favorites::Request),
+    #[schemars(title = "Inventions")]
     Inventions(inventions::Request),
+    #[schemars(title = "Profiles")]
     Profiles(profiles::Request),
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.config.functions.ResponseItem")]
 pub enum ResponseItem {
+    #[schemars(title = "Get")]
     Get(get::Response),
+    #[schemars(title = "GetRequestSchema")]
     GetRequestSchema(get::request_schema::Response),
+    #[schemars(title = "GetResponseSchema")]
     GetResponseSchema(get::response_schema::Response),
+    #[schemars(title = "Favorites")]
     Favorites(favorites::ResponseItem),
+    #[schemars(title = "Inventions")]
     Inventions(inventions::Response),
+    #[schemars(title = "Profiles")]
     Profiles(profiles::ResponseItem),
 }
 

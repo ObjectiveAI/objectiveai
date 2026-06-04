@@ -1,0 +1,16 @@
+{
+  "title": "agent.completions.message.SimpleContentLog",
+  "anyOf": [
+    {
+      "title": "Reference",
+      "$ref": "LogReference"
+    },
+    {
+      "title": "Parts",
+      "type": "array",
+      "items": {
+        "$ref": "LogReference"
+      }
+    }
+  ]
+}

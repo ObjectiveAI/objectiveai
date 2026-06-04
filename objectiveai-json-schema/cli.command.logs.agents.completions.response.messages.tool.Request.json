@@ -1,0 +1,25 @@
+{
+  "title": "cli.command.logs.agents.completions.response.messages.tool.Request",
+  "anyOf": [
+    {
+      "title": "Audio",
+      "$ref": "cli.command.logs.agents.completions.response.messages.tool.audio.Request"
+    },
+    {
+      "title": "File",
+      "$ref": "cli.command.logs.agents.completions.response.messages.tool.file.Request"
+    },
+    {
+      "title": "Image",
+      "$ref": "cli.command.logs.agents.completions.response.messages.tool.image.Request"
+    },
+    {
+      "title": "Text",
+      "$ref": "cli.command.logs.agents.completions.response.messages.tool.text.Request"
+    },
+    {
+      "title": "Video",
+      "$ref": "cli.command.logs.agents.completions.response.messages.tool.video.Request"
+    }
+  ]
+}

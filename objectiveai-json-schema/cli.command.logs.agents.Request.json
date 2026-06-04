@@ -1,0 +1,4 @@
+{
+  "title": "cli.command.logs.agents.Request",
+  "$ref": "cli.command.logs.agents.completions.Request"
+}

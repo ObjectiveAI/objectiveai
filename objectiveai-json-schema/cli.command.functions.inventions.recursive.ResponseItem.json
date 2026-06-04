@@ -1,0 +1,10 @@
+{
+  "title": "cli.command.functions.inventions.recursive.ResponseItem",
+  "type": "object",
+  "properties": {
+    "Create": {
+      "$ref": "cli.command.functions.inventions.recursive.create.ResponseItem"
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,65 @@
+{
+  "title": "cli.command.logs.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Agents",
+      "type": "object",
+      "properties": {
+        "Agents": {
+          "$ref": "cli.command.logs.agents.ResponseItem"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Clear",
+      "type": "object",
+      "properties": {
+        "Clear": {
+          "$ref": "cli.command.logs.clear.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "ClearRequestSchema",
+      "type": "object",
+      "properties": {
+        "ClearRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "ClearResponseSchema",
+      "type": "object",
+      "properties": {
+        "ClearResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Functions",
+      "type": "object",
+      "properties": {
+        "Functions": {
+          "$ref": "cli.command.logs.functions.ResponseItem"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Vector",
+      "type": "object",
+      "properties": {
+        "Vector": {
+          "$ref": "cli.command.logs.vector.ResponseItem"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

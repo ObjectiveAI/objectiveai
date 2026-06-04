@@ -1,0 +1,95 @@
+{
+  "title": "cli.command.functions.inventions.recursive.create.ResponseItem",
+  "anyOf": [
+    {
+      "title": "AlphaScalar",
+      "type": "object",
+      "properties": {
+        "AlphaScalar": {
+          "$ref": "cli.command.functions.inventions.recursive.create.alpha_scalar.ResponseItem"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "AlphaScalarRequestSchema",
+      "type": "object",
+      "properties": {
+        "AlphaScalarRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "AlphaScalarResponseSchema",
+      "type": "object",
+      "properties": {
+        "AlphaScalarResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "AlphaVector",
+      "type": "object",
+      "properties": {
+        "AlphaVector": {
+          "$ref": "cli.command.functions.inventions.recursive.create.alpha_vector.ResponseItem"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "AlphaVectorRequestSchema",
+      "type": "object",
+      "properties": {
+        "AlphaVectorRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "AlphaVectorResponseSchema",
+      "type": "object",
+      "properties": {
+        "AlphaVectorResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Remote",
+      "type": "object",
+      "properties": {
+        "Remote": {
+          "$ref": "cli.command.functions.inventions.recursive.create.remote.ResponseItem"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "RemoteRequestSchema",
+      "type": "object",
+      "properties": {
+        "RemoteRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "RemoteResponseSchema",
+      "type": "object",
+      "properties": {
+        "RemoteResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

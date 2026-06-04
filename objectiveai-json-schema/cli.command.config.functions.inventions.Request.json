@@ -1,0 +1,21 @@
+{
+  "title": "cli.command.config.functions.inventions.Request",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.config.functions.inventions.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.config.functions.inventions.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.config.functions.inventions.get.response_schema.Request"
+    },
+    {
+      "title": "Remote",
+      "$ref": "cli.command.config.functions.inventions.remote.Request"
+    }
+  ]
+}

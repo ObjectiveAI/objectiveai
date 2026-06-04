@@ -1,0 +1,65 @@
+{
+  "title": "cli.command.functions.executions.create.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Standard",
+      "type": "object",
+      "properties": {
+        "Standard": {
+          "$ref": "cli.command.functions.executions.create.standard.ResponseItem"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "StandardRequestSchema",
+      "type": "object",
+      "properties": {
+        "StandardRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "StandardResponseSchema",
+      "type": "object",
+      "properties": {
+        "StandardResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "SwissSystem",
+      "type": "object",
+      "properties": {
+        "SwissSystem": {
+          "$ref": "cli.command.functions.executions.create.swiss_system.ResponseItem"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "SwissSystemRequestSchema",
+      "type": "object",
+      "properties": {
+        "SwissSystemRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "SwissSystemResponseSchema",
+      "type": "object",
+      "properties": {
+        "SwissSystemResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "title": "cli.command.plugins.install.github.Request",
+  "type": "object",
+  "properties": {
+    "allow_untrusted": {
+      "type": "boolean"
+    },
+    "commit_sha": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "jq": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "owner": {
+      "type": "string"
+    },
+    "path_type": {
+      "$ref": "cli.command.plugins.install.github.Path"
+    },
+    "repository": {
+      "type": "string"
+    }
+  }
+}

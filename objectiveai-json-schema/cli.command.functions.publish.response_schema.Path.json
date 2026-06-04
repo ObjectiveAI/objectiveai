@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.functions.publish.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "functions/publish/response_schema"
+  ]
+}

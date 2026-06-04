@@ -33,23 +33,28 @@ impl CommandRequest for Request {
 #[serde(tag = "type", rename_all = "snake_case")]
 #[schemars(rename = "cli.command.update.ResponseItem")]
 pub enum ResponseItem {
+    #[schemars(title = "Checking")]
     Checking {
         asset_name: String,
         current_version: String,
     },
+    #[schemars(title = "Found")]
     Found {
         current_version: String,
         remote_version: String,
         asset_name: String,
         url: String,
     },
+    #[schemars(title = "Installed")]
     Installed {
         current_version: String,
         remote_version: String,
     },
+    #[schemars(title = "Skipped")]
     Skipped {
         reason: ResponseSkipReason,
     },
+    #[schemars(title = "UpToDate")]
     UpToDate {
         current_version: String,
         remote_version: String,

@@ -1,0 +1,73 @@
+{
+  "title": "cli.command.agents.Request",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.agents.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.agents.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.agents.get.response_schema.Request"
+    },
+    {
+      "title": "List",
+      "$ref": "cli.command.agents.list.Request"
+    },
+    {
+      "title": "Me",
+      "$ref": "cli.command.agents.me.Request"
+    },
+    {
+      "title": "MeRequestSchema",
+      "$ref": "cli.command.agents.me.request_schema.Request"
+    },
+    {
+      "title": "MeResponseSchema",
+      "$ref": "cli.command.agents.me.response_schema.Request"
+    },
+    {
+      "title": "Message",
+      "$ref": "cli.command.agents.message.Request"
+    },
+    {
+      "title": "MessageRequestSchema",
+      "$ref": "cli.command.agents.message.request_schema.Request"
+    },
+    {
+      "title": "MessageResponseSchema",
+      "$ref": "cli.command.agents.message.response_schema.Request"
+    },
+    {
+      "title": "Publish",
+      "$ref": "cli.command.agents.publish.Request"
+    },
+    {
+      "title": "PublishRequestSchema",
+      "$ref": "cli.command.agents.publish.request_schema.Request"
+    },
+    {
+      "title": "PublishResponseSchema",
+      "$ref": "cli.command.agents.publish.response_schema.Request"
+    },
+    {
+      "title": "Read",
+      "$ref": "cli.command.agents.read.Request"
+    },
+    {
+      "title": "Spawn",
+      "$ref": "cli.command.agents.spawn.Request"
+    },
+    {
+      "title": "SpawnRequestSchema",
+      "$ref": "cli.command.agents.spawn.request_schema.Request"
+    },
+    {
+      "title": "SpawnResponseSchema",
+      "$ref": "cli.command.agents.spawn.response_schema.Request"
+    }
+  ]
+}

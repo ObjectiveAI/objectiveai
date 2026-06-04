@@ -1,0 +1,18 @@
+{
+  "title": "cli.command.config.functions.profiles.favorites.add.Request",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "note": {
+      "type": "string"
+    },
+    "path": {
+      "$ref": "RemotePathCommitOptional"
+    },
+    "path_type": {
+      "$ref": "cli.command.config.functions.profiles.favorites.add.Path"
+    }
+  }
+}

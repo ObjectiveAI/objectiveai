@@ -1,0 +1,13 @@
+{
+  "title": "cli.command.functions.executions.create.standard.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Chunk",
+      "$ref": "functions.executions.response.streaming.FunctionExecutionChunk"
+    },
+    {
+      "title": "Id",
+      "type": "string"
+    }
+  ]
+}

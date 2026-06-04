@@ -1,0 +1,73 @@
+{
+  "title": "cli.command.AgentArguments",
+  "description": "Agent identity + response routing args carried per call.\n\nWhen passed as `Some(&AgentArguments)` to a [`CommandExecutor`],\nsubprocess-spawning executors (e.g. [`binary::BinaryExecutor`])\napply ALL six fields to the spawned child's env atomically —\n`Some(v)` → set, `None` → `env_remove` so the parent's value for\nthat var can't leak through. `None` for the whole bag means\n\"inherit parent env unmodified\". In-process executors (e.g.\n[`plugin::PluginExecutor`]) ignore the bag.\n\nField ↔ env-var mapping (same as `EnvConfigBuilder` in\n`objectiveai-cli/src/run.rs`):\n\n- `agent_instance_hierarchy` ↔ `OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY`\n- `agent_id` ↔ `OBJECTIVEAI_AGENT_ID`\n- `agent_full_id` ↔ `OBJECTIVEAI_AGENT_FULL_ID`\n- `agent_remote` ↔ `OBJECTIVEAI_AGENT_REMOTE`\n- `response_id` ↔ `OBJECTIVEAI_RESPONSE_ID`\n- `response_ids` ↔ `OBJECTIVEAI_RESPONSE_IDS`",
+  "type": "object",
+  "properties": {
+    "agent_full_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "agent_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "agent_instance_hierarchy": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "agent_remote": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "response_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "response_ids": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

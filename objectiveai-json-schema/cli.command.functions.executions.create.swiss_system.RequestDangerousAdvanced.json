@@ -1,0 +1,16 @@
+{
+  "title": "cli.command.functions.executions.create.swiss_system.RequestDangerousAdvanced",
+  "type": "object",
+  "properties": {
+    "stream": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

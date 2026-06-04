@@ -1,8 +1,0 @@
-{
-  "title": "cli.output.ErrorType",
-  "description": "Single-variant discriminator for [`Error`]'s `type` field.\nAlways `\"error\"` on the wire.",
-  "type": "string",
-  "enum": [
-    "error"
-  ]
-}

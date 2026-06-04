@@ -24,22 +24,34 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.logs.Request")]
 pub enum Request {
+    #[schemars(title = "Agents")]
     Agents(agents::Request),
+    #[schemars(title = "Clear")]
     Clear(clear::Request),
+    #[schemars(title = "ClearRequestSchema")]
     ClearRequestSchema(clear::request_schema::Request),
+    #[schemars(title = "ClearResponseSchema")]
     ClearResponseSchema(clear::response_schema::Request),
+    #[schemars(title = "Functions")]
     Functions(functions::Request),
+    #[schemars(title = "Vector")]
     Vector(vector::Request),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.logs.ResponseItem")]
 pub enum ResponseItem {
+    #[schemars(title = "Agents")]
     Agents(agents::ResponseItem),
+    #[schemars(title = "Clear")]
     Clear(clear::Response),
+    #[schemars(title = "ClearRequestSchema")]
     ClearRequestSchema(clear::request_schema::Response),
+    #[schemars(title = "ClearResponseSchema")]
     ClearResponseSchema(clear::response_schema::Response),
+    #[schemars(title = "Functions")]
     Functions(functions::ResponseItem),
+    #[schemars(title = "Vector")]
     Vector(vector::ResponseItem),
 }
 

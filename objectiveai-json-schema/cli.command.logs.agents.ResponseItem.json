@@ -1,0 +1,10 @@
+{
+  "title": "cli.command.logs.agents.ResponseItem",
+  "type": "object",
+  "properties": {
+    "Completions": {
+      "$ref": "cli.command.logs.agents.completions.ResponseItem"
+    }
+  },
+  "additionalProperties": false
+}

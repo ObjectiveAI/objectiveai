@@ -1,0 +1,35 @@
+{
+  "title": "cli.command.logs.agents.completions.response.messages.refusal.subscribe.Request",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "jq": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "message_index": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "path_type": {
+      "$ref": "cli.command.logs.agents.completions.response.messages.refusal.subscribe.Path"
+    },
+    "require_modification": {
+      "type": "boolean"
+    },
+    "timeout_ms": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    }
+  }
+}

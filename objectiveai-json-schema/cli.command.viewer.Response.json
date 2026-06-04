@@ -1,0 +1,125 @@
+{
+  "title": "cli.command.viewer.Response",
+  "anyOf": [
+    {
+      "title": "GenerateSecretSignaturePair",
+      "type": "object",
+      "properties": {
+        "GenerateSecretSignaturePair": {
+          "$ref": "cli.command.viewer.generate_secret_signature_pair.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "GenerateSecretSignaturePairRequestSchema",
+      "type": "object",
+      "properties": {
+        "GenerateSecretSignaturePairRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "GenerateSecretSignaturePairResponseSchema",
+      "type": "object",
+      "properties": {
+        "GenerateSecretSignaturePairResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Kill",
+      "type": "object",
+      "properties": {
+        "Kill": {
+          "$ref": "cli.command.viewer.kill.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "KillRequestSchema",
+      "type": "object",
+      "properties": {
+        "KillRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "KillResponseSchema",
+      "type": "object",
+      "properties": {
+        "KillResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Send",
+      "type": "object",
+      "properties": {
+        "Send": {
+          "$ref": "cli.command.viewer.send.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "SendRequestSchema",
+      "type": "object",
+      "properties": {
+        "SendRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "SendResponseSchema",
+      "type": "object",
+      "properties": {
+        "SendResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Spawn",
+      "type": "object",
+      "properties": {
+        "Spawn": {
+          "$ref": "cli.command.viewer.spawn.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "SpawnRequestSchema",
+      "type": "object",
+      "properties": {
+        "SpawnRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "SpawnResponseSchema",
+      "type": "object",
+      "properties": {
+        "SpawnResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

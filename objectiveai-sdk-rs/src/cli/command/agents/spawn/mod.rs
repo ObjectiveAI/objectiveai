@@ -40,10 +40,15 @@ pub enum AgentSpec {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.spawn.RequestPrompt")]
 pub enum RequestPrompt {
+    #[schemars(title = "Inline")]
     Inline(Vec<Message>),
+    #[schemars(title = "Simple")]
     Simple(String),
+    #[schemars(title = "File")]
     File(std::path::PathBuf),
+    #[schemars(title = "PythonInline")]
     PythonInline(String),
+    #[schemars(title = "PythonFile")]
     PythonFile(std::path::PathBuf),
 }
 
@@ -121,7 +126,9 @@ pub struct RequestDangerousAdvanced {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.agents.spawn.ResponseItem")]
 pub enum ResponseItem {
+    #[schemars(title = "Chunk")]
     Chunk(crate::agent::completions::response::streaming::AgentCompletionChunk),
+    #[schemars(title = "Id")]
     Id(String),
 }
 

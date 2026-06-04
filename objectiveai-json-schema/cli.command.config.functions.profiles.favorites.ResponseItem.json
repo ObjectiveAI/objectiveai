@@ -1,0 +1,125 @@
+{
+  "title": "cli.command.config.functions.profiles.favorites.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Add",
+      "type": "object",
+      "properties": {
+        "Add": {
+          "$ref": "cli.command.Ok"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "AddRequestSchema",
+      "type": "object",
+      "properties": {
+        "AddRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "AddResponseSchema",
+      "type": "object",
+      "properties": {
+        "AddResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Del",
+      "type": "object",
+      "properties": {
+        "Del": {
+          "$ref": "cli.command.Ok"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "DelRequestSchema",
+      "type": "object",
+      "properties": {
+        "DelRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "DelResponseSchema",
+      "type": "object",
+      "properties": {
+        "DelResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Edit",
+      "type": "object",
+      "properties": {
+        "Edit": {
+          "$ref": "cli.command.Ok"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "EditRequestSchema",
+      "type": "object",
+      "properties": {
+        "EditRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "EditResponseSchema",
+      "type": "object",
+      "properties": {
+        "EditResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Get",
+      "type": "object",
+      "properties": {
+        "Get": {
+          "$ref": "cli.command.config.functions.profiles.favorites.get.ResponseItem"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "GetRequestSchema",
+      "type": "object",
+      "properties": {
+        "GetRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "GetResponseSchema",
+      "type": "object",
+      "properties": {
+        "GetResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

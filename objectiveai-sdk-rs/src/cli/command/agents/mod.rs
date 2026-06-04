@@ -36,44 +36,78 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.agents.Request")]
 pub enum Request {
+    #[schemars(title = "Get")]
     Get(get::Request),
+    #[schemars(title = "GetRequestSchema")]
     GetRequestSchema(get::request_schema::Request),
+    #[schemars(title = "GetResponseSchema")]
     GetResponseSchema(get::response_schema::Request),
+    #[schemars(title = "List")]
     List(list::Request),
+    #[schemars(title = "Me")]
     Me(me::Request),
+    #[schemars(title = "MeRequestSchema")]
     MeRequestSchema(me::request_schema::Request),
+    #[schemars(title = "MeResponseSchema")]
     MeResponseSchema(me::response_schema::Request),
+    #[schemars(title = "Message")]
     Message(message::Request),
+    #[schemars(title = "MessageRequestSchema")]
     MessageRequestSchema(message::request_schema::Request),
+    #[schemars(title = "MessageResponseSchema")]
     MessageResponseSchema(message::response_schema::Request),
+    #[schemars(title = "Publish")]
     Publish(publish::Request),
+    #[schemars(title = "PublishRequestSchema")]
     PublishRequestSchema(publish::request_schema::Request),
+    #[schemars(title = "PublishResponseSchema")]
     PublishResponseSchema(publish::response_schema::Request),
+    #[schemars(title = "Read")]
     Read(read::Request),
+    #[schemars(title = "Spawn")]
     Spawn(spawn::Request),
+    #[schemars(title = "SpawnRequestSchema")]
     SpawnRequestSchema(spawn::request_schema::Request),
+    #[schemars(title = "SpawnResponseSchema")]
     SpawnResponseSchema(spawn::response_schema::Request),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.ResponseItem")]
 pub enum ResponseItem {
+    #[schemars(title = "Get")]
     Get(get::Response),
+    #[schemars(title = "GetRequestSchema")]
     GetRequestSchema(get::request_schema::Response),
+    #[schemars(title = "GetResponseSchema")]
     GetResponseSchema(get::response_schema::Response),
+    #[schemars(title = "List")]
     List(list::ResponseItem),
+    #[schemars(title = "Me")]
     Me(me::Response),
+    #[schemars(title = "MeRequestSchema")]
     MeRequestSchema(me::request_schema::Response),
+    #[schemars(title = "MeResponseSchema")]
     MeResponseSchema(me::response_schema::Response),
+    #[schemars(title = "Message")]
     Message(message::Response),
+    #[schemars(title = "MessageRequestSchema")]
     MessageRequestSchema(message::request_schema::Response),
+    #[schemars(title = "MessageResponseSchema")]
     MessageResponseSchema(message::response_schema::Response),
+    #[schemars(title = "Publish")]
     Publish(publish::Response),
+    #[schemars(title = "PublishRequestSchema")]
     PublishRequestSchema(publish::request_schema::Response),
+    #[schemars(title = "PublishResponseSchema")]
     PublishResponseSchema(publish::response_schema::Response),
+    #[schemars(title = "Read")]
     Read(read::ResponseItem),
+    #[schemars(title = "Spawn")]
     Spawn(spawn::ResponseItem),
+    #[schemars(title = "SpawnRequestSchema")]
     SpawnRequestSchema(spawn::request_schema::Response),
+    #[schemars(title = "SpawnResponseSchema")]
     SpawnResponseSchema(spawn::response_schema::Response),
 }
 

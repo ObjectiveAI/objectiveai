@@ -1,0 +1,10 @@
+{
+  "title": "cli.command.functions.executions.ResponseItem",
+  "type": "object",
+  "properties": {
+    "Create": {
+      "$ref": "cli.command.functions.executions.create.ResponseItem"
+    }
+  },
+  "additionalProperties": false
+}

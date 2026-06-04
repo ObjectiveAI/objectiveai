@@ -1,0 +1,65 @@
+{
+  "title": "cli.command.logs.functions.executions.request.Response",
+  "anyOf": [
+    {
+      "title": "Get",
+      "type": "object",
+      "properties": {
+        "Get": {
+          "$ref": "functions.executions.request.FunctionExecutionCreateParamsLog"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "GetRequestSchema",
+      "type": "object",
+      "properties": {
+        "GetRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "GetResponseSchema",
+      "type": "object",
+      "properties": {
+        "GetResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Subscribe",
+      "type": "object",
+      "properties": {
+        "Subscribe": {
+          "$ref": "functions.executions.request.FunctionExecutionCreateParamsLog"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "SubscribeRequestSchema",
+      "type": "object",
+      "properties": {
+        "SubscribeRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "SubscribeResponseSchema",
+      "type": "object",
+      "properties": {
+        "SubscribeResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

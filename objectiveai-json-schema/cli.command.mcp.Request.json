@@ -1,0 +1,29 @@
+{
+  "title": "cli.command.mcp.Request",
+  "anyOf": [
+    {
+      "title": "Kill",
+      "$ref": "cli.command.mcp.kill.Request"
+    },
+    {
+      "title": "KillRequestSchema",
+      "$ref": "cli.command.mcp.kill.request_schema.Request"
+    },
+    {
+      "title": "KillResponseSchema",
+      "$ref": "cli.command.mcp.kill.response_schema.Request"
+    },
+    {
+      "title": "Spawn",
+      "$ref": "cli.command.mcp.spawn.Request"
+    },
+    {
+      "title": "SpawnRequestSchema",
+      "$ref": "cli.command.mcp.spawn.request_schema.Request"
+    },
+    {
+      "title": "SpawnResponseSchema",
+      "$ref": "cli.command.mcp.spawn.response_schema.Request"
+    }
+  ]
+}

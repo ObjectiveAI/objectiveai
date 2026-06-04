@@ -32,10 +32,15 @@ pub enum Path {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.message.RequestMessage")]
 pub enum RequestMessage {
+    #[schemars(title = "Inline")]
     Inline(RichContent),
+    #[schemars(title = "Simple")]
     Simple(String),
+    #[schemars(title = "File")]
     File(std::path::PathBuf),
+    #[schemars(title = "PythonInline")]
     PythonInline(String),
+    #[schemars(title = "PythonFile")]
     PythonFile(std::path::PathBuf),
 }
 
@@ -97,10 +102,12 @@ impl CommandRequest for Request {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.agents.message.Response")]
 pub enum Response {
+    #[schemars(title = "Queued")]
     Queued {
         agent_instance_hierarchy: String,
         response_id: String,
     },
+    #[schemars(title = "Delivered")]
     Delivered {
         agent_instance_hierarchy: String,
     },

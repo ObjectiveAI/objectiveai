@@ -1,0 +1,9 @@
+{
+  "title": "cli.command.viewer.spawn.Response",
+  "type": "object",
+  "properties": {
+    "listening": {
+      "type": "string"
+    }
+  }
+}

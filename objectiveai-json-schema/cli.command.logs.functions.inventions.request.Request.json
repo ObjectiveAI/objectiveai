@@ -1,0 +1,29 @@
+{
+  "title": "cli.command.logs.functions.inventions.request.Request",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.logs.functions.inventions.request.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.logs.functions.inventions.request.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.logs.functions.inventions.request.get.response_schema.Request"
+    },
+    {
+      "title": "Subscribe",
+      "$ref": "cli.command.logs.functions.inventions.request.subscribe.Request"
+    },
+    {
+      "title": "SubscribeRequestSchema",
+      "$ref": "cli.command.logs.functions.inventions.request.subscribe.request_schema.Request"
+    },
+    {
+      "title": "SubscribeResponseSchema",
+      "$ref": "cli.command.logs.functions.inventions.request.subscribe.response_schema.Request"
+    }
+  ]
+}

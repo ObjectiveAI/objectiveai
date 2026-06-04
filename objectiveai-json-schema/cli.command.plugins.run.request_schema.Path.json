@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.plugins.run.request_schema.Path",
+  "type": "string",
+  "enum": [
+    "plugins/run/request_schema"
+  ]
+}

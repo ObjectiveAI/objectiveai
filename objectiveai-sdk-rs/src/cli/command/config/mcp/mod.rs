@@ -19,20 +19,30 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.config.mcp.Request")]
 pub enum Request {
+    #[schemars(title = "Get")]
     Get(get::Request),
+    #[schemars(title = "GetRequestSchema")]
     GetRequestSchema(get::request_schema::Request),
+    #[schemars(title = "GetResponseSchema")]
     GetResponseSchema(get::response_schema::Request),
+    #[schemars(title = "Address")]
     Address(address::Request),
+    #[schemars(title = "Port")]
     Port(port::Request),
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.config.mcp.Response")]
 pub enum Response {
+    #[schemars(title = "Get")]
     Get(get::Response),
+    #[schemars(title = "GetRequestSchema")]
     GetRequestSchema(get::request_schema::Response),
+    #[schemars(title = "GetResponseSchema")]
     GetResponseSchema(get::response_schema::Response),
+    #[schemars(title = "Address")]
     Address(address::Response),
+    #[schemars(title = "Port")]
     Port(port::Response),
 }
 

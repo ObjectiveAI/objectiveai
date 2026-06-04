@@ -99,7 +99,9 @@ pub struct RequestDangerousAdvanced {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.functions.inventions.recursive.create.alpha_vector.ResponseItem")]
 pub enum ResponseItem {
+    #[schemars(title = "Chunk")]
     Chunk(crate::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk),
+    #[schemars(title = "Id")]
     Id(String),
 }
 

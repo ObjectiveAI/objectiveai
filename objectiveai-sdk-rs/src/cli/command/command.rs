@@ -48,34 +48,58 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.Request")]
 pub enum Request {
+    #[schemars(title = "Agents")]
     Agents(super::agents::Request),
+    #[schemars(title = "Config")]
     Config(super::config::Request),
+    #[schemars(title = "Functions")]
     Functions(super::functions::Request),
+    #[schemars(title = "Logs")]
     Logs(super::logs::Request),
+    #[schemars(title = "Mcp")]
     Mcp(super::mcp::Request),
+    #[schemars(title = "Plugins")]
     Plugins(super::plugins::Request),
+    #[schemars(title = "Swarms")]
     Swarms(super::swarms::Request),
+    #[schemars(title = "Tools")]
     Tools(super::tools::Request),
+    #[schemars(title = "Update")]
     Update(super::update::Request),
+    #[schemars(title = "UpdateRequestSchema")]
     UpdateRequestSchema(super::update::request_schema::Request),
+    #[schemars(title = "UpdateResponseSchema")]
     UpdateResponseSchema(super::update::response_schema::Request),
+    #[schemars(title = "Viewer")]
     Viewer(super::viewer::Request),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.ResponseItem")]
 pub enum ResponseItem {
+    #[schemars(title = "Agents")]
     Agents(super::agents::ResponseItem),
+    #[schemars(title = "Config")]
     Config(super::config::ResponseItem),
+    #[schemars(title = "Functions")]
     Functions(super::functions::ResponseItem),
+    #[schemars(title = "Logs")]
     Logs(super::logs::ResponseItem),
+    #[schemars(title = "Mcp")]
     Mcp(super::mcp::Response),
+    #[schemars(title = "Plugins")]
     Plugins(super::plugins::ResponseItem),
+    #[schemars(title = "Swarms")]
     Swarms(super::swarms::ResponseItem),
+    #[schemars(title = "Tools")]
     Tools(super::tools::ResponseItem),
+    #[schemars(title = "Update")]
     Update(super::update::ResponseItem),
+    #[schemars(title = "UpdateRequestSchema")]
     UpdateRequestSchema(super::update::request_schema::Response),
+    #[schemars(title = "UpdateResponseSchema")]
     UpdateResponseSchema(super::update::response_schema::Response),
+    #[schemars(title = "Viewer")]
     Viewer(super::viewer::Response),
 }
 

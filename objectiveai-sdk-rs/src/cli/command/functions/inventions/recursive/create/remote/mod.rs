@@ -26,7 +26,9 @@ pub enum Path {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.functions.inventions.recursive.create.remote.RequestState")]
 pub enum RequestState {
+    #[schemars(title = "Inline")]
     Inline(ParamsState),
+    #[schemars(title = "Ref")]
     Ref(String),
 }
 
@@ -91,7 +93,9 @@ pub struct RequestDangerousAdvanced {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.functions.inventions.recursive.create.remote.ResponseItem")]
 pub enum ResponseItem {
+    #[schemars(title = "Chunk")]
     Chunk(crate::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk),
+    #[schemars(title = "Id")]
     Id(String),
 }
 

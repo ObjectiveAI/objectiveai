@@ -32,20 +32,30 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.config.Request")]
 pub enum Request {
+    #[schemars(title = "Agents")]
     Agents(agents::Request),
+    #[schemars(title = "Functions")]
     Functions(functions::Request),
+    #[schemars(title = "Mcp")]
     Mcp(mcp::Request),
+    #[schemars(title = "Swarms")]
     Swarms(swarms::Request),
+    #[schemars(title = "Viewer")]
     Viewer(viewer::Request),
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.config.ResponseItem")]
 pub enum ResponseItem {
+    #[schemars(title = "Agents")]
     Agents(agents::ResponseItem),
+    #[schemars(title = "Functions")]
     Functions(functions::ResponseItem),
+    #[schemars(title = "Mcp")]
     Mcp(mcp::Response),
+    #[schemars(title = "Swarms")]
     Swarms(swarms::ResponseItem),
+    #[schemars(title = "Viewer")]
     Viewer(viewer::Response),
 }
 

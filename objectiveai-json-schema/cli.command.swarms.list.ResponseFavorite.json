@@ -1,0 +1,91 @@
+{
+  "title": "cli.command.swarms.list.ResponseFavorite",
+  "anyOf": [
+    {
+      "title": "Github",
+      "type": "object",
+      "properties": {
+        "commit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "owner": {
+          "type": "string"
+        },
+        "remote": {
+          "type": "string",
+          "enum": [
+            "github"
+          ]
+        },
+        "repository": {
+          "type": "string"
+        }
+      }
+    },
+    {
+      "title": "Filesystem",
+      "type": "object",
+      "properties": {
+        "commit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "owner": {
+          "type": "string"
+        },
+        "remote": {
+          "type": "string",
+          "enum": [
+            "filesystem"
+          ]
+        },
+        "repository": {
+          "type": "string"
+        }
+      }
+    },
+    {
+      "title": "Mock",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "remote": {
+          "type": "string",
+          "enum": [
+            "mock"
+          ]
+        }
+      }
+    }
+  ]
+}

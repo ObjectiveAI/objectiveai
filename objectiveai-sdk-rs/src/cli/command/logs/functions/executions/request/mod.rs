@@ -11,22 +11,34 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.logs.functions.executions.request.Request")]
 pub enum Request {
+    #[schemars(title = "Get")]
     Get(get::Request),
+    #[schemars(title = "GetRequestSchema")]
     GetRequestSchema(get::request_schema::Request),
+    #[schemars(title = "GetResponseSchema")]
     GetResponseSchema(get::response_schema::Request),
+    #[schemars(title = "Subscribe")]
     Subscribe(subscribe::Request),
+    #[schemars(title = "SubscribeRequestSchema")]
     SubscribeRequestSchema(subscribe::request_schema::Request),
+    #[schemars(title = "SubscribeResponseSchema")]
     SubscribeResponseSchema(subscribe::response_schema::Request),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.logs.functions.executions.request.Response")]
 pub enum Response {
+    #[schemars(title = "Get")]
     Get(get::Response),
+    #[schemars(title = "GetRequestSchema")]
     GetRequestSchema(get::request_schema::Response),
+    #[schemars(title = "GetResponseSchema")]
     GetResponseSchema(get::response_schema::Response),
+    #[schemars(title = "Subscribe")]
     Subscribe(subscribe::Response),
+    #[schemars(title = "SubscribeRequestSchema")]
     SubscribeRequestSchema(subscribe::request_schema::Response),
+    #[schemars(title = "SubscribeResponseSchema")]
     SubscribeResponseSchema(subscribe::response_schema::Response),
 }
 

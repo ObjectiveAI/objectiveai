@@ -1,0 +1,25 @@
+{
+  "title": "cli.command.logs.vector.completions.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Request",
+      "type": "object",
+      "properties": {
+        "Request": {
+          "$ref": "cli.command.logs.vector.completions.request.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Response",
+      "type": "object",
+      "properties": {
+        "Response": {
+          "$ref": "cli.command.logs.vector.completions.response.ResponseItem"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

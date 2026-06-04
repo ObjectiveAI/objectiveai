@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.swarms.list.Path",
+  "type": "string",
+  "enum": [
+    "swarms/list"
+  ]
+}

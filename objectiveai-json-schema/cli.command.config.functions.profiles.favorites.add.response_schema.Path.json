@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.config.functions.profiles.favorites.add.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "config/functions/profiles/favorites/add/response_schema"
+  ]
+}

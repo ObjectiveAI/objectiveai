@@ -41,22 +41,34 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.functions.executions.create.Request")]
 pub enum Request {
+    #[schemars(title = "Standard")]
     Standard(standard::Request),
+    #[schemars(title = "StandardRequestSchema")]
     StandardRequestSchema(standard::request_schema::Request),
+    #[schemars(title = "StandardResponseSchema")]
     StandardResponseSchema(standard::response_schema::Request),
+    #[schemars(title = "SwissSystem")]
     SwissSystem(swiss_system::Request),
+    #[schemars(title = "SwissSystemRequestSchema")]
     SwissSystemRequestSchema(swiss_system::request_schema::Request),
+    #[schemars(title = "SwissSystemResponseSchema")]
     SwissSystemResponseSchema(swiss_system::response_schema::Request),
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.functions.executions.create.ResponseItem")]
 pub enum ResponseItem {
+    #[schemars(title = "Standard")]
     Standard(standard::ResponseItem),
+    #[schemars(title = "StandardRequestSchema")]
     StandardRequestSchema(standard::request_schema::Response),
+    #[schemars(title = "StandardResponseSchema")]
     StandardResponseSchema(standard::response_schema::Response),
+    #[schemars(title = "SwissSystem")]
     SwissSystem(swiss_system::ResponseItem),
+    #[schemars(title = "SwissSystemRequestSchema")]
     SwissSystemRequestSchema(swiss_system::request_schema::Response),
+    #[schemars(title = "SwissSystemResponseSchema")]
     SwissSystemResponseSchema(swiss_system::response_schema::Response),
 }
 

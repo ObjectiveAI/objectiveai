@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.update.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "update/response_schema"
+  ]
+}

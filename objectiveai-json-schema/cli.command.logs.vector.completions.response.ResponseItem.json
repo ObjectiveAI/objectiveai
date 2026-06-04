@@ -1,0 +1,125 @@
+{
+  "title": "cli.command.logs.vector.completions.response.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Clear",
+      "type": "object",
+      "properties": {
+        "Clear": {
+          "$ref": "cli.command.logs.vector.completions.response.clear.Response"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "ClearRequestSchema",
+      "type": "object",
+      "properties": {
+        "ClearRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "ClearResponseSchema",
+      "type": "object",
+      "properties": {
+        "ClearResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Get",
+      "type": "object",
+      "properties": {
+        "Get": {
+          "$ref": "vector.completions.response.streaming.VectorCompletionChunkLog"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "GetRequestSchema",
+      "type": "object",
+      "properties": {
+        "GetRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "GetResponseSchema",
+      "type": "object",
+      "properties": {
+        "GetResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "List",
+      "type": "object",
+      "properties": {
+        "List": {
+          "$ref": "cli.command.logs.vector.completions.response.list.ResponseItem"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "ListRequestSchema",
+      "type": "object",
+      "properties": {
+        "ListRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "ListResponseSchema",
+      "type": "object",
+      "properties": {
+        "ListResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Subscribe",
+      "type": "object",
+      "properties": {
+        "Subscribe": {
+          "$ref": "vector.completions.response.streaming.VectorCompletionChunkLog"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "SubscribeRequestSchema",
+      "type": "object",
+      "properties": {
+        "SubscribeRequestSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "SubscribeResponseSchema",
+      "type": "object",
+      "properties": {
+        "SubscribeResponseSchema": {
+          "$ref": "Schema"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

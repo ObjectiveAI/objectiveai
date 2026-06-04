@@ -1,0 +1,17 @@
+{
+  "title": "cli.command.logs.agents.completions.request.messages.video.Request",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.logs.agents.completions.request.messages.video.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.logs.agents.completions.request.messages.video.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.logs.agents.completions.request.messages.video.get.response_schema.Request"
+    }
+  ]
+}

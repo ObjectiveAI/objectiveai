@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.functions.inventions.recursive.create.alpha_vector.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "functions/inventions/recursive/create/alpha_vector/response_schema"
+  ]
+}

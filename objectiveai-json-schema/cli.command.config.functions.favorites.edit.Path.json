@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.config.functions.favorites.edit.Path",
+  "type": "string",
+  "enum": [
+    "config/functions/favorites/edit"
+  ]
+}

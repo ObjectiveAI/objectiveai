@@ -63,48 +63,86 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.logs.agents.completions.response.messages.Request")]
 pub enum Request {
+    #[schemars(title = "Audio")]
     Audio(audio::Request),
+    #[schemars(title = "Clear")]
     Clear(clear::Request),
+    #[schemars(title = "ClearRequestSchema")]
     ClearRequestSchema(clear::request_schema::Request),
+    #[schemars(title = "ClearResponseSchema")]
     ClearResponseSchema(clear::response_schema::Request),
+    #[schemars(title = "File")]
     File(file::Request),
+    #[schemars(title = "Get")]
     Get(get::Request),
+    #[schemars(title = "GetRequestSchema")]
     GetRequestSchema(get::request_schema::Request),
+    #[schemars(title = "GetResponseSchema")]
     GetResponseSchema(get::response_schema::Request),
+    #[schemars(title = "Image")]
     Image(image::Request),
+    #[schemars(title = "Logprobs")]
     Logprobs(logprobs::Request),
+    #[schemars(title = "Reasoning")]
     Reasoning(reasoning::Request),
+    #[schemars(title = "Refusal")]
     Refusal(refusal::Request),
+    #[schemars(title = "Subscribe")]
     Subscribe(subscribe::Request),
+    #[schemars(title = "SubscribeRequestSchema")]
     SubscribeRequestSchema(subscribe::request_schema::Request),
+    #[schemars(title = "SubscribeResponseSchema")]
     SubscribeResponseSchema(subscribe::response_schema::Request),
+    #[schemars(title = "Text")]
     Text(text::Request),
+    #[schemars(title = "Tool")]
     Tool(tool::Request),
+    #[schemars(title = "ToolCalls")]
     ToolCalls(tool_calls::Request),
+    #[schemars(title = "Video")]
     Video(video::Request),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.logs.agents.completions.response.messages.Response")]
 pub enum Response {
+    #[schemars(title = "Audio")]
     Audio(audio::Response),
+    #[schemars(title = "Clear")]
     Clear(clear::Response),
+    #[schemars(title = "ClearRequestSchema")]
     ClearRequestSchema(clear::request_schema::Response),
+    #[schemars(title = "ClearResponseSchema")]
     ClearResponseSchema(clear::response_schema::Response),
+    #[schemars(title = "File")]
     File(file::Response),
+    #[schemars(title = "Get")]
     Get(get::Response),
+    #[schemars(title = "GetRequestSchema")]
     GetRequestSchema(get::request_schema::Response),
+    #[schemars(title = "GetResponseSchema")]
     GetResponseSchema(get::response_schema::Response),
+    #[schemars(title = "Image")]
     Image(image::Response),
+    #[schemars(title = "Logprobs")]
     Logprobs(logprobs::Response),
+    #[schemars(title = "Reasoning")]
     Reasoning(reasoning::Response),
+    #[schemars(title = "Refusal")]
     Refusal(refusal::Response),
+    #[schemars(title = "Subscribe")]
     Subscribe(subscribe::Response),
+    #[schemars(title = "SubscribeRequestSchema")]
     SubscribeRequestSchema(subscribe::request_schema::Response),
+    #[schemars(title = "SubscribeResponseSchema")]
     SubscribeResponseSchema(subscribe::response_schema::Response),
+    #[schemars(title = "Text")]
     Text(text::Response),
+    #[schemars(title = "Tool")]
     Tool(tool::Response),
+    #[schemars(title = "ToolCalls")]
     ToolCalls(tool_calls::Response),
+    #[schemars(title = "Video")]
     Video(video::Response),
 }
 

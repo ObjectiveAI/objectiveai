@@ -13,22 +13,34 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.agents.list.Request")]
 pub enum Request {
+    #[schemars(title = "Active")]
     Active(active::Request),
+    #[schemars(title = "ActiveRequestSchema")]
     ActiveRequestSchema(active::request_schema::Request),
+    #[schemars(title = "ActiveResponseSchema")]
     ActiveResponseSchema(active::response_schema::Request),
+    #[schemars(title = "Available")]
     Available(available::Request),
+    #[schemars(title = "AvailableRequestSchema")]
     AvailableRequestSchema(available::request_schema::Request),
+    #[schemars(title = "AvailableResponseSchema")]
     AvailableResponseSchema(available::response_schema::Request),
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.list.ResponseItem")]
 pub enum ResponseItem {
+    #[schemars(title = "Active")]
     Active(active::ResponseItem),
+    #[schemars(title = "ActiveRequestSchema")]
     ActiveRequestSchema(active::request_schema::Response),
+    #[schemars(title = "ActiveResponseSchema")]
     ActiveResponseSchema(active::response_schema::Response),
+    #[schemars(title = "Available")]
     Available(available::ResponseItem),
+    #[schemars(title = "AvailableRequestSchema")]
     AvailableRequestSchema(available::request_schema::Response),
+    #[schemars(title = "AvailableResponseSchema")]
     AvailableResponseSchema(available::response_schema::Response),
 }
 

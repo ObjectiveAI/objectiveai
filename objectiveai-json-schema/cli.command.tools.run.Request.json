@@ -1,0 +1,28 @@
+{
+  "title": "cli.command.tools.run.Request",
+  "type": "object",
+  "properties": {
+    "args": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "jq": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "name": {
+      "type": "string"
+    },
+    "path_type": {
+      "$ref": "cli.command.tools.run.Path"
+    }
+  }
+}

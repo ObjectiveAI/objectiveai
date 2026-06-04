@@ -1,0 +1,31 @@
+{
+  "title": "cli.command.functions.profiles.publish.Request",
+  "type": "object",
+  "properties": {
+    "body": {
+      "$ref": "cli.command.functions.profiles.publish.RequestBody"
+    },
+    "jq": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "message": {
+      "$ref": "cli.command.functions.profiles.publish.RequestPublishMessage"
+    },
+    "overwrite": {
+      "type": "boolean"
+    },
+    "path_type": {
+      "$ref": "cli.command.functions.profiles.publish.Path"
+    },
+    "repository": {
+      "type": "string"
+    }
+  }
+}

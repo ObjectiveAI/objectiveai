@@ -1,0 +1,15 @@
+{
+  "title": "cli.command.plugins.get.ResponseViewerRoute",
+  "type": "object",
+  "properties": {
+    "method": {
+      "$ref": "cli.command.plugins.get.ResponseHttpMethod"
+    },
+    "path": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string"
+    }
+  }
+}
