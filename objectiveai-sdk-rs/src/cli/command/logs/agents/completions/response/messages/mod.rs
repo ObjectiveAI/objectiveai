@@ -61,6 +61,7 @@ pub enum Command {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
+#[schemars(rename = "cli.command.logs.agents.completions.response.messages.Request")]
 pub enum Request {
     Audio(audio::Request),
     Clear(clear::Request),
@@ -83,7 +84,8 @@ pub enum Request {
     Video(video::Request),
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.logs.agents.completions.response.messages.Response")]
 pub enum Response {
     Audio(audio::Response),
     Clear(clear::Response),

@@ -15,12 +15,14 @@ pub enum Command {
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
+#[schemars(rename = "cli.command.functions.inventions.Request")]
 pub enum Request {
     Recursive(recursive::Request),
     State(state::Request),
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.functions.inventions.ResponseItem")]
 pub enum ResponseItem {
     Recursive(recursive::ResponseItem),
     State(state::Response),

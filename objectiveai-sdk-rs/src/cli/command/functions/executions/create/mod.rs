@@ -8,6 +8,7 @@ pub mod swiss_system;
 /// lands on `Favorite`.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
+#[schemars(rename = "cli.command.functions.executions.create.FunctionSpec")]
 pub enum FunctionSpec {
     #[schemars(title = "Resolved")]
     Resolved(crate::functions::FullInlineFunctionOrRemoteCommitOptional),
@@ -22,6 +23,7 @@ pub enum FunctionSpec {
 /// lands on `Favorite`.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
+#[schemars(rename = "cli.command.functions.executions.create.ProfileSpec")]
 pub enum ProfileSpec {
     #[schemars(title = "Resolved")]
     Resolved(crate::functions::InlineProfileOrRemoteCommitOptional),
@@ -37,6 +39,7 @@ pub enum Command {
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
+#[schemars(rename = "cli.command.functions.executions.create.Request")]
 pub enum Request {
     Standard(standard::Request),
     StandardRequestSchema(standard::request_schema::Request),
@@ -46,7 +49,8 @@ pub enum Request {
     SwissSystemResponseSchema(swiss_system::response_schema::Request),
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.functions.executions.create.ResponseItem")]
 pub enum ResponseItem {
     Standard(standard::ResponseItem),
     StandardRequestSchema(standard::request_schema::Response),

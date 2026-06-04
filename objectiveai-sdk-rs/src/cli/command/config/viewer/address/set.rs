@@ -3,12 +3,14 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.config.viewer.address.Request")]
 pub struct Request {
     pub path: Path,
     pub value: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.config.viewer.address.Path")]
 pub enum Path {
     #[serde(rename = "config/viewer/address/set")]
     ConfigViewerAddressSet,

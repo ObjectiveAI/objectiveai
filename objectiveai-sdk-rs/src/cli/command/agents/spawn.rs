@@ -5,6 +5,7 @@ use crate::agent::completions::message::Message;
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.Request")]
 pub struct Request {
     pub path: Path,
     pub prompt: RequestPrompt,
@@ -15,6 +16,7 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.Path")]
 pub enum Path {
     #[serde(rename = "agents/spawn")]
     AgentsSpawn,
@@ -27,6 +29,7 @@ pub enum Path {
 /// bare JSON string lands on `Favorite`.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
+#[schemars(rename = "cli.command.agents.AgentSpec")]
 pub enum AgentSpec {
     #[schemars(title = "Resolved")]
     Resolved(InlineAgentBaseWithFallbacksOrRemoteCommitOptional),
@@ -35,6 +38,7 @@ pub enum AgentSpec {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.RequestPrompt")]
 pub enum RequestPrompt {
     Inline(Vec<Message>),
     Simple(String),
@@ -107,6 +111,7 @@ impl CommandRequest for Request {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.RequestDangerousAdvanced")]
 pub struct RequestDangerousAdvanced {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stream: Option<bool>,
@@ -114,6 +119,7 @@ pub struct RequestDangerousAdvanced {
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
+#[schemars(rename = "cli.command.agents.ResponseItem")]
 pub enum ResponseItem {
     Chunk(crate::agent::completions::response::streaming::AgentCompletionChunk),
     Id(String),

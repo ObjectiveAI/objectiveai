@@ -3,6 +3,7 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.read.Request")]
 pub struct Request {
     pub path: Path,
     pub agent_instance_hierarchies: Vec<String>,
@@ -10,6 +11,7 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.read.Path")]
 pub enum Path {
     #[serde(rename = "agents/read/all")]
     AgentsReadAll,
@@ -33,6 +35,7 @@ impl CommandRequest for Request {
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
+#[schemars(rename = "cli.command.agents.read.ResponseContent")]
 pub enum ResponseContent {
     One(i64),
     Many(Vec<i64>),
@@ -40,6 +43,7 @@ pub enum ResponseContent {
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
+#[schemars(rename = "cli.command.agents.read.ResponseQueueMessage")]
 pub enum ResponseQueueMessage {
     Developer {
         content: ResponseContent,
@@ -76,6 +80,7 @@ pub enum ResponseQueueMessage {
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
+#[schemars(rename = "cli.command.agents.read.ResponseQueueItem")]
 pub enum ResponseQueueItem {
     AssistantResponse {
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -106,6 +111,7 @@ pub enum ResponseQueueItem {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.read.ResponseItem")]
 pub struct ResponseItem {
     pub agent_id: String,
     pub items: Vec<ResponseQueueItem>,

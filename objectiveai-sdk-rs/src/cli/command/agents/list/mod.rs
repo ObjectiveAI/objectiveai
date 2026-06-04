@@ -11,6 +11,7 @@ pub enum Command {
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
+#[schemars(rename = "cli.command.agents.list.Request")]
 pub enum Request {
     Active(active::Request),
     ActiveRequestSchema(active::request_schema::Request),
@@ -20,7 +21,8 @@ pub enum Request {
     AvailableResponseSchema(available::response_schema::Request),
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.list.ResponseItem")]
 pub enum ResponseItem {
     Active(active::ResponseItem),
     ActiveRequestSchema(active::request_schema::Response),

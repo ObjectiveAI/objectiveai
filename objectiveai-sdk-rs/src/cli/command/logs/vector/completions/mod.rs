@@ -15,12 +15,14 @@ pub enum Command {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
+#[schemars(rename = "cli.command.logs.vector.completions.Request")]
 pub enum Request {
     Request(request::Request),
     Response(response::Request),
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.logs.vector.completions.ResponseItem")]
 pub enum ResponseItem {
     Request(request::Response),
     Response(response::ResponseItem),

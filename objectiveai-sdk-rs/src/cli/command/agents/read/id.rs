@@ -3,6 +3,7 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.read.Request")]
 pub struct Request {
     pub path: Path,
     pub id: i64,
@@ -10,6 +11,7 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.read.Path")]
 pub enum Path {
     #[serde(rename = "agents/read/id")]
     AgentsReadId,
@@ -33,6 +35,7 @@ impl CommandRequest for Request {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
+#[schemars(rename = "cli.command.agents.read.Response")]
 pub enum Response {
     // Typed log envelopes — each variant name is the PascalCase form
     // of its full leaf path under `logs/`, and the payload aliases the

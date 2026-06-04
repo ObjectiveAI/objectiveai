@@ -4,6 +4,7 @@ use crate::functions::FullRemoteFunction;
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.functions.Request")]
 pub struct Request {
     pub path: Path,
     pub repository: String,
@@ -14,12 +15,14 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.functions.Path")]
 pub enum Path {
     #[serde(rename = "functions/publish")]
     FunctionsPublish,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.functions.RequestBody")]
 pub enum RequestBody {
     Inline(FullRemoteFunction),
     File(std::path::PathBuf),
@@ -28,6 +31,7 @@ pub enum RequestBody {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.functions.RequestPublishMessage")]
 pub enum RequestPublishMessage {
     Inline(String),
     File(std::path::PathBuf),
@@ -93,6 +97,7 @@ impl CommandRequest for Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.functions.Response")]
 pub struct Response {
     pub sha: String,
 }

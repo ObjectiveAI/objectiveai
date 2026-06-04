@@ -3,12 +3,14 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.logs.functions.executions.response.retry_tokens.Request")]
 pub struct Request {
     pub path: Path,
     pub jq: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.logs.functions.executions.response.retry_tokens.Path")]
 pub enum Path {
     #[serde(rename = "logs/functions/executions/response/retry_tokens/clear")]
     LogsFunctionsExecutionsResponseRetryTokensClear,
@@ -26,6 +28,7 @@ impl CommandRequest for Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.logs.functions.executions.response.retry_tokens.Response")]
 pub struct Response {
     pub count: u64,
 }

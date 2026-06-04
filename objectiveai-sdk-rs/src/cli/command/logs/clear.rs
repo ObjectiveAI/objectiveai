@@ -3,12 +3,14 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.logs.Request")]
 pub struct Request {
     pub path: Path,
     pub jq: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.logs.Path")]
 pub enum Path {
     #[serde(rename = "logs/clear")]
     LogsClear,
@@ -26,6 +28,7 @@ impl CommandRequest for Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.logs.Response")]
 pub struct Response {
     pub count: u64,
 }

@@ -9,6 +9,7 @@ pub enum Command {
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
+#[schemars(rename = "cli.command.plugins.install.Request")]
 pub enum Request {
     Filesystem(filesystem::Request),
     FilesystemRequestSchema(filesystem::request_schema::Request),
@@ -18,7 +19,8 @@ pub enum Request {
     GithubResponseSchema(github::response_schema::Request),
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.plugins.install.Response")]
 pub enum Response {
     Filesystem(filesystem::Response),
     FilesystemRequestSchema(filesystem::request_schema::Response),

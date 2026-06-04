@@ -3,6 +3,7 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.config.functions.profiles.Request")]
 pub struct Request {
     pub path: Path,
     pub filter: Option<String>,
@@ -10,6 +11,7 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.config.functions.profiles.Path")]
 pub enum Path {
     #[serde(rename = "config/functions/profiles/get")]
     ConfigFunctionsProfilesGet,
@@ -30,6 +32,7 @@ impl CommandRequest for Request {
 }
 
 #[derive(PartialEq, Debug, Clone, Default, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.config.functions.profiles.Response")]
 pub struct Response {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub favorites: Option<Vec<super::favorites::get::ResponseItem>>,

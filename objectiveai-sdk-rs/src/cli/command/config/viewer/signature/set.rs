@@ -3,12 +3,14 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.config.viewer.signature.Request")]
 pub struct Request {
     pub path: Path,
     pub value: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.config.viewer.signature.Path")]
 pub enum Path {
     #[serde(rename = "config/viewer/signature/set")]
     ConfigViewerSignatureSet,

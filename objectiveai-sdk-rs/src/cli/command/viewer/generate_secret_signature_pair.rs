@@ -3,12 +3,14 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.viewer.Request")]
 pub struct Request {
     pub path: Path,
     pub jq: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.viewer.Path")]
 pub enum Path {
     #[serde(rename = "viewer/generate_secret_signature_pair")]
     ViewerGenerateSecretSignaturePair,
@@ -25,6 +27,7 @@ impl CommandRequest for Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.viewer.Response")]
 pub struct Response {
     pub secret: String,
     pub signature: String,

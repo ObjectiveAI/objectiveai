@@ -4,6 +4,7 @@ use crate::cli::command::CommandRequest;
 use crate::cli::command::agents::spawn::AgentSpec;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.functions.inventions.recursive.create.Request")]
 pub struct Request {
     pub path: Path,
     pub params: RequestParams,
@@ -15,12 +16,14 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.functions.inventions.recursive.create.Path")]
 pub enum Path {
     #[serde(rename = "functions/inventions/recursive/create/alpha_vector")]
     FunctionsInventionsRecursiveCreateAlphaVector,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.functions.inventions.recursive.create.RequestParams")]
 pub struct RequestParams {
     pub name: String,
     pub spec: String,
@@ -86,6 +89,7 @@ impl CommandRequest for Request {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.functions.inventions.recursive.create.RequestDangerousAdvanced")]
 pub struct RequestDangerousAdvanced {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stream: Option<bool>,
@@ -93,6 +97,7 @@ pub struct RequestDangerousAdvanced {
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
+#[schemars(rename = "cli.command.functions.inventions.recursive.create.ResponseItem")]
 pub enum ResponseItem {
     Chunk(crate::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk),
     Id(String),

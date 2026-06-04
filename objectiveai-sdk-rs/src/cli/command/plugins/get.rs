@@ -3,6 +3,7 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.plugins.Request")]
 pub struct Request {
     pub path: Path,
     pub name: String,
@@ -10,6 +11,7 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.plugins.Path")]
 pub enum Path {
     #[serde(rename = "plugins/get")]
     PluginsGet,
@@ -29,6 +31,7 @@ impl CommandRequest for Request {
 pub type Response = Option<ResponseManifest>;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.plugins.ResponseManifest")]
 pub struct ResponseManifest {
     pub name: String,
     pub description: String,
@@ -56,6 +59,7 @@ pub struct ResponseManifest {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.plugins.ResponseBinaries")]
 pub struct ResponseBinaries {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub linux_x86_64: Option<String>,
@@ -83,6 +87,7 @@ impl ResponseBinaries {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.plugins.ResponseViewerRoute")]
 pub struct ResponseViewerRoute {
     pub path: String,
     pub method: ResponseHttpMethod,
@@ -91,6 +96,7 @@ pub struct ResponseViewerRoute {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "UPPERCASE")]
+#[schemars(rename = "cli.command.plugins.ResponseHttpMethod")]
 pub enum ResponseHttpMethod {
     Get,
     Post,
@@ -100,6 +106,7 @@ pub enum ResponseHttpMethod {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.plugins.ResponseMcpServer")]
 pub struct ResponseMcpServer {
     pub name: String,
     pub url: String,

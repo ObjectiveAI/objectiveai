@@ -3,6 +3,7 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.plugins.install.Request")]
 pub struct Request {
     pub path: Path,
     pub owner: String,
@@ -13,6 +14,7 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.plugins.install.Path")]
 pub enum Path {
     #[serde(rename = "plugins/install/github")]
     PluginsInstallGithub,
@@ -45,6 +47,7 @@ impl CommandRequest for Request {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.plugins.install.Response")]
 pub struct Response {
     pub installed: bool,
 }

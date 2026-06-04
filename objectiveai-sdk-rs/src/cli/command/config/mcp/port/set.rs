@@ -3,12 +3,14 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.config.mcp.port.Request")]
 pub struct Request {
     pub path: Path,
     pub value: u16,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.config.mcp.port.Path")]
 pub enum Path {
     #[serde(rename = "config/mcp/port/set")]
     ConfigMcpPortSet,

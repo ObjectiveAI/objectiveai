@@ -9,6 +9,7 @@ pub enum Command {
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
+#[schemars(rename = "cli.command.mcp.Request")]
 pub enum Request {
     Kill(kill::Request),
     KillRequestSchema(kill::request_schema::Request),
@@ -18,7 +19,8 @@ pub enum Request {
     SpawnResponseSchema(spawn::response_schema::Request),
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.mcp.Response")]
 pub enum Response {
     Kill(kill::Response),
     KillRequestSchema(kill::request_schema::Response),

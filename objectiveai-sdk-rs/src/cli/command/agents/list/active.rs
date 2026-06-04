@@ -3,6 +3,7 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.list.Request")]
 pub struct Request {
     pub path: Path,
     pub parent_agent_instance_hierarchy: Option<String>,
@@ -10,6 +11,7 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.list.Path")]
 pub enum Path {
     #[serde(rename = "agents/list/active")]
     AgentsListActive,
@@ -34,6 +36,7 @@ impl CommandRequest for Request {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.list.ResponseItem")]
 pub struct ResponseItem {
     pub agent_id: String,
     pub last_log: u64,

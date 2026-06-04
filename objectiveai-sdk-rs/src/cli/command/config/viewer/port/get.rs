@@ -3,6 +3,7 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.config.viewer.port.Request")]
 pub struct Request {
     pub path: Path,
     pub filter: Option<String>,
@@ -10,6 +11,7 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.config.viewer.port.Path")]
 pub enum Path {
     #[serde(rename = "config/viewer/port/get")]
     ConfigViewerPortGet,
@@ -30,6 +32,7 @@ impl CommandRequest for Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.config.viewer.port.Response")]
 pub struct Response {
     pub port: u16,
 }

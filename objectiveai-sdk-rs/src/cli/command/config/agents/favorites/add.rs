@@ -4,6 +4,7 @@ use crate::RemotePathCommitOptional;
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.config.agents.favorites.Request")]
 pub struct Request {
     pub name: String,
     pub path: RemotePathCommitOptional,

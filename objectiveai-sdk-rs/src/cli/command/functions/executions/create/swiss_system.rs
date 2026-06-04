@@ -5,6 +5,7 @@ use crate::functions::expression::InputValue;
 use super::{FunctionSpec, ProfileSpec};
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.functions.executions.create.Request")]
 pub struct Request {
     pub path: Path,
     pub function: FunctionSpec,
@@ -22,12 +23,14 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.functions.executions.create.Path")]
 pub enum Path {
     #[serde(rename = "functions/executions/create/swiss_system")]
     FunctionsExecutionsCreateSwissSystem,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.functions.executions.create.RequestInput")]
 pub enum RequestInput {
     Inline(InputValue),
     PythonInline(String),
@@ -108,6 +111,7 @@ impl CommandRequest for Request {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.functions.executions.create.RequestDangerousAdvanced")]
 pub struct RequestDangerousAdvanced {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stream: Option<bool>,
@@ -115,6 +119,7 @@ pub struct RequestDangerousAdvanced {
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
+#[schemars(rename = "cli.command.functions.executions.create.ResponseItem")]
 pub enum ResponseItem {
     Chunk(crate::functions::executions::response::streaming::FunctionExecutionChunk),
     Id(String),

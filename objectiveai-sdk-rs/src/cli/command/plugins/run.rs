@@ -3,6 +3,7 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.plugins.Request")]
 pub struct Request {
     pub path: Path,
     pub name: String,
@@ -11,6 +12,7 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.plugins.Path")]
 pub enum Path {
     #[serde(rename = "plugins/run")]
     PluginsRun,
@@ -31,6 +33,7 @@ impl CommandRequest for Request {
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
+#[schemars(rename = "cli.command.plugins.ResponseItem")]
 pub enum ResponseItem {
     Mcp(Mcp),
     // `cli::Error` already carries `type:"error"`. Placement above
@@ -52,7 +55,7 @@ pub enum ResponseItem {
 /// [`crate::cli::plugins::Output`] catch-all, mirroring the
 /// `type:"error"` discriminator on [`crate::cli::Error`].
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.plugins.run.Mcp")]
+#[schemars(rename = "cli.command.plugins.Mcp")]
 pub struct Mcp {
     pub r#type: McpType,
     pub url: String,
@@ -71,7 +74,7 @@ pub struct Mcp {
     schemars::JsonSchema,
 )]
 #[serde(rename_all = "snake_case")]
-#[schemars(rename = "cli.command.plugins.run.McpType")]
+#[schemars(rename = "cli.command.plugins.McpType")]
 pub enum McpType {
     Mcp,
 }

@@ -11,6 +11,7 @@ pub enum Command {
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
+#[schemars(rename = "cli.command.functions.inventions.recursive.create.Request")]
 pub enum Request {
     AlphaScalar(alpha_scalar::Request),
     AlphaScalarRequestSchema(alpha_scalar::request_schema::Request),
@@ -23,7 +24,8 @@ pub enum Request {
     RemoteResponseSchema(remote::response_schema::Request),
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.functions.inventions.recursive.create.ResponseItem")]
 pub enum ResponseItem {
     AlphaScalar(alpha_scalar::ResponseItem),
     AlphaScalarRequestSchema(alpha_scalar::request_schema::Response),

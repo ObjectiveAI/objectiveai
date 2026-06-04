@@ -3,6 +3,7 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.config.viewer.secret.Request")]
 pub struct Request {
     pub path: Path,
     pub filter: Option<String>,
@@ -10,6 +11,7 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.config.viewer.secret.Path")]
 pub enum Path {
     #[serde(rename = "config/viewer/secret/get")]
     ConfigViewerSecretGet,
@@ -30,6 +32,7 @@ impl CommandRequest for Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.config.viewer.secret.Response")]
 pub struct Response {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub secret: Option<String>,

@@ -4,6 +4,7 @@ use crate::swarm::RemoteSwarmBase;
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.swarms.Request")]
 pub struct Request {
     pub path: Path,
     pub repository: String,
@@ -14,12 +15,14 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.swarms.Path")]
 pub enum Path {
     #[serde(rename = "swarms/publish")]
     SwarmsPublish,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.swarms.RequestBody")]
 pub enum RequestBody {
     Inline(RemoteSwarmBase),
     File(std::path::PathBuf),
@@ -28,6 +31,7 @@ pub enum RequestBody {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.swarms.RequestPublishMessage")]
 pub enum RequestPublishMessage {
     Inline(String),
     File(std::path::PathBuf),
@@ -93,6 +97,7 @@ impl CommandRequest for Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.swarms.Response")]
 pub struct Response {
     pub sha: String,
 }

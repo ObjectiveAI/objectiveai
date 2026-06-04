@@ -3,6 +3,7 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.read.Request")]
 pub struct Request {
     pub path: Path,
     pub agent_instance_hierarchies: Vec<String>,
@@ -10,6 +11,7 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.read.Path")]
 pub enum Path {
     #[serde(rename = "agents/read/pending")]
     AgentsReadPending,
@@ -37,6 +39,7 @@ impl CommandRequest for Request {
 pub use super::all::{ResponseContent, ResponseQueueItem, ResponseQueueMessage};
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.read.ResponseItem")]
 pub struct ResponseItem {
     pub agent_id: String,
     pub items: Vec<ResponseQueueItem>,

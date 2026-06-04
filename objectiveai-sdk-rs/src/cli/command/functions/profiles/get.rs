@@ -3,6 +3,7 @@
 use crate::cli::command::{CommandRequest, RemotePathCommitOptionalOrFavorite};
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.functions.profiles.Request")]
 pub struct Request {
     pub path: RemotePathCommitOptionalOrFavorite,
     pub jq: Option<String>,

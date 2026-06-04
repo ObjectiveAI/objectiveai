@@ -17,6 +17,7 @@ pub enum Command {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
+#[schemars(rename = "cli.command.agents.read.Request")]
 pub enum Request {
     All(all::Request),
     AllRequestSchema(all::request_schema::Request),
@@ -32,7 +33,8 @@ pub enum Request {
     SubscribeResponseSchema(subscribe::response_schema::Request),
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.read.ResponseItem")]
 pub enum ResponseItem {
     All(all::ResponseItem),
     AllRequestSchema(all::request_schema::Response),

@@ -3,12 +3,14 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.logs.agents.completions.response.messages.tool_calls.Request")]
 pub struct Request {
     pub path: Path,
     pub jq: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.logs.agents.completions.response.messages.tool_calls.Path")]
 pub enum Path {
     #[serde(rename = "logs/agents/completions/response/messages/tool_calls/clear")]
     LogsAgentsCompletionsResponseMessagesToolCallsClear,
@@ -26,6 +28,7 @@ impl CommandRequest for Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.logs.agents.completions.response.messages.tool_calls.Response")]
 pub struct Response {
     pub count: u64,
 }

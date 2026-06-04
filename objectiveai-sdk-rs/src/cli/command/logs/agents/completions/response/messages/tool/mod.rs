@@ -30,6 +30,7 @@ pub enum Command {
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
+#[schemars(rename = "cli.command.logs.agents.completions.response.messages.tool.Request")]
 pub enum Request {
     Audio(audio::Request),
     File(file::Request),
@@ -38,7 +39,8 @@ pub enum Request {
     Video(video::Request),
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.logs.agents.completions.response.messages.tool.Response")]
 pub enum Response {
     Audio(audio::Response),
     File(file::Response),

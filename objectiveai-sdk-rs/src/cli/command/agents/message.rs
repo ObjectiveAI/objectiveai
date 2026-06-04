@@ -4,6 +4,7 @@ use crate::agent::completions::message::RichContent;
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.Request")]
 pub struct Request {
     pub path: Path,
     /// Lineage prefix to prepend to [`Self::agent_instance`]. When
@@ -22,12 +23,14 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.Path")]
 pub enum Path {
     #[serde(rename = "agents/message")]
     AgentsMessage,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.RequestMessage")]
 pub enum RequestMessage {
     Inline(RichContent),
     Simple(String),
@@ -92,6 +95,7 @@ impl CommandRequest for Request {
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
+#[schemars(rename = "cli.command.agents.Response")]
 pub enum Response {
     Queued {
         agent_instance_hierarchy: String,

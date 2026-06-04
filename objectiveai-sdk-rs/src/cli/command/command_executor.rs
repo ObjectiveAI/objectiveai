@@ -78,6 +78,7 @@ pub trait CommandExecutor {
     serde::Deserialize,
     schemars::JsonSchema,
 )]
+#[schemars(rename = "cli.command.AgentArguments")]
 pub struct AgentArguments {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]

@@ -4,6 +4,7 @@ use crate::RemotePathCommitOptional;
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.config.functions.profiles.pairs.favorites.Request")]
 pub struct Request {
     pub path: Path,
     pub name: String,
@@ -13,6 +14,7 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.config.functions.profiles.pairs.favorites.Path")]
 pub enum Path {
     #[serde(rename = "config/functions/profiles/pairs/favorites/add")]
     ConfigFunctionsProfilesPairsFavoritesAdd,

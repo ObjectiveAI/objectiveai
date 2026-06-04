@@ -3,6 +3,7 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.functions.profiles.Request")]
 pub struct Request {
     pub path: Path,
     pub source: RequestSource,
@@ -10,6 +11,7 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.functions.profiles.Path")]
 pub enum Path {
     #[serde(rename = "functions/profiles/list")]
     FunctionsProfilesList,
@@ -17,6 +19,7 @@ pub enum Path {
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema, clap::ValueEnum)]
 #[clap(rename_all = "lowercase")]
+#[schemars(rename = "cli.command.functions.profiles.RequestSource")]
 pub enum RequestSource {
     Filesystem,
     Favorites,
@@ -49,6 +52,7 @@ impl CommandRequest for Request {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.functions.profiles.ResponseFavorite")]
 pub struct ResponseFavorite {
     pub name: String,
     #[serde(flatten)]
@@ -57,12 +61,14 @@ pub struct ResponseFavorite {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.functions.profiles.Response")]
 pub struct Response {
     pub items: Vec<ResponseItem>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
+#[schemars(rename = "cli.command.functions.profiles.ResponseItem")]
 pub enum ResponseItem {
     Favorite(ResponseFavorite),
     Item(crate::RemotePath),

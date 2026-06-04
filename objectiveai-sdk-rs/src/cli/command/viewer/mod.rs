@@ -13,6 +13,7 @@ pub enum Command {
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
+#[schemars(rename = "cli.command.viewer.Request")]
 pub enum Request {
     GenerateSecretSignaturePair(generate_secret_signature_pair::Request),
     GenerateSecretSignaturePairRequestSchema(generate_secret_signature_pair::request_schema::Request),
@@ -28,7 +29,8 @@ pub enum Request {
     SpawnResponseSchema(spawn::response_schema::Request),
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.viewer.Response")]
 pub enum Response {
     GenerateSecretSignaturePair(generate_secret_signature_pair::Response),
     GenerateSecretSignaturePairRequestSchema(generate_secret_signature_pair::request_schema::Response),

@@ -7,13 +7,15 @@ pub enum Command {
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
+#[schemars(rename = "cli.command.logs.agents.completions.request.notifications.audio.Request")]
 pub enum Request {
     Get(get::Request),
     GetRequestSchema(get::request_schema::Request),
     GetResponseSchema(get::response_schema::Request),
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.logs.agents.completions.request.notifications.audio.Response")]
 pub enum Response {
     Get(get::Response),
     GetRequestSchema(get::request_schema::Response),

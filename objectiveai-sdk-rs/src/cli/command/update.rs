@@ -3,12 +3,14 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.Request")]
 pub struct Request {
     pub path: Path,
     pub jq: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.Path")]
 pub enum Path {
     #[serde(rename = "update")]
     Update,
@@ -29,6 +31,7 @@ impl CommandRequest for Request {
 /// through the four shipped binaries (cli, api, viewer, mcp).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
+#[schemars(rename = "cli.command.ResponseItem")]
 pub enum ResponseItem {
     Checking {
         asset_name: String,
@@ -57,12 +60,14 @@ pub enum ResponseItem {
 /// (`response-schema`); the leaf's `execute` returns
 /// `Stream<ResponseItem>` rather than building a `Response`.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.Response")]
 pub struct Response {
     pub items: Vec<ResponseItem>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
+#[schemars(rename = "cli.command.ResponseSkipReason")]
 pub enum ResponseSkipReason {
     DevTree,
     UnsupportedPlatform,

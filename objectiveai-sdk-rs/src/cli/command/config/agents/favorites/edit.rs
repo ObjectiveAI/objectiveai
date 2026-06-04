@@ -3,6 +3,7 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.config.agents.favorites.Request")]
 pub struct Request {
     pub path: Path,
     pub name: String,
@@ -11,12 +12,14 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.config.agents.favorites.Path")]
 pub enum Path {
     #[serde(rename = "config/agents/favorites/edit")]
     ConfigAgentsFavoritesEdit,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.config.agents.favorites.RequestCommitChange")]
 pub enum RequestCommitChange {
     Set(String),
     Remove,

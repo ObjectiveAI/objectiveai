@@ -3,6 +3,7 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.logs.agents.completions.response.messages.Request")]
 pub struct Request {
     pub path: Path,
     pub id: String,
@@ -11,6 +12,7 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.logs.agents.completions.response.messages.Path")]
 pub enum Path {
     #[serde(rename = "logs/agents/completions/response/messages/get")]
     LogsAgentsCompletionsResponseMessagesGet,

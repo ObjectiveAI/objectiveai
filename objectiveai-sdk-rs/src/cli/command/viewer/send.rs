@@ -3,6 +3,7 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.viewer.Request")]
 pub struct Request {
     pub path: String,
     pub body: serde_json::Value,
@@ -26,6 +27,7 @@ impl CommandRequest for Request {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.viewer.Response")]
 pub struct Response {
     pub status: u16,
     pub body: serde_json::Value,

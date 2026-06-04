@@ -3,6 +3,7 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.tools.Request")]
 pub struct Request {
     pub path: Path,
     pub offset: Option<usize>,
@@ -11,6 +12,7 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.tools.Path")]
 pub enum Path {
     #[serde(rename = "tools/list")]
     ToolsList,

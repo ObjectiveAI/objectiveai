@@ -8,6 +8,7 @@ use crate::cli::command::CommandRequest;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, schemars::JsonSchema, clap::ValueEnum)]
 #[serde(rename_all = "snake_case")]
 #[clap(rename_all = "kebab-case")]
+#[schemars(rename = "cli.command.agents.read.RequestMessageKind")]
 pub enum RequestMessageKind {
     AgentCompletionRequest,
     FunctionExecutionRequest,
@@ -18,6 +19,7 @@ pub enum RequestMessageKind {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.read.Request")]
 pub struct Request {
     pub path: Path,
     pub agent_instance_hierarchy: String,
@@ -26,6 +28,7 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.read.Path")]
 pub enum Path {
     #[serde(rename = "agents/read/subscribe")]
     AgentsReadSubscribe,
@@ -72,6 +75,7 @@ pub use super::all::{ResponseContent, ResponseQueueItem, ResponseQueueMessage};
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
+#[schemars(rename = "cli.command.agents.read.ResponseItem")]
 pub enum ResponseItem {
     Items {
         agent_id: String,
