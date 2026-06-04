@@ -58,15 +58,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     let content = resolve_message(request.message)?;
 
     loop {
-        match handle_once(
-            ctx,
-            &full_id,
-            &request.agent_instance,
-            content.clone(),
-            request.seed,
-        )
-        .await
-        {
+        match handle_once(ctx, &full_id, content.clone(), request.seed).await {
             Err(Error::CliStreamSlotTaken { .. }) => continue,
             other => return other,
         }
@@ -76,7 +68,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
 async fn handle_once(
     ctx: &Context,
     full_id: &str,
-    agent_instance: &str,
     content: RichContent,
     seed: Option<i64>,
 ) -> Result<Response, Error> {
@@ -84,9 +75,9 @@ async fn handle_once(
     // continuation fallback — pipe errors are never surfaced as fatal.
     match try_pipe_delivery(ctx, full_id, &content).await {
         Ok(()) => Ok(Response::Delivered {
-            agent_id: agent_instance.to_string(),
+            agent_instance_hierarchy: full_id.to_string(),
         }),
-        Err(_) => fallback_via_continuation(ctx, full_id, agent_instance, content, seed).await,
+        Err(_) => fallback_via_continuation(ctx, full_id, content, seed).await,
     }
 }
 
@@ -188,7 +179,6 @@ impl std::fmt::Display for PipeError {
 async fn fallback_via_continuation(
     ctx: &Context,
     full_id: &str,
-    agent_instance: &str,
     content: RichContent,
     cli_seed: Option<i64>,
 ) -> Result<Response, Error> {
@@ -238,7 +228,7 @@ async fn fallback_via_continuation(
     );
     match stream.next().await {
         Some(Ok(InstanceItem::Id(new_response_id))) => Ok(Response::Queued {
-            agent_id: agent_instance.to_string(),
+            agent_instance_hierarchy: full_id.to_string(),
             response_id: new_response_id,
         }),
         Some(Ok(InstanceItem::Chunk(_))) => {

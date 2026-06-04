@@ -93,8 +93,13 @@ impl CommandRequest for Request {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
 pub enum Response {
-    Queued { agent_id: String, response_id: String },
-    Delivered { agent_id: String },
+    Queued {
+        agent_instance_hierarchy: String,
+        response_id: String,
+    },
+    Delivered {
+        agent_instance_hierarchy: String,
+    },
 }
 
 #[derive(clap::Args)]
