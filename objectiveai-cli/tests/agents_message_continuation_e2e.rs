@@ -23,7 +23,8 @@ use objectiveai_sdk::cli::command::agents::message::{
     Request as MessageRequest, RequestMessage, Response as MessageResponse,
 };
 use objectiveai_sdk::cli::command::agents::spawn::{
-    AgentSpec, Request as SpawnRequest, RequestPrompt, ResponseItem as SpawnResponseItem,
+    AgentSpec, Request as SpawnRequest, RequestDangerousAdvanced, RequestPrompt,
+    ResponseItem as SpawnResponseItem,
 };
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use serde_json::Value;
@@ -55,6 +56,14 @@ async fn spawn_then_message_propagates_response_continuation() {
     let executor = cli_test_util::executor_with_base_dir(base_dir);
 
     // ── 1. Spawn a mock agent ────────────────────────────────────
+    // `dangerous_advanced.stream = true` keeps the parent cli
+    // attached to its instance subprocess and forwards every
+    // `AgentCompletionChunk` as `SpawnResponseItem::Chunk(_)`. We
+    // need at least one Chunk to pull `agent_instance_hierarchy`
+    // (full lineage, for the socket path) and `id` (leaf response
+    // id, for the on-disk log file stems) off it. Without streaming
+    // the parent cli detaches on `LogStreamReady` and emits only a
+    // bare `Id(leaf)` — no Chunk, no `agent_instance_hierarchy`.
     let spawn_request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
         prompt: RequestPrompt::Simple("first turn".to_string()),
         agent: AgentSpec::Resolved(
@@ -64,24 +73,40 @@ async fn spawn_then_message_propagates_response_continuation() {
             .expect("inline mock agent must deserialize"),
         ),
         seed: Some(42),
-        dangerous_advanced: None,
+        dangerous_advanced: Some(RequestDangerousAdvanced { stream: Some(true) }),
         jq: None,
     };
     let spawn_items: Vec<SpawnResponseItem> =
         cli_test_util::collect_stream(&executor, spawn_request).await;
-    let spawn_id = spawn_items
+    // Pull the leaf response id off the first non-empty Chunk.
+    //
+    // We deliberately ignore `chunk.agent_instance_hierarchy`: the API
+    // emits it as `{caller}/{agent_full_id}-{response_id}` (the
+    // api-side slot identifier), but the cli's on-disk filesystem
+    // stores rows under `{caller}/{response_id_leaf}` (the
+    // cli-side lineage). Using the api form for `agents message`
+    // lookup would miss the cli's DB. The cli-side lineage is
+    // `"{cli_caller}/{response_id_leaf}"`; we build it below from
+    // `chunk.id` + the well-known cli caller prefix `"cli"`.
+    let spawn_response_id = spawn_items
         .iter()
         .find_map(|item| match item {
             SpawnResponseItem::Chunk(chunk) => {
-                if chunk.agent_instance_hierarchy.is_empty() {
+                if chunk.id.is_empty() {
                     None
                 } else {
-                    Some(chunk.agent_instance_hierarchy.clone())
+                    Some(chunk.id.clone())
                 }
             }
             SpawnResponseItem::Id(_) => None,
         })
-        .expect("agents spawn must emit a Chunk with agent_instance_hierarchy");
+        .expect("agents spawn must emit a Chunk with non-empty id");
+    // CLI-side lineage. The cli's `Config.agent_instance_hierarchy`
+    // defaults to `"cli"` for caller-less invocations; combined with
+    // the spawn's leaf response id this is what the cli's
+    // `latest_continuation` lookup and the per-agent socket binder
+    // both key on.
+    let spawn_instance_hierarchy = format!("cli/{spawn_response_id}");
 
     // ── 2. Wait for cli-stream to fully finish ───────────────────
     //
@@ -90,10 +115,23 @@ async fn spawn_then_message_propagates_response_continuation() {
     // If we raced this check the next `agents message` invocation
     // could hit the live path instead of the fallback we want to
     // exercise.
+    //
+    // On-disk conventions (see
+    // `objectiveai-cli/src/filesystem/logs/log_file_kind.rs`):
+    //   continuation file:
+    //     `logs/agents/completions/response/continuation/<leaf>.txt`
+    //   per-agent socket:
+    //     `pipes/<full-lineage>/socket`
+    // Continuation stems on the LEAF response id; the socket stems
+    // on the FULL `agent_instance_hierarchy` (which already starts
+    // with `cli/`).
     let response_cont_path = base_dir
         .join("logs/agents/completions/response/continuation")
-        .join(format!("{spawn_id}.json"));
-    let socket_path = base_dir.join("pipes/cli").join(&spawn_id).join("socket");
+        .join(format!("{spawn_response_id}.txt"));
+    let socket_path = base_dir
+        .join("pipes")
+        .join(&spawn_instance_hierarchy)
+        .join("socket");
     poll_until(Duration::from_secs(30), || {
         response_cont_path.exists() && !socket_path.exists()
     })
@@ -101,18 +139,22 @@ async fn spawn_then_message_propagates_response_continuation() {
     .expect("cli-stream did not produce a response continuation + tear down its socket in 30s");
 
     // ── 3. Capture the original response continuation ───────────
-    let response_cont_raw: String = serde_json::from_slice(
-        &std::fs::read(&response_cont_path).expect("read response continuation"),
-    )
-    .expect("response continuation is JSON-quoted string");
+    // The on-disk file is the raw continuation token (base64-encoded
+    // payload), written verbatim by `Client::read_text`'s mirror
+    // writer — NOT a JSON-quoted string. Read it as bytes-as-utf8
+    // and trim any trailing newline the writer added.
+    let response_cont_raw = std::fs::read_to_string(&response_cont_path)
+        .expect("read response continuation")
+        .trim_end_matches('\n')
+        .to_string();
 
     // ── 4. Message the agent ─────────────────────────────────────
     // Split the chunk's full lineage into (parent, instance) for the
     // new two-field `MessageRequest` shape.
-    let (parent, instance) = spawn_id
+    let (parent, instance) = spawn_instance_hierarchy
         .rsplit_once('/')
         .map(|(p, i)| (Some(p.to_string()), i.to_string()))
-        .unwrap_or_else(|| (None, spawn_id.clone()));
+        .unwrap_or_else(|| (None, spawn_instance_hierarchy.clone()));
     let message_request = MessageRequest {
         path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
         parent_agent_instance_hierarchy: parent,
@@ -132,8 +174,8 @@ async fn spawn_then_message_propagates_response_continuation() {
     };
     // Continuations from the api server reuse the original chunk.id
     // as the new turn's response_id (the agent's stable lineage id
-    // is the same across turns). So new_response_id == spawn_id is
-    // expected — no assertion that they differ.
+    // is the same across turns). So new_response_id == spawn_response_id
+    // is expected — no assertion that they differ.
 
     // ── 5. Wait for the new turn's request summary JSON ──────────
     //
