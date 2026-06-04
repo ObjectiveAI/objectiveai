@@ -133,7 +133,7 @@ pub mod request_schema {
     use crate::error::Error;
 
     pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-        Ok(schemars::schema_for!(sdk::Request))
+        Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Request)))
     }
 }
 
@@ -145,6 +145,6 @@ pub mod response_schema {
     use crate::error::Error;
 
     pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-        Ok(schemars::schema_for!(sdk::ResponseItem))
+        Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::ResponseItem)))
     }
 }
