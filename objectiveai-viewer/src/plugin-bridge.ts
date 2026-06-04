@@ -39,12 +39,8 @@ type IframeHandle = {
   iframe: HTMLIFrameElement;
   /**
    * Target origin for host -> iframe postMessage calls. Derived once
-   * at register time from the iframe's `src` URL.origin so we don't
-   * have to fall back to `"*"`. For `plugin://localhost/...` this is
-   * `plugin://localhost`; for `https://plugin.example.com/...` this
-   * is `https://plugin.example.com`. If the URL is malformed (won't
-   * happen in practice — the Rust side resolves it) we degrade to
-   * `"*"` so the iframe still receives messages.
+   * at register time — always `"*"` under the current sandbox; see
+   * `deriveTargetOrigin` for why nothing stricter can deliver.
    */
   targetOrigin: string;
 };
@@ -87,17 +83,26 @@ export function registerIframe(
 }
 
 /**
- * Pull `URL.origin` out of an iframe src so we can use it as the
- * `targetOrigin` argument to postMessage. Falls back to `"*"` on
- * any URL parse failure — defensive only; in production the src
- * is always a Rust-resolved URL that's known-good.
+ * Target origin for host -> iframe postMessage calls: always `"*"`.
+ *
+ * `PluginPane.tsx` sandboxes every plugin iframe with
+ * `allow-scripts allow-forms` and no `allow-same-origin`, which gives
+ * the iframe an opaque origin (`null`). An opaque origin never matches
+ * a concrete targetOrigin, so posting to `"plugin://localhost"` or
+ * `"https://plugin.example.com"` is silently dropped by the browser —
+ * `invokeCli()` responses never arrive and the iterator hangs
+ * (issue #203). `"*"` is the only value the browser will deliver.
+ *
+ * This is not a broadcast: every message is posted directly to
+ * `handle.iframe.contentWindow`, so the window reference itself is
+ * the delivery constraint, and the reverse direction keeps its
+ * `findPluginByWindow` identity gate. If `allow-same-origin` is ever
+ * added to the sandbox, derived-origin tightening
+ * (`new URL(src).origin`) can be restored here for http(s)
+ * `viewer_url` plugins — which is why the `src` plumbing stays.
  */
-function deriveTargetOrigin(src: string): string {
-  try {
-    return new URL(src).origin;
-  } catch {
-    return "*";
-  }
+function deriveTargetOrigin(_src: string): string {
+  return "*";
 }
 
 /** Unregister a previously-registered iframe. Cancels its event sub. */
