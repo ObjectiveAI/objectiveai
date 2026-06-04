@@ -16,7 +16,7 @@
       "type": "object",
       "properties": {
         "GetRequestSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -26,7 +26,7 @@
       "type": "object",
       "properties": {
         "GetResponseSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -56,7 +56,7 @@
       "type": "object",
       "properties": {
         "MeRequestSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -66,7 +66,7 @@
       "type": "object",
       "properties": {
         "MeResponseSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -86,7 +86,7 @@
       "type": "object",
       "properties": {
         "MessageRequestSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -96,7 +96,7 @@
       "type": "object",
       "properties": {
         "MessageResponseSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -116,7 +116,7 @@
       "type": "object",
       "properties": {
         "PublishRequestSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -126,7 +126,7 @@
       "type": "object",
       "properties": {
         "PublishResponseSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -156,7 +156,7 @@
       "type": "object",
       "properties": {
         "SpawnRequestSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -166,7 +166,7 @@
       "type": "object",
       "properties": {
         "SpawnResponseSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false

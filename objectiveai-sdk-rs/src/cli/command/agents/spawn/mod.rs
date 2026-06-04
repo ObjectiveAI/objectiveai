@@ -119,6 +119,7 @@ impl CommandRequest for Request {
 #[schemars(rename = "cli.command.agents.spawn.RequestDangerousAdvanced")]
 pub struct RequestDangerousAdvanced {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
     pub stream: Option<bool>,
 }
 

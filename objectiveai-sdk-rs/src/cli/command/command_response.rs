@@ -91,6 +91,13 @@ impl CommandResponse for schemars::Schema {
 }
 
 #[cfg(feature = "mcp")]
+impl CommandResponse for crate::cli::command::ResponseSchema {
+    fn into_mcp(self) -> McpResponseItem {
+        self.0.into_mcp()
+    }
+}
+
+#[cfg(feature = "mcp")]
 impl<T: CommandResponse> CommandResponse for Option<T> {
     fn into_mcp(self) -> McpResponseItem {
         match self {

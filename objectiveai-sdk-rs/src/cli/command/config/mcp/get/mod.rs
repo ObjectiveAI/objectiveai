@@ -35,8 +35,10 @@ impl CommandRequest for Request {
 #[schemars(rename = "cli.command.config.mcp.get.Response")]
 pub struct Response {
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
     pub address: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
     pub port: Option<u16>,
 }
 

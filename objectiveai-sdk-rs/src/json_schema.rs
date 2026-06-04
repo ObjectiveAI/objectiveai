@@ -3550,10 +3550,13 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
     }
 
     // Concrete instantiations of `WithExpression<T>` and
-    // `schemars::Schema`, both referenced by other schemas via
-    // `$ref` but whose titles only exist after concrete substitution.
+    // `serde_json::Value` (a.k.a. `AnyValue`), both referenced by
+    // other schemas via `$ref` but whose titles only exist after
+    // concrete substitution. `ResponseSchema` (the cli `*-schema`
+    // response wrapper) delegates its JsonSchema impl to
+    // `serde_json::Value`, so registering `Value` covers it too.
     schemas.extend([
-        schemars::schema_for!(schemars::Schema),
+        schemars::schema_for!(serde_json::Value),
         schemars::schema_for!(
             crate::functions::expression::WithExpression<String>
         ),

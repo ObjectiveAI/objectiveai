@@ -34,6 +34,9 @@ pub use ok::*;
 mod path_ref;
 pub use path_ref::*;
 
+mod response_schema;
+pub use response_schema::*;
+
 pub mod agents;
 pub mod config;
 pub mod functions;

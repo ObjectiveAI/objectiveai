@@ -23,7 +23,7 @@
       "type": "object",
       "properties": {
         "GetRequestSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -33,7 +33,7 @@
       "type": "object",
       "properties": {
         "GetResponseSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -53,7 +53,7 @@
       "type": "object",
       "properties": {
         "InstallRequestSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -63,7 +63,7 @@
       "type": "object",
       "properties": {
         "InstallResponseSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -83,7 +83,7 @@
       "type": "object",
       "properties": {
         "ListRequestSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -93,7 +93,7 @@
       "type": "object",
       "properties": {
         "ListResponseSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -113,7 +113,7 @@
       "type": "object",
       "properties": {
         "RunRequestSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -123,7 +123,7 @@
       "type": "object",
       "properties": {
         "RunResponseSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false

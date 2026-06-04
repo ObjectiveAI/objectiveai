@@ -96,7 +96,7 @@
       "type": "object",
       "properties": {
         "UpdateRequestSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -106,7 +106,7 @@
       "type": "object",
       "properties": {
         "UpdateResponseSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false

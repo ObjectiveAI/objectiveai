@@ -16,7 +16,7 @@
       "type": "object",
       "properties": {
         "ActiveRequestSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -26,7 +26,7 @@
       "type": "object",
       "properties": {
         "ActiveResponseSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -46,7 +46,7 @@
       "type": "object",
       "properties": {
         "AvailableRequestSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -56,7 +56,7 @@
       "type": "object",
       "properties": {
         "AvailableResponseSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false

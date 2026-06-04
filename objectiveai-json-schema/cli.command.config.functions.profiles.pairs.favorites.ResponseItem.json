@@ -16,7 +16,7 @@
       "type": "object",
       "properties": {
         "AddRequestSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -26,7 +26,7 @@
       "type": "object",
       "properties": {
         "AddResponseSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -46,7 +46,7 @@
       "type": "object",
       "properties": {
         "DelRequestSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -56,7 +56,7 @@
       "type": "object",
       "properties": {
         "DelResponseSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -76,7 +76,7 @@
       "type": "object",
       "properties": {
         "EditRequestSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -86,7 +86,7 @@
       "type": "object",
       "properties": {
         "EditResponseSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -106,7 +106,7 @@
       "type": "object",
       "properties": {
         "GetRequestSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -116,7 +116,7 @@
       "type": "object",
       "properties": {
         "GetResponseSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false

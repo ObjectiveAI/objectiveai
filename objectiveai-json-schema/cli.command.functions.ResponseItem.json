@@ -26,7 +26,7 @@
       "type": "object",
       "properties": {
         "GetRequestSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -36,7 +36,7 @@
       "type": "object",
       "properties": {
         "GetResponseSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -66,7 +66,7 @@
       "type": "object",
       "properties": {
         "ListRequestSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -76,7 +76,7 @@
       "type": "object",
       "properties": {
         "ListResponseSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -106,7 +106,7 @@
       "type": "object",
       "properties": {
         "PublishRequestSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -116,7 +116,7 @@
       "type": "object",
       "properties": {
         "PublishResponseSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false

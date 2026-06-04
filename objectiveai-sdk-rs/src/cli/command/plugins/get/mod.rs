@@ -38,16 +38,21 @@ pub struct ResponseManifest {
     pub version: String,
     pub owner: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
     pub author: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
     pub homepage: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
     pub license: Option<String>,
     #[serde(default, skip_serializing_if = "ResponseBinaries::is_empty")]
     pub binaries: ResponseBinaries,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
     pub viewer_zip: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
     pub viewer_url: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub viewer_routes: Vec<ResponseViewerRoute>,
@@ -62,16 +67,22 @@ pub struct ResponseManifest {
 #[schemars(rename = "cli.command.plugins.get.ResponseBinaries")]
 pub struct ResponseBinaries {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
     pub linux_x86_64: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
     pub linux_aarch64: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
     pub windows_x86_64: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
     pub windows_aarch64: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
     pub macos_x86_64: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
     pub macos_aarch64: Option<String>,
 }
 

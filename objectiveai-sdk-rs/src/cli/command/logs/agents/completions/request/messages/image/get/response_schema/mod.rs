@@ -31,7 +31,7 @@ impl CommandRequest for Request {
     }
 }
 
-pub type Response = schemars::Schema;
+pub type Response = crate::cli::command::ResponseSchema;
 
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;

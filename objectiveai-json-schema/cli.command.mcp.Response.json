@@ -16,7 +16,7 @@
       "type": "object",
       "properties": {
         "KillRequestSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -26,7 +26,7 @@
       "type": "object",
       "properties": {
         "KillResponseSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -46,7 +46,7 @@
       "type": "object",
       "properties": {
         "SpawnRequestSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false
@@ -56,7 +56,7 @@
       "type": "object",
       "properties": {
         "SpawnResponseSchema": {
-          "$ref": "Schema"
+          "$ref": "AnyValue"
         }
       },
       "additionalProperties": false

@@ -51,31 +51,39 @@ pub enum ResponseQueueMessage {
     Developer {
         content: ResponseContent,
         #[serde(skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
         name: Option<String>,
     },
     #[schemars(title = "System")]
     System {
         content: ResponseContent,
         #[serde(skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
         name: Option<String>,
     },
     #[schemars(title = "User")]
     User {
         content: ResponseContent,
         #[serde(skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
         name: Option<String>,
     },
     #[schemars(title = "Assistant")]
     Assistant {
         #[serde(skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
         content: Option<ResponseContent>,
         #[serde(skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
         name: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
         reasoning: Option<i64>,
         #[serde(skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
         tool_calls: Option<Vec<i64>>,
         #[serde(skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
         refusal: Option<i64>,
     },
     #[schemars(title = "Tool")]
@@ -92,12 +100,16 @@ pub enum ResponseQueueItem {
     #[schemars(title = "AssistantResponse")]
     AssistantResponse {
         #[serde(skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
         reasoning: Option<i64>,
         #[serde(skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
         tool_calls: Option<Vec<i64>>,
         #[serde(skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
         content: Option<ResponseContent>,
         #[serde(skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
         refusal: Option<i64>,
     },
     #[schemars(title = "ToolResponse")]

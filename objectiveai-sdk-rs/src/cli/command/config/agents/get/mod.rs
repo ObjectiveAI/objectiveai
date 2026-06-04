@@ -39,6 +39,7 @@ impl CommandRequest for Request {
 #[schemars(rename = "cli.command.config.agents.get.Response")]
 pub struct Response {
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
     pub favorites: Option<Vec<super::favorites::get::ResponseItem>>,
 }
 
