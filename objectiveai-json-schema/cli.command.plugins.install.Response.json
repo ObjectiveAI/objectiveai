@@ -15,9 +15,7 @@
       "title": "FilesystemRequestSchema",
       "type": "object",
       "properties": {
-        "FilesystemRequestSchema": {
-          "$ref": "AnyValue"
-        }
+        "FilesystemRequestSchema": {}
       },
       "additionalProperties": false
     },
@@ -25,9 +23,7 @@
       "title": "FilesystemResponseSchema",
       "type": "object",
       "properties": {
-        "FilesystemResponseSchema": {
-          "$ref": "AnyValue"
-        }
+        "FilesystemResponseSchema": {}
       },
       "additionalProperties": false
     },
@@ -45,9 +41,7 @@
       "title": "GithubRequestSchema",
       "type": "object",
       "properties": {
-        "GithubRequestSchema": {
-          "$ref": "AnyValue"
-        }
+        "GithubRequestSchema": {}
       },
       "additionalProperties": false
     },
@@ -55,9 +49,7 @@
       "title": "GithubResponseSchema",
       "type": "object",
       "properties": {
-        "GithubResponseSchema": {
-          "$ref": "AnyValue"
-        }
+        "GithubResponseSchema": {}
       },
       "additionalProperties": false
     }

@@ -3,14 +3,14 @@
 import { z } from "zod";
 import { AgentCompletionsResponseUsageSchema } from "../../../../agent/completions/response/usage";
 import { ErrorResponseErrorSchema } from "../../../../error/responseError";
-import { FilesystemLogsIndexedReferenceLogReferenceSchema } from "../../../../filesystem/logs/indexed_reference/logReference";
 import { FunctionsFullRemoteFunctionSchema } from "../../../fullRemoteFunction";
 import { FunctionsInventionsResponseStreamingObjectSchema } from "./object";
 import { FunctionsInventionsStateStateSchema } from "../../state/state";
+import { IndexedLogReferenceSchema } from "../../../../indexedLogReference";
 import { RemotePathSchema } from "../../../../remotePath";
 
 export const FunctionsInventionsResponseStreamingFunctionInventionChunkLogSchema = z.object({
-  completions: z.array(FilesystemLogsIndexedReferenceLogReferenceSchema),
+  completions: z.array(IndexedLogReferenceSchema),
   created: z.number().int().min(0).max(18446744073709552000),
   error: ErrorResponseErrorSchema.nullable().meta({ omitempty: true }).optional(),
   function: FunctionsFullRemoteFunctionSchema.nullable().meta({ omitempty: true }).optional(),

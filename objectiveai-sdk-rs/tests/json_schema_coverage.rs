@@ -81,6 +81,21 @@ fn has_manual_serde_impl(file: &syn::File, type_name: &str) -> bool {
     false
 }
 
+/// True when the item carries `#[json_schema_ignore]` (any path
+/// spelling, e.g. `#[objectiveai_sdk_macros::json_schema_ignore]`) —
+/// the explicit opt-out from ALL json-schema coverage rules. Used for
+/// serializable wire types that deliberately ship without a
+/// registered schema (e.g. the root `ResponseItem` aggregates, whose
+/// schema expansion downstream TypeScript cannot serialize — TS7056).
+fn has_json_schema_ignore(attrs: &[syn::Attribute]) -> bool {
+    attrs.iter().any(|attr| {
+        attr.path()
+            .segments
+            .last()
+            .map_or(false, |seg| seg.ident == "json_schema_ignore")
+    })
+}
+
 /// Returns the schema_override value if present: "Owned", "Ref", or "RefOwnedEnum".
 fn get_schema_override(attrs: &[syn::Attribute]) -> Option<String> {
     attrs.iter().find_map(|attr| {
@@ -169,6 +184,10 @@ fn all_serializable_types_have_json_schema() {
                 }
                 _ => continue,
             };
+
+            if has_json_schema_ignore(attrs) {
+                continue;
+            }
 
             let full_name = format!("{prefix}{name}");
             let schema_override = get_schema_override(attrs);
@@ -320,6 +339,9 @@ fn json_schemas_covers_all_types() {
                 _ => continue,
             };
             if !has_json_schema_derive(attrs) {
+                continue;
+            }
+            if has_json_schema_ignore(attrs) {
                 continue;
             }
             // Skip types with type parameters — their titles contain

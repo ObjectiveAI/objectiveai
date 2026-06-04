@@ -4,3 +4,4 @@ export * from "./client_request/index";
 export * from "./client_response/index";
 export * from "./server_request/index";
 export * from "./server_response/index";
+export * from "./mcpKind";

@@ -15,9 +15,7 @@
       "title": "AlphaScalarRequestSchema",
       "type": "object",
       "properties": {
-        "AlphaScalarRequestSchema": {
-          "$ref": "AnyValue"
-        }
+        "AlphaScalarRequestSchema": {}
       },
       "additionalProperties": false
     },
@@ -25,9 +23,7 @@
       "title": "AlphaScalarResponseSchema",
       "type": "object",
       "properties": {
-        "AlphaScalarResponseSchema": {
-          "$ref": "AnyValue"
-        }
+        "AlphaScalarResponseSchema": {}
       },
       "additionalProperties": false
     },
@@ -45,9 +41,7 @@
       "title": "AlphaVectorRequestSchema",
       "type": "object",
       "properties": {
-        "AlphaVectorRequestSchema": {
-          "$ref": "AnyValue"
-        }
+        "AlphaVectorRequestSchema": {}
       },
       "additionalProperties": false
     },
@@ -55,9 +49,7 @@
       "title": "AlphaVectorResponseSchema",
       "type": "object",
       "properties": {
-        "AlphaVectorResponseSchema": {
-          "$ref": "AnyValue"
-        }
+        "AlphaVectorResponseSchema": {}
       },
       "additionalProperties": false
     },
@@ -75,9 +67,7 @@
       "title": "RemoteRequestSchema",
       "type": "object",
       "properties": {
-        "RemoteRequestSchema": {
-          "$ref": "AnyValue"
-        }
+        "RemoteRequestSchema": {}
       },
       "additionalProperties": false
     },
@@ -85,9 +75,7 @@
       "title": "RemoteResponseSchema",
       "type": "object",
       "properties": {
-        "RemoteResponseSchema": {
-          "$ref": "AnyValue"
-        }
+        "RemoteResponseSchema": {}
       },
       "additionalProperties": false
     }

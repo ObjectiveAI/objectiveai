@@ -15,9 +15,7 @@
       "title": "AllRequestSchema",
       "type": "object",
       "properties": {
-        "AllRequestSchema": {
-          "$ref": "AnyValue"
-        }
+        "AllRequestSchema": {}
       },
       "additionalProperties": false
     },
@@ -25,9 +23,7 @@
       "title": "AllResponseSchema",
       "type": "object",
       "properties": {
-        "AllResponseSchema": {
-          "$ref": "AnyValue"
-        }
+        "AllResponseSchema": {}
       },
       "additionalProperties": false
     },
@@ -45,9 +41,7 @@
       "title": "IdRequestSchema",
       "type": "object",
       "properties": {
-        "IdRequestSchema": {
-          "$ref": "AnyValue"
-        }
+        "IdRequestSchema": {}
       },
       "additionalProperties": false
     },
@@ -55,9 +49,7 @@
       "title": "IdResponseSchema",
       "type": "object",
       "properties": {
-        "IdResponseSchema": {
-          "$ref": "AnyValue"
-        }
+        "IdResponseSchema": {}
       },
       "additionalProperties": false
     },
@@ -75,9 +67,7 @@
       "title": "PendingRequestSchema",
       "type": "object",
       "properties": {
-        "PendingRequestSchema": {
-          "$ref": "AnyValue"
-        }
+        "PendingRequestSchema": {}
       },
       "additionalProperties": false
     },
@@ -85,9 +75,7 @@
       "title": "PendingResponseSchema",
       "type": "object",
       "properties": {
-        "PendingResponseSchema": {
-          "$ref": "AnyValue"
-        }
+        "PendingResponseSchema": {}
       },
       "additionalProperties": false
     },
@@ -105,9 +93,7 @@
       "title": "SubscribeRequestSchema",
       "type": "object",
       "properties": {
-        "SubscribeRequestSchema": {
-          "$ref": "AnyValue"
-        }
+        "SubscribeRequestSchema": {}
       },
       "additionalProperties": false
     },
@@ -115,9 +101,7 @@
       "title": "SubscribeResponseSchema",
       "type": "object",
       "properties": {
-        "SubscribeResponseSchema": {
-          "$ref": "AnyValue"
-        }
+        "SubscribeResponseSchema": {}
       },
       "additionalProperties": false
     }

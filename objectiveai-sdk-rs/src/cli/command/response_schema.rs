@@ -34,4 +34,14 @@ impl schemars::JsonSchema for ResponseSchema {
     ) -> schemars::Schema {
         <serde_json::Value as schemars::JsonSchema>::json_schema(generator)
     }
+
+    fn inline_schema() -> bool {
+        // ALWAYS inline. Bare `serde_json::Value` fields embed an
+        // inline `{}` (unconstrained) schema, and this wrapper must
+        // behave identically. Without this, schemars treats
+        // `ResponseSchema` as a referenceable named type and every
+        // `*-schema` response becomes a `$ref: "AnyValue"`, forcing
+        // `Value` itself to exist as a registered standalone title.
+        true
+    }
 }

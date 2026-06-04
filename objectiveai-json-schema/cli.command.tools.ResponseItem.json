@@ -22,9 +22,7 @@
       "title": "GetRequestSchema",
       "type": "object",
       "properties": {
-        "GetRequestSchema": {
-          "$ref": "AnyValue"
-        }
+        "GetRequestSchema": {}
       },
       "additionalProperties": false
     },
@@ -32,9 +30,7 @@
       "title": "GetResponseSchema",
       "type": "object",
       "properties": {
-        "GetResponseSchema": {
-          "$ref": "AnyValue"
-        }
+        "GetResponseSchema": {}
       },
       "additionalProperties": false
     },
@@ -52,9 +48,7 @@
       "title": "InstallRequestSchema",
       "type": "object",
       "properties": {
-        "InstallRequestSchema": {
-          "$ref": "AnyValue"
-        }
+        "InstallRequestSchema": {}
       },
       "additionalProperties": false
     },
@@ -62,9 +56,7 @@
       "title": "InstallResponseSchema",
       "type": "object",
       "properties": {
-        "InstallResponseSchema": {
-          "$ref": "AnyValue"
-        }
+        "InstallResponseSchema": {}
       },
       "additionalProperties": false
     },
@@ -82,9 +74,7 @@
       "title": "ListRequestSchema",
       "type": "object",
       "properties": {
-        "ListRequestSchema": {
-          "$ref": "AnyValue"
-        }
+        "ListRequestSchema": {}
       },
       "additionalProperties": false
     },
@@ -92,9 +82,7 @@
       "title": "ListResponseSchema",
       "type": "object",
       "properties": {
-        "ListResponseSchema": {
-          "$ref": "AnyValue"
-        }
+        "ListResponseSchema": {}
       },
       "additionalProperties": false
     },
@@ -112,9 +100,7 @@
       "title": "RunRequestSchema",
       "type": "object",
       "properties": {
-        "RunRequestSchema": {
-          "$ref": "AnyValue"
-        }
+        "RunRequestSchema": {}
       },
       "additionalProperties": false
     },
@@ -122,9 +108,7 @@
       "title": "RunResponseSchema",
       "type": "object",
       "properties": {
-        "RunResponseSchema": {
-          "$ref": "AnyValue"
-        }
+        "RunResponseSchema": {}
       },
       "additionalProperties": false
     }

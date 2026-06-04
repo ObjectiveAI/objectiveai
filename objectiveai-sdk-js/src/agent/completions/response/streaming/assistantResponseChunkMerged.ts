@@ -103,8 +103,7 @@ export function agentCompletionsResponseStreamingAssistantResponseChunkMerged(
   return [{
     role: a.role,
     index: a.index,
-    created: a.created,
-    agent: a.agent,
+    created: a.created,
     model: a.model,
     upstream_id,
     ...(reasoning != null ? { reasoning } : {}),

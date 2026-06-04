@@ -5,23 +5,22 @@ import { AgentCompletionsMessageRichContentLogSchema } from "../../message/richC
 import { AgentCompletionsResponseAssistantRoleSchema } from "../assistantRole";
 import { AgentCompletionsResponseFinishReasonSchema } from "../finishReason";
 import { AgentCompletionsResponseUpstreamUsageSchema } from "../upstreamUsage";
-import { FilesystemLogsLogReferenceSchema } from "../../../../filesystem/logs/logReference";
+import { LogReferenceSchema } from "../../../../logReference";
 
 export const AgentCompletionsResponseStreamingAssistantResponseChunkLogSchema = z.object({
-  agent: z.string(),
   content: AgentCompletionsMessageRichContentLogSchema.nullable().meta({ omitempty: true }).optional(),
   created: z.number().int().min(0).max(18446744073709552000),
   finish_reason: AgentCompletionsResponseFinishReasonSchema.nullable().optional(),
   index: z.number().int().min(0).max(18446744073709552000),
-  logprobs: FilesystemLogsLogReferenceSchema.nullable().meta({ omitempty: true }).optional(),
+  logprobs: LogReferenceSchema.nullable().meta({ omitempty: true }).optional(),
   model: z.string(),
   provider: z.string().nullable().meta({ omitempty: true }).optional(),
-  reasoning: FilesystemLogsLogReferenceSchema.nullable().meta({ omitempty: true }).optional(),
-  refusal: FilesystemLogsLogReferenceSchema.nullable().meta({ omitempty: true }).optional(),
+  reasoning: LogReferenceSchema.nullable().meta({ omitempty: true }).optional(),
+  refusal: LogReferenceSchema.nullable().meta({ omitempty: true }).optional(),
   role: AgentCompletionsResponseAssistantRoleSchema,
   service_tier: z.string().nullable().meta({ omitempty: true }).optional(),
   system_fingerprint: z.string().nullable().meta({ omitempty: true }).optional(),
-  tool_calls: z.array(FilesystemLogsLogReferenceSchema).nullable().meta({ omitempty: true }).optional(),
+  tool_calls: z.array(LogReferenceSchema).nullable().meta({ omitempty: true }).optional(),
   upstream_id: z.string(),
   usage: AgentCompletionsResponseUpstreamUsageSchema.nullable().meta({ omitempty: true }).optional(),
 }).meta({ title: "agent.completions.response.streaming.AssistantResponseChunkLog" });

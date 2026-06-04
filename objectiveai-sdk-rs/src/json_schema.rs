@@ -172,8 +172,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::ResponseItem),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::ResponseItem),
@@ -1345,8 +1343,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::functions::publish::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::ResponseItem),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::Request),
         #[cfg(feature = "cli")]
@@ -3549,14 +3545,13 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         ]);
     }
 
-    // Concrete instantiations of `WithExpression<T>` and
-    // `serde_json::Value` (a.k.a. `AnyValue`), both referenced by
+    // Concrete instantiations of `WithExpression<T>`, referenced by
     // other schemas via `$ref` but whose titles only exist after
-    // concrete substitution. `ResponseSchema` (the cli `*-schema`
-    // response wrapper) delegates its JsonSchema impl to
-    // `serde_json::Value`, so registering `Value` covers it too.
+    // concrete substitution. (`serde_json::Value` is NOT registered:
+    // it always inlines as an unconstrained `{}` schema wherever it
+    // appears — fields and the cli `ResponseSchema` wrapper alike —
+    // so no standalone "AnyValue" title exists.)
     schemas.extend([
-        schemars::schema_for!(serde_json::Value),
         schemars::schema_for!(
             crate::functions::expression::WithExpression<String>
         ),

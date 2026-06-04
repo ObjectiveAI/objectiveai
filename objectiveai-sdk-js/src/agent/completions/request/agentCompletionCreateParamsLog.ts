@@ -3,14 +3,14 @@
 import { z } from "zod";
 import { AgentCompletionsRequestProviderSchema } from "./provider";
 import { AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema } from "../../inlineAgentBaseWithFallbacksOrRemoteCommitOptional";
-import { FilesystemLogsLogReferenceSchema } from "../../../filesystem/logs/logReference";
+import { LogReferenceSchema } from "../../../logReference";
 
 export const AgentCompletionsRequestAgentCompletionCreateParamsLogSchema = z.object({
   agent: AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema,
-  continuation: FilesystemLogsLogReferenceSchema.nullable().meta({ omitempty: true }).optional(),
-  messages: z.array(FilesystemLogsLogReferenceSchema),
+  continuation: LogReferenceSchema.nullable().meta({ omitempty: true }).optional(),
+  messages: z.array(LogReferenceSchema),
   provider: AgentCompletionsRequestProviderSchema.nullable().meta({ omitempty: true }).optional(),
-  response_format: FilesystemLogsLogReferenceSchema.nullable().meta({ omitempty: true }).optional(),
+  response_format: LogReferenceSchema.nullable().meta({ omitempty: true }).optional(),
   seed: z.number().int().min(-9223372036854776000).max(9223372036854776000).nullable().meta({ omitempty: true }).optional(),
   stream: z.boolean().nullable().meta({ omitempty: true }).optional(),
 }).meta({ title: "agent.completions.request.AgentCompletionCreateParamsLog" });

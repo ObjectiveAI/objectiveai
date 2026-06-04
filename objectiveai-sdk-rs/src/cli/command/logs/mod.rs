@@ -38,6 +38,9 @@ pub enum Request {
     Vector(vector::Request),
 }
 
+// Exempt from json-schema coverage — see the root `ResponseItem`
+// in command.rs for the rationale (TS7056 aggregate).
+#[objectiveai_sdk_macros::json_schema_ignore]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.logs.ResponseItem")]
 pub enum ResponseItem {

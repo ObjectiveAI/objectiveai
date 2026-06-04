@@ -10,7 +10,8 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "omitempty": true
     },
     "linux_x86_64": {
       "anyOf": [
@@ -20,7 +21,8 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "omitempty": true
     },
     "macos_aarch64": {
       "anyOf": [
@@ -30,7 +32,8 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "omitempty": true
     },
     "macos_x86_64": {
       "anyOf": [
@@ -40,7 +43,8 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "omitempty": true
     },
     "windows_aarch64": {
       "anyOf": [
@@ -50,7 +54,8 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "omitempty": true
     },
     "windows_x86_64": {
       "anyOf": [
@@ -60,7 +65,8 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "omitempty": true
     }
   }
 }

@@ -41,10 +41,8 @@ const fs = require("fs");
 const path = require("path");
 
 const REPO_ROOT = path.resolve(__dirname, "../..");
-const RUST_COMMAND_DIR = path.join(
-  REPO_ROOT,
-  "objectiveai-sdk-rs/src/cli/command",
-);
+const RUST_SRC_DIR = path.join(REPO_ROOT, "objectiveai-sdk-rs/src");
+const RUST_COMMAND_DIR = path.join(RUST_SRC_DIR, "cli/command");
 const SRC_DIR = path.resolve(__dirname, "../src");
 const OUT_DIR = path.join(SRC_DIR, "viewer/command");
 
@@ -134,33 +132,11 @@ function splitTopLevel(text, sep = ",") {
 // ── Rust source parsing ─────────────────────────────────────────────
 
 /**
- * Split a leaf file into its outer scope and the nested
- * `pub mod <name> { … }` scopes (request_schema / response_schema and
- * any future siblings).
- */
-function splitScopes(source) {
-  const scopes = [];
-  let outer = "";
-  let cursor = 0;
-  const re = /pub mod (\w+)\s*\{/g;
-  let m;
-  while ((m = re.exec(source)) !== null) {
-    const close = matchBrace(source, re.lastIndex - 1);
-    outer += source.slice(cursor, m.index);
-    scopes.push({ name: m[1], source: source.slice(re.lastIndex, close) });
-    cursor = close + 1;
-    re.lastIndex = close + 1;
-  }
-  outer += source.slice(cursor);
-  scopes.unshift({ name: null, source: outer });
-  return scopes;
-}
-
-/**
  * The scope's `Path` discriminator: a single-variant
- * `pub enum Path { #[serde(rename = "…")] Variant }` plus a
- * `path: Path` field on the Request struct. Returns the rename
- * string, or null when the scope has no discriminator (yet).
+ * `pub enum Path { #[serde(rename = "…")] Variant }` plus a Request
+ * struct field of type `Path` (named `path_type` today — detected by
+ * TYPE so a rename tracks automatically). Returns
+ * `{ field, value }`, or null when the scope has no discriminator.
  */
 function findPathConst(scopeSource) {
   const enumMatch = /pub enum Path\s*\{/.exec(scopeSource);
@@ -171,10 +147,19 @@ function findPathConst(scopeSource) {
   // A discriminator is a CONSTANT — exactly one variant.
   const variantCount = splitTopLevel(normalize(body)).filter(Boolean).length;
   if (renames.length !== 1 || variantCount !== 1) return null;
-  if (!/pub struct Request\s*\{[^}]*\bpath\s*:\s*Path\b/s.test(scopeSource)) {
-    return null;
-  }
-  return renames[0][1];
+  const structMatch = /pub struct Request\s*\{/.exec(scopeSource);
+  if (!structMatch) return null;
+  const structClose = matchBrace(
+    scopeSource,
+    structMatch.index + structMatch[0].length - 1,
+  );
+  const structBody = scopeSource.slice(
+    structMatch.index + structMatch[0].length,
+    structClose,
+  );
+  const fieldMatch = /pub (\w+)\s*:\s*Path\b/.exec(structBody);
+  if (!fieldMatch) return null;
+  return { field: fieldMatch[1], value: renames[0][1] };
 }
 
 /** Local `pub type NAME = TARGET;` aliases in a scope. */
@@ -257,10 +242,14 @@ function parseParams(params, context) {
     const colon = p.indexOf(":");
     const name = p.slice(0, colon).trim();
     const type = p.slice(colon + 1).trim();
-    if (name === "executor" || name === "agent_arguments") continue;
-    if (name === "request" && type === "Request") {
+    // A leading underscore is Rust's unused-binding marker (e.g.
+    // `_jq` on leaves that accept-and-ignore the filter) — the JS
+    // mirror keeps the same outward signature.
+    const bare = name.replace(/^_/, "");
+    if (bare === "executor" || bare === "agent_arguments") continue;
+    if (bare === "request" && type === "Request") {
       out.push({ name: "request" });
-    } else if (name === "jq" && type === "String") {
+    } else if (bare === "jq" && type === "String") {
       out.push({ name: "jq" });
     } else {
       throw new Error(`${context}: unrecognized param \`${raw}\``);
@@ -301,12 +290,24 @@ function parseBody(body, context) {
       }
     }
   }
-  const tail = /^executor\.(execute|execute_one)\(request, agent_arguments\)\.await$/.exec(
-    rest.trim(),
+  const trimmed = rest.trim();
+  // Plain tail: the executor call is the fn's return expression.
+  let tail = /^executor\.(execute|execute_one)\(request, agent_arguments\)\.await$/.exec(
+    trimmed,
   );
   if (!tail) {
+    // Re-serializing tail: jq-less leaves run typed and convert the
+    // Response to JSON (`let resp: … = executor.execute_one(…).await?;
+    // Ok(serde_json::to_value(resp).expect(…))`). Wire-wise identical
+    // to a plain unary call; the declared return type (Value) already
+    // carries the payload kind.
+    tail = /^let resp\s*:\s*[\w:]+\s*=\s*executor\.(execute_one)\(request, agent_arguments\)\.await\?;\s*Ok\(serde_json::to_value\(resp\)\.expect\("[^"]*"\)\)$/.exec(
+      trimmed,
+    );
+  }
+  if (!tail) {
     throw new Error(
-      `${context}: unrecognized body residue \`${rest.trim()}\` — extend the statement grammar in install-viewer-execute.cjs`,
+      `${context}: unrecognized body residue \`${trimmed}\` — extend the statement grammar in install-viewer-execute.cjs`,
     );
   }
   return { mutations, call: tail[1] };
@@ -330,10 +331,22 @@ function resolveType(typeExpr, scope, modulePath, context) {
     return { kind: "json" };
   }
   if (t === "String") return { kind: "string" };
+  const opt = /^Option<(.+)>$/.exec(t);
+  if (opt) {
+    // Option<X> → nullable payload (the cli prints `null` for None).
+    return { ...resolveType(opt[1], scope, modulePath, context), optional: true };
+  }
+  // `cli::command::ResponseSchema` is a transparent newtype around
+  // schemars::Schema whose JsonSchema impl delegates to
+  // serde_json::Value (objectiveai-sdk-rs/src/cli/command/
+  // response_schema.rs) — every spelling of it is opaque JSON.
+  if (t === "ResponseSchema" || t.endsWith("::ResponseSchema")) {
+    return { kind: "json" };
+  }
   if (t.includes("::")) {
     const segs = t.split("::").map((s) => s.trim());
     if (segs[0] === "crate") {
-      return { kind: "schema", title: segs.slice(1).join(".") };
+      return { kind: "schema", title: rustModuleTitle(segs.slice(1)) };
     }
     if (segs[0] === "super") {
       let base = modulePath.slice(0, -1);
@@ -342,7 +355,10 @@ function resolveType(typeExpr, scope, modulePath, context) {
         base = base.slice(0, -1);
         i++;
       }
-      return { kind: "schema", title: [...base, ...segs.slice(i)].join(".") };
+      return {
+        kind: "schema",
+        title: rustModuleTitle([...base, ...segs.slice(i)]),
+      };
     }
     throw new Error(`${context}: unsupported type path \`${t}\``);
   }
@@ -356,6 +372,26 @@ function resolveType(typeExpr, scope, modulePath, context) {
     return { kind: "schema", title: [...modulePath, t].join(".") };
   }
   throw new Error(`${context}: cannot resolve type \`${t}\``);
+}
+
+/**
+ * Title of a Rust type given its `crate::`-relative path segments
+ * (type name last). Mirrors the repo's schemars-rename convention
+ * (and the json_schema_coverage test): the title uses FOLDER segments
+ * only — a type in `src/agent/response.rs` is `agent.GetAgentResponse`
+ * (file-module segment dropped), while one in
+ * `src/cli/command/agents/get/mod.rs` keeps every segment.
+ */
+function rustModuleTitle(segs) {
+  const typeName = segs[segs.length - 1];
+  let moduleSegs = segs.slice(0, -1);
+  if (
+    moduleSegs.length > 0 &&
+    fs.existsSync(path.join(RUST_SRC_DIR, ...moduleSegs) + ".rs")
+  ) {
+    moduleSegs = moduleSegs.slice(0, -1);
+  }
+  return [...moduleSegs, typeName].join(".");
 }
 
 /** zod-module info for a schema title; null when not generated yet. */
@@ -402,28 +438,61 @@ function main() {
     process.exit(2);
   }
 
-  // Walk leaf files.
-  const leaves = [];
+  // Walk every .rs file. A SCOPE is any module defining both
+  // `pub struct Request` and a `pub async fn execute*` — under the
+  // current layout that's a leaf directory's mod.rs, or one of its
+  // request_schema / response_schema child directories' mod.rs.
+  // (Plain `<leaf>.rs` files are also accepted for robustness.)
+  // Dispatcher mod.rs files define `pub enum Request`, never a
+  // struct, so the struct test excludes them.
+  const scopeByKey = new Map(); // "agents/get" → { source }
   (function walk(dir) {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const abs = path.join(dir, entry.name);
       if (entry.isDirectory()) walk(abs);
-      else if (
-        entry.isFile() &&
-        entry.name.endsWith(".rs") &&
-        entry.name !== "mod.rs"
-      ) {
+      else if (entry.isFile() && entry.name.endsWith(".rs")) {
         const source = fs.readFileSync(abs, "utf8");
         if (
-          /pub async fn execute\w*\s*</.test(source) &&
-          /pub struct Request\b/.test(source)
+          !/pub async fn execute\w*\s*</.test(source) ||
+          !/pub struct Request\b/.test(source)
         ) {
-          leaves.push({ abs, source });
+          continue;
         }
+        const rel = path
+          .relative(RUST_COMMAND_DIR, abs)
+          .replace(/\\/g, "/")
+          .replace(/\.rs$/, "");
+        const key =
+          path.posix.basename(rel) === "mod"
+            ? path.posix.dirname(rel)
+            : rel;
+        if (key === ".") continue; // command-root mod.rs is a dispatcher
+        scopeByKey.set(key, { source });
       }
     }
   })(RUST_COMMAND_DIR);
-  leaves.sort((a, b) => (a.abs < b.abs ? -1 : 1));
+
+  // Group: a scope whose ancestor directory is also a scope (e.g.
+  // agents/get/request_schema under agents/get) is a NESTED scope of
+  // that root; everything else is a root leaf. One output file per
+  // root leaf, containing its own + its nested scopes' functions.
+  const leaves = [];
+  for (const key of [...scopeByKey.keys()].sort()) {
+    let ancestor = path.posix.dirname(key);
+    let root = null;
+    while (ancestor !== ".") {
+      if (scopeByKey.has(ancestor)) root = ancestor;
+      ancestor = path.posix.dirname(ancestor);
+    }
+    if (root === null) {
+      leaves.push({ key, scopes: [{ segments: key.split("/"), ...scopeByKey.get(key) }] });
+    } else {
+      leaves.find((l) => l.key === root).scopes.push({
+        segments: key.split("/"),
+        ...scopeByKey.get(key),
+      });
+    }
+  }
 
   const skipped = [];
   const generated = [];
@@ -431,11 +500,7 @@ function main() {
   const dirChildren = new Map();
 
   for (const leaf of leaves) {
-    const relRust = path
-      .relative(RUST_COMMAND_DIR, leaf.abs)
-      .replace(/\\/g, "/")
-      .replace(/\.rs$/, "");
-    const leafSegments = relRust.split("/"); // e.g. ["agents","get"]
+    const relRust = leaf.key; // e.g. "agents/get"
     const outFileSrcRel = path.posix.join("viewer/command", `${relRust}.ts`);
 
     const imports = new Map(); // importPath → Set of names
@@ -445,9 +510,8 @@ function main() {
     };
     const fnsOut = [];
 
-    for (const rawScope of splitScopes(leaf.source)) {
-      const scopeSegments =
-        rawScope.name === null ? leafSegments : [...leafSegments, rawScope.name];
+    for (const rawScope of leaf.scopes) {
+      const scopeSegments = rawScope.segments;
       const modulePath = ["cli", "command", ...scopeSegments];
       const scope = {
         aliases: findTypeAliases(rawScope.source),
@@ -475,7 +539,7 @@ function main() {
       }
 
       for (const fn of executeFns) {
-        const context = `${relRust}.rs ${rawScope.name ?? "(outer)"} ${fn.name}`;
+        const context = `${scopeSegments.join("/")} ${fn.name}`;
         const params = parseParams(fn.params, context);
         const { mutations, call } = parseBody(fn.body, context);
 
@@ -518,6 +582,10 @@ function main() {
           payloadSchemaExpr = `${mod.pascal}Schema`;
           payloadTsType = mod.pascal;
         }
+        if (payload.optional && payload.kind !== "json") {
+          payloadSchemaExpr = `${payloadSchemaExpr}.nullable()`;
+          payloadTsType = `${payloadTsType} | null`;
+        }
 
         addImport(requestModule.srcRelative, `type ${requestModule.pascal}`);
         if (errorModule) {
@@ -529,7 +597,7 @@ function main() {
           snakeToCamel(scopeSegments.map(snakeToCamel).join("_")) +
           snakeToPascal(fn.name);
         // The caller never passes the discriminator — it's injected.
-        const requestParamType = `Omit<${requestModule.pascal}, "path">`;
+        const requestParamType = `Omit<${requestModule.pascal}, ${JSON.stringify(pathConst.field)}>`;
         const jsParams = params
           .map((p) =>
             p.name === "request"
@@ -552,7 +620,9 @@ function main() {
             "dangerous_advanced: request.dangerous_advanced ? { ...request.dangerous_advanced, stream: undefined } : request.dangerous_advanced",
           );
         }
-        fields.push(`path: ${JSON.stringify(pathConst)}`);
+        fields.push(
+          `${pathConst.field}: ${JSON.stringify(pathConst.value)}`,
+        );
         const wire = `{ ${fields.join(", ")} }`;
 
         const unionSchema = `z.union([${errorModule.pascal}Schema, ${payloadSchemaExpr}])`;

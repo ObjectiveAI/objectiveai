@@ -15,9 +15,7 @@
       "title": "AddRequestSchema",
       "type": "object",
       "properties": {
-        "AddRequestSchema": {
-          "$ref": "AnyValue"
-        }
+        "AddRequestSchema": {}
       },
       "additionalProperties": false
     },
@@ -25,9 +23,7 @@
       "title": "AddResponseSchema",
       "type": "object",
       "properties": {
-        "AddResponseSchema": {
-          "$ref": "AnyValue"
-        }
+        "AddResponseSchema": {}
       },
       "additionalProperties": false
     },
@@ -45,9 +41,7 @@
       "title": "DelRequestSchema",
       "type": "object",
       "properties": {
-        "DelRequestSchema": {
-          "$ref": "AnyValue"
-        }
+        "DelRequestSchema": {}
       },
       "additionalProperties": false
     },
@@ -55,9 +49,7 @@
       "title": "DelResponseSchema",
       "type": "object",
       "properties": {
-        "DelResponseSchema": {
-          "$ref": "AnyValue"
-        }
+        "DelResponseSchema": {}
       },
       "additionalProperties": false
     },
@@ -75,9 +67,7 @@
       "title": "EditRequestSchema",
       "type": "object",
       "properties": {
-        "EditRequestSchema": {
-          "$ref": "AnyValue"
-        }
+        "EditRequestSchema": {}
       },
       "additionalProperties": false
     },
@@ -85,9 +75,7 @@
       "title": "EditResponseSchema",
       "type": "object",
       "properties": {
-        "EditResponseSchema": {
-          "$ref": "AnyValue"
-        }
+        "EditResponseSchema": {}
       },
       "additionalProperties": false
     },
@@ -105,9 +93,7 @@
       "title": "GetRequestSchema",
       "type": "object",
       "properties": {
-        "GetRequestSchema": {
-          "$ref": "AnyValue"
-        }
+        "GetRequestSchema": {}
       },
       "additionalProperties": false
     },
@@ -115,9 +101,7 @@
       "title": "GetResponseSchema",
       "type": "object",
       "properties": {
-        "GetResponseSchema": {
-          "$ref": "AnyValue"
-        }
+        "GetResponseSchema": {}
       },
       "additionalProperties": false
     }

@@ -74,6 +74,12 @@ pub enum Request {
     Viewer(super::viewer::Request),
 }
 
+// Exempt from json-schema coverage: the aggregate's transitive
+// expansion spans the whole command tree, which downstream
+// generated TypeScript cannot emit declarations for (TS7056), and
+// no consumer uses the aggregate schema — leaf schemas cover the
+// wire.
+#[objectiveai_sdk_macros::json_schema_ignore]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.ResponseItem")]
 pub enum ResponseItem {

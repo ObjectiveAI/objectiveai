@@ -15,9 +15,7 @@
       "title": "GetRequestSchema",
       "type": "object",
       "properties": {
-        "GetRequestSchema": {
-          "$ref": "AnyValue"
-        }
+        "GetRequestSchema": {}
       },
       "additionalProperties": false
     },
@@ -25,9 +23,7 @@
       "title": "GetResponseSchema",
       "type": "object",
       "properties": {
-        "GetResponseSchema": {
-          "$ref": "AnyValue"
-        }
+        "GetResponseSchema": {}
       },
       "additionalProperties": false
     },
@@ -45,9 +41,7 @@
       "title": "SetRequestSchema",
       "type": "object",
       "properties": {
-        "SetRequestSchema": {
-          "$ref": "AnyValue"
-        }
+        "SetRequestSchema": {}
       },
       "additionalProperties": false
     },
@@ -55,9 +49,7 @@
       "title": "SetResponseSchema",
       "type": "object",
       "properties": {
-        "SetResponseSchema": {
-          "$ref": "AnyValue"
-        }
+        "SetResponseSchema": {}
       },
       "additionalProperties": false
     }

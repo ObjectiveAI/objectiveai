@@ -9,7 +9,6 @@ import { AgentCompletionsResponseLogprobsSchema } from "../logprobs";
 import { AgentCompletionsResponseUpstreamUsageSchema } from "../upstreamUsage";
 
 export const AgentCompletionsResponseUnaryAssistantResponseSchema = z.object({
-  agent: z.string(),
   content: AgentCompletionsMessageRichContentSchema.nullable().optional(),
   created: z.number().int().min(0).max(18446744073709552000),
   finish_reason: AgentCompletionsResponseFinishReasonSchema,

@@ -11,7 +11,8 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "omitempty": true
     },
     "level": {
       "anyOf": [
@@ -21,7 +22,8 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "omitempty": true
     },
     "message": {},
     "type": {

@@ -3,20 +3,20 @@
 import { z } from "zod";
 import { AgentCompletionsRequestProviderSchema } from "../../../../agent/completions/request/provider";
 import { AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema } from "../../../../agent/inlineAgentBaseWithFallbacksOrRemoteCommitOptional";
-import { FilesystemLogsLogReferenceSchema } from "../../../../filesystem/logs/logReference";
 import { FunctionsInventionsPromptsInlinePromptOrRemoteCommitOptionalSchema } from "../../prompts/inlinePromptOrRemoteCommitOptional";
+import { LogReferenceSchema } from "../../../../logReference";
 import { RemoteSchema } from "../../../../remote";
 
 export const FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParamsLogSchema = z.object({
   agent: AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema,
-  continuation: FilesystemLogsLogReferenceSchema.nullable().meta({ omitempty: true }).optional(),
+  continuation: LogReferenceSchema.nullable().meta({ omitempty: true }).optional(),
   max_step_retries: z.number().int().min(0).max(4294967295).nullable().meta({ omitempty: true }).optional(),
   overwrite: z.boolean().nullable().meta({ omitempty: true }).optional(),
   prompt: FunctionsInventionsPromptsInlinePromptOrRemoteCommitOptionalSchema,
   provider: AgentCompletionsRequestProviderSchema.nullable().meta({ omitempty: true }).optional(),
   remote: RemoteSchema,
   seed: z.number().int().min(-9223372036854776000).max(9223372036854776000).nullable().meta({ omitempty: true }).optional(),
-  state: FilesystemLogsLogReferenceSchema,
+  state: LogReferenceSchema,
   stream: z.boolean().nullable().meta({ omitempty: true }).optional(),
 }).meta({ title: "functions.inventions.recursive.request.FunctionInventionRecursiveCreateParamsLog" });
 export type FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParamsLog = z.infer<typeof FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParamsLogSchema>;

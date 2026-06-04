@@ -15,9 +15,7 @@
       "title": "ActiveRequestSchema",
       "type": "object",
       "properties": {
-        "ActiveRequestSchema": {
-          "$ref": "AnyValue"
-        }
+        "ActiveRequestSchema": {}
       },
       "additionalProperties": false
     },
@@ -25,9 +23,7 @@
       "title": "ActiveResponseSchema",
       "type": "object",
       "properties": {
-        "ActiveResponseSchema": {
-          "$ref": "AnyValue"
-        }
+        "ActiveResponseSchema": {}
       },
       "additionalProperties": false
     },
@@ -45,9 +41,7 @@
       "title": "AvailableRequestSchema",
       "type": "object",
       "properties": {
-        "AvailableRequestSchema": {
-          "$ref": "AnyValue"
-        }
+        "AvailableRequestSchema": {}
       },
       "additionalProperties": false
     },
@@ -55,9 +49,7 @@
       "title": "AvailableResponseSchema",
       "type": "object",
       "properties": {
-        "AvailableResponseSchema": {
-          "$ref": "AnyValue"
-        }
+        "AvailableResponseSchema": {}
       },
       "additionalProperties": false
     }

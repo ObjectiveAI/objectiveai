@@ -15,9 +15,7 @@
       "title": "StandardRequestSchema",
       "type": "object",
       "properties": {
-        "StandardRequestSchema": {
-          "$ref": "AnyValue"
-        }
+        "StandardRequestSchema": {}
       },
       "additionalProperties": false
     },
@@ -25,9 +23,7 @@
       "title": "StandardResponseSchema",
       "type": "object",
       "properties": {
-        "StandardResponseSchema": {
-          "$ref": "AnyValue"
-        }
+        "StandardResponseSchema": {}
       },
       "additionalProperties": false
     },
@@ -45,9 +41,7 @@
       "title": "SwissSystemRequestSchema",
       "type": "object",
       "properties": {
-        "SwissSystemRequestSchema": {
-          "$ref": "AnyValue"
-        }
+        "SwissSystemRequestSchema": {}
       },
       "additionalProperties": false
     },
@@ -55,9 +49,7 @@
       "title": "SwissSystemResponseSchema",
       "type": "object",
       "properties": {
-        "SwissSystemResponseSchema": {
-          "$ref": "AnyValue"
-        }
+        "SwissSystemResponseSchema": {}
       },
       "additionalProperties": false
     }

@@ -5,14 +5,19 @@ import { AgentCompletionsResponseStreamingObjectSchema } from "./object";
 import { AgentCompletionsResponseUsageSchema } from "../usage";
 import { AgentUpstreamSchema } from "../../../upstream";
 import { ErrorResponseErrorSchema } from "../../../../error/responseError";
-import { FilesystemLogsLogReferenceSchema } from "../../../../filesystem/logs/logReference";
+import { LogReferenceSchema } from "../../../../logReference";
+import { RemotePathSchema } from "../../../../remotePath";
 
 export const AgentCompletionsResponseStreamingAgentCompletionChunkLogSchema = z.object({
-  continuation: FilesystemLogsLogReferenceSchema.nullable().meta({ omitempty: true }).optional(),
+  agent_full_id: z.string(),
+  agent_id: z.string(),
+  agent_instance_hierarchy: z.string(),
+  agent_remote: RemotePathSchema.nullable().meta({ omitempty: true }).optional(),
+  continuation: LogReferenceSchema.nullable().meta({ omitempty: true }).optional(),
   created: z.number().int().min(0).max(18446744073709552000),
   error: ErrorResponseErrorSchema.nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
-  messages: z.array(FilesystemLogsLogReferenceSchema),
+  messages: z.array(LogReferenceSchema),
   messages_queued: z.boolean().nullable().meta({ omitempty: true }).optional(),
   object: AgentCompletionsResponseStreamingObjectSchema,
   upstream: AgentUpstreamSchema,

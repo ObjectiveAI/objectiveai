@@ -10,7 +10,8 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "omitempty": true
     },
     "port": {
       "anyOf": [
@@ -22,7 +23,8 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "omitempty": true
     },
     "secret": {
       "anyOf": [
@@ -32,7 +34,8 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "omitempty": true
     },
     "signature": {
       "anyOf": [
@@ -42,7 +45,8 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "omitempty": true
     }
   }
 }

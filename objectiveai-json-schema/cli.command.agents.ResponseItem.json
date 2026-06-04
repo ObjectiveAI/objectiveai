@@ -15,9 +15,7 @@
       "title": "GetRequestSchema",
       "type": "object",
       "properties": {
-        "GetRequestSchema": {
-          "$ref": "AnyValue"
-        }
+        "GetRequestSchema": {}
       },
       "additionalProperties": false
     },
@@ -25,9 +23,7 @@
       "title": "GetResponseSchema",
       "type": "object",
       "properties": {
-        "GetResponseSchema": {
-          "$ref": "AnyValue"
-        }
+        "GetResponseSchema": {}
       },
       "additionalProperties": false
     },
@@ -55,9 +51,7 @@
       "title": "MeRequestSchema",
       "type": "object",
       "properties": {
-        "MeRequestSchema": {
-          "$ref": "AnyValue"
-        }
+        "MeRequestSchema": {}
       },
       "additionalProperties": false
     },
@@ -65,9 +59,7 @@
       "title": "MeResponseSchema",
       "type": "object",
       "properties": {
-        "MeResponseSchema": {
-          "$ref": "AnyValue"
-        }
+        "MeResponseSchema": {}
       },
       "additionalProperties": false
     },
@@ -85,9 +77,7 @@
       "title": "MessageRequestSchema",
       "type": "object",
       "properties": {
-        "MessageRequestSchema": {
-          "$ref": "AnyValue"
-        }
+        "MessageRequestSchema": {}
       },
       "additionalProperties": false
     },
@@ -95,9 +85,7 @@
       "title": "MessageResponseSchema",
       "type": "object",
       "properties": {
-        "MessageResponseSchema": {
-          "$ref": "AnyValue"
-        }
+        "MessageResponseSchema": {}
       },
       "additionalProperties": false
     },
@@ -115,9 +103,7 @@
       "title": "PublishRequestSchema",
       "type": "object",
       "properties": {
-        "PublishRequestSchema": {
-          "$ref": "AnyValue"
-        }
+        "PublishRequestSchema": {}
       },
       "additionalProperties": false
     },
@@ -125,9 +111,7 @@
       "title": "PublishResponseSchema",
       "type": "object",
       "properties": {
-        "PublishResponseSchema": {
-          "$ref": "AnyValue"
-        }
+        "PublishResponseSchema": {}
       },
       "additionalProperties": false
     },
@@ -155,9 +139,7 @@
       "title": "SpawnRequestSchema",
       "type": "object",
       "properties": {
-        "SpawnRequestSchema": {
-          "$ref": "AnyValue"
-        }
+        "SpawnRequestSchema": {}
       },
       "additionalProperties": false
     },
@@ -165,9 +147,7 @@
       "title": "SpawnResponseSchema",
       "type": "object",
       "properties": {
-        "SpawnResponseSchema": {
-          "$ref": "AnyValue"
-        }
+        "SpawnResponseSchema": {}
       },
       "additionalProperties": false
     }

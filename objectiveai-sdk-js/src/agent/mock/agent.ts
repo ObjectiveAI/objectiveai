@@ -3,11 +3,13 @@
 import { z } from "zod";
 import { AgentClientObjectiveaiMcpSchema } from "../clientObjectiveaiMcp";
 import { AgentMcpServerSchema } from "../mcpServer";
+import { AgentMockCallSchema } from "./call";
 import { AgentMockModeSchema } from "./mode";
 import { AgentMockOutputModeSchema } from "./outputMode";
 import { AgentMockUpstreamSchema } from "./upstream";
 
 export const AgentMockAgentSchema = z.object({
+  calls: z.array(AgentMockCallSchema).nullable().describe("Deterministic-script override. When `Some`, the mock agent\nemits each [`super::Call`] as its own assistant turn —\n`tool_calls` first, then `content` — in array order. Each\nsubsequent turn inspects the continuation to count how many\n`Call`s have already been satisfied (assistant message with\nexactly that `Call`'s `tool_calls` (by name+arguments) and\n`content`); the next un-matched `Call` is what that turn\nemits. Once every `Call` has been satisfied in the\ncontinuation, the mock falls through to its normal mode-driven\ndispatcher. Pure addition — agents without `calls` are\nunaffected.").meta({ omitempty: true }).optional(),
   client_objectiveai_mcp: AgentClientObjectiveaiMcpSchema.nullable().describe("Client-side ObjectiveAI MCP surface the calling client is\nexpected to expose locally back to the API (objectiveai\nbuilt-in, plus specific plugins / tools by owner+name+version).").meta({ omitempty: true }).optional(),
   error: z.boolean().nullable().describe("If true, the mock client will return an error instead of a response.").meta({ omitempty: true }).optional(),
   error_probability: z.number().int().min(0).max(255).nullable().describe("Probability (0-100) that the mock returns an error mid-stream.\nRequires `error` to be `Some(true)`.").meta({ omitempty: true }).optional(),

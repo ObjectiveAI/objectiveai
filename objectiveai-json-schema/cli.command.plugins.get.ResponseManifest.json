@@ -10,7 +10,8 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "omitempty": true
     },
     "binaries": {
       "$ref": "cli.command.plugins.get.ResponseBinaries"
@@ -26,7 +27,8 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "omitempty": true
     },
     "license": {
       "anyOf": [
@@ -36,7 +38,8 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "omitempty": true
     },
     "mcp_servers": {
       "type": "array",
@@ -73,7 +76,8 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "omitempty": true
     },
     "viewer_zip": {
       "anyOf": [
@@ -83,7 +87,8 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "omitempty": true
     }
   }
 }

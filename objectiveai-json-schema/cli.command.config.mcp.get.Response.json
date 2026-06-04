@@ -10,7 +10,8 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "omitempty": true
     },
     "port": {
       "anyOf": [
@@ -22,7 +23,8 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "omitempty": true
     }
   }
 }
