@@ -16,6 +16,7 @@ fn test_empty_messages_no_continuation() {
         None,
         &[],
         None,
+        ""
     );
     assert_eq!(result, objectiveai_sdk::agent::mock::Continuation {
         upstream: objectiveai_sdk::agent::mock::Upstream::Mock,
@@ -40,6 +41,7 @@ fn test_messages_only() {
         None,
         &messages,
         None,
+        ""
     );
     assert_eq!(result, objectiveai_sdk::agent::mock::Continuation {
         upstream: objectiveai_sdk::agent::mock::Upstream::Mock,
@@ -79,6 +81,7 @@ fn test_messages_with_continuation() {
         None,
         &messages,
         Some(&continuation),
+        ""
     );
     assert_eq!(result, objectiveai_sdk::agent::mock::Continuation {
         upstream: objectiveai_sdk::agent::mock::Upstream::Mock,
@@ -132,6 +135,7 @@ fn test_request_continuation_messages_come_first() {
         Some(&rc),
         &messages,
         None,
+        ""
     );
     assert_eq!(result, objectiveai_sdk::agent::mock::Continuation {
         upstream: objectiveai_sdk::agent::mock::Upstream::Mock,
@@ -165,6 +169,7 @@ fn test_mcp_sessions_preserved() {
         None,
         &[],
         None,
+        ""
     );
     assert_eq!(result.mcp_sessions, mcp_sessions);
 }

@@ -13,6 +13,7 @@ fn test_no_continuation_no_request_continuation() {
         None,
         &[],
         None,
+        ""
     );
     assert_eq!(result, objectiveai_sdk::agent::claude_agent_sdk::Continuation {
         upstream: objectiveai_sdk::agent::claude_agent_sdk::Upstream::ClaudeAgentSdk,
@@ -37,6 +38,7 @@ fn test_session_id_from_continuation_state() {
         None,
         &[],
         Some(&continuation),
+        ""
     );
     assert_eq!(result.session_id, "internal-sess");
 }
@@ -56,6 +58,7 @@ fn test_session_id_falls_back_to_request_continuation() {
         Some(&rc),
         &[],
         None,
+        ""
     );
     assert_eq!(result.session_id, "req-sess-123");
 }
@@ -81,6 +84,7 @@ fn test_internal_session_id_takes_precedence() {
         Some(&rc),
         &[],
         Some(&continuation),
+        ""
     );
     assert_eq!(result.session_id, "internal-sess");
 }
@@ -106,6 +110,7 @@ fn test_empty_internal_session_falls_back_to_request() {
         Some(&rc),
         &[],
         Some(&continuation),
+        ""
     );
     assert_eq!(result.session_id, "req-sess-fallback");
 }
@@ -120,6 +125,7 @@ fn test_mcp_sessions_preserved() {
         None,
         &[],
         None,
+        ""
     );
     assert_eq!(result.mcp_sessions, mcp_sessions);
 }
