@@ -6,6 +6,7 @@ use futures::StreamExt;
 use objectiveai_sdk::cli::Error as CliError;
 use objectiveai_sdk::cli::ErrorType as CliErrorType;
 use objectiveai_sdk::cli::Level as CliLevel;
+use objectiveai_sdk::cli::command::AgentArguments;
 use objectiveai_sdk::cli::command::CommandExecutor;
 use objectiveai_sdk::cli::command::CommandResponse;
 use objectiveai_sdk::cli::command::McpResponseItem;
@@ -17,7 +18,7 @@ use objectiveai_sdk::cli::command::tools;
 use rmcp::{
     ServerHandler,
     handler::server::router::tool::{ToolRoute, ToolRouter},
-    handler::server::tool::{parse_json_object, schema_for_type},
+    handler::server::tool::{Extension, parse_json_object, schema_for_type},
     handler::server::wrapper::Parameters,
     model::{
         CallToolResult, Implementation, ProtocolVersion, ServerCapabilities, ServerInfo, Tool,
@@ -25,6 +26,7 @@ use rmcp::{
     schemars, tool, tool_handler, tool_router,
 };
 
+use crate::agent_args_registry::AgentArgumentsRegistry;
 use crate::format::format_items;
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
@@ -55,6 +57,12 @@ pub struct ToolRequest {
 pub struct ObjectiveAiMcpCli<E> {
     pub tool_router: ToolRouter<Self>,
     pub executor: Arc<E>,
+    /// Per-rmcp-session bag of [`AgentArguments`] captured from the
+    /// six `X-OBJECTIVEAI-*` request headers at `initialize` time.
+    /// Tool dispatchers look up the inbound `Mcp-Session-Id` against
+    /// this registry to recover the caller's identity — request
+    /// headers on non-initialize calls are intentionally ignored.
+    pub registry: Arc<AgentArgumentsRegistry>,
 }
 
 impl<E> Clone for ObjectiveAiMcpCli<E> {
@@ -62,6 +70,7 @@ impl<E> Clone for ObjectiveAiMcpCli<E> {
         Self {
             tool_router: self.tool_router.clone(),
             executor: self.executor.clone(),
+            registry: self.registry.clone(),
         }
     }
 }
@@ -87,6 +96,7 @@ where
         executor: Arc<E>,
         plugins_list: Vec<plugins::list::ResponseItem>,
         tools_list: Vec<tools::list::ResponseItem>,
+        registry: Arc<AgentArgumentsRegistry>,
     ) -> Self {
         let mut tool_router = Self::tool_router();
         for plugin in plugins_list {
@@ -100,9 +110,12 @@ where
                 Cow::Owned(plugin.description.clone()),
                 schema_for_type::<PluginRequest>(),
             );
+            let registry_for_route = registry.clone();
             tool_router.add_route(ToolRoute::new_dyn(tool, move |ctx| {
                 let executor = executor_for_route.clone();
                 let plugin_name = plugin_name.clone();
+                let registry = registry_for_route.clone();
+                let session_id = session_id_from_extensions(&ctx.request_context.extensions);
                 async move {
                     let arguments = ctx.arguments.unwrap_or_default();
                     let req: PluginRequest = parse_json_object(arguments)?;
@@ -111,7 +124,16 @@ where
                         args: req.args,
                         jq: None,
                     };
-                    let blocks = dispatch_plugins_run(&*executor, request).await;
+                    let args = match session_id {
+                        Some(sid) => registry.get(&sid.into()).await,
+                        None => None,
+                    };
+                    let blocks = dispatch_plugins_run(
+                        &*executor,
+                        request,
+                        args.as_deref(),
+                    )
+                    .await;
                     Ok(CallToolResult::success(blocks))
                 }
                 .boxed()
@@ -128,9 +150,12 @@ where
                 Cow::Owned(cli_tool.description.clone()),
                 schema_for_type::<ToolRequest>(),
             );
+            let registry_for_route = registry.clone();
             tool_router.add_route(ToolRoute::new_dyn(tool, move |ctx| {
                 let executor = executor_for_route.clone();
                 let tool_name = tool_name.clone();
+                let registry = registry_for_route.clone();
+                let session_id = session_id_from_extensions(&ctx.request_context.extensions);
                 async move {
                     let arguments = ctx.arguments.unwrap_or_default();
                     let req: ToolRequest = parse_json_object(arguments)?;
@@ -139,7 +164,16 @@ where
                         args: req.args,
                         jq: None,
                     };
-                    let blocks = dispatch_tools_run(&*executor, request).await;
+                    let args = match session_id {
+                        Some(sid) => registry.get(&sid.into()).await,
+                        None => None,
+                    };
+                    let blocks = dispatch_tools_run(
+                        &*executor,
+                        request,
+                        args.as_deref(),
+                    )
+                    .await;
                     Ok(CallToolResult::success(blocks))
                 }
                 .boxed()
@@ -148,6 +182,7 @@ where
         Self {
             tool_router,
             executor,
+            registry,
         }
     }
 
@@ -155,6 +190,7 @@ where
     async fn objectiveai(
         &self,
         Parameters(req): Parameters<ObjectiveAiRequest>,
+        Extension(parts): Extension<http::request::Parts>,
     ) -> Result<CallToolResult, rmcp::ErrorData> {
         let request = match parse_request(&req.command) {
             Ok(r) => r,
@@ -163,17 +199,50 @@ where
                 return Ok(CallToolResult::success(format_items(vec![item])));
             }
         };
-        let blocks = dispatch_root(&*self.executor, request).await;
+        let session_id = session_id_from_headers(&parts.headers);
+        let args = match session_id {
+            Some(sid) => self.registry.get(&sid.into()).await,
+            None => None,
+        };
+        let blocks = dispatch_root(&*self.executor, request, args.as_deref()).await;
         Ok(CallToolResult::success(blocks))
     }
 }
 
-async fn dispatch_root<E>(executor: &E, request: Request) -> Vec<rmcp::model::Content>
+/// Pull `Mcp-Session-Id` out of an inbound HTTP request's headers
+/// (case-insensitive, trimmed, empty → `None`).
+fn session_id_from_headers(headers: &http::HeaderMap) -> Option<String> {
+    headers
+        .get("mcp-session-id")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
+/// Same as [`session_id_from_headers`] but reads through the
+/// `http::request::Parts` injected into rmcp's request-context
+/// extensions. Used by the dynamic plugin/tool routes whose
+/// closures take a [`rmcp::handler::server::tool::ToolCallContext`]
+/// rather than an [`rmcp::handler::server::tool::Extension`]
+/// extractor.
+fn session_id_from_extensions(extensions: &rmcp::model::Extensions) -> Option<String> {
+    extensions
+        .get::<http::request::Parts>()
+        .and_then(|p| session_id_from_headers(&p.headers))
+}
+
+async fn dispatch_root<E>(
+    executor: &E,
+    request: Request,
+    agent_arguments: Option<&AgentArguments>,
+) -> Vec<rmcp::model::Content>
 where
     E: CommandExecutor,
     E::Error: std::fmt::Display,
 {
-    let stream = match objectiveai_sdk::cli::command::execute(executor, request, None).await {
+    let stream = match objectiveai_sdk::cli::command::execute(executor, request, agent_arguments)
+        .await
+    {
         Ok(s) => s,
         Err(e) => return format_items(vec![convert::<ResponseItem, _>(Err(e))]),
     };
@@ -184,12 +253,13 @@ where
 async fn dispatch_plugins_run<E>(
     executor: &E,
     request: plugins::run::Request,
+    agent_arguments: Option<&AgentArguments>,
 ) -> Vec<rmcp::model::Content>
 where
     E: CommandExecutor,
     E::Error: std::fmt::Display,
 {
-    let stream = match plugins::run::execute(executor, request, None).await {
+    let stream = match plugins::run::execute(executor, request, agent_arguments).await {
         Ok(s) => s,
         Err(e) => return format_items(vec![convert::<plugins::run::ResponseItem, _>(Err(e))]),
     };
@@ -201,12 +271,13 @@ where
 async fn dispatch_tools_run<E>(
     executor: &E,
     request: tools::run::Request,
+    agent_arguments: Option<&AgentArguments>,
 ) -> Vec<rmcp::model::Content>
 where
     E: CommandExecutor,
     E::Error: std::fmt::Display,
 {
-    let stream = match tools::run::execute(executor, request, None).await {
+    let stream = match tools::run::execute(executor, request, agent_arguments).await {
         Ok(s) => s,
         Err(e) => return format_items(vec![convert::<tools::run::ResponseItem, _>(Err(e))]),
     };

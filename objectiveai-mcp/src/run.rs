@@ -13,11 +13,11 @@ use futures::StreamExt;
 use objectiveai_sdk::cli::command::CommandExecutor;
 use objectiveai_sdk::cli::command::plugins;
 use objectiveai_sdk::cli::command::tools;
-use rmcp::transport::streamable_http_server::{
-    StreamableHttpServerConfig, StreamableHttpService, session::local::LocalSessionManager,
-};
+use rmcp::transport::streamable_http_server::{StreamableHttpServerConfig, StreamableHttpService};
 use tokio_util::sync::CancellationToken;
 
+use crate::agent_args_registry::AgentArgumentsRegistry;
+use crate::header_session_manager::HeaderSessionManager;
 use crate::objectiveai::ObjectiveAiMcpCli;
 
 #[derive(Envconfig)]
@@ -114,14 +114,24 @@ where
     let (plugins_list, tools_list) =
         tokio::join!(list_plugins(&*executor), list_tools(&*executor));
 
-    let server =
-        ObjectiveAiMcpCli::with_plugins_and_tools(executor.clone(), plugins_list, tools_list);
+    // Shared per-rmcp-session bag of AgentArguments. Populated by
+    // the HeaderSessionManager on every initialize (fresh + lazy
+    // reconnect); consumed by every tool dispatcher.
+    let registry = Arc::new(AgentArgumentsRegistry::new());
+
+    let server = ObjectiveAiMcpCli::with_plugins_and_tools(
+        executor.clone(),
+        plugins_list,
+        tools_list,
+        registry.clone(),
+    );
+    let session_manager = Arc::new(HeaderSessionManager::new(registry.clone(), server.clone()));
     let ct = CancellationToken::new();
 
-    let service: StreamableHttpService<ObjectiveAiMcpCli<E>, LocalSessionManager> =
+    let service: StreamableHttpService<ObjectiveAiMcpCli<E>, HeaderSessionManager<E>> =
         StreamableHttpService::new(
             move || Ok(server.clone()),
-            Default::default(),
+            session_manager,
             StreamableHttpServerConfig {
                 stateful_mode: true,
                 sse_keep_alive: None,
