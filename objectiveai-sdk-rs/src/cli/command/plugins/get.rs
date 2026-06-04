@@ -4,8 +4,15 @@ use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
+    pub path: Path,
     pub name: String,
     pub jq: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub enum Path {
+    #[serde(rename = "plugins/get")]
+    PluginsGet,
 }
 
 impl CommandRequest for Request {
@@ -128,7 +135,7 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self {
+        Ok(Self { path: Path::PluginsGet,
             name: args.name,
             jq: args.jq,
         })
@@ -170,7 +177,14 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "plugins/get/request_schema")]
+        PluginsGetRequestSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -195,7 +209,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::PluginsGetRequestSchema, jq: args.jq })
         }
     }
 
@@ -229,7 +243,14 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "plugins/get/response_schema")]
+        PluginsGetResponseSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -254,7 +275,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::PluginsGetResponseSchema, jq: args.jq })
         }
     }
 

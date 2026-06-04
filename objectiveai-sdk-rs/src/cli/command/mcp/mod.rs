@@ -7,7 +7,8 @@ pub enum Command {
     Spawn(spawn::Command),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
 pub enum Request {
     Kill(kill::Request),
     KillRequestSchema(kill::request_schema::Request),

@@ -9,7 +9,8 @@ pub enum Command {
     Remote(remote::Command),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
 pub enum Request {
     AlphaScalar(alpha_scalar::Request),
     AlphaScalarRequestSchema(alpha_scalar::request_schema::Request),

@@ -89,7 +89,14 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "config/swarms/favorites/add/request_schema")]
+        ConfigSwarmsFavoritesAddRequestSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -114,7 +121,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::ConfigSwarmsFavoritesAddRequestSchema, jq: args.jq })
         }
     }
 
@@ -148,7 +155,14 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "config/swarms/favorites/add/response_schema")]
+        ConfigSwarmsFavoritesAddResponseSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -173,7 +187,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::ConfigSwarmsFavoritesAddResponseSchema, jq: args.jq })
         }
     }
 

@@ -4,12 +4,19 @@ use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
+    pub path: Path,
     pub id: String,
     pub message_index: u64,
     pub media_index: u64,
     pub timeout_ms: u64,
     pub require_modification: bool,
     pub jq: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub enum Path {
+    #[serde(rename = "logs/agents/completions/response/messages/audio/subscribe")]
+    LogsAgentsCompletionsResponseMessagesAudioSubscribe,
 }
 
 impl CommandRequest for Request {
@@ -71,7 +78,7 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self {
+        Ok(Self { path: Path::LogsAgentsCompletionsResponseMessagesAudioSubscribe,
             id: args.id,
             message_index: args.message_index,
             media_index: args.media_index,
@@ -110,7 +117,14 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "logs/agents/completions/response/messages/audio/subscribe/request_schema")]
+        LogsAgentsCompletionsResponseMessagesAudioSubscribeRequestSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -135,7 +149,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::LogsAgentsCompletionsResponseMessagesAudioSubscribeRequestSchema, jq: args.jq })
         }
     }
 
@@ -169,7 +183,14 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "logs/agents/completions/response/messages/audio/subscribe/response_schema")]
+        LogsAgentsCompletionsResponseMessagesAudioSubscribeResponseSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -194,7 +215,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::LogsAgentsCompletionsResponseMessagesAudioSubscribeResponseSchema, jq: args.jq })
         }
     }
 

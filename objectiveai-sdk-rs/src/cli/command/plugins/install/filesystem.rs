@@ -4,7 +4,14 @@ use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
+    pub path: Path,
     pub jq: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub enum Path {
+    #[serde(rename = "plugins/install/filesystem")]
+    PluginsInstallFilesystem,
 }
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
@@ -49,7 +56,7 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { jq: args.jq })
+        Ok(Self { path: Path::PluginsInstallFilesystem, jq: args.jq })
     }
 }
 
@@ -88,7 +95,14 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "plugins/install/filesystem/request_schema")]
+        PluginsInstallFilesystemRequestSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -113,7 +127,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::PluginsInstallFilesystemRequestSchema, jq: args.jq })
         }
     }
 
@@ -146,7 +160,14 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "plugins/install/filesystem/response_schema")]
+        PluginsInstallFilesystemResponseSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -171,7 +192,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::PluginsInstallFilesystemResponseSchema, jq: args.jq })
         }
     }
 

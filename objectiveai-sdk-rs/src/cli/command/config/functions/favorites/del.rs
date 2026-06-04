@@ -4,7 +4,14 @@ use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
+    pub path: Path,
     pub name: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub enum Path {
+    #[serde(rename = "config/functions/favorites/del")]
+    ConfigFunctionsFavoritesDel,
 }
 
 impl CommandRequest for Request {
@@ -41,7 +48,7 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { name: args.name })
+        Ok(Self { path: Path::ConfigFunctionsFavoritesDel, name: args.name })
     }
 }
 
@@ -60,7 +67,14 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "config/functions/favorites/del/request_schema")]
+        ConfigFunctionsFavoritesDelRequestSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -85,7 +99,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::ConfigFunctionsFavoritesDelRequestSchema, jq: args.jq })
         }
     }
 
@@ -119,7 +133,14 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "config/functions/favorites/del/response_schema")]
+        ConfigFunctionsFavoritesDelResponseSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -144,7 +165,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::ConfigFunctionsFavoritesDelResponseSchema, jq: args.jq })
         }
     }
 

@@ -4,10 +4,17 @@ use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
+    pub path: Path,
     pub response_id: String,
     pub index: u64,
     pub media_index: Option<u64>,
     pub jq: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub enum Path {
+    #[serde(rename = "logs/agents/completions/request/notifications/text/get")]
+    LogsAgentsCompletionsRequestNotificationsTextGet,
 }
 
 impl CommandRequest for Request {
@@ -62,7 +69,7 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self {
+        Ok(Self { path: Path::LogsAgentsCompletionsRequestNotificationsTextGet,
             response_id: args.response_id,
             index: args.index,
             media_index: args.media_index,
@@ -99,7 +106,14 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "logs/agents/completions/request/notifications/text/get/request_schema")]
+        LogsAgentsCompletionsRequestNotificationsTextGetRequestSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -124,7 +138,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::LogsAgentsCompletionsRequestNotificationsTextGetRequestSchema, jq: args.jq })
         }
     }
 
@@ -158,7 +172,14 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "logs/agents/completions/request/notifications/text/get/response_schema")]
+        LogsAgentsCompletionsRequestNotificationsTextGetResponseSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -183,7 +204,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::LogsAgentsCompletionsRequestNotificationsTextGetResponseSchema, jq: args.jq })
         }
     }
 

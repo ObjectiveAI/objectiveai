@@ -11,7 +11,8 @@ pub enum Command {
     Get(get::Command),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
 pub enum Request {
     Add(add::Request),
     AddRequestSchema(add::request_schema::Request),

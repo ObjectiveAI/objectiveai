@@ -6,11 +6,18 @@ use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
+    pub path: Path,
     pub prompt: RequestPrompt,
     pub agent: AgentSpec,
     pub seed: Option<i64>,
     pub dangerous_advanced: Option<RequestDangerousAdvanced>,
     pub jq: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub enum Path {
+    #[serde(rename = "agents/spawn")]
+    AgentsSpawn,
 }
 
 /// CLI-surface form for the `--agent` / `--agent-inline` argument: either
@@ -226,7 +233,7 @@ impl TryFrom<Args> for Request {
         } else {
             None
         };
-        Ok(Self {
+        Ok(Self { path: Path::AgentsSpawn,
             prompt,
             agent,
             seed: args.seed,
@@ -306,7 +313,14 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "agents/spawn/request_schema")]
+        AgentsSpawnRequestSchema,
     }
 
     #[derive(clap::Args)]
@@ -331,7 +345,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::AgentsSpawnRequestSchema, jq: args.jq })
         }
     }
 
@@ -365,7 +379,14 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "agents/spawn/response_schema")]
+        AgentsSpawnResponseSchema,
     }
 
     #[derive(clap::Args)]
@@ -390,7 +411,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::AgentsSpawnResponseSchema, jq: args.jq })
         }
     }
 

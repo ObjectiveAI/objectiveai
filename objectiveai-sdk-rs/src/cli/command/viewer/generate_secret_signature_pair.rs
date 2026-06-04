@@ -4,7 +4,14 @@ use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
+    pub path: Path,
     pub jq: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub enum Path {
+    #[serde(rename = "viewer/generate_secret_signature_pair")]
+    ViewerGenerateSecretSignaturePair,
 }
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
@@ -50,7 +57,7 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { jq: args.jq })
+        Ok(Self { path: Path::ViewerGenerateSecretSignaturePair, jq: args.jq })
     }
 }
 
@@ -89,7 +96,14 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "viewer/generate_secret_signature_pair/request_schema")]
+        ViewerGenerateSecretSignaturePairRequestSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -114,7 +128,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::ViewerGenerateSecretSignaturePairRequestSchema, jq: args.jq })
         }
     }
 
@@ -147,7 +161,14 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "viewer/generate_secret_signature_pair/response_schema")]
+        ViewerGenerateSecretSignaturePairResponseSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -172,7 +193,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::ViewerGenerateSecretSignaturePairResponseSchema, jq: args.jq })
         }
     }
 

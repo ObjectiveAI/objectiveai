@@ -4,8 +4,15 @@ use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
+    pub path: Path,
     pub nested: bool,
     pub jq: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub enum Path {
+    #[serde(rename = "logs/functions/executions/response/clear")]
+    LogsFunctionsExecutionsResponseClear,
 }
 
 impl CommandRequest for Request {
@@ -58,7 +65,7 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self {
+        Ok(Self { path: Path::LogsFunctionsExecutionsResponseClear,
             nested: args.nested,
             jq: args.jq,
         })
@@ -100,7 +107,14 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "logs/functions/executions/response/clear/request_schema")]
+        LogsFunctionsExecutionsResponseClearRequestSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -125,7 +139,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::LogsFunctionsExecutionsResponseClearRequestSchema, jq: args.jq })
         }
     }
 
@@ -159,7 +173,14 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "logs/functions/executions/response/clear/response_schema")]
+        LogsFunctionsExecutionsResponseClearResponseSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -184,7 +205,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::LogsFunctionsExecutionsResponseClearResponseSchema, jq: args.jq })
         }
     }
 

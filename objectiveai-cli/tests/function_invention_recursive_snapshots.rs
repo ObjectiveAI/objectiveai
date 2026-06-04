@@ -45,7 +45,7 @@ fn snapshot_has_errors(snapshot: &serde_json::Value) -> bool {
 /// the chunks as plain JSON values so the existing snapshot diffs
 /// don't have to know about the typed shapes.
 async fn run_remote(state_name: &str, seed: i64) -> Vec<serde_json::Value> {
-    let request = Request {
+    let request = Request { path: objectiveai_sdk::cli::command::functions::inventions::recursive::create::remote::Path::FunctionsInventionsRecursiveCreateRemote,
         state: RequestState::Ref(format!("remote=mock,name={state_name}")),
         agent: AgentSpec::Resolved(
             InlineAgentBaseWithFallbacksOrRemoteCommitOptional::Remote(

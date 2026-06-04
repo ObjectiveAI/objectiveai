@@ -9,7 +9,8 @@ pub enum Command {
     Available(available::Command),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
 pub enum Request {
     Active(active::Request),
     ActiveRequestSchema(active::request_schema::Request),

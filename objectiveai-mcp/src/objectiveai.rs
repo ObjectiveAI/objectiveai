@@ -120,6 +120,7 @@ where
                     let arguments = ctx.arguments.unwrap_or_default();
                     let req: PluginRequest = parse_json_object(arguments)?;
                     let request = plugins::run::Request {
+                        path: plugins::run::Path::PluginsRun,
                         name: plugin_name,
                         args: req.args,
                         jq: None,
@@ -160,6 +161,7 @@ where
                     let arguments = ctx.arguments.unwrap_or_default();
                     let req: ToolRequest = parse_json_object(arguments)?;
                     let request = tools::run::Request {
+                        path: tools::run::Path::ToolsRun,
                         name: tool_name,
                         args: req.args,
                         jq: None,

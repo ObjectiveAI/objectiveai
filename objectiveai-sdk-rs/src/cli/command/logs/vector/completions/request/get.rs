@@ -4,8 +4,15 @@ use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
+    pub path: Path,
     pub id: String,
     pub jq: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub enum Path {
+    #[serde(rename = "logs/vector/completions/request/get")]
+    LogsVectorCompletionsRequestGet,
 }
 
 impl CommandRequest for Request {
@@ -52,7 +59,7 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self {
+        Ok(Self { path: Path::LogsVectorCompletionsRequestGet,
             id: args.id,
             jq: args.jq,
         })
@@ -87,7 +94,14 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "logs/vector/completions/request/get/request_schema")]
+        LogsVectorCompletionsRequestGetRequestSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -112,7 +126,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::LogsVectorCompletionsRequestGetRequestSchema, jq: args.jq })
         }
     }
 
@@ -146,7 +160,14 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "logs/vector/completions/request/get/response_schema")]
+        LogsVectorCompletionsRequestGetResponseSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -171,7 +192,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::LogsVectorCompletionsRequestGetResponseSchema, jq: args.jq })
         }
     }
 

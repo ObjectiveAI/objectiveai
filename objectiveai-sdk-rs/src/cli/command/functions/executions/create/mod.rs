@@ -35,7 +35,8 @@ pub enum Command {
     SwissSystem(swiss_system::Command),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
 pub enum Request {
     Standard(standard::Request),
     StandardRequestSchema(standard::request_schema::Request),

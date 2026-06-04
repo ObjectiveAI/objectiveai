@@ -4,10 +4,17 @@ use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
+    pub path: Path,
     pub id: String,
     pub timeout_ms: u64,
     pub require_modification: bool,
     pub jq: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub enum Path {
+    #[serde(rename = "logs/functions/inventions/response/subscribe")]
+    LogsFunctionsInventionsResponseSubscribe,
 }
 
 impl CommandRequest for Request {
@@ -63,7 +70,7 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self {
+        Ok(Self { path: Path::LogsFunctionsInventionsResponseSubscribe,
             id: args.id,
             timeout_ms: args.timeout_ms,
             require_modification: args.require_modification,
@@ -100,7 +107,14 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "logs/functions/inventions/response/subscribe/request_schema")]
+        LogsFunctionsInventionsResponseSubscribeRequestSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -125,7 +139,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::LogsFunctionsInventionsResponseSubscribeRequestSchema, jq: args.jq })
         }
     }
 
@@ -159,7 +173,14 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "logs/functions/inventions/response/subscribe/response_schema")]
+        LogsFunctionsInventionsResponseSubscribeResponseSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -184,7 +205,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::LogsFunctionsInventionsResponseSubscribeResponseSchema, jq: args.jq })
         }
     }
 

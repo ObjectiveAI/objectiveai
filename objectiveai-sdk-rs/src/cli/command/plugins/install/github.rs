@@ -4,11 +4,18 @@ use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
+    pub path: Path,
     pub owner: String,
     pub repository: String,
     pub commit_sha: Option<String>,
     pub allow_untrusted: bool,
     pub jq: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub enum Path {
+    #[serde(rename = "plugins/install/github")]
+    PluginsInstallGithub,
 }
 
 impl CommandRequest for Request {
@@ -81,7 +88,7 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self {
+        Ok(Self { path: Path::PluginsInstallGithub,
             owner: args.owner,
             repository: args.repository,
             commit_sha: args.commit_sha,
@@ -126,7 +133,14 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "plugins/install/github/request_schema")]
+        PluginsInstallGithubRequestSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -151,7 +165,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::PluginsInstallGithubRequestSchema, jq: args.jq })
         }
     }
 
@@ -185,7 +199,14 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "plugins/install/github/response_schema")]
+        PluginsInstallGithubResponseSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -210,7 +231,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::PluginsInstallGithubResponseSchema, jq: args.jq })
         }
     }
 

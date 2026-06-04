@@ -257,7 +257,7 @@ async fn plugin_mcp_dispatch_round_trip() {
 
     // Spawn the agent. The plugin binary inherits OAI_TEST_MCP_PID_FILE
     // through the CLI subprocess → cli-stream → plugin chain.
-    let spawn_request = SpawnRequest {
+    let spawn_request = SpawnRequest { path: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
         prompt: RequestPrompt::Simple("use a tool".to_string()),
         agent,
         seed: Some(1),

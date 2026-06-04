@@ -4,9 +4,16 @@ use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
+    pub path: Path,
     pub name: String,
     pub note: Option<String>,
     pub commit: Option<RequestCommitChange>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub enum Path {
+    #[serde(rename = "config/functions/favorites/edit")]
+    ConfigFunctionsFavoritesEdit,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -80,7 +87,7 @@ impl TryFrom<Args> for Request {
         } else {
             None
         };
-        Ok(Self {
+        Ok(Self { path: Path::ConfigFunctionsFavoritesEdit,
             name: args.name,
             note: args.note,
             commit,
@@ -103,7 +110,14 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "config/functions/favorites/edit/request_schema")]
+        ConfigFunctionsFavoritesEditRequestSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -128,7 +142,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::ConfigFunctionsFavoritesEditRequestSchema, jq: args.jq })
         }
     }
 
@@ -162,7 +176,14 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "config/functions/favorites/edit/response_schema")]
+        ConfigFunctionsFavoritesEditResponseSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -187,7 +208,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::ConfigFunctionsFavoritesEditResponseSchema, jq: args.jq })
         }
     }
 

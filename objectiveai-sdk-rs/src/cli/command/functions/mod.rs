@@ -24,7 +24,8 @@ pub enum Command {
     Publish(publish::Command),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
 pub enum Request {
     Executions(executions::Request),
     Get(get::Request),

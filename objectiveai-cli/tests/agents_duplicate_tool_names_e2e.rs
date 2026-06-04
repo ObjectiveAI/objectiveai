@@ -182,7 +182,7 @@ async fn duplicate_tool_names_routed_across_turns() {
     let executor = cli_test_util::executor_with_base_dir(&base);
 
     // Turn 1: agents spawn ────────────────────────────────────────
-    let spawn = SpawnRequest {
+    let spawn = SpawnRequest { path: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
         prompt: RequestPrompt::Simple("use a tool".to_string()),
         agent,
         seed: Some(SEED),
@@ -202,7 +202,7 @@ async fn duplicate_tool_names_routed_across_turns() {
     wait_for_completion(&base, &spawn_id).await;
 
     // Turn 2: agents message — first continuation ─────────────────
-    let msg1 = MessageRequest {
+    let msg1 = MessageRequest { path: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
         agent_instance_hierarchy: spawn_id.clone(),
         message: RequestMessage::Simple("again".to_string()),
         seed: Some(SEED),
@@ -215,7 +215,7 @@ async fn duplicate_tool_names_routed_across_turns() {
     wait_for_completion(&base, &spawn_id).await;
 
     // Turn 3: agents message — second continuation ───────────────
-    let msg2 = MessageRequest {
+    let msg2 = MessageRequest { path: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
         agent_instance_hierarchy: spawn_id.clone(),
         message: RequestMessage::Simple("one more".to_string()),
         seed: Some(SEED),
@@ -231,7 +231,7 @@ async fn duplicate_tool_names_routed_across_turns() {
     // all`, then resolve each row id through `agents read id` to pull
     // the typed `AssistantToolCallDelta` whose `function.name` carries
     // the prefixed tool name.
-    let read_all = ReadAllRequest {
+    let read_all = ReadAllRequest { path: objectiveai_sdk::cli::command::agents::read::all::Path::AgentsReadAll,
         agent_instance_hierarchies: vec![spawn_id.clone()],
         jq: None,
     };
@@ -259,7 +259,7 @@ async fn duplicate_tool_names_routed_across_turns() {
     let mut unique: std::collections::HashSet<String> = std::collections::HashSet::new();
     for id in tool_call_ids {
         let resp: ReadIdResponse = executor
-            .execute_one(ReadIdRequest { id, jq: None }, None)
+            .execute_one(ReadIdRequest { path: objectiveai_sdk::cli::command::agents::read::id::Path::AgentsReadId, id, jq: None }, None)
             .await
             .unwrap_or_else(|e| panic!("agents read id {id} failed: {e:?}"));
         // Tool-call rows always come back as

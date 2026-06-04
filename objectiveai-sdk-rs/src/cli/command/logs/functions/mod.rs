@@ -13,7 +13,8 @@ pub enum Command {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
 pub enum Request {
     Executions(executions::Request),
     Inventions(inventions::Request),

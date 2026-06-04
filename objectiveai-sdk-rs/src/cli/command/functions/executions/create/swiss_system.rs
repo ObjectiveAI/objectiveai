@@ -6,6 +6,7 @@ use super::{FunctionSpec, ProfileSpec};
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
+    pub path: Path,
     pub function: FunctionSpec,
     pub profile: ProfileSpec,
     pub input: RequestInput,
@@ -18,6 +19,12 @@ pub struct Request {
     pub rounds: Option<usize>,
     pub dangerous_advanced: Option<RequestDangerousAdvanced>,
     pub jq: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub enum Path {
+    #[serde(rename = "functions/executions/create/swiss_system")]
+    FunctionsExecutionsCreateSwissSystem,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -229,7 +236,7 @@ impl TryFrom<Args> for Request {
         } else {
             None
         };
-        Ok(Self {
+        Ok(Self { path: Path::FunctionsExecutionsCreateSwissSystem,
             function,
             profile,
             input,
@@ -316,7 +323,14 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "functions/executions/create/swiss_system/request_schema")]
+        FunctionsExecutionsCreateSwissSystemRequestSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -341,7 +355,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::FunctionsExecutionsCreateSwissSystemRequestSchema, jq: args.jq })
         }
     }
 
@@ -375,7 +389,14 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "functions/executions/create/swiss_system/response_schema")]
+        FunctionsExecutionsCreateSwissSystemResponseSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -400,7 +421,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::FunctionsExecutionsCreateSwissSystemResponseSchema, jq: args.jq })
         }
     }
 

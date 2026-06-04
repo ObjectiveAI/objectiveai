@@ -11,7 +11,8 @@ pub enum Command {
     Spawn(spawn::Command),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
 pub enum Request {
     GenerateSecretSignaturePair(generate_secret_signature_pair::Request),
     GenerateSecretSignaturePairRequestSchema(generate_secret_signature_pair::request_schema::Request),

@@ -59,7 +59,8 @@ pub enum Command {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
 pub enum Request {
     Audio(audio::Request),
     Clear(clear::Request),

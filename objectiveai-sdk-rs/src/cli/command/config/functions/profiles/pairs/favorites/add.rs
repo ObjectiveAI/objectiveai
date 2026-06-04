@@ -5,10 +5,17 @@ use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
+    pub path: Path,
     pub name: String,
     pub function: RemotePathCommitOptional,
     pub profile: RemotePathCommitOptional,
     pub note: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub enum Path {
+    #[serde(rename = "config/functions/profiles/pairs/favorites/add")]
+    ConfigFunctionsProfilesPairsFavoritesAdd,
 }
 
 impl CommandRequest for Request {
@@ -78,7 +85,7 @@ impl TryFrom<Args> for Request {
             .profile
             .parse::<RemotePathCommitOptional>()
             .map_err(|msg| crate::cli::command::FromArgsError::path_parse("profile", msg))?;
-        Ok(Self {
+        Ok(Self { path: Path::ConfigFunctionsProfilesPairsFavoritesAdd,
             name: args.name,
             function,
             profile,
@@ -102,7 +109,14 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "config/functions/profiles/pairs/favorites/add/request_schema")]
+        ConfigFunctionsProfilesPairsFavoritesAddRequestSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -127,7 +141,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::ConfigFunctionsProfilesPairsFavoritesAddRequestSchema, jq: args.jq })
         }
     }
 
@@ -161,7 +175,14 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "config/functions/profiles/pairs/favorites/add/response_schema")]
+        ConfigFunctionsProfilesPairsFavoritesAddResponseSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -186,7 +207,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::ConfigFunctionsProfilesPairsFavoritesAddResponseSchema, jq: args.jq })
         }
     }
 

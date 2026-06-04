@@ -21,7 +21,8 @@ pub enum Command {
     Subscribe(subscribe::Command),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
 pub enum Request {
     Clear(clear::Request),
     ClearRequestSchema(clear::request_schema::Request),

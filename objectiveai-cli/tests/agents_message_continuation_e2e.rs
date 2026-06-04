@@ -55,7 +55,7 @@ async fn spawn_then_message_propagates_response_continuation() {
     let executor = cli_test_util::executor_with_base_dir(base_dir);
 
     // ── 1. Spawn a mock agent ────────────────────────────────────
-    let spawn_request = SpawnRequest {
+    let spawn_request = SpawnRequest { path: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
         prompt: RequestPrompt::Simple("first turn".to_string()),
         agent: AgentSpec::Resolved(
             serde_json::from_value::<InlineAgentBaseWithFallbacksOrRemoteCommitOptional>(
@@ -107,7 +107,7 @@ async fn spawn_then_message_propagates_response_continuation() {
     .expect("response continuation is JSON-quoted string");
 
     // ── 4. Message the agent ─────────────────────────────────────
-    let message_request = MessageRequest {
+    let message_request = MessageRequest { path: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
         agent_instance_hierarchy: spawn_id.clone(),
         message: RequestMessage::Simple("follow up".to_string()),
         seed: Some(42),

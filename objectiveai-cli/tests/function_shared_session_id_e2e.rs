@@ -267,7 +267,7 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
         serde_json::from_value::<InlineProfileOrRemoteCommitOptional>(profile_json.clone())
             .expect("profile JSON must deserialize"),
     );
-    let request = Request {
+    let request = Request { path: objectiveai_sdk::cli::command::functions::executions::create::standard::Path::FunctionsExecutionsCreateStandard,
         function,
         profile,
         input: RequestInput::Inline(
@@ -288,7 +288,7 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
     );
 
     // ── List active agents — must be exactly 5 ─────────────────
-    let list_request = ListActiveRequest {
+    let list_request = ListActiveRequest { path: objectiveai_sdk::cli::command::agents::list::active::Path::AgentsListActive,
         parent_agent_instance_hierarchy: None,
         jq: None,
     };
@@ -312,7 +312,7 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
     // ── Send `agents message` to all 5 in parallel ─────────────
     let send_futures = full_ids.iter().map(|id| {
         let executor = &executor;
-        let request = MessageRequest {
+        let request = MessageRequest { path: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
             agent_instance_hierarchy: id.clone(),
             message: RequestMessage::Simple("again".to_string()),
             seed: None,

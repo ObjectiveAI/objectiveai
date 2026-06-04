@@ -7,7 +7,8 @@ pub enum Command {
     Github(github::Command),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
 pub enum Request {
     Filesystem(filesystem::Request),
     FilesystemRequestSchema(filesystem::request_schema::Request),

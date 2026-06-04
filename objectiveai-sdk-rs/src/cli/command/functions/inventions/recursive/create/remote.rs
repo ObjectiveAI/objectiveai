@@ -6,12 +6,19 @@ use crate::functions::inventions::state::ParamsState;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
+    pub path: Path,
     pub state: RequestState,
     pub agent: AgentSpec,
     pub continuation: Option<String>,
     pub seed: Option<i64>,
     pub dangerous_advanced: Option<RequestDangerousAdvanced>,
     pub jq: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub enum Path {
+    #[serde(rename = "functions/inventions/recursive/create/remote")]
+    FunctionsInventionsRecursiveCreateRemote,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -167,7 +174,7 @@ impl TryFrom<Args> for Request {
         } else {
             None
         };
-        Ok(Self {
+        Ok(Self { path: Path::FunctionsInventionsRecursiveCreateRemote,
             state,
             agent,
             continuation: args.continuation,
@@ -248,7 +255,14 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "functions/inventions/recursive/create/remote/request_schema")]
+        FunctionsInventionsRecursiveCreateRemoteRequestSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -273,7 +287,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::FunctionsInventionsRecursiveCreateRemoteRequestSchema, jq: args.jq })
         }
     }
 
@@ -307,7 +321,14 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "functions/inventions/recursive/create/remote/response_schema")]
+        FunctionsInventionsRecursiveCreateRemoteResponseSchema,
     }
     #[derive(clap::Args)]
     pub struct Args {
@@ -332,7 +353,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::FunctionsInventionsRecursiveCreateRemoteResponseSchema, jq: args.jq })
         }
     }
 

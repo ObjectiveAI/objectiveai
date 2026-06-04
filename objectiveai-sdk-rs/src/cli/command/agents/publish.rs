@@ -5,11 +5,18 @@ use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
+    pub path: Path,
     pub repository: String,
     pub body: RequestBody,
     pub message: RequestPublishMessage,
     pub overwrite: bool,
     pub jq: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub enum Path {
+    #[serde(rename = "agents/publish")]
+    AgentsPublish,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -176,7 +183,7 @@ impl TryFrom<Args> for Request {
         } else {
             RequestPublishMessage::File(args.message.message_file.unwrap())
         };
-        Ok(Self {
+        Ok(Self { path: Path::AgentsPublish,
             repository: args.repository,
             body,
             message,
@@ -221,7 +228,14 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "agents/publish/request_schema")]
+        AgentsPublishRequestSchema,
     }
 
     #[derive(clap::Args)]
@@ -246,7 +260,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::AgentsPublishRequestSchema, jq: args.jq })
         }
     }
 
@@ -280,7 +294,14 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
+        pub path: Path,
         pub jq: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    pub enum Path {
+        #[serde(rename = "agents/publish/response_schema")]
+        AgentsPublishResponseSchema,
     }
 
     #[derive(clap::Args)]
@@ -305,7 +326,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { jq: args.jq })
+            Ok(Self { path: Path::AgentsPublishResponseSchema, jq: args.jq })
         }
     }
 

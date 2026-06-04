@@ -32,7 +32,8 @@ pub enum Command {
     Spawn(spawn::Command),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
 pub enum Request {
     Get(get::Request),
     GetRequestSchema(get::request_schema::Request),
