@@ -851,7 +851,7 @@ fn error_deser_bare_tuple() {
 /// Non-existent file.
 #[test]
 fn error_file_not_found() {
-    let err = crate::python::exec_file::<Foo>(std::path_type::Path::new("/nonexistent/path/script.py"))
+    let err = crate::python::exec_file::<Foo>(std::path::Path::new("/nonexistent/path/script.py"))
         .unwrap_err();
     assert!(matches!(err, crate::error::Error::PythonFileRead(_, _)));
 }
