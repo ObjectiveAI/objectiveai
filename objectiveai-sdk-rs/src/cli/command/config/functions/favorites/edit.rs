@@ -5,7 +5,7 @@ use crate::cli::command::CommandRequest;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.config.functions.favorites.Request")]
 pub struct Request {
-    pub path: Path,
+    pub path_type: Path,
     pub name: String,
     pub note: Option<String>,
     pub commit: Option<RequestCommitChange>,
@@ -90,7 +90,7 @@ impl TryFrom<Args> for Request {
         } else {
             None
         };
-        Ok(Self { path: Path::ConfigFunctionsFavoritesEdit,
+        Ok(Self { path_type: Path::ConfigFunctionsFavoritesEdit,
             name: args.name,
             note: args.note,
             commit,
@@ -113,7 +113,7 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -145,7 +145,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::ConfigFunctionsFavoritesEditRequestSchema, jq: args.jq })
+            Ok(Self { path_type: Path::ConfigFunctionsFavoritesEditRequestSchema, jq: args.jq })
         }
     }
 
@@ -179,7 +179,7 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -211,7 +211,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::ConfigFunctionsFavoritesEditResponseSchema, jq: args.jq })
+            Ok(Self { path_type: Path::ConfigFunctionsFavoritesEditResponseSchema, jq: args.jq })
         }
     }
 

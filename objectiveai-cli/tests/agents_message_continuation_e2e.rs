@@ -55,7 +55,7 @@ async fn spawn_then_message_propagates_response_continuation() {
     let executor = cli_test_util::executor_with_base_dir(base_dir);
 
     // ── 1. Spawn a mock agent ────────────────────────────────────
-    let spawn_request = SpawnRequest { path: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
+    let spawn_request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
         prompt: RequestPrompt::Simple("first turn".to_string()),
         agent: AgentSpec::Resolved(
             serde_json::from_value::<InlineAgentBaseWithFallbacksOrRemoteCommitOptional>(
@@ -114,7 +114,7 @@ async fn spawn_then_message_propagates_response_continuation() {
         .map(|(p, i)| (Some(p.to_string()), i.to_string()))
         .unwrap_or_else(|| (None, spawn_id.clone()));
     let message_request = MessageRequest {
-        path: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
+        path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
         parent_agent_instance_hierarchy: parent,
         agent_instance: instance,
         message: RequestMessage::Simple("follow up".to_string()),

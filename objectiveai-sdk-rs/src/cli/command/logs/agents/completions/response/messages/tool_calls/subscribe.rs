@@ -5,7 +5,7 @@ use crate::cli::command::CommandRequest;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.logs.agents.completions.response.messages.tool_calls.Request")]
 pub struct Request {
-    pub path: Path,
+    pub path_type: Path,
     pub id: String,
     pub message_index: u64,
     pub tool_call_index: u64,
@@ -80,7 +80,7 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path: Path::LogsAgentsCompletionsResponseMessagesToolCallsSubscribe,
+        Ok(Self { path_type: Path::LogsAgentsCompletionsResponseMessagesToolCallsSubscribe,
             id: args.id,
             message_index: args.message_index,
             tool_call_index: args.tool_call_index,
@@ -119,7 +119,7 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -151,7 +151,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::LogsAgentsCompletionsResponseMessagesToolCallsSubscribeRequestSchema, jq: args.jq })
+            Ok(Self { path_type: Path::LogsAgentsCompletionsResponseMessagesToolCallsSubscribeRequestSchema, jq: args.jq })
         }
     }
 
@@ -185,7 +185,7 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -217,7 +217,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::LogsAgentsCompletionsResponseMessagesToolCallsSubscribeResponseSchema, jq: args.jq })
+            Ok(Self { path_type: Path::LogsAgentsCompletionsResponseMessagesToolCallsSubscribeResponseSchema, jq: args.jq })
         }
     }
 

@@ -6,7 +6,7 @@ use crate::cli::command::CommandRequest;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.Request")]
 pub struct Request {
-    pub path: Path,
+    pub path_type: Path,
     /// Lineage prefix to prepend to [`Self::agent_instance`]. When
     /// `None`, the CLI substitutes its own
     /// `Config.agent_instance_hierarchy` (the cli's "caller"
@@ -186,7 +186,7 @@ impl TryFrom<Args> for Request {
             RequestMessage::PythonFile(args.message.python_file.unwrap())
         };
         Ok(Self {
-            path: Path::AgentsMessage,
+            path_type: Path::AgentsMessage,
             parent_agent_instance_hierarchy: args.parent_agent_instance_hierarchy,
             agent_instance: args.agent_instance,
             message,
@@ -231,7 +231,7 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -263,7 +263,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::AgentsMessageRequestSchema, jq: args.jq })
+            Ok(Self { path_type: Path::AgentsMessageRequestSchema, jq: args.jq })
         }
     }
 
@@ -297,7 +297,7 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -329,7 +329,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::AgentsMessageResponseSchema, jq: args.jq })
+            Ok(Self { path_type: Path::AgentsMessageResponseSchema, jq: args.jq })
         }
     }
 

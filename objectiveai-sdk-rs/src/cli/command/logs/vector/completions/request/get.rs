@@ -5,7 +5,7 @@ use crate::cli::command::CommandRequest;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.logs.vector.completions.request.Request")]
 pub struct Request {
-    pub path: Path,
+    pub path_type: Path,
     pub id: String,
     pub jq: Option<String>,
 }
@@ -61,7 +61,7 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path: Path::LogsVectorCompletionsRequestGet,
+        Ok(Self { path_type: Path::LogsVectorCompletionsRequestGet,
             id: args.id,
             jq: args.jq,
         })
@@ -96,7 +96,7 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -128,7 +128,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::LogsVectorCompletionsRequestGetRequestSchema, jq: args.jq })
+            Ok(Self { path_type: Path::LogsVectorCompletionsRequestGetRequestSchema, jq: args.jq })
         }
     }
 
@@ -162,7 +162,7 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -194,7 +194,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::LogsVectorCompletionsRequestGetResponseSchema, jq: args.jq })
+            Ok(Self { path_type: Path::LogsVectorCompletionsRequestGetResponseSchema, jq: args.jq })
         }
     }
 

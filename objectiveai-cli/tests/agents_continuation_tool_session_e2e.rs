@@ -140,7 +140,7 @@ fn agent_spec() -> AgentSpec {
 /// Spawn an agent and return its sub-id (the chunk's
 /// `agent_instance_hierarchy`).
 async fn spawn_agent(executor: &BinaryExecutor, seed: i64) -> String {
-    let request = SpawnRequest { path: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
+    let request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
         prompt: RequestPrompt::Simple("go".to_string()),
         agent: agent_spec(),
         seed: Some(seed),
@@ -190,7 +190,7 @@ async fn continue_agent(executor: &BinaryExecutor, spawn_id: &str, seed: i64) {
         .map(|(p, i)| (Some(p.to_string()), i.to_string()))
         .unwrap_or_else(|| (None, spawn_id.to_string()));
     let request = MessageRequest {
-        path: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
+        path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
         parent_agent_instance_hierarchy: parent,
         agent_instance: instance,
         message: RequestMessage::Simple("more".to_string()),
@@ -209,7 +209,7 @@ async fn continue_agent(executor: &BinaryExecutor, spawn_id: &str, seed: i64) {
 /// Collect every `tool_response` queue item's sql row id for `sub_id`
 /// via the public `agents read all` cli surface.
 async fn read_tool_response_ids(executor: &BinaryExecutor, sub_id: &str) -> Vec<i64> {
-    let request = ReadAllRequest { path: objectiveai_sdk::cli::command::agents::read::all::Path::AgentsReadAll,
+    let request = ReadAllRequest { path_type: objectiveai_sdk::cli::command::agents::read::all::Path::AgentsReadAll,
         agent_instance_hierarchies: vec![sub_id.to_string()],
         jq: None,
     };
@@ -236,7 +236,7 @@ async fn read_tool_response_ids(executor: &BinaryExecutor, sub_id: &str) -> Vec<
 /// back to JSON and scans recursively for the first integer-shaped
 /// string or number.
 async fn read_count_for_id(executor: &BinaryExecutor, id: i64) -> Option<u64> {
-    let request = ReadIdRequest { path: objectiveai_sdk::cli::command::agents::read::id::Path::AgentsReadId, id, jq: None };
+    let request = ReadIdRequest { path_type: objectiveai_sdk::cli::command::agents::read::id::Path::AgentsReadId, id, jq: None };
     let response: objectiveai_sdk::cli::command::agents::read::id::Response = executor
         .execute_one(request, None)
         .await

@@ -7,7 +7,7 @@ use crate::cli::command::CommandRequest;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.Request")]
 pub struct Request {
-    pub path: Path,
+    pub path_type: Path,
     pub prompt: RequestPrompt,
     pub agent: AgentSpec,
     pub seed: Option<i64>,
@@ -239,7 +239,7 @@ impl TryFrom<Args> for Request {
         } else {
             None
         };
-        Ok(Self { path: Path::AgentsSpawn,
+        Ok(Self { path_type: Path::AgentsSpawn,
             prompt,
             agent,
             seed: args.seed,
@@ -319,7 +319,7 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -351,7 +351,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::AgentsSpawnRequestSchema, jq: args.jq })
+            Ok(Self { path_type: Path::AgentsSpawnRequestSchema, jq: args.jq })
         }
     }
 
@@ -385,7 +385,7 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -417,7 +417,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::AgentsSpawnResponseSchema, jq: args.jq })
+            Ok(Self { path_type: Path::AgentsSpawnResponseSchema, jq: args.jq })
         }
     }
 

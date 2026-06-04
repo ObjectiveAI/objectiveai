@@ -5,7 +5,7 @@ use crate::cli::command::CommandRequest;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.config.functions.profiles.Request")]
 pub struct Request {
-    pub path: Path,
+    pub path_type: Path,
     pub filter: Option<String>,
     pub jq: Option<String>,
 }
@@ -67,7 +67,7 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path: Path::ConfigFunctionsProfilesGet,
+        Ok(Self { path_type: Path::ConfigFunctionsProfilesGet,
             filter: args.filter,
             jq: args.jq,
         })
@@ -109,7 +109,7 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -141,7 +141,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::ConfigFunctionsProfilesGetRequestSchema, jq: args.jq })
+            Ok(Self { path_type: Path::ConfigFunctionsProfilesGetRequestSchema, jq: args.jq })
         }
     }
 
@@ -175,7 +175,7 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -207,7 +207,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::ConfigFunctionsProfilesGetResponseSchema, jq: args.jq })
+            Ok(Self { path_type: Path::ConfigFunctionsProfilesGetResponseSchema, jq: args.jq })
         }
     }
 

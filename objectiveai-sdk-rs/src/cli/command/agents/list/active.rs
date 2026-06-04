@@ -5,7 +5,7 @@ use crate::cli::command::CommandRequest;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.list.Request")]
 pub struct Request {
-    pub path: Path,
+    pub path_type: Path,
     pub parent_agent_instance_hierarchy: Option<String>,
     pub jq: Option<String>,
 }
@@ -71,7 +71,7 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path: Path::AgentsListActive,
+        Ok(Self { path_type: Path::AgentsListActive,
             parent_agent_instance_hierarchy: args.parent_agent_instance_hierarchy,
             jq: args.jq,
         })
@@ -113,7 +113,7 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -145,7 +145,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::AgentsListActiveRequestSchema, jq: args.jq })
+            Ok(Self { path_type: Path::AgentsListActiveRequestSchema, jq: args.jq })
         }
     }
 
@@ -179,7 +179,7 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -211,7 +211,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::AgentsListActiveResponseSchema, jq: args.jq })
+            Ok(Self { path_type: Path::AgentsListActiveResponseSchema, jq: args.jq })
         }
     }
 

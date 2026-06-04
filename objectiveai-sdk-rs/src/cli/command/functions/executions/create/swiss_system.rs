@@ -7,7 +7,7 @@ use super::{FunctionSpec, ProfileSpec};
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.functions.executions.create.Request")]
 pub struct Request {
-    pub path: Path,
+    pub path_type: Path,
     pub function: FunctionSpec,
     pub profile: ProfileSpec,
     pub input: RequestInput,
@@ -241,7 +241,7 @@ impl TryFrom<Args> for Request {
         } else {
             None
         };
-        Ok(Self { path: Path::FunctionsExecutionsCreateSwissSystem,
+        Ok(Self { path_type: Path::FunctionsExecutionsCreateSwissSystem,
             function,
             profile,
             input,
@@ -328,7 +328,7 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -360,7 +360,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::FunctionsExecutionsCreateSwissSystemRequestSchema, jq: args.jq })
+            Ok(Self { path_type: Path::FunctionsExecutionsCreateSwissSystemRequestSchema, jq: args.jq })
         }
     }
 
@@ -394,7 +394,7 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -426,7 +426,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::FunctionsExecutionsCreateSwissSystemResponseSchema, jq: args.jq })
+            Ok(Self { path_type: Path::FunctionsExecutionsCreateSwissSystemResponseSchema, jq: args.jq })
         }
     }
 

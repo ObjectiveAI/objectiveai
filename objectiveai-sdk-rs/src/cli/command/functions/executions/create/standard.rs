@@ -11,7 +11,7 @@ type _UnusedMessage = Message;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.functions.executions.create.Request")]
 pub struct Request {
-    pub path: Path,
+    pub path_type: Path,
     pub function: FunctionSpec,
     pub profile: ProfileSpec,
     pub input: RequestInput,
@@ -229,7 +229,7 @@ impl TryFrom<Args> for Request {
         } else {
             None
         };
-        Ok(Self { path: Path::FunctionsExecutionsCreateStandard,
+        Ok(Self { path_type: Path::FunctionsExecutionsCreateStandard,
             function,
             profile,
             input,
@@ -314,7 +314,7 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -346,7 +346,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::FunctionsExecutionsCreateStandardRequestSchema, jq: args.jq })
+            Ok(Self { path_type: Path::FunctionsExecutionsCreateStandardRequestSchema, jq: args.jq })
         }
     }
 
@@ -380,7 +380,7 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -412,7 +412,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::FunctionsExecutionsCreateStandardResponseSchema, jq: args.jq })
+            Ok(Self { path_type: Path::FunctionsExecutionsCreateStandardResponseSchema, jq: args.jq })
         }
     }
 

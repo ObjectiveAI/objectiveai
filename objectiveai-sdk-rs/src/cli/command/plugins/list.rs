@@ -5,7 +5,7 @@ use crate::cli::command::CommandRequest;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.plugins.Request")]
 pub struct Request {
-    pub path: Path,
+    pub path_type: Path,
     pub offset: Option<usize>,
     pub limit: Option<usize>,
     pub jq: Option<String>,
@@ -79,7 +79,7 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path: Path::PluginsList,
+        Ok(Self { path_type: Path::PluginsList,
             offset: args.offset,
             limit: args.limit,
             jq: args.jq,
@@ -115,7 +115,7 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -147,7 +147,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::PluginsListRequestSchema, jq: args.jq })
+            Ok(Self { path_type: Path::PluginsListRequestSchema, jq: args.jq })
         }
     }
 
@@ -181,7 +181,7 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -213,7 +213,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::PluginsListResponseSchema, jq: args.jq })
+            Ok(Self { path_type: Path::PluginsListResponseSchema, jq: args.jq })
         }
     }
 

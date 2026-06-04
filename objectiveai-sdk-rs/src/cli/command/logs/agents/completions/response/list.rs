@@ -5,7 +5,7 @@ use crate::cli::command::CommandRequest;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.logs.agents.completions.response.Request")]
 pub struct Request {
-    pub path: Path,
+    pub path_type: Path,
     pub offset: Option<usize>,
     pub limit: Option<usize>,
     pub jq: Option<String>,
@@ -78,7 +78,7 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path: Path::LogsAgentsCompletionsResponseList,
+        Ok(Self { path_type: Path::LogsAgentsCompletionsResponseList,
             offset: args.offset,
             limit: args.limit,
             jq: args.jq,
@@ -121,7 +121,7 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -153,7 +153,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::LogsAgentsCompletionsResponseListRequestSchema, jq: args.jq })
+            Ok(Self { path_type: Path::LogsAgentsCompletionsResponseListRequestSchema, jq: args.jq })
         }
     }
 
@@ -187,7 +187,7 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -219,7 +219,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::LogsAgentsCompletionsResponseListResponseSchema, jq: args.jq })
+            Ok(Self { path_type: Path::LogsAgentsCompletionsResponseListResponseSchema, jq: args.jq })
         }
     }
 

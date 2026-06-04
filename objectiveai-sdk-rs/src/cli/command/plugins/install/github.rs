@@ -5,7 +5,7 @@ use crate::cli::command::CommandRequest;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.plugins.install.Request")]
 pub struct Request {
-    pub path: Path,
+    pub path_type: Path,
     pub owner: String,
     pub repository: String,
     pub commit_sha: Option<String>,
@@ -91,7 +91,7 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path: Path::PluginsInstallGithub,
+        Ok(Self { path_type: Path::PluginsInstallGithub,
             owner: args.owner,
             repository: args.repository,
             commit_sha: args.commit_sha,
@@ -136,7 +136,7 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -168,7 +168,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::PluginsInstallGithubRequestSchema, jq: args.jq })
+            Ok(Self { path_type: Path::PluginsInstallGithubRequestSchema, jq: args.jq })
         }
     }
 
@@ -202,7 +202,7 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -234,7 +234,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::PluginsInstallGithubResponseSchema, jq: args.jq })
+            Ok(Self { path_type: Path::PluginsInstallGithubResponseSchema, jq: args.jq })
         }
     }
 

@@ -5,8 +5,16 @@ use crate::cli::command::{CommandRequest, RemotePathCommitOptionalOrFavorite};
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.functions.profiles.Request")]
 pub struct Request {
+    pub path_type: Path,
     pub path: RemotePathCommitOptionalOrFavorite,
     pub jq: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.functions.profiles.Path")]
+pub enum Path {
+    #[serde(rename = "functions/profiles/get")]
+    FunctionsProfilesGet,
 }
 
 impl CommandRequest for Request {
@@ -62,7 +70,7 @@ impl TryFrom<Args> for Request {
             .path
             .parse::<RemotePathCommitOptionalOrFavorite>()
             .map_err(|msg| crate::cli::command::FromArgsError::path_parse("path", msg))?;
-        Ok(Self { path, jq: args.jq })
+        Ok(Self { path_type: Path::FunctionsProfilesGet, path, jq: args.jq })
     }
 }
 
@@ -94,7 +102,7 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -126,7 +134,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::FunctionsProfilesGetRequestSchema, jq: args.jq })
+            Ok(Self { path_type: Path::FunctionsProfilesGetRequestSchema, jq: args.jq })
         }
     }
 
@@ -160,7 +168,7 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -192,7 +200,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::FunctionsProfilesGetResponseSchema, jq: args.jq })
+            Ok(Self { path_type: Path::FunctionsProfilesGetResponseSchema, jq: args.jq })
         }
     }
 

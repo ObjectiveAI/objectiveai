@@ -6,7 +6,7 @@ use crate::cli::command::CommandRequest;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.functions.Request")]
 pub struct Request {
-    pub path: Path,
+    pub path_type: Path,
     pub repository: String,
     pub body: RequestBody,
     pub message: RequestPublishMessage,
@@ -176,7 +176,7 @@ impl TryFrom<Args> for Request {
         } else {
             RequestPublishMessage::File(args.message_file.unwrap())
         };
-        Ok(Self { path: Path::FunctionsPublish,
+        Ok(Self { path_type: Path::FunctionsPublish,
             repository: args.repository,
             body,
             message,
@@ -221,7 +221,7 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -253,7 +253,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::FunctionsPublishRequestSchema, jq: args.jq })
+            Ok(Self { path_type: Path::FunctionsPublishRequestSchema, jq: args.jq })
         }
     }
 
@@ -287,7 +287,7 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -319,7 +319,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::FunctionsPublishResponseSchema, jq: args.jq })
+            Ok(Self { path_type: Path::FunctionsPublishResponseSchema, jq: args.jq })
         }
     }
 

@@ -175,7 +175,7 @@ where
     E::Error: std::fmt::Display + Send + 'static,
 {
     let request = plugins::list::Request {
-        path: plugins::list::Path::PluginsList,
+        path_type: plugins::list::Path::PluginsList,
         offset: None,
         limit: None,
         jq: None,
@@ -193,7 +193,7 @@ where
     E::Error: std::fmt::Display + Send + 'static,
 {
     let request = tools::list::Request {
-        path: tools::list::Path::ToolsList,
+        path_type: tools::list::Path::ToolsList,
         offset: None,
         limit: None,
         jq: None,

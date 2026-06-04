@@ -5,7 +5,7 @@ use crate::cli::command::CommandRequest;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.config.functions.profiles.favorites.Request")]
 pub struct Request {
-    pub path: Path,
+    pub path_type: Path,
     pub name: String,
 }
 
@@ -50,7 +50,7 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path: Path::ConfigFunctionsProfilesFavoritesDel, name: args.name })
+        Ok(Self { path_type: Path::ConfigFunctionsProfilesFavoritesDel, name: args.name })
     }
 }
 
@@ -69,7 +69,7 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -101,7 +101,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::ConfigFunctionsProfilesFavoritesDelRequestSchema, jq: args.jq })
+            Ok(Self { path_type: Path::ConfigFunctionsProfilesFavoritesDelRequestSchema, jq: args.jq })
         }
     }
 
@@ -135,7 +135,7 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -167,7 +167,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::ConfigFunctionsProfilesFavoritesDelResponseSchema, jq: args.jq })
+            Ok(Self { path_type: Path::ConfigFunctionsProfilesFavoritesDelResponseSchema, jq: args.jq })
         }
     }
 

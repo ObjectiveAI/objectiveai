@@ -5,7 +5,7 @@ use crate::cli::command::CommandRequest;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.logs.agents.completions.response.messages.tool.video.Request")]
 pub struct Request {
-    pub path: Path,
+    pub path_type: Path,
     pub id: String,
     pub message_index: u64,
     pub media_index: u64,
@@ -69,7 +69,7 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path: Path::LogsAgentsCompletionsResponseMessagesToolVideoGet,
+        Ok(Self { path_type: Path::LogsAgentsCompletionsResponseMessagesToolVideoGet,
             id: args.id,
             message_index: args.message_index,
             media_index: args.media_index,
@@ -106,7 +106,7 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -138,7 +138,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::LogsAgentsCompletionsResponseMessagesToolVideoGetRequestSchema, jq: args.jq })
+            Ok(Self { path_type: Path::LogsAgentsCompletionsResponseMessagesToolVideoGetRequestSchema, jq: args.jq })
         }
     }
 
@@ -172,7 +172,7 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -204,7 +204,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::LogsAgentsCompletionsResponseMessagesToolVideoGetResponseSchema, jq: args.jq })
+            Ok(Self { path_type: Path::LogsAgentsCompletionsResponseMessagesToolVideoGetResponseSchema, jq: args.jq })
         }
     }
 

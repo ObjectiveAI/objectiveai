@@ -5,7 +5,7 @@ use crate::cli::command::CommandRequest;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.logs.functions.executions.response.retry_tokens.Request")]
 pub struct Request {
-    pub path: Path,
+    pub path_type: Path,
     pub id: String,
     pub timeout_ms: u64,
     pub require_modification: bool,
@@ -72,7 +72,7 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path: Path::LogsFunctionsExecutionsResponseRetryTokensSubscribe,
+        Ok(Self { path_type: Path::LogsFunctionsExecutionsResponseRetryTokensSubscribe,
             id: args.id,
             timeout_ms: args.timeout_ms,
             require_modification: args.require_modification,
@@ -109,7 +109,7 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -141,7 +141,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::LogsFunctionsExecutionsResponseRetryTokensSubscribeRequestSchema, jq: args.jq })
+            Ok(Self { path_type: Path::LogsFunctionsExecutionsResponseRetryTokensSubscribeRequestSchema, jq: args.jq })
         }
     }
 
@@ -175,7 +175,7 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -207,7 +207,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::LogsFunctionsExecutionsResponseRetryTokensSubscribeResponseSchema, jq: args.jq })
+            Ok(Self { path_type: Path::LogsFunctionsExecutionsResponseRetryTokensSubscribeResponseSchema, jq: args.jq })
         }
     }
 

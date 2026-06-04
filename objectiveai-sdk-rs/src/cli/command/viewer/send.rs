@@ -5,9 +5,17 @@ use crate::cli::command::CommandRequest;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.viewer.Request")]
 pub struct Request {
+    pub path_type: Path,
     pub path: String,
     pub body: serde_json::Value,
     pub jq: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.viewer.Path")]
+pub enum Path {
+    #[serde(rename = "viewer/send")]
+    ViewerSend,
 }
 
 impl CommandRequest for Request {
@@ -70,6 +78,7 @@ impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
         Ok(Self {
+            path_type: Path::ViewerSend,
             path: args.path,
             body: args.body,
             jq: args.jq,
@@ -112,7 +121,7 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -144,7 +153,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::ViewerSendRequestSchema, jq: args.jq })
+            Ok(Self { path_type: Path::ViewerSendRequestSchema, jq: args.jq })
         }
     }
 
@@ -178,7 +187,7 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -210,7 +219,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::ViewerSendResponseSchema, jq: args.jq })
+            Ok(Self { path_type: Path::ViewerSendResponseSchema, jq: args.jq })
         }
     }
 

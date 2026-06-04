@@ -94,7 +94,7 @@ async fn test_twenty_agents_json_schema_10x_tools_seed_42() {
         "responses": ["A", "B"],
     });
 
-    let request = Request { path: objectiveai_sdk::cli::command::functions::executions::create::standard::Path::FunctionsExecutionsCreateStandard,
+    let request = Request { path_type: objectiveai_sdk::cli::command::functions::executions::create::standard::Path::FunctionsExecutionsCreateStandard,
         function,
         profile,
         input: RequestInput::Inline(

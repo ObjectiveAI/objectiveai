@@ -6,7 +6,7 @@ use crate::cli::command::agents::spawn::AgentSpec;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.functions.inventions.recursive.create.Request")]
 pub struct Request {
-    pub path: Path,
+    pub path_type: Path,
     pub params: RequestParams,
     pub agent: AgentSpec,
     pub continuation: Option<String>,
@@ -189,7 +189,7 @@ impl TryFrom<Args> for Request {
         } else {
             None
         };
-        Ok(Self { path: Path::FunctionsInventionsRecursiveCreateAlphaScalar,
+        Ok(Self { path_type: Path::FunctionsInventionsRecursiveCreateAlphaScalar,
             params: RequestParams {
                 name: args.name,
                 spec: args.spec,
@@ -278,7 +278,7 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -310,7 +310,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::FunctionsInventionsRecursiveCreateAlphaScalarRequestSchema, jq: args.jq })
+            Ok(Self { path_type: Path::FunctionsInventionsRecursiveCreateAlphaScalarRequestSchema, jq: args.jq })
         }
     }
 
@@ -344,7 +344,7 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -376,7 +376,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::FunctionsInventionsRecursiveCreateAlphaScalarResponseSchema, jq: args.jq })
+            Ok(Self { path_type: Path::FunctionsInventionsRecursiveCreateAlphaScalarResponseSchema, jq: args.jq })
         }
     }
 

@@ -21,7 +21,7 @@ pub enum RequestMessageKind {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.read.Request")]
 pub struct Request {
-    pub path: Path,
+    pub path_type: Path,
     pub agent_instance_hierarchy: String,
     pub kind: Option<RequestMessageKind>,
     pub jq: Option<String>,
@@ -118,7 +118,7 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path: Path::AgentsReadSubscribe,
+        Ok(Self { path_type: Path::AgentsReadSubscribe,
             agent_instance_hierarchy: args.agent_instance_hierarchy,
             kind: args.kind,
             jq: args.jq,
@@ -161,7 +161,7 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -193,7 +193,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::AgentsReadSubscribeRequestSchema, jq: args.jq })
+            Ok(Self { path_type: Path::AgentsReadSubscribeRequestSchema, jq: args.jq })
         }
     }
 
@@ -227,7 +227,7 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -259,7 +259,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::AgentsReadSubscribeResponseSchema, jq: args.jq })
+            Ok(Self { path_type: Path::AgentsReadSubscribeResponseSchema, jq: args.jq })
         }
     }
 

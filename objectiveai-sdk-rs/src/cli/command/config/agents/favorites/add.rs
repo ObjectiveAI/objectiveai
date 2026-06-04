@@ -6,9 +6,17 @@ use crate::cli::command::CommandRequest;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.config.agents.favorites.Request")]
 pub struct Request {
+    pub path_type: Path,
     pub name: String,
     pub path: RemotePathCommitOptional,
     pub note: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.config.agents.favorites.Path")]
+pub enum Path {
+    #[serde(rename = "config/agents/favorites/add")]
+    ConfigAgentsFavoritesAdd,
 }
 
 impl CommandRequest for Request {
@@ -68,6 +76,7 @@ impl TryFrom<Args> for Request {
             .parse::<RemotePathCommitOptional>()
             .map_err(|msg| crate::cli::command::FromArgsError::path_parse("path", msg))?;
         Ok(Self {
+            path_type: Path::ConfigAgentsFavoritesAdd,
             name: args.name,
             path,
             note: args.note,
@@ -90,7 +99,7 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -122,7 +131,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::ConfigAgentsFavoritesAddRequestSchema, jq: args.jq })
+            Ok(Self { path_type: Path::ConfigAgentsFavoritesAddRequestSchema, jq: args.jq })
         }
     }
 
@@ -156,7 +165,7 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -188,7 +197,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::ConfigAgentsFavoritesAddResponseSchema, jq: args.jq })
+            Ok(Self { path_type: Path::ConfigAgentsFavoritesAddResponseSchema, jq: args.jq })
         }
     }
 

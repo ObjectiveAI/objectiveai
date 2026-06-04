@@ -5,7 +5,7 @@ use crate::cli::command::CommandRequest;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.functions.Request")]
 pub struct Request {
-    pub path: Path,
+    pub path_type: Path,
     pub source: RequestSource,
     pub jq: Option<String>,
 }
@@ -104,7 +104,7 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path: Path::FunctionsList,
+        Ok(Self { path_type: Path::FunctionsList,
             source: args.source,
             jq: args.jq,
         })
@@ -153,7 +153,7 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -185,7 +185,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::FunctionsListRequestSchema, jq: args.jq })
+            Ok(Self { path_type: Path::FunctionsListRequestSchema, jq: args.jq })
         }
     }
 
@@ -219,7 +219,7 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -251,7 +251,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::FunctionsListResponseSchema, jq: args.jq })
+            Ok(Self { path_type: Path::FunctionsListResponseSchema, jq: args.jq })
         }
     }
 

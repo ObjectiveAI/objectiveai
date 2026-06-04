@@ -5,7 +5,7 @@ use crate::cli::command::CommandRequest;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.logs.agents.completions.response.messages.refusal.Request")]
 pub struct Request {
-    pub path: Path,
+    pub path_type: Path,
     pub id: String,
     pub message_index: u64,
     pub timeout_ms: u64,
@@ -76,7 +76,7 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path: Path::LogsAgentsCompletionsResponseMessagesRefusalSubscribe,
+        Ok(Self { path_type: Path::LogsAgentsCompletionsResponseMessagesRefusalSubscribe,
             id: args.id,
             message_index: args.message_index,
             timeout_ms: args.timeout_ms,
@@ -114,7 +114,7 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -146,7 +146,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::LogsAgentsCompletionsResponseMessagesRefusalSubscribeRequestSchema, jq: args.jq })
+            Ok(Self { path_type: Path::LogsAgentsCompletionsResponseMessagesRefusalSubscribeRequestSchema, jq: args.jq })
         }
     }
 
@@ -180,7 +180,7 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -212,7 +212,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::LogsAgentsCompletionsResponseMessagesRefusalSubscribeResponseSchema, jq: args.jq })
+            Ok(Self { path_type: Path::LogsAgentsCompletionsResponseMessagesRefusalSubscribeResponseSchema, jq: args.jq })
         }
     }
 

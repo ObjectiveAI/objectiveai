@@ -637,7 +637,7 @@ async fn dial_plugin_upstream(
     }
 
     let request = objectiveai_sdk::cli::command::plugins::run::Request {
-        path: objectiveai_sdk::cli::command::plugins::run::Path::PluginsRun,
+        path_type: objectiveai_sdk::cli::command::plugins::run::Path::PluginsRun,
         name: plugin_name.clone(),
         args: argv,
         jq: None,

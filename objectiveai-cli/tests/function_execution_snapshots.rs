@@ -122,7 +122,7 @@ macro_rules! snapshot_test {
                 return;
             }
             let request = Request {
-                path: objectiveai_sdk::cli::command::functions::executions::create::standard::Path::FunctionsExecutionsCreateStandard,
+                path_type: objectiveai_sdk::cli::command::functions::executions::create::standard::Path::FunctionsExecutionsCreateStandard,
                 function: mock_function_spec($function),
                 profile: mock_profile_spec($profile),
                 input: RequestInput::Inline(
@@ -198,7 +198,7 @@ async fn split_tweet_scorer_10_tweets_seed_42() {
     });
 
     let request = Request {
-        path: objectiveai_sdk::cli::command::functions::executions::create::standard::Path::FunctionsExecutionsCreateStandard,
+        path_type: objectiveai_sdk::cli::command::functions::executions::create::standard::Path::FunctionsExecutionsCreateStandard,
         function: mock_function_spec("tweet-scorer"),
         profile: inline_profile_spec(profile_json),
         input: RequestInput::Inline(

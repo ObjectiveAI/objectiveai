@@ -5,8 +5,16 @@ use crate::cli::command::{CommandRequest, RemotePathCommitOptionalOrFavorite};
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.functions.Request")]
 pub struct Request {
+    pub path_type: Path,
     pub path: RemotePathCommitOptionalOrFavorite,
     pub jq: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.functions.Path")]
+pub enum Path {
+    #[serde(rename = "functions/get")]
+    FunctionsGet,
 }
 
 impl CommandRequest for Request {
@@ -61,7 +69,7 @@ impl TryFrom<Args> for Request {
             .path
             .parse::<RemotePathCommitOptionalOrFavorite>()
             .map_err(|msg| crate::cli::command::FromArgsError::path_parse("path", msg))?;
-        Ok(Self { path, jq: args.jq })
+        Ok(Self { path_type: Path::FunctionsGet, path, jq: args.jq })
     }
 }
 
@@ -93,7 +101,7 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -125,7 +133,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::FunctionsGetRequestSchema, jq: args.jq })
+            Ok(Self { path_type: Path::FunctionsGetRequestSchema, jq: args.jq })
         }
     }
 
@@ -159,7 +167,7 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -191,7 +199,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::FunctionsGetResponseSchema, jq: args.jq })
+            Ok(Self { path_type: Path::FunctionsGetResponseSchema, jq: args.jq })
         }
     }
 

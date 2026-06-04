@@ -56,7 +56,7 @@ fn laboratories_local() {
     let profile = std::env::var("PROFILE").unwrap();
 
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-    let workspace_dir = std::path::Path::new(&manifest_dir).parent().unwrap();
+    let workspace_dir = std::path_type::Path::new(&manifest_dir).parent().unwrap();
 
     let module = "objectiveai-mcp-filesystem";
     let validate_script = workspace_dir.join(module).join("validate.sh");
@@ -92,7 +92,7 @@ fn codex_sdk_runner() {
     let target = std::env::var("TARGET").unwrap();
     let profile = std::env::var("PROFILE").unwrap();
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-    let workspace_dir = std::path::Path::new(&manifest_dir).parent().unwrap();
+    let workspace_dir = std::path_type::Path::new(&manifest_dir).parent().unwrap();
 
     let validate_script = workspace_dir
         .join("objectiveai-codex-sdk-runner")
@@ -131,7 +131,7 @@ fn claude_agent_sdk_runner() {
     let target = std::env::var("TARGET").unwrap();
     let profile = std::env::var("PROFILE").unwrap();
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-    let workspace_dir = std::path::Path::new(&manifest_dir).parent().unwrap();
+    let workspace_dir = std::path_type::Path::new(&manifest_dir).parent().unwrap();
 
     let validate_script = workspace_dir
         .join("objectiveai-claude-agent-sdk-runner")

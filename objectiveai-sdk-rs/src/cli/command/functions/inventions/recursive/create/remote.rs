@@ -7,7 +7,7 @@ use crate::functions::inventions::state::ParamsState;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.functions.inventions.recursive.create.Request")]
 pub struct Request {
-    pub path: Path,
+    pub path_type: Path,
     pub state: RequestState,
     pub agent: AgentSpec,
     pub continuation: Option<String>,
@@ -179,7 +179,7 @@ impl TryFrom<Args> for Request {
         } else {
             None
         };
-        Ok(Self { path: Path::FunctionsInventionsRecursiveCreateRemote,
+        Ok(Self { path_type: Path::FunctionsInventionsRecursiveCreateRemote,
             state,
             agent,
             continuation: args.continuation,
@@ -260,7 +260,7 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -292,7 +292,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::FunctionsInventionsRecursiveCreateRemoteRequestSchema, jq: args.jq })
+            Ok(Self { path_type: Path::FunctionsInventionsRecursiveCreateRemoteRequestSchema, jq: args.jq })
         }
     }
 
@@ -326,7 +326,7 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -358,7 +358,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::FunctionsInventionsRecursiveCreateRemoteResponseSchema, jq: args.jq })
+            Ok(Self { path_type: Path::FunctionsInventionsRecursiveCreateRemoteResponseSchema, jq: args.jq })
         }
     }
 

@@ -5,7 +5,7 @@ use crate::cli::command::CommandRequest;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.logs.agents.completions.request.notifications.file.Request")]
 pub struct Request {
-    pub path: Path,
+    pub path_type: Path,
     pub response_id: String,
     pub index: u64,
     pub media_index: u64,
@@ -69,7 +69,7 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path: Path::LogsAgentsCompletionsRequestNotificationsFileGet,
+        Ok(Self { path_type: Path::LogsAgentsCompletionsRequestNotificationsFileGet,
             response_id: args.response_id,
             index: args.index,
             media_index: args.media_index,
@@ -106,7 +106,7 @@ pub mod request_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -138,7 +138,7 @@ pub mod request_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::LogsAgentsCompletionsRequestNotificationsFileGetRequestSchema, jq: args.jq })
+            Ok(Self { path_type: Path::LogsAgentsCompletionsRequestNotificationsFileGetRequestSchema, jq: args.jq })
         }
     }
 
@@ -172,7 +172,7 @@ pub mod response_schema {
 
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     pub struct Request {
-        pub path: Path,
+        pub path_type: Path,
         pub jq: Option<String>,
     }
 
@@ -204,7 +204,7 @@ pub mod response_schema {
     impl TryFrom<Args> for Request {
         type Error = crate::cli::command::FromArgsError;
         fn try_from(args: Args) -> Result<Self, Self::Error> {
-            Ok(Self { path: Path::LogsAgentsCompletionsRequestNotificationsFileGetResponseSchema, jq: args.jq })
+            Ok(Self { path_type: Path::LogsAgentsCompletionsRequestNotificationsFileGetResponseSchema, jq: args.jq })
         }
     }
 
