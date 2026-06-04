@@ -1,0 +1,2 @@
+{"type":"cli_command","destination":"test-iframe","value":{"Config":{"Viewer":{"Get":{}}}}}
+{"type":"cli_command","destination":"test-iframe","value":{"type":"end"}}

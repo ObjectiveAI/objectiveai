@@ -15,9 +15,10 @@ export * from "./generatedIndex";
  *   - `listen(sub_type, handler)` registers a callback for incoming
  *     `inbound` events forwarded by the host bridge.
  *   - `invokeCli(args)` posts a `cli-invoke` message to the host;
- *     the host runs `objectiveai_cli::run()` and streams each output
- *     line back as a `cli_command` event. The returned AsyncIterable
- *     yields each line and terminates on `{"type":"end"}`.
+ *     the host spawns the objectiveai cli binary and streams each
+ *     output line back as a `cli_command` event. The returned
+ *     AsyncIterable yields each line and terminates on the host's
+ *     synthetic `{"type":"end"}` marker.
  *
  * Dev context (plugin author runs their own Tauri shell standalone):
  *   - `window.parent === window` (no host).
@@ -132,13 +133,16 @@ export function listen<T = unknown>(
 }
 
 /**
- * Invoke `objectiveai-cli` in-process on the host with `args`.
- * Returns an `AsyncIterable<unknown>` over the JSONL output lines
- * the cli emits. Each yielded value is the parsed cli output
- * envelope: either `{"type":"error",…}` or
+ * Run the objectiveai cli binary on the host with `args` (the host
+ * spawns it via the SDK's BinaryExecutor). Returns an
+ * `AsyncIterable<unknown>` over the JSONL output lines the cli
+ * emits. Each yielded value is the parsed cli output envelope:
+ * either `{"type":"error",…}` or
  * `{"type":"notification","value":{"kind":"<variant>",…}}`. The
  * inner `kind` discriminator selects a `NotificationValue` variant
- * (see the schemas under `cli.output.notification.*`).
+ * (see the schemas under `cli.output.notification.*`). The host
+ * appends a synthetic `{"type":"end"}` line when the cli's stdout
+ * closes; the iterator terminates on it.
  *
  * The plugin author never specifies `destination` — the host bridge
  * derives it from the iframe's identity. To run multiple cli
@@ -147,10 +151,10 @@ export function listen<T = unknown>(
  * iframe produce interleaved streams that this shim cannot demux
  * (no per-invocation sub_type on `cli_command` events).
  *
- * Requires the host viewer to be built with the `cli` Cargo feature.
- * Without it, the host's `cli_run` Tauri command isn't registered
- * and the invocation falls through to a Tauri "command not found"
- * error (silently ignored here — the iterator just yields nothing).
+ * Requires the objectiveai cli to be installed on the host
+ * (`~/.objectiveai/objectiveai`). When the spawn fails the host
+ * streams back a `{"type":"error",…}` envelope followed by
+ * `{"type":"end"}`, so the iterator still terminates.
  */
 export function invokeCli(args: string[]): AsyncIterable<unknown> {
   return {
@@ -165,7 +169,9 @@ export function invokeCli(args: string[]): AsyncIterable<unknown> {
         if (!msg || typeof msg !== "object") return;
         if (msg.kind !== "plugin-event" || msg.type !== "cli_command") return;
         queue.push(msg.value);
-        // End-of-stream signal: cli emits {"type":"end"} as its last line.
+        // End-of-stream signal: the HOST synthesizes {"type":"end"}
+        // when the spawned cli's stdout closes — the cli itself never
+        // emits it.
         if (
           typeof msg.value === "object" &&
           msg.value !== null &&

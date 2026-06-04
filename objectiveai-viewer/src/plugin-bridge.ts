@@ -13,9 +13,9 @@
  *     The iframe's `listen(sub_type, handler)` matches on the
  *     `sub_type` discriminator.
  *
- *   - `cli_command` — one line of stdout from an in-process
- *     `objectiveai_cli::run()` invocation that this iframe started
- *     via `invokeCli`. No sub_type.
+ *   - `cli_command` — one stdout JSONL line from an objectiveai cli
+ *     binary the host spawned for an `invokeCli` this iframe started,
+ *     terminated by a synthetic `{"type":"end"}` line. No sub_type.
  *
  *   - `api_call` — one envelope (begin / chunk / error / end) from a
  *     viewer-mode `ObjectiveAI` client call that this iframe started

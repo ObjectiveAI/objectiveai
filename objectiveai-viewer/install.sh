@@ -41,10 +41,12 @@ case "$(uname -s)" in
 esac
 
 # ── Build embedded binaries ────────────────────────────────────────────
-# The viewer with `--features cli` pulls in objectiveai-cli, which
-# pulls in objectiveai-api — and the api's build.rs always reaches
-# into both sdk-runner sibling crates and the linux-musl
-# mcp-filesystem. Same per-host artifact chain the cli release uses.
+# The viewer no longer links objectiveai-cli (cli_run spawns the
+# installed cli binary at runtime via the SDK's BinaryExecutor), but
+# the sdk-runner + mcp-filesystem artifacts are still produced here so
+# a viewer install leaves the same on-disk layout the cli install
+# expects. TODO: reassess whether these are still needed for a
+# standalone viewer install.
 
 echo "Building embedded dependencies..."
 
@@ -67,12 +69,12 @@ echo "Installing JS workspace dependencies..."
 # ── Build viewer binary ────────────────────────────────────────────────
 # `tauri build --no-bundle` produces just the raw exe — no .dmg /
 # .msi / .AppImage installer wrappers. Matches the CLI embed path
-# (objectiveai-viewer/build.sh also uses --no-bundle).
-# --features cli enables the in-process cli + api routes the viewer's
-# Tauri commands (cli_run, api_call_run) require.
+# (objectiveai-viewer/build.sh also uses --no-bundle). cli_run is
+# always compiled in; it spawns `~/.objectiveai/objectiveai` at
+# runtime, so no cargo feature is needed.
 
-echo "Building objectiveai-viewer (release, features: cli, target: $HOST_TARGET)..."
-(cd "$SCRIPT_DIR/src-tauri" && pnpm exec tauri build --no-bundle --features cli --target "$HOST_TARGET")
+echo "Building objectiveai-viewer (release, target: $HOST_TARGET)..."
+(cd "$SCRIPT_DIR/src-tauri" && pnpm exec tauri build --no-bundle --target "$HOST_TARGET")
 
 SRC="$REPO_ROOT/target/$HOST_TARGET/release/$SRC_NAME"
 if [ ! -f "$SRC" ]; then

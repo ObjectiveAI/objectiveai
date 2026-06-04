@@ -531,9 +531,10 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
             schemars::schema_for!(crate::cli::command::plugins::run::McpType),
         ]);
     }
-    // Viewer-side schemas removed: the `crate::viewer` module is
-    // currently commented out in lib.rs (broken cli::output bridge).
-    // Re-add when the module is restored.
+    #[cfg(feature = "viewer")]
+    {
+        schemas.extend([schemars::schema_for!(crate::viewer::Event)]);
+    }
     #[cfg(feature = "http")]
     {
         schemas.extend([
