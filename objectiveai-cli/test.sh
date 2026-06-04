@@ -31,10 +31,6 @@ cleanup() {
     kill "$CLI_TEST_API_PID" 2>/dev/null || true
     wait "$CLI_TEST_API_PID" 2>/dev/null || true
   fi
-  if [ -n "${CLI_TEST_MCP_PID:-}" ]; then
-    kill "$CLI_TEST_MCP_PID" 2>/dev/null || true
-    wait "$CLI_TEST_MCP_PID" 2>/dev/null || true
-  fi
 }
 trap cleanup EXIT INT TERM
 cleanup  # start from a clean slate as well
@@ -55,14 +51,12 @@ if [ -z "${OBJECTIVEAI_TEST_PORT:-}" ]; then
   export OBJECTIVEAI_TEST_PORT="$PORT"
 fi
 
-# Spawn the test MCP filesystem server only if not already provided.
-# Required for the snapshot tests that exercise `client_objectiveai_mcp`
-# reverse-attach: the CLI's `ConduitMcpHandler` dials this URL on every
-# inbound `server_request` from the API's MCP proxy.
-if [ -z "${OBJECTIVEAI_MCP_ADDRESS:-}" ]; then
-  read -r MCP_URL CLI_TEST_MCP_PID < <(bash "$REPO_ROOT/test-spawn-mcp-server.sh" 2>>"$LOG_FILE")
-  export OBJECTIVEAI_MCP_ADDRESS="$MCP_URL"
-fi
+# Seed the shared CLI tool-fixtures registry the integration tests
+# rely on. The conduit dials its embedded `objectiveai-mcp` (since the
+# in-process refactor) so no standalone server is spawned — but the
+# on-disk `tools/` registry is still consumed by
+# `filesystem::Client::list_tools` inside every cli child.
+bash "$REPO_ROOT/test-seed-tool-fixtures.sh" 2>>"$LOG_FILE"
 
 # Run tests, capture all output
 if cargo test --manifest-path "$SCRIPT_DIR/Cargo.toml" "${CARGO_ARGS[@]}" > "$LOG_FILE" 2>&1; then

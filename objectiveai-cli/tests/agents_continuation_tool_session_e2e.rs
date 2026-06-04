@@ -78,14 +78,14 @@ async fn poll_until<F: Fn() -> bool>(timeout: Duration, pred: F) -> Result<(), (
     Err(())
 }
 
-/// The test runs against the shared `objectiveai-mcp` server spawned
-/// by `test-spawn-mcp-server.sh`, which has already registered
-/// `testorg/tool{0..9}/1.0.0` manifests pointing at the `echo-arglen`
-/// binary. We **commandeer** that binary by overwriting it with our
-/// `count-tool` build — `count-tool` falls back to the `_default`
-/// session id when `MCP_SESSION_ID` is unset, so any test that
-/// happens to dispatch one of these tools without setting the env
-/// still gets a valid (just session-less) output.
+/// The test runs against the shared `_mcp_session/tools/` fixture
+/// registry seeded by `test-seed-tool-fixtures.sh`, which has
+/// already laid down `testorg/tool{0..9}/1.0.0` manifests pointing
+/// at the `echo-arglen` binary. We **commandeer** that binary by
+/// overwriting it with our `count-tool` build — `count-tool` falls
+/// back to the `_default` session id when `MCP_SESSION_ID` is unset,
+/// so any test that happens to dispatch one of these tools without
+/// setting the env still gets a valid (just session-less) output.
 fn install_count_tool_over_echo_arglen() {
     let exec_name = if cfg!(windows) {
         "echo-arglen.exe"
@@ -95,8 +95,8 @@ fn install_count_tool_over_echo_arglen() {
     let dest = cli_test_util::mcp_session_shared_dir().join("tools").join(exec_name);
     assert!(
         dest.exists(),
-        "expected the test mcp server's echo-arglen at {} — \
-         did `test-spawn-mcp-server.sh` run?",
+        "expected the fixture echo-arglen at {} — \
+         did `test-seed-tool-fixtures.sh` run?",
         dest.display(),
     );
     let bin = count_tool_binary();
@@ -265,13 +265,14 @@ async fn two_agents_continuations_count_persists_per_session() {
     }
 
     // Use the shared MCP-session scratch dir — the same path
-    // `test-spawn-mcp-server.sh` pins as CONFIG_BASE_DIR for the
-    // spawned MCP server, so the two processes see one `tools/`
-    // registry. This dir sits OUTSIDE the per-binary run-start
+    // `test-seed-tool-fixtures.sh` lays the `tools/` fixtures into
+    // and that every cli child stamps as its `CONFIG_BASE_DIR`, so
+    // the in-process objectiveai-mcp server inside each cli sees
+    // the registry. This dir sits OUTSIDE the per-binary run-start
     // wipe (it's at `.objectiveai-tests/_mcp_session/`, not under
     // a `<binary>/` subfolder), so we still hand-wipe `logs`/
-    // `pipes` here to clear prior-run state without nuking
-    // `tools/` (which the MCP server registered at startup).
+    // `pipes` here to clear prior-run state without nuking the
+    // fixture `tools/`.
     let base_dir = cli_test_util::mcp_session_shared_dir();
     for sub in &["logs", "pipes"] {
         let p = base_dir.join(sub);

@@ -15,8 +15,8 @@
 //! --nocapture` when you need to find it.
 //!
 //! Carve-out: [`mcp_session_shared_dir`] returns a fixed
-//! `.objectiveai-tests/_mcp_session/` shared with the external test
-//! mcp server started by `test-spawn-mcp-server.sh`. Only used by
+//! `.objectiveai-tests/_mcp_session/` shared with the tool-fixture
+//! registry seeded by `test-seed-tool-fixtures.sh`. Only used by
 //! the agents-continuation tool-session test.
 
 use std::path::{Path, PathBuf};
@@ -140,10 +140,12 @@ pub fn test_base_dir() -> PathBuf {
 }
 
 /// Fixed `.objectiveai-tests/_mcp_session/` — the dedicated base
-/// dir shared with `test-spawn-mcp-server.sh` so the test mcp server
-/// and the cli child agree on where the `tools/` registry lives.
+/// dir `test-seed-tool-fixtures.sh` lays the fixture `tools/`
+/// registry into, and that every cli child stamps as its
+/// `CONFIG_BASE_DIR` so its in-process objectiveai-mcp server
+/// discovers the fixtures via `filesystem::Client::list_tools`.
 /// Used only by `agents_continuation_tool_session_e2e` and the
-/// script. **Not** cleared by [`binary_dir`]'s `Once`; the
+/// fixture script. **Not** cleared by [`binary_dir`]'s `Once`; the
 /// underscore-prefix puts it at the `tests_root` level, parallel to
 /// the per-binary subfolders.
 pub fn mcp_session_shared_dir() -> PathBuf {
