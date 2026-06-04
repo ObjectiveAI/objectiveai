@@ -22,8 +22,10 @@
 #   - on branch `main`
 #   - tag `objectiveai-sdk-go/v<version>` does not already exist on origin
 #
-# Version is read from `objectiveai-sdk-rs/Cargo.toml` (the canonical version
-# source — `version.sh` keeps every package in lockstep).
+# Version is read from `objectiveai-sdk-go/version.txt` — the Go SDK's
+# OWN version, independent of the repo's lockstep version. `version.sh`
+# writes this file on a full lockstep bump, but it can be edited alone
+# to release (or hold back) the Go SDK independently.
 
 set -euo pipefail
 
@@ -44,10 +46,10 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Read canonical version from objectiveai-sdk-rs/Cargo.toml
-VERSION="$(awk '/^version = "/ { gsub(/version = "|"/, ""); print; exit }' "$REPO_ROOT/objectiveai-sdk-rs/Cargo.toml")"
+# Read the Go SDK's own version from version.txt
+VERSION="$(tr -d ' \r\n' < "$SCRIPT_DIR/version.txt" 2>/dev/null || true)"
 if [[ -z "$VERSION" ]]; then
-  echo "ERROR: could not read version from objectiveai-sdk-rs/Cargo.toml" >&2
+  echo "ERROR: could not read version from $SCRIPT_DIR/version.txt" >&2
   exit 1
 fi
 TAG="objectiveai-sdk-go/v$VERSION"

@@ -21,6 +21,17 @@ VERSION="$(awk '/^version = "/ { gsub(/version = "|"/, ""); print; exit }' "$REP
 TIMEOUT_SECS=1200   # 20 minutes per package
 POLL_SECS=15
 
+# Per-package version: the Go SDK versions independently via
+# objectiveai-sdk-go/version.txt (its publish.sh reads the same file);
+# every other package follows the canonical lockstep VERSION above.
+version_for_dir() {
+  if [[ "$1" == "objectiveai-sdk-go" ]]; then
+    tr -d ' \r\n' < "$REPO_ROOT/objectiveai-sdk-go/version.txt"
+  else
+    printf '%s' "$VERSION"
+  fi
+}
+
 # Entries: "<dir>|<registry>|<published-name>"
 # registry ∈ {crates, pypi, npm, go, github-release}
 WAVE_1=(
@@ -117,11 +128,12 @@ run_wave() {
   #    package already live at the current VERSION (idempotence).
   local pids=() labels=() to_wait=()
   for entry in "${entries[@]}"; do
-    local dir registry name
+    local dir registry name pkg_version
     IFS='|' read -r dir registry name <<<"$entry"
     [[ -z "$name" ]] && name="$dir"
-    if is_live "$registry" "$name" "$VERSION"; then
-      echo "  · $dir already live at $VERSION on $registry — skip"
+    pkg_version="$(version_for_dir "$dir")"
+    if is_live "$registry" "$name" "$pkg_version"; then
+      echo "  · $dir already live at $pkg_version on $registry — skip"
       continue
     fi
     bash "$REPO_ROOT/$dir/publish.sh" &
@@ -143,10 +155,11 @@ run_wave() {
 
   # 3. Poll each registry until the new version is live.
   for entry in "${to_wait[@]}"; do
-    local dir registry name
+    local dir registry name pkg_version
     IFS='|' read -r dir registry name <<<"$entry"
     [[ -z "$name" ]] && name="$dir"
-    wait_for_live "$dir" "$registry" "$name" "$VERSION" || return 1
+    pkg_version="$(version_for_dir "$dir")"
+    wait_for_live "$dir" "$registry" "$name" "$pkg_version" || return 1
   done
 }
 
