@@ -145,12 +145,12 @@ pub async fn spawn_and_wait_for_listening(
 /// that uses the same `Envconfig`-based loader) round-trips its
 /// parent's config byte-identically.
 ///
-/// `Option`-typed fields are skipped on `None`, EXCEPT the five
+/// `Option`-typed fields are skipped on `None`, EXCEPT the six
 /// per-request transient identity keys (`OBJECTIVEAI_AGENT_ID`,
-/// `_FULL_ID`, `_REMOTE`, `_RESPONSE_ID`, `_RESPONSE_IDS`), which
-/// are `env_remove`'d on `None` so the child cannot inherit a stale
-/// identity from the parent's startup environment. Boolean fields
-/// are stamped only when `true`.
+/// `_FULL_ID`, `_REMOTE`, `_RESPONSE_ID`, `_RESPONSE_IDS`, and
+/// `MCP_SESSION_ID`), which are `env_remove`'d on `None` so the
+/// child cannot inherit a stale identity from the parent's startup
+/// environment. Boolean fields are stamped only when `true`.
 pub fn apply_config_env(cmd: &mut Command, cfg: &crate::Config) {
     if cfg.config_set_forbidden {
         cmd.env("CONFIG_SET_FORBIDDEN", "true");
@@ -208,8 +208,13 @@ pub fn apply_config_env(cmd: &mut Command, cfg: &crate::Config) {
             cmd.env_remove("OBJECTIVEAI_RESPONSE_IDS");
         }
     }
-    if let Some(v) = cfg.mcp_session_id.as_deref() {
-        cmd.env(objectiveai_sdk::mcp::MCP_SESSION_ID_ENV, v);
+    match cfg.mcp_session_id.as_deref() {
+        Some(v) => {
+            cmd.env(objectiveai_sdk::mcp::MCP_SESSION_ID_ENV, v);
+        }
+        None => {
+            cmd.env_remove(objectiveai_sdk::mcp::MCP_SESSION_ID_ENV);
+        }
     }
 }
 

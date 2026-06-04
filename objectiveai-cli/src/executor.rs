@@ -53,13 +53,13 @@ fn extract_leaf<T: serde::de::DeserializeOwned>(value: Value) -> Result<T, serde
 impl CliCommandExecutor {
     /// Build the per-call [`Context`] for this execute. When
     /// `agent_arguments` is `Some`, clone the base ctx and overwrite
-    /// the six per-request identity fields on its `Config`:
+    /// the seven per-request identity fields on its `Config`:
     /// `agent_id`, `agent_full_id`, `agent_remote`, `response_id`,
-    /// `response_ids` are set verbatim (including `None`, which
-    /// clears the slot), and `agent_instance_hierarchy` falls back
-    /// to `"UNKNOWN"` when missing because it's a non-nullable
-    /// String on the cli's `Config`. When `agent_arguments` is
-    /// `None`, the base ctx is borrowed unchanged.
+    /// `response_ids`, `mcp_session_id` are set verbatim (including
+    /// `None`, which clears the slot), and `agent_instance_hierarchy`
+    /// falls back to `"UNKNOWN"` when missing because it's a non-
+    /// nullable String on the cli's `Config`. When `agent_arguments`
+    /// is `None`, the base ctx is borrowed unchanged.
     fn resolve_ctx<'a>(
         &'a self,
         agent_arguments: Option<&AgentArguments>,
@@ -77,6 +77,7 @@ impl CliCommandExecutor {
                 ctx.config.agent_remote = args.agent_remote.clone();
                 ctx.config.response_id = args.response_id.clone();
                 ctx.config.response_ids = args.response_ids.clone();
+                ctx.config.mcp_session_id = args.mcp_session_id.clone();
                 std::borrow::Cow::Owned(ctx)
             }
         }

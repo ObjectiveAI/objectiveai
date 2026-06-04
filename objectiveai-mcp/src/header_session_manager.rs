@@ -108,7 +108,13 @@ where
             return Ok(());
         }
 
-        let args = extract_agent_args(message);
+        let mut args = extract_agent_args(message);
+        // Stamp the rmcp session id onto the bag so downstream tool /
+        // plugin subprocesses see this connection's `Mcp-Session-Id`
+        // as their `MCP_SESSION_ID` env. Identifies the calling agent
+        // at the tool boundary (e.g. `count-tool` keys its per-caller
+        // counter on it).
+        args.mcp_session_id = Some(id.to_string());
         self.registry.record(id.clone(), Arc::new(args)).await;
 
         let (handle, worker) = create_local_session(id.clone(), SessionConfig::default());
@@ -174,7 +180,11 @@ where
         // registry, delegate. The inner already has the handle from
         // its own `create_session` (called by tower right before
         // this).
-        let args = extract_agent_args(&message);
+        let mut args = extract_agent_args(&message);
+        // Stamp the freshly-minted rmcp session id onto the bag so
+        // downstream tool / plugin subprocesses see this connection's
+        // `Mcp-Session-Id` as their `MCP_SESSION_ID` env.
+        args.mcp_session_id = Some(id.to_string());
         self.registry.record(id.clone(), Arc::new(args)).await;
         self.inner.initialize_session(id, message).await
     }
