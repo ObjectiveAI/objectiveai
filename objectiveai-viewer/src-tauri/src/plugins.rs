@@ -39,6 +39,7 @@ pub(crate) fn plugins_dir(config_base_dir: Option<&str>) -> std::path::PathBuf {
 /// startup — a viewer with zero plugin tabs is still a working viewer.
 pub(crate) async fn list_all_plugins(executor: &BinaryExecutor) -> Vec<PluginManifest> {
     let request = plugins_list::Request {
+        path: plugins_list::Path::PluginsList,
         offset: None,
         limit: None,
         jq: None,

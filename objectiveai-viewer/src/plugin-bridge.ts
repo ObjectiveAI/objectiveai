@@ -14,8 +14,9 @@
  *     `sub_type` discriminator.
  *
  *   - `cli_command` — one stdout JSONL line from an objectiveai cli
- *     binary the host spawned for an `invokeCli` this iframe started,
- *     terminated by a synthetic `{"type":"end"}` line. No sub_type.
+ *     binary the host spawned for an `invokeCliRequest` this iframe
+ *     started, terminated by a synthetic `{"type":"end"}` line. No
+ *     sub_type.
  *
  *   - `api_call` — one envelope (begin / chunk / error / end) from a
  *     viewer-mode `ObjectiveAI` client call that this iframe started
@@ -23,13 +24,14 @@
  *     `"<METHOD>_<PATH>"` rename of the targeted endpoint, so the
  *     iframe can demux concurrent calls to *different* endpoints.
  *
- * The reverse direction (iframe -> host) carries `cli-invoke` and
- * `api-call-invoke` postMessages; this module catches them, resolves
- * the originating iframe via `MessageEvent.source`, and dispatches
- * the matching Tauri command (`cli_run` / `api_call_run`) with the
- * originator's plugin name as `origin`. Messages from unknown
- * sources are dropped (security: don't let a random iframe drive
- * the host without identity).
+ * The reverse direction (iframe -> host) carries `cli-execute` (a
+ * typed `cli::command::Request` as serde JSON — there is no raw-argv
+ * path) and `api-call-invoke` postMessages; this module catches
+ * them, resolves the originating iframe via `MessageEvent.source`,
+ * and dispatches the matching Tauri command (`cli_execute` /
+ * `api_call_run`) with the originator's plugin name as `origin`.
+ * Messages from unknown sources are dropped (security: don't let a
+ * random iframe drive the host without identity).
  */
 import { invoke } from "@tauri-apps/api/core";
 import { listen as tauriListen, type UnlistenFn } from "@tauri-apps/api/event";
@@ -165,19 +167,25 @@ function ensureReverseListener(): void {
 
 function onIframeMessage(event: MessageEvent): void {
   const msg = event.data as
-    | { kind?: string; args?: unknown; subType?: unknown; body?: unknown }
+    | {
+        kind?: string;
+        request?: unknown;
+        subType?: unknown;
+        body?: unknown;
+      }
     | null;
   if (!msg || typeof msg !== "object") return;
 
-  if (msg.kind === "cli-invoke") {
-    if (!Array.isArray(msg.args)) return;
+  if (msg.kind === "cli-execute") {
+    // Typed request: serde JSON of the SDK's `cli::command::Request`.
+    // The Rust side deserializes it and lowers it to argv via
+    // `into_command()`, then streams cli_command events back via the
+    // events bus — fire-and-forget. There is deliberately no raw-argv
+    // invocation path.
+    if (msg.request === undefined || msg.request === null) return;
     const origin = findPluginByWindow(event.source);
     if (!origin) return;
-    const args = msg.args.filter((a): a is string => typeof a === "string");
-    // Fire-and-forget. The host streams cli_command events back via
-    // the events bus; the iframe consumes them through its async
-    // iterator.
-    void invoke("cli_run", { args, origin });
+    void invoke("cli_execute", { request: msg.request, origin });
     return;
   }
 

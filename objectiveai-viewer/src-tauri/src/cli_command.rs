@@ -1,8 +1,15 @@
-//! Tauri command `cli_run` — spawns the objectiveai cli binary via the
-//! SDK's [`BinaryExecutor`] and forwards each stdout JSONL line to the
-//! iframe that invoked the cli as an
+//! Tauri command `cli_execute` — spawns the objectiveai cli binary
+//! via the SDK's [`BinaryExecutor`] and forwards each stdout JSONL
+//! line to the iframe that invoked the cli as an
 //! [`Event::CliCommand`](objectiveai_sdk::viewer::Event) event,
 //! terminated by a synthetic `{"type":"end"}` marker.
+//!
+//! `cli_execute` takes a typed
+//! [`Request`](objectiveai_sdk::cli::command::Request) as serde JSON
+//! and lowers it to argv via `into_command()` — the canonical
+//! Request→argv mapping lives in Rust, never in JS, and there is
+//! deliberately NO raw-argv Tauri command (the argv-level
+//! [`cli_run_impl`] is internal plumbing + test surface only).
 //!
 //! The plugin-bridge resolves the originating iframe (via
 //! `MessageEvent.source`) and passes its repository name as `origin`,
@@ -36,29 +43,63 @@ impl CommandRequest for RawArgs {
     }
 }
 
-/// Run the cli binary with `args`. Each emitted JSONL line is wrapped
-/// as `Event::CliCommand { destination: origin, value }` and pushed
-/// onto the viewer's events bus, where the JS bridge picks it up and
-/// forwards to the originating iframe.
+/// Run a typed [`Request`](objectiveai_sdk::cli::command::Request)
+/// (sent by the JS SDK's generated viewer execute functions as serde
+/// JSON). Deserializes it and lowers it to argv via `into_command()`,
+/// then runs the cli binary through [`cli_run_impl`]. A request that
+/// doesn't deserialize still resolves the iframe's iterator: one
+/// error envelope, then the end marker.
 ///
 /// Returns immediately after spawning the child + forwarder task; the
 /// iframe sees output asynchronously via the events channel. When the
 /// child's stdout closes, a final `{"type":"end"}` event is emitted —
-/// the JS `invokeCli` async iterator terminates only on that marker.
+/// the JS async iterator terminates only on that marker.
 #[tauri::command]
-pub async fn cli_run(
+pub async fn cli_execute(
     executor: tauri::State<'_, BinaryExecutor>,
     events_tx: tauri::State<'_, EventSender>,
-    args: Vec<String>,
+    request: serde_json::Value,
     origin: String,
 ) -> Result<(), String> {
-    cli_run_impl(executor.inner(), events_tx.inner().clone(), args, origin).await
+    cli_execute_impl(executor.inner(), events_tx.inner().clone(), request, origin).await
 }
 
-/// Tauri-free body of [`cli_run`]. Lets integration tests exercise
-/// the bridge without constructing a `tauri::State` — they pass a
-/// `BinaryExecutor::from_path(...)` aimed at a test-built cli. Same
-/// fire-and-forget semantics as the Tauri-wrapped form.
+/// Tauri-free body of [`cli_execute`], mirroring [`cli_run_impl`].
+#[doc(hidden)]
+pub async fn cli_execute_impl(
+    executor: &BinaryExecutor,
+    events_tx: EventSender,
+    request: serde_json::Value,
+    origin: String,
+) -> Result<(), String> {
+    let request: objectiveai_sdk::cli::command::Request =
+        match serde_json::from_value(request) {
+            Ok(request) => request,
+            Err(e) => {
+                let _ = events_tx.send(Event::CliCommand {
+                    destination: origin.clone(),
+                    value: serde_json::json!({
+                        "type": "error",
+                        "level": "error",
+                        "fatal": true,
+                        "message": format!("request did not deserialize: {e}"),
+                    }),
+                });
+                let _ = events_tx.send(Event::CliCommand {
+                    destination: origin,
+                    value: serde_json::json!({ "type": "end" }),
+                });
+                return Ok(());
+            }
+        };
+    cli_run_impl(executor, events_tx, request.into_command(), origin).await
+}
+
+/// Argv-level core shared by [`cli_execute`] (which lowers a typed
+/// request via `into_command()` first) and the integration tests
+/// (which pass a `BinaryExecutor::from_path(...)` aimed at a
+/// test-built cli). NOT exposed as a Tauri command — plugins cannot
+/// invoke the cli with raw argv.
 #[doc(hidden)]
 pub async fn cli_run_impl(
     executor: &BinaryExecutor,

@@ -221,7 +221,7 @@ pub fn serve(
     let builder = builder.invoke_handler(tauri::generate_handler![
         viewer_ready,
         crate::plugins::list_plugins_with_viewer,
-        crate::cli_command::cli_run,
+        crate::cli_command::cli_execute,
     ]);
     builder
         .setup(move |tauri_app| {
