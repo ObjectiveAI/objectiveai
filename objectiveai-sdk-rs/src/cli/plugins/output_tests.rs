@@ -1,5 +1,6 @@
 use super::*;
 use crate::cli::command::plugins::run::{Mcp, McpType};
+use crate::cli::{Error, ErrorType, Level};
 use serde_json::json;
 
 fn roundtrip(out: &Output) -> serde_json::Value {
