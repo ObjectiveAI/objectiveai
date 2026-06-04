@@ -188,7 +188,7 @@ impl std::fmt::Display for PipeError {
 async fn fallback_via_continuation(
     ctx: &Context,
     full_id: &str,
-    bare_id: &str,
+    agent_instance: &str,
     content: RichContent,
     cli_seed: Option<i64>,
 ) -> Result<Response, Error> {
@@ -238,7 +238,7 @@ async fn fallback_via_continuation(
     );
     match stream.next().await {
         Some(Ok(InstanceItem::Id(new_response_id))) => Ok(Response::Queued {
-            agent_id: bare_id.to_string(),
+            agent_id: agent_instance.to_string(),
             response_id: new_response_id,
         }),
         Some(Ok(InstanceItem::Chunk(_))) => {
