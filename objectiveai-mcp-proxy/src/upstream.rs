@@ -85,9 +85,29 @@ pub async fn connect_all_fresh(
 ) -> Result<Vec<(Connection, IndexMap<String, String>)>, BadInit> {
     let specs = parse_init_headers(http_headers)?;
 
+    // Extract the session-global transient header set from the inbound
+    // HeaderMap so we can stamp it on the initial upstream connect.
+    // `Session::apply_transient_headers` only fires AFTER
+    // `connect_all_fresh` returns; without this pre-stamp, the upstream
+    // (e.g. the API's loopback `/objectiveai` route, which requires
+    // `X-OBJECTIVEAI-RESPONSE-ID`) rejects the very first connect with
+    // 400. Because the mcp client treats every error as transient and
+    // loops until `backoff_max_elapsed_time`, the upstream's fast 400
+    // turns into a 30-40s spin. Meanwhile the inbound caller's own
+    // `connect_timeout` fires first and surfaces as a generic
+    // "operation timed out" error.
+    let transient: IndexMap<String, String> = crate::session::Session::TRANSIENT_HEADER_KEYS
+        .iter()
+        .filter_map(|key| {
+            let v = http_headers.get(*key)?.to_str().ok()?;
+            Some((key.to_string(), v.to_string()))
+        })
+        .collect();
+
     let attempts = specs.into_iter().map(|spec| {
         let url = spec.url.clone();
         let headers_for_payload = spec.headers.clone();
+        let transient = transient.clone();
         async move {
             // Hoist any caller-supplied `Mcp-Session-Id` out of the
             // header bag and pass it as the dedicated `session_id` arg.
@@ -100,12 +120,13 @@ pub async fn connect_all_fresh(
             // `NoSessionId` and retries forever.
             let mut headers = spec.headers;
             let session_id = headers.shift_remove(MCP_SESSION_ID_KEY);
-            // Agent identity headers (instance hierarchy, id, full id,
-            // remote) are NOT injected into the per-URL bag — they
-            // live on `Session::transient_headers` and ride via the
-            // SDK Connection's `extra_headers` layer instead.
-            // `parse_init_headers` already stripped them from
-            // `X-MCP-Headers` so they can't leak in via the caller.
+            // Stamp the session-global transient headers on the initial
+            // connect. Subsequent calls on this connection get them via
+            // `Connection::extra_headers` (refreshed on every
+            // `Session::apply_transient_headers`).
+            for (k, v) in transient {
+                headers.entry(k).or_insert(v);
+            }
             let conn_result = client
                 .connect(spec.url, session_id, Some(headers))
                 .await;
