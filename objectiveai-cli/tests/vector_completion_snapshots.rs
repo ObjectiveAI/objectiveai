@@ -24,7 +24,7 @@ use std::path::{Path, PathBuf};
 
 use objectiveai_sdk::RemotePathCommitOptional;
 use objectiveai_sdk::cli::command::functions::executions::create::standard::{
-    Request, RequestInput, ResponseItem,
+    Request, RequestDangerousAdvanced, RequestInput, ResponseItem,
 };
 use objectiveai_sdk::cli::command::functions::executions::create::{
     FunctionSpec, ProfileSpec,
@@ -105,7 +105,10 @@ async fn test_twenty_agents_json_schema_10x_tools_seed_42() {
         seed: Some(42),
         split: false,
         invert: false,
-        dangerous_advanced: None,
+        // Stream so the executor emits per-chunk `ResponseItem::Chunk(_)`
+        // for the aggregator below; without it the cli emits only a
+        // bare `Id` and the chunk loop is empty.
+        dangerous_advanced: Some(RequestDangerousAdvanced { stream: Some(true) }),
         jq: None,
     };
 
