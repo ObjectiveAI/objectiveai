@@ -99,7 +99,10 @@ pub fn validateSwarm(swarm: JsValue, remote_agents: JsValue) -> Result<String, J
     // deserialize
     let swarm_base: objectiveai_sdk::swarm::SwarmBase =
         serde_wasm_bindgen::from_value(swarm)?;
-    let remote_agents: Option<std::collections::HashMap<String, objectiveai_sdk::agent::RemoteAgentBaseWithFallbacks>> =
+    // Values are `(base, path)` tuples to match `SwarmBase::convert`'s
+    // signature; the RemotePath half is ignored by the conversion (it
+    // resolves via `.0`).
+    let remote_agents: Option<std::collections::HashMap<String, (objectiveai_sdk::agent::RemoteAgentBaseWithFallbacks, objectiveai_sdk::RemotePath)>> =
         if remote_agents.is_undefined() || remote_agents.is_null() {
             None
         } else {

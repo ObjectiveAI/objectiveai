@@ -137,8 +137,14 @@ pub unsafe extern "C" fn objectiveai_validate_swarm(
     unsafe {
         run(json_out, json_out_len, || {
             let base: objectiveai_sdk::swarm::SwarmBase = from_json(json_in, json_in_len)?;
+            // Values are `(base, path)` tuples to match
+            // `SwarmBase::convert`'s signature; the RemotePath half is
+            // ignored by the conversion (it resolves via `.0`).
             let remote_agents: Option<
-                std::collections::HashMap<String, objectiveai_sdk::agent::RemoteAgentBaseWithFallbacks>,
+                std::collections::HashMap<
+                    String,
+                    (objectiveai_sdk::agent::RemoteAgentBaseWithFallbacks, objectiveai_sdk::RemotePath),
+                >,
             > = if remote_agents_in.is_null() || remote_agents_in_len == 0 {
                 None
             } else {
