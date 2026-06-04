@@ -75,7 +75,6 @@ impl HttpConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PipeConfig {
     pub config_base_dir: PathBuf,
-    pub mcp_address: Option<String>,
     pub bind_agent_instance_hierarchy: Option<String>,
 }
 
@@ -91,8 +90,9 @@ impl PipeConfig {
     pub fn build_conduit(
         &self,
         ctx: crate::context::Context,
+        mcp_server: crate::instance::mcp_server::McpServerHandle,
     ) -> crate::instance::api::conduit::ConduitMcpHandler {
-        crate::instance::api::conduit::ConduitMcpHandler::new(self.mcp_address.clone(), ctx)
+        crate::instance::api::conduit::ConduitMcpHandler::new(mcp_server, ctx)
     }
 
     /// Run the eager admission probe against `registry` when

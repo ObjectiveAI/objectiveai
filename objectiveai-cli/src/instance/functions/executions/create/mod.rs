@@ -22,12 +22,13 @@ pub async fn execute(
     ctx: crate::context::Context,
     http: HttpConfig,
     pipes: PipeConfig,
+    mcp_server: crate::instance::mcp_server::McpServerHandle,
     params: FunctionExecutionCreateParams,
 ) -> Result<EmissionStream, Error> {
-    let config_base_dir = pipes.config_base_dir().to_path_buf();
     let pipes_root = pipes.pipes_root();
     let client = http.build_http_client().map_err(Error::Instance)?;
-    let conduit = pipes.build_conduit(ctx);
+    let fs_client = ctx.filesystem.clone();
+    let conduit = pipes.build_conduit(ctx, mcp_server);
 
     let (tx, rx) = mpsc::channel::<Result<InstanceEmission, Error>>(16);
     let registry = crate::instance::pipes::PipeRegistry::new(tx.clone());
@@ -37,11 +38,6 @@ pub async fn execute(
         .await
         .map_err(Error::Instance)?;
 
-    let fs_client = crate::filesystem::Client::new(
-        Some(config_base_dir),
-        None::<String>,
-        None::<String>,
-    );
     let caller_agent_instance_hierarchy = Some(http.objectiveai_agent_instance_hierarchy.clone());
     let log_writer = fs_client
         .write_function_execution(&params)

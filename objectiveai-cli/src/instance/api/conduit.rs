@@ -63,11 +63,11 @@ pub struct ConduitMcpHandler {
 }
 
 struct Inner {
-    /// Configured remote MCP URL for the primary `objectiveai-mcp`
-    /// upstream. `None` ⇒ MCP isn't configured for this invocation;
-    /// every `McpKind::ObjectiveAi` request 501s the same way
-    /// `objectiveai_sdk::http::RejectHandler` would.
-    mcp_url: Option<String>,
+    /// In-process `objectiveai-mcp` server spawned at the top of
+    /// `instance::run`. Each `McpKind::ObjectiveAi` dial awaits the
+    /// handle's shared port future and builds
+    /// `http://127.0.0.1:{port}` on the fly.
+    mcp_server: crate::instance::mcp_server::McpServerHandle,
     client: objectiveai_sdk::mcp::Client,
     /// Every dialed upstream — primary + plugin — keyed by its
     /// native `Mcp-Session-Id`. One entry per CLI-hosted MCP
@@ -88,12 +88,14 @@ struct Inner {
 }
 
 impl ConduitMcpHandler {
-    /// Construct a handler that dials the given URL on first use.
-    /// `mcp_url = None` makes every `McpKind::ObjectiveAi` request
-    /// reject with 501. `ctx` is the base [`crate::context::Context`]
-    /// the conduit clones+mutates per plugin dial to thread the six
+    /// Construct a handler over the given in-process `objectiveai-mcp`
+    /// server. `ctx` is the base [`crate::context::Context`] the
+    /// conduit clones+mutates per plugin dial to thread the six
     /// transient header values into [`crate::Config`].
-    pub fn new(mcp_url: Option<String>, ctx: crate::context::Context) -> Self {
+    pub fn new(
+        mcp_server: crate::instance::mcp_server::McpServerHandle,
+        ctx: crate::context::Context,
+    ) -> Self {
         let http = reqwest::Client::builder()
             .build()
             .expect("reqwest::Client::build is infallible without rustls toggles");
@@ -113,7 +115,7 @@ impl ConduitMcpHandler {
         );
         Self {
             inner: Arc::new(Inner {
-                mcp_url,
+                mcp_server,
                 client,
                 connections: DashMap::new(),
                 notifier: OnceLock::new(),
@@ -208,12 +210,9 @@ async fn resolve_connection(
             format!("no cached connection for Mcp-Session-Id {session_id:?}"),
         ));
     }
-    let Some(mcp_url) = handler.inner.mcp_url.as_ref() else {
-        return Err(error_for(
-            mcp_kind,
-            -32601,
-            "this client has no MCP server configured (pass --mcp-address)".to_string(),
-        ));
+    let mcp_url = match objectiveai_mcp_url(&handler.inner).await {
+        Ok(u) => u,
+        Err(message) => return Err(error_for(mcp_kind, -32603, message)),
     };
     let transient = match require_transient(headers) {
         Ok(t) => t,
@@ -229,7 +228,7 @@ async fn resolve_connection(
     let connection = match handler
         .inner
         .client
-        .connect(mcp_url.clone(), Some(session_id.clone()), Some(connect_headers))
+        .connect(mcp_url, Some(session_id.clone()), Some(connect_headers))
         .await
     {
         Ok(c) => c,
@@ -249,6 +248,20 @@ async fn resolve_connection(
     });
     handler.inner.connections.insert(session_id, state.clone());
     Ok(state)
+}
+
+/// Await the in-process `objectiveai-mcp` server's bound port and
+/// build `http://127.0.0.1:{port}`. The shared `oneshot` resolves
+/// once the spawner's `setup` has bound the listener; consumers
+/// can `clone().await` it any number of times.
+async fn objectiveai_mcp_url(inner: &Arc<Inner>) -> Result<String, String> {
+    let port = inner
+        .mcp_server
+        .port
+        .clone()
+        .await
+        .map_err(|_| "in-process objectiveai-mcp failed to bind".to_string())?;
+    Ok(format!("http://127.0.0.1:{port}"))
 }
 
 /// Build a `JsonRpcResult::Err` typed into the corresponding
@@ -297,18 +310,20 @@ async fn dispatch_initialize(
 
     let dial = match &mcp_kind {
         McpKind::ObjectiveAi => {
-            let Some(mcp_url) = inner.mcp_url.as_ref() else {
-                return server_response::Payload::Initialize(JsonRpcResult::Err {
-                    code: -32601,
-                    message: "this client has no MCP server configured (pass --mcp-address)"
-                        .into(),
-                    data: None,
-                });
+            let mcp_url = match objectiveai_mcp_url(inner).await {
+                Ok(u) => u,
+                Err(message) => {
+                    return server_response::Payload::Initialize(JsonRpcResult::Err {
+                        code: -32603,
+                        message,
+                        data: None,
+                    });
+                }
             };
             let connect_headers = sanitize_connect_headers(headers);
             inner
                 .client
-                .connect(mcp_url.clone(), stored_session_id, Some(connect_headers))
+                .connect(mcp_url, stored_session_id, Some(connect_headers))
                 .await
                 .map_err(|e| format!("connect: {e}"))
         }

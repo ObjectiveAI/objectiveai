@@ -122,7 +122,7 @@ async fn run_subprocess(
     // CLI uses. Owned values, since the parent process drops them as
     // soon as the JSON blob has been written.
     let http = build_http_config(cli_config, &fs).await?;
-    let pipes = build_pipe_config(cli_config, &fs, bind_agent_instance_hierarchy).await?;
+    let pipes = build_pipe_config(cli_config, bind_agent_instance_hierarchy)?;
 
     let request = InstanceRequest {
         http,
@@ -443,9 +443,8 @@ async fn build_http_config(
     })
 }
 
-async fn build_pipe_config(
+fn build_pipe_config(
     cli_config: &crate::run::Config,
-    fs: &crate::filesystem::Client,
     bind_agent_instance_hierarchy: Option<String>,
 ) -> Result<PipeConfig, Error> {
     let config_base_dir = cli_config
@@ -453,24 +452,8 @@ async fn build_pipe_config(
         .clone()
         .map(std::path::PathBuf::from)
         .unwrap_or_else(default_config_base_dir);
-
-    // Primary objectiveai-mcp URL: `OBJECTIVEAI_MCP_ADDRESS` env first,
-    // then on-disk `mcp.address` / `mcp.port`, then None. `None` makes
-    // the instance conduit 501 inbound primary-MCP `server_request`s
-    // (per `ConduitMcpHandler::new` doc); plugin-MCP routing is
-    // unaffected either way.
-    let mcp_address = match std::env::var("OBJECTIVEAI_MCP_ADDRESS").ok() {
-        Some(v) => Some(v),
-        None => {
-            let mut config = fs.read_config().await.map_err(Error::Filesystem)?;
-            let mcp = config.mcp();
-            crate::context::compose_url(mcp.get_address(), mcp.get_port())
-        }
-    };
-
     Ok(PipeConfig {
         config_base_dir,
-        mcp_address,
         bind_agent_instance_hierarchy,
     })
 }

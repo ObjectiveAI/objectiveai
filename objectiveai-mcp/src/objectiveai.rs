@@ -11,7 +11,6 @@ use objectiveai_sdk::cli::command::CommandResponse;
 use objectiveai_sdk::cli::command::McpResponseItem;
 use objectiveai_sdk::cli::command::Request;
 use objectiveai_sdk::cli::command::ResponseItem;
-use objectiveai_sdk::cli::command::binary;
 use objectiveai_sdk::cli::command::parse_request;
 use objectiveai_sdk::cli::command::plugins;
 use objectiveai_sdk::cli::command::tools;
@@ -52,16 +51,26 @@ pub struct ToolRequest {
     pub args: Vec<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ObjectiveAiMcpCli<E> {
     pub tool_router: ToolRouter<Self>,
     pub executor: Arc<E>,
 }
 
+impl<E> Clone for ObjectiveAiMcpCli<E> {
+    fn clone(&self) -> Self {
+        Self {
+            tool_router: self.tool_router.clone(),
+            executor: self.executor.clone(),
+        }
+    }
+}
+
 #[tool_router]
 impl<E> ObjectiveAiMcpCli<E>
 where
-    E: CommandExecutor<Error = binary::Error> + Send + Sync + 'static,
+    E: CommandExecutor + Send + Sync + 'static,
+    E::Error: std::fmt::Display + Send + 'static,
 {
     /// Build a handler with one dynamic tool per discovered CLI plugin
     /// and CLI tool, plus the static `ObjectiveAI` catch-all. Plugins
@@ -161,7 +170,8 @@ where
 
 async fn dispatch_root<E>(executor: &E, request: Request) -> Vec<rmcp::model::Content>
 where
-    E: CommandExecutor<Error = binary::Error>,
+    E: CommandExecutor,
+    E::Error: std::fmt::Display,
 {
     let stream = match objectiveai_sdk::cli::command::execute(executor, request).await {
         Ok(s) => s,
@@ -176,7 +186,8 @@ async fn dispatch_plugins_run<E>(
     request: plugins::run::Request,
 ) -> Vec<rmcp::model::Content>
 where
-    E: CommandExecutor<Error = binary::Error>,
+    E: CommandExecutor,
+    E::Error: std::fmt::Display,
 {
     let stream = match plugins::run::execute(executor, request).await {
         Ok(s) => s,
@@ -192,7 +203,8 @@ async fn dispatch_tools_run<E>(
     request: tools::run::Request,
 ) -> Vec<rmcp::model::Content>
 where
-    E: CommandExecutor<Error = binary::Error>,
+    E: CommandExecutor,
+    E::Error: std::fmt::Display,
 {
     let stream = match tools::run::execute(executor, request).await {
         Ok(s) => s,
@@ -203,18 +215,14 @@ where
     format_items(items)
 }
 
-/// Collapse a `Result<T, binary::Error>` (the executor's per-item
-/// shape) into an `McpResponseItem`. `binary::Error::Cli` carries the
-/// CLI's structured error verbatim; any other `binary::Error`
-/// (infrastructure: spawn / io / json) gets wrapped in a synthetic
-/// `cli::Error` so it renders through the same `Result<T, cli::Error>:
-/// CommandResponse` path.
-fn convert<T: CommandResponse>(r: Result<T, binary::Error>) -> McpResponseItem {
-    let result: Result<T, CliError> = match r {
-        Ok(t) => Ok(t),
-        Err(binary::Error::Cli(e)) => Err(e),
-        Err(other) => Err(synthetic_error(format!("{other:?}"))),
-    };
+/// Collapse a `Result<T, ExecErr>` (the executor's per-item shape)
+/// into an `McpResponseItem`. The executor's error gets formatted
+/// via `Display` into a synthetic `cli::Error` so it renders through
+/// the same `Result<T, cli::Error>: CommandResponse` path.
+fn convert<T: CommandResponse, ExecErr: std::fmt::Display>(
+    r: Result<T, ExecErr>,
+) -> McpResponseItem {
+    let result: Result<T, CliError> = r.map_err(|e| synthetic_error(format!("{e}")));
     result.into_mcp()
 }
 
@@ -233,7 +241,8 @@ fn synthetic_error(message: impl Into<String>) -> CliError {
 #[tool_handler]
 impl<E> ServerHandler for ObjectiveAiMcpCli<E>
 where
-    E: CommandExecutor<Error = binary::Error> + Send + Sync + 'static,
+    E: CommandExecutor + Send + Sync + 'static,
+    E::Error: std::fmt::Display + Send + 'static,
 {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {

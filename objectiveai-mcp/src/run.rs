@@ -11,7 +11,6 @@ use std::sync::Arc;
 use envconfig::Envconfig;
 use futures::StreamExt;
 use objectiveai_sdk::cli::command::CommandExecutor;
-use objectiveai_sdk::cli::command::binary;
 use objectiveai_sdk::cli::command::plugins;
 use objectiveai_sdk::cli::command::tools;
 use rmcp::transport::streamable_http_server::{
@@ -98,7 +97,8 @@ pub async fn setup<E>(
     executor: E,
 ) -> std::io::Result<(tokio::net::TcpListener, axum::Router)>
 where
-    E: CommandExecutor<Error = binary::Error> + Send + Sync + 'static,
+    E: CommandExecutor + Send + Sync + 'static,
+    E::Error: std::fmt::Display + Send + 'static,
 {
     let Config {
         address,
@@ -144,7 +144,8 @@ pub async fn serve(
 
 pub async fn run<E>(config: Config, executor: E) -> std::io::Result<()>
 where
-    E: CommandExecutor<Error = binary::Error> + Send + Sync + 'static,
+    E: CommandExecutor + Send + Sync + 'static,
+    E::Error: std::fmt::Display + Send + 'static,
 {
     let suppress_output = config.suppress_output;
     let (listener, app) = setup(config, executor).await?;
@@ -160,7 +161,8 @@ where
 /// empty list so the server still starts.
 async fn list_plugins<E>(executor: &E) -> Vec<plugins::list::ResponseItem>
 where
-    E: CommandExecutor<Error = binary::Error> + Send + Sync + 'static,
+    E: CommandExecutor + Send + Sync + 'static,
+    E::Error: std::fmt::Display + Send + 'static,
 {
     let request = plugins::list::Request {
         offset: None,
@@ -176,7 +178,8 @@ where
 /// Best-effort tool discovery; same shape as `list_plugins`.
 async fn list_tools<E>(executor: &E) -> Vec<tools::list::ResponseItem>
 where
-    E: CommandExecutor<Error = binary::Error> + Send + Sync + 'static,
+    E: CommandExecutor + Send + Sync + 'static,
+    E::Error: std::fmt::Display + Send + 'static,
 {
     let request = tools::list::Request {
         offset: None,
