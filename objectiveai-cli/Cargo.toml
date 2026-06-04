@@ -58,6 +58,9 @@ indexmap = "2.13"
 sysinfo = { version = "0.38.4", default-features = false, features = ["system"] }
 dashmap = "6.1.0"
 
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Foundation"] }
+
 [dev-dependencies]
 wiremock = "0.6"
 tempfile = "3.10"

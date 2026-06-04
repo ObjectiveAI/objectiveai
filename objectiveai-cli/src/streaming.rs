@@ -306,7 +306,25 @@ fn inheritable_raw(reader: &os_pipe::PipeReader) -> String {
 #[cfg(windows)]
 fn inheritable_raw(reader: &os_pipe::PipeReader) -> String {
     use std::os::windows::io::AsRawHandle;
-    (reader.as_raw_handle() as isize).to_string()
+    use windows_sys::Win32::Foundation::{
+        HANDLE_FLAG_INHERIT, SetHandleInformation,
+    };
+    let handle = reader.as_raw_handle();
+    // `os_pipe::pipe()` on Windows calls `CreatePipe` with NULL
+    // security attributes — the resulting handles are NOT marked
+    // inheritable. `std::process::Command::spawn` does set
+    // `bInheritHandles=TRUE` on `CreateProcess` (since we pipe
+    // stdout/stderr), but unflagged handles still won't transfer.
+    // Flip the flag explicitly so the spawn carries this handle
+    // into the child.
+    unsafe {
+        let _ = SetHandleInformation(
+            handle as _,
+            HANDLE_FLAG_INHERIT,
+            HANDLE_FLAG_INHERIT,
+        );
+    }
+    (handle as isize).to_string()
 }
 
 enum HandleOutcome {
