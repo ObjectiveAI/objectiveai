@@ -6,4 +6,3 @@ export * from "./image/index";
 export * from "./text/index";
 export * from "./video/index";
 export * from "./request";
-export * from "./response";

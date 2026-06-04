@@ -5,4 +5,3 @@ export * from "./get/index";
 export * from "./list/index";
 export * from "./subscribe/index";
 export * from "./request";
-export * from "./responseItem";

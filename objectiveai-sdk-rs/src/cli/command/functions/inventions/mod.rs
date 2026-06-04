@@ -23,6 +23,9 @@ pub enum Request {
     State(state::Request),
 }
 
+// Exempt from json-schema coverage: tier aggregate (see the root
+// `ResponseItem` in command.rs - TS7056).
+#[objectiveai_sdk_macros::json_schema_ignore]
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.functions.inventions.ResponseItem")]
 pub enum ResponseItem {

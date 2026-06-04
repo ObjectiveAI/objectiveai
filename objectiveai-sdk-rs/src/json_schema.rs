@@ -174,8 +174,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::ResponseItem),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::get::Path),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::get::Request),
@@ -189,8 +187,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::agents::get::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::list::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::list::ResponseItem),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::list::active::Path),
         #[cfg(feature = "cli")]
@@ -273,8 +269,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::agents::publish::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::read::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::read::ResponseItem),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::read::all::Path),
         #[cfg(feature = "cli")]
@@ -362,15 +356,9 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::ResponseItem),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::agents::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::ResponseItem),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::agents::favorites::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::favorites::ResponseItem),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::agents::favorites::add::Path),
         #[cfg(feature = "cli")]
@@ -440,11 +428,7 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::functions::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::ResponseItem),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::functions::favorites::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::favorites::ResponseItem),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::functions::favorites::add::Path),
         #[cfg(feature = "cli")]
@@ -514,8 +498,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::functions::inventions::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::inventions::Response),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::functions::inventions::get::Path),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::functions::inventions::get::Request),
@@ -531,8 +513,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::config::functions::inventions::get::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::functions::inventions::remote::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::inventions::remote::Response),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::functions::inventions::remote::get::Path),
         #[cfg(feature = "cli")]
@@ -560,11 +540,7 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::functions::profiles::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::ResponseItem),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::ResponseItem),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::add::Path),
         #[cfg(feature = "cli")]
@@ -634,11 +610,7 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::ResponseItem),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::ResponseItem),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::add::Path),
         #[cfg(feature = "cli")]
@@ -709,14 +681,10 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::mcp::Request),
         #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::Response),
         #[cfg(feature = "mcp")]
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::mcp::address::Request),
         #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::address::Response),
         #[cfg(feature = "mcp")]
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::mcp::address::get::Path),
@@ -781,8 +749,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::mcp::port::Request),
         #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::port::Response),
         #[cfg(feature = "mcp")]
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::mcp::port::get::Path),
@@ -825,11 +791,7 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::swarms::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::ResponseItem),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::swarms::favorites::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::favorites::ResponseItem),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::swarms::favorites::add::Path),
         #[cfg(feature = "cli")]
@@ -900,14 +862,10 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::viewer::Request),
         #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::Response),
         #[cfg(feature = "viewer")]
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::viewer::address::Request),
         #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::address::Response),
         #[cfg(feature = "viewer")]
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::viewer::address::get::Path),
@@ -972,8 +930,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::viewer::port::Request),
         #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::port::Response),
         #[cfg(feature = "viewer")]
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::viewer::port::get::Path),
@@ -1017,8 +973,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::viewer::secret::Request),
         #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::secret::Response),
         #[cfg(feature = "viewer")]
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::viewer::secret::get::Path),
@@ -1062,8 +1016,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::viewer::signature::Request),
         #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::signature::Response),
         #[cfg(feature = "viewer")]
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::viewer::signature::get::Path),
@@ -1106,19 +1058,13 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::functions::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::ResponseItem),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::functions::executions::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::executions::ResponseItem),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::functions::executions::create::FunctionSpec),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::functions::executions::create::ProfileSpec),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::functions::executions::create::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::executions::create::ResponseItem),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::functions::executions::create::standard::Path),
         #[cfg(feature = "cli")]
@@ -1170,15 +1116,9 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::functions::inventions::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::ResponseItem),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::functions::inventions::recursive::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::ResponseItem),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::ResponseItem),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::alpha_scalar::Path),
         #[cfg(feature = "cli")]
@@ -1236,8 +1176,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::functions::inventions::state::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::state::Response),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::functions::inventions::state::get::Path),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::functions::inventions::state::get::Request),
@@ -1271,8 +1209,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::functions::list::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::functions::profiles::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::profiles::ResponseItem),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::functions::profiles::get::Path),
         #[cfg(feature = "cli")]
@@ -1346,15 +1282,9 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::ResponseItem),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::ResponseItem),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::request::Response),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::get::Path),
         #[cfg(feature = "cli")]
@@ -1370,11 +1300,7 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::messages::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::request::messages::Response),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::messages::audio::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::request::messages::audio::Response),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::messages::audio::get::Path),
         #[cfg(feature = "cli")]
@@ -1390,8 +1316,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::messages::file::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::request::messages::file::Response),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::messages::file::get::Path),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::messages::file::get::Request),
@@ -1405,8 +1329,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::messages::file::get::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::messages::image::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::request::messages::image::Response),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::messages::image::get::Path),
         #[cfg(feature = "cli")]
@@ -1422,8 +1344,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::messages::text::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::request::messages::text::Response),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::messages::text::get::Path),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::messages::text::get::Request),
@@ -1437,8 +1357,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::messages::text::get::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::messages::video::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::request::messages::video::Response),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::messages::video::get::Path),
         #[cfg(feature = "cli")]
@@ -1454,11 +1372,7 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::notifications::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::request::notifications::Response),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::notifications::audio::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::request::notifications::audio::Response),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::notifications::audio::get::Path),
         #[cfg(feature = "cli")]
@@ -1474,8 +1388,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::notifications::file::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::request::notifications::file::Response),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::notifications::file::get::Path),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::notifications::file::get::Request),
@@ -1489,8 +1401,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::notifications::file::get::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::notifications::image::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::request::notifications::image::Response),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::notifications::image::get::Path),
         #[cfg(feature = "cli")]
@@ -1506,8 +1416,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::notifications::text::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::request::notifications::text::Response),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::notifications::text::get::Path),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::notifications::text::get::Request),
@@ -1521,8 +1429,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::notifications::text::get::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::notifications::video::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::request::notifications::video::Response),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::notifications::video::get::Path),
         #[cfg(feature = "cli")]
@@ -1550,8 +1456,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::ResponseItem),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::clear::Path),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::clear::Request),
@@ -1567,8 +1471,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::clear::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::continuations::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::continuations::Response),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::continuations::clear::Path),
         #[cfg(feature = "cli")]
@@ -1636,11 +1538,7 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::Response),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::audio::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::audio::Response),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::audio::clear::Path),
         #[cfg(feature = "cli")]
@@ -1696,8 +1594,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::file::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::file::Response),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::file::clear::Path),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::file::clear::Request),
@@ -1750,8 +1646,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::image::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::image::Response),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::image::clear::Path),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::image::clear::Request),
@@ -1791,8 +1685,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::image::subscribe::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::logprobs::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::logprobs::Response),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::logprobs::clear::Path),
         #[cfg(feature = "cli")]
@@ -1834,8 +1726,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::reasoning::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::reasoning::Response),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::reasoning::clear::Path),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::reasoning::clear::Request),
@@ -1875,8 +1765,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::reasoning::subscribe::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::refusal::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::refusal::Response),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::refusal::clear::Path),
         #[cfg(feature = "cli")]
@@ -1930,8 +1818,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::text::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::text::Response),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::text::get::Path),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::text::get::Request),
@@ -1946,11 +1832,7 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::Response),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::audio::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::audio::Response),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::audio::get::Path),
         #[cfg(feature = "cli")]
@@ -1966,8 +1848,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::file::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::file::Response),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::file::get::Path),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::file::get::Request),
@@ -1981,8 +1861,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::file::get::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::image::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::image::Response),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::image::get::Path),
         #[cfg(feature = "cli")]
@@ -1998,8 +1876,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::text::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::text::Response),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::text::get::Path),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::text::get::Request),
@@ -2014,8 +1890,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::video::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::video::Response),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::video::get::Path),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::video::get::Request),
@@ -2029,8 +1903,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::video::get::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool_calls::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool_calls::Response),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool_calls::clear::Path),
         #[cfg(feature = "cli")]
@@ -2071,8 +1943,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool_calls::subscribe::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::video::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::video::Response),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::video::clear::Path),
         #[cfg(feature = "cli")]
@@ -2140,15 +2010,9 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::functions::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::ResponseItem),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::functions::executions::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::executions::ResponseItem),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::functions::executions::request::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::executions::request::Response),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::functions::executions::request::get::Path),
         #[cfg(feature = "cli")]
@@ -2175,8 +2039,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::logs::functions::executions::request::subscribe::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::functions::executions::response::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::executions::response::ResponseItem),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::functions::executions::response::clear::Path),
         #[cfg(feature = "cli")]
@@ -2219,8 +2081,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::logs::functions::executions::response::list::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::functions::executions::response::retry_tokens::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::executions::response::retry_tokens::Response),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::functions::executions::response::retry_tokens::clear::Path),
         #[cfg(feature = "cli")]
@@ -2274,15 +2134,9 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::functions::inventions::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::ResponseItem),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::ResponseItem),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::request::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::request::Response),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::request::get::Path),
         #[cfg(feature = "cli")]
@@ -2309,8 +2163,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::request::subscribe::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::ResponseItem),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::clear::Path),
         #[cfg(feature = "cli")]
@@ -2366,8 +2218,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::functions::inventions::request::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::request::Response),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::functions::inventions::request::get::Path),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::functions::inventions::request::get::Request),
@@ -2393,8 +2243,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::logs::functions::inventions::request::subscribe::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::ResponseItem),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::clear::Path),
         #[cfg(feature = "cli")]
@@ -2450,15 +2298,9 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::vector::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::vector::ResponseItem),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::vector::completions::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::vector::completions::ResponseItem),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::vector::completions::request::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::vector::completions::request::Response),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::vector::completions::request::get::Path),
         #[cfg(feature = "cli")]
@@ -2485,8 +2327,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::logs::vector::completions::request::subscribe::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::vector::completions::response::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::vector::completions::response::ResponseItem),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::vector::completions::response::clear::Path),
         #[cfg(feature = "cli")]
@@ -2543,8 +2383,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::mcp::Request),
         #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::mcp::Response),
         #[cfg(feature = "mcp")]
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::mcp::kill::Path),
@@ -2590,8 +2428,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::plugins::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::ResponseItem),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::plugins::get::Path),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::plugins::get::Request),
@@ -2615,8 +2451,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::plugins::get::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::plugins::install::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::install::Response),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::plugins::install::filesystem::Path),
         #[cfg(feature = "cli")]
@@ -2678,8 +2512,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::swarms::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::swarms::ResponseItem),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::swarms::get::Path),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::swarms::get::Request),
@@ -2731,8 +2563,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::swarms::publish::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::tools::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::ResponseItem),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::tools::get::Path),
         #[cfg(feature = "cli")]
@@ -2809,8 +2639,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::viewer::Request),
         #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::Response),
         #[cfg(feature = "viewer")]
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::viewer::generate_secret_signature_pair::Path),

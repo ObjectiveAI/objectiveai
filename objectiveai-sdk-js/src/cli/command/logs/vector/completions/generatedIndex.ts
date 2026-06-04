@@ -3,4 +3,3 @@
 export * from "./request/index";
 export * from "./response/index";
 export * from "./request";
-export * from "./responseItem";
