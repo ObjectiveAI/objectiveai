@@ -59,15 +59,6 @@ fn test_mcp_plugin_binary() -> PathBuf {
     path
 }
 
-/// Per-test scratch dir under the system temp dir. Entirely
-/// isolated — no contact with `~/.objectiveai` or the in-repo
-/// `objectiveai-cli/tests/.objectiveai`.
-fn temp_base() -> PathBuf {
-    let d = std::env::temp_dir().join(format!("oai-mcp-plugin-{}", uuid::Uuid::new_v4()));
-    std::fs::create_dir_all(&d).unwrap();
-    d
-}
-
 /// Stage the plugin: write its manifest to
 /// `<base>/plugins/test-mcp-plugin.json` and copy the fixture binary
 /// to `<base>/plugins/test-mcp-plugin/plugin[.exe]` — the layout
@@ -109,13 +100,13 @@ fn stage_plugin(base: &Path) {
     }
 }
 
-/// RAII cleanup: kill the plugin process (PID read from
-/// `OAI_TEST_MCP_PID_FILE`) and remove the scratch dir. Runs on
-/// success AND panic, so the plugin RMCP server never leaks past the
-/// test boundary.
+/// RAII kill of the plugin process (PID read from
+/// `OAI_TEST_MCP_PID_FILE`) on test drop — success AND panic — so
+/// the plugin RMCP server never leaks past the test boundary. The
+/// scratch dir is NOT removed here; the per-binary run-start clear
+/// in `cli_test_util::test_base_dir` handles that.
 struct PluginGuard {
     pid_file: PathBuf,
-    base: PathBuf,
 }
 
 impl Drop for PluginGuard {
@@ -134,7 +125,6 @@ impl Drop for PluginGuard {
                 }
             }
         }
-        let _ = std::fs::remove_dir_all(&self.base);
     }
 }
 
@@ -221,14 +211,13 @@ async fn plugin_mcp_dispatch_round_trip() {
     let _ = cli_test_util::cli_binary();
     let _ = test_mcp_plugin_binary();
 
-    let base = temp_base();
+    let base = cli_test_util::test_base_dir();
     let pid_file = base.join("plugin-pid");
 
     // Drop guard registered BEFORE we spawn anything that could
     // start the plugin. A mid-test panic still kills the plugin.
     let _guard = PluginGuard {
         pid_file: pid_file.clone(),
-        base: base.clone(),
     };
 
     stage_plugin(&base);

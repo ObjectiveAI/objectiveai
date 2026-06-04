@@ -10,7 +10,6 @@
 
 mod cli_test_util;
 
-use std::path::PathBuf;
 use std::process::Command;
 
 use serde_json::Value;
@@ -21,15 +20,9 @@ use wiremock::{
 
 const SIGNATURE: &str = "sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
-fn temp_base() -> PathBuf {
-    let d = std::env::temp_dir().join(format!("oai-viewer-send-{}", uuid::Uuid::new_v4()));
-    std::fs::create_dir_all(&d).unwrap();
-    d
-}
-
 #[tokio::test]
 async fn viewer_send_remote_mode_posts_to_configured_address() {
-    let base = temp_base();
+    let base = cli_test_util::test_base_dir();
 
     let mock_server = MockServer::start().await;
 
@@ -90,6 +83,4 @@ async fn viewer_send_remote_mode_posts_to_configured_address() {
     );
 
     mock_server.verify().await;
-
-    let _ = std::fs::remove_dir_all(&base);
 }

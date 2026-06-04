@@ -149,20 +149,12 @@ async fn function_swarm_writes_per_agent_files() {
     let _ = cli_test_util::cli_binary();
     let _ = plugin_binary();
 
-    // Use the shared cli scratch dir so the plugin's writes land
-    // where the test can read them: the plugin inherits
-    // `CONFIG_BASE_DIR` from the cli child, the cli inherits it from
-    // the executor's `.env()`, and that's pinned to `tests_dir()`.
-    let base = cli_test_util::tests_dir();
-    for sub in &["logs", "pipes", "plugins", "A.txt", "B.txt"] {
-        let p = base.join(sub);
-        if p.is_dir() {
-            let _ = std::fs::remove_dir_all(&p);
-        } else if p.is_file() {
-            let _ = std::fs::remove_file(&p);
-        }
-    }
-    std::fs::create_dir_all(&base).unwrap();
+    // Per-test base dir under `.objectiveai-tests/<binary>/<test>/`.
+    // The plugin inherits `CONFIG_BASE_DIR` from the cli child, the
+    // cli inherits it from the executor's `.env()`, and the per-
+    // binary run-start clear handles wiping stale state — no manual
+    // sub-cleanup needed.
+    let base = cli_test_util::test_base_dir();
 
     stage_plugin(&base);
 

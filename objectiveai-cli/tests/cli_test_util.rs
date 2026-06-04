@@ -5,10 +5,19 @@
 //! executor spawns the cli binary that `cli_binary()` builds (one
 //! cargo build per test run, shared via a `Once`).
 //!
-//! Per-test scratch dirs use [`executor_with_base_dir`] — the
-//! `CONFIG_BASE_DIR` env var is attached to the spawned child rather
-//! than the test runner, so parallel tests with independent scratch
-//! dirs don't race on a shared process-level env.
+//! Every test's `CONFIG_BASE_DIR` lives under
+//! `objectiveai-cli/.objectiveai-tests/<binary>/<test>/`, allocated
+//! by [`test_base_dir`]. Each test binary clears its own
+//! `<binary>/` subfolder on its first call (race-free `Once`-gated)
+//! so re-runs always start clean — and crucially we DO NOT wipe on
+//! drop, so the most recent run's logs survive long enough to
+//! inspect. The path is echoed to stderr; pair with `cargo test --
+//! --nocapture` when you need to find it.
+//!
+//! Carve-out: [`mcp_session_shared_dir`] returns a fixed
+//! `.objectiveai-tests/_mcp_session/` shared with the external test
+//! mcp server started by `test-spawn-mcp-server.sh`. Only used by
+//! the agents-continuation tool-session test.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -61,31 +70,109 @@ pub fn cli_binary() -> PathBuf {
     path
 }
 
-/// CONFIG_BASE_DIR for the CLI under test.
+/// Absolute path to `objectiveai-cli/.objectiveai-tests/`. Creates
+/// the dir + its `.gitignore` if either is missing. Idempotent and
+/// safe to call from anywhere.
+fn tests_root() -> PathBuf {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join(".objectiveai-tests");
+    std::fs::create_dir_all(&root).expect("create .objectiveai-tests root");
+    let gi = root.join(".gitignore");
+    if !gi.exists() {
+        std::fs::write(&gi, "*\n!.gitignore\n").expect("write .gitignore");
+    }
+    root
+}
+
+/// `<tests_root>/<binary-name>/`. On first call per test binary
+/// process, clears the directory's contents (preserving the dir
+/// itself) so this run starts clean. `Once`-gated; concurrent
+/// callers wait for the clear before getting a path back.
+fn binary_dir() -> PathBuf {
+    static CLEAR_ONCE: Once = Once::new();
+    let root = tests_root();
+    let exe = std::env::current_exe().expect("current_exe");
+    let stem = exe
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("unknown");
+    // cargo names test binaries `<file_stem>-<hex>`. Strip the
+    // trailing `-<hex>` to recover the stem; if the convention ever
+    // changes, fall through to the full stem.
+    let binary = stem
+        .rsplit_once('-')
+        .map(|(a, _)| a)
+        .unwrap_or(stem)
+        .to_string();
+    let dir = root.join(&binary);
+    CLEAR_ONCE.call_once(|| {
+        if dir.exists() {
+            for entry in std::fs::read_dir(&dir).into_iter().flatten().flatten() {
+                let p = entry.path();
+                if p.is_dir() {
+                    let _ = std::fs::remove_dir_all(&p);
+                } else {
+                    let _ = std::fs::remove_file(&p);
+                }
+            }
+        }
+        std::fs::create_dir_all(&dir).expect("create binary subdir");
+    });
+    dir
+}
+
+/// Fresh per-test `CONFIG_BASE_DIR` under
+/// `.objectiveai-tests/<binary>/<test>/`. Echoes the resolved path
+/// to stderr so `cargo test -- --nocapture` surfaces it for
+/// debugging. Safe to call once per test fn; thread-safe.
 ///
-/// Scoped to `tests/.objectiveai` so everything the CLI creates at runtime
-/// (logs, cached function repos, filesystem config) lives under a single
-/// gitignored directory that `test.sh` wipes on exit.
-pub fn tests_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests")
-        .join(".objectiveai")
+/// **No cleanup on drop.** The previous run's contents survive
+/// until the next run of the same test binary, which clears its
+/// whole `<binary>/` subfolder via [`binary_dir`].
+pub fn test_base_dir() -> PathBuf {
+    let test = std::thread::current()
+        .name()
+        .map(sanitize_segment)
+        .unwrap_or_else(|| format!("unnamed-{}", uuid::Uuid::new_v4()));
+    let dir = binary_dir().join(&test);
+    std::fs::create_dir_all(&dir).expect("create test subdir");
+    eprintln!("test base dir: {}", dir.display());
+    dir
 }
 
-/// Build a [`BinaryExecutor`] aimed at the test-built cli binary with
-/// `CONFIG_BASE_DIR` set to the shared `tests/.objectiveai` scratch dir
-/// and (when set) `OBJECTIVEAI_ADDRESS` pointing at the local test
-/// server. Every integration test in the suite must go through this
-/// helper so the env plumbing stays consistent.
+/// Fixed `.objectiveai-tests/_mcp_session/` — the dedicated base
+/// dir shared with `test-spawn-mcp-server.sh` so the test mcp server
+/// and the cli child agree on where the `tools/` registry lives.
+/// Used only by `agents_continuation_tool_session_e2e` and the
+/// script. **Not** cleared by [`binary_dir`]'s `Once`; the
+/// underscore-prefix puts it at the `tests_root` level, parallel to
+/// the per-binary subfolders.
+pub fn mcp_session_shared_dir() -> PathBuf {
+    let dir = tests_root().join("_mcp_session");
+    std::fs::create_dir_all(&dir).expect("create _mcp_session");
+    dir
+}
+
+fn sanitize_segment(s: &str) -> String {
+    s.chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect()
+}
+
+/// Equivalent to `executor_with_base_dir(&test_base_dir())` — the
+/// default executor for tests that don't need a special base dir.
 pub fn executor() -> BinaryExecutor {
-    executor_with_base_dir(&tests_dir())
+    executor_with_base_dir(&test_base_dir())
 }
 
-/// Variant of [`executor`] that pins `CONFIG_BASE_DIR` to a
-/// caller-supplied directory rather than the shared scratch dir. Used
-/// by the two `agents_*_continuation` e2e tests, which need a fresh
-/// `tempfile::tempdir()` per run so the spawn doesn't trip on stale
-/// state.
+/// Build a [`BinaryExecutor`] aimed at the test-built cli binary
+/// with `CONFIG_BASE_DIR` pinned to `base_dir` and (when set)
+/// `OBJECTIVEAI_ADDRESS` pointing at the local test server.
 pub fn executor_with_base_dir(base_dir: &Path) -> BinaryExecutor {
     let mut exec = BinaryExecutor::from_path(cli_binary())
         .env("CONFIG_BASE_DIR", base_dir.to_string_lossy().into_owned());

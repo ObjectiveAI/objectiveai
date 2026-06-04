@@ -78,26 +78,6 @@ fn plugin_binary() -> PathBuf {
     path
 }
 
-/// Per-test scratch dir under the system temp dir. Wiped on drop via
-/// [`TempBaseGuard`] so we never leak the staged plugin tree (or the
-/// `logs`/`pipes` produced by cli-stream) past the test boundary.
-fn temp_base() -> PathBuf {
-    let d = std::env::temp_dir().join(format!("oai-dup-tools-{}", uuid::Uuid::new_v4()));
-    std::fs::create_dir_all(&d).unwrap();
-    d
-}
-
-/// RAII cleanup mirroring `plugin_mcp_dispatch_e2e::PluginGuard`'s
-/// scratch-dir half (no PID file here — the fixture process exits
-/// when its parent cli child does).
-struct TempBaseGuard(PathBuf);
-
-impl Drop for TempBaseGuard {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
-
 /// Stage all five plugin installs at `<base>/plugins/<name>` with
 /// manifests at `<base>/plugins/<name>.json`. The same binary backs
 /// every install — uniqueness comes from the install name (which the
@@ -191,8 +171,7 @@ async fn duplicate_tool_names_routed_across_turns() {
     let _ = cli_test_util::cli_binary();
     let _ = plugin_binary();
 
-    let base = temp_base();
-    let _cleanup = TempBaseGuard(base.clone());
+    let base = cli_test_util::test_base_dir();
 
     stage_plugins(&base);
 

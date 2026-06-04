@@ -38,19 +38,9 @@ fn build_and_locate_hello_plugin() -> PathBuf {
     bin
 }
 
-fn temp_base() -> PathBuf {
-    let d = std::env::temp_dir().join(format!("oai-plugin-dispatch-{}", uuid::Uuid::new_v4()));
-    std::fs::create_dir_all(&d).unwrap();
-    d
-}
-
-fn cleanup(d: &Path) {
-    let _ = std::fs::remove_dir_all(d);
-}
-
 #[test]
 fn hello_plugin_dispatch_produces_expected_output() {
-    let base = temp_base();
+    let base = cli_test_util::test_base_dir();
     let plugins_dir = base.join("plugins");
     std::fs::create_dir_all(&plugins_dir).unwrap();
 
@@ -109,5 +99,4 @@ fn hello_plugin_dispatch_produces_expected_output() {
         "expected exactly one hello/world notification in {lines:?}"
     );
 
-    cleanup(&base);
 }

@@ -44,16 +44,6 @@ fn platform_exec_name(stem: &str) -> String {
     }
 }
 
-fn temp_base() -> PathBuf {
-    let d = std::env::temp_dir().join(format!("oai-tool-dispatch-{}", uuid::Uuid::new_v4()));
-    std::fs::create_dir_all(&d).unwrap();
-    d
-}
-
-fn cleanup(d: &Path) {
-    let _ = std::fs::remove_dir_all(d);
-}
-
 /// Stage a tool under `<base>/tools/`:
 ///   1. Read the committed manifest template, rewrite its `exec`
 ///      field to add `.exe` on Windows, write to `<base>/tools/<name>.json`.
@@ -140,18 +130,16 @@ fn run_and_summarize(base: &Path, name: &str) -> Summary {
 
 #[test]
 fn hello_tool_dispatch_snapshot() {
-    let base = temp_base();
+    let base = cli_test_util::test_base_dir();
     setup_tool(&base, "hello", "hello-tool", "hello-tool");
     let summary = run_and_summarize(&base, "hello");
     insta::assert_json_snapshot!(summary);
-    cleanup(&base);
 }
 
 #[test]
 fn error_tool_dispatch_snapshot() {
-    let base = temp_base();
+    let base = cli_test_util::test_base_dir();
     setup_tool(&base, "error", "error-tool", "error-tool");
     let summary = run_and_summarize(&base, "error");
     insta::assert_json_snapshot!(summary);
-    cleanup(&base);
 }

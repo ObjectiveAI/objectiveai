@@ -92,7 +92,7 @@ fn install_count_tool_over_echo_arglen() {
     } else {
         "echo-arglen"
     };
-    let dest = cli_test_util::tests_dir().join("tools").join(exec_name);
+    let dest = cli_test_util::mcp_session_shared_dir().join("tools").join(exec_name);
     assert!(
         dest.exists(),
         "expected the test mcp server's echo-arglen at {} — \
@@ -256,15 +256,15 @@ async fn two_agents_continuations_count_persists_per_session() {
         return;
     }
 
-    // Use the SHARED test scratch dir so the MCP server (which is
-    // pinned to `objectiveai-cli/tests/.objectiveai` by
-    // `test-spawn-mcp-server.sh`) and the cli-stream we spawn here
-    // agree on `CONFIG_BASE_DIR` — the response continuation files
-    // and the per-agent socket both have to land where we expect to
-    // poll for them.
-    let base_dir = cli_test_util::tests_dir();
-    // Wipe agent state from prior runs but keep the tools/ subtree
-    // (the MCP server's manifest registry).
+    // Use the shared MCP-session scratch dir — the same path
+    // `test-spawn-mcp-server.sh` pins as CONFIG_BASE_DIR for the
+    // spawned MCP server, so the two processes see one `tools/`
+    // registry. This dir sits OUTSIDE the per-binary run-start
+    // wipe (it's at `.objectiveai-tests/_mcp_session/`, not under
+    // a `<binary>/` subfolder), so we still hand-wipe `logs`/
+    // `pipes` here to clear prior-run state without nuking
+    // `tools/` (which the MCP server registered at startup).
+    let base_dir = cli_test_util::mcp_session_shared_dir();
     for sub in &["logs", "pipes"] {
         let p = base_dir.join(sub);
         if p.exists() {

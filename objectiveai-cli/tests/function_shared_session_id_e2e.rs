@@ -75,20 +75,6 @@ struct ServerState {
     is_new_by_session: Arc<Mutex<HashMap<String, bool>>>,
 }
 
-fn temp_base() -> PathBuf {
-    let d = std::env::temp_dir().join(format!("oai-shared-sid-{}", uuid::Uuid::new_v4()));
-    std::fs::create_dir_all(&d).unwrap();
-    d
-}
-
-struct BaseGuard(PathBuf);
-
-impl Drop for BaseGuard {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
-
 async fn handle_post(
     State(state): State<ServerState>,
     headers: HeaderMap,
@@ -216,8 +202,7 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
     }
     let _ = cli_test_util::cli_binary();
 
-    let base = temp_base();
-    let _cleanup = BaseGuard(base.clone());
+    let base = cli_test_util::test_base_dir();
 
     let output_path = Arc::new(base.join("response-ids.txt"));
 

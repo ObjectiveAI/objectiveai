@@ -49,8 +49,8 @@ async fn spawn_then_message_propagates_response_continuation() {
         return;
     }
 
-    let tmp = tempfile::tempdir().expect("tempdir");
-    let base_dir = tmp.path();
+    let base_dir = cli_test_util::test_base_dir();
+    let base_dir = base_dir.as_path();
 
     let executor = cli_test_util::executor_with_base_dir(base_dir);
 

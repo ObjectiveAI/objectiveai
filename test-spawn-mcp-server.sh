@@ -5,9 +5,13 @@
 # `ConduitMcpHandler` is designed to talk to (not `objectiveai-mcp-filesystem`,
 # which is a different crate that exposes raw filesystem tools).
 #
-# CONFIG_BASE_DIR is forced to the CLI test scratch dir
-# (`objectiveai-cli/tests/.objectiveai`) so the spawned server never
-# reads or writes the developer's real `~/.objectiveai` config.
+# CONFIG_BASE_DIR is forced to the shared MCP-session scratch dir
+# (`objectiveai-cli/.objectiveai-tests/_mcp_session`) so the spawned
+# server never reads or writes the developer's real `~/.objectiveai`
+# config. This matches `cli_test_util::mcp_session_shared_dir()` —
+# the cli child invoked by `agents_continuation_tool_session_e2e`
+# points its CONFIG_BASE_DIR at the same path so the two processes
+# share one `tools/` registry.
 #
 # Prints "URL PID" to stdout once the server is ready, then exits.
 # The server continues running as a background process.
@@ -38,13 +42,13 @@ TMPDIR="$(mktemp -d)"
 TMPBIN="$TMPDIR/$(basename "$BINARY")"
 cp "$BINARY" "$TMPBIN"
 
-# CONFIG_BASE_DIR is the CLI test scratch dir — the same dir
-# `cli_test_util::tests_dir()` returns and `cli_command()` stamps on
-# every CLI subprocess. Sharing this between the CLI and the MCP
-# server keeps the two views of config / plugins / authorization
-# coherent within a single test run, and keeps the developer's real
-# config OUT of the test process.
-TEST_CONFIG_BASE_DIR="$REPO_ROOT/objectiveai-cli/tests/.objectiveai"
+# CONFIG_BASE_DIR is the shared MCP-session scratch dir — the same
+# path `cli_test_util::mcp_session_shared_dir()` returns and the
+# tool-session CLI tests stamp on every CLI subprocess. Sharing this
+# between the CLI and the MCP server keeps the two views of config /
+# plugins / authorization coherent within a single test run, and
+# keeps the developer's real config OUT of the test process.
+TEST_CONFIG_BASE_DIR="$REPO_ROOT/objectiveai-cli/.objectiveai-tests/_mcp_session"
 mkdir -p "$TEST_CONFIG_BASE_DIR/tools"
 
 # Lay down fixture tool manifests (tool0…tool9) backed by a single
