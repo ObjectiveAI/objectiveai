@@ -30,7 +30,7 @@ use std::time::{Duration, Instant};
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use objectiveai_sdk::cli::command::agents::spawn::{
-    AgentSpec, Request as SpawnRequest, RequestPrompt,
+    AgentSpec, Request as SpawnRequest, RequestDangerousAdvanced, RequestPrompt,
     ResponseItem as SpawnResponseItem,
 };
 use serde_json::{Value, json};
@@ -129,13 +129,22 @@ impl Drop for PluginGuard {
 }
 
 /// Wait for the CLI-stream child to have flushed the agent's
-/// response continuation and torn down its socket. Mirrors
-/// `agents_continuation_tool_session_e2e::wait_for_completion`.
-async fn wait_for_completion(base_dir: &Path, spawn_id: &str) {
+/// response continuation and torn down its socket.
+///
+/// On-disk conventions (see
+/// `objectiveai-cli/src/filesystem/logs/log_file_kind.rs`):
+///   continuation token (raw text, `.txt`):
+///     `logs/agents/completions/response/continuation/<leaf>.txt`
+///   per-agent socket:
+///     `pipes/<full-lineage>/socket`
+/// The continuation stems on the LEAF response id; the socket stems
+/// on the FULL `agent_instance_hierarchy` (`cli/<leaf>` for a
+/// caller-less cli invocation).
+async fn wait_for_completion(base_dir: &Path, leaf: &str, full_lineage: &str) {
     let response_cont_path = base_dir
         .join("logs/agents/completions/response/continuation")
-        .join(format!("{spawn_id}.json"));
-    let socket_path = base_dir.join("pipes/cli").join(spawn_id).join("socket");
+        .join(format!("{leaf}.txt"));
+    let socket_path = base_dir.join("pipes").join(full_lineage).join("socket");
     let deadline = Instant::now() + Duration::from_secs(180);
     while Instant::now() < deadline {
         if response_cont_path.exists() && !socket_path.exists() {
@@ -143,7 +152,9 @@ async fn wait_for_completion(base_dir: &Path, spawn_id: &str) {
         }
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
-    panic!("cli-stream did not flush continuation + tear down socket for {spawn_id} in 180s",);
+    panic!(
+        "cli-stream did not flush continuation + tear down socket for {leaf} (lineage {full_lineage}) in 180s",
+    );
 }
 
 /// Extract a deterministic snapshot projection from the response
@@ -240,7 +251,7 @@ async fn plugin_mcp_dispatch_round_trip() {
                 "name": "test-mcp-plugin",
                 "version": "1.0.0",
                 "executable": false,
-                "mcp_servers": ["demo"]
+                "mcp_servers": [{ "name": "demo" }]
             }]
         }
     });
@@ -257,36 +268,60 @@ async fn plugin_mcp_dispatch_round_trip() {
 
     // Spawn the agent. The plugin binary inherits OAI_TEST_MCP_PID_FILE
     // through the CLI subprocess → cli-stream → plugin chain.
+    //
+    // `dangerous_advanced.stream = true` keeps the parent cli attached
+    // to its instance subprocess and forwards every
+    // `AgentCompletionChunk` as `SpawnResponseItem::Chunk(_)` — we
+    // need at least one Chunk to read `chunk.id` (the leaf response
+    // id, which is what every on-disk log stem keys on). Without
+    // streaming the parent cli detaches on `LogStreamReady` and emits
+    // only a bare `Id(leaf)`.
     let spawn_request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
         prompt: RequestPrompt::Simple("use a tool".to_string()),
         agent,
         seed: Some(1),
-        dangerous_advanced: None,
+        dangerous_advanced: Some(RequestDangerousAdvanced { stream: Some(true) }),
         jq: None,
     };
     let items: Vec<SpawnResponseItem> =
         cli_test_util::collect_stream(&executor, spawn_request).await;
-    let spawn_id = items
+    // Pull the leaf response id off the first non-empty Chunk.
+    //
+    // We deliberately ignore `chunk.agent_instance_hierarchy`: the API
+    // emits it as `{caller}/{agent_full_id}-{response_id}` (the
+    // api-side slot identifier), but the cli's on-disk filesystem
+    // stores rows under `{caller}/{response_id_leaf}` (the cli-side
+    // lineage). The cli-side full lineage is `cli/<leaf>` for a
+    // caller-less invocation.
+    let leaf = items
         .iter()
         .find_map(|item| match item {
             SpawnResponseItem::Chunk(chunk) => {
-                if chunk.agent_instance_hierarchy.is_empty() {
+                if chunk.id.is_empty() {
                     None
                 } else {
-                    Some(chunk.agent_instance_hierarchy.clone())
+                    Some(chunk.id.clone())
                 }
             }
             SpawnResponseItem::Id(_) => None,
         })
-        .expect("agents spawn must emit a Chunk with agent_instance_hierarchy");
+        .expect("agents spawn must emit a Chunk with non-empty id");
+    let full_lineage = format!("cli/{leaf}");
 
-    wait_for_completion(&base, &spawn_id).await;
+    wait_for_completion(&base, &leaf, &full_lineage).await;
 
-    let response_cont_path = base
-        .join("logs/agents/completions/response/continuation")
-        .join(format!("{spawn_id}.json"));
-    let raw = std::fs::read_to_string(&response_cont_path).expect("read response continuation");
-    let cont: Value = serde_json::from_str(&raw).expect("parse response continuation");
+    // The projection walks the **response messages log** — the full
+    // `AgentCompletion` envelope at `response/<leaf>.json`, which
+    // contains the `messages` array with `tool_calls[].function.name`
+    // and `role:"tool"` content. The continuation token file
+    // (`response/continuation/<leaf>.txt`) holds only a raw base64
+    // payload, not the message structure the projection needs.
+    let response_log_path = base
+        .join("logs/agents/completions/response")
+        .join(format!("{leaf}.json"));
+    let raw = std::fs::read_to_string(&response_log_path)
+        .expect("read response messages log");
+    let cont: Value = serde_json::from_str(&raw).expect("parse response messages log");
 
     let projection = project_for_snapshot(&cont);
     insta::assert_json_snapshot!("plugin_mcp_dispatch_round_trip", projection);
