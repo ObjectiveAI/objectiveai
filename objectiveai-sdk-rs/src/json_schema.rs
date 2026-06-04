@@ -157,8 +157,11 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::auth::response::GetOpenRouterByokApiKeyResponse),
         schemars::schema_for!(crate::auth::response::ListApiKeyItem),
         schemars::schema_for!(crate::auth::response::ListApiKeyResponse),
+        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::Error),
+        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::ErrorType),
+        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::Level),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::AgentArguments),
@@ -2896,20 +2899,35 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "viewer")]
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::viewer::spawn::response_schema::Request),
+        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::plugins::Command),
+        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::plugins::CommandType),
+        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::plugins::Output),
+        #[cfg(feature = "mcp")]
         schemars::schema_for!(crate::client_objectiveai_mcp::McpKind),
+        #[cfg(feature = "mcp")]
         schemars::schema_for!(crate::client_objectiveai_mcp::client_request::McpListChanged),
+        #[cfg(feature = "mcp")]
         schemars::schema_for!(crate::client_objectiveai_mcp::client_request::McpListChangedKind),
+        #[cfg(feature = "mcp")]
         schemars::schema_for!(crate::client_objectiveai_mcp::client_request::Payload),
+        #[cfg(feature = "mcp")]
         schemars::schema_for!(crate::client_objectiveai_mcp::client_request::Request),
+        #[cfg(feature = "mcp")]
         schemars::schema_for!(crate::client_objectiveai_mcp::client_response::Response),
+        #[cfg(feature = "mcp")]
         schemars::schema_for!(crate::client_objectiveai_mcp::server_request::InitializeRequest),
+        #[cfg(feature = "mcp")]
         schemars::schema_for!(crate::client_objectiveai_mcp::server_request::Payload),
+        #[cfg(feature = "mcp")]
         schemars::schema_for!(crate::client_objectiveai_mcp::server_request::Request),
+        #[cfg(feature = "mcp")]
         schemars::schema_for!(crate::client_objectiveai_mcp::server_response::InitializeReply),
+        #[cfg(feature = "mcp")]
         schemars::schema_for!(crate::client_objectiveai_mcp::server_response::Payload),
+        #[cfg(feature = "mcp")]
         schemars::schema_for!(crate::client_objectiveai_mcp::server_response::Response),
         schemars::schema_for!(crate::error::request::ErrorCreateParams),
         schemars::schema_for!(crate::error::response::ErrorResponse),
@@ -3277,70 +3295,135 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
     #[cfg(feature = "mcp")]
     {
         schemas.extend([
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::shared::Annotations),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::shared::Role),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::shared::Icon),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::shared::IconTheme),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::shared::ResourceContents),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::shared::TextResourceContents),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::shared::BlobResourceContents),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::shared::ResourceContentsUnion),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::initialize_result::InitializeResult),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::initialize_result::Implementation),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::initialize_result::ServerCapabilities),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::initialize_result::PromptsCapability),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::initialize_result::ResourcesCapability),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::initialize_result::ToolsCapability),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::initialize_result::LoggingCapability),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::initialize_result::CompletionsCapability),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::initialize_result::TasksCapability),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::initialize_result::TasksListCapability),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::initialize_result::TasksCancelCapability),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::initialize_result::TasksRequestsCapability),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::initialize_result::TasksToolsCapability),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::initialize_result::TasksToolsCallCapability),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::client_objectiveai_mcp::McpKind),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::client_objectiveai_mcp::client_request::Request),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::client_objectiveai_mcp::client_request::Payload),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::client_objectiveai_mcp::client_request::McpListChanged),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::client_objectiveai_mcp::client_request::McpListChangedKind),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::client_objectiveai_mcp::client_response::Response),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::client_objectiveai_mcp::server_request::Request),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::client_objectiveai_mcp::server_request::InitializeRequest),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::client_objectiveai_mcp::server_response::Response),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::client_objectiveai_mcp::server_response::InitializeReply),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::client_objectiveai_mcp::server_response::JsonRpcResult<crate::client_objectiveai_mcp::server_response::InitializeReply>),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::client_objectiveai_mcp::server_response::JsonRpcResult<crate::mcp::tool::ListToolsResult>),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::client_objectiveai_mcp::server_response::JsonRpcResult<crate::mcp::tool::CallToolResult>),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::client_objectiveai_mcp::server_response::JsonRpcResult<crate::mcp::resource::ListResourcesResult>),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::client_objectiveai_mcp::server_response::JsonRpcResult<crate::mcp::resource::ReadResourceResult>),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::client_objectiveai_mcp::server_response::JsonRpcResult<()>),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::JsonRpcRequest),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::JsonRpcError),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::JsonRpcNotification),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::resource::ListResourcesRequest),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::resource::ListResourcesResult),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::resource::ReadResourceRequestParams),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::resource::ReadResourceResult),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::resource::Resource),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::tool::AudioContent),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::tool::CallToolRequestParams),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::tool::CallToolResult),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::tool::TaskMetadata),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::tool::ContentBlock),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::tool::EmbeddedResource),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::tool::ImageContent),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::tool::ListToolsRequest),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::tool::ListToolsResult),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::tool::ResourceLink),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::tool::TextContent),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::tool::Tool),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::tool::ToolSchemaObject),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::tool::ToolSchemaType),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::tool::ToolAnnotations),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::tool::ToolExecution),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::tool::TaskSupport),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::tool::ToolResultContent),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::mcp::tool::ToolUseContent),
         ]);
     }
@@ -3411,13 +3494,21 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
     #[cfg(feature = "cli")]
     {
         schemas.extend([
+            #[cfg(feature = "cli")]
             schemars::schema_for!(crate::cli::Error),
+            #[cfg(feature = "cli")]
             schemars::schema_for!(crate::cli::ErrorType),
+            #[cfg(feature = "cli")]
             schemars::schema_for!(crate::cli::Level),
+            #[cfg(feature = "cli")]
             schemars::schema_for!(crate::cli::plugins::Command),
+            #[cfg(feature = "cli")]
             schemars::schema_for!(crate::cli::plugins::CommandType),
+            #[cfg(feature = "cli")]
             schemars::schema_for!(crate::cli::plugins::Output),
+            #[cfg(feature = "cli")]
             schemars::schema_for!(crate::cli::command::plugins::run::Mcp),
+            #[cfg(feature = "cli")]
             schemars::schema_for!(crate::cli::command::plugins::run::McpType),
         ]);
     }
@@ -3428,10 +3519,12 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
     #[cfg(feature = "http")]
     {
         schemas.extend([
+            #[cfg(feature = "http")]
             schemars::schema_for!(crate::http::viewer::ResponseError),
             schemars::schema_for!(
                 crate::http::viewer::AgentCompletionCreateParams
             ),
+            #[cfg(feature = "http")]
             schemars::schema_for!(crate::http::viewer::AgentCompletionRequest),
             schemars::schema_for!(
                 crate::http::viewer::FunctionExecutionCreateParams
@@ -3451,9 +3544,108 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
             schemars::schema_for!(
                 crate::http::viewer::LaboratoryExecutionRequest
             ),
+            #[cfg(feature = "http")]
             schemars::schema_for!(crate::http::viewer::Request),
         ]);
     }
+
+    // Concrete instantiations of `WithExpression<T>` and
+    // `schemars::Schema`, both referenced by other schemas via
+    // `$ref` but whose titles only exist after concrete substitution.
+    schemas.extend([
+        schemars::schema_for!(schemars::Schema),
+        schemars::schema_for!(
+            crate::functions::expression::WithExpression<String>
+        ),
+        schemars::schema_for!(
+            crate::functions::expression::WithExpression<
+                crate::functions::expression::InputValueExpression,
+            >
+        ),
+        schemars::schema_for!(
+            crate::functions::expression::WithExpression<
+                crate::agent::completions::message::AssistantToolCallExpression,
+            >
+        ),
+        schemars::schema_for!(
+            crate::functions::expression::WithExpression<
+                crate::agent::completions::message::AssistantToolCallFunctionExpression,
+            >
+        ),
+        schemars::schema_for!(
+            crate::functions::expression::WithExpression<
+                crate::agent::completions::message::File,
+            >
+        ),
+        schemars::schema_for!(
+            crate::functions::expression::WithExpression<
+                crate::agent::completions::message::ImageUrl,
+            >
+        ),
+        schemars::schema_for!(
+            crate::functions::expression::WithExpression<
+                crate::agent::completions::message::InputAudio,
+            >
+        ),
+        schemars::schema_for!(
+            crate::functions::expression::WithExpression<
+                crate::agent::completions::message::MessageExpression,
+            >
+        ),
+        schemars::schema_for!(
+            crate::functions::expression::WithExpression<
+                crate::agent::completions::message::RichContentExpression,
+            >
+        ),
+        schemars::schema_for!(
+            crate::functions::expression::WithExpression<
+                crate::agent::completions::message::RichContentPartExpression,
+            >
+        ),
+        schemars::schema_for!(
+            crate::functions::expression::WithExpression<
+                crate::agent::completions::message::SimpleContentExpression,
+            >
+        ),
+        schemars::schema_for!(
+            crate::functions::expression::WithExpression<
+                crate::agent::completions::message::SimpleContentPartExpression,
+            >
+        ),
+        schemars::schema_for!(
+            crate::functions::expression::WithExpression<
+                crate::agent::completions::message::VideoUrl,
+            >
+        ),
+        schemars::schema_for!(
+            crate::functions::expression::WithExpression<
+                Vec<
+                    crate::functions::expression::WithExpression<
+                        crate::agent::completions::message::AssistantToolCallExpression,
+                    >,
+                >,
+            >
+        ),
+        schemars::schema_for!(
+            crate::functions::expression::WithExpression<
+                Vec<
+                    crate::functions::expression::WithExpression<
+                        crate::agent::completions::message::MessageExpression,
+                    >,
+                >,
+            >
+        ),
+        schemars::schema_for!(
+            crate::functions::expression::WithExpression<
+                Vec<
+                    crate::functions::expression::WithExpression<
+                        crate::agent::completions::message::RichContentExpression,
+                    >,
+                >,
+            >
+        ),
+    ]);
+
     schemas
 }
 

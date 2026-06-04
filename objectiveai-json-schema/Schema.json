@@ -1,7 +1,0 @@
-{
-  "title": "Schema",
-  "type": [
-    "object",
-    "boolean"
-  ]
-}
