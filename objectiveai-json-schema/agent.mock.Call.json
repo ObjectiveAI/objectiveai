@@ -1,0 +1,19 @@
+{
+  "title": "agent.mock.Call",
+  "description": "One scripted assistant turn for the mock agent's deterministic\n`calls` override (see [`super::AgentBase::calls`]).\n\nWhen the mock fires this `Call`, it emits every entry in\n`tool_calls` first (as tool-call deltas), then `content` (as\ncontent deltas), finishing the turn after the last content chunk.\nThe match check on the continuation compares\n`(tool_calls[i].name, tool_calls[i].arguments)` pairs plus the\nfull `content` string — call ids are intentionally excluded since\nthey're random per-emit.",
+  "type": "object",
+  "properties": {
+    "content": {
+      "description": "Assistant text content emitted *after* the tool calls. Plain\n`String` — the mock's chunk-emission path only produces\n`RichContent::Text`, so multimodal content was never possible\nhere anyway. An empty string is treated as \"no content\" by\nthe emitter (the wire shape becomes `content: None`) and\nmatches an assistant message with `content: None`.",
+      "type": "string"
+    },
+    "tool_calls": {
+      "description": "Tool calls emitted by this turn. Empty `Vec` is allowed and\nmeans \"no tool calls, just content.\"",
+      "type": "array",
+      "items": {
+        "$ref": "agent.mock.CallToolCall"
+      },
+      "omitempty": true
+    }
+  }
+}

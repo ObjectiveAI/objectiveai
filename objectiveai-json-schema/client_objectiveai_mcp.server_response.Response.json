@@ -1,29 +1,378 @@
 {
   "title": "client_objectiveai_mcp.server_response.Response",
-  "description": "One HTTP response the calling client's `McpHandler` produces in\nreply to a [`super::super::server_request::Request`]. The API\ntranslates this into the HTTP response it returns to the proxy.\n\nWire shape:\n\n```json\n{\"id\":\"…\",\"status\":200,\"headers\":{\"Content-Type\":\"application/json\"},\"body\":{…}}\n```",
-  "type": "object",
-  "properties": {
-    "body": {
-      "description": "Response body — the JSON-RPC reply envelope. `None` for empty\nresponses (e.g. `202 Accepted` on notifications).",
-      "omitempty": true
+  "description": "One reply the calling client's `McpHandler` produced for a\n[`super::super::server_request::Request`]. The typed\n[`super::Payload`] variant pairs by name with the request side;\nevery method-specific result or error rides inside it. `mcp_kind`\nechoes the request's so the API can sanity-check the routing\nwithout trusting `id` alone.\n\nWire shape (envelope is `{id, mcp_kind, type, …variant fields…}`\nafter the `#[serde(flatten)]` on `payload`):\n\n```json\n{\n  \"id\":\"…\",\n  \"mcp_kind\":{\"type\":\"objective_ai\"},\n  \"type\":\"tools_list\",\n  \"kind\":\"ok\",\n  \"result\":{…}\n}\n```",
+  "anyOf": [
+    {
+      "title": "Initialize",
+      "description": "Reply to\n[`super::super::server_request::Payload::Initialize`]. On\nsuccess carries the upstream MCP session id the API stamps\nonto its outbound `Mcp-Session-Id` response header so the\nproxy adopts it. On failure (dial or aggregate-build error)\ncarries a JSON-RPC error envelope the API translates into its\nown outbound error.\n\nJSON-RPC result/error shape for every typed method. Mirrors\nthe wire shape upstream MCP servers return (`{result: …}` on\nsuccess, `{error: {code, message, data?}}` on failure) but typed\nat the SDK level instead of buried inside a `serde_json::Value`.",
+      "anyOf": [
+        {
+          "title": "Ok",
+          "description": "Method returned a typed result.",
+          "type": "object",
+          "properties": {
+            "id": {
+              "description": "Matches the `id` of the\n[`super::super::server_request::Request`] this response is for.",
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "ok"
+              ]
+            },
+            "mcp_kind": {
+              "description": "Echoes the request envelope's `mcp_kind` so the API can\nconfirm the CLI dispatched to the right per-MCP handler.",
+              "$ref": "client_objectiveai_mcp.McpKind"
+            },
+            "result": {
+              "$ref": "client_objectiveai_mcp.server_response.InitializeReply"
+            }
+          }
+        },
+        {
+          "title": "Err",
+          "description": "Method returned a JSON-RPC error envelope.",
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "integer",
+              "minimum": -9223372036854775808,
+              "maximum": 9223372036854775807
+            },
+            "data": {
+              "omitempty": true
+            },
+            "id": {
+              "description": "Matches the `id` of the\n[`super::super::server_request::Request`] this response is for.",
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "err"
+              ]
+            },
+            "mcp_kind": {
+              "description": "Echoes the request envelope's `mcp_kind` so the API can\nconfirm the CLI dispatched to the right per-MCP handler.",
+              "$ref": "client_objectiveai_mcp.McpKind"
+            },
+            "message": {
+              "type": "string"
+            }
+          }
+        }
+      ]
     },
-    "headers": {
-      "description": "Response headers. Typically just `Content-Type` and possibly\n`Mcp-Session-Id` on the `initialize` response.",
-      "type": "object",
-      "additionalProperties": {
-        "type": "string"
-      },
-      "omitempty": true
+    {
+      "title": "ToolsList",
+      "description": "Reply to [`super::super::server_request::Payload::ToolsList`].\n\nJSON-RPC result/error shape for every typed method. Mirrors\nthe wire shape upstream MCP servers return (`{result: …}` on\nsuccess, `{error: {code, message, data?}}` on failure) but typed\nat the SDK level instead of buried inside a `serde_json::Value`.",
+      "anyOf": [
+        {
+          "title": "Ok",
+          "description": "Method returned a typed result.",
+          "type": "object",
+          "properties": {
+            "id": {
+              "description": "Matches the `id` of the\n[`super::super::server_request::Request`] this response is for.",
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "ok"
+              ]
+            },
+            "mcp_kind": {
+              "description": "Echoes the request envelope's `mcp_kind` so the API can\nconfirm the CLI dispatched to the right per-MCP handler.",
+              "$ref": "client_objectiveai_mcp.McpKind"
+            },
+            "result": {
+              "$ref": "mcp.tool.ListToolsResult"
+            }
+          }
+        },
+        {
+          "title": "Err",
+          "description": "Method returned a JSON-RPC error envelope.",
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "integer",
+              "minimum": -9223372036854775808,
+              "maximum": 9223372036854775807
+            },
+            "data": {
+              "omitempty": true
+            },
+            "id": {
+              "description": "Matches the `id` of the\n[`super::super::server_request::Request`] this response is for.",
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "err"
+              ]
+            },
+            "mcp_kind": {
+              "description": "Echoes the request envelope's `mcp_kind` so the API can\nconfirm the CLI dispatched to the right per-MCP handler.",
+              "$ref": "client_objectiveai_mcp.McpKind"
+            },
+            "message": {
+              "type": "string"
+            }
+          }
+        }
+      ]
     },
-    "id": {
-      "description": "Matches the `id` of the\n[`super::super::server_request::Request`] this response is for.",
-      "type": "string"
+    {
+      "title": "ToolsCall",
+      "description": "Reply to [`super::super::server_request::Payload::ToolsCall`].\n\nJSON-RPC result/error shape for every typed method. Mirrors\nthe wire shape upstream MCP servers return (`{result: …}` on\nsuccess, `{error: {code, message, data?}}` on failure) but typed\nat the SDK level instead of buried inside a `serde_json::Value`.",
+      "anyOf": [
+        {
+          "title": "Ok",
+          "description": "Method returned a typed result.",
+          "type": "object",
+          "properties": {
+            "id": {
+              "description": "Matches the `id` of the\n[`super::super::server_request::Request`] this response is for.",
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "ok"
+              ]
+            },
+            "mcp_kind": {
+              "description": "Echoes the request envelope's `mcp_kind` so the API can\nconfirm the CLI dispatched to the right per-MCP handler.",
+              "$ref": "client_objectiveai_mcp.McpKind"
+            },
+            "result": {
+              "$ref": "mcp.tool.CallToolResult"
+            }
+          }
+        },
+        {
+          "title": "Err",
+          "description": "Method returned a JSON-RPC error envelope.",
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "integer",
+              "minimum": -9223372036854775808,
+              "maximum": 9223372036854775807
+            },
+            "data": {
+              "omitempty": true
+            },
+            "id": {
+              "description": "Matches the `id` of the\n[`super::super::server_request::Request`] this response is for.",
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "err"
+              ]
+            },
+            "mcp_kind": {
+              "description": "Echoes the request envelope's `mcp_kind` so the API can\nconfirm the CLI dispatched to the right per-MCP handler.",
+              "$ref": "client_objectiveai_mcp.McpKind"
+            },
+            "message": {
+              "type": "string"
+            }
+          }
+        }
+      ]
     },
-    "status": {
-      "description": "HTTP status code (`200` for success, `4xx` / `5xx` for errors).",
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 65535
+    {
+      "title": "ResourcesList",
+      "description": "Reply to\n[`super::super::server_request::Payload::ResourcesList`].\n\nJSON-RPC result/error shape for every typed method. Mirrors\nthe wire shape upstream MCP servers return (`{result: …}` on\nsuccess, `{error: {code, message, data?}}` on failure) but typed\nat the SDK level instead of buried inside a `serde_json::Value`.",
+      "anyOf": [
+        {
+          "title": "Ok",
+          "description": "Method returned a typed result.",
+          "type": "object",
+          "properties": {
+            "id": {
+              "description": "Matches the `id` of the\n[`super::super::server_request::Request`] this response is for.",
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "ok"
+              ]
+            },
+            "mcp_kind": {
+              "description": "Echoes the request envelope's `mcp_kind` so the API can\nconfirm the CLI dispatched to the right per-MCP handler.",
+              "$ref": "client_objectiveai_mcp.McpKind"
+            },
+            "result": {
+              "$ref": "mcp.resource.ListResourcesResult"
+            }
+          }
+        },
+        {
+          "title": "Err",
+          "description": "Method returned a JSON-RPC error envelope.",
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "integer",
+              "minimum": -9223372036854775808,
+              "maximum": 9223372036854775807
+            },
+            "data": {
+              "omitempty": true
+            },
+            "id": {
+              "description": "Matches the `id` of the\n[`super::super::server_request::Request`] this response is for.",
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "err"
+              ]
+            },
+            "mcp_kind": {
+              "description": "Echoes the request envelope's `mcp_kind` so the API can\nconfirm the CLI dispatched to the right per-MCP handler.",
+              "$ref": "client_objectiveai_mcp.McpKind"
+            },
+            "message": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "title": "ResourcesRead",
+      "description": "Reply to\n[`super::super::server_request::Payload::ResourcesRead`].\n\nJSON-RPC result/error shape for every typed method. Mirrors\nthe wire shape upstream MCP servers return (`{result: …}` on\nsuccess, `{error: {code, message, data?}}` on failure) but typed\nat the SDK level instead of buried inside a `serde_json::Value`.",
+      "anyOf": [
+        {
+          "title": "Ok",
+          "description": "Method returned a typed result.",
+          "type": "object",
+          "properties": {
+            "id": {
+              "description": "Matches the `id` of the\n[`super::super::server_request::Request`] this response is for.",
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "ok"
+              ]
+            },
+            "mcp_kind": {
+              "description": "Echoes the request envelope's `mcp_kind` so the API can\nconfirm the CLI dispatched to the right per-MCP handler.",
+              "$ref": "client_objectiveai_mcp.McpKind"
+            },
+            "result": {
+              "$ref": "mcp.resource.ReadResourceResult"
+            }
+          }
+        },
+        {
+          "title": "Err",
+          "description": "Method returned a JSON-RPC error envelope.",
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "integer",
+              "minimum": -9223372036854775808,
+              "maximum": 9223372036854775807
+            },
+            "data": {
+              "omitempty": true
+            },
+            "id": {
+              "description": "Matches the `id` of the\n[`super::super::server_request::Request`] this response is for.",
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "err"
+              ]
+            },
+            "mcp_kind": {
+              "description": "Echoes the request envelope's `mcp_kind` so the API can\nconfirm the CLI dispatched to the right per-MCP handler.",
+              "$ref": "client_objectiveai_mcp.McpKind"
+            },
+            "message": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "title": "SessionTerminate",
+      "description": "Acknowledges\n[`super::super::server_request::Payload::SessionTerminate`].\nOn success carries the unit value (no body); on failure\ncarries the upstream-delete error so the proxy sees a\nnon-2xx and can retry.\n\nJSON-RPC result/error shape for every typed method. Mirrors\nthe wire shape upstream MCP servers return (`{result: …}` on\nsuccess, `{error: {code, message, data?}}` on failure) but typed\nat the SDK level instead of buried inside a `serde_json::Value`.",
+      "anyOf": [
+        {
+          "title": "Ok",
+          "description": "Method returned a typed result.",
+          "type": "object",
+          "properties": {
+            "id": {
+              "description": "Matches the `id` of the\n[`super::super::server_request::Request`] this response is for.",
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "ok"
+              ]
+            },
+            "mcp_kind": {
+              "description": "Echoes the request envelope's `mcp_kind` so the API can\nconfirm the CLI dispatched to the right per-MCP handler.",
+              "$ref": "client_objectiveai_mcp.McpKind"
+            },
+            "result": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "title": "Err",
+          "description": "Method returned a JSON-RPC error envelope.",
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "integer",
+              "minimum": -9223372036854775808,
+              "maximum": 9223372036854775807
+            },
+            "data": {
+              "omitempty": true
+            },
+            "id": {
+              "description": "Matches the `id` of the\n[`super::super::server_request::Request`] this response is for.",
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "err"
+              ]
+            },
+            "mcp_kind": {
+              "description": "Echoes the request envelope's `mcp_kind` so the API can\nconfirm the CLI dispatched to the right per-MCP handler.",
+              "$ref": "client_objectiveai_mcp.McpKind"
+            },
+            "message": {
+              "type": "string"
+            }
+          }
+        }
+      ]
     }
-  }
+  ]
 }

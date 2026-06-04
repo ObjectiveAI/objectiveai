@@ -71,12 +71,14 @@ pub struct InitializeReply {
 /// success, `{error: {code, message, data?}}` on failure) but typed
 /// at the SDK level instead of buried inside a `serde_json::Value`.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "client_objectiveai_mcp.server_response.JsonRpcResult")]
+#[schemars(rename = "client_objectiveai_mcp.server_response.JsonRpcResult.{R}", bound = "R: JsonSchema")]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum JsonRpcResult<R> {
     /// Method returned a typed result.
+    #[schemars(title = "Ok")]
     Ok { result: R },
     /// Method returned a JSON-RPC error envelope.
+    #[schemars(title = "Err")]
     Err {
         code: i64,
         message: String,
