@@ -3,7 +3,7 @@
   "anyOf": [
     {
       "title": "Recursive",
-      "$ref": "cli.command.functions.inventions.recursive.Request"
+      "$ref": "cli.command.functions.inventions.recursive.create.Request"
     },
     {
       "title": "State",

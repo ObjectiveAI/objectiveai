@@ -3,7 +3,7 @@
   "anyOf": [
     {
       "title": "Executions",
-      "$ref": "cli.command.functions.executions.Request"
+      "$ref": "cli.command.functions.executions.create.Request"
     },
     {
       "title": "Get",
