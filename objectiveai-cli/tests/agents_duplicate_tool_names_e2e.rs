@@ -201,9 +201,18 @@ async fn duplicate_tool_names_routed_across_turns() {
         .expect("agents spawn must emit a Chunk with agent_instance_hierarchy");
     wait_for_completion(&base, &spawn_id).await;
 
+    // Split the chunk's full lineage into (parent, instance) for the
+    // two-field `MessageRequest` shape.
+    let (parent, instance) = spawn_id
+        .rsplit_once('/')
+        .map(|(p, i)| (Some(p.to_string()), i.to_string()))
+        .unwrap_or_else(|| (None, spawn_id.clone()));
+
     // Turn 2: agents message — first continuation ─────────────────
-    let msg1 = MessageRequest { path: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
-        agent_instance_hierarchy: spawn_id.clone(),
+    let msg1 = MessageRequest {
+        path: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
+        parent_agent_instance_hierarchy: parent.clone(),
+        agent_instance: instance.clone(),
         message: RequestMessage::Simple("again".to_string()),
         seed: Some(SEED),
         jq: None,
@@ -215,8 +224,10 @@ async fn duplicate_tool_names_routed_across_turns() {
     wait_for_completion(&base, &spawn_id).await;
 
     // Turn 3: agents message — second continuation ───────────────
-    let msg2 = MessageRequest { path: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
-        agent_instance_hierarchy: spawn_id.clone(),
+    let msg2 = MessageRequest {
+        path: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
+        parent_agent_instance_hierarchy: parent.clone(),
+        agent_instance: instance.clone(),
         message: RequestMessage::Simple("one more".to_string()),
         seed: Some(SEED),
         jq: None,

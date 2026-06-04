@@ -107,8 +107,16 @@ async fn spawn_then_message_propagates_response_continuation() {
     .expect("response continuation is JSON-quoted string");
 
     // ── 4. Message the agent ─────────────────────────────────────
-    let message_request = MessageRequest { path: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
-        agent_instance_hierarchy: spawn_id.clone(),
+    // Split the chunk's full lineage into (parent, instance) for the
+    // new two-field `MessageRequest` shape.
+    let (parent, instance) = spawn_id
+        .rsplit_once('/')
+        .map(|(p, i)| (Some(p.to_string()), i.to_string()))
+        .unwrap_or_else(|| (None, spawn_id.clone()));
+    let message_request = MessageRequest {
+        path: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
+        parent_agent_instance_hierarchy: parent,
+        agent_instance: instance,
         message: RequestMessage::Simple("follow up".to_string()),
         seed: Some(42),
         jq: None,

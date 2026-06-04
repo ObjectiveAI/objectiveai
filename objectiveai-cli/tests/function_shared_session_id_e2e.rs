@@ -301,19 +301,25 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
         actives.len(),
     );
 
-    // The handler strips the parent prefix from each `agent_id`, so
-    // re-prepend the cli's hierarchy root to recover the full id
-    // `agents message` expects.
-    let full_ids: Vec<String> = actives
+    // `agents list active` returns leaf ids; `agents message`'s new
+    // shape takes leaf via `agent_instance` and defaults parent to
+    // the cli's own `Config.agent_instance_hierarchy` (which is
+    // `CLI_HIERARCHY_ROOT` in this harness). Keep `full_ids` for the
+    // `wait_for_completion` poll which inspects on-disk paths
+    // prefixed with the full lineage.
+    let instances: Vec<String> = actives.iter().map(|a| a.agent_id.clone()).collect();
+    let full_ids: Vec<String> = instances
         .iter()
-        .map(|a| format!("{CLI_HIERARCHY_ROOT}/{}", a.agent_id))
+        .map(|i| format!("{CLI_HIERARCHY_ROOT}/{i}"))
         .collect();
 
     // ── Send `agents message` to all 5 in parallel ─────────────
-    let send_futures = full_ids.iter().map(|id| {
+    let send_futures = instances.iter().map(|instance| {
         let executor = &executor;
-        let request = MessageRequest { path: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
-            agent_instance_hierarchy: id.clone(),
+        let request = MessageRequest {
+            path: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
+            parent_agent_instance_hierarchy: None,
+            agent_instance: instance.clone(),
             message: RequestMessage::Simple("again".to_string()),
             seed: None,
             jq: None,
