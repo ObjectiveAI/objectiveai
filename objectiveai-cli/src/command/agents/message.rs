@@ -43,28 +43,29 @@ const CONNECT_TIMEOUT: Duration = Duration::from_millis(1000);
 const ACK_TIMEOUT: Duration = Duration::from_millis(5000);
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    // Glue the caller's lineage onto the user-supplied sub-id — matches
-    // what `LogWriter::with_caller_agent_instance_hierarchy` stores in
-    // `messages.agent_instance_hierarchy` and what `instance/streaming`
-    // binds the per-agent socket at
-    // (`pipes/<caller>/<sub-id>/socket`). Same convention every other
-    // agent-lookup command (e.g. `agents read pending`) uses.
-    let caller = &ctx.config.agent_instance_hierarchy;
-    let full_id = format!("{caller}/{}", request.agent_instance_hierarchy);
-    // Bare leaf — the trailing slash segment. `agents list active`
-    // returns this form and `agents read pending` accepts it, so the
-    // notifications we surface use the same shape (pastable back into
-    // either command without the user having to strip their own
-    // caller prefix).
-    let bare_id = full_id
-        .rsplit_once('/')
-        .map(|(_, t)| t.to_string())
-        .unwrap_or_else(|| full_id.clone());
+    // Compose the full lineage. `parent` from the request when set,
+    // otherwise the cli's own `Config.agent_instance_hierarchy` (the
+    // cli's "caller" position). Matches what
+    // `LogWriter::with_caller_agent_instance_hierarchy` stores in
+    // `messages.agent_instance_hierarchy` and what
+    // `instance/streaming` binds the per-agent socket at
+    // (`pipes/<parent>/<instance>/socket`).
+    let parent = request
+        .parent_agent_instance_hierarchy
+        .as_deref()
+        .unwrap_or(&ctx.config.agent_instance_hierarchy);
+    let full_id = format!("{parent}/{}", request.agent_instance);
     let content = resolve_message(request.message)?;
 
     loop {
-        match handle_once(ctx, &full_id, &bare_id, content.clone(), request.seed)
-            .await
+        match handle_once(
+            ctx,
+            &full_id,
+            &request.agent_instance,
+            content.clone(),
+            request.seed,
+        )
+        .await
         {
             Err(Error::CliStreamSlotTaken { .. }) => continue,
             other => return other,
@@ -75,7 +76,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
 async fn handle_once(
     ctx: &Context,
     full_id: &str,
-    bare_id: &str,
+    agent_instance: &str,
     content: RichContent,
     seed: Option<i64>,
 ) -> Result<Response, Error> {
@@ -83,9 +84,9 @@ async fn handle_once(
     // continuation fallback — pipe errors are never surfaced as fatal.
     match try_pipe_delivery(ctx, full_id, &content).await {
         Ok(()) => Ok(Response::Delivered {
-            agent_id: bare_id.to_string(),
+            agent_id: agent_instance.to_string(),
         }),
-        Err(_) => fallback_via_continuation(ctx, full_id, bare_id, content, seed).await,
+        Err(_) => fallback_via_continuation(ctx, full_id, agent_instance, content, seed).await,
     }
 }
 

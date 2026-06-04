@@ -6,7 +6,16 @@ use crate::cli::command::CommandRequest;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct Request {
     pub path: Path,
-    pub agent_instance_hierarchy: String,
+    /// Lineage prefix to prepend to [`Self::agent_instance`]. When
+    /// `None`, the CLI substitutes its own
+    /// `Config.agent_instance_hierarchy` (the cli's "caller"
+    /// position). Full target lineage is `"{parent}/{instance}"`.
+    pub parent_agent_instance_hierarchy: Option<String>,
+    /// Leaf id of the target agent. Combined with
+    /// [`Self::parent_agent_instance_hierarchy`] (or the cli's
+    /// caller position when that is `None`) to form the full
+    /// hierarchy.
+    pub agent_instance: String,
     pub message: RequestMessage,
     pub seed: Option<i64>,
     pub jq: Option<String>,
@@ -62,8 +71,12 @@ impl CommandRequest for Request {
         let mut argv = vec![
             "agents".to_string(),
             "message".to_string(),
-            self.agent_instance_hierarchy.clone(),
+            self.agent_instance.clone(),
         ];
+        if let Some(parent) = &self.parent_agent_instance_hierarchy {
+            argv.push("--parent-agent-instance-hierarchy".to_string());
+            argv.push(parent.clone());
+        }
         self.message.push_flags(&mut argv);
         if let Some(seed) = self.seed {
             argv.push("--seed".to_string());
@@ -86,8 +99,15 @@ pub enum Response {
 
 #[derive(clap::Args)]
 pub struct Args {
-    /// Lineage path of the target agent.
-    pub agent_instance_hierarchy: String,
+    /// Leaf id of the target agent. Combined with `--parent` (or
+    /// the cli's own `Config.agent_instance_hierarchy` when
+    /// `--parent` is omitted) to form the full lineage.
+    pub agent_instance: String,
+    /// Optional lineage prefix to prepend to `agent_instance`.
+    /// When omitted, the cli substitutes its own
+    /// `Config.agent_instance_hierarchy`.
+    #[arg(long = "parent-agent-instance-hierarchy")]
+    pub parent_agent_instance_hierarchy: Option<String>,
     #[command(flatten)]
     pub message: MessageArgs,
     /// Seed for deterministic mock responses.
@@ -156,8 +176,10 @@ impl TryFrom<Args> for Request {
         } else {
             RequestMessage::PythonFile(args.message.python_file.unwrap())
         };
-        Ok(Self { path: Path::AgentsMessage,
-            agent_instance_hierarchy: args.agent_instance_hierarchy,
+        Ok(Self {
+            path: Path::AgentsMessage,
+            parent_agent_instance_hierarchy: args.parent_agent_instance_hierarchy,
+            agent_instance: args.agent_instance,
             message,
             seed: args.seed,
             jq: args.jq,
