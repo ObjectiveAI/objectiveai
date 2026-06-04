@@ -145,8 +145,12 @@ pub async fn spawn_and_wait_for_listening(
 /// that uses the same `Envconfig`-based loader) round-trips its
 /// parent's config byte-identically.
 ///
-/// `Option`-typed fields are skipped on `None`. Boolean fields are
-/// stamped only when `true`.
+/// `Option`-typed fields are skipped on `None`, EXCEPT the five
+/// per-request transient identity keys (`OBJECTIVEAI_AGENT_ID`,
+/// `_FULL_ID`, `_REMOTE`, `_RESPONSE_ID`, `_RESPONSE_IDS`), which
+/// are `env_remove`'d on `None` so the child cannot inherit a stale
+/// identity from the parent's startup environment. Boolean fields
+/// are stamped only when `true`.
 pub fn apply_config_env(cmd: &mut Command, cfg: &crate::Config) {
     if cfg.config_set_forbidden {
         cmd.env("CONFIG_SET_FORBIDDEN", "true");
@@ -164,20 +168,45 @@ pub fn apply_config_env(cmd: &mut Command, cfg: &crate::Config) {
         cmd.env("GITHUB_AUTHORIZATION", v);
     }
     cmd.env("OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY", &cfg.agent_instance_hierarchy);
-    if let Some(v) = cfg.agent_id.as_deref() {
-        cmd.env("OBJECTIVEAI_AGENT_ID", v);
+    match cfg.agent_id.as_deref() {
+        Some(v) => {
+            cmd.env("OBJECTIVEAI_AGENT_ID", v);
+        }
+        None => {
+            cmd.env_remove("OBJECTIVEAI_AGENT_ID");
+        }
     }
-    if let Some(v) = cfg.agent_full_id.as_deref() {
-        cmd.env("OBJECTIVEAI_AGENT_FULL_ID", v);
+    match cfg.agent_full_id.as_deref() {
+        Some(v) => {
+            cmd.env("OBJECTIVEAI_AGENT_FULL_ID", v);
+        }
+        None => {
+            cmd.env_remove("OBJECTIVEAI_AGENT_FULL_ID");
+        }
     }
-    if let Some(v) = cfg.agent_remote.as_deref() {
-        cmd.env("OBJECTIVEAI_AGENT_REMOTE", v);
+    match cfg.agent_remote.as_deref() {
+        Some(v) => {
+            cmd.env("OBJECTIVEAI_AGENT_REMOTE", v);
+        }
+        None => {
+            cmd.env_remove("OBJECTIVEAI_AGENT_REMOTE");
+        }
     }
-    if let Some(v) = cfg.response_id.as_deref() {
-        cmd.env("OBJECTIVEAI_RESPONSE_ID", v);
+    match cfg.response_id.as_deref() {
+        Some(v) => {
+            cmd.env("OBJECTIVEAI_RESPONSE_ID", v);
+        }
+        None => {
+            cmd.env_remove("OBJECTIVEAI_RESPONSE_ID");
+        }
     }
-    if let Some(v) = cfg.response_ids.as_deref() {
-        cmd.env("OBJECTIVEAI_RESPONSE_IDS", v);
+    match cfg.response_ids.as_deref() {
+        Some(v) => {
+            cmd.env("OBJECTIVEAI_RESPONSE_IDS", v);
+        }
+        None => {
+            cmd.env_remove("OBJECTIVEAI_RESPONSE_IDS");
+        }
     }
     if let Some(v) = cfg.mcp_session_id.as_deref() {
         cmd.env(objectiveai_sdk::mcp::MCP_SESSION_ID_ENV, v);
