@@ -4393,7 +4393,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-sdk"
-version = "2.0.11"
+version = "2.1.0"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -4450,7 +4450,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-sdk-macros"
-version = "2.0.11"
+version = "2.1.0"
 
 [[package]]
 name = "objectiveai-sdk-rs-pyo3"
