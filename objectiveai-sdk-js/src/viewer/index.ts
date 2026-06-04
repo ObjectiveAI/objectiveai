@@ -1,4 +1,3 @@
-export * from "./apiCallBridge";
 export * from "./generatedIndex";
 
 /**
