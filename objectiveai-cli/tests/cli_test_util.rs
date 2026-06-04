@@ -191,7 +191,7 @@ where
     T: CommandResponse + serde::de::DeserializeOwned + Send + 'static,
 {
     let stream = executor
-        .execute::<R, T>(request)
+        .execute::<R, T>(request, None)
         .await
         .expect("BinaryExecutor::execute failed");
     let mut stream = std::pin::pin!(stream);
@@ -209,7 +209,7 @@ where
     T: CommandResponse + serde::de::DeserializeOwned + Send + 'static,
 {
     executor
-        .execute_one::<R, T>(request)
+        .execute_one::<R, T>(request, None)
         .await
         .expect("BinaryExecutor::execute_one failed")
 }

@@ -193,7 +193,7 @@ async fn continue_agent(executor: &BinaryExecutor, spawn_id: &str, seed: i64) {
     // only that the cli emitted something without erroring. The real
     // verification is the post-turn `wait_for_completion`.
     let _ = executor
-        .execute_one::<_, objectiveai_sdk::cli::command::agents::message::Response>(request)
+        .execute_one::<_, objectiveai_sdk::cli::command::agents::message::Response>(request, None)
         .await
         .expect("agents message executor call");
 }
@@ -230,7 +230,7 @@ async fn read_tool_response_ids(executor: &BinaryExecutor, sub_id: &str) -> Vec<
 async fn read_count_for_id(executor: &BinaryExecutor, id: i64) -> Option<u64> {
     let request = ReadIdRequest { id, jq: None };
     let response: objectiveai_sdk::cli::command::agents::read::id::Response = executor
-        .execute_one(request)
+        .execute_one(request, None)
         .await
         .expect("agents read id executor call");
     let value = serde_json::to_value(&response).expect("Response serializes");

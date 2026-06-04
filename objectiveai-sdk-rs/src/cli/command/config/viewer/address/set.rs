@@ -51,8 +51,10 @@ impl TryFrom<Args> for Request {
 pub async fn execute<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     request: Request,
-) -> Result<Response, E::Error> {
-    executor.execute_one(request).await
+
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    ) -> Result<Response, E::Error> {
+    executor.execute_one(request, agent_arguments).await
 }
 
 pub mod request_schema {
@@ -93,9 +95,11 @@ pub mod request_schema {
     pub async fn execute<E: crate::cli::command::CommandExecutor>(
         executor: &E,
         mut request: Request,
+    
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
     ) -> Result<Response, E::Error> {
         request.jq = None;
-        executor.execute_one(request).await
+        executor.execute_one(request, agent_arguments).await
     }
 
     #[cfg(feature = "cli-executor")]
@@ -103,9 +107,11 @@ pub mod request_schema {
         executor: &E,
         mut request: Request,
         jq: String,
+    
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
     ) -> Result<serde_json::Value, E::Error> {
         request.jq = Some(jq);
-        executor.execute_one(request).await
+        executor.execute_one(request, agent_arguments).await
     }
 }
 
@@ -148,9 +154,11 @@ pub mod response_schema {
     pub async fn execute<E: crate::cli::command::CommandExecutor>(
         executor: &E,
         mut request: Request,
+    
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
     ) -> Result<Response, E::Error> {
         request.jq = None;
-        executor.execute_one(request).await
+        executor.execute_one(request, agent_arguments).await
     }
 
     #[cfg(feature = "cli-executor")]
@@ -158,9 +166,11 @@ pub mod response_schema {
         executor: &E,
         mut request: Request,
         jq: String,
+    
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
     ) -> Result<serde_json::Value, E::Error> {
         request.jq = Some(jq);
-        executor.execute_one(request).await
+        executor.execute_one(request, agent_arguments).await
     }
 }
 
@@ -169,7 +179,9 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     request: Request,
     _jq: String,
-) -> Result<serde_json::Value, E::Error> {
-    let resp: Response = executor.execute_one(request).await?;
+
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    ) -> Result<serde_json::Value, E::Error> {
+    let resp: Response = executor.execute_one(request, agent_arguments).await?;
     Ok(serde_json::to_value(resp).expect("Response serializes"))
 }

@@ -320,7 +320,7 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
         };
         async move {
             executor
-                .execute_one::<_, MessageResponse>(request)
+                .execute_one::<_, MessageResponse>(request, None)
                 .await
                 .expect("agents message executor call")
         }

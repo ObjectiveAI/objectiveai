@@ -93,7 +93,9 @@ impl crate::cli::command::CommandRequest for Request {
 pub async fn execute<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     request: Request,
-) -> Result<
+
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<Response, E::Error>> + Send>>,
     E::Error,
 > {
@@ -101,23 +103,23 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<Response, E::Error>> + Send>> =
         match request {
             Request::Audio(req) => {
-                let inner = audio::execute(executor, req).await?;
+                let inner = audio::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(Response::Audio)))
             }
             Request::File(req) => {
-                let inner = file::execute(executor, req).await?;
+                let inner = file::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(Response::File)))
             }
             Request::Image(req) => {
-                let inner = image::execute(executor, req).await?;
+                let inner = image::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(Response::Image)))
             }
             Request::Text(req) => {
-                let inner = text::execute(executor, req).await?;
+                let inner = text::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(Response::Text)))
             }
             Request::Video(req) => {
-                let inner = video::execute(executor, req).await?;
+                let inner = video::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(Response::Video)))
             }
         };
@@ -129,30 +131,32 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     request: Request,
     jq: String,
-) -> Result<
+
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>>,
     E::Error,
 > {
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
         match request {
             Request::Audio(req) => {
-                let inner = audio::execute_jq(executor, req, jq).await?;
+                let inner = audio::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::File(req) => {
-                let inner = file::execute_jq(executor, req, jq).await?;
+                let inner = file::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Image(req) => {
-                let inner = image::execute_jq(executor, req, jq).await?;
+                let inner = image::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Text(req) => {
-                let inner = text::execute_jq(executor, req, jq).await?;
+                let inner = text::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Video(req) => {
-                let inner = video::execute_jq(executor, req, jq).await?;
+                let inner = video::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
         };

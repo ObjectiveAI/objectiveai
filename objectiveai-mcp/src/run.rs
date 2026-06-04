@@ -112,7 +112,7 @@ where
     // Discover registered plugins + tools concurrently — both are
     // independent SDK calls that each spawn one cli subprocess.
     let (plugins_list, tools_list) =
-        tokio::join!(list_plugins(&executor), list_tools(&executor));
+        tokio::join!(list_plugins(&*executor), list_tools(&*executor));
 
     let server =
         ObjectiveAiMcpCli::with_plugins_and_tools(executor.clone(), plugins_list, tools_list);
@@ -169,7 +169,7 @@ where
         limit: None,
         jq: None,
     };
-    match plugins::list::execute(executor, request).await {
+    match plugins::list::execute(executor, request, None).await {
         Ok(stream) => stream.filter_map(|r| async move { r.ok() }).collect().await,
         Err(_) => Vec::new(),
     }
@@ -186,7 +186,7 @@ where
         limit: None,
         jq: None,
     };
-    match tools::list::execute(executor, request).await {
+    match tools::list::execute(executor, request, None).await {
         Ok(stream) => stream.filter_map(|r| async move { r.ok() }).collect().await,
         Err(_) => Vec::new(),
     }

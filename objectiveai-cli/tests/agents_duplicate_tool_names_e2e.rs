@@ -209,7 +209,7 @@ async fn duplicate_tool_names_routed_across_turns() {
         jq: None,
     };
     let _ = executor
-        .execute_one::<_, objectiveai_sdk::cli::command::agents::message::Response>(msg1)
+        .execute_one::<_, objectiveai_sdk::cli::command::agents::message::Response>(msg1, None)
         .await
         .expect("agents message turn 2 executor call");
     wait_for_completion(&base, &spawn_id).await;
@@ -222,7 +222,7 @@ async fn duplicate_tool_names_routed_across_turns() {
         jq: None,
     };
     let _ = executor
-        .execute_one::<_, objectiveai_sdk::cli::command::agents::message::Response>(msg2)
+        .execute_one::<_, objectiveai_sdk::cli::command::agents::message::Response>(msg2, None)
         .await
         .expect("agents message turn 3 executor call");
     wait_for_completion(&base, &spawn_id).await;
@@ -259,7 +259,7 @@ async fn duplicate_tool_names_routed_across_turns() {
     let mut unique: std::collections::HashSet<String> = std::collections::HashSet::new();
     for id in tool_call_ids {
         let resp: ReadIdResponse = executor
-            .execute_one(ReadIdRequest { id, jq: None })
+            .execute_one(ReadIdRequest { id, jq: None }, None)
             .await
             .unwrap_or_else(|e| panic!("agents read id {id} failed: {e:?}"));
         // Tool-call rows always come back as

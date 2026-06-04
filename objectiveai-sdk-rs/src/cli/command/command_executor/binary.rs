@@ -5,7 +5,7 @@ use futures::{Stream, StreamExt};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
-use crate::cli::command::{CommandExecutor, CommandRequest, CommandResponse};
+use crate::cli::command::{AgentArguments, CommandExecutor, CommandRequest, CommandResponse};
 
 /// Spawn the `objectiveai` cli binary on disk, feed it the argv from
 /// `request.into_command()`, and stream each stdout JSONL line back as
@@ -84,22 +84,29 @@ impl BinaryExecutor {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
     /// `dirs::home_dir()` returned `None` and no `config_base_dir` was set.
+    #[error("no home directory and no config_base_dir set")]
     NoHomeDir,
     /// Failed to spawn the binary at the resolved path.
+    #[error("failed to spawn cli binary: {0}")]
     Spawn(std::io::Error),
     /// Child stdout was unexpectedly absent after spawn.
+    #[error("cli binary child has no stdout handle")]
     NoStdout,
     /// Reading stdout line failed.
+    #[error("read cli binary stdout: {0}")]
     Io(std::io::Error),
     /// Stdout produced a line that didn't deserialize as either the
     /// structured `cli::Error` or `T`.
+    #[error("decode cli binary stdout line: {0}")]
     Json(serde_json::Error),
     /// Structured error emitted by the cli binary on stdout.
+    #[error("{0}")]
     Cli(crate::cli::Error),
     /// `execute_one` was called but the stream produced no items.
+    #[error("cli binary stream produced no items")]
     Empty,
 }
 
@@ -129,7 +136,11 @@ impl CommandExecutor for BinaryExecutor {
     where
         T: Send + 'static;
 
-    async fn execute<R, T>(&self, request: R) -> Result<Self::Stream<T>, Error>
+    async fn execute<R, T>(
+        &self,
+        request: R,
+        agent_arguments: Option<&AgentArguments>,
+    ) -> Result<Self::Stream<T>, Error>
     where
         R: CommandRequest + Send,
         T: CommandResponse + serde::de::DeserializeOwned + Send + 'static,
@@ -145,6 +156,14 @@ impl CommandExecutor for BinaryExecutor {
             .stderr(std::process::Stdio::inherit());
         for (k, v) in &self.extra_env {
             command.env(k, v);
+        }
+        // Per-call agent identity override. When `Some`, every field
+        // gets applied atomically: `Some(v)` → set, `None` →
+        // env_remove so the parent's value can't leak through. When
+        // the bag itself is `None`, parent env is inherited
+        // untouched.
+        if let Some(args) = agent_arguments {
+            args.apply_to_command(&mut command);
         }
         let mut child = command.spawn().map_err(Error::Spawn)?;
 
@@ -174,12 +193,16 @@ impl CommandExecutor for BinaryExecutor {
         Ok(Box::pin(stream))
     }
 
-    async fn execute_one<R, T>(&self, request: R) -> Result<T, Error>
+    async fn execute_one<R, T>(
+        &self,
+        request: R,
+        agent_arguments: Option<&AgentArguments>,
+    ) -> Result<T, Error>
     where
         R: CommandRequest + Send,
         T: CommandResponse + serde::de::DeserializeOwned + Send + 'static,
     {
-        let mut stream = self.execute::<R, T>(request).await?;
+        let mut stream = self.execute::<R, T>(request, agent_arguments).await?;
         stream.next().await.ok_or(Error::Empty)?
     }
 }

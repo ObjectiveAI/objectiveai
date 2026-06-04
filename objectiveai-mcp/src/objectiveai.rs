@@ -173,11 +173,11 @@ where
     E: CommandExecutor,
     E::Error: std::fmt::Display,
 {
-    let stream = match objectiveai_sdk::cli::command::execute(executor, request).await {
+    let stream = match objectiveai_sdk::cli::command::execute(executor, request, None).await {
         Ok(s) => s,
-        Err(e) => return format_items(vec![convert::<ResponseItem>(Err(e))]),
+        Err(e) => return format_items(vec![convert::<ResponseItem, _>(Err(e))]),
     };
-    let items: Vec<McpResponseItem> = stream.map(convert::<ResponseItem>).collect().await;
+    let items: Vec<McpResponseItem> = stream.map(convert::<ResponseItem, _>).collect().await;
     format_items(items)
 }
 
@@ -189,12 +189,12 @@ where
     E: CommandExecutor,
     E::Error: std::fmt::Display,
 {
-    let stream = match plugins::run::execute(executor, request).await {
+    let stream = match plugins::run::execute(executor, request, None).await {
         Ok(s) => s,
-        Err(e) => return format_items(vec![convert::<plugins::run::ResponseItem>(Err(e))]),
+        Err(e) => return format_items(vec![convert::<plugins::run::ResponseItem, _>(Err(e))]),
     };
     let items: Vec<McpResponseItem> =
-        stream.map(convert::<plugins::run::ResponseItem>).collect().await;
+        stream.map(convert::<plugins::run::ResponseItem, _>).collect().await;
     format_items(items)
 }
 
@@ -206,12 +206,12 @@ where
     E: CommandExecutor,
     E::Error: std::fmt::Display,
 {
-    let stream = match tools::run::execute(executor, request).await {
+    let stream = match tools::run::execute(executor, request, None).await {
         Ok(s) => s,
-        Err(e) => return format_items(vec![convert::<tools::run::ResponseItem>(Err(e))]),
+        Err(e) => return format_items(vec![convert::<tools::run::ResponseItem, _>(Err(e))]),
     };
     let items: Vec<McpResponseItem> =
-        stream.map(convert::<tools::run::ResponseItem>).collect().await;
+        stream.map(convert::<tools::run::ResponseItem, _>).collect().await;
     format_items(items)
 }
 

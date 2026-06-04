@@ -8,7 +8,8 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::{Mutex, mpsc};
 
 use crate::cli::command::{
-    CommandExecutor, CommandRequest, CommandResponse as CommandResponseTrait,
+    AgentArguments, CommandExecutor, CommandRequest,
+    CommandResponse as CommandResponseTrait,
 };
 use crate::cli::plugins::{Command, CommandType, Output};
 
@@ -120,15 +121,20 @@ enum CommandResponse {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
     /// Stdin closed (clean EOF or read error). The listener task has
     /// exited and no new requests can be served.
+    #[error("plugin executor stdin closed")]
     Closed,
+    #[error("plugin executor io: {0}")]
     Io(std::io::Error),
+    #[error("plugin executor decode line: {0}")]
     Json(serde_json::Error),
+    #[error("{0}")]
     Cli(crate::cli::Error),
     /// `execute_one` was called but the stream produced no items.
+    #[error("plugin executor stream produced no items")]
     Empty,
 }
 
@@ -158,7 +164,14 @@ impl CommandExecutor for PluginExecutor {
     where
         T: Send + 'static;
 
-    async fn execute<R, T>(&self, request: R) -> Result<Self::Stream<T>, Error>
+    async fn execute<R, T>(
+        &self,
+        request: R,
+        // Plugin runs in-process — no subprocess to stamp env on. The
+        // bag is accepted for trait-signature symmetry with the
+        // binary executor and intentionally ignored.
+        _agent_arguments: Option<&AgentArguments>,
+    ) -> Result<Self::Stream<T>, Error>
     where
         R: CommandRequest + Send,
         T: CommandResponseTrait + serde::de::DeserializeOwned + Send + 'static,
@@ -229,12 +242,16 @@ impl CommandExecutor for PluginExecutor {
         Ok(Box::pin(stream))
     }
 
-    async fn execute_one<R, T>(&self, request: R) -> Result<T, Error>
+    async fn execute_one<R, T>(
+        &self,
+        request: R,
+        agent_arguments: Option<&AgentArguments>,
+    ) -> Result<T, Error>
     where
         R: CommandRequest + Send,
         T: CommandResponseTrait + serde::de::DeserializeOwned + Send + 'static,
     {
-        let mut stream = self.execute::<R, T>(request).await?;
+        let mut stream = self.execute::<R, T>(request, agent_arguments).await?;
         stream.next().await.ok_or(Error::Empty)?
     }
 }

@@ -126,7 +126,9 @@ impl crate::cli::command::CommandRequest for Request {
 pub async fn execute<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     request: Request,
-) -> Result<
+
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>>,
     E::Error,
 > {
@@ -134,67 +136,67 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>> =
         match request {
             Request::All(req) => {
-                let inner = all::execute(executor, req).await?;
+                let inner = all::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::All)))
             }
             Request::AllRequestSchema(req) => {
-                let value = all::request_schema::execute(executor, req).await?;
+                let value = all::request_schema::execute(executor, req, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::AllRequestSchema(value),
                 )))
             }
             Request::AllResponseSchema(req) => {
-                let value = all::response_schema::execute(executor, req).await?;
+                let value = all::response_schema::execute(executor, req, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::AllResponseSchema(value),
                 )))
             }
             Request::Id(req) => {
-                let value = id::execute(executor, req).await?;
+                let value = id::execute(executor, req, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::Id(value),
                 )))
             }
             Request::IdRequestSchema(req) => {
-                let value = id::request_schema::execute(executor, req).await?;
+                let value = id::request_schema::execute(executor, req, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::IdRequestSchema(value),
                 )))
             }
             Request::IdResponseSchema(req) => {
-                let value = id::response_schema::execute(executor, req).await?;
+                let value = id::response_schema::execute(executor, req, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::IdResponseSchema(value),
                 )))
             }
             Request::Pending(req) => {
-                let inner = pending::execute(executor, req).await?;
+                let inner = pending::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Pending)))
             }
             Request::PendingRequestSchema(req) => {
-                let value = pending::request_schema::execute(executor, req).await?;
+                let value = pending::request_schema::execute(executor, req, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::PendingRequestSchema(value),
                 )))
             }
             Request::PendingResponseSchema(req) => {
-                let value = pending::response_schema::execute(executor, req).await?;
+                let value = pending::response_schema::execute(executor, req, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::PendingResponseSchema(value),
                 )))
             }
             Request::Subscribe(req) => {
-                let inner = subscribe::execute(executor, req).await?;
+                let inner = subscribe::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Subscribe)))
             }
             Request::SubscribeRequestSchema(req) => {
-                let value = subscribe::request_schema::execute(executor, req).await?;
+                let value = subscribe::request_schema::execute(executor, req, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::SubscribeRequestSchema(value),
                 )))
             }
             Request::SubscribeResponseSchema(req) => {
-                let value = subscribe::response_schema::execute(executor, req).await?;
+                let value = subscribe::response_schema::execute(executor, req, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::SubscribeResponseSchema(value),
                 )))
@@ -208,58 +210,60 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     request: Request,
     jq: String,
-) -> Result<
+
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>>,
     E::Error,
 > {
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
         match request {
             Request::All(req) => {
-                let inner = all::execute_jq(executor, req, jq).await?;
+                let inner = all::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::AllRequestSchema(req) => {
-                let value = all::request_schema::execute_jq(executor, req, jq).await?;
+                let value = all::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::AllResponseSchema(req) => {
-                let value = all::response_schema::execute_jq(executor, req, jq).await?;
+                let value = all::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::Id(req) => {
-                let value = id::execute_jq(executor, req, jq).await?;
+                let value = id::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::IdRequestSchema(req) => {
-                let value = id::request_schema::execute_jq(executor, req, jq).await?;
+                let value = id::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::IdResponseSchema(req) => {
-                let value = id::response_schema::execute_jq(executor, req, jq).await?;
+                let value = id::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::Pending(req) => {
-                let inner = pending::execute_jq(executor, req, jq).await?;
+                let inner = pending::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::PendingRequestSchema(req) => {
-                let value = pending::request_schema::execute_jq(executor, req, jq).await?;
+                let value = pending::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::PendingResponseSchema(req) => {
-                let value = pending::response_schema::execute_jq(executor, req, jq).await?;
+                let value = pending::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::Subscribe(req) => {
-                let inner = subscribe::execute_jq(executor, req, jq).await?;
+                let inner = subscribe::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::SubscribeRequestSchema(req) => {
-                let value = subscribe::request_schema::execute_jq(executor, req, jq).await?;
+                let value = subscribe::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::SubscribeResponseSchema(req) => {
-                let value = subscribe::response_schema::execute_jq(executor, req, jq).await?;
+                let value = subscribe::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
         };

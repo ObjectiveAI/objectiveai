@@ -182,12 +182,14 @@ impl TryFrom<Args> for Request {
 pub async fn execute_streaming<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     mut request: Request,
-) -> Result<E::Stream<ResponseItem>, E::Error> {
+
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    ) -> Result<E::Stream<ResponseItem>, E::Error> {
     request.jq = None;
     let mut advanced = request.dangerous_advanced.unwrap_or_default();
     advanced.stream = Some(true);
     request.dangerous_advanced = Some(advanced);
-    executor.execute(request).await
+    executor.execute(request, agent_arguments).await
 }
 
 #[cfg(feature = "cli-executor")]
@@ -195,24 +197,28 @@ pub async fn execute_streaming_jq<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     mut request: Request,
     jq: String,
-) -> Result<E::Stream<serde_json::Value>, E::Error> {
+
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    ) -> Result<E::Stream<serde_json::Value>, E::Error> {
     request.jq = Some(jq);
     let mut advanced = request.dangerous_advanced.unwrap_or_default();
     advanced.stream = Some(true);
     request.dangerous_advanced = Some(advanced);
-    executor.execute(request).await
+    executor.execute(request, agent_arguments).await
 }
 
 #[cfg(feature = "cli-executor")]
 pub async fn execute<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     mut request: Request,
-) -> Result<Response, E::Error> {
+
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    ) -> Result<Response, E::Error> {
     request.jq = None;
     if let Some(advanced) = request.dangerous_advanced.as_mut() {
         advanced.stream = None;
     }
-    executor.execute_one(request).await
+    executor.execute_one(request, agent_arguments).await
 }
 
 #[cfg(feature = "cli-executor")]
@@ -220,12 +226,14 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     mut request: Request,
     jq: String,
-) -> Result<serde_json::Value, E::Error> {
+
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    ) -> Result<serde_json::Value, E::Error> {
     request.jq = Some(jq);
     if let Some(advanced) = request.dangerous_advanced.as_mut() {
         advanced.stream = None;
     }
-    executor.execute_one(request).await
+    executor.execute_one(request, agent_arguments).await
 }
 
 #[cfg(feature = "mcp")]
@@ -273,9 +281,11 @@ pub mod request_schema {
     pub async fn execute<E: crate::cli::command::CommandExecutor>(
         executor: &E,
         mut request: Request,
+    
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
     ) -> Result<Response, E::Error> {
         request.jq = None;
-        executor.execute_one(request).await
+        executor.execute_one(request, agent_arguments).await
     }
 
     #[cfg(feature = "cli-executor")]
@@ -283,9 +293,11 @@ pub mod request_schema {
         executor: &E,
         mut request: Request,
         jq: String,
+    
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
     ) -> Result<serde_json::Value, E::Error> {
         request.jq = Some(jq);
-        executor.execute_one(request).await
+        executor.execute_one(request, agent_arguments).await
     }
 }
 
@@ -328,9 +340,11 @@ pub mod response_schema {
     pub async fn execute<E: crate::cli::command::CommandExecutor>(
         executor: &E,
         mut request: Request,
+    
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
     ) -> Result<Response, E::Error> {
         request.jq = None;
-        executor.execute_one(request).await
+        executor.execute_one(request, agent_arguments).await
     }
 
     #[cfg(feature = "cli-executor")]
@@ -338,8 +352,10 @@ pub mod response_schema {
         executor: &E,
         mut request: Request,
         jq: String,
+    
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
     ) -> Result<serde_json::Value, E::Error> {
         request.jq = Some(jq);
-        executor.execute_one(request).await
+        executor.execute_one(request, agent_arguments).await
     }
 }
