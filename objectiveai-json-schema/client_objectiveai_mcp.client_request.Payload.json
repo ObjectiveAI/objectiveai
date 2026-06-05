@@ -1,6 +1,6 @@
 {
   "title": "client_objectiveai_mcp.client_request.Payload",
-  "description": "Tagged union of request shapes the client-app layer can push down\nthe reverse-attach channel.\n\nDespite the module name, payloads flow in BOTH directions:\n- **API → client**: `AgentCompletionNotify` (the API pushes a\n  user message into a running agent completion).\n- **client → API**: `McpListChanged` (the CLI's upstream\n  `mcp::Connection` fired\n  `notifications/{tools,resources}/list_changed` and the API\n  re-emits it as an SSE event on the matching\n  `/objectiveai-mcp/{ws_session_id}` GET stream).\n\nThe wire envelope's `id` field always belongs to whichever side\noriginated the request; the receiver's `client_response::Response`\nechoes the same `id`.",
+  "description": "Tagged union of request shapes the client-app layer can push down\nthe reverse-attach channel.\n\nDespite the module name, payloads flow in BOTH directions:\n- **API → client**: `AgentCompletionNotify` (the API pushes a\n  user message into a running agent completion).\n- **client → API**: `McpListChanged` (the CLI's upstream\n  `mcp::Connection` fired\n  `notifications/{tools,resources}/list_changed` and the API\n  re-emits it as an SSE event on the matching per-MCP GET\n  stream — `/objectiveai` or `/{owner}/{name}/{ver}/{mcp}`,\n  routed by `X-OBJECTIVEAI-RESPONSE-ID`).\n\nThe wire envelope's `id` field always belongs to whichever side\noriginated the request; the receiver's `client_response::Response`\nechoes the same `id`.",
   "anyOf": [
     {
       "title": "AgentCompletionNotify",
