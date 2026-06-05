@@ -50,7 +50,8 @@ use objectiveai_sdk::cli::command::functions::executions::create::{
     FunctionSpec, ProfileSpec,
 };
 use objectiveai_sdk::functions::{
-    FullInlineFunctionOrRemoteCommitOptional, InlineProfileOrRemoteCommitOptional,
+    FullInlineFunction, FullInlineFunctionOrRemoteCommitOptional,
+    InlineFunction, InlineProfileOrRemoteCommitOptional,
 };
 use serde_json::{Value, json};
 use tokio::sync::Mutex;
@@ -264,17 +265,27 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
             "type": "vector.completion",
             "messages": [{ "role": "user", "content": "go" }],
             "responses": ["a", "b"],
-            "output": { "$special": "Output" }
+            "output": { "$special": "output" }
         }]
     });
 
     let executor = cli_test_util::executor_with_base_dir(&base);
 
     // ── Run 1: function execution ────────────────────────────────
-    let function = FunctionSpec::Resolved(
-        serde_json::from_value::<FullInlineFunctionOrRemoteCommitOptional>(function_json.clone())
-            .expect("function JSON must deserialize"),
-    );
+    let function = FunctionSpec::Resolved({
+        // Untagged-enum dispatch obscures which variant fails; try the
+        // concrete leaf type first to surface the actual path.
+        let function_str = function_json.to_string();
+        let inline = {
+            let mut de = serde_json::Deserializer::from_str(&function_str);
+            serde_path_to_error::deserialize::<_, InlineFunction>(&mut de)
+                .unwrap_or_else(|e| panic!(
+                    "InlineFunction deserialize at path '{}': {} -- raw: {}",
+                    e.path(), e.inner(), function_json,
+                ))
+        };
+        FullInlineFunctionOrRemoteCommitOptional::Inline(FullInlineFunction::Standard(inline))
+    });
     let profile = ProfileSpec::Resolved(
         serde_json::from_value::<InlineProfileOrRemoteCommitOptional>(profile_json.clone())
             .expect("profile JSON must deserialize"),
