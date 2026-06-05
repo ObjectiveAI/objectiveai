@@ -157,50 +157,73 @@ async fn wait_for_completion(base_dir: &Path, leaf: &str, full_lineage: &str) {
     );
 }
 
-/// Extract a deterministic snapshot projection from the response
-/// continuation JSON: every assistant tool call's `name`, and every
-/// tool-result message's text content. Sorted so order doesn't matter.
-fn project_for_snapshot(cont: &Value) -> Value {
-    let mut tool_call_names: Vec<String> = Vec::new();
-    let mut tool_result_texts: Vec<String> = Vec::new();
+/// Extract a deterministic snapshot projection from the cli's
+/// production log writer output for this completion. The top-level
+/// envelope at `response/<leaf>.json` is just a list of
+/// `{type: "reference", path: ...}` entries pointing at per-message
+/// files in `response/messages/`; the snapshot-relevant content
+/// (assistant tool call names, tool result text bodies) lives in
+/// those per-message files, not in the envelope. So instead of
+/// walking the envelope, glob the per-message log directories
+/// directly:
+///
+/// - `response/messages/assistant/tool_calls/<leaf>_<msg>_<tc>.json`
+///   carries `function.name` (one file per tool call within an
+///   assistant message).
+/// - `response/messages/tool/text/<leaf>_<msg>[_<part>].txt` carries
+///   the raw text body of a `role: "tool"` response message (one
+///   file per text part; single-part messages omit the `_<part>`
+///   segment — see `LogFileKind::peel_text_stem`).
+///
+/// Both lists are sorted so message ordering / tool-call ordering
+/// doesn't affect the snapshot — only the multiset of (name, text)
+/// matters.
+fn project_for_snapshot(base_dir: &Path, leaf: &str) -> Value {
+    let leaf_prefix = format!("{leaf}_");
 
-    fn walk(v: &Value, tool_call_names: &mut Vec<String>, tool_result_texts: &mut Vec<String>) {
-        match v {
-            Value::Object(obj) => {
-                if let Some(name) = obj
-                    .get("function")
-                    .and_then(|f| f.get("name"))
-                    .and_then(|n| n.as_str())
-                {
-                    tool_call_names.push(name.to_string());
-                }
-                if obj.get("role").and_then(|r| r.as_str()) == Some("tool") {
-                    if let Some(content) = obj.get("content") {
-                        if let Some(s) = content.as_str() {
-                            tool_result_texts.push(s.to_string());
-                        } else if let Some(arr) = content.as_array() {
-                            for part in arr {
-                                if let Some(s) = part.get("text").and_then(|t| t.as_str()) {
-                                    tool_result_texts.push(s.to_string());
-                                }
-                            }
-                        }
-                    }
-                }
-                for (_, child) in obj {
-                    walk(child, tool_call_names, tool_result_texts);
-                }
+    let tool_calls_dir = base_dir
+        .join("logs/agents/completions/response/messages/assistant/tool_calls");
+    let mut tool_call_names: Vec<String> = std::fs::read_dir(&tool_calls_dir)
+        .unwrap_or_else(|e| panic!(
+            "read tool_calls dir {}: {e}",
+            tool_calls_dir.display()
+        ))
+        .filter_map(|entry| {
+            let entry = entry.ok()?;
+            let name = entry.file_name().to_string_lossy().into_owned();
+            // Each file is `<leaf>_<msg>_<tc>.json`. Only count files
+            // whose stem starts with our leaf — the directory may
+            // contain entries from other agents on a shared base dir.
+            if !name.starts_with(&leaf_prefix) || !name.ends_with(".json") {
+                return None;
             }
-            Value::Array(arr) => {
-                for child in arr {
-                    walk(child, tool_call_names, tool_result_texts);
-                }
-            }
-            _ => {}
-        }
-    }
+            let raw = std::fs::read_to_string(entry.path()).ok()?;
+            let value: Value = serde_json::from_str(&raw).ok()?;
+            value
+                .get("function")
+                .and_then(|f| f.get("name"))
+                .and_then(|n| n.as_str())
+                .map(str::to_string)
+        })
+        .collect();
 
-    walk(cont, &mut tool_call_names, &mut tool_result_texts);
+    let tool_text_dir =
+        base_dir.join("logs/agents/completions/response/messages/tool/text");
+    let mut tool_result_texts: Vec<String> = std::fs::read_dir(&tool_text_dir)
+        .unwrap_or_else(|e| panic!(
+            "read tool/text dir {}: {e}",
+            tool_text_dir.display()
+        ))
+        .filter_map(|entry| {
+            let entry = entry.ok()?;
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if !name.starts_with(&leaf_prefix) || !name.ends_with(".txt") {
+                return None;
+            }
+            std::fs::read_to_string(entry.path()).ok()
+        })
+        .collect();
+
     tool_call_names.sort();
     tool_result_texts.sort();
 
@@ -310,20 +333,14 @@ async fn plugin_mcp_dispatch_round_trip() {
 
     wait_for_completion(&base, &leaf, &full_lineage).await;
 
-    // The projection walks the **response messages log** — the full
-    // `AgentCompletion` envelope at `response/<leaf>.json`, which
-    // contains the `messages` array with `tool_calls[].function.name`
-    // and `role:"tool"` content. The continuation token file
-    // (`response/continuation/<leaf>.txt`) holds only a raw base64
-    // payload, not the message structure the projection needs.
-    let response_log_path = base
-        .join("logs/agents/completions/response")
-        .join(format!("{leaf}.json"));
-    let raw = std::fs::read_to_string(&response_log_path)
-        .expect("read response messages log");
-    let cont: Value = serde_json::from_str(&raw).expect("parse response messages log");
-
-    let projection = project_for_snapshot(&cont);
+    // `project_for_snapshot` reads from the cli's production log
+    // writer output for THIS completion: tool-call names from
+    // `response/messages/assistant/tool_calls/<leaf>_*_*.json` and
+    // tool-result text from
+    // `response/messages/tool/text/<leaf>_*.txt`. See its doc for
+    // why we don't walk the top-level envelope (it only carries
+    // `{type: "reference", path: ...}` entries).
+    let projection = project_for_snapshot(&base, &leaf);
     insta::assert_json_snapshot!("plugin_mcp_dispatch_round_trip", projection);
 
     // _guard drops here → kills plugin process → wipes scratch dir.
