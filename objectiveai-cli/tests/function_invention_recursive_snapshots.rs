@@ -15,6 +15,8 @@ use objectiveai_sdk::cli::command::agents::spawn::AgentSpec;
 use objectiveai_sdk::cli::command::functions::inventions::recursive::create::remote::{
     Request, RequestDangerousAdvanced, RequestState, ResponseItem,
 };
+use objectiveai_sdk::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk;
+use objectiveai_sdk::functions::inventions::recursive::response::unary::FunctionInventionRecursive;
 
 fn snapshots_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -41,10 +43,14 @@ fn snapshot_has_errors(snapshot: &serde_json::Value) -> bool {
     snapshot["inventions_errors"].as_bool().unwrap_or(false)
 }
 
-/// Run a recursive-invention create through the executor and return
-/// the chunks as plain JSON values so the existing snapshot diffs
-/// don't have to know about the typed shapes.
-async fn run_remote(state_name: &str, seed: i64) -> Vec<serde_json::Value> {
+/// Run a recursive-invention create through the executor, aggregate
+/// the streamed chunks into a single FunctionInventionRecursiveChunk,
+/// convert to the unary FunctionInventionRecursive, and normalize for
+/// test comparison. The cli emits ResponseItem::Chunk variants as
+/// progressive updates to the same inventions, so counting chunks is
+/// not the same as counting inventions — we have to push them through
+/// the aggregator first.
+async fn run_remote(state_name: &str, seed: i64) -> FunctionInventionRecursive {
     let request = Request { path_type: objectiveai_sdk::cli::command::functions::inventions::recursive::create::remote::Path::FunctionsInventionsRecursiveCreateRemote,
         state: RequestState::Ref(format!("remote=mock,name={state_name}")),
         agent: AgentSpec::Resolved(
@@ -57,39 +63,53 @@ async fn run_remote(state_name: &str, seed: i64) -> Vec<serde_json::Value> {
         continuation: None,
         seed: Some(seed),
         // Stream so collect_stream's `ResponseItem::Chunk(_)` loop
-        // has chunks to filter into the returned JSON list.
+        // has chunks to feed into the aggregator.
         dangerous_advanced: Some(RequestDangerousAdvanced { stream: Some(true) }),
         jq: None,
     };
     let executor = cli_test_util::executor();
     let items: Vec<ResponseItem> = cli_test_util::collect_stream(&executor, request).await;
-    items
-        .into_iter()
-        .filter_map(|item| match item {
-            ResponseItem::Chunk(chunk) => serde_json::to_value(chunk).ok(),
-            ResponseItem::Id(_) => None,
-        })
-        .collect()
+    let mut chunks = items.into_iter().filter_map(|item| match item {
+        ResponseItem::Chunk(c) => Some(c),
+        ResponseItem::Id(_) => None,
+    });
+    let mut agg: FunctionInventionRecursiveChunk =
+        chunks.next().expect("at least one chunk must be emitted");
+    for chunk in chunks {
+        agg.push(&chunk);
+    }
+    let mut unary: FunctionInventionRecursive = agg.into();
+    unary.normalize_for_tests();
+    unary
 }
 
 /// Assert CLI invention output matches snapshot expectations.
-fn assert_invention_snapshot(snapshot_name: &str, results: &[serde_json::Value]) {
+fn assert_invention_snapshot(snapshot_name: &str, result: &FunctionInventionRecursive) {
     let snapshot = cli_test_util::load_snapshot(&snapshots_dir(), snapshot_name);
     let expected_names = snapshot_invention_names(&snapshot);
     let has_errors = snapshot_has_errors(&snapshot);
 
+    let result_json = serde_json::to_value(result).expect("FunctionInventionRecursive serializes");
+    let inventions = result_json["inventions"].as_array().expect("inventions array");
+
     assert_eq!(
-        results.len(),
+        inventions.len(),
         expected_names.len(),
         "invention count mismatch for {}: got {} expected {}",
         snapshot_name,
-        results.len(),
+        inventions.len(),
         expected_names.len()
     );
 
-    let actual_names: Vec<String> = results
+    let actual_names: Vec<String> = inventions
         .iter()
-        .map(|r| r["name"].as_str().unwrap().to_string())
+        .map(|inv| {
+            inv.get("state")
+                .and_then(|s| s.get("name"))
+                .and_then(|n| n.as_str())
+                .unwrap_or("")
+                .to_string()
+        })
         .collect();
     assert_eq!(
         actual_names, expected_names,
@@ -99,10 +119,8 @@ fn assert_invention_snapshot(snapshot_name: &str, results: &[serde_json::Value])
 
     if has_errors {
         assert!(
-            results
-                .iter()
-                .any(|r| r.get("error").is_some_and(|e| !e.is_null())),
-            "expected errors for {} but got none",
+            result.inventions_errors,
+            "expected inventions_errors=true for {} but got false",
             snapshot_name
         );
     }
@@ -120,8 +138,8 @@ async fn valid_schema_valid_tasks_scalar_leaf() {
         eprintln!("OBJECTIVEAI_TEST_PORT not set — skipping valid_schema_valid_tasks_scalar_leaf");
         return;
     }
-    let results = run_remote("inv-good-sl", 5300).await;
-    assert_invention_snapshot("valid_schema_valid_tasks_scalar_leaf", &results);
+    let result = run_remote("inv-good-sl", 5300).await;
+    assert_invention_snapshot("valid_schema_valid_tasks_scalar_leaf", &result);
 }
 
 /// Vector leaf with valid input schema and tasks.
@@ -132,8 +150,8 @@ async fn valid_vector_schema_valid_tasks() {
         eprintln!("OBJECTIVEAI_TEST_PORT not set — skipping valid_vector_schema_valid_tasks");
         return;
     }
-    let results = run_remote("inv-good-vl", 5400).await;
-    assert_invention_snapshot("valid_vector_schema_valid_tasks", &results);
+    let result = run_remote("inv-good-vl", 5400).await;
+    assert_invention_snapshot("valid_vector_schema_valid_tasks", &result);
 }
 
 /// Scalar leaf with valid input schema and essay but no tasks.
@@ -144,6 +162,6 @@ async fn valid_schema_no_tasks_with_essay() {
         eprintln!("OBJECTIVEAI_TEST_PORT not set — skipping valid_schema_no_tasks_with_essay");
         return;
     }
-    let results = run_remote("inv-schema-only", 5900).await;
-    assert_invention_snapshot("valid_schema_no_tasks_with_essay", &results);
+    let result = run_remote("inv-schema-only", 5900).await;
+    assert_invention_snapshot("valid_schema_no_tasks_with_essay", &result);
 }
