@@ -47,6 +47,18 @@ pub enum InstanceEmission {
     Chunk(serde_json::Value),
     /// A non-fatal runtime warning (e.g. degraded pipe bind).
     Warning { message: String },
+    /// A fatal runtime error from the subprocess. The instance binary
+    /// uses `objectiveai_sdk::cli::Error` for its own stdout error
+    /// lines (via `main.rs::write_error_line`); flatten that shape
+    /// here so the parent can capture and propagate the error rather
+    /// than panicking on an unknown variant.
+    Error {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        level: Option<objectiveai_sdk::cli::Level>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        fatal: Option<bool>,
+        message: serde_json::Value,
+    },
 }
 
 type EmissionStream = Pin<Box<dyn Stream<Item = Result<InstanceEmission, Error>> + Send>>;

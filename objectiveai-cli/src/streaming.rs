@@ -217,24 +217,41 @@ async fn run_subprocess(
 
     let mut stdout_lines = BufReader::new(stdout).lines();
     let mut handshake_seen = false;
+    let mut _line_count = 0usize;
+    objectiveai_sdk::_mcp_trace::log("11-cli-outer-streaming", &format!("entered stdout loop (child pid={:?})", child.id()));
     loop {
         let line = match stdout_lines.next_line().await {
             Ok(Some(l)) => l,
-            Ok(None) => break,
+            Ok(None) => {
+                objectiveai_sdk::_mcp_trace::log("11-cli-outer-streaming", &format!("stdout EOF after {_line_count} lines (child pid={:?})", child.id()));
+                break;
+            }
             Err(e) => {
+                objectiveai_sdk::_mcp_trace::log("11-cli-outer-streaming", &format!("stdout read err after {_line_count} lines: {e}"));
                 return Err(Error::Spawn(
                     "read instance-runner stdout".into(),
                     e,
                 ));
             }
         };
+        _line_count += 1;
         let trimmed = line.trim_end_matches(['\r', '\n']);
         if trimmed.is_empty() {
             continue;
         }
-        let emission: InstanceEmission = serde_json::from_str(trimmed).unwrap_or_else(|e| {
-            panic!("instance-runner stdout produced a non-InstanceEmission line: {trimmed}; parse error: {e}")
-        });
+        let emission: InstanceEmission = match serde_json::from_str(trimmed) {
+            Ok(e) => e,
+            Err(e) => {
+                // Unknown stdout shape. Surface as an Instance error
+                // to the consumer instead of panicking — the
+                // subprocess may be a different version, or a panic
+                // from inside it may have leaked a non-JSON line.
+                let _ = tx.send(Err(Error::Instance(format!(
+                    "stdout produced a non-InstanceEmission line: {trimmed}; parse error: {e}"
+                )))).await;
+                break;
+            }
+        };
         match handle_emission(emission, stream, &tx).await {
             HandleOutcome::DetachReturn => {
                 // `stream == false` path: yielded the Id, the
@@ -254,12 +271,17 @@ async fn run_subprocess(
     }
 
     // Stdout EOF. Reap the child and decide whether the exit was clean.
+    objectiveai_sdk::_mcp_trace::log("11-cli-outer-streaming", "→ awaiting stderr_task");
     let stderr_buf = stderr_task.await.unwrap_or_default();
+    objectiveai_sdk::_mcp_trace::log("11-cli-outer-streaming", &format!("✓ stderr_task done ({} lines)", stderr_buf.len()));
+    objectiveai_sdk::_mcp_trace::log("11-cli-outer-streaming", "→ awaiting write_handle");
     let _ = write_handle.await;
+    objectiveai_sdk::_mcp_trace::log("11-cli-outer-streaming", "✓ write_handle done; calling child.wait");
     let status = child
         .wait()
         .await
         .map_err(|e| Error::Spawn("wait for instance-runner".into(), e))?;
+    objectiveai_sdk::_mcp_trace::log("11-cli-outer-streaming", &format!("✓ child.wait done status={status:?}"));
 
     if !status.success() {
         let tail: String = stderr_buf
@@ -370,6 +392,21 @@ async fn handle_emission(
             // Warnings are non-fatal informational lines from the
             // instance runtime. Drop at this boundary — leaves don't
             // expose a warning channel on their typed stream today.
+            HandleOutcome::Continue
+        }
+        InstanceEmission::Error { level: _, fatal: _, message } => {
+            // Surface the error to the consumer via the existing
+            // `Instance(String)` variant — the cli's local Error
+            // enum doesn't currently carry a structured cli::Error
+            // payload, so we flatten to its string form. Same
+            // ConsumerGone semantics as the other arms on tx failure.
+            let text = match &message {
+                serde_json::Value::String(s) => s.clone(),
+                other => other.to_string(),
+            };
+            if tx.send(Err(Error::Instance(text))).await.is_err() {
+                return HandleOutcome::ConsumerGone;
+            }
             HandleOutcome::Continue
         }
     }
