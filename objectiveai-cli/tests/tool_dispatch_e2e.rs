@@ -89,11 +89,16 @@ struct Summary {
 /// ordering is dropped (the dispatch drains both streams
 /// concurrently via `tokio_stream::StreamExt::merge`).
 ///
-/// Each line is `RunItem::Command(ResponseItem::Tools(tools::ResponseItem::Run(
-/// tools::run::ResponseItem)))`. The inner `tools::run::ResponseItem` is
-/// `#[serde(untagged)]` with `Stdout(String)` and `Stderr(cli::Error)`, so the
-/// wire shape is either `{"Tools":{"Run":"line text"}}` (stdout) or
-/// `{"Tools":{"Run":{"type":"error","message":"line text",...}}}` (stderr).
+/// Each cli stdout line is the leaf `tools::run::ResponseItem`
+/// serialized at the wire. Every `cli/command` aggregator
+/// `Response`/`ResponseItem` is `#[serde(untagged)]` (sdk commit
+/// 39c3320e7), so the `RunItem::Command(_)`, `cli::command::ResponseItem`,
+/// and `tools::ResponseItem` wrappers all collapse and the wire is
+/// just the leaf:
+///   - `Stdout(String)` → a bare JSON string, e.g. `"hello, world"`
+///   - `Stderr(cli::Error)` → the error struct directly, e.g.
+///     `{"type":"error","message":"...", ...}`
+/// — no `Tools/Run` wrapper to navigate.
 fn run_and_summarize(base: &Path, name: &str) -> Summary {
     let cli = cli_test_util::cli_binary();
     let output = Command::new(cli)
@@ -109,14 +114,9 @@ fn run_and_summarize(base: &Path, name: &str) -> Summary {
         let Ok(v) = serde_json::from_str::<serde_json::Value>(line) else {
             continue;
         };
-        let Some(inner) = v.pointer("/Tools/Run") else {
-            continue;
-        };
-        if let Some(text) = inner.as_str() {
+        if let Some(text) = v.as_str() {
             stdout_lines.push(text.to_string());
-        } else if let Some(msg) =
-            inner.pointer("/message").and_then(|m| m.as_str())
-        {
+        } else if let Some(msg) = v.pointer("/message").and_then(|m| m.as_str()) {
             stderr_lines.push(msg.to_string());
         }
     }
