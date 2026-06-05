@@ -228,6 +228,14 @@ async fn duplicate_tool_names_routed_across_turns() {
         .map(|(p, i)| (Some(p.to_string()), i.to_string()))
         .unwrap_or_else(|| (None, spawn_id.clone()));
 
+    // Give the api a moment to fully release the per-instance
+    // resources (proxy connections, reverse channels) from turn 1
+    // before we open a new instance subprocess and re-attach to the
+    // same agent. Without this, the cli-stream subprocess
+    // occasionally races the api's tear-down and sees the
+    // post-tear-down listener already gone.
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
     // Turn 2: agents message — first continuation ─────────────────
     let msg1 = MessageRequest {
         path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
@@ -242,6 +250,9 @@ async fn duplicate_tool_names_routed_across_turns() {
         .await
         .expect("agents message turn 2 executor call");
     wait_for_completion(&base, &spawn_id).await;
+
+    // Same settle delay as before turn 2 (see comment there).
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
     // Turn 3: agents message — second continuation ───────────────
     let msg2 = MessageRequest {
