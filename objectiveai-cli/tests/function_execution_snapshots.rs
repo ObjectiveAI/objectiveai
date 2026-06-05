@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 
 use objectiveai_sdk::RemotePathCommitOptional;
 use objectiveai_sdk::cli::command::functions::executions::create::standard::{
-    Request, RequestInput, ResponseItem,
+    Request, RequestDangerousAdvanced, RequestInput, ResponseItem,
 };
 use objectiveai_sdk::cli::command::functions::executions::create::{
     FunctionSpec, ProfileSpec,
@@ -134,7 +134,10 @@ macro_rules! snapshot_test {
                 seed: Some($seed),
                 split: false,
                 invert: false,
-                dangerous_advanced: None,
+                // Stream so collect_stream's `ResponseItem::Chunk(_)`
+                // loop has chunks to consume; without it the cli
+                // emits only a bare `Id` and the aggregator is empty.
+                dangerous_advanced: Some(RequestDangerousAdvanced { stream: Some(true) }),
                 jq: None,
             };
             let execution = run_and_aggregate(request).await;
