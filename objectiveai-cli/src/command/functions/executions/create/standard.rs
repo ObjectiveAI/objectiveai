@@ -31,6 +31,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     )?;
     let input = match request.input {
         RequestInput::Inline(v) => v,
+        RequestInput::File(path) => super::resolve_input_file(path)?,
         RequestInput::PythonInline(code) => super::resolve_input_python_inline(code)?,
         RequestInput::PythonFile(path) => super::resolve_input_python_file(path)?,
     };

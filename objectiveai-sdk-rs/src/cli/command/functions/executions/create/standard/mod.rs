@@ -3,7 +3,7 @@
 use crate::agent::completions::message::Message;  // unused placeholder to keep imports tidy
 use crate::cli::command::CommandRequest;
 use crate::functions::expression::InputValue;
-use super::{FunctionSpec, ProfileSpec};
+use super::{FunctionArgs, FunctionSpec, ProfileArgs, ProfileSpec};
 
 #[allow(dead_code)]
 type _UnusedMessage = Message;
@@ -36,6 +36,8 @@ pub enum Path {
 pub enum RequestInput {
     #[schemars(title = "Inline")]
     Inline(InputValue),
+    #[schemars(title = "File")]
+    File(std::path::PathBuf),
     #[schemars(title = "PythonInline")]
     PythonInline(String),
     #[schemars(title = "PythonFile")]
@@ -48,6 +50,10 @@ impl RequestInput {
             RequestInput::Inline(v) => {
                 out.push("--input-inline".to_string());
                 out.push(serde_json::to_string(v).expect("input serializes"));
+            }
+            RequestInput::File(p) => {
+                out.push("--input-file".to_string());
+                out.push(p.to_string_lossy().into_owned());
             }
             RequestInput::PythonInline(code) => {
                 out.push("--input-python-inline".to_string());
@@ -68,11 +74,9 @@ impl CommandRequest for Request {
             "executions".to_string(),
             "create".to_string(),
             "standard".to_string(),
-            "--function-inline".to_string(),
-            serde_json::to_string(&self.function).expect("function serializes"),
-            "--profile-inline".to_string(),
-            serde_json::to_string(&self.profile).expect("profile serializes"),
         ];
+        self.function.push_flags(&mut argv);
+        self.profile.push_flags(&mut argv);
         self.input.push_flags(&mut argv);
         if let Some(c) = &self.continuation {
             argv.push("--continuation".to_string());
@@ -130,37 +134,44 @@ pub enum ResponseItem {
 /// single bare id string.
 pub type Response = String;
 
-/// Exactly-one-of `--input-inline | --input-python-inline | --input-python-file`.
-/// Scoped to its own `#[group]` annotation on a dedicated sub-struct so the
-/// `required = true, multiple = false` enforcement only applies to these three
-/// fields. Hoisting the annotation up to the outer [`Args`] would put every
-/// field into the "input" group (clap derive's default-group rule) and produce
-/// blanket pairwise mutual exclusion between unrelated flags like
-/// `--function-inline` and `--seed`. Mirrors the
-/// `agents::spawn::{PromptArgs, AgentArgs}` pattern.
+/// Exactly-one-of `--input-inline | --input-file | --input-python-inline
+/// | --input-python-file`. Scoped to its own `#[group]` annotation on a
+/// dedicated sub-struct so the `required = true, multiple = false`
+/// enforcement only applies to these fields — hoisting the annotation
+/// to the outer [`Args`] would pull every field into the "input_group"
+/// group via clap derive's default-group rule. Mirrors the
+/// `super::{FunctionArgs, ProfileArgs}` pattern.
 #[derive(clap::Args)]
-#[group(id = "input", required = true, multiple = false)]
+#[group(id = "input_group", required = true, multiple = false)]
 pub struct InputArgs {
     /// Inline JSON input value.
-    #[arg(long, group = "input")]
+    #[arg(long, group = "input_group")]
     pub input_inline: Option<String>,
+    /// Path to a JSON file containing the input value.
+    #[arg(long, group = "input_group")]
+    pub input_file: Option<std::path::PathBuf>,
     /// Inline Python that produces the input value.
-    #[arg(long, group = "input")]
+    #[arg(long, group = "input_group")]
     pub input_python_inline: Option<String>,
     /// Path to a Python file that produces the input value.
-    #[arg(long, group = "input")]
+    #[arg(long, group = "input_group")]
     pub input_python_file: Option<std::path::PathBuf>,
 }
 
 #[derive(clap::Args)]
 pub struct Args {
-    /// Inline JSON function definition.
-    #[arg(long)]
-    pub function_inline: String,
-    /// Inline JSON profile definition.
-    #[arg(long)]
-    pub profile_inline: String,
-    /// Exactly one of `--input-inline`, `--input-python-inline`, `--input-python-file`.
+    /// Exactly one of `--function`, `--function-inline`,
+    /// `--function-file`, `--function-python-inline`,
+    /// `--function-python-file`.
+    #[command(flatten)]
+    pub function: FunctionArgs,
+    /// Exactly one of `--profile`, `--profile-inline`,
+    /// `--profile-file`, `--profile-python-inline`,
+    /// `--profile-python-file`.
+    #[command(flatten)]
+    pub profile: ProfileArgs,
+    /// Exactly one of `--input-inline`, `--input-file`,
+    /// `--input-python-inline`, `--input-python-file`.
     #[command(flatten)]
     pub input: InputArgs,
     /// Continuation token from a previous response.
@@ -206,33 +217,15 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        let function = {
-            let mut de = serde_json::Deserializer::from_str(&args.function_inline);
-            serde_path_to_error::deserialize(&mut de).map_err(|source| {
-                crate::cli::command::FromArgsError {
-                    field: "function_inline",
-                    source: source.into(),
-                }
-            })?
-        };
-        let profile = {
-            let mut de = serde_json::Deserializer::from_str(&args.profile_inline);
-            serde_path_to_error::deserialize(&mut de).map_err(|source| {
-                crate::cli::command::FromArgsError {
-                    field: "profile_inline",
-                    source: source.into(),
-                }
-            })?
-        };
+        let function = FunctionSpec::try_from(args.function)?;
+        let profile = ProfileSpec::try_from(args.profile)?;
         let input = if let Some(s) = args.input.input_inline {
             let mut de = serde_json::Deserializer::from_str(&s);
-            let v = serde_path_to_error::deserialize(&mut de).map_err(|source| {
-                crate::cli::command::FromArgsError {
-                    field: "input_inline",
-                    source: source.into(),
-                }
-            })?;
+            let v = serde_path_to_error::deserialize(&mut de)
+                .map_err(|e| crate::cli::command::FromArgsError::json("input_inline", e))?;
             RequestInput::Inline(v)
+        } else if let Some(p) = args.input.input_file {
+            RequestInput::File(p)
         } else if let Some(s) = args.input.input_python_inline {
             RequestInput::PythonInline(s)
         } else {
@@ -240,12 +233,8 @@ impl TryFrom<Args> for Request {
         };
         let dangerous_advanced = if let Some(s) = args.dangerous_advanced {
             let mut de = serde_json::Deserializer::from_str(&s);
-            let v = serde_path_to_error::deserialize(&mut de).map_err(|source| {
-                crate::cli::command::FromArgsError {
-                    field: "dangerous_advanced",
-                    source: source.into(),
-                }
-            })?;
+            let v = serde_path_to_error::deserialize(&mut de)
+                .map_err(|e| crate::cli::command::FromArgsError::json("dangerous_advanced", e))?;
             Some(v)
         } else {
             None
