@@ -158,16 +158,17 @@ async fn function_swarm_writes_per_agent_files() {
 
     stage_plugin(&base);
 
-    // One-task vector function. `output: {"$special":"Output"}`
+    // One-task vector function. `output: {"$special":"output"}`
     // passes the task result through unchanged — the test asserts on
     // filesystem side-effects, not on the function's score vector.
+    // Special variants are serde-renamed to snake_case.
     let function_json = json!({
         "type": "vector.function",
         "tasks": [{
             "type": "vector.completion",
             "messages": [{ "role": "user", "content": "pick one" }],
             "responses": ["alpha", "beta"],
-            "output": { "$special": "Output" }
+            "output": { "$special": "output" }
         }]
     });
 
