@@ -13,7 +13,7 @@ use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use objectiveai_sdk::RemotePathCommitOptional;
 use objectiveai_sdk::cli::command::agents::spawn::AgentSpec;
 use objectiveai_sdk::cli::command::functions::inventions::recursive::create::remote::{
-    Request, RequestState, ResponseItem,
+    Request, RequestDangerousAdvanced, RequestState, ResponseItem,
 };
 
 fn snapshots_dir() -> PathBuf {
@@ -56,7 +56,9 @@ async fn run_remote(state_name: &str, seed: i64) -> Vec<serde_json::Value> {
         ),
         continuation: None,
         seed: Some(seed),
-        dangerous_advanced: None,
+        // Stream so collect_stream's `ResponseItem::Chunk(_)` loop
+        // has chunks to filter into the returned JSON list.
+        dangerous_advanced: Some(RequestDangerousAdvanced { stream: Some(true) }),
         jq: None,
     };
     let executor = cli_test_util::executor();
