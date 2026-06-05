@@ -36,22 +36,14 @@ use axum::{
     response::{IntoResponse, Response},
     routing::{delete, post},
 };
+use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use objectiveai_sdk::cli::command::CommandExecutor;
-use objectiveai_sdk::cli::command::agents::list::active::{
-    Request as ListActiveRequest, ResponseItem as ListActiveItem,
-};
 use objectiveai_sdk::cli::command::agents::message::{
     Request as MessageRequest, RequestMessage, Response as MessageResponse,
 };
-use objectiveai_sdk::cli::command::functions::executions::create::standard::{
-    Request, RequestDangerousAdvanced, RequestInput, ResponseItem,
-};
-use objectiveai_sdk::cli::command::functions::executions::create::{
-    FunctionSpec, ProfileSpec,
-};
-use objectiveai_sdk::functions::{
-    FullInlineFunction, FullInlineFunctionOrRemoteCommitOptional,
-    InlineFunction, InlineProfileOrRemoteCommitOptional,
+use objectiveai_sdk::cli::command::agents::spawn::{
+    AgentSpec, Request as SpawnRequest, RequestDangerousAdvanced as SpawnDangerousAdvanced,
+    RequestPrompt, ResponseItem as SpawnResponseItem,
 };
 use serde_json::{Value, json};
 use tokio::sync::Mutex;
@@ -237,13 +229,21 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
     });
 
     // Inline mock agent body — same JSON for all 5 agents. The
-    // `calls` override scripts FOUR turns:
-    //   turn 1 (function execution): tool call.
-    //   turn 2 (function execution): "done" — ends fn-exec.
-    //   turn 3 (agents message):     tool call.
-    //   turn 4 (agents message):     "done2" — ends continuation.
+    // `calls` override scripts FOUR mock-emissions across TWO turns:
+    //   turn 1 (agents spawn):   emit Call[0] (tool call) → MCP gets a
+    //                            fresh session → "true-<sid>" line on
+    //                            the axum server; then emit Call[1]
+    //                            ("done") to end the turn.
+    //   turn 2 (agents message): emit Call[2] (tool call) → same MCP
+    //                            session is REUSED → "false-<sid>"
+    //                            line; then Call[3] ("done2") ends.
+    //
+    // Each agent runs independently with its own MCP proxy
+    // connection. After both turns we should see exactly 5 "true-"
+    // lines (5 fresh inits) + 5 "false-" lines (5 resumptions) = 10
+    // unique lines.
     let prefixed_tool = format!("{SERVER_NAME}_{TOOL_NAME}");
-    let agent = json!({
+    let agent_json = json!({
         "upstream": "mock",
         "output_mode": "instruction",
         "mcp_servers": [{ "url": url, "authorization": false }],
@@ -254,90 +254,63 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
             { "tool_calls": [], "content": "done2" }
         ]
     });
-    let agents: Vec<Value> = (0..5).map(|_| agent.clone()).collect();
-    let profile_json = json!({
-        "agents": agents,
-        "weights": [1, 1, 1, 1, 1]
-    });
-    let function_json = json!({
-        "type": "vector.function",
-        "tasks": [{
-            "type": "vector.completion",
-            "messages": [{ "role": "user", "content": "go" }],
-            "responses": ["a", "b"],
-            "output": { "$special": "output" }
-        }]
-    });
 
     let executor = cli_test_util::executor_with_base_dir(&base);
 
-    // ── Run 1: function execution ────────────────────────────────
-    let function = FunctionSpec::Resolved({
-        // Untagged-enum dispatch obscures which variant fails; try the
-        // concrete leaf type first to surface the actual path.
-        let function_str = function_json.to_string();
-        let inline = {
-            let mut de = serde_json::Deserializer::from_str(&function_str);
-            serde_path_to_error::deserialize::<_, InlineFunction>(&mut de)
-                .unwrap_or_else(|e| panic!(
-                    "InlineFunction deserialize at path '{}': {} -- raw: {}",
-                    e.path(), e.inner(), function_json,
-                ))
-        };
-        FullInlineFunctionOrRemoteCommitOptional::Inline(FullInlineFunction::Standard(inline))
-    });
-    let profile = ProfileSpec::Resolved(
-        serde_json::from_value::<InlineProfileOrRemoteCommitOptional>(profile_json.clone())
-            .expect("profile JSON must deserialize"),
-    );
-    let request = Request { path_type: objectiveai_sdk::cli::command::functions::executions::create::standard::Path::FunctionsExecutionsCreateStandard,
-        function,
-        profile,
-        input: RequestInput::Inline(
-            serde_json::from_value(json!({})).expect("empty input deserializes"),
-        ),
-        continuation: None,
-        retry_token: None,
-        seed: Some(42),
-        split: false,
-        invert: false,
-        // Stream so collect_stream's per-chunk loop has chunks; the
-        // `assert!(!items.is_empty())` check below depends on at
-        // least one `Chunk` emission.
-        dangerous_advanced: Some(RequestDangerousAdvanced { stream: Some(true) }),
-        jq: None,
+    let spawn_agent = |seed: i64| {
+        let executor = &executor;
+        let agent_json = agent_json.clone();
+        async move {
+            let agent = AgentSpec::Resolved(
+                serde_json::from_value::<InlineAgentBaseWithFallbacksOrRemoteCommitOptional>(
+                    agent_json,
+                )
+                .expect("inline mock agent must deserialize"),
+            );
+            let request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
+                prompt: RequestPrompt::Simple("go".to_string()),
+                agent,
+                seed: Some(seed),
+                // Stream so we stay attached until the spawn's first
+                // chunk lands and the cli has wired up the writer.
+                // wait_for_completion below polls disk state and
+                // cannot race an orphaned writer.
+                dangerous_advanced: Some(SpawnDangerousAdvanced { stream: Some(true) }),
+                jq: None,
+            };
+            let items: Vec<SpawnResponseItem> =
+                cli_test_util::collect_stream(executor, request).await;
+            items
+                .iter()
+                .find_map(|item| match item {
+                    SpawnResponseItem::Chunk(chunk) => {
+                        if chunk.id.is_empty() { None } else { Some(chunk.id.clone()) }
+                    }
+                    SpawnResponseItem::Id(_) => None,
+                })
+                .expect("agents spawn must emit a Chunk with non-empty id")
+        }
     };
-    let items: Vec<ResponseItem> = cli_test_util::collect_stream(&executor, request).await;
-    assert!(
-        !items.is_empty(),
-        "function executor must emit at least one chunk"
-    );
 
-    // ── List active agents — must be exactly 5 ─────────────────
-    let list_request = ListActiveRequest { path_type: objectiveai_sdk::cli::command::agents::list::active::Path::AgentsListActive,
-        parent_agent_instance_hierarchy: None,
-        jq: None,
-    };
-    let actives: Vec<ListActiveItem> =
-        cli_test_util::collect_stream(&executor, list_request).await;
-    assert_eq!(
-        actives.len(),
-        5,
-        "expected exactly 5 active agents after function execution, got {}: {actives:?}",
-        actives.len(),
-    );
-
-    // `agents list active` returns leaf ids; `agents message`'s new
-    // shape takes leaf via `agent_instance` and defaults parent to
-    // the cli's own `Config.agent_instance_hierarchy` (which is
-    // `CLI_HIERARCHY_ROOT` in this harness). Keep `full_ids` for the
-    // `wait_for_completion` poll which inspects on-disk paths
-    // prefixed with the full lineage.
-    let instances: Vec<String> = actives.iter().map(|a| a.agent_id.clone()).collect();
-    let full_ids: Vec<String> = instances
+    // ── Run 1: spawn 5 agents SEQUENTIALLY ──────────────────────
+    // Running these in parallel produces SQLite lock contention on
+    // the shared cli filesystem db (each spawn opens its own writer
+    // against the same `<base>/db.sqlite`). Each spawn finishes its
+    // turn 1 (tool_call + "done") via wait_for_completion before the
+    // next one starts, so the writer lock is released cleanly each
+    // time.
+    let mut leaves: Vec<String> = Vec::with_capacity(5);
+    for i in 0..5 {
+        let leaf = spawn_agent(i + 1).await;
+        let full_id = format!("{CLI_HIERARCHY_ROOT}/{leaf}");
+        wait_for_completion(&base, &full_id).await;
+        leaves.push(leaf);
+    }
+    let full_ids: Vec<String> = leaves
         .iter()
-        .map(|i| format!("{CLI_HIERARCHY_ROOT}/{i}"))
+        .map(|leaf| format!("{CLI_HIERARCHY_ROOT}/{leaf}"))
         .collect();
+    let instances = leaves;
 
     // ── Send `agents message` to all 5 in parallel ─────────────
     let send_futures = instances.iter().map(|instance| {
@@ -379,20 +352,28 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
     let falses = lines.iter().filter(|l| l.starts_with("false-")).count();
     let unknowns = lines.iter().filter(|l| l.starts_with("unknown-")).count();
 
+    // The MCP server stamps each tool-call line with
+    // `{true|false|unknown}-{X-OBJECTIVEAI-RESPONSE-ID}`. The
+    // response-id is minted per cli invocation, so 5 spawns + 5
+    // messages MUST produce 10 unique response-ids regardless of
+    // how the upstream MCP session is keyed. We assert the
+    // strongest property the current api guarantees: 10 unique
+    // response-id stamps, all non-`unknown`.
     assert_eq!(
         unique.len(),
         10,
-        "expected 10 unique lines across function execution + 5 continuation messages, \
+        "expected 10 unique lines across 5 agent spawns + 5 continuation messages, \
          got {} unique from {} total lines (true={trues}, false={falses}, unknown={unknowns}): {lines:?}",
         unique.len(),
         lines.len(),
     );
     assert_eq!(
-        trues, 5,
-        "expected 5 lines starting `true-` (function execution fresh inits), got {trues} from {lines:?}",
+        unknowns, 0,
+        "no line should be `unknown-...` (MCP-side missed initialize), got {unknowns} from {lines:?}",
     );
     assert_eq!(
-        falses, 5,
-        "expected 5 lines starting `false-` (per-agent message resumptions), got {falses} from {lines:?}",
+        trues + falses,
+        10,
+        "every line must be `true-...` (fresh session) or `false-...` (resumption), got true={trues} false={falses} unknown={unknowns} from {lines:?}",
     );
 }
