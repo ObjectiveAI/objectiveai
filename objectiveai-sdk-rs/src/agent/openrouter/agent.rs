@@ -147,6 +147,12 @@ pub struct AgentBase {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub verbosity: Option<super::Verbosity>,
+    /// Context compression engine for long contexts. When set, the
+    /// upstream client emits the matching `plugins` entry on the
+    /// outgoing OpenRouter chat-completions request.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub context_compression: Option<super::ContextCompression>,
 }
 
 impl AgentBase {
@@ -274,6 +280,10 @@ impl AgentBase {
             Some(verbosity) => verbosity.prepare(),
             None => None,
         };
+        self.context_compression = match self.context_compression.take() {
+            Some(cc) => cc.prepare(),
+            None => None,
+        };
     }
 
     /// Validates the configuration.
@@ -383,6 +393,9 @@ impl AgentBase {
         validate_u64("top_k", self.top_k, 0, i32::MAX as u64)?;
         if let Some(verbosity) = &self.verbosity {
             verbosity.validate()?;
+        }
+        if let Some(cc) = &self.context_compression {
+            cc.validate()?;
         }
         Ok(())
     }

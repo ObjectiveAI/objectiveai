@@ -142,6 +142,7 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::agent::openrouter::Continuation),
         schemars::schema_for!(crate::agent::openrouter::OutputMode),
         schemars::schema_for!(crate::agent::openrouter::Provider),
+        schemars::schema_for!(crate::agent::openrouter::ContextCompression),
         schemars::schema_for!(crate::agent::openrouter::ProviderQuantization),
         schemars::schema_for!(crate::agent::openrouter::Reasoning),
         schemars::schema_for!(crate::agent::openrouter::ReasoningEffort),
@@ -163,7 +164,7 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::ErrorType),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::Level),
-        #[cfg(feature = "cli")]
+        #[cfg(feature = "cli-executor")]
         schemars::schema_for!(crate::cli::command::AgentArguments),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::Ok),

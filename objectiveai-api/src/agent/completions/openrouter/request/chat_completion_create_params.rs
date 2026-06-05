@@ -4,6 +4,17 @@ use std::collections::HashMap;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
+/// One entry in OpenRouter's request-body `plugins` array. Today the
+/// only producer is `context-compression` (see the agent's
+/// `context_compression` field), but the shape is OpenRouter-defined
+/// — any future plugin id slots in here.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Plugin {
+    pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub engine: Option<String>,
+}
+
 /// Chat completion request parameters formatted for the OpenRouter API.
 ///
 /// Combines parameters from both the Agent configuration and the
@@ -60,6 +71,10 @@ pub struct ChatCompletionCreateParams {
     /// Verbosity setting from Agent.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub verbosity: Option<objectiveai_sdk::agent::openrouter::Verbosity>,
+    /// Plugins array derived from Agent (currently only sourced from
+    /// `context_compression`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub plugins: Option<Vec<Plugin>>,
 
     /// Whether to include log probabilities from request.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -221,6 +236,15 @@ impl ChatCompletionCreateParams {
             top_a: agent.base.top_a,
             top_k: agent.base.top_k,
             verbosity: agent.base.verbosity,
+            plugins: agent.base.context_compression.map(|cc| {
+                let engine = serde_json::to_value(cc)
+                    .ok()
+                    .and_then(|v| v.as_str().map(String::from));
+                vec![Plugin {
+                    id: "context-compression".to_string(),
+                    engine,
+                }]
+            }),
             logprobs: if let Some(top_logprobs) = agent.base.top_logprobs && top_logprobs > 0 {
                 Some(true)
             } else {
