@@ -44,7 +44,7 @@ use objectiveai_sdk::cli::command::agents::message::{
     Request as MessageRequest, RequestMessage, Response as MessageResponse,
 };
 use objectiveai_sdk::cli::command::functions::executions::create::standard::{
-    Request, RequestInput, ResponseItem,
+    Request, RequestDangerousAdvanced, RequestInput, ResponseItem,
 };
 use objectiveai_sdk::cli::command::functions::executions::create::{
     FunctionSpec, ProfileSpec,
@@ -174,11 +174,23 @@ async fn handle_post(
 /// Wait for the cli-stream child to flush an agent's response
 /// continuation AND tear down its socket. Mirrors the polling
 /// pattern from `plugin_mcp_dispatch_e2e::wait_for_completion`.
+///
+/// On-disk conventions:
+///   continuation token (raw text): `logs/agents/completions/response/continuation/<leaf>.txt`
+///     — stems on the LEAF response id alone
+///   per-agent socket:              `pipes/<full_hierarchy>/socket`
+///     — stems on the FULL lineage (which already starts with `cli/`,
+///     so the path is `pipes/cli/<leaf>/socket`; do NOT prepend `cli/`
+///     a second time)
 async fn wait_for_completion(base: &Path, full_hierarchy: &str) {
+    let leaf = full_hierarchy
+        .rsplit_once('/')
+        .map(|(_, leaf)| leaf)
+        .unwrap_or(full_hierarchy);
     let cont = base
         .join("logs/agents/completions/response/continuation")
-        .join(format!("{full_hierarchy}.txt"));
-    let socket = base.join("pipes/cli").join(full_hierarchy).join("socket");
+        .join(format!("{leaf}.txt"));
+    let socket = base.join("pipes").join(full_hierarchy).join("socket");
     let deadline = Instant::now() + Duration::from_secs(180);
     while Instant::now() < deadline {
         if cont.exists() && !socket.exists() {
@@ -187,7 +199,7 @@ async fn wait_for_completion(base: &Path, full_hierarchy: &str) {
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
     panic!(
-        "cli-stream did not flush continuation + tear down socket for {full_hierarchy} in 180s"
+        "cli-stream did not flush continuation + tear down socket for {full_hierarchy} (leaf {leaf}) in 180s"
     );
 }
 
@@ -278,7 +290,10 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
         seed: Some(42),
         split: false,
         invert: false,
-        dangerous_advanced: None,
+        // Stream so collect_stream's per-chunk loop has chunks; the
+        // `assert!(!items.is_empty())` check below depends on at
+        // least one `Chunk` emission.
+        dangerous_advanced: Some(RequestDangerousAdvanced { stream: Some(true) }),
         jq: None,
     };
     let items: Vec<ResponseItem> = cli_test_util::collect_stream(&executor, request).await;
