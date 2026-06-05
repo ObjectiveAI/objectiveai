@@ -86,12 +86,12 @@ async fn test_twenty_agents_json_schema_10x_tools_seed_42() {
         },
     ));
 
-    // Input mirrors the original `api vector completions post` body's
-    // `messages` + `responses` fields. The mock function's task
-    // expression unpacks these into the inner vector completion call.
+    // Input now matches the Alpha vector schema's required `items`
+    // field — the mock function fixture hardcodes the prompt
+    // messages and iterates `input['items']` for the per-response
+    // votes (mirroring the item-ranker shape).
     let input_json = serde_json::json!({
-        "messages": [{"role": "user", "content": "choose A or B"}],
-        "responses": ["A", "B"],
+        "items": ["A", "B"],
     });
 
     let request = Request { path_type: objectiveai_sdk::cli::command::functions::executions::create::standard::Path::FunctionsExecutionsCreateStandard,
