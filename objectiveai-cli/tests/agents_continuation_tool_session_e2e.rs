@@ -124,10 +124,28 @@ fn agent_spec() -> AgentSpec {
             })
         })
         .collect();
+    // Deterministic `calls` override: each of the three turns
+    // (spawn + 2 messages) invokes `tool0` exactly once, then the
+    // assistant emits a per-turn "done" content message that ends
+    // the turn. The mock's `next_unmatched_call_index` advances
+    // through this list in order across the cumulative continuation,
+    // so the three turns get the three tool calls deterministically.
+    // Without this override we rely on the per-turn RNG dice roll
+    // which can land entirely on "respond_as_is" and produce zero
+    // tool calls — exactly the regression this test was hitting.
+    let calls = json!([
+        {"tool_calls": [{"name": "oai_tool0", "arguments": "{\"args\":[]}"}], "content": ""},
+        {"tool_calls": [], "content": "done1"},
+        {"tool_calls": [{"name": "oai_tool0", "arguments": "{\"args\":[]}"}], "content": ""},
+        {"tool_calls": [], "content": "done2"},
+        {"tool_calls": [{"name": "oai_tool0", "arguments": "{\"args\":[]}"}], "content": ""},
+        {"tool_calls": [], "content": "done3"},
+    ]);
     let agent_json = json!({
         "upstream": "mock",
         "output_mode": "instruction",
         "client_objectiveai_mcp": {"tools": tools},
+        "calls": calls,
     });
     AgentSpec::Resolved(
         serde_json::from_value::<InlineAgentBaseWithFallbacksOrRemoteCommitOptional>(
@@ -228,10 +246,18 @@ async fn continue_agent(executor: &BinaryExecutor, spawn_id: &str, seed: i64) {
 }
 
 /// Collect every `tool_response` queue item's sql row id for `sub_id`
-/// via the public `agents read all` cli surface.
+/// via the public `agents read all` cli surface. `sub_id` is the
+/// full cli-side lineage (e.g. `cli/<leaf>`); the cli's read::all
+/// rebuilds the full hierarchy as `{caller}/{sub}` so we pass just
+/// the leaf (the part after the rsplit on '/'), avoiding the
+/// `cli/cli/<leaf>` double-prefix that would shadow the queue rows.
 async fn read_tool_response_ids(executor: &BinaryExecutor, sub_id: &str) -> Vec<i64> {
+    let leaf = sub_id
+        .rsplit_once('/')
+        .map(|(_, leaf)| leaf)
+        .unwrap_or(sub_id);
     let request = ReadAllRequest { path_type: objectiveai_sdk::cli::command::agents::read::all::Path::AgentsReadAll,
-        agent_instance_hierarchies: vec![sub_id.to_string()],
+        agent_instance_hierarchies: vec![leaf.to_string()],
         jq: None,
     };
     let items: Vec<ReadAllItem> =
