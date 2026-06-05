@@ -757,9 +757,12 @@ fn mcp_session_id_from_headers(headers: &IndexMap<String, String>) -> Option<Str
 }
 
 /// The six session-global transient headers the proxy stamps on
-/// every outbound request via `Connection.extra_headers`. All
-/// required at `initialize` time — the conduit errors if any is
-/// missing.
+/// every outbound request via `Connection.extra_headers`. All six
+/// keys must be present at `initialize` time — the conduit errors
+/// if any header is absent. Five of the six (every entry except
+/// `X-OBJECTIVEAI-AGENT-REMOTE`) must additionally be non-empty;
+/// `AGENT-REMOTE` is legitimately empty for inline agents (no
+/// remote provenance) and is accepted as-is. See [`require_transient`].
 const REQUIRED_TRANSIENT_HEADERS: [&str; 6] = [
     "X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY",
     "X-OBJECTIVEAI-AGENT-ID",
@@ -768,6 +771,12 @@ const REQUIRED_TRANSIENT_HEADERS: [&str; 6] = [
     "X-OBJECTIVEAI-RESPONSE-ID",
     "X-OBJECTIVEAI-RESPONSE-IDS",
 ];
+
+/// Index of `X-OBJECTIVEAI-AGENT-REMOTE` in
+/// [`REQUIRED_TRANSIENT_HEADERS`]. The empty-string check below
+/// skips this slot because inline agents have no remote and the
+/// api correctly stamps the header as `""`.
+const AGENT_REMOTE_IDX: usize = 3;
 
 /// Verbatim values of the six required transient headers extracted
 /// from one `server_request::Request.headers` map. Order matches
@@ -785,22 +794,27 @@ struct TransientHeaders {
 
 /// Extract all six required transient headers from `headers`. The
 /// first missing key (in [`REQUIRED_TRANSIENT_HEADERS`] order) drives
-/// the error message — empty-string values count as missing because
-/// the proxy never stamps an empty value for these.
+/// the error message. Empty-string values count as missing for every
+/// slot *except* `X-OBJECTIVEAI-AGENT-REMOTE` (slot
+/// [`AGENT_REMOTE_IDX`]) — inline agents have no remote provenance
+/// and the api stamps that header as `""` verbatim.
 fn require_transient(
     headers: &IndexMap<String, String>,
 ) -> Result<TransientHeaders, String> {
     let mut values: [Option<String>; 6] = Default::default();
     for (idx, key) in REQUIRED_TRANSIENT_HEADERS.iter().enumerate() {
-        let v = headers
+        let raw = headers
             .iter()
             .find(|(k, _)| k.eq_ignore_ascii_case(key))
-            .map(|(_, v)| v.clone())
-            .filter(|v| !v.is_empty());
-        match v {
-            Some(v) => values[idx] = Some(v),
+            .map(|(_, v)| v.clone());
+        let v = match raw {
             None => return Err(format!("missing required header {key:?}")),
-        }
+            Some(s) if s.is_empty() && idx != AGENT_REMOTE_IDX => {
+                return Err(format!("empty required header {key:?}"));
+            }
+            Some(s) => s,
+        };
+        values[idx] = Some(v);
     }
     let [agent_instance_hierarchy, agent_id, agent_full_id, agent_remote, response_id, response_ids] =
         values.map(|o| o.expect("every slot filled before this line"));
