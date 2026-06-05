@@ -23,7 +23,7 @@ use std::process::Command;
 use std::sync::Once;
 
 use objectiveai_sdk::cli::command::functions::executions::create::standard::{
-    Request, RequestInput, ResponseItem,
+    Request, RequestDangerousAdvanced, RequestInput, ResponseItem,
 };
 use objectiveai_sdk::cli::command::functions::executions::create::{
     FunctionSpec, ProfileSpec,
@@ -200,7 +200,12 @@ async fn function_swarm_writes_per_agent_files() {
         seed: Some(42),
         split: false,
         invert: false,
-        dangerous_advanced: None,
+        // Stream so the cli waits for the function execution to fully
+        // finish before exiting. Without it the cli emits a bare `Id`
+        // and detaches from the instance subprocess on `LogStreamReady`,
+        // leaving the instance to write `A.txt`/`B.txt` orphaned —
+        // the assertions below would race against those writes.
+        dangerous_advanced: Some(RequestDangerousAdvanced { stream: Some(true) }),
         jq: None,
     };
 
