@@ -73,11 +73,17 @@ fn hello_plugin_dispatch_produces_expected_output() {
         String::from_utf8_lossy(&output.stderr)
     );
 
-    // Each line is `RunItem::Command(ResponseItem::Plugins(plugins::ResponseItem::Run(
-    // plugins::run::ResponseItem)))`. The inner `plugins::run::ResponseItem` is
-    // `#[serde(untagged)]`, so a `Notification(value)` variant carrying the plugin's
-    // raw payload `{"hello":"world"}` lands on the wire as
-    // `{"Plugins":{"Run":{"hello":"world"}}}`.
+    // Each cli stdout line is the leaf `plugins::run::ResponseItem`
+    // serialized at the wire. Every `cli/command` aggregator
+    // `Response`/`ResponseItem` is `#[serde(untagged)]` (sdk commit
+    // 39c3320e7), so the root `RunItem::Command(_)`,
+    // `cli::command::ResponseItem`, and `plugins::ResponseItem`
+    // wrappers all collapse. The leaf `plugins::run::ResponseItem`
+    // is itself untagged with variants `Mcp { type: "mcp", url }`,
+    // `Error { type: "error", ... }`, and `Notification(Value)` —
+    // so a notification carrying the plugin's raw payload
+    // `{"hello":"world"}` lands on the wire as bare `{"hello":"world"}`,
+    // not wrapped in any `Plugins/Run/` envelope.
     let stdout = String::from_utf8(output.stdout).expect("cli stdout not utf-8");
     let lines: Vec<&str> = stdout.lines().collect();
     assert!(
@@ -91,7 +97,7 @@ fn hello_plugin_dispatch_produces_expected_output() {
             let Ok(v) = serde_json::from_str::<Value>(line) else {
                 return false;
             };
-            v.pointer("/Plugins/Run/hello") == Some(&Value::String("world".into()))
+            v.pointer("/hello") == Some(&Value::String("world".into()))
         })
         .count();
     assert_eq!(
