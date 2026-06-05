@@ -56,32 +56,6 @@ impl Continuation {
         }
     }
 
-    /// Per-agent reverse-attach `ws_session_id` baked into the
-    /// `client_objectiveai_mcp` proxy URL path segment, if this
-    /// agent used `client_objectiveai_mcp` in a prior turn. The WS
-    /// streaming handler reads this on resume so the agent's MCP
-    /// proxy URL stays valid against the new WS reverse channel.
-    pub fn ws_session_id(&self) -> Option<&str> {
-        match self {
-            Self::Openrouter(c) => c.ws_session_id.as_deref(),
-            Self::ClaudeAgentSdk(c) => c.ws_session_id.as_deref(),
-            Self::CodexSdk(c) => c.ws_session_id.as_deref(),
-            Self::Mock(c) => c.ws_session_id.as_deref(),
-        }
-    }
-
-    /// Stamps the per-agent reverse-attach `ws_session_id` on the
-    /// outgoing continuation. Called by the agent client after it
-    /// resolves the id (incoming continuation's id or freshly minted).
-    pub fn set_ws_session_id(&mut self, id: Option<String>) {
-        match self {
-            Self::Openrouter(c) => c.ws_session_id = id,
-            Self::ClaudeAgentSdk(c) => c.ws_session_id = id,
-            Self::CodexSdk(c) => c.ws_session_id = id,
-            Self::Mock(c) => c.ws_session_id = id,
-        }
-    }
-
     /// Full slash-separated lineage of the agent this continuation
     /// belongs to. See per-upstream struct docs for the semantic.
     /// Empty string if the continuation was minted before this field
@@ -96,9 +70,8 @@ impl Continuation {
     }
 
     /// Stamps `agent_instance_hierarchy` on the outgoing continuation.
-    /// Mirrors [`Self::set_ws_session_id`]: the api server calls this
-    /// just before returning the wire continuation so the next round
-    /// inherits the same lineage.
+    /// The api server calls this just before returning the wire
+    /// continuation so the next round inherits the same lineage.
     pub fn set_agent_instance_hierarchy(&mut self, id: String) {
         match self {
             Self::Openrouter(c) => c.agent_instance_hierarchy = id,

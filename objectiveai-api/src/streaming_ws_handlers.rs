@@ -125,11 +125,12 @@ pub(crate) async fn create_agent_completion_ws(
                 }
             };
         // Build the reverse-attach plumbing BEFORE the stream so the
-        // agent client can register per-agent `ws_session_id`s
-        // (synthesized for `client_objectiveai_mcp` URLs) against
+        // agent client can register per-agent `response_id`s against
         // this WS's reverse channel from inside its swarm-iteration
-        // site. The guard is held for the entire `on_upgrade` async
-        // block — when it drops, all registered ids are removed.
+        // site (synthesized `/objectiveai` and `/{owner}/{name}/{ver}/{mcp}`
+        // URLs both look up by `X-OBJECTIVEAI-RESPONSE-ID`). The guard
+        // is held for the entire `on_upgrade` async block — when it
+        // drops, all registered ids are removed.
         let tracker = streaming_ws::SessionTracker::new();
         let pending = streaming_ws::new_pending_requests();
         let (tx, rx) = socket.split();

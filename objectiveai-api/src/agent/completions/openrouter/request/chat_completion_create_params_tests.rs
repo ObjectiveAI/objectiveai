@@ -2275,7 +2275,6 @@ async fn test_request_continuation_messages_come_first() {
             }),
         ],
         mcp_sessions: indexmap::IndexMap::new(),
-        ws_session_id: None,
     };
 
     let result = ChatCompletionCreateParams::new(

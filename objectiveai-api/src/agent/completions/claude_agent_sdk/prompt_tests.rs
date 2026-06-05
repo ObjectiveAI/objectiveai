@@ -544,7 +544,6 @@ fn test_request_continuation_session_id_fallback() {
         agent_instance_hierarchy: String::new(),
         session_id: "req-sess-123".to_string(),
         mcp_sessions: indexmap::IndexMap::new(),
-        ws_session_id: None,
     };
 
     // No internal continuation — should fall back to request continuation session_id.
@@ -577,7 +576,6 @@ fn test_internal_session_id_takes_precedence_over_request() {
         agent_instance_hierarchy: String::new(),
         session_id: "req-sess-456".to_string(),
         mcp_sessions: indexmap::IndexMap::new(),
-        ws_session_id: None,
     };
 
     // Internal continuation has session_id — should use it, not request continuation's.

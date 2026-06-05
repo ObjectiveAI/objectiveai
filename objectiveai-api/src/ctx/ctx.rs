@@ -49,13 +49,14 @@ pub struct Context<CTXEXT, PC> {
     /// forward to the MCP proxy inside agent completions.
     agent_instance_hierarchy: Option<Arc<String>>,
     /// Loopback-only MCP listener port the API process bound. Used
-    /// to synthesize
-    /// `http://127.0.0.1:{mcp_port}/objectiveai-mcp/{ws_session_id}`
-    /// reverse-attach URLs when an agent declares `client_objectiveai_mcp`.
-    /// `None` on HTTP/SSE requests (no reverse-attach possible) and
-    /// when running outside a bound server.
+    /// to synthesize `http://127.0.0.1:{mcp_port}/objectiveai` and
+    /// `http://127.0.0.1:{mcp_port}/{owner}/{name}/{ver}/{mcp}`
+    /// reverse-attach URLs when an agent declares
+    /// `client_objectiveai_mcp`. `None` on HTTP/SSE requests (no
+    /// reverse-attach possible) and when running outside a bound
+    /// server.
     mcp_port: Option<u16>,
-    /// Handle for registering per-agent `ws_session_id`s against the
+    /// Handle for registering per-agent `response_id`s against the
     /// current WS reverse channel. Set on WS-attached requests by the
     /// streaming handlers; `None` on HTTP/SSE. Many ids may register
     /// against the same handle — one per swarm agent that declares
@@ -322,7 +323,7 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
     }
 
     /// Returns the shared reverse-attach handle for registering
-    /// per-agent `ws_session_id`s against the current WS, if a
+    /// per-agent `response_id`s against the current WS, if a
     /// streaming WS handler stamped one.
     pub fn reverse_attach(
         &self,

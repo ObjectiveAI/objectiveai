@@ -639,42 +639,52 @@ where
             .as_ref()
             .and_then(|rc| rc.mcp_sessions().get(&proxy_url).cloned());
 
-        // Resolve a per-agent `ws_session_id` for any agent that
-        // declares `client_objectiveai_mcp`. For the primary agent
-        // (the first in `filtered_agents`), if the incoming
-        // `request_continuation` carries a `ws_session_id` we reuse
-        // it — that keeps the proxy URL in `mcp_sessions` valid
-        // across resumes. For everything else (fallbacks, fresh
-        // primaries) we mint a UUID per agent so the proxy's
-        // URL-keyed session cache treats each agent as its own MCP
-        // connection. Each resolved id is registered against the
-        // current WS `ReverseAttachHandle` (when present) so the
-        // `/objectiveai-mcp/{ws_session_id}` endpoint routes to
-        // this in-flight WS.
-        let resumed_ws_session_id: Option<String> = request_continuation
-            .as_ref()
-            .and_then(|c| c.ws_session_id())
-            .map(|s| s.to_string());
-        let agent_ws_session_ids: Vec<Option<String>> = filtered_agents
+        // Per-agent reverse-attach registration. For every surviving
+        // agent that declares `client_objectiveai_mcp`, register that
+        // agent's `response_id` against the inbound WS's
+        // `ReverseAttachHandle` — same value the proxy stamps on every
+        // outbound reverse-channel request as
+        // `X-OBJECTIVEAI-RESPONSE-ID`, so `route()` in
+        // `objectiveai_mcp/routes.rs` finds the matching channel via a
+        // header lookup against this exact id.
+        //
+        // Multiplicities preserved:
+        // - **One response_id → many per-MCP routes from the proxy.**
+        //   The proxy fans out one outbound HTTP MCP connection per
+        //   upstream URL (`/objectiveai`, `/{owner}/{name}/{ver}/{mcp}`,
+        //   ...). Every one carries the same `X-OBJECTIVEAI-RESPONSE-ID`;
+        //   route() finds the channel once, the per-MCP discrimination
+        //   happens downstream via the path-extracted `McpKind`.
+        // - **One WS may serve many response_ids (swarm).** Each
+        //   surviving agent registers its own response_id; all entries
+        //   point to the same underlying `ReverseChannel`.
+        //   `ReverseAttachGuard::drop` removes every registered id
+        //   when the WS closes.
+        // - **Continuations.** Each turn mints a fresh response_id and
+        //   re-registers. Cross-turn upstream-session stability is
+        //   handled by the proxy's own `Mcp-Session-Id` + the
+        //   continuation's `mcp_sessions[proxy_url]` map (the proxy
+        //   reuses its in-memory `Session` and overwrites cached
+        //   transient headers with the new turn's response_id via
+        //   `apply_transient_headers` before any reused-connection
+        //   request goes out). The api-side registry key is
+        //   deliberately a per-turn value because that's what
+        //   `apply_transient_headers` keeps fresh.
+        let agent_needs_reverse_attach: Vec<bool> = filtered_agents
             .iter()
             .enumerate()
             .map(|(i, agent)| {
-                if agent.base().client_objectiveai_mcp().is_none() {
-                    return None;
+                let needs = agent.base().client_objectiveai_mcp().is_some()
+                    && ctx.mcp_port().is_some()
+                    && ctx.reverse_attach().is_some();
+                if needs {
+                    // Both `mcp_port` and `reverse_attach` were just
+                    // checked above; unwrap is safe.
+                    ctx.reverse_attach()
+                        .unwrap()
+                        .register(response_ids[i].clone());
                 }
-                let handle = match (ctx.mcp_port(), ctx.reverse_attach()) {
-                    (Some(_), Some(h)) => h.clone(),
-                    _ => return None,
-                };
-                let id = if i == 0 {
-                    resumed_ws_session_id
-                        .clone()
-                        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string())
-                } else {
-                    uuid::Uuid::new_v4().to_string()
-                };
-                handle.register(id.clone());
-                Some(id)
+                needs
             })
             .collect();
         let mcp_port_for_synth = ctx.mcp_port();
@@ -705,8 +715,8 @@ where
             .iter()
             .zip(agent_instance_hierarchies.iter())
             .zip(response_ids.iter())
-            .zip(agent_ws_session_ids.iter())
-            .map(|(((agent, agent_instance_hierarchy), id), agent_ws_session_id)| {
+            .zip(agent_needs_reverse_attach.iter().copied())
+            .map(|(((agent, agent_instance_hierarchy), id), needs_reverse_attach)| {
                 // Build the per-agent X-MCP-* header set: the agent's
                 // declared `mcp_servers` plus any caller-supplied
                 // `extra_mcp_servers` (e.g. the function-inventions
@@ -743,11 +753,11 @@ where
                     String,
                     Option<indexmap::IndexMap<String, Option<String>>>,
                 )> = match (
-                    agent_ws_session_id.as_deref(),
+                    needs_reverse_attach,
                     mcp_port_for_synth,
                     agent.base().client_objectiveai_mcp(),
                 ) {
-                    (Some(_), Some(mcp_port), Some(client_mcp)) => {
+                    (true, Some(mcp_port), Some(client_mcp)) => {
                         let mut out: Vec<(
                             String,
                             Option<indexmap::IndexMap<String, Option<String>>>,

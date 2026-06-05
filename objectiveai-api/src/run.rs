@@ -718,10 +718,10 @@ pub async fn setup(
     // handlers populate this on upgrade; the MCP endpoint route reads
     // it when a proxy upstream dials in for a session.
     let reverse_channels = streaming_ws::new_reverse_channel_registry();
-    // SSE listener registry: per-(ws_session_id, mcp_session_id)
-    // broadcast feeding the MCP GET notifications stream. The conduit
-    // WS recv loop publishes here when the CLI pushes `McpListChanged`;
-    // the GET handler subscribes from here.
+    // SSE listener registry: per-(response_id, McpKind) broadcast
+    // feeding the MCP GET notifications stream. The conduit WS recv
+    // loop publishes here when the CLI pushes `McpListChanged`; the
+    // GET handler subscribes from here.
     let mcp_listeners = crate::objectiveai_mcp::McpListenerRegistry::new();
     // Public + loopback-MCP listeners bound in parallel. Both
     // listeners need to be up before the process can serve a

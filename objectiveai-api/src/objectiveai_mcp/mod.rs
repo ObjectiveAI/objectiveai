@@ -7,7 +7,7 @@
 //!
 //! The reverse-attach plumbing the routes layer rides on top of —
 //! [`registry`] (per-WS sink + pending-request slot, keyed by
-//! `ws_session_id`), [`listeners`] (per-MCP-session SSE broadcast
+//! per-agent `response_id`), [`listeners`] (per-MCP-session SSE broadcast
 //! feeding the GET handler), [`send::send_server_request`] (the
 //! API-side write primitive forwarding requests over the WS), and
 //! [`sse::handle_get_sse`] — lives here too. Used to be in the SDK's

@@ -829,7 +829,6 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
             agent_instance_hierarchy: agent_instance_hierarchy.to_string(),
             messages: all_messages,
             mcp_sessions,
-            ws_session_id: None,
         }
     }
 }

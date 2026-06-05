@@ -530,7 +530,6 @@ impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai
             agent_instance_hierarchy: agent_instance_hierarchy.to_string(),
             session_id,
             mcp_sessions,
-            ws_session_id: None,
         }
     }
 }

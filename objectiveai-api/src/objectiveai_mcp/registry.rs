@@ -76,10 +76,11 @@ pub struct ReverseChannel {
     pub pending: PendingRequests,
 }
 
-/// Process-wide registry of live [`ReverseChannel`]s keyed by an
-/// opaque session id minted on WS upgrade. Populated by the
-/// per-endpoint `_ws` handlers; consulted by the `/objectiveai-mcp`
-/// route (via the `X-OBJECTIVEAI-RESPONSE-ID` header) and by the
+/// Process-wide registry of live [`ReverseChannel`]s keyed by the
+/// per-agent `response_id` registered on WS upgrade. Populated by
+/// the per-endpoint `_ws` handlers; consulted by the per-MCP routes
+/// (`/objectiveai` and `/{owner}/{name}/{version}/{mcp}`) — both
+/// look up by the `X-OBJECTIVEAI-RESPONSE-ID` header — and by the
 /// agent-completion verification probe.
 pub type ReverseChannelRegistry = Arc<DashMap<String, ReverseChannel>>;
 
@@ -93,12 +94,13 @@ pub fn new_reverse_channel_registry() -> ReverseChannelRegistry {
 /// - [`ReverseChannelRegistry`] so the handler can insert/remove its
 ///   session.
 /// - `mcp_port` — the API's loopback-only MCP listener port. The
-///   agent client uses it to build a synthetic
-///   `http://127.0.0.1:<mcp_port>/objectiveai-mcp` URL that the
-///   proxy will dial. Kernel-enforced: the listener binds
+///   agent client uses it to build synthetic
+///   `http://127.0.0.1:<mcp_port>/objectiveai` and
+///   `http://127.0.0.1:<mcp_port>/{owner}/{name}/{ver}/{mcp}` URLs
+///   that the proxy will dial. Kernel-enforced: the listener binds
 ///   `127.0.0.1` so non-loopback callers cannot reach it.
 /// - [`McpListenerRegistry`] so the recv loop's `McpListChanged`
-///   dispatch can publish to the per-(ws_session_id, mcp_session_id)
+///   dispatch can publish to the per-(response_id, McpKind)
 ///   broadcast feeding the API's GET-SSE notifications stream.
 #[derive(Clone)]
 pub struct ReverseAttachConfig {
@@ -108,10 +110,10 @@ pub struct ReverseAttachConfig {
 }
 
 /// Arc-shareable handle the agent client uses to register per-agent
-/// `ws_session_id`s against the current WS [`ReverseChannel`]. Many
+/// `response_id`s against the current WS [`ReverseChannel`]. Many
 /// ids may map to one channel — one CLI WS upgrade can serve a swarm
 /// of N agents, each declaring `client_objectiveai_mcp` with its own
-/// stable `ws_session_id`. The owning [`ReverseAttachGuard`] removes
+/// per-turn `response_id`. The owning [`ReverseAttachGuard`] removes
 /// every registered id on drop.
 pub struct ReverseAttachHandle {
     registry: ReverseChannelRegistry,
@@ -150,7 +152,7 @@ impl ReverseAttachHandle {
     }
 
     /// The WS reverse channel this upgrade registered against. Every
-    /// per-agent `ws_session_id` registered through this handle
+    /// per-agent `response_id` registered through this handle
     /// resolves to the same underlying channel — callers that need
     /// to send `server_request` frames (e.g. plugin-MCP-begin) reach
     /// the sink + pending registry through here without going through

@@ -338,9 +338,9 @@ pub async fn recv_loop<F, Fut>(
                 // response_ids that share the WS, only the live
                 // subscriber gets the event.
                 ClientPayload::McpListChanged(change) => {
-                    for ws_session_id in attach_handle.registered_ids() {
+                    for response_id in attach_handle.registered_ids() {
                         mcp_listeners.publish(
-                            &ws_session_id,
+                            &response_id,
                             &change.mcp_kind,
                             change.kind,
                         );

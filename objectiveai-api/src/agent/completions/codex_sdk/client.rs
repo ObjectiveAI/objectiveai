@@ -531,7 +531,6 @@ impl
             agent_instance_hierarchy: agent_instance_hierarchy.to_string(),
             thread_id,
             mcp_sessions,
-            ws_session_id: None,
         }
     }
 }
