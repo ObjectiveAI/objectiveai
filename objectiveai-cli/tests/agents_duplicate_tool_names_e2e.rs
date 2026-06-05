@@ -38,7 +38,8 @@ use objectiveai_sdk::cli::command::agents::read::id::{
     Request as ReadIdRequest, Response as ReadIdResponse,
 };
 use objectiveai_sdk::cli::command::agents::spawn::{
-    AgentSpec, Request as SpawnRequest, RequestPrompt, ResponseItem as SpawnResponseItem,
+    AgentSpec, Request as SpawnRequest, RequestDangerousAdvanced, RequestPrompt,
+    ResponseItem as SpawnResponseItem,
 };
 use serde_json::{Value, json};
 
@@ -143,13 +144,22 @@ fn mock_agent() -> Value {
 }
 
 /// Wait for the cli-stream child to have flushed an agent's response
-/// continuation AND torn down its socket. Mirrors the polling pattern
-/// from `plugin_mcp_dispatch_e2e::wait_for_completion`.
-async fn wait_for_completion(base: &Path, spawn_id: &str) {
+/// continuation AND torn down its socket.
+///
+/// On-disk conventions:
+///   continuation token (raw text): `logs/agents/completions/response/continuation/<leaf>.txt`
+///     — stems on the LEAF response id alone
+///   per-agent socket:              `pipes/<full_lineage>/socket`
+///     — stems on the FULL lineage (which already starts with `cli/`)
+async fn wait_for_completion(base: &Path, full_lineage: &str) {
+    let leaf = full_lineage
+        .rsplit_once('/')
+        .map(|(_, leaf)| leaf)
+        .unwrap_or(full_lineage);
     let cont = base
         .join("logs/agents/completions/response/continuation")
-        .join(format!("{spawn_id}.json"));
-    let socket = base.join("pipes/cli").join(spawn_id).join("socket");
+        .join(format!("{leaf}.txt"));
+    let socket = base.join("pipes").join(full_lineage).join("socket");
     let deadline = Instant::now() + Duration::from_secs(180);
     while Instant::now() < deadline {
         if cont.exists() && !socket.exists() {
@@ -157,7 +167,9 @@ async fn wait_for_completion(base: &Path, spawn_id: &str) {
         }
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
-    panic!("cli-stream did not flush continuation + tear down socket for {spawn_id} in 180s");
+    panic!(
+        "cli-stream did not flush continuation + tear down socket for {full_lineage} (leaf {leaf}) in 180s"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -186,23 +198,31 @@ async fn duplicate_tool_names_routed_across_turns() {
         prompt: RequestPrompt::Simple("use a tool".to_string()),
         agent,
         seed: Some(SEED),
-        dangerous_advanced: None,
+        // Stream so we get `Chunk(_)` items (needed for `chunk.id`)
+        // and so the cli stays attached to the instance subprocess
+        // through completion (otherwise `wait_for_completion` races
+        // against the orphaned writer).
+        dangerous_advanced: Some(RequestDangerousAdvanced { stream: Some(true) }),
         jq: None,
     };
     let items: Vec<SpawnResponseItem> = cli_test_util::collect_stream(&executor, spawn).await;
-    let spawn_id = items
+    // chunk.id is the LEAF response_id; the cli filesystem keys
+    // every on-disk row on `cli/<leaf>`. chunk.agent_instance_hierarchy
+    // is the api-side slot id (`cli/{agent_full_id}-{leaf}`) — wrong
+    // for cli-side file lookups.
+    let leaf = items
         .iter()
         .find_map(|i| match i {
-            SpawnResponseItem::Chunk(c) if !c.agent_instance_hierarchy.is_empty() => {
-                Some(c.agent_instance_hierarchy.clone())
-            }
+            SpawnResponseItem::Chunk(c) if !c.id.is_empty() => Some(c.id.clone()),
             _ => None,
         })
-        .expect("agents spawn must emit a Chunk with agent_instance_hierarchy");
+        .expect("agents spawn must emit a Chunk with non-empty id");
+    let spawn_id = format!("cli/{leaf}");
     wait_for_completion(&base, &spawn_id).await;
 
-    // Split the chunk's full lineage into (parent, instance) for the
-    // two-field `MessageRequest` shape.
+    // Split the cli-side full lineage into (parent, instance) for the
+    // two-field `MessageRequest` shape — `cli/<leaf>` splits into
+    // (`"cli"`, `<leaf>`).
     let (parent, instance) = spawn_id
         .rsplit_once('/')
         .map(|(p, i)| (Some(p.to_string()), i.to_string()))
