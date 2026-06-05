@@ -105,15 +105,29 @@ pub enum ResponseItem {
 /// single bare id string.
 pub type Response = String;
 
+/// Exactly-one-of `--state | --state-inline`. Scoped to its own
+/// `#[group]` annotation on a dedicated sub-struct so the
+/// `required = true, multiple = false` enforcement only applies to
+/// these two fields, AND so the group id doesn't collide with the
+/// outer `state` field name. Mirrors the
+/// `functions::executions::create::{standard,swiss_system}::InputArgs`
+/// pattern.
 #[derive(clap::Args)]
-#[group(id = "state", required = true, multiple = false)]
-pub struct Args {
+#[group(id = "state_group", required = true, multiple = false)]
+pub struct StateArgs {
     /// State reference.
-    #[arg(long, group = "state")]
+    #[arg(long, group = "state_group")]
     pub state: Option<String>,
     /// Inline JSON state.
-    #[arg(long, group = "state")]
+    #[arg(long, group = "state_group")]
     pub state_inline: Option<String>,
+}
+
+#[derive(clap::Args)]
+pub struct Args {
+    /// Exactly one of `--state`, `--state-inline`.
+    #[command(flatten)]
+    pub state: StateArgs,
     /// Inline JSON agent definition.
     #[arg(long)]
     pub agent_inline: String,
@@ -151,7 +165,7 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        let state = if let Some(s) = args.state_inline {
+        let state = if let Some(s) = args.state.state_inline {
             let mut de = serde_json::Deserializer::from_str(&s);
             let v = serde_path_to_error::deserialize(&mut de).map_err(|source| {
                 crate::cli::command::FromArgsError {
@@ -161,7 +175,7 @@ impl TryFrom<Args> for Request {
             })?;
             RequestState::Inline(v)
         } else {
-            RequestState::Ref(args.state.unwrap())
+            RequestState::Ref(args.state.state.unwrap())
         };
         let agent = {
             let mut de = serde_json::Deserializer::from_str(&args.agent_inline);
