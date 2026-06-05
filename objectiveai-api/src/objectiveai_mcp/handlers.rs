@@ -274,9 +274,34 @@ fn unwrap_rpc<R>(
     }
 }
 
-/// Copy inbound headers for forwarding, dropping hop-by-hop and
-/// transport-routing ones. `Mcp-Session-Id` passes through — that's the
-/// standard MCP transport identifier minted by the upstream server.
+/// Copy inbound headers for forwarding, dropping hop-by-hop ones
+/// only. **Every `X-OBJECTIVEAI-*` header passes through unchanged**
+/// — they're load-bearing downstream of routing:
+///
+/// - The six transient headers (`AGENT-INSTANCE-HIERARCHY`,
+///   `AGENT-ID`, `AGENT-FULL-ID`, `AGENT-REMOTE`, `RESPONSE-ID`,
+///   `RESPONSE-IDS`) feed the CLI conduit's `require_transient`
+///   check, populate `ctx.config.{agent_*,response_*}`, and project
+///   onto every subprocess env via `apply_config_env`.
+/// - `RESPONSE-ID` doubles as the api's own routing key here, but
+///   stripping it before forwarding would break the CLI's
+///   `require_transient` (and every consumer of
+///   `ctx.config.response_id` downstream).
+/// - `ARGUMENTS` carries the per-plugin JSON-serialized argument
+///   map declared on `client_objectiveai_mcp.plugins[].mcp_servers[].arguments`;
+///   the cli's `dial_plugin_upstream` reads them via the typed
+///   `Initialize { args }` payload on the `initialize` POST and
+///   via the raw header on every other request that touches the
+///   plugin subprocess env (`OAI_*_ARG_*`).
+/// - `AUTHORIZATION`, `SIGNATURE`, `MCP-CONFIG`, `TOOLS-ALLOWED`
+///   are likewise downstream-bound — there is no api-level
+///   consumer for any of them and the cli or plugin needs them
+///   verbatim.
+///
+/// `Mcp-Session-Id` also passes through — that's the standard MCP
+/// transport identifier minted by the upstream server, threaded
+/// end-to-end so the cli's conduit can key its per-upstream
+/// `connections` DashMap against the same id the proxy sees.
 fn forward_headers(headers: &HeaderMap) -> IndexMap<String, String> {
     headers
         .iter()
@@ -289,7 +314,6 @@ fn forward_headers(headers: &HeaderMap) -> IndexMap<String, String> {
                     | "connection"
                     | "accept"
                     | "content-type"
-                    | "x-objectiveai-response-id"
             );
             if drop {
                 return None;
