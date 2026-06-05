@@ -80,8 +80,9 @@ struct Inner {
     /// closures read it at fire time.
     notifier: OnceLock<Notifier>,
     /// Base [`crate::context::Context`] the conduit clones+mutates
-    /// per `dial_plugin_upstream` call to stamp the six transient
-    /// header values into [`crate::Config`] before calling
+    /// per `dial_plugin_upstream` call to stamp the transient
+    /// header values (five required + `AGENT-REMOTE` for remote
+    /// agents) into [`crate::Config`] before calling
     /// [`crate::command::plugins::run::execute`]. Carries the
     /// filesystem client used to resolve installed plugin binaries.
     ctx: crate::context::Context,
@@ -90,7 +91,7 @@ struct Inner {
 impl ConduitMcpHandler {
     /// Construct a handler over the given in-process `objectiveai-mcp`
     /// server. `ctx` is the base [`crate::context::Context`] the
-    /// conduit clones+mutates per plugin dial to thread the six
+    /// conduit clones+mutates per plugin dial to thread the
     /// transient header values into [`crate::Config`].
     pub fn new(
         mcp_server: crate::instance::mcp_server::McpServerHandle,
@@ -611,16 +612,20 @@ async fn dial_plugin_upstream(
         reason,
     };
 
-    // Clone base ctx and stamp the six transient headers into
-    // Config. `crate::spawn::apply_config_env` (called inside
+    // Clone base ctx and stamp the transient headers into Config.
+    // `crate::spawn::apply_config_env` (called inside
     // `command::plugins::run::execute`) projects these onto the
     // plugin subprocess env so the plugin's MCP server can
     // re-stamp them on any outbound calls it makes downstream.
+    // `agent_remote` is `None` for inline agents (the api omits
+    // the header entirely; empty-string transients are forbidden),
+    // which `apply_config_env` translates into an `env_remove` of
+    // `OBJECTIVEAI_AGENT_REMOTE` on the spawned subprocess.
     let mut dial_ctx = inner.ctx.clone();
     dial_ctx.config.agent_instance_hierarchy = transient.agent_instance_hierarchy.clone();
     dial_ctx.config.agent_id = Some(transient.agent_id.clone());
     dial_ctx.config.agent_full_id = Some(transient.agent_full_id.clone());
-    dial_ctx.config.agent_remote = Some(transient.agent_remote.clone());
+    dial_ctx.config.agent_remote = transient.agent_remote.clone();
     dial_ctx.config.response_id = Some(transient.response_id.clone());
     dial_ctx.config.response_ids = Some(transient.response_ids.clone());
 
@@ -756,52 +761,56 @@ fn mcp_session_id_from_headers(headers: &IndexMap<String, String>) -> Option<Str
         .map(|(_, v)| v.clone())
 }
 
-/// The six session-global transient headers the proxy stamps on
-/// every outbound request via `Connection.extra_headers`. All six
-/// keys must be present at `initialize` time — the conduit errors
-/// if any header is absent. Five of the six (every entry except
-/// `X-OBJECTIVEAI-AGENT-REMOTE`) must additionally be non-empty;
-/// `AGENT-REMOTE` is legitimately empty for inline agents (no
-/// remote provenance) and is accepted as-is. See [`require_transient`].
-const REQUIRED_TRANSIENT_HEADERS: [&str; 6] = [
+/// The five required session-global transient headers the proxy
+/// stamps on every outbound request via `Connection.extra_headers`.
+/// All five must be present and non-empty at `initialize` time —
+/// the conduit errors if any is missing or empty. Empty-string
+/// values are forbidden everywhere on the wire; the api enforces
+/// the same rule on the egress side.
+///
+/// `X-OBJECTIVEAI-AGENT-REMOTE` is *optional* (the api omits it
+/// entirely for inline agents) and is extracted separately by
+/// [`require_transient`]; if present it must also be non-empty.
+const REQUIRED_TRANSIENT_HEADERS: [&str; 5] = [
     "X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY",
     "X-OBJECTIVEAI-AGENT-ID",
     "X-OBJECTIVEAI-AGENT-FULL-ID",
-    "X-OBJECTIVEAI-AGENT-REMOTE",
     "X-OBJECTIVEAI-RESPONSE-ID",
     "X-OBJECTIVEAI-RESPONSE-IDS",
 ];
 
-/// Index of `X-OBJECTIVEAI-AGENT-REMOTE` in
-/// [`REQUIRED_TRANSIENT_HEADERS`]. The empty-string check below
-/// skips this slot because inline agents have no remote and the
-/// api correctly stamps the header as `""`.
-const AGENT_REMOTE_IDX: usize = 3;
+/// The single optional transient header. Present iff the agent is
+/// remote; carries the JSON-encoded `RemotePath`. Inline agents
+/// have no remote provenance and the api omits the header entirely
+/// rather than stamping an empty value (empty-string headers are
+/// forbidden end-to-end).
+const OPTIONAL_AGENT_REMOTE_HEADER: &str = "X-OBJECTIVEAI-AGENT-REMOTE";
 
-/// Verbatim values of the six required transient headers extracted
-/// from one `server_request::Request.headers` map. Order matches
-/// [`REQUIRED_TRANSIENT_HEADERS`]. Built by [`require_transient`]; a
-/// missing key on any of the six is a hard error returned to the
-/// API as a `JsonRpcResult::Err`.
+/// Verbatim values of the transient headers extracted from one
+/// `server_request::Request.headers` map. Built by
+/// [`require_transient`]; a missing or empty required key is a
+/// hard error returned to the API as a `JsonRpcResult::Err`.
 struct TransientHeaders {
     agent_instance_hierarchy: String,
     agent_id: String,
     agent_full_id: String,
-    agent_remote: String,
+    /// `None` for inline agents (header absent); `Some(non-empty)`
+    /// for remote agents.
+    agent_remote: Option<String>,
     response_id: String,
     response_ids: String,
 }
 
-/// Extract all six required transient headers from `headers`. The
-/// first missing key (in [`REQUIRED_TRANSIENT_HEADERS`] order) drives
-/// the error message. Empty-string values count as missing for every
-/// slot *except* `X-OBJECTIVEAI-AGENT-REMOTE` (slot
-/// [`AGENT_REMOTE_IDX`]) — inline agents have no remote provenance
-/// and the api stamps that header as `""` verbatim.
+/// Extract all five required transient headers from `headers` plus
+/// the optional `AGENT-REMOTE`. The first missing or empty required
+/// key (in [`REQUIRED_TRANSIENT_HEADERS`] order) drives the error
+/// message. `AGENT-REMOTE` is allowed to be absent; if present it
+/// must be non-empty (empty-string transients are forbidden
+/// end-to-end).
 fn require_transient(
     headers: &IndexMap<String, String>,
 ) -> Result<TransientHeaders, String> {
-    let mut values: [Option<String>; 6] = Default::default();
+    let mut values: [Option<String>; 5] = Default::default();
     for (idx, key) in REQUIRED_TRANSIENT_HEADERS.iter().enumerate() {
         let raw = headers
             .iter()
@@ -809,14 +818,27 @@ fn require_transient(
             .map(|(_, v)| v.clone());
         let v = match raw {
             None => return Err(format!("missing required header {key:?}")),
-            Some(s) if s.is_empty() && idx != AGENT_REMOTE_IDX => {
+            Some(s) if s.is_empty() => {
                 return Err(format!("empty required header {key:?}"));
             }
             Some(s) => s,
         };
         values[idx] = Some(v);
     }
-    let [agent_instance_hierarchy, agent_id, agent_full_id, agent_remote, response_id, response_ids] =
+    let agent_remote = match headers
+        .iter()
+        .find(|(k, _)| k.eq_ignore_ascii_case(OPTIONAL_AGENT_REMOTE_HEADER))
+        .map(|(_, v)| v.clone())
+    {
+        None => None,
+        Some(s) if s.is_empty() => {
+            return Err(format!(
+                "empty optional header {OPTIONAL_AGENT_REMOTE_HEADER:?} (absent header is fine; empty value is not)"
+            ));
+        }
+        Some(s) => Some(s),
+    };
+    let [agent_instance_hierarchy, agent_id, agent_full_id, response_id, response_ids] =
         values.map(|o| o.expect("every slot filled before this line"));
     Ok(TransientHeaders {
         agent_instance_hierarchy,

@@ -875,24 +875,33 @@ where
                 // `RESPONSE-IDS` is the dash-joined group of every
                 // sibling response_id in this completion, stamped
                 // identically on every per-agent connect.
-                // `AGENT-ID` is the per-slot leaf id; `AGENT-FULL-ID` is
-                // the WF-level id (same across slots); `AGENT-REMOTE` is
-                // JSON-encoded `RemotePath` when the WF was fetched
-                // remotely, or empty when inline.
-                let proxy_request_headers: indexmap::IndexMap<String, String> =
+                // `AGENT-ID` is the per-slot leaf id; `AGENT-FULL-ID`
+                // is the WF-level id (same across slots);
+                // `AGENT-REMOTE` is the JSON-encoded `RemotePath` when
+                // the WF was fetched remotely and is **omitted entirely**
+                // when the agent is inline — empty-string headers are
+                // forbidden end-to-end (the proxy filters absent keys
+                // out of `Session::transient_headers` naturally, and
+                // the cli conduit's `require_transient` treats
+                // AGENT-REMOTE as optional).
+                let mut proxy_request_headers: indexmap::IndexMap<String, String> =
                     indexmap::indexmap! {
                         "X-MCP-Servers".to_string() => serde_json::to_string(&urls).unwrap(),
                         "X-MCP-Headers".to_string() => serde_json::to_string(&per_url_headers).unwrap(),
                         "X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY".to_string() => agent_instance_hierarchy.clone(),
                         "X-OBJECTIVEAI-AGENT-ID".to_string() => agent.id().to_string(),
                         "X-OBJECTIVEAI-AGENT-FULL-ID".to_string() => agent_full_id.clone(),
-                        "X-OBJECTIVEAI-AGENT-REMOTE".to_string() => agent_remote
-                            .as_ref()
-                            .map(|r| serde_json::to_string(r).unwrap_or_default())
-                            .unwrap_or_default(),
                         "X-OBJECTIVEAI-RESPONSE-ID".to_string() => id.clone(),
                         "X-OBJECTIVEAI-RESPONSE-IDS".to_string() => response_ids_group.clone(),
                     };
+                if let Some(remote) = agent_remote.as_ref() {
+                    if let Ok(serialized) = serde_json::to_string(remote) {
+                        proxy_request_headers.insert(
+                            "X-OBJECTIVEAI-AGENT-REMOTE".to_string(),
+                            serialized,
+                        );
+                    }
+                }
 
                 let mcp_client = self.mcp_client.clone();
                 let proxy_url = proxy_url.clone();
