@@ -217,24 +217,17 @@ async fn run_subprocess(
 
     let mut stdout_lines = BufReader::new(stdout).lines();
     let mut handshake_seen = false;
-    let mut _line_count = 0usize;
-    objectiveai_sdk::_mcp_trace::log("11-cli-outer-streaming", &format!("entered stdout loop (child pid={:?})", child.id()));
     loop {
         let line = match stdout_lines.next_line().await {
             Ok(Some(l)) => l,
-            Ok(None) => {
-                objectiveai_sdk::_mcp_trace::log("11-cli-outer-streaming", &format!("stdout EOF after {_line_count} lines (child pid={:?})", child.id()));
-                break;
-            }
+            Ok(None) => break,
             Err(e) => {
-                objectiveai_sdk::_mcp_trace::log("11-cli-outer-streaming", &format!("stdout read err after {_line_count} lines: {e}"));
                 return Err(Error::Spawn(
                     "read instance-runner stdout".into(),
                     e,
                 ));
             }
         };
-        _line_count += 1;
         let trimmed = line.trim_end_matches(['\r', '\n']);
         if trimmed.is_empty() {
             continue;
@@ -271,17 +264,12 @@ async fn run_subprocess(
     }
 
     // Stdout EOF. Reap the child and decide whether the exit was clean.
-    objectiveai_sdk::_mcp_trace::log("11-cli-outer-streaming", "→ awaiting stderr_task");
     let stderr_buf = stderr_task.await.unwrap_or_default();
-    objectiveai_sdk::_mcp_trace::log("11-cli-outer-streaming", &format!("✓ stderr_task done ({} lines)", stderr_buf.len()));
-    objectiveai_sdk::_mcp_trace::log("11-cli-outer-streaming", "→ awaiting write_handle");
     let _ = write_handle.await;
-    objectiveai_sdk::_mcp_trace::log("11-cli-outer-streaming", "✓ write_handle done; calling child.wait");
     let status = child
         .wait()
         .await
         .map_err(|e| Error::Spawn("wait for instance-runner".into(), e))?;
-    objectiveai_sdk::_mcp_trace::log("11-cli-outer-streaming", &format!("✓ child.wait done status={status:?}"));
 
     if !status.success() {
         let tail: String = stderr_buf
