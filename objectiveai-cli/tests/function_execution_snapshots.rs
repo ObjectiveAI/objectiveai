@@ -213,7 +213,10 @@ async fn split_tweet_scorer_10_tweets_seed_42() {
         seed: Some(42),
         split: true,
         invert: false,
-        dangerous_advanced: None,
+        // Stream so collect_stream's `ResponseItem::Chunk(_)` loop has
+        // chunks to consume; without it the cli emits only a bare `Id`
+        // and the aggregator is empty.
+        dangerous_advanced: Some(RequestDangerousAdvanced { stream: Some(true) }),
         jq: None,
     };
 
