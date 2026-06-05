@@ -33,7 +33,7 @@ use objectiveai_sdk::cli::command::agents::read::all::{
 };
 use objectiveai_sdk::cli::command::agents::read::id::Request as ReadIdRequest;
 use objectiveai_sdk::cli::command::agents::spawn::{
-    AgentSpec, Request as SpawnRequest, RequestPrompt,
+    AgentSpec, Request as SpawnRequest, RequestDangerousAdvanced, RequestPrompt,
     ResponseItem as SpawnResponseItem,
 };
 use objectiveai_sdk::cli::command::CommandExecutor;
@@ -137,47 +137,68 @@ fn agent_spec() -> AgentSpec {
     )
 }
 
-/// Spawn an agent and return its sub-id (the chunk's
-/// `agent_instance_hierarchy`).
+/// Spawn an agent and return its FULL cli-side lineage —
+/// `format!("cli/{leaf}")` — where `leaf` is `chunk.id`, the
+/// per-agent response_id leaf. The cli's on-disk filesystem keys on
+/// this `cli/<leaf>` shape (NOT on `chunk.agent_instance_hierarchy`,
+/// which is the api-side slot id `cli/{agent_full_id}-{leaf}` —
+/// useful for the api's internal routing, not for finding cli logs).
 async fn spawn_agent(executor: &BinaryExecutor, seed: i64) -> String {
     let request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
         prompt: RequestPrompt::Simple("go".to_string()),
         agent: agent_spec(),
         seed: Some(seed),
-        dangerous_advanced: None,
+        // Stream so the cli stays attached to the instance subprocess
+        // through `LogStreamReady` + every chunk; we need at least one
+        // chunk to read `chunk.id` (the leaf), and we need the cli to
+        // not detach early so `wait_for_completion` polling against
+        // disk state isn't racing against an orphaned writer.
+        dangerous_advanced: Some(RequestDangerousAdvanced { stream: Some(true) }),
         jq: None,
     };
     let items: Vec<SpawnResponseItem> =
         cli_test_util::collect_stream(executor, request).await;
-    items
+    let leaf = items
         .iter()
         .find_map(|item| match item {
             SpawnResponseItem::Chunk(chunk) => {
-                if chunk.agent_instance_hierarchy.is_empty() {
+                if chunk.id.is_empty() {
                     None
                 } else {
-                    Some(chunk.agent_instance_hierarchy.clone())
+                    Some(chunk.id.clone())
                 }
             }
             SpawnResponseItem::Id(_) => None,
         })
-        .expect("agents spawn must emit a Chunk with agent_instance_hierarchy")
+        .expect("agents spawn must emit a Chunk with non-empty id");
+    format!("cli/{leaf}")
 }
 
 /// Wait for the cli-stream child to have flushed an agent's response
-/// continuation and unlinked its socket — same pattern the prior e2e
-/// uses.
-async fn wait_for_completion(base_dir: &Path, spawn_id: &str) {
+/// continuation and unlinked its socket.
+///
+/// On-disk conventions:
+///   continuation token (raw text): `logs/agents/completions/response/continuation/<leaf>.txt`
+///     — stems on the LEAF response id alone
+///   per-agent socket:              `pipes/<full_lineage>/socket`
+///     — stems on the FULL lineage (which already starts with `cli/`,
+///     so the path is `pipes/cli/<leaf>/socket`; do NOT prepend `cli/`
+///     a second time)
+async fn wait_for_completion(base_dir: &Path, full_lineage: &str) {
+    let leaf = full_lineage
+        .rsplit_once('/')
+        .map(|(_, leaf)| leaf)
+        .unwrap_or(full_lineage);
     let response_cont_path = base_dir
         .join("logs/agents/completions/response/continuation")
-        .join(format!("{spawn_id}.json"));
-    let socket_path = base_dir.join("pipes/cli").join(spawn_id).join("socket");
+        .join(format!("{leaf}.txt"));
+    let socket_path = base_dir.join("pipes").join(full_lineage).join("socket");
     poll_until(Duration::from_secs(720), || {
         response_cont_path.exists() && !socket_path.exists()
     })
     .await
     .unwrap_or_else(|()| {
-        panic!("cli-stream did not flush continuation + tear down socket for {spawn_id} in 720s",)
+        panic!("cli-stream did not flush continuation + tear down socket for {full_lineage} (leaf {leaf}) in 720s",)
     });
 }
 
