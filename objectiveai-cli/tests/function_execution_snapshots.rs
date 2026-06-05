@@ -76,16 +76,17 @@ async fn run_and_aggregate(request: Request) -> FunctionExecution {
     agg.into()
 }
 
-/// Assert the executed function's `.output` matches the snapshot's
-/// `output.output`. Mirrors the legacy helper that used
-/// `cli_result["output"]`.
+/// Assert the executed function's `.output.output` matches the
+/// snapshot's `output.output`. Both `FunctionExecution` and the
+/// committed snapshot wrap the output value in an outer `output`
+/// object, so we drill two levels on each side.
 fn assert_output_matches(snapshot_name: &str, execution: &FunctionExecution) {
     let snapshot = cli_test_util::load_snapshot(&snapshots_dir(), snapshot_name);
     let expected_output = cli_test_util::rounded(&snapshot_output(&snapshot));
     let has_errors = snapshot_has_errors(&snapshot);
 
     let execution_json = serde_json::to_value(execution).expect("FunctionExecution serializes");
-    let actual_output = cli_test_util::rounded(&execution_json["output"]);
+    let actual_output = cli_test_util::rounded(&execution_json["output"]["output"]);
     assert_eq!(
         actual_output, expected_output,
         "output mismatch for {snapshot_name}",
