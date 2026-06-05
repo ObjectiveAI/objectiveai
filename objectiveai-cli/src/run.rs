@@ -8,6 +8,45 @@ use crate::context::Context;
 use crate::error::Error;
 use crate::instance::InstanceEmission;
 
+/// Windows-only: clear `HANDLE_FLAG_INHERIT` on this process's
+/// stdin/stdout/stderr handles. Called at the top of the instance
+/// subprocess fast-path so plugin spawns (and any other later
+/// `Stdio::piped()` spawn that triggers `bInheritHandles=TRUE`)
+/// don't leak this process's stdio write ends to those children.
+///
+/// Without this, on Windows a plugin spawned by the instance
+/// subprocess inherits the instance's stdout/stderr write ends.
+/// The plugin keeps those handles open for its whole lifetime
+/// (e.g. an `axum::serve` that runs forever). When the instance
+/// exits, the cli outer's reads of the instance's stdout/stderr
+/// don't see EOF — the plugin is still holding the write ends —
+/// and the cli outer hangs forever waiting for an EOF that never
+/// arrives.
+#[cfg(windows)]
+fn clear_stdio_inheritance() {
+    use windows_sys::Win32::Foundation::{HANDLE_FLAG_INHERIT, SetHandleInformation};
+    use windows_sys::Win32::System::Console::{
+        GetStdHandle, STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
+    };
+    // SAFETY: GetStdHandle is sound to call from any thread; the
+    // returned HANDLE is process-global and survives. SetHandleInformation
+    // mutates only the flags on the HANDLE, never the underlying
+    // file/pipe. Failure is best-effort (e.g. handle was already
+    // INVALID_HANDLE_VALUE) and silently ignored — clearing the
+    // inheritance flag is an optimization for child spawns, not a
+    // correctness requirement for our own stdio reads/writes.
+    unsafe {
+        for std_id in [STD_INPUT_HANDLE, STD_OUTPUT_HANDLE, STD_ERROR_HANDLE] {
+            let h = GetStdHandle(std_id);
+            // GetStdHandle returns INVALID_HANDLE_VALUE on error and
+            // 0 / NULL when the stream isn't attached; skip both.
+            if !h.is_null() && h as isize != -1 {
+                let _ = SetHandleInformation(h, HANDLE_FLAG_INHERIT, 0);
+            }
+        }
+    }
+}
+
 #[derive(Envconfig)]
 struct EnvConfigBuilder {
     #[envconfig(from = "CONFIG_SET_FORBIDDEN")]
@@ -217,6 +256,23 @@ pub async fn run(
     };
 
     if args.get(1).map(String::as_str) == Some("instance") {
+        // Windows: clear the inheritance flag on this process's
+        // stdin/stdout/stderr handles. They were marked inheritable
+        // by the parent cli when it spawned us via `Stdio::piped()` —
+        // necessary so we inherit them at all — but if we leave the
+        // flag set, every grandchild process we spawn with `Stdio::piped()`
+        // (which sets `bInheritHandles=TRUE`) inherits OUR stdio
+        // handles in addition to its own new pipes. That grandchild
+        // (e.g. a plugin RMCP server living for the whole agent
+        // completion) then holds our stdio write ends open even after
+        // we exit, leaving the cli outer's reads of our stdout/stderr
+        // hanging forever instead of EOF'ing.
+        //
+        // Clearing the flag is a no-op for our own use of std{in,out,err}
+        // — we keep using them normally. It only affects what gets
+        // propagated on subsequent `CreateProcessW` calls.
+        #[cfg(windows)]
+        clear_stdio_inheritance();
         let inst = crate::instance::run(ctx).await?;
         return Ok(Box::pin(inst.map(|r| r.map(RunItem::Instance))));
     }
