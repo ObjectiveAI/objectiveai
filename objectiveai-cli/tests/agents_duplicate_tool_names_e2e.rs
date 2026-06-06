@@ -27,7 +27,8 @@ use std::time::{Duration, Instant};
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use objectiveai_sdk::cli::command::agents::message::{
-    Request as MessageRequest, RequestMessage,
+    Request as MessageRequest, RequestDangerousAdvanced as MessageDangerousAdvanced,
+    RequestMessage, ResponseItem as MessageResponseItem,
 };
 use objectiveai_sdk::cli::command::agents::read::all::{
     Request as ReadAllRequest, ResponseItem as ReadAllItem, ResponseQueueItem,
@@ -171,18 +172,22 @@ async fn duplicate_tool_names_routed_across_turns() {
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
     // Turn 2: agents message — first continuation ─────────────────
+    // `dangerous_advanced.stream = Some(true)` keeps the parent cli
+    // attached to its spawned instance runner so `collect_stream`
+    // returning implies the runner exited (no leak).
     let msg1 = MessageRequest {
         path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
         parent_agent_instance_hierarchy: parent.clone(),
         agent_instance: instance.clone(),
         message: RequestMessage::Simple("again".to_string()),
         seed: Some(SEED),
+        dangerous_advanced: Some(MessageDangerousAdvanced {
+            stream: Some(true),
+        }),
         jq: None,
     };
-    let _ = executor
-        .execute_one::<_, objectiveai_sdk::cli::command::agents::message::Response>(msg1, None)
-        .await
-        .expect("agents message turn 2 executor call");
+    let _items: Vec<MessageResponseItem> =
+        cli_test_util::collect_stream(&executor, msg1).await;
     wait_for_completion(&base, &spawn_id).await;
 
     // Same settle delay as before turn 2 (see comment there).
@@ -195,12 +200,13 @@ async fn duplicate_tool_names_routed_across_turns() {
         agent_instance: instance.clone(),
         message: RequestMessage::Simple("one more".to_string()),
         seed: Some(SEED),
+        dangerous_advanced: Some(MessageDangerousAdvanced {
+            stream: Some(true),
+        }),
         jq: None,
     };
-    let _ = executor
-        .execute_one::<_, objectiveai_sdk::cli::command::agents::message::Response>(msg2, None)
-        .await
-        .expect("agents message turn 3 executor call");
+    let _items: Vec<MessageResponseItem> =
+        cli_test_util::collect_stream(&executor, msg2).await;
     wait_for_completion(&base, &spawn_id).await;
 
     // Collect every assistant turn's tool_call rows via `agents read

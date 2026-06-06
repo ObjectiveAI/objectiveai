@@ -60,8 +60,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             once(Ok(ResponseItem::MeResponseSchema(value)))
         }
         Request::Message(req) => {
-            let value = message::execute(ctx, req).await?;
-            once(Ok(ResponseItem::Message(value)))
+            let inner = message::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Message)))
         }
         Request::MessageRequestSchema(req) => {
             let value = message::request_schema::execute(ctx, req).await?;

@@ -24,7 +24,8 @@ use std::time::{Duration, Instant};
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use objectiveai_sdk::cli::command::agents::message::{
-    Request as MessageRequest, RequestMessage,
+    Request as MessageRequest, RequestDangerousAdvanced as MessageDangerousAdvanced,
+    RequestMessage, ResponseItem as MessageResponseItem,
 };
 use objectiveai_sdk::cli::command::agents::read::all::{
     Request as ReadAllRequest, ResponseContent, ResponseItem as ReadAllItem,
@@ -162,6 +163,13 @@ async fn wait_for_completion(base_dir: &Path, full_lineage: &str) {
 }
 
 /// Run one continuation turn against a spawned agent.
+///
+/// `dangerous_advanced.stream = Some(true)` keeps the parent cli
+/// attached to the spawned instance runner: `collect_stream`
+/// returning implies the runner exited (its stdout EOFs only after
+/// the cli has `child.wait()`ed it). Without this, the cli detaches
+/// after emitting the bare `Queued` item and the runner outlives the
+/// test fn — which nextest flags as `LEAK`.
 async fn continue_agent(executor: &BinaryExecutor, spawn_id: &str, seed: i64) {
     // Split the full lineage into (parent, instance) for the
     // two-field `MessageRequest` shape.
@@ -175,15 +183,17 @@ async fn continue_agent(executor: &BinaryExecutor, spawn_id: &str, seed: i64) {
         agent_instance: instance,
         message: RequestMessage::Simple("more".to_string()),
         seed: Some(seed),
+        dangerous_advanced: Some(MessageDangerousAdvanced {
+            stream: Some(true),
+        }),
         jq: None,
     };
-    // Returns either Queued or Delivered — we don't care which here,
-    // only that the cli emitted something without erroring. The real
-    // verification is the post-turn `wait_for_completion`.
-    let _ = executor
-        .execute_one::<_, objectiveai_sdk::cli::command::agents::message::Response>(request, None)
-        .await
-        .expect("agents message executor call");
+    // Drain the whole stream — first item is `Queued` (or
+    // `Delivered`), the rest are `Chunk`s. We don't inspect them; the
+    // act of waiting for the stream to close is the synchronisation
+    // primitive we care about.
+    let _items: Vec<MessageResponseItem> =
+        cli_test_util::collect_stream(executor, request).await;
 }
 
 /// Collect every `tool_response` queue item's sql row id for `sub_id`
