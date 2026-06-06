@@ -62,23 +62,48 @@ pub enum LogReferenceTag {
 /// per-agent / per-invention completion wrappers that need to preserve
 /// their position within a parent collection (a vector completion's
 /// swarm-index, an invention's per-invention index, etc.).
+///
+/// Carries an optional `error` so that wrappers around inner streams
+/// which errored before producing an ID-bearing chunk still surface
+/// what went wrong at that index. Exactly one of `path` (the resolved
+/// log file) or `error` (the upstream failure) will be populated in
+/// practice — both `None` would mean the wrapper has nothing to say.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "IndexedLogReference")]
 pub struct IndexedLogReference {
     #[serde(rename = "type")]
     pub r#type: LogReferenceTag,
-    #[serde(skip_serializing_if = "String::is_empty")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub path: String,
+    pub path: Option<String>,
     pub index: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub error: Option<crate::error::ResponseError>,
 }
 
 impl IndexedLogReference {
     pub fn new(path: String, index: u64) -> Self {
         Self {
             r#type: LogReferenceTag::Reference,
-            path,
+            path: Some(path),
             index,
+            error: None,
+        }
+    }
+
+    /// Like [`Self::new`] but stamps an upstream error onto the ref —
+    /// used by wrappers when the inner stream failed before producing
+    /// an ID-bearing chunk we could write a log file for.
+    pub fn with_error(
+        index: u64,
+        error: crate::error::ResponseError,
+    ) -> Self {
+        Self {
+            r#type: LogReferenceTag::Reference,
+            path: None,
+            index,
+            error: Some(error),
         }
     }
 }
