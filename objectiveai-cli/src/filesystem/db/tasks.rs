@@ -45,13 +45,20 @@ fn init_tables(conn: &Connection) -> Result<(), Error> {
     // runner fires it once on the next poll and deletes the row);
     // non-NULL means a recurring schedule with that minimum
     // interval. The CHECK still binds the non-NULL case.
+    //
+    // `last_invoked_at` starts NULL on insert and is set by the
+    // runner (#216) on each successful invocation. Recurring
+    // schedules use it for the `now - last_invoked_at >=
+    // interval_seconds` predicate; oneshots ignore it (they fire
+    // once and get deleted).
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS schedules (\
             id               INTEGER PRIMARY KEY AUTOINCREMENT, \
             command          TEXT NOT NULL, \
             interval_seconds INTEGER CHECK (interval_seconds IS NULL OR interval_seconds >= 0), \
             agent_arguments  TEXT NOT NULL, \
-            created_at       INTEGER NOT NULL \
+            created_at       INTEGER NOT NULL, \
+            last_invoked_at  INTEGER \
         );",
     )?;
     Ok(())
