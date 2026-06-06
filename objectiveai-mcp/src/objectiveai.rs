@@ -1,8 +1,10 @@
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use futures::FutureExt;
 use futures::StreamExt;
+use objectiveai_sdk::agent::ClientObjectiveaiMcpEntry;
 use objectiveai_sdk::cli::Error as CliError;
 use objectiveai_sdk::cli::ErrorType as CliErrorType;
 use objectiveai_sdk::cli::Level as CliLevel;
@@ -23,7 +25,7 @@ use rmcp::{
     model::{
         CallToolResult, Implementation, ProtocolVersion, ServerCapabilities, ServerInfo, Tool,
     },
-    schemars, tool, tool_handler, tool_router,
+    schemars, tool, tool_router,
 };
 
 use crate::agent_args_registry::AgentArgumentsRegistry;
@@ -63,6 +65,19 @@ pub struct ObjectiveAiMcpCli<E> {
     /// this registry to recover the caller's identity — request
     /// headers on non-initialize calls are intentionally ignored.
     pub registry: Arc<AgentArgumentsRegistry>,
+    /// Tool-name → manifest triple for every CLI tool registered as
+    /// a dynamic route. Used by the hand-written `list_tools`
+    /// handler to classify each routed tool by origin and apply the
+    /// per-session `X-OBJECTIVEAI-MCP-TOOLS` filter.
+    pub tools_by_tool_name: HashMap<String, ClientObjectiveaiMcpEntry>,
+    /// Same as `tools_by_tool_name`, but for CLI plugins. A
+    /// tool-name collision between a plugin and a CLI tool ends up
+    /// classified as a *tool*: the existing `with_plugins_and_tools`
+    /// loop registers plugins first then tools, so
+    /// `tool_router.add_route` last-writer-wins makes the live
+    /// route a tool. The hand-written `list_tools` mirrors this by
+    /// checking `tools_by_tool_name` first.
+    pub plugins_by_tool_name: HashMap<String, ClientObjectiveaiMcpEntry>,
 }
 
 impl<E> Clone for ObjectiveAiMcpCli<E> {
@@ -71,6 +86,8 @@ impl<E> Clone for ObjectiveAiMcpCli<E> {
             tool_router: self.tool_router.clone(),
             executor: self.executor.clone(),
             registry: self.registry.clone(),
+            tools_by_tool_name: self.tools_by_tool_name.clone(),
+            plugins_by_tool_name: self.plugins_by_tool_name.clone(),
         }
     }
 }
@@ -99,10 +116,22 @@ where
         registry: Arc<AgentArgumentsRegistry>,
     ) -> Self {
         let mut tool_router = Self::tool_router();
+        let mut plugins_by_tool_name: HashMap<String, ClientObjectiveaiMcpEntry> =
+            HashMap::new();
+        let mut tools_by_tool_name: HashMap<String, ClientObjectiveaiMcpEntry> =
+            HashMap::new();
         for plugin in plugins_list {
             if plugin.name == "ObjectiveAI" {
                 continue;
             }
+            plugins_by_tool_name.insert(
+                plugin.name.clone(),
+                ClientObjectiveaiMcpEntry {
+                    owner: plugin.owner.clone(),
+                    name: plugin.name.clone(),
+                    version: plugin.version.clone(),
+                },
+            );
             let plugin_name = plugin.name.clone();
             let executor_for_route = executor.clone();
             let tool = Tool::new(
@@ -125,14 +154,14 @@ where
                         args: req.args,
                         jq: None,
                     };
-                    let args = match session_id {
+                    let state = match session_id {
                         Some(sid) => registry.get(&sid.into()).await,
                         None => None,
                     };
                     let blocks = dispatch_plugins_run(
                         &*executor,
                         request,
-                        args.as_deref(),
+                        state.as_deref().map(|s| &s.args),
                     )
                     .await;
                     Ok(CallToolResult::success(blocks))
@@ -144,6 +173,14 @@ where
             if cli_tool.name == "ObjectiveAI" {
                 continue;
             }
+            tools_by_tool_name.insert(
+                cli_tool.name.clone(),
+                ClientObjectiveaiMcpEntry {
+                    owner: cli_tool.owner.clone(),
+                    name: cli_tool.name.clone(),
+                    version: cli_tool.version.clone(),
+                },
+            );
             let tool_name = cli_tool.name.clone();
             let executor_for_route = executor.clone();
             let tool = Tool::new(
@@ -166,14 +203,14 @@ where
                         args: req.args,
                         jq: None,
                     };
-                    let args = match session_id {
+                    let state = match session_id {
                         Some(sid) => registry.get(&sid.into()).await,
                         None => None,
                     };
                     let blocks = dispatch_tools_run(
                         &*executor,
                         request,
-                        args.as_deref(),
+                        state.as_deref().map(|s| &s.args),
                     )
                     .await;
                     Ok(CallToolResult::success(blocks))
@@ -185,6 +222,8 @@ where
             tool_router,
             executor,
             registry,
+            tools_by_tool_name,
+            plugins_by_tool_name,
         }
     }
 
@@ -202,11 +241,16 @@ where
             }
         };
         let session_id = session_id_from_headers(&parts.headers);
-        let args = match session_id {
+        let state = match session_id {
             Some(sid) => self.registry.get(&sid.into()).await,
             None => None,
         };
-        let blocks = dispatch_root(&*self.executor, request, args.as_deref()).await;
+        let blocks = dispatch_root(
+            &*self.executor,
+            request,
+            state.as_deref().map(|s| &s.args),
+        )
+        .await;
         Ok(CallToolResult::success(blocks))
     }
 }
@@ -311,7 +355,26 @@ fn synthetic_error(message: impl Into<String>) -> CliError {
     }
 }
 
-#[tool_handler]
+// Hand-written `ServerHandler` impl, replacing `#[tool_handler]`.
+// `call_tool` and `get_tool` are byte-identical copies of what the
+// macro emits (see `rmcp-macros::tool_handler`). `list_tools` is the
+// custom bit: it filters the macro-default's `self.tool_router
+// .list_all()` by the per-session `ClientObjectiveaiMcpSessionFilter`
+// stamped by `header_session_manager::extract_mcp_filter`.
+//
+// Classification order in `list_tools`:
+//   1. `ObjectiveAI` ⇒ gated on `filter.root`.
+//   2. Tool name in `tools_by_tool_name` ⇒ filtered by
+//      `filter.tools` (None ⇒ allow; Some ⇒ membership check).
+//   3. Tool name in `plugins_by_tool_name` ⇒ same with
+//      `filter.plugins`.
+//   4. Anything else ⇒ allow (defensive; the existing route loop
+//      registers nothing outside those three categories).
+//
+// No filter recorded for the session (no header parser ran, e.g.
+// GET-only flow) ⇒ behave as `root=true, tools=None, plugins=None`
+// — every tool advertised. Mirrors the user-spelled "absent ⇒
+// default" semantics for each field.
 impl<E> ServerHandler for ObjectiveAiMcpCli<E>
 where
     E: CommandExecutor + Send + Sync + 'static,
@@ -331,5 +394,57 @@ where
             },
             instructions: None,
         }
+    }
+
+    async fn call_tool(
+        &self,
+        request: rmcp::model::CallToolRequestParams,
+        context: rmcp::service::RequestContext<rmcp::RoleServer>,
+    ) -> Result<rmcp::model::CallToolResult, rmcp::ErrorData> {
+        let tcc = rmcp::handler::server::tool::ToolCallContext::new(self, request, context);
+        self.tool_router.call(tcc).await
+    }
+
+    async fn list_tools(
+        &self,
+        _request: Option<rmcp::model::PaginatedRequestParams>,
+        context: rmcp::service::RequestContext<rmcp::RoleServer>,
+    ) -> Result<rmcp::model::ListToolsResult, rmcp::ErrorData> {
+        let session_id = session_id_from_extensions(&context.extensions);
+        let state = match session_id {
+            Some(sid) => self.registry.get(&sid.into()).await,
+            None => None,
+        };
+        let root = state.as_deref().map(|s| s.mcp_root).unwrap_or(true);
+        let tool_filter = state.as_deref().and_then(|s| s.mcp_tools.as_deref());
+        let plugin_filter = state.as_deref().and_then(|s| s.mcp_plugins.as_deref());
+
+        let tools = self
+            .tool_router
+            .list_all()
+            .into_iter()
+            .filter(|t| {
+                if t.name.as_ref() == "ObjectiveAI" {
+                    return root;
+                }
+                if let Some(entry) = self.tools_by_tool_name.get(t.name.as_ref()) {
+                    return tool_filter.map_or(true, |f| f.contains(entry));
+                }
+                if let Some(entry) = self.plugins_by_tool_name.get(t.name.as_ref()) {
+                    return plugin_filter.map_or(true, |f| f.contains(entry));
+                }
+                true
+            })
+            .collect();
+
+        Ok(rmcp::model::ListToolsResult {
+            tools,
+            meta: None,
+            next_cursor: None,
+        })
+    }
+
+    fn get_tool(&self, name: &str) -> Option<rmcp::model::Tool> {
+        self.tool_router.get(name).cloned()
     }
 }

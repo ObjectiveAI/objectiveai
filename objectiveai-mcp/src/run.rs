@@ -111,21 +111,36 @@ where
 
     // Discover registered plugins + tools concurrently — both are
     // independent SDK calls that each spawn one cli subprocess.
+    // The lists are shared (via Arc) between `with_plugins_and_tools`
+    // (which registers one dynamic tool per entry) and
+    // `HeaderSessionManager::new` (which validates the optional
+    // `X-OBJECTIVEAI-MCP-{TOOLS,PLUGINS}` filter sets against the
+    // same installed manifest at connect time).
     let (plugins_list, tools_list) =
         tokio::join!(list_plugins(&*executor), list_tools(&*executor));
+    let plugins_list = Arc::new(plugins_list);
+    let tools_list = Arc::new(tools_list);
 
-    // Shared per-rmcp-session bag of AgentArguments. Populated by
+    // Shared per-rmcp-session bag of SessionState (wraps the
+    // legacy AgentArguments identity bag alongside the three
+    // optional X-OBJECTIVEAI-MCP-* filter values). Populated by
     // the HeaderSessionManager on every initialize (fresh + lazy
-    // reconnect); consumed by every tool dispatcher.
+    // reconnect); consumed by every tool dispatcher and the
+    // hand-written `list_tools` handler.
     let registry = Arc::new(AgentArgumentsRegistry::new());
 
     let server = ObjectiveAiMcpCli::with_plugins_and_tools(
         executor.clone(),
-        plugins_list,
-        tools_list,
+        (*plugins_list).clone(),
+        (*tools_list).clone(),
         registry.clone(),
     );
-    let session_manager = Arc::new(HeaderSessionManager::new(registry.clone(), server.clone()));
+    let session_manager = Arc::new(HeaderSessionManager::new(
+        registry.clone(),
+        server.clone(),
+        tools_list.clone(),
+        plugins_list.clone(),
+    ));
     let ct = CancellationToken::new();
 
     let service: StreamableHttpService<ObjectiveAiMcpCli<E>, HeaderSessionManager<E>> =
