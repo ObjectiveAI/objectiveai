@@ -30,6 +30,15 @@ impl CommandRequest for Request {
 #[schemars(rename = "cli.command.agents.me.Response")]
 pub struct Response {
     pub agent_instance_hierarchy: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub agent_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub agent_full_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub agent_remote: Option<String>,
 }
 
 #[derive(clap::Args)]
