@@ -71,6 +71,11 @@ for name in dup-alpha dup-bravo dup-charlie dup-delta dup-echo; do
        "$ROOT/duplicate_tool_names_routed_across_turns/plugins/$name/plugin$EXE" &
 done
 
+for name in same-alpha same-bravo same-charlie same-delta same-echo; do
+  slot "$FIX_BIN_DIR/test-mcp-plugin-named$EXE" \
+       "$ROOT/duplicate_server_names_routed_across_turns/plugins/$name/plugin$EXE" &
+done
+
 wait
 
 rm -- "$0"
