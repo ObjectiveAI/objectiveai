@@ -1,5 +1,5 @@
 {
-  "title": "agent.completions.response.streaming.message_log_reference.LogReference",
+  "title": "agent.completions.response.streaming.LogReference",
   "type": "object",
   "properties": {
     "index": {
@@ -14,7 +14,7 @@
     },
     "role": {
       "description": "Which role subdir the file lives in, i.e. which command family\nreads it.",
-      "$ref": "agent.completions.response.streaming.message_log_reference.Role"
+      "$ref": "agent.completions.response.streaming.Role"
     },
     "type": {
       "$ref": "LogReferenceTag"

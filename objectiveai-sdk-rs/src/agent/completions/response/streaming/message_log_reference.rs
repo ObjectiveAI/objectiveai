@@ -17,7 +17,7 @@ use crate::logs::LogReferenceTag;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(
-    rename = "agent.completions.response.streaming.message_log_reference.LogReference"
+    rename = "agent.completions.response.streaming.LogReference"
 )]
 pub struct LogReference {
     #[serde(rename = "type")]
@@ -59,7 +59,7 @@ impl LogReference {
 )]
 #[serde(rename_all = "lowercase")]
 #[schemars(
-    rename = "agent.completions.response.streaming.message_log_reference.Role"
+    rename = "agent.completions.response.streaming.Role"
 )]
 pub enum Role {
     Assistant,

@@ -474,6 +474,8 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::tags::lookup::Path),
         #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::agents::tags::lookup::LookupState),
+        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::tags::lookup::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::tags::lookup::Response),

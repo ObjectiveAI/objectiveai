@@ -55,7 +55,7 @@
     "messages": {
       "type": "array",
       "items": {
-        "$ref": "agent.completions.response.streaming.message_log_reference.LogReference"
+        "$ref": "agent.completions.response.streaming.LogReference"
       }
     },
     "messages_queued": {

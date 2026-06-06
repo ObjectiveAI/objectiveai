@@ -1,0 +1,39 @@
+{
+  "title": "cli.command.agents.tags.lookup.LookupState",
+  "description": "2-state result of a successful tag-name lookup. PENDING surfaces\nthe pre-spawn `(parent, agent_full_id)` pair so callers can see\nwhy the tag exists without a hierarchy yet. The third \"not\nregistered\" possibility is represented at the [`Response`]\nlevel via [`Response::Absent`], not as a variant here.",
+  "anyOf": [
+    {
+      "title": "Bound",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "bound"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Pending",
+      "type": "object",
+      "properties": {
+        "agent_full_id": {
+          "type": "string"
+        },
+        "parent_agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "pending"
+          ]
+        }
+      }
+    }
+  ]
+}
