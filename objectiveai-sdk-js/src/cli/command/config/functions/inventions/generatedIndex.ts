@@ -3,3 +3,4 @@
 export * from "./get/index";
 export * from "./remote/index";
 export * from "./request";
+export * from "./response";

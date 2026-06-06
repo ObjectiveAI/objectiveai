@@ -8,3 +8,4 @@ export * from "./responseContent";
 export * from "./responseItem";
 export * from "./responseQueueItem";
 export * from "./responseQueueMessage";
+export * from "./target";

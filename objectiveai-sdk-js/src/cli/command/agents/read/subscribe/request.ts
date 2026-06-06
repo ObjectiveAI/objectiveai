@@ -3,11 +3,12 @@
 import { z } from "zod";
 import { CliCommandAgentsReadSubscribePathSchema } from "./path";
 import { CliCommandAgentsReadSubscribeRequestMessageKindSchema } from "./requestMessageKind";
+import { CliCommandAgentsReadSubscribeSubscribeTargetSchema } from "./subscribeTarget";
 
 export const CliCommandAgentsReadSubscribeRequestSchema = z.object({
-  agent_instance_hierarchy: z.string(),
   jq: z.string().nullable().optional(),
   kind: CliCommandAgentsReadSubscribeRequestMessageKindSchema.nullable().optional(),
   path_type: CliCommandAgentsReadSubscribePathSchema,
+  target: CliCommandAgentsReadSubscribeSubscribeTargetSchema,
 }).meta({ title: "cli.command.agents.read.subscribe.Request" });
 export type CliCommandAgentsReadSubscribeRequest = z.infer<typeof CliCommandAgentsReadSubscribeRequestSchema>;

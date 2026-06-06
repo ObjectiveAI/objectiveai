@@ -6,6 +6,8 @@ import { FunctionsExpressionInputValueSchema } from "../../../../../../functions
 export const CliCommandFunctionsExecutionsCreateStandardRequestInputSchema = z.union([z.object({
   Inline: FunctionsExpressionInputValueSchema,
 }).strict().meta({"variantTitle":"Inline"}), z.object({
+  File: z.string(),
+}).strict().meta({"variantTitle":"File"}), z.object({
   PythonInline: z.string(),
 }).strict().meta({"variantTitle":"PythonInline"}), z.object({
   PythonFile: z.string(),

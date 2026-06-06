@@ -4,3 +4,4 @@ export * from "./alpha_scalar/index";
 export * from "./alpha_vector/index";
 export * from "./remote/index";
 export * from "./request";
+export * from "./responseItem";

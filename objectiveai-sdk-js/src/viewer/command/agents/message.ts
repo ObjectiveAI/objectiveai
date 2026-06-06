@@ -4,15 +4,26 @@ import { z } from "zod";
 import { type CliCommandAgentsMessageRequest } from "../../../cli/command/agents/message/request";
 import { type CliCommandAgentsMessageRequestSchemaRequest } from "../../../cli/command/agents/message/request_schema/request";
 import { CliCommandAgentsMessageResponseSchema, type CliCommandAgentsMessageResponse } from "../../../cli/command/agents/message/response";
+import { CliCommandAgentsMessageResponseItemSchema, type CliCommandAgentsMessageResponseItem } from "../../../cli/command/agents/message/responseItem";
 import { type CliCommandAgentsMessageResponseSchemaRequest } from "../../../cli/command/agents/message/response_schema/request";
 import { CliErrorSchema, type CliError } from "../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../jsonValue";
 import { CliStream } from "../../cliStream";
 import { invokeCliRequest } from "../../invoke";
 
+/** `agents message execute_streaming` — streaming; mirror of the Rust fn of the same path. */
+export function agentsMessageExecuteStreaming(request: Omit<CliCommandAgentsMessageRequest, "path_type">): CliStream<CliError | CliCommandAgentsMessageResponseItem> {
+  return new CliStream(invokeCliRequest({ ...request, jq: undefined, dangerous_advanced: { ...(request.dangerous_advanced ?? {}), stream: true }, path_type: "agents/message" }), z.union([CliErrorSchema, CliCommandAgentsMessageResponseItemSchema]));
+}
+
+/** `agents message execute_streaming_jq` — streaming; mirror of the Rust fn of the same path. */
+export function agentsMessageExecuteStreamingJq(request: Omit<CliCommandAgentsMessageRequest, "path_type">, jq: string): CliStream<CliError | JsonValue> {
+  return new CliStream(invokeCliRequest({ ...request, jq, dangerous_advanced: { ...(request.dangerous_advanced ?? {}), stream: true }, path_type: "agents/message" }), z.union([CliErrorSchema, JsonValueSchema]));
+}
+
 /** `agents message execute` — unary; first stream item, rest discarded. */
 export async function agentsMessageExecute(request: Omit<CliCommandAgentsMessageRequest, "path_type">): Promise<CliError | CliCommandAgentsMessageResponse> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, path_type: "agents/message" }), z.union([CliErrorSchema, CliCommandAgentsMessageResponseSchema]));
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, dangerous_advanced: request.dangerous_advanced ? { ...request.dangerous_advanced, stream: undefined } : request.dangerous_advanced, path_type: "agents/message" }), z.union([CliErrorSchema, CliCommandAgentsMessageResponseSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("agents message: cli produced no output before the end marker");
@@ -22,7 +33,7 @@ export async function agentsMessageExecute(request: Omit<CliCommandAgentsMessage
 
 /** `agents message execute_jq` — unary; first stream item, rest discarded. */
 export async function agentsMessageExecuteJq(request: Omit<CliCommandAgentsMessageRequest, "path_type">, jq: string): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/message" }), z.union([CliErrorSchema, JsonValueSchema]));
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, dangerous_advanced: request.dangerous_advanced ? { ...request.dangerous_advanced, stream: undefined } : request.dangerous_advanced, path_type: "agents/message" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("agents message: cli produced no output before the end marker");

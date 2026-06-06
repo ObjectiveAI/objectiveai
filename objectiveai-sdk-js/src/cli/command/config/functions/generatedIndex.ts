@@ -5,3 +5,4 @@ export * from "./get/index";
 export * from "./inventions/index";
 export * from "./profiles/index";
 export * from "./request";
+export * from "./responseItem";

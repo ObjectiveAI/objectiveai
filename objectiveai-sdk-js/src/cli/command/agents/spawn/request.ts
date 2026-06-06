@@ -8,6 +8,7 @@ import { CliCommandAgentsSpawnRequestPromptSchema } from "./requestPrompt";
 
 export const CliCommandAgentsSpawnRequestSchema = z.object({
   agent: CliCommandAgentsSpawnAgentSpecSchema,
+  agent_tag: z.string().nullable().describe("Optional tag name to bind to the spawned agent's\n`agent_instance_hierarchy` on first chunk. See\n`agents tags` for the storage model.").meta({ omitempty: true }).optional(),
   dangerous_advanced: CliCommandAgentsSpawnRequestDangerousAdvancedSchema.nullable().optional(),
   jq: z.string().nullable().optional(),
   path_type: CliCommandAgentsSpawnPathSchema,

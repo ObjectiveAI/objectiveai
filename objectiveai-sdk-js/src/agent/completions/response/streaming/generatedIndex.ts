@@ -4,5 +4,7 @@ export * from "./agentCompletionChunk";
 export * from "./agentCompletionChunkLog";
 export * from "./assistantResponseChunk";
 export * from "./assistantResponseChunkLog";
+export * from "./logReference";
 export * from "./messageChunk";
 export * from "./object";
+export * from "./role";

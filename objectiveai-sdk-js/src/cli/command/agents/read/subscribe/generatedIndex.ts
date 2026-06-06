@@ -6,3 +6,4 @@ export * from "./path";
 export * from "./request";
 export * from "./requestMessageKind";
 export * from "./responseItem";
+export * from "./subscribeTarget";

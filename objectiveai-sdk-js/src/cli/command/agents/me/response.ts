@@ -3,6 +3,10 @@
 import { z } from "zod";
 
 export const CliCommandAgentsMeResponseSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
   agent_instance_hierarchy: z.string(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_tags: z.array(z.string()).describe("Every tag currently BOUND to `agent_instance_hierarchy`,\nnewest-bound first. Empty `[]` when the cli's hierarchy\ncarries no tags. Always emitted so callers can rely on the\nfield being present."),
 }).meta({ title: "cli.command.agents.me.Response" });
 export type CliCommandAgentsMeResponse = z.infer<typeof CliCommandAgentsMeResponseSchema>;

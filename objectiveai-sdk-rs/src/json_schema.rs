@@ -1527,12 +1527,13 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::functions::publish::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::ResponseItem),
+        // logs::ResponseItem is a json_schema_ignore tier aggregate;
+        // its transitive expansion hits the TS7056 dts-build limit.
+        // schemars::schema_for!(crate::cli::command::logs::ResponseItem),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::ResponseItem),
+        // logs::agents::completions::ResponseItem — same as parent.
+        // schemars::schema_for!(crate::cli::command::logs::agents::completions::ResponseItem),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::request::Request),
         #[cfg(feature = "cli")]
@@ -2363,12 +2364,12 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::logs::clear::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::functions::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::ResponseItem),
+        // logs::functions::ResponseItem — json_schema_ignore aggregate.
+        // schemars::schema_for!(crate::cli::command::logs::functions::ResponseItem),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::functions::executions::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::executions::ResponseItem),
+        // logs::functions::executions::ResponseItem — same.
+        // schemars::schema_for!(crate::cli::command::logs::functions::executions::ResponseItem),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::functions::executions::request::Request),
         #[cfg(feature = "cli")]
@@ -2497,12 +2498,12 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::logs::functions::executions::response::subscribe::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::functions::inventions::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::ResponseItem),
+        // logs::functions::inventions::ResponseItem — json_schema_ignore aggregate.
+        // schemars::schema_for!(crate::cli::command::logs::functions::inventions::ResponseItem),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::ResponseItem),
+        // logs::functions::inventions::recursive::ResponseItem — same.
+        // schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::ResponseItem),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::request::Request),
         #[cfg(feature = "cli")]
@@ -2673,8 +2674,8 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::subscribe::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::vector::completions::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::vector::completions::ResponseItem),
+        // logs::vector::completions::ResponseItem — json_schema_ignore aggregate.
+        // schemars::schema_for!(crate::cli::command::logs::vector::completions::ResponseItem),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::vector::completions::request::Request),
         #[cfg(feature = "cli")]
