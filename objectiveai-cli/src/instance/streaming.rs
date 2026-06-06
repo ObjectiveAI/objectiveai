@@ -70,16 +70,14 @@ where
     let (tx, rx) = mpsc::unbounded_channel::<Chunk>();
     let (notif_tx, notif_rx) =
         mpsc::unbounded_channel::<(String, String, RichContent)>();
-    // One-shot carrying the primary log id from `writer_loop` back
-    // here. `writer_loop` populates it once `log_writer.write(...)`
-    // exposes a `primary_id`; this loop picks it up before its very
-    // first `send_chunk` and emits `LogStreamReady` itself.
-    //
-    // The single-producer-to-`emissions_tx` invariant matters: with
-    // only this loop ever touching `emissions_tx`, "LogStreamReady
-    // is the first emission consumers see" is enforced structurally
-    // by sequential execution rather than synchronised between two
-    // parallel producers. `writer_loop` owns logs and nothing else.
+    // One-shot carrying the primary log id back here from
+    // `writer_loop` once `log_writer.primary_id()` has been populated.
+    // `writer_loop` owns the sender and fires it the first time
+    // primary_id becomes available (which may be mid-stream or only
+    // during `finalize`, depending on the chunk shape). Until the
+    // signal arrives we buffer chunks below so consumers see
+    // `LogStreamReady, Chunk, Chunk, …` — never a Chunk before the
+    // LogStreamReady.
     let (log_ready_id_tx, log_ready_id_rx) =
         tokio::sync::oneshot::channel::<String>();
     let mut log_ready_id_rx = Some(log_ready_id_rx);
@@ -97,35 +95,62 @@ where
         .await
     });
 
+    // Local buffer for chunks held back until the writer signals it
+    // has a primary id. Once we receive the signal we emit
+    // `LogStreamReady` + drain this buffer, and subsequent iterations
+    // emit chunks directly. Bounded in practice by however many
+    // chunks the stream produces before the writer flushes its first
+    // log file — typically 1-3.
+    let mut buffered: Vec<Chunk> = Vec::new();
+    let mut log_ready_emitted = false;
+
     let mut stream_err: Option<String> = None;
     while let Some(item) = stream.next().await {
         match item {
             Ok(chunk) => {
-                // 1. Hand the chunk to the writer task FIRST so it
-                //    can flush a log entry and expose a primary id.
-                //    Without this hand-off the oneshot below is
-                //    never satisfied.
+                // 1. Hand a clone to the writer task so it can flush
+                //    a log entry and expose `primary_id`.
                 let _ = tx.send(chunk.clone());
 
-                // 2. On the very first iteration, pick up the
-                //    primary id from the writer and emit
-                //    `LogStreamReady` ourselves. Subsequent
-                //    iterations skip this (the rx is taken). A
-                //    writer error before the first write drops
-                //    `log_ready_id_tx`, surfacing as `Err(Canceled)`
-                //    here — we skip the LogStreamReady emit; the
-                //    next `tx.send(chunk.clone())` will fail too
-                //    because the writer's rx is gone, propagating
-                //    the underlying failure through `writer_task`.
-                if let Some(rx) = log_ready_id_rx.take() {
-                    if let Ok(id) = rx.await {
-                        send_log_stream_ready(&emissions_tx, &id).await;
+                // 2. Non-blocking check on the log-ready oneshot. If
+                //    the writer has populated primary_id, emit
+                //    LogStreamReady + drain the buffer; from here on
+                //    chunks emit directly.
+                if !log_ready_emitted {
+                    if let Some(rx) = log_ready_id_rx.as_mut() {
+                        use tokio::sync::oneshot::error::TryRecvError;
+                        match rx.try_recv() {
+                            Ok(id) => {
+                                send_log_stream_ready(&emissions_tx, &id).await;
+                                for buf in buffered.drain(..) {
+                                    send_chunk(&emissions_tx, &buf).await;
+                                }
+                                log_ready_id_rx = None;
+                                log_ready_emitted = true;
+                            }
+                            Err(TryRecvError::Empty) => {}
+                            Err(TryRecvError::Closed) => {
+                                // Writer dropped without signalling
+                                // — best-effort drain without
+                                // LogStreamReady. The writer error
+                                // propagates below via
+                                // `writer_task.await`.
+                                for buf in buffered.drain(..) {
+                                    send_chunk(&emissions_tx, &buf).await;
+                                }
+                                log_ready_id_rx = None;
+                                log_ready_emitted = true;
+                            }
+                        }
                     }
                 }
 
-                // 3. Emit the chunk. By construction LogStreamReady
-                //    is now ahead of every Chunk on `emissions_tx`.
-                send_chunk(&emissions_tx, &chunk).await;
+                // 3. Emit this chunk directly, or buffer for later.
+                if log_ready_emitted {
+                    send_chunk(&emissions_tx, &chunk).await;
+                } else {
+                    buffered.push(chunk.clone());
+                }
 
                 // 4. Ensure a pipe is bound for every agent id this
                 //    chunk references.
@@ -171,9 +196,32 @@ where
         }
     }
 
+    // Stream EOF — close the writer's input channels so its
+    // `finalize` runs. `finalize` processes the last chunk still
+    // buffered behind `log_writer`'s one-behind write semantics, so
+    // for single-chunk completions this is the only point at which
+    // `primary_id` becomes available.
     drop(tx);
     registry.shutdown_inbound();
     drop(notif_tx);
+
+    // If we never saw the log-ready signal mid-stream, await it now
+    // — the writer is racing toward `finalize` which fires it once
+    // primary_id lands. On writer error before any primary_id, the
+    // sender drops and the await resolves with `Err(Canceled)`; we
+    // still emit the buffered chunks for visibility into what
+    // arrived before the failure. The writer error itself surfaces
+    // below via `writer_task.await`.
+    if !log_ready_emitted {
+        if let Some(rx) = log_ready_id_rx.take() {
+            if let Ok(id) = rx.await {
+                send_log_stream_ready(&emissions_tx, &id).await;
+            }
+            for buf in buffered.drain(..) {
+                send_chunk(&emissions_tx, &buf).await;
+            }
+        }
+    }
 
     let writer_outcome = writer_task
         .await
@@ -207,11 +255,13 @@ where
 {
     let mut agg: Option<Chunk> = None;
     let mut pending: Vec<PendingNotification> = Vec::new();
-    // Held until we publish the first `primary_id` back to
-    // `run_chunk_loop`; then `take()`d so subsequent iterations don't
-    // try to re-send. Dropping it (writer error before any write)
-    // wakes the matching await with `Err(Canceled)`, which
-    // `run_chunk_loop` treats as "skip LogStreamReady".
+    // Held until `log_writer.primary_id()` returns Some — could fire
+    // mid-loop (multi-chunk completions; `write` flushes the
+    // previous chunk on its second-and-later call) or only from
+    // `finalize` below (single-chunk completions, where the only
+    // chunk sits in `log_writer`'s one-behind buffer until shutdown).
+    // Drop without `take` = chunk loop sees `Err(Canceled)` and
+    // emits any buffered chunks without LogStreamReady.
     let mut log_ready_id_tx = Some(log_ready_id_tx);
     let mut chunk_channel_open = true;
     let mut notif_channel_open = true;
@@ -245,9 +295,6 @@ where
                             if let Some(id) = log_writer.primary_id() {
                                 let _ = tx.send(id.to_string());
                             } else {
-                                // No id yet — put the sender back
-                                // so a later iteration can publish
-                                // it once the writer settles.
                                 log_ready_id_tx = Some(tx);
                             }
                         }
@@ -275,6 +322,19 @@ where
 
     let inserted = log_writer.finalize(&mut pending).await?;
     broadcast_rows(&registry, &inserted);
+
+    // Last-chance fire — the chunk that was sitting in
+    // `log_writer`'s one-behind buffer just got flushed by
+    // `finalize`, so this is the latest possible point primary_id
+    // can land. If we still don't have one (e.g. zero-chunk
+    // completion) the sender drops here and the receiver wakes with
+    // `Err(Canceled)` in `run_chunk_loop`.
+    if let Some(tx) = log_ready_id_tx.take() {
+        if let Some(id) = log_writer.primary_id() {
+            let _ = tx.send(id.to_string());
+        }
+    }
+
     registry.broadcast_stream_end();
     Ok(())
 }

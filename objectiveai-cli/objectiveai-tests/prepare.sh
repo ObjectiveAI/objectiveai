@@ -43,8 +43,7 @@ PID_CLI=$!
     --manifest-path "$REPO_ROOT/Cargo.toml" \
     -p hello-tool -p error-tool -p count-tool \
     -p hello-plugin -p test-mcp-plugin \
-    -p test-mcp-plugin-named -p test-mcp-plugin-foo-headers \
-    -p echo-arglen) &
+    -p test-mcp-plugin-named -p test-mcp-plugin-foo-headers) &
 PID_FIX=$!
 
 wait "$PID_CLI" "$PID_FIX"
@@ -69,21 +68,6 @@ slot "$FIX_BIN_DIR/count-tool$EXE"                    "$ROOT/two_agents_continua
 for name in dup-alpha dup-bravo dup-charlie dup-delta dup-echo; do
   slot "$FIX_BIN_DIR/test-mcp-plugin-named$EXE" \
        "$ROOT/duplicate_tool_names_routed_across_turns/plugins/$name/plugin$EXE" &
-done
-
-# Seed the shared cli tool-fixtures registry that tests declaring
-# `client_objectiveai_mcp.tools = ["testorg/tool0/1.0.0", …]` resolve
-# against. Mirrors the standalone `test-seed-tool-fixtures.sh` —
-# inlined here so the staging is always consistent with prepare.sh's
-# wipe-then-rebuild. echo-arglen is the shared exec; ten manifests
-# point at it as testorg/tool{0..9}/1.0.0.
-SHARED_TOOLS_DIR="$ROOT/_mcp_session/tools"
-mkdir -p "$SHARED_TOOLS_DIR"
-slot "$FIX_BIN_DIR/echo-arglen$EXE" "$SHARED_TOOLS_DIR/echo-arglen$EXE" &
-for i in 0 1 2 3 4 5 6 7 8 9; do
-  printf '{"description":"Test fixture tool %d","version":"1.0.0","owner":"testorg","exec":"echo-arglen%s"}\n' \
-    "$i" "$EXE" \
-    > "$SHARED_TOOLS_DIR/tool${i}.json"
 done
 
 wait
