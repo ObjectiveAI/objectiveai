@@ -226,6 +226,7 @@ async fn plugin_mcp_dispatch_round_trip() {
     // streaming the parent cli detaches on `LogStreamReady` and emits
     // only a bare `Id(leaf)`.
     let spawn_request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
+        agent_tag: None,
         prompt: RequestPrompt::Simple("use a tool".to_string()),
         agent,
         seed: Some(1),

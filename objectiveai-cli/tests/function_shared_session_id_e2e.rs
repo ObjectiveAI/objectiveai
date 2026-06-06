@@ -39,8 +39,9 @@ use axum::{
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use objectiveai_sdk::cli::command::CommandExecutor;
 use objectiveai_sdk::cli::command::agents::message::{
-    Request as MessageRequest, RequestDangerousAdvanced as MessageDangerousAdvanced,
-    RequestMessage, ResponseItem as MessageResponseItem,
+    MessageTarget, Request as MessageRequest,
+    RequestDangerousAdvanced as MessageDangerousAdvanced, RequestMessage,
+    ResponseItem as MessageResponseItem,
 };
 use objectiveai_sdk::cli::command::agents::spawn::{
     AgentSpec, Request as SpawnRequest, RequestDangerousAdvanced as SpawnDangerousAdvanced,
@@ -267,6 +268,7 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
                 .expect("inline mock agent must deserialize"),
             );
             let request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
+                agent_tag: None,
                 prompt: RequestPrompt::Simple("go".to_string()),
                 agent,
                 seed: Some(seed),
@@ -320,8 +322,11 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
         let executor = &executor;
         let request = MessageRequest {
             path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
-            parent_agent_instance_hierarchy: None,
-            agent_instance: instance.clone(),
+            target: MessageTarget::Direct {
+                parent_agent_instance_hierarchy: None,
+                agent_instance: instance.clone(),
+                agent_tag: None,
+            },
             message: RequestMessage::Simple("again".to_string()),
             seed: None,
             dangerous_advanced: Some(MessageDangerousAdvanced {

@@ -27,8 +27,9 @@ use std::time::{Duration, Instant};
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use objectiveai_sdk::cli::command::agents::message::{
-    Request as MessageRequest, RequestDangerousAdvanced as MessageDangerousAdvanced,
-    RequestMessage, ResponseItem as MessageResponseItem,
+    MessageTarget, Request as MessageRequest,
+    RequestDangerousAdvanced as MessageDangerousAdvanced, RequestMessage,
+    ResponseItem as MessageResponseItem,
 };
 use objectiveai_sdk::cli::command::agents::read::all::{
     Request as ReadAllRequest, ResponseItem as ReadAllItem, ResponseQueueItem,
@@ -132,6 +133,7 @@ async fn duplicate_tool_names_routed_across_turns() {
     let spawn = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
         prompt: RequestPrompt::Simple("use a tool".to_string()),
         agent,
+        agent_tag: None,
         seed: Some(SEED),
         // Stream so we get `Chunk(_)` items (needed for `chunk.id`)
         // and so the cli stays attached to the instance subprocess
@@ -177,8 +179,11 @@ async fn duplicate_tool_names_routed_across_turns() {
     // returning implies the runner exited (no leak).
     let msg1 = MessageRequest {
         path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
-        parent_agent_instance_hierarchy: parent.clone(),
-        agent_instance: instance.clone(),
+        target: MessageTarget::Direct {
+            parent_agent_instance_hierarchy: parent.clone(),
+            agent_instance: instance.clone(),
+            agent_tag: None,
+        },
         message: RequestMessage::Simple("again".to_string()),
         seed: Some(SEED),
         dangerous_advanced: Some(MessageDangerousAdvanced {
@@ -196,8 +201,11 @@ async fn duplicate_tool_names_routed_across_turns() {
     // Turn 3: agents message — second continuation ───────────────
     let msg2 = MessageRequest {
         path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
-        parent_agent_instance_hierarchy: parent.clone(),
-        agent_instance: instance.clone(),
+        target: MessageTarget::Direct {
+            parent_agent_instance_hierarchy: parent.clone(),
+            agent_instance: instance.clone(),
+            agent_tag: None,
+        },
         message: RequestMessage::Simple("one more".to_string()),
         seed: Some(SEED),
         dangerous_advanced: Some(MessageDangerousAdvanced {

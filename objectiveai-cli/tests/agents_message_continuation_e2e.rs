@@ -20,8 +20,9 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 use objectiveai_sdk::cli::command::agents::message::{
-    Request as MessageRequest, RequestDangerousAdvanced as MessageDangerousAdvanced,
-    RequestMessage, ResponseItem as MessageResponseItem,
+    MessageTarget, Request as MessageRequest,
+    RequestDangerousAdvanced as MessageDangerousAdvanced, RequestMessage,
+    ResponseItem as MessageResponseItem,
 };
 use objectiveai_sdk::cli::command::agents::spawn::{
     AgentSpec, Request as SpawnRequest, RequestDangerousAdvanced, RequestPrompt,
@@ -66,6 +67,7 @@ async fn spawn_then_message_propagates_response_continuation() {
     // the parent cli detaches on `LogStreamReady` and emits only a
     // bare `Id(leaf)` — no Chunk, no `agent_instance_hierarchy`.
     let spawn_request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
+        agent_tag: None,
         prompt: RequestPrompt::Simple("first turn".to_string()),
         agent: AgentSpec::Resolved(
             serde_json::from_value::<InlineAgentBaseWithFallbacksOrRemoteCommitOptional>(
@@ -162,8 +164,11 @@ async fn spawn_then_message_propagates_response_continuation() {
     // would otherwise flag.
     let message_request = MessageRequest {
         path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
-        parent_agent_instance_hierarchy: parent,
-        agent_instance: instance,
+        target: MessageTarget::Direct {
+            parent_agent_instance_hierarchy: parent,
+            agent_instance: instance,
+            agent_tag: None,
+        },
         message: RequestMessage::Simple("follow up".to_string()),
         seed: Some(42),
         dangerous_advanced: Some(MessageDangerousAdvanced {
