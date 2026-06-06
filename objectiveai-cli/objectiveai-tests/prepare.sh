@@ -64,6 +64,7 @@ slot "$FIX_BIN_DIR/hello-tool$EXE"                    "$ROOT/hello_tool_dispatch
 slot "$FIX_BIN_DIR/error-tool$EXE"                    "$ROOT/error_tool_dispatch_snapshot/tools/error-tool$EXE" &
 slot "$FIX_BIN_DIR/test-mcp-plugin-foo-headers$EXE"   "$ROOT/function_swarm_writes_per_agent_files/plugins/test-mcp-plugin-foo-headers/plugin$EXE" &
 slot "$FIX_BIN_DIR/count-tool$EXE"                    "$ROOT/two_agents_continuations_count_persists_per_session/tools/count-tool$EXE" &
+slot "$FIX_BIN_DIR/count-tool$EXE"                    "$ROOT/test_twenty_agents_json_schema_10x_tools_seed_42/tools/count-tool$EXE" &
 
 for name in dup-alpha dup-bravo dup-charlie dup-delta dup-echo; do
   slot "$FIX_BIN_DIR/test-mcp-plugin-named$EXE" \
