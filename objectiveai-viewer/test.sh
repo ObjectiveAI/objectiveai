@@ -19,6 +19,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 LOG_DIR="$REPO_ROOT/.logs/test"
 LOG_FILE="$LOG_DIR/$MODULE.txt"
+NEXTEST="$REPO_ROOT/bin/cargo-nextest"
 
 mkdir -p "$LOG_DIR"
 
@@ -50,7 +51,10 @@ export OBJECTIVEAI_CLI_BINARY="$CLI_BIN"
 # integration tests need to run; main.rs is a thin shim with no
 # `#[cfg(test)]` coverage worth keeping. Release builds use cargo build /
 # tauri build and are unaffected.
-if cargo test -p objectiveai-viewer --lib --tests "${CARGO_ARGS[@]}" > "$LOG_FILE" 2>&1; then
+#
+# cargo-nextest is installed locally by `build-bin.sh` into `bin/` — see
+# the [workspace.metadata.tools] table in the root Cargo.toml.
+if "$NEXTEST" nextest run -p objectiveai-viewer --lib --tests "${CARGO_ARGS[@]}" > "$LOG_FILE" 2>&1; then
   PASSED=$(sed -n 's/.* \([0-9][0-9]*\) passed.*/\1/p' "$LOG_FILE" | awk '{s+=$1} END {print s+0}')
   FAILED=$(sed -n 's/.* \([0-9][0-9]*\) failed.*/\1/p' "$LOG_FILE" | awk '{s+=$1} END {print s+0}')
   TOTAL=$((PASSED + FAILED))

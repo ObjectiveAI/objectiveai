@@ -10,6 +10,7 @@ pub struct Request {
     pub target: MessageTarget,
     pub message: RequestMessage,
     pub seed: Option<i64>,
+    pub dangerous_advanced: Option<RequestDangerousAdvanced>,
     pub jq: Option<String>,
 }
 
@@ -128,12 +129,27 @@ impl CommandRequest for Request {
             argv.push("--seed".to_string());
             argv.push(seed.to_string());
         }
+        if let Some(advanced) = &self.dangerous_advanced {
+            argv.push("--dangerous-advanced".to_string());
+            argv.push(
+                serde_json::to_string(advanced)
+                    .expect("RequestDangerousAdvanced serializes"),
+            );
+        }
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
             argv.push(jq.clone());
         }
         argv
     }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.message.RequestDangerousAdvanced")]
+pub struct RequestDangerousAdvanced {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub stream: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -149,6 +165,51 @@ pub enum Response {
     Delivered {
         agent_instance_hierarchy: String,
     },
+}
+
+/// Streamed-mode wire shape for `agents message`. Emitted as one
+/// JSON-line per item on the cli's stdout when
+/// `Request::dangerous_advanced.stream = Some(true)`. Untagged shape
+/// is forward-compatible with [`Response`]: in stream mode, item 0 is
+/// always a `Queued` or `Delivered` variant carrying the same fields
+/// as the unary `Response::Queued` / `Response::Delivered`. Under the
+/// `Queued` path with streaming on, item 0 is followed by zero or
+/// more `Chunk` items until the spawned instance-runner's stdout
+/// EOFs.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
+#[schemars(rename = "cli.command.agents.message.ResponseItem")]
+pub enum ResponseItem {
+    #[schemars(title = "Chunk")]
+    Chunk(crate::agent::completions::response::streaming::AgentCompletionChunk),
+    #[schemars(title = "Queued")]
+    Queued {
+        agent_instance_hierarchy: String,
+        response_id: String,
+    },
+    #[schemars(title = "Delivered")]
+    Delivered {
+        agent_instance_hierarchy: String,
+    },
+}
+
+impl From<Response> for ResponseItem {
+    fn from(r: Response) -> Self {
+        match r {
+            Response::Queued {
+                agent_instance_hierarchy,
+                response_id,
+            } => ResponseItem::Queued {
+                agent_instance_hierarchy,
+                response_id,
+            },
+            Response::Delivered {
+                agent_instance_hierarchy,
+            } => ResponseItem::Delivered {
+                agent_instance_hierarchy,
+            },
+        }
+    }
 }
 
 #[derive(clap::Args)]
@@ -182,6 +243,9 @@ pub struct Args {
     /// omitted).
     #[arg(long = "agent-tag")]
     pub agent_tag: Option<String>,
+    /// Raw JSON for `RequestDangerousAdvanced` (e.g. `{"stream":true}`).
+    #[arg(long)]
+    pub dangerous_advanced: Option<String>,
     /// jq filter applied to the JSON output.
     #[arg(long)]
     pub jq: Option<String>,
@@ -256,14 +320,56 @@ impl TryFrom<Args> for Request {
                 "clap group `message_target` ensures at least one of agent_instance | agent_tag"
             ),
         };
+        let dangerous_advanced = if let Some(s) = args.dangerous_advanced {
+            let mut de = serde_json::Deserializer::from_str(&s);
+            let v = serde_path_to_error::deserialize(&mut de).map_err(|source| {
+                crate::cli::command::FromArgsError {
+                    field: "dangerous_advanced",
+                    source: source.into(),
+                }
+            })?;
+            Some(v)
+        } else {
+            None
+        };
         Ok(Self {
             path_type: Path::AgentsMessage,
             target,
             message,
             seed: args.seed,
+            dangerous_advanced,
             jq: args.jq,
         })
     }
+}
+
+#[cfg(feature = "cli-executor")]
+pub async fn execute_streaming<E: crate::cli::command::CommandExecutor>(
+    executor: &E,
+    mut request: Request,
+
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    ) -> Result<E::Stream<ResponseItem>, E::Error> {
+    request.jq = None;
+    let mut advanced = request.dangerous_advanced.unwrap_or_default();
+    advanced.stream = Some(true);
+    request.dangerous_advanced = Some(advanced);
+    executor.execute(request, agent_arguments).await
+}
+
+#[cfg(feature = "cli-executor")]
+pub async fn execute_streaming_jq<E: crate::cli::command::CommandExecutor>(
+    executor: &E,
+    mut request: Request,
+    jq: String,
+
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    ) -> Result<E::Stream<serde_json::Value>, E::Error> {
+    request.jq = Some(jq);
+    let mut advanced = request.dangerous_advanced.unwrap_or_default();
+    advanced.stream = Some(true);
+    request.dangerous_advanced = Some(advanced);
+    executor.execute(request, agent_arguments).await
 }
 
 #[cfg(feature = "cli-executor")]
@@ -274,6 +380,9 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
         agent_arguments: Option<&crate::cli::command::AgentArguments>,
     ) -> Result<Response, E::Error> {
     request.jq = None;
+    if let Some(advanced) = request.dangerous_advanced.as_mut() {
+        advanced.stream = None;
+    }
     executor.execute_one(request, agent_arguments).await
 }
 
@@ -286,11 +395,21 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
         agent_arguments: Option<&crate::cli::command::AgentArguments>,
     ) -> Result<serde_json::Value, E::Error> {
     request.jq = Some(jq);
+    if let Some(advanced) = request.dangerous_advanced.as_mut() {
+        advanced.stream = None;
+    }
     executor.execute_one(request, agent_arguments).await
 }
 
 #[cfg(feature = "mcp")]
 impl crate::cli::command::CommandResponse for Response {
+    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
+        crate::cli::command::McpResponseItem::JSONL(serde_json::to_value(self).unwrap())
+    }
+}
+
+#[cfg(feature = "mcp")]
+impl crate::cli::command::CommandResponse for ResponseItem {
     fn into_mcp(self) -> crate::cli::command::McpResponseItem {
         crate::cli::command::McpResponseItem::JSONL(serde_json::to_value(self).unwrap())
     }

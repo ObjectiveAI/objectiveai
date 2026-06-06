@@ -2,218 +2,137 @@
 //!
 //! Tests drive the cli via the SDK's [`BinaryExecutor`], feeding it
 //! typed `Request` values and reading typed `ResponseItem`s back. The
-//! executor spawns the cli binary that `cli_binary()` builds (one
-//! cargo build per test run, shared via a `Once`).
+//! cli binary, the test fixtures (plugins and tools), and every
+//! committed manifest live under `<crate>/.objectiveai-tests/` —
+//! pre-staged by `test.sh` (which runs `objectiveai-tests/prepare.sh`
+//! before invoking nextest). Nothing in this module builds, copies,
+//! or wipes anything at test time.
 //!
-//! Every test's `CONFIG_BASE_DIR` lives under
-//! `objectiveai-cli/.objectiveai-tests/<binary>/<test>/`, allocated
-//! by [`test_base_dir`]. Each test binary clears its own
-//! `<binary>/` subfolder on its first call (race-free `Once`-gated)
-//! so re-runs always start clean — and crucially we DO NOT wipe on
-//! drop, so the most recent run's logs survive long enough to
-//! inspect. The path is echoed to stderr; pair with `cargo test --
-//! --nocapture` when you need to find it.
-//!
-//! Carve-out: [`mcp_session_shared_dir`] returns a fixed
-//! `.objectiveai-tests/_mcp_session/` shared with the tool-fixture
-//! registry seeded by `test-seed-tool-fixtures.sh`. Only used by
-//! the agents-continuation tool-session test.
+//! Per-test `CONFIG_BASE_DIR` is `<runtime>/<test-fn-name>/`, a flat
+//! subdirectory whose contents prepare.sh set up to mirror what each
+//! test expects on disk. The cli writes its runtime artefacts
+//! (`logs/`, `pipes/`, etc.) into the same subdirectory over the test
+//! run; `test.sh` wipes `.objectiveai-tests/` at the top of every
+//! invocation so stale runtime state from prior runs never leaks in.
+
+// `hang_preventing_executor` lives at sibling path
+// `tests/hang_preventing_executor.rs` and is declared as a child
+// module here so every integration-test file that does
+// `mod cli_test_util;` picks it up transitively. The `#[path]` is
+// needed because Rust would otherwise look for
+// `tests/cli_test_util/hang_preventing_executor.rs`.
+#[path = "hang_preventing_executor.rs"]
+pub mod hang_preventing_executor;
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::sync::Once;
 
 use futures::StreamExt;
 use objectiveai_sdk::cli::command::binary::BinaryExecutor;
 use objectiveai_sdk::cli::command::{CommandExecutor, CommandRequest, CommandResponse};
 
-static BUILD_ONCE: Once = Once::new();
+pub use hang_preventing_executor::HangPreventingBinaryCommandExecutor;
 
 /// Reads `OBJECTIVEAI_TEST_PORT` and returns `http://127.0.0.1:<port>`.
-/// `None` when the env var isn't set — used by the snapshot tests as a
-/// skip-gate so `cargo test -p objectiveai-cli` from a fresh shell
-/// (no shared api server running) doesn't spuriously fail with connect
-/// errors against the upstream URL.
+/// `None` when the env var isn't set — used by tests as a skip-gate
+/// so `cargo test -p objectiveai-cli` from a fresh shell (no shared
+/// api server running) doesn't spuriously fail with connect errors
+/// against the upstream URL.
 pub fn test_api_address() -> Option<String> {
     let port = std::env::var("OBJECTIVEAI_TEST_PORT").ok()?;
     Some(format!("http://127.0.0.1:{port}"))
 }
 
-pub fn test_target_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../target/test-cli")
+/// `<crate>/.objectiveai-tests/` — the runtime staging tree `test.sh`
+/// + `prepare.sh` populate before nextest runs. Read-only entry
+/// point for everything else in this module.
+pub fn runtime_dir() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join(".objectiveai-tests")
 }
 
+/// Path to the pre-built cli binary at the root of the runtime tree.
+/// `prepare.sh` cargo-built this with `--no-default-features --features
+/// rustpython` and slotted it in.
 pub fn cli_binary() -> PathBuf {
-    let target_dir = test_target_dir();
-    let mut path = target_dir.join("debug/objectiveai-cli");
+    let mut path = runtime_dir().join("objectiveai-cli");
     if cfg!(windows) {
         path.set_extension("exe");
     }
-
-    BUILD_ONCE.call_once(|| {
-        let status = Command::new("cargo")
-            .args([
-                "build",
-                "-p",
-                "objectiveai-cli",
-                "--no-default-features",
-                "--features",
-                "rustpython",
-                "--target-dir",
-                target_dir.to_str().unwrap(),
-            ])
-            .status()
-            .expect("failed to run cargo build");
-        assert!(status.success(), "cargo build failed");
-    });
-
     path
 }
 
-/// Absolute path to `objectiveai-cli/.objectiveai-tests/`. Creates
-/// the dir + its `.gitignore` if either is missing. Idempotent and
-/// safe to call from anywhere.
-fn tests_root() -> PathBuf {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join(".objectiveai-tests");
-    std::fs::create_dir_all(&root).expect("create .objectiveai-tests root");
-    let gi = root.join(".gitignore");
-    if !gi.exists() {
-        std::fs::write(&gi, "*\n!.gitignore\n").expect("write .gitignore");
-    }
-    root
-}
-
-/// `<tests_root>/<binary-name>/`. On first call per test binary
-/// process, clears the directory's contents (preserving the dir
-/// itself) so this run starts clean. `Once`-gated; concurrent
-/// callers wait for the clear before getting a path back.
-fn binary_dir() -> PathBuf {
-    static CLEAR_ONCE: Once = Once::new();
-    let root = tests_root();
-    let exe = std::env::current_exe().expect("current_exe");
-    let stem = exe
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("unknown");
-    // cargo names test binaries `<file_stem>-<hex>`. Strip the
-    // trailing `-<hex>` to recover the stem; if the convention ever
-    // changes, fall through to the full stem.
-    let binary = stem
-        .rsplit_once('-')
-        .map(|(a, _)| a)
-        .unwrap_or(stem)
-        .to_string();
-    let dir = root.join(&binary);
-    CLEAR_ONCE.call_once(|| {
-        if dir.exists() {
-            for entry in std::fs::read_dir(&dir).into_iter().flatten().flatten() {
-                let p = entry.path();
-                if p.is_dir() {
-                    let _ = std::fs::remove_dir_all(&p);
-                } else {
-                    let _ = std::fs::remove_file(&p);
-                }
-            }
-        }
-        std::fs::create_dir_all(&dir).expect("create binary subdir");
-    });
-    dir
-}
-
-/// Fresh per-test `CONFIG_BASE_DIR` under
-/// `.objectiveai-tests/<binary>/<test>/`. Echoes the resolved path
-/// to stderr so `cargo test -- --nocapture` surfaces it for
-/// debugging. Safe to call once per test fn; thread-safe.
-///
-/// **No cleanup on drop.** The previous run's contents survive
-/// until the next run of the same test binary, which clears its
-/// whole `<binary>/` subfolder via [`binary_dir`].
+/// Per-test `CONFIG_BASE_DIR`: `<runtime>/<test-fn-name>/`. The
+/// directory is already on disk (prepare.sh staged it); we don't
+/// create or clean anything here.
 pub fn test_base_dir() -> PathBuf {
     let test = std::thread::current()
         .name()
-        .map(sanitize_segment)
-        .unwrap_or_else(|| format!("unnamed-{}", uuid::Uuid::new_v4()));
-    let dir = binary_dir().join(&test);
-    std::fs::create_dir_all(&dir).expect("create test subdir");
+        .expect("test thread must have a name")
+        .to_string();
+    let dir = runtime_dir().join(&test);
     eprintln!("test base dir: {}", dir.display());
     dir
 }
 
-/// Fixed `.objectiveai-tests/_mcp_session/` — the dedicated base
-/// dir `test-seed-tool-fixtures.sh` lays the fixture `tools/`
-/// registry into, and that every cli child stamps as its
-/// `CONFIG_BASE_DIR` so its in-process objectiveai-mcp server
-/// discovers the fixtures via `filesystem::Client::list_tools`.
-/// Used only by `agents_continuation_tool_session_e2e` and the
-/// fixture script. **Not** cleared by [`binary_dir`]'s `Once`; the
-/// underscore-prefix puts it at the `tests_root` level, parallel to
-/// the per-binary subfolders.
-pub fn mcp_session_shared_dir() -> PathBuf {
-    let dir = tests_root().join("_mcp_session");
-    std::fs::create_dir_all(&dir).expect("create _mcp_session");
-    dir
-}
-
-fn sanitize_segment(s: &str) -> String {
-    s.chars()
-        .map(|c| {
-            if c.is_alphanumeric() || c == '-' || c == '_' {
-                c
-            } else {
-                '_'
-            }
-        })
-        .collect()
-}
-
 /// Equivalent to `executor_with_base_dir(&test_base_dir())` — the
 /// default executor for tests that don't need a special base dir.
-pub fn executor() -> BinaryExecutor {
+pub fn executor() -> HangPreventingBinaryCommandExecutor {
     executor_with_base_dir(&test_base_dir())
 }
 
-/// Build a [`BinaryExecutor`] aimed at the test-built cli binary
+/// Build a hang-preventing executor aimed at the pre-built cli binary
 /// with `CONFIG_BASE_DIR` pinned to `base_dir` and (when set)
-/// `OBJECTIVEAI_ADDRESS` pointing at the local test server.
-pub fn executor_with_base_dir(base_dir: &Path) -> BinaryExecutor {
+/// `OBJECTIVEAI_ADDRESS` pointing at the local test server. The inner
+/// [`BinaryExecutor`] is wrapped in a [`HangPreventingBinaryCommandExecutor`]
+/// so a stuck cli child is killed after
+/// [`hang_preventing_executor::HANG_TIMEOUT`] of `CONFIG_BASE_DIR`
+/// inactivity rather than hanging the test indefinitely.
+pub fn executor_with_base_dir(base_dir: &Path) -> HangPreventingBinaryCommandExecutor {
     let mut exec = BinaryExecutor::from_path(cli_binary())
         .env("CONFIG_BASE_DIR", base_dir.to_string_lossy().into_owned());
     if let Some(addr) = test_api_address() {
         exec = exec.env("OBJECTIVEAI_ADDRESS", addr);
     }
-    exec
+    HangPreventingBinaryCommandExecutor::new(exec, base_dir.to_path_buf())
 }
 
 /// Run the leaf's streaming `execute` and collect every `ResponseItem`
 /// the cli emits. Panics on any executor error — tests want a hard
-/// failure, not silent skips.
-pub async fn collect_stream<R, T>(executor: &BinaryExecutor, request: R) -> Vec<T>
+/// failure, not silent skips. Generic over any [`CommandExecutor`] so
+/// tests can pass either the hang-preventing wrapper (the default
+/// returned by [`executor`]/[`executor_with_base_dir`]) or a bare
+/// [`BinaryExecutor`] when they really want one.
+pub async fn collect_stream<E, R, T>(executor: &E, request: R) -> Vec<T>
 where
+    E: CommandExecutor,
+    E::Error: std::fmt::Debug,
     R: CommandRequest + Send,
     T: CommandResponse + serde::de::DeserializeOwned + Send + 'static,
 {
     let stream = executor
         .execute::<R, T>(request, None)
         .await
-        .expect("BinaryExecutor::execute failed");
+        .expect("CommandExecutor::execute failed");
     let mut stream = std::pin::pin!(stream);
     let mut items = Vec::new();
     while let Some(item) = stream.next().await {
-        items.push(item.expect("BinaryExecutor stream item was Err"));
+        items.push(item.expect("CommandExecutor stream item was Err"));
     }
     items
 }
 
-/// Run a unary cli leaf and return its single response.
-pub async fn execute_one<R, T>(executor: &BinaryExecutor, request: R) -> T
+/// Run a unary cli leaf and return its single response. Generic over
+/// any [`CommandExecutor`] for the same reason as [`collect_stream`].
+pub async fn execute_one<E, R, T>(executor: &E, request: R) -> T
 where
+    E: CommandExecutor,
+    E::Error: std::fmt::Debug,
     R: CommandRequest + Send,
     T: CommandResponse + serde::de::DeserializeOwned + Send + 'static,
 {
     executor
         .execute_one::<R, T>(request, None)
         .await
-        .expect("BinaryExecutor::execute_one failed")
+        .expect("CommandExecutor::execute_one failed")
 }
 
 pub fn load_snapshot(dir: &Path, name: &str) -> serde_json::Value {
@@ -221,6 +140,110 @@ pub fn load_snapshot(dir: &Path, name: &str) -> serde_json::Value {
     let content = std::fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("failed to read snapshot {}: {e}", path.display()));
     serde_json::from_str(&content).unwrap()
+}
+
+/// Canonical structural-Value snapshot assertion. Mirrors the
+/// `assert result == expected` step in
+/// `objectiveai-sdk-py/tests/http_test_util.py`,
+/// `objectiveai-sdk-js/src/httpTestUtil.ts`, and
+/// `objectiveai-sdk-go/tests/http_test_util_test.go`:
+///
+/// 1. Load the snapshot file at `snapshot_path` as a
+///    `serde_json::Value`.
+/// 2. Round the **whole** snapshot via [`rounded`].
+/// 3. Serialise `normalized` (which should already have had
+///    `normalize_for_tests` called on it) to a `Value` and round it
+///    the same way.
+/// 4. Structural-equality compare on the two rounded objects.
+///
+/// On mismatch, serialise both rounded forms pretty-printed, write
+/// them to `<runtime>/<test-fn>/<snapshot_name>.{actual,expected}.json`,
+/// and panic with a `diff -u …` command + the first diverging lines
+/// for at-a-glance triage.
+pub fn assert_normalized_snapshot<T: serde::Serialize>(
+    snapshot_path: &Path,
+    snapshot_name: &str,
+    normalized: &T,
+) {
+    let expected_raw = std::fs::read_to_string(snapshot_path)
+        .unwrap_or_else(|e| panic!("read snapshot {}: {e}", snapshot_path.display()));
+    let expected_value: serde_json::Value = serde_json::from_str(&expected_raw)
+        .unwrap_or_else(|e| panic!("parse snapshot {}: {e}", snapshot_path.display()));
+    let expected_rounded = rounded(&expected_value);
+
+    let actual_value =
+        serde_json::to_value(normalized).expect("normalized value serialises");
+    let actual_rounded = rounded(&actual_value);
+
+    if actual_rounded == expected_rounded {
+        return;
+    }
+
+    let actual_pretty = serde_json::to_string_pretty(&actual_rounded)
+        .expect("rounded Value serialises to pretty JSON");
+    let expected_pretty = serde_json::to_string_pretty(&expected_rounded)
+        .expect("rounded Value serialises to pretty JSON");
+    let dir = test_base_dir();
+    std::fs::create_dir_all(&dir)
+        .unwrap_or_else(|e| panic!("create {} for snapshot diff: {e}", dir.display()));
+    let actual_path = dir.join(format!("{snapshot_name}.actual.json"));
+    let expected_path = dir.join(format!("{snapshot_name}.expected.json"));
+    std::fs::write(&actual_path, &actual_pretty)
+        .unwrap_or_else(|e| panic!("write {}: {e}", actual_path.display()));
+    std::fs::write(&expected_path, &expected_pretty)
+        .unwrap_or_else(|e| panic!("write {}: {e}", expected_path.display()));
+
+    panic!(
+        "snapshot mismatch for `{snapshot_name}`\n  \
+           source:   {}\n  \
+           expected: {}\n  \
+           actual:   {}\n  \
+           diff:     diff -u {} {}\n\
+         {}",
+        snapshot_path.display(),
+        expected_path.display(),
+        actual_path.display(),
+        expected_path.display(),
+        actual_path.display(),
+        first_diff_lines(&expected_pretty, &actual_pretty, 30),
+    );
+}
+
+/// Compose a short report of the first diverging lines so the panic
+/// message itself surfaces the gist of the diff. Not a full unified
+/// diff — for that, the test reports the absolute paths so a
+/// developer can `diff -u expected actual` themselves.
+fn first_diff_lines(expected: &str, actual: &str, max_lines: usize) -> String {
+    let mut out = String::from("  first diverging lines:\n");
+    let mut e_lines = expected.lines();
+    let mut a_lines = actual.lines();
+    let mut emitted = 0usize;
+    let mut line_no = 0usize;
+    loop {
+        let el = e_lines.next();
+        let al = a_lines.next();
+        line_no += 1;
+        match (el, al) {
+            (None, None) => break,
+            (Some(es), Some(as_)) if es == as_ => continue,
+            (es, as_) => {
+                out.push_str(&format!("    L{line_no:>4} - {}\n", es.unwrap_or("<EOF>")));
+                out.push_str(&format!("    L{line_no:>4} + {}\n", as_.unwrap_or("<EOF>")));
+                emitted += 1;
+                if emitted >= max_lines {
+                    out.push_str(&format!(
+                        "    … ({} max lines reached; run the diff command above for the full picture)\n",
+                        max_lines
+                    ));
+                    break;
+                }
+            }
+        }
+    }
+    if emitted == 0 {
+        out.push_str("    (no line-level differences — check pretty-print formatting)\n");
+    }
+    out
 }
 
 /// Round floats to 8 significant figures to match cross-language comparison.

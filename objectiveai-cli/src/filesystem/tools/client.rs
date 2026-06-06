@@ -41,9 +41,16 @@ impl Client {
     /// Resolve a tool name to its executable path. Reads the tool's
     /// manifest at `<base_dir>/tools/<name>.json`, joins
     /// `manifest.exec` to the tools directory, and returns the path
-    /// if it exists as a regular file. Returns `None` when the
-    /// manifest is missing/malformed or the referenced exec is
-    /// absent.
+    /// if it exists as a regular file.
+    ///
+    /// On Windows, if the literal `exec` value doesn't resolve, the
+    /// same path with a `.exe` extension is also tried. That way a
+    /// manifest written in canonical Unix form (`"exec": "hello-tool"`)
+    /// still resolves against a `hello-tool.exe` on disk — useful for
+    /// committed, platform-neutral test fixtures.
+    ///
+    /// Returns `None` when the manifest is missing/malformed or the
+    /// referenced exec is absent.
     pub async fn resolve_tool(&self, name: &str) -> Option<PathBuf> {
         let bundle = self.get_tool(name).await?;
         let exec_path = self.tools_dir().join(&bundle.manifest.exec);
@@ -52,10 +59,23 @@ impl Client {
             .map(|m| m.is_file())
             .unwrap_or(false)
         {
-            Some(exec_path)
-        } else {
-            None
+            return Some(exec_path);
         }
+        #[cfg(windows)]
+        {
+            let mut with_exe = exec_path.clone();
+            if with_exe.extension().is_none() {
+                with_exe.set_extension("exe");
+                if tokio::fs::metadata(&with_exe)
+                    .await
+                    .map(|m| m.is_file())
+                    .unwrap_or(false)
+                {
+                    return Some(with_exe);
+                }
+            }
+        }
+        None
     }
 
     /// Look up a single tool manifest by name. Reads

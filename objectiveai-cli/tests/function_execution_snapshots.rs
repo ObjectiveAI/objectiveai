@@ -2,9 +2,20 @@
 //! `BinaryExecutor`. Each macro invocation builds a typed
 //! `functions::executions::create::standard::Request`, streams the cli
 //! output, accumulates the `Chunk` variants into a single
-//! `FunctionExecution`, and diffs the unary `.output` against the
-//! api-side snapshot under
+//! `FunctionExecution`, normalises it via the Rust SDK's
+//! `normalize_for_tests`, and structurally compares the **whole**
+//! rounded `FunctionExecution` against the canonical api-side
+//! snapshot at
 //! `objectiveai-api/assets/functions/executions/client_tests/`.
+//!
+//! Mirrors the canonical 3-SDK pattern in
+//! `objectiveai-sdk-py/tests/http_test_util.py`,
+//! `objectiveai-sdk-js/src/httpTestUtil.ts`, and
+//! `objectiveai-sdk-go/tests/http_test_util_test.go`. The cli stays
+//! streaming-only by transport-level necessity (the cli's
+//! `dangerous_advanced.stream = false` returns just an `Id`, not a
+//! unary `FunctionExecution`); every other piece of the canonical
+//! pattern carries over verbatim.
 
 mod cli_test_util;
 
@@ -25,14 +36,6 @@ use objectiveai_sdk::functions::executions::response::unary::FunctionExecution;
 fn snapshots_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../objectiveai-api/assets/functions/executions/client_tests")
-}
-
-fn snapshot_output(snapshot: &serde_json::Value) -> serde_json::Value {
-    snapshot["output"]["output"].clone()
-}
-
-fn snapshot_has_errors(snapshot: &serde_json::Value) -> bool {
-    snapshot["tasks_errors"].as_bool().unwrap_or(false)
 }
 
 /// Build the `function`/`profile` specs from mock fixture names.
@@ -60,8 +63,10 @@ fn inline_profile_spec(json: serde_json::Value) -> ProfileSpec {
 }
 
 /// Drive the executor, collect every `Chunk`, push them into a single
-/// `FunctionExecutionChunk`, then convert to the unary form.
-async fn run_and_aggregate(request: Request) -> FunctionExecution {
+/// `FunctionExecutionChunk`, convert to the unary form, and apply
+/// the Rust SDK's `normalize_for_tests` so the result is ready for
+/// the structural-Value compare in [`assert_normalized_snapshot`].
+async fn run_and_aggregate_normalized(request: Request) -> FunctionExecution {
     let executor = cli_test_util::executor();
     let items: Vec<ResponseItem> = cli_test_util::collect_stream(&executor, request).await;
     let mut chunks = items.into_iter().filter_map(|item| match item {
@@ -73,42 +78,9 @@ async fn run_and_aggregate(request: Request) -> FunctionExecution {
     for chunk in chunks {
         agg.push(&chunk);
     }
-    agg.into()
-}
-
-/// Assert the executed function's `.output.output` matches the
-/// snapshot's `output.output`. Both `FunctionExecution` and the
-/// committed snapshot wrap the output value in an outer `output`
-/// object, so we drill two levels on each side.
-fn assert_output_matches(snapshot_name: &str, execution: &FunctionExecution) {
-    let snapshot = cli_test_util::load_snapshot(&snapshots_dir(), snapshot_name);
-    let expected_output = cli_test_util::rounded(&snapshot_output(&snapshot));
-    let has_errors = snapshot_has_errors(&snapshot);
-
-    let execution_json = serde_json::to_value(execution).expect("FunctionExecution serializes");
-    let actual_output = cli_test_util::rounded(&execution_json["output"]["output"]);
-    assert_eq!(
-        actual_output, expected_output,
-        "output mismatch for {snapshot_name}",
-    );
-
-    if has_errors {
-        assert!(
-            execution_json
-                .get("errors")
-                .is_some_and(|e| e.as_array().is_some_and(|a| !a.is_empty())),
-            "expected errors for {snapshot_name} but got none",
-        );
-    } else {
-        assert!(
-            execution_json.get("errors").is_none()
-                || execution_json["errors"]
-                    .as_array()
-                    .is_some_and(|a| a.is_empty()),
-            "expected no errors for {snapshot_name} but got: {:?}",
-            execution_json.get("errors"),
-        );
-    }
+    let mut execution: FunctionExecution = agg.into();
+    execution.normalize_for_tests();
+    execution
 }
 
 macro_rules! snapshot_test {
@@ -141,8 +113,13 @@ macro_rules! snapshot_test {
                 dangerous_advanced: Some(RequestDangerousAdvanced { stream: Some(true) }),
                 jq: None,
             };
-            let execution = run_and_aggregate(request).await;
-            assert_output_matches($snapshot, &execution);
+            let execution = run_and_aggregate_normalized(request).await;
+            let snapshot_path = snapshots_dir().join(format!("{}.json", $snapshot));
+            cli_test_util::assert_normalized_snapshot(
+                &snapshot_path,
+                $snapshot,
+                &execution,
+            );
         }
     };
 }
@@ -221,6 +198,12 @@ async fn split_tweet_scorer_10_tweets_seed_42() {
         jq: None,
     };
 
-    let execution = run_and_aggregate(request).await;
-    assert_output_matches("split_tweet_scorer_10_tweets_seed_42", &execution);
+    let execution = run_and_aggregate_normalized(request).await;
+    let snapshot_path =
+        snapshots_dir().join("split_tweet_scorer_10_tweets_seed_42.json");
+    cli_test_util::assert_normalized_snapshot(
+        &snapshot_path,
+        "split_tweet_scorer_10_tweets_seed_42",
+        &execution,
+    );
 }

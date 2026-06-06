@@ -102,7 +102,7 @@ pub enum ResponseItem {
     #[schemars(title = "MeResponseSchema")]
     MeResponseSchema(me::response_schema::Response),
     #[schemars(title = "Message")]
-    Message(message::Response),
+    Message(message::ResponseItem),
     #[schemars(title = "MessageRequestSchema")]
     MessageRequestSchema(message::request_schema::Response),
     #[schemars(title = "MessageResponseSchema")]
@@ -279,10 +279,20 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
                 )))
             }
             Request::Message(req) => {
-                let value = message::execute(executor, req, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::Message(value),
-                )))
+                let want_streaming = req
+                    .dangerous_advanced
+                    .as_ref()
+                    .and_then(|a| a.stream)
+                    .unwrap_or(false);
+                if want_streaming {
+                    let inner = message::execute_streaming(executor, req, agent_arguments).await?;
+                    Box::pin(inner.map(|r| r.map(ResponseItem::Message)))
+                } else {
+                    let value = message::execute(executor, req, agent_arguments).await?;
+                    Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                        ResponseItem::Message(value.into()),
+                    )))
+                }
             }
             Request::MessageRequestSchema(req) => {
                 let value = message::request_schema::execute(executor, req, agent_arguments).await?;
@@ -396,8 +406,18 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::Message(req) => {
-                let value = message::execute_jq(executor, req, jq, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+                let want_streaming = req
+                    .dangerous_advanced
+                    .as_ref()
+                    .and_then(|a| a.stream)
+                    .unwrap_or(false);
+                if want_streaming {
+                    let inner = message::execute_streaming_jq(executor, req, jq, agent_arguments).await?;
+                    Box::pin(inner)
+                } else {
+                    let value = message::execute_jq(executor, req, jq, agent_arguments).await?;
+                    Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+                }
             }
             Request::MessageRequestSchema(req) => {
                 let value = message::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
