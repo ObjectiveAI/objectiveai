@@ -7,9 +7,9 @@
 //! One table, `tags`. Each row is in exactly one of two states (a
 //! `CHECK` constraint enforces mutual exclusion):
 //!
-//! - **BOUND** — `agent_instance_hierarchy` set, the other two NULL.
+//! - **BOUND** â€” `agent_instance_hierarchy` set, the other two NULL.
 //!   The tag points at one specific hierarchy.
-//! - **PENDING** — `parent_agent_instance_hierarchy + agent_full_id`
+//! - **PENDING** â€” `parent_agent_instance_hierarchy + agent_full_id`
 //!   set, `agent_instance_hierarchy` NULL. The tag is waiting for the
 //!   next agent-completion that matches the (full_id, parent) pair to
 //!   spawn under it, at which point its first chunk auto-promotes the
@@ -42,13 +42,20 @@ pub fn connection(client: &Client) -> Result<Arc<Mutex<Connection>>, Error> {
     }
     let conn = Connection::open(&db_path)?;
     conn.execute_batch("PRAGMA journal_mode=WAL;")?;
-    init_table(&conn)?;
+    // FK cascade for the queue content-row tables. The existing
+    // `tags` table has no FKs, so this is a no-op for that surface.
+    conn.execute_batch("PRAGMA foreign_keys = ON;")?;
+    init_tables(&conn)?;
     let arc = Arc::new(Mutex::new(conn));
     *guard = Some(arc.clone());
     Ok(arc)
 }
 
-fn init_table(conn: &Connection) -> Result<(), Error> {
+/// Create every table this DB hosts. `tags.sqlite` started as a
+/// single-table file but now also holds `prompts` (the deferred-
+/// message queue from `agents message-queue add`) so the queue-list leaf
+/// can JOIN prompts â¨ tags in a single SELECT.
+fn init_tables(conn: &Connection) -> Result<(), Error> {
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS tags (\
             name                            TEXT PRIMARY KEY NOT NULL, \
@@ -69,7 +76,65 @@ fn init_table(conn: &Connection) -> Result<(), Error> {
         CREATE INDEX IF NOT EXISTS tags_hierarchy_idx \
             ON tags(agent_instance_hierarchy);\
         CREATE INDEX IF NOT EXISTS tags_pending_match_idx \
-            ON tags(agent_full_id, parent_agent_instance_hierarchy);",
+            ON tags(agent_full_id, parent_agent_instance_hierarchy);\
+        CREATE TABLE IF NOT EXISTS prompts (\
+            id                       INTEGER PRIMARY KEY AUTOINCREMENT, \
+            agent_instance_hierarchy TEXT, \
+            agent_tag                TEXT, \
+            prompt                   TEXT NOT NULL, \
+            enqueued_at              INTEGER NOT NULL, \
+            CHECK ( \
+                (agent_instance_hierarchy IS NOT NULL AND agent_tag IS NULL) \
+                OR \
+                (agent_instance_hierarchy IS NULL AND agent_tag IS NOT NULL) \
+            ) \
+        );\
+        CREATE INDEX IF NOT EXISTS prompts_hierarchy_idx \
+            ON prompts(agent_instance_hierarchy, id) \
+            WHERE agent_instance_hierarchy IS NOT NULL;\
+        CREATE INDEX IF NOT EXISTS prompts_tag_idx \
+            ON prompts(agent_tag, id) \
+            WHERE agent_tag IS NOT NULL;\
+        CREATE TABLE IF NOT EXISTS prompt_contents (\
+            id        INTEGER PRIMARY KEY AUTOINCREMENT, \
+            prompt_id INTEGER NOT NULL, \
+            kind      TEXT NOT NULL \
+                CHECK (kind IN ('text','image','audio','video','file')), \
+            FOREIGN KEY (prompt_id) REFERENCES prompts(id) ON DELETE CASCADE\
+        );\
+        CREATE INDEX IF NOT EXISTS prompt_contents_prompt_idx \
+            ON prompt_contents(prompt_id);\
+        CREATE TABLE IF NOT EXISTS prompt_texts (\
+            id   INTEGER PRIMARY KEY, \
+            text TEXT NOT NULL, \
+            FOREIGN KEY (id) REFERENCES prompt_contents(id) ON DELETE CASCADE\
+        );\
+        CREATE TABLE IF NOT EXISTS prompt_images (\
+            id     INTEGER PRIMARY KEY, \
+            url    TEXT NOT NULL, \
+            detail TEXT, \
+            FOREIGN KEY (id) REFERENCES prompt_contents(id) ON DELETE CASCADE\
+        );\
+        CREATE TABLE IF NOT EXISTS prompt_audios (\
+            id     INTEGER PRIMARY KEY, \
+            data   TEXT NOT NULL, \
+            format TEXT NOT NULL, \
+            FOREIGN KEY (id) REFERENCES prompt_contents(id) ON DELETE CASCADE\
+        );\
+        CREATE TABLE IF NOT EXISTS prompt_videos (\
+            id  INTEGER PRIMARY KEY, \
+            url TEXT NOT NULL, \
+            FOREIGN KEY (id) REFERENCES prompt_contents(id) ON DELETE CASCADE\
+        );\
+        CREATE TABLE IF NOT EXISTS prompt_files (\
+            id        INTEGER PRIMARY KEY, \
+            file_data TEXT, \
+            file_id   TEXT, \
+            filename  TEXT, \
+            file_url  TEXT, \
+            FOREIGN KEY (id) REFERENCES prompt_contents(id) ON DELETE CASCADE\
+        );\
+        ",
     )?;
     Ok(())
 }
@@ -130,7 +195,7 @@ pub fn upsert_bound(
 
 /// All tags currently bound to the given hierarchy, newest-bound
 /// first. A hierarchy can carry multiple tag names (the schema's PK
-/// is the `name`, not the hierarchy) — every BOUND row whose
+/// is the `name`, not the hierarchy) â€” every BOUND row whose
 /// `agent_instance_hierarchy` matches is returned. PENDING rows
 /// never match.
 pub fn tags_for_hierarchy(
@@ -234,7 +299,7 @@ pub fn lookup(client: &Client, name: &str) -> Result<LookupState, Error> {
 
 /// Parent scope of an `agent_instance_hierarchy`: the substring up
 /// to (but not including) the last `/`. When the input has no `/`,
-/// the parent is the empty string — the hierarchy is at the root.
+/// the parent is the empty string â€” the hierarchy is at the root.
 pub(crate) fn parent_of(agent_instance_hierarchy: &str) -> &str {
     match agent_instance_hierarchy.rfind('/') {
         Some(i) => &agent_instance_hierarchy[..i],
@@ -422,7 +487,7 @@ mod tests {
         let (c, _tmp) = fresh_client();
         // Pending registered against parent `root/A`.
         upsert_pending(&c, "foo", "F", "root/A").unwrap();
-        // Spawn fires with hierarchy `root/A/inst-1` — parent is `root/A`.
+        // Spawn fires with hierarchy `root/A/inst-1` â€” parent is `root/A`.
         let promoted = upgrade(&c, "F", "root/A/inst-1").unwrap();
         assert_eq!(promoted, vec!["foo".to_string()]);
         // Same agent_full_id under a different parent should NOT promote
@@ -436,7 +501,7 @@ mod tests {
     fn upgrade_at_root_uses_empty_parent() {
         let (c, _tmp) = fresh_client();
         upsert_pending(&c, "rootless", "F", "").unwrap();
-        // Hierarchy with no `/` → parent = "".
+        // Hierarchy with no `/` â†’ parent = "".
         let promoted = upgrade(&c, "F", "lonely-root").unwrap();
         assert_eq!(promoted, vec!["rootless".to_string()]);
         assert_eq!(

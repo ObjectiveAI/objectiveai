@@ -295,6 +295,31 @@ pub fn max_index(
     Ok(row.flatten().map(|v| v.max(0) as u64))
 }
 
+/// Whether `agent_instance_hierarchy` has any
+/// `agent_completion_request` row logged in the messages table — the
+/// same "agent exists" predicate that
+/// [`super::super::logs::LatestContinuationOutcome::NoRequests`] is
+/// the negation of, but without the continuation-file walk. A single
+/// `SELECT EXISTS` against the indexed
+/// `messages(agent_instance_hierarchy, "index")` lookup.
+pub fn agent_exists(
+    conn: &Connection,
+    agent_instance_hierarchy: &str,
+) -> Result<bool, super::super::Error> {
+    let mut stmt = conn.prepare_cached(
+        "SELECT EXISTS(SELECT 1 FROM messages \
+         WHERE agent_instance_hierarchy = ?1 AND kind = ?2)",
+    )?;
+    let exists: i64 = stmt.query_row(
+        rusqlite::params![
+            agent_instance_hierarchy,
+            message_kind_as_str(RequestMessageKind::AgentCompletionRequest)
+        ],
+        |r| r.get::<_, i64>(0),
+    )?;
+    Ok(exists != 0)
+}
+
 /// Insert a single row.
 ///
 /// `agent_instance_hierarchy` is the lineage-stamped composite (`{caller}/{response_id}`
@@ -350,6 +375,19 @@ pub async fn insert_async(
             timestamp,
             index,
         )
+    })
+    .await
+    .map_err(spawn_blocking_join_err)?
+}
+
+/// Async wrapper around [`agent_exists`].
+pub async fn agent_exists_async(
+    conn: Arc<Mutex<Connection>>,
+    agent_instance_hierarchy: String,
+) -> Result<bool, super::super::Error> {
+    tokio::task::spawn_blocking(move || {
+        let conn = conn.lock().expect("filesystem db mutex poisoned");
+        agent_exists(&conn, &agent_instance_hierarchy)
     })
     .await
     .map_err(spawn_blocking_join_err)?

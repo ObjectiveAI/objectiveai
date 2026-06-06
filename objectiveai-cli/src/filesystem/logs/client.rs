@@ -2519,6 +2519,38 @@ impl Client {
             })
             .collect())
     }
+
+    /// Whether the cli has ever logged an `agent_completion_request`
+    /// row against `agent_instance_hierarchy`. Same predicate that
+    /// `read_latest_continuation` uses to distinguish `NoRequests`
+    /// from `NoContinuationsFound` / `Found`, but evaluated as a
+    /// single `SELECT EXISTS` without walking continuation files.
+    pub async fn agent_exists(
+        &self,
+        agent_instance_hierarchy: &str,
+    ) -> Result<bool, Error> {
+        let conn = super::super::db::connection::connection(self)?;
+        super::super::db::schema::agent_exists_async(
+            conn,
+            agent_instance_hierarchy.to_string(),
+        )
+        .await
+    }
+
+    /// Stream every queued prompt visible under `parent`. Direct
+    /// rows are filtered to direct children of `parent`; tag rows
+    /// are always included with the joined tag state from the
+    /// `tags` table. Same Vec-of-ResponseItem shape `list_active`
+    /// returns.
+    pub async fn queue_list(
+        &self,
+        parent: &str,
+    ) -> Result<
+        Vec<objectiveai_sdk::cli::command::agents::message_queue::read::pending::ResponseItem>,
+        Error,
+    > {
+        super::super::db::prompts::list_async(self.clone(), parent.to_string()).await
+    }
 }
 
 // -- Pure helpers (no &Client) ---------------------------------------------

@@ -59,13 +59,27 @@ pub enum Response {
     /// returned, newest-bound first.
     #[schemars(title = "AgentInstanceHierarchy")]
     AgentInstanceHierarchy { tags: Vec<String> },
+    /// A successful tag → state lookup. Flattens the 2-state
+    /// status onto the same JSON object — yielding e.g.
+    /// `{"by":"tag","state":"bound","agent_instance_hierarchy":"…"}`.
     #[schemars(title = "Tag")]
-    Tag { state: LookupState },
+    Tag {
+        #[serde(flatten)]
+        state: LookupState,
+    },
+    /// The looked-up tag is not registered. Hoisted to a top-level
+    /// variant (rather than as a `LookupState::Absent` nested in
+    /// `Tag`) so the wire shape says "no such tag" instead of
+    /// "the tag exists with state absent".
+    #[schemars(title = "Absent")]
+    Absent,
 }
 
-/// Three-state result for a tag-name lookup. PENDING surfaces the
-/// pre-spawn `(parent, agent_full_id)` pair so callers can see why
-/// the tag exists without a hierarchy yet.
+/// 2-state result of a successful tag-name lookup. PENDING surfaces
+/// the pre-spawn `(parent, agent_full_id)` pair so callers can see
+/// why the tag exists without a hierarchy yet. The third "not
+/// registered" possibility is represented at the [`Response`]
+/// level via [`Response::Absent`], not as a variant here.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.tags.lookup.LookupState")]
 #[serde(tag = "state", rename_all = "snake_case")]
@@ -77,8 +91,6 @@ pub enum LookupState {
         parent_agent_instance_hierarchy: String,
         agent_full_id: String,
     },
-    #[schemars(title = "Absent")]
-    Absent,
 }
 
 impl CommandRequest for Request {

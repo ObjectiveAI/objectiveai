@@ -1,7 +1,7 @@
 //! `agents` tier dispatch. Mirrors
 //! `objectiveai-sdk-rs/src/cli/command/agents/mod.rs`. Mix of unary
 //! leaves (`get`, `me`, `message`, `publish`) and streaming sub-trees
-//! (`list`, `read`, `spawn` — spawn is the chunk-or-id leaf whose
+//! (`list`, `read`, `spawn` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â spawn is the chunk-or-id leaf whose
 //! `execute` decides streaming vs unary internally based on
 //! `dangerous_advanced.stream`).
 
@@ -18,6 +18,7 @@ pub mod list;
 pub mod me;
 pub mod message;
 pub mod publish;
+pub mod message_queue;
 pub mod read;
 pub mod spawn;
 pub mod tags;
@@ -83,6 +84,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::PublishResponseSchema(req) => {
             let value = publish::response_schema::execute(ctx, req).await?;
             once(Ok(ResponseItem::PublishResponseSchema(value)))
+        }
+        Request::MessageQueue(req) => {
+            let inner = message_queue::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::MessageQueue)))
         }
         Request::Read(req) => {
             let inner = read::execute(ctx, req).await?;

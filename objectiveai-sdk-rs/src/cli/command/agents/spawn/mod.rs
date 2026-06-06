@@ -59,7 +59,7 @@ pub enum RequestPrompt {
 }
 
 impl RequestPrompt {
-    fn push_flags(&self, out: &mut Vec<String>) {
+    pub fn push_flags(&self, out: &mut Vec<String>) {
         match self {
             RequestPrompt::Inline(msgs) => {
                 out.push("--inline".to_string());

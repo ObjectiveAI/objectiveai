@@ -8,15 +8,17 @@ pub struct Client {
     pub commit_author_email: String,
     /// Lazily-initialised SQLite connection shared across clones of this
     /// `Client`. Populated on first call to `filesystem::db::connection::connection`.
-    /// Wrapped in `Arc<Mutex<Option<…>>>` so every clone sees the same
+    /// Wrapped in `Arc<Mutex<Option<â€¦>>>` so every clone sees the same
     /// connection once one exists, and so init failures don't poison
-    /// the slot — a failed attempt leaves the inner `Option::None`
+    /// the slot â€” a failed attempt leaves the inner `Option::None`
     /// intact and later calls can retry.
     db_conn: Arc<Mutex<Option<Arc<Mutex<rusqlite::Connection>>>>>,
-    /// Parallel slot for the dedicated `tags.sqlite` connection — same
+    /// Parallel slot for the dedicated `tags.sqlite` connection â€” same
     /// lazy-init semantics as `db_conn` but a separate file so the
     /// agent-tags lifecycle stays isolated from the main message-log
-    /// database.
+    /// database. Now also hosts the `prompts` table for
+    /// `agents message-queue {add,list}` so the queue-list leaf can JOIN
+    /// prompts â¨ tags in one query.
     tags_db_conn: Arc<Mutex<Option<Arc<Mutex<rusqlite::Connection>>>>>,
 }
 
@@ -70,6 +72,7 @@ impl Client {
     }
 
     /// Path to the dedicated `tags.sqlite` file under `base_dir`.
+    /// Also holds the `prompts` table for `agents message-queue {add,list}`.
     pub fn tags_db_path(&self) -> PathBuf {
         self.base_dir.join("tags.sqlite")
     }
@@ -95,7 +98,8 @@ impl Client {
 
     /// Internal accessor to the dedicated tags-db lazy-init slot. Used
     /// by `filesystem::db::tags` to open the `tags.sqlite` connection
-    /// on first use.
+    /// on first use. The connection is shared with `filesystem::db::prompts`
+    /// since both tables live in the same file.
     pub(crate) fn tags_db_conn_slot(
         &self,
     ) -> &Mutex<Option<Arc<Mutex<rusqlite::Connection>>>> {

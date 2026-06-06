@@ -1,9 +1,9 @@
-/// Convert a typed CLI response item into its MCP-shaped projection —
+/// Convert a typed CLI response item into its MCP-shaped projection â€”
 /// either a media [`ContentBlock`] for MCP tool results or a JSONL
 /// `serde_json::Value` for the line-oriented stream wire format.
 /// Implementors are the per-leaf response shapes in the surrounding
-/// tree (`agents::spawn::ResponseItem`, `tools::run::ResponseItem`, …)
-/// — not yet wired up; the trait exists to anchor the contract.
+/// tree (`agents::spawn::ResponseItem`, `tools::run::ResponseItem`, â€¦)
+/// â€” not yet wired up; the trait exists to anchor the contract.
 #[cfg(feature = "mcp")]
 pub trait CommandResponse {
     fn into_mcp(self) -> McpResponseItem;
@@ -62,7 +62,29 @@ impl CommandResponse for crate::agent::completions::message::File {
     }
 }
 
-// JSONL passthrough — `serde_json::to_value(self)` is the body for
+// `RichContentPart` is a sum over the four media types above plus
+// `Text(String)`. Used directly as the `agents message-queue read id` leaf's
+// `Response` type so the queue-content reader's wire shape is bit-
+// identical to a rich-content part. Each arm delegates to the inner
+// type's impl: media variants pick up
+// `McpResponseItem::Media(ContentBlock::â€¦)`, `Text` picks up
+// `Value::String` via the `String` impl below.
+#[cfg(feature = "mcp")]
+impl CommandResponse for crate::agent::completions::message::RichContentPart {
+    fn into_mcp(self) -> McpResponseItem {
+        use crate::agent::completions::message::RichContentPart;
+        match self {
+            RichContentPart::Text { text } => text.into_mcp(),
+            RichContentPart::ImageUrl { image_url } => image_url.into_mcp(),
+            RichContentPart::InputAudio { input_audio } => input_audio.into_mcp(),
+            RichContentPart::InputVideo { video_url } => video_url.into_mcp(),
+            RichContentPart::VideoUrl { video_url } => video_url.into_mcp(),
+            RichContentPart::File { file } => file.into_mcp(),
+        }
+    }
+}
+
+// JSONL passthrough â€” `serde_json::to_value(self)` is the body for
 // every alias target whose leaf simply emits its serde-shaped value
 // as one JSONL line. Special-cased shortcuts: `String` constructs
 // `Value::String` directly; `serde_json::Value` rides through as-is;

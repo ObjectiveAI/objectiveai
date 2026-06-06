@@ -27,26 +27,22 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         }
         Request::Tag { tag, .. } => {
             let state = db::tags::lookup_async(ctx.filesystem.clone(), tag).await?;
-            Ok(Response::Tag {
-                state: db_to_sdk_state(state),
+            Ok(match state {
+                db::tags::LookupState::Bound { agent_instance_hierarchy } => Response::Tag {
+                    state: LookupState::Bound { agent_instance_hierarchy },
+                },
+                db::tags::LookupState::Pending {
+                    parent_agent_instance_hierarchy,
+                    agent_full_id,
+                } => Response::Tag {
+                    state: LookupState::Pending {
+                        parent_agent_instance_hierarchy,
+                        agent_full_id,
+                    },
+                },
+                db::tags::LookupState::Absent => Response::Absent,
             })
         }
-    }
-}
-
-fn db_to_sdk_state(state: db::tags::LookupState) -> LookupState {
-    match state {
-        db::tags::LookupState::Bound { agent_instance_hierarchy } => LookupState::Bound {
-            agent_instance_hierarchy,
-        },
-        db::tags::LookupState::Pending {
-            parent_agent_instance_hierarchy,
-            agent_full_id,
-        } => LookupState::Pending {
-            parent_agent_instance_hierarchy,
-            agent_full_id,
-        },
-        db::tags::LookupState::Absent => LookupState::Absent,
     }
 }
 
