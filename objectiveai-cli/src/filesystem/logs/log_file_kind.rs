@@ -1,9 +1,9 @@
 //! Typed classification of paths stored in the `files` table.
 //!
 //! Every distinct write site under `logs/` produces files in one of a
-//! finite set of "kinds" — `read_agent_completion_message_image`'s
+//! finite set of "kinds" — `read_agent_completion_message_assistant_image`'s
 //! `agents/completions/response/messages/assistant/image/<id>_<msg>_<media>.<ext>`,
-//! `read_agent_completion_message_reasoning`'s
+//! `read_agent_completion_message_assistant_reasoning`'s
 //! `.../messages/assistant/reasoning/<id>_<msg>.txt`, and so on. Each
 //! kind maps 1:1 to a typed `Client::read_*` method, and to the args
 //! that method requires.
@@ -68,22 +68,26 @@ pub enum LogFileKind {
     FunctionInventionRecursiveRequest { id: String },
 
     // -- Per-message metadata (response side, JSON) -------------------------
-    /// `agents/completions/response/messages/{assistant,tool}/<id>_<msg>.json`
-    /// — [`crate::filesystem::Client::read_agent_completion_message`]
-    /// (probes the assistant subdir first, then tool).
-    AgentCompletionMessage { id: String, message_index: u64 },
+    /// `agents/completions/response/messages/assistant/<id>_<msg>.json`
+    /// — an `AssistantResponseChunkLog` envelope, exactly as written.
+    /// [`crate::filesystem::Client::read_agent_completion_message_assistant`].
+    AgentCompletionMessageAssistant { id: String, message_index: u64 },
+    /// `agents/completions/response/messages/tool/<id>_<msg>.json`
+    /// — a `ToolResponseLog` envelope, exactly as written.
+    /// [`crate::filesystem::Client::read_agent_completion_message_tool`].
+    AgentCompletionMessageTool { id: String, message_index: u64 },
     /// `agents/completions/response/messages/assistant/logprobs/<id>_<msg>.json`
-    /// — [`crate::filesystem::Client::read_agent_completion_message_logprobs`].
-    AgentCompletionMessageLogprobs { id: String, message_index: u64 },
+    /// — [`crate::filesystem::Client::read_agent_completion_message_assistant_logprobs`].
+    AgentCompletionMessageAssistantLogprobs { id: String, message_index: u64 },
     /// `agents/completions/response/messages/assistant/reasoning/<id>_<msg>.txt`
-    /// — [`crate::filesystem::Client::read_agent_completion_message_reasoning`].
-    AgentCompletionMessageReasoning { id: String, message_index: u64 },
+    /// — [`crate::filesystem::Client::read_agent_completion_message_assistant_reasoning`].
+    AgentCompletionMessageAssistantReasoning { id: String, message_index: u64 },
     /// `agents/completions/response/messages/assistant/refusal/<id>_<msg>.txt`
-    /// — [`crate::filesystem::Client::read_agent_completion_message_refusal`].
-    AgentCompletionMessageRefusal { id: String, message_index: u64 },
+    /// — [`crate::filesystem::Client::read_agent_completion_message_assistant_refusal`].
+    AgentCompletionMessageAssistantRefusal { id: String, message_index: u64 },
     /// `agents/completions/response/messages/assistant/tool_calls/<id>_<msg>_<tc>.json`
-    /// — [`crate::filesystem::Client::read_agent_completion_message_tool_call`].
-    AgentCompletionMessageToolCall {
+    /// — [`crate::filesystem::Client::read_agent_completion_message_assistant_tool_call`].
+    AgentCompletionMessageAssistantToolCall {
         id: String,
         message_index: u64,
         tool_call_index: u64,
@@ -91,36 +95,36 @@ pub enum LogFileKind {
 
     // -- Assistant content (response side) ---------------------------------
     /// `agents/completions/response/messages/assistant/text/<id>_<msg>[_<part>].txt`
-    /// — [`crate::filesystem::Client::read_agent_completion_message_text`].
-    AgentCompletionMessageText {
+    /// — [`crate::filesystem::Client::read_agent_completion_message_assistant_text`].
+    AgentCompletionMessageAssistantText {
         id: String,
         message_index: u64,
         media_index: Option<u64>,
     },
     /// `agents/completions/response/messages/assistant/image/<id>_<msg>_<part>.<ext>`
-    /// — [`crate::filesystem::Client::read_agent_completion_message_image`].
-    AgentCompletionMessageImage {
+    /// — [`crate::filesystem::Client::read_agent_completion_message_assistant_image`].
+    AgentCompletionMessageAssistantImage {
         id: String,
         message_index: u64,
         media_index: u64,
     },
     /// `agents/completions/response/messages/assistant/audio/<id>_<msg>_<part>.<ext>`
-    /// — [`crate::filesystem::Client::read_agent_completion_message_audio`].
-    AgentCompletionMessageAudio {
+    /// — [`crate::filesystem::Client::read_agent_completion_message_assistant_audio`].
+    AgentCompletionMessageAssistantAudio {
         id: String,
         message_index: u64,
         media_index: u64,
     },
     /// `agents/completions/response/messages/assistant/video/<id>_<msg>_<part>.<ext>`
-    /// — [`crate::filesystem::Client::read_agent_completion_message_video`].
-    AgentCompletionMessageVideo {
+    /// — [`crate::filesystem::Client::read_agent_completion_message_assistant_video`].
+    AgentCompletionMessageAssistantVideo {
         id: String,
         message_index: u64,
         media_index: u64,
     },
     /// `agents/completions/response/messages/assistant/file/<id>_<msg>_<part>.<ext>`
-    /// — [`crate::filesystem::Client::read_agent_completion_message_file`].
-    AgentCompletionMessageFile {
+    /// — [`crate::filesystem::Client::read_agent_completion_message_assistant_file`].
+    AgentCompletionMessageAssistantFile {
         id: String,
         message_index: u64,
         media_index: u64,
@@ -351,28 +355,31 @@ impl LogFileKind {
             // branches above; the prefix carries the role.
             "agents/completions/response/messages/assistant" => {
                 let (id, message_index) = peel_u64(stem)?;
-                Some(Self::AgentCompletionMessage { id, message_index })
+                Some(Self::AgentCompletionMessageAssistant {
+                    id,
+                    message_index,
+                })
             }
             "agents/completions/response/messages/assistant/logprobs" => {
                 let (id, message_index) = peel_u64(stem)?;
-                Some(Self::AgentCompletionMessageLogprobs { id, message_index })
+                Some(Self::AgentCompletionMessageAssistantLogprobs { id, message_index })
             }
             "agents/completions/response/messages/assistant/reasoning" => {
                 let (id, message_index) = peel_u64(stem)?;
-                Some(Self::AgentCompletionMessageReasoning {
+                Some(Self::AgentCompletionMessageAssistantReasoning {
                     id,
                     message_index,
                 })
             }
             "agents/completions/response/messages/assistant/refusal" => {
                 let (id, message_index) = peel_u64(stem)?;
-                Some(Self::AgentCompletionMessageRefusal { id, message_index })
+                Some(Self::AgentCompletionMessageAssistantRefusal { id, message_index })
             }
             // stem == "id_msg_tc" — peel TWO trailing u64s.
             "agents/completions/response/messages/assistant/tool_calls" => {
                 let (rest, tool_call_index) = peel_u64(stem)?;
                 let (id, message_index) = peel_u64(&rest)?;
-                Some(Self::AgentCompletionMessageToolCall {
+                Some(Self::AgentCompletionMessageAssistantToolCall {
                     id,
                     message_index,
                     tool_call_index,
@@ -380,7 +387,7 @@ impl LogFileKind {
             }
             "agents/completions/response/messages/assistant/text" => {
                 let (id, message_index, media_index) = peel_text_stem(stem)?;
-                Some(Self::AgentCompletionMessageText {
+                Some(Self::AgentCompletionMessageAssistantText {
                     id,
                     message_index,
                     media_index,
@@ -389,7 +396,7 @@ impl LogFileKind {
             "agents/completions/response/messages/assistant/image" => {
                 let (rest, media_index) = peel_u64(stem)?;
                 let (id, message_index) = peel_u64(&rest)?;
-                Some(Self::AgentCompletionMessageImage {
+                Some(Self::AgentCompletionMessageAssistantImage {
                     id,
                     message_index,
                     media_index,
@@ -398,7 +405,7 @@ impl LogFileKind {
             "agents/completions/response/messages/assistant/audio" => {
                 let (rest, media_index) = peel_u64(stem)?;
                 let (id, message_index) = peel_u64(&rest)?;
-                Some(Self::AgentCompletionMessageAudio {
+                Some(Self::AgentCompletionMessageAssistantAudio {
                     id,
                     message_index,
                     media_index,
@@ -407,7 +414,7 @@ impl LogFileKind {
             "agents/completions/response/messages/assistant/video" => {
                 let (rest, media_index) = peel_u64(stem)?;
                 let (id, message_index) = peel_u64(&rest)?;
-                Some(Self::AgentCompletionMessageVideo {
+                Some(Self::AgentCompletionMessageAssistantVideo {
                     id,
                     message_index,
                     media_index,
@@ -416,7 +423,7 @@ impl LogFileKind {
             "agents/completions/response/messages/assistant/file" => {
                 let (rest, media_index) = peel_u64(stem)?;
                 let (id, message_index) = peel_u64(&rest)?;
-                Some(Self::AgentCompletionMessageFile {
+                Some(Self::AgentCompletionMessageAssistantFile {
                     id,
                     message_index,
                     media_index,
@@ -428,11 +435,9 @@ impl LogFileKind {
             // `crate::logs::agents::completions::response::tool_response`
             // at `messages/tool/<id>_<msg>.json`, mirrored by
             // `crate::filesystem::db::schema::message_kind_file_path`.
-            // Same `AgentCompletionMessage` kind as the assistant
-            // envelope; the reader probes both role subdirs.
             "agents/completions/response/messages/tool" => {
                 let (id, message_index) = peel_u64(stem)?;
-                Some(Self::AgentCompletionMessage { id, message_index })
+                Some(Self::AgentCompletionMessageTool { id, message_index })
             }
             "agents/completions/response/messages/tool/text" => {
                 let (id, message_index, media_index) = peel_text_stem(stem)?;
@@ -684,7 +689,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             k,
-            LogFileKind::AgentCompletionMessage {
+            LogFileKind::AgentCompletionMessageAssistant {
                 id: "acc-1".into(),
                 message_index: 0
             }
@@ -693,15 +698,13 @@ mod tests {
 
     #[test]
     fn tool_message_envelope() {
-        // ToolResponse envelopes share the AgentCompletionMessage kind
-        // with assistant envelopes; the reader probes both subdirs.
         let k = LogFileKind::from_path(
             "agents/completions/response/messages/tool/acc-1_1.json",
         )
         .unwrap();
         assert_eq!(
             k,
-            LogFileKind::AgentCompletionMessage {
+            LogFileKind::AgentCompletionMessageTool {
                 id: "acc-1".into(),
                 message_index: 1
             }
@@ -716,7 +719,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             k,
-            LogFileKind::AgentCompletionMessageReasoning {
+            LogFileKind::AgentCompletionMessageAssistantReasoning {
                 id: "acc-1".into(),
                 message_index: 0
             }
@@ -731,7 +734,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             k,
-            LogFileKind::AgentCompletionMessageToolCall {
+            LogFileKind::AgentCompletionMessageAssistantToolCall {
                 id: "acc-1".into(),
                 message_index: 0,
                 tool_call_index: 2
@@ -747,7 +750,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             k,
-            LogFileKind::AgentCompletionMessageImage {
+            LogFileKind::AgentCompletionMessageAssistantImage {
                 id: "acc-1".into(),
                 message_index: 0,
                 media_index: 3
@@ -764,7 +767,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             k,
-            LogFileKind::AgentCompletionMessageText {
+            LogFileKind::AgentCompletionMessageAssistantText {
                 id: "acc-1".into(),
                 message_index: 0,
                 media_index: None
@@ -781,7 +784,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             k,
-            LogFileKind::AgentCompletionMessageText {
+            LogFileKind::AgentCompletionMessageAssistantText {
                 id: "acc-1".into(),
                 message_index: 0,
                 media_index: Some(2)
@@ -970,7 +973,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             k,
-            LogFileKind::AgentCompletionMessageReasoning {
+            LogFileKind::AgentCompletionMessageAssistantReasoning {
                 id: "my_id_with_dashes".into(),
                 message_index: 7
             }

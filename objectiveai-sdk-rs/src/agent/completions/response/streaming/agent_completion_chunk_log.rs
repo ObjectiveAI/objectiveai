@@ -3,8 +3,11 @@
 //! Mirrors [`super::AgentCompletionChunk`] field-for-field, with
 //! two type swaps:
 //!
-//! - `messages: Vec<MessageChunk>` → `Vec<LogReference>` since each
-//!   message is extracted to its own file.
+//! - `messages: Vec<MessageChunk>` →
+//!   `Vec<message_log_reference::LogReference>` since each message is
+//!   extracted to its own role-subdir file; the reference carries the
+//!   message's `index` and `role` so consumers know which
+//!   role-specific command reads it without parsing the path.
 //! - `continuation: Option<String>` → `Option<LogReference>` since
 //!   the continuation token is extracted to its own file.
 //!
@@ -31,7 +34,7 @@ pub struct AgentCompletionChunkLog {
     #[schemars(extend("omitempty" = true))]
     pub agent_remote: Option<crate::RemotePath>,
     pub created: u64,
-    pub messages: Vec<LogReference>,
+    pub messages: Vec<super::message_log_reference::LogReference>,
     pub object: response::streaming::Object,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]

@@ -1,87 +1,82 @@
-
-use super::*;
-use objectiveai_sdk::agent::completions::message::{File as FileBlob, ImageUrl, InputAudio};
-use rmcp::model::RawContent;
+use crate::format::format_items;
+use objectiveai_sdk::agent::completions::message::{
+    File as FileBlob, ImageUrl, InputAudio, VideoUrl,
+};
+use objectiveai_sdk::cli::command::McpResponseItem;
+use rmcp::model::{Content, RawContent};
 use serde_json::{Value, json};
 
-/// Construct a typed `RunItem::Command(ResponseItem)` from a JSON
-/// value that matches the externally-tagged wire shape. Lets tests
-/// stay short — building the full nested ResponseItem chain by
-/// hand is impractical at 6+ levels deep for the Logs tier.
-fn run_item(value: Value) -> Result<RunItem, Error> {
-    let ri: ResponseItem = serde_json::from_value(value).expect("ResponseItem deserialize");
-    Ok(RunItem::Command(ri))
+/// `McpResponseItem::JSONL(Value::String)` shorthand — a raw string
+/// item, e.g. a tool stdout line or a plugin notification string.
+fn jsonl_str(s: &str) -> McpResponseItem {
+    McpResponseItem::JSONL(Value::String(s.to_string()))
 }
 
-/// `Tools::Run::Stdout(line)` shorthand.
-fn stdout_line(line: &str) -> Result<RunItem, Error> {
-    run_item(json!({"Tools": {"Run": line}}))
+/// `McpResponseItem::JSONL(<typed value>)` shorthand — e.g. an error
+/// envelope or a typed log object.
+fn jsonl(value: Value) -> McpResponseItem {
+    McpResponseItem::JSONL(value)
 }
 
-/// `Tools::Run::Stderr(cli::Error)` shorthand. The untagged variant
-/// distinguishes Stderr from Stdout by the `"type":"error"` tag on
-/// the inner cli::Error.
-fn stderr_line(line: &str) -> Result<RunItem, Error> {
-    run_item(json!({
-        "Tools": {"Run": {"type": "error", "message": line}}
-    }))
+fn valid_png_data_url() -> &'static str {
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
 }
 
-/// `Plugins::Run::Notification(<value>)` shorthand.
-fn plugin_notification(value: Value) -> Result<RunItem, Error> {
-    run_item(json!({"Plugins": {"Run": value}}))
+/// A real media item — a data-URL `ImageUrl` converts to
+/// `ContentBlock::Image`, which the bridge renders as
+/// `RawContent::Image`.
+fn image_item() -> McpResponseItem {
+    McpResponseItem::Media(
+        ImageUrl {
+            url: valid_png_data_url().to_string(),
+            detail: None,
+        }
+        .into(),
+    )
 }
 
-fn plugin_notification_string(s: &str) -> Result<RunItem, Error> {
-    plugin_notification(Value::String(s.to_string()))
+/// A real media item — `InputAudio` converts to `ContentBlock::Audio`.
+fn audio_item(data: &str, format: &str) -> McpResponseItem {
+    McpResponseItem::Media(
+        InputAudio {
+            data: data.to_string(),
+            format: format.to_string(),
+        }
+        .into(),
+    )
 }
 
-/// A free-form CLI error. Renders as the
-/// `{"type":"error","fatal":true,...}` envelope.
-fn err(message: &str) -> Result<RunItem, Error> {
-    Err(Error::MissingArgs(Box::leak(
-        message.to_string().into_boxed_str(),
-    )))
+/// A text-carrier media item — the SDK encodes `VideoUrl` as a
+/// `ContentBlock::Text` whose body is the URL (never EmbeddedResource
+/// by design).
+fn video_item(url: &str) -> McpResponseItem {
+    McpResponseItem::Media(
+        VideoUrl {
+            url: url.to_string(),
+        }
+        .into(),
+    )
 }
 
-/// Construct a Logs-tier `Image` leaf via JSON synthesis. Picks
-/// the shortest valid path — `Logs::Agents::Completions::Response::Messages::Image::Get(ImageUrl)`
-/// — that exercises the chain walker.
-fn image_url_leaf(url: &str) -> Value {
-    json!({
-        "Logs": {"Agents": {"Completions": {"Response": {"Messages": {"Image": {"Get": {"url": url}}}}}}}
-    })
-}
-
-fn audio_leaf(data: &str, format: &str) -> Value {
-    json!({
-        "Logs": {"Agents": {"Completions": {"Response": {"Messages": {"Audio": {"Get": {"data": data, "format": format}}}}}}}
-    })
-}
-
-fn video_leaf(url: &str) -> Value {
-    json!({
-        "Logs": {"Agents": {"Completions": {"Response": {"Messages": {"Video": {"Get": {"url": url}}}}}}}
-    })
-}
-
-fn file_leaf(file_data: &str, filename: &str) -> Value {
-    json!({
-        "Logs": {"Agents": {"Completions": {"Response": {"Messages": {"File": {"Get": {"file_data": file_data, "filename": filename}}}}}}}
-    })
-}
-
-fn text_leaf(text: &str) -> Value {
-    json!({
-        "Logs": {"Agents": {"Completions": {"Response": {"Messages": {"Text": {"Get": text}}}}}}
-    })
+/// A text-carrier media item — `File.file_data` encodes as a
+/// `ContentBlock::Text` with a `data:application/octet-stream` URL.
+fn file_item(file_data: &str, filename: &str) -> McpResponseItem {
+    McpResponseItem::Media(
+        FileBlob {
+            file_data: Some(file_data.to_string()),
+            file_url: None,
+            file_id: None,
+            filename: Some(filename.to_string()),
+        }
+        .into(),
+    )
 }
 
 /// Concatenate the response's text-content bodies and skip every
 /// media block. The flanking `"` text blocks that bracket each
 /// media block are kept; together they form an empty string element
 /// (`""`) in the JSON-array view — which is what makes the
-/// strip-media result still parse as a valid `Vec<String>`.
+/// strip-media result still parse as a valid array.
 fn collect_body_strip_media(blocks: &[Content]) -> String {
     let mut s = String::new();
     for block in blocks {
@@ -92,201 +87,188 @@ fn collect_body_strip_media(blocks: &[Content]) -> String {
     s
 }
 
+/// Multi-item bodies parse as `Vec<Value>` — string items and media
+/// slots land as string elements, typed JSON items as their own
+/// (object / array / number / bool / null) elements.
+fn parse_array(body: &str) -> Vec<Value> {
+    serde_json::from_str::<Vec<Value>>(body)
+        .unwrap_or_else(|e| panic!("body is not a JSON array: {e}; body: {body}"))
+}
+
 fn parse_array_of_strings(body: &str) -> Vec<String> {
     serde_json::from_str::<Vec<String>>(body)
         .unwrap_or_else(|e| panic!("body is not a JSON array of strings: {e}; body: {body}"))
 }
 
-#[test]
-fn empty_returns_sentinel() {
-    let blocks = format_items(&[]);
-    assert_eq!(blocks.len(), 1);
+/// The single text block's body (panics on media / multi-block).
+fn single_text_body(blocks: &[Content]) -> String {
+    assert_eq!(blocks.len(), 1, "expected exactly one block");
     match &blocks[0].raw {
-        RawContent::Text(t) => assert_eq!(t.text, "<empty>"),
+        RawContent::Text(t) => t.text.clone(),
         other => panic!("expected text block, got {other:?}"),
     }
 }
 
 #[test]
-fn single_toolline_stdout_is_raw_line() {
-    let items = vec![stdout_line("hello world\n")];
-    let blocks = format_items(&items);
-    let body = collect_body_strip_media(&blocks);
-    let arr = parse_array_of_strings(&body);
-    assert_eq!(arr, vec!["hello world\n"]);
+fn empty_returns_sentinel() {
+    let blocks = format_items(vec![]);
+    assert_eq!(single_text_body(&blocks), "<empty>");
 }
 
 #[test]
-fn single_toolline_stderr_is_bare_error_json() {
-    let items = vec![stderr_line("oops")];
-    let blocks = format_items(&items);
-    let body = collect_body_strip_media(&blocks);
-    let arr = parse_array_of_strings(&body);
-    assert_eq!(arr.len(), 1);
-    let inner: Value = serde_json::from_str(&arr[0]).expect("inner is JSON");
+fn single_string_is_raw_unescaped() {
+    // Single-item mode: the response IS the item — no array
+    // brackets, no quotes, no escaping.
+    let raw = "hello \"quoted\" world\nwith newline";
+    let blocks = format_items(vec![jsonl_str(raw)]);
+    assert_eq!(single_text_body(&blocks), raw);
+}
+
+#[test]
+fn single_json_object_is_serialized() {
+    let blocks = format_items(vec![jsonl(json!({"type": "error", "message": "oops"}))]);
+    let body = single_text_body(&blocks);
+    let inner: Value = serde_json::from_str(&body).expect("body is JSON");
     assert_eq!(inner["type"], "error");
     assert_eq!(inner["message"], "oops");
 }
 
 #[test]
-fn plugin_notification_string_payload() {
-    let items = vec![plugin_notification_string("plain text")];
-    let blocks = format_items(&items);
-    let body = collect_body_strip_media(&blocks);
-    let arr = parse_array_of_strings(&body);
-    assert_eq!(arr, vec!["plain text"]);
+fn single_image_is_bare_media_block() {
+    let blocks = format_items(vec![image_item()]);
+    assert_eq!(blocks.len(), 1);
+    assert!(
+        matches!(blocks[0].raw, RawContent::Image(_)),
+        "expected an Image content block"
+    );
 }
 
 #[test]
-fn plugin_notification_object_payload() {
-    let items = vec![plugin_notification(json!({"hello": "world"}))];
-    let blocks = format_items(&items);
-    let body = collect_body_strip_media(&blocks);
-    let arr = parse_array_of_strings(&body);
-    assert_eq!(arr, vec![r#"{"hello":"world"}"#]);
+fn single_audio_is_bare_media_block() {
+    let blocks = format_items(vec![audio_item("SUQzBAA", "audio/mpeg")]);
+    assert_eq!(blocks.len(), 1);
+    assert!(
+        matches!(blocks[0].raw, RawContent::Audio(_)),
+        "expected an Audio content block"
+    );
 }
 
 #[test]
-fn single_error_is_full_envelope_quoted() {
-    let items = vec![err("nope")];
-    let blocks = format_items(&items);
-    let body = collect_body_strip_media(&blocks);
-    let arr = parse_array_of_strings(&body);
-    assert_eq!(arr.len(), 1);
-    let inner: Value = serde_json::from_str(&arr[0]).expect("inner is JSON");
-    assert_eq!(inner["type"], "error");
-    assert_eq!(inner["fatal"], true);
+fn single_video_text_carrier_is_raw_body() {
+    // VideoUrl is a Text-carrier ContentBlock; single-item mode emits
+    // the body raw — the data URL itself.
+    let blocks = format_items(vec![video_item("data:video/mp4;base64,AAAA")]);
+    assert_eq!(single_text_body(&blocks), "data:video/mp4;base64,AAAA");
 }
 
 #[test]
-fn multi_mixed_outputs() {
-    let items = vec![
-        stdout_line("a"),
-        stderr_line("b"),
-        plugin_notification_string("c"),
-    ];
-    let blocks = format_items(&items);
+fn single_file_text_carrier_is_raw_body() {
+    let blocks = format_items(vec![file_item("JVBERi0", "report.pdf")]);
+    let body = single_text_body(&blocks);
+    assert!(
+        body.starts_with("data:application/octet-stream;base64,"),
+        "expected file_data data URL, got {body}"
+    );
+}
+
+#[test]
+fn multi_strings_parse_as_array() {
+    let blocks = format_items(vec![jsonl_str("a"), jsonl_str("b"), jsonl_str("c")]);
     let body = collect_body_strip_media(&blocks);
     let arr = parse_array_of_strings(&body);
+    assert_eq!(arr, vec!["a", "b", "c"]);
+}
+
+#[test]
+fn multi_mixed_strings_and_objects() {
+    let blocks = format_items(vec![
+        jsonl_str("a"),
+        jsonl(json!({"type": "error", "message": "b"})),
+        jsonl_str("c"),
+    ]);
+    let body = collect_body_strip_media(&blocks);
+    let arr = parse_array(&body);
     assert_eq!(arr.len(), 3);
     assert_eq!(arr[0], "a");
-    let inner1: Value = serde_json::from_str(&arr[1]).expect("inner1 is JSON");
-    assert_eq!(inner1["message"], "b");
+    assert_eq!(arr[1]["message"], "b");
     assert_eq!(arr[2], "c");
 }
 
 #[test]
-fn log_text_leaf_renders_as_string() {
-    let items = vec![run_item(text_leaf("hello"))];
-    let blocks = format_items(&items);
-    let body = collect_body_strip_media(&blocks);
-    let arr = parse_array_of_strings(&body);
-    assert_eq!(arr, vec!["hello"]);
-}
-
-#[test]
-fn log_image_leaf_emits_media_block() {
-    let items = vec![run_item(image_url_leaf("data:image/png;base64,iVBORw0KGgo"))];
-    let blocks = format_items(&items);
+fn multi_image_collapses_to_empty_string_slot() {
+    let blocks = format_items(vec![jsonl_str("before"), image_item(), jsonl_str("after")]);
     assert!(
         blocks.iter().any(|b| matches!(b.raw, RawContent::Image(_))),
         "expected an Image content block"
     );
     let body = collect_body_strip_media(&blocks);
     let arr = parse_array_of_strings(&body);
-    assert_eq!(arr, vec![""]);
+    assert_eq!(arr, vec!["before", "", "after"]);
 }
 
 #[test]
-fn log_audio_leaf_emits_audio_block() {
-    let items = vec![run_item(audio_leaf("SUQzBAA", "audio/mpeg"))];
-    let blocks = format_items(&items);
+fn multi_audio_collapses_to_empty_string_slot() {
+    let blocks = format_items(vec![
+        jsonl_str("x"),
+        audio_item("SUQzBAA", "audio/mpeg"),
+    ]);
     assert!(
         blocks.iter().any(|b| matches!(b.raw, RawContent::Audio(_))),
         "expected an Audio content block"
     );
     let body = collect_body_strip_media(&blocks);
     let arr = parse_array_of_strings(&body);
-    assert_eq!(arr, vec![""]);
+    assert_eq!(arr, vec!["x", ""]);
 }
 
-/// VideoUrl/InputVideo go through the SDK's RichContentPart →
-/// ContentBlock conversion as a Text carrier (the SDK never emits
-/// EmbeddedResource for video by design). From the strip-media
-/// projection, the data URL survives as a single string element.
 #[test]
-fn log_video_leaf_lands_as_text_carrier() {
-    let items = vec![run_item(video_leaf("data:video/mp4;base64,AAAA"))];
-    let blocks = format_items(&items);
+fn multi_video_text_carrier_lands_as_string_element() {
+    // Text-carrier media bodies are NOT json-escaped — a data URL
+    // contains no quotes, so the element stays parseable.
+    let blocks = format_items(vec![
+        jsonl_str("x"),
+        video_item("data:video/mp4;base64,AAAA"),
+    ]);
     let body = collect_body_strip_media(&blocks);
     let arr = parse_array_of_strings(&body);
-    assert_eq!(arr, vec!["data:video/mp4;base64,AAAA"]);
+    assert_eq!(arr, vec!["x", "data:video/mp4;base64,AAAA"]);
 }
 
-/// File similarly lands as a Text carrier — the SDK encodes file
-/// payloads as a `data:application/octet-stream;base64,...` URL
-/// with marker meta on the conversion side.
 #[test]
-fn log_file_leaf_lands_as_text_carrier() {
-    let items = vec![run_item(file_leaf("JVBERi0", "report.pdf"))];
-    let blocks = format_items(&items);
+fn multi_file_text_carrier_lands_as_string_element() {
+    let blocks = format_items(vec![jsonl_str("x"), file_item("JVBERi0", "report.pdf")]);
     let body = collect_body_strip_media(&blocks);
     let arr = parse_array_of_strings(&body);
-    assert_eq!(arr.len(), 1);
+    assert_eq!(arr.len(), 2);
     assert!(
-        arr[0].starts_with("data:application/octet-stream;base64,"),
+        arr[1].starts_with("data:application/octet-stream;base64,"),
         "expected file_data data URL, got {}",
-        arr[0]
+        arr[1]
     );
 }
 
 #[test]
-fn mixed_text_and_media_concat_parses() {
-    let items = vec![
-        stdout_line("before"),
-        run_item(image_url_leaf("data:image/png;base64,iVBORw0KGgo")),
-        stderr_line("after"),
-    ];
-    let blocks = format_items(&items);
-    let body = collect_body_strip_media(&blocks);
-    let arr = parse_array_of_strings(&body);
-    assert_eq!(arr.len(), 3);
-    assert_eq!(arr[0], "before");
-    assert_eq!(arr[1], "");
-    let inner: Value = serde_json::from_str(&arr[2]).expect("inner is JSON");
-    assert_eq!(inner["message"], "after");
-}
-
-#[test]
 fn special_chars_escape_cleanly() {
-    let items = vec![stdout_line(r#"with "quotes" and \backslash"#)];
-    let blocks = format_items(&items);
+    let raw = r#"with "quotes" and \backslash"#;
+    let blocks = format_items(vec![jsonl_str(raw), jsonl_str("tail")]);
     let body = collect_body_strip_media(&blocks);
     let arr = parse_array_of_strings(&body);
-    assert_eq!(arr, vec![r#"with "quotes" and \backslash"#]);
+    assert_eq!(arr, vec![raw, "tail"]);
 }
 
 // ───────────────────────────────────────────────────────────────
 // Mangle-and-length round-trip tests.
 //
-// Each test builds a `Vec<Result<RunItem, Error>>` whose i-th
-// entry is paired with a known *expected string* at index i in the
-// strip-media JSON-array view: string-carrier items expect their
-// raw payload, media items expect `""` (the empty quoted-string
+// Each test builds a `Vec<McpResponseItem>` whose i-th entry is
+// paired with a known *expected string* at index i in the
+// strip-media JSON-array view: string items expect their raw
+// payload, real-media items expect `""` (the empty quoted-string
 // slot the `"`-image-`"` flanking pattern collapses to when the
 // media block is removed). The harness round-trips through
 // `format_items` and asserts (a) the body parses as `Vec<String>`,
 // (b) every element matches by index, (c) the expected number of
 // `RawContent::Image` blocks survives.
 // ───────────────────────────────────────────────────────────────
-
-fn valid_png_data_url() -> &'static str {
-    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
-}
-
-fn image_item() -> Result<RunItem, Error> {
-    run_item(image_url_leaf(valid_png_data_url()))
-}
 
 fn tricky_corpus() -> Vec<String> {
     vec![
@@ -306,7 +288,7 @@ fn tricky_corpus() -> Vec<String> {
 }
 
 fn assert_strings_survive(
-    items: &[Result<RunItem, Error>],
+    items: Vec<McpResponseItem>,
     expected: &[&str],
     expected_image_count: usize,
 ) {
@@ -339,11 +321,11 @@ fn assert_strings_survive(
 #[test]
 fn tricky_strings_survive_roundtrip_with_images_between() {
     let corpus = tricky_corpus();
-    let mut items: Vec<Result<RunItem, Error>> = Vec::with_capacity(corpus.len() * 4);
+    let mut items: Vec<McpResponseItem> = Vec::with_capacity(corpus.len() * 4);
     for s in &corpus {
-        items.push(stdout_line(s));
+        items.push(jsonl_str(s));
         items.push(image_item());
-        items.push(plugin_notification_string(s));
+        items.push(jsonl_str(s));
         items.push(image_item());
     }
     let expected: Vec<&str> = corpus
@@ -351,19 +333,19 @@ fn tricky_strings_survive_roundtrip_with_images_between() {
         .flat_map(|s| [s.as_str(), "", s.as_str(), ""])
         .collect();
     let expected_images = corpus.len() * 2;
-    assert_strings_survive(&items, &expected, expected_images);
+    assert_strings_survive(items, &expected, expected_images);
 }
 
 #[test]
 fn back_to_back_images_between_strings_survive_roundtrip() {
     let items = vec![
-        stdout_line("before"),
+        jsonl_str("before"),
         image_item(),
         image_item(),
         image_item(),
-        stdout_line("\"between\" \\quotes\\"),
+        jsonl_str("\"between\" \\quotes\\"),
         image_item(),
-        plugin_notification_string("end\nwith\nnewlines"),
+        jsonl_str("end\nwith\nnewlines"),
     ];
     let expected: Vec<&str> = vec![
         "before",
@@ -374,7 +356,7 @@ fn back_to_back_images_between_strings_survive_roundtrip() {
         "",
         "end\nwith\nnewlines",
     ];
-    assert_strings_survive(&items, &expected, 4);
+    assert_strings_survive(items, &expected, 4);
 }
 
 #[test]
@@ -383,8 +365,8 @@ fn extreme_length_with_dense_quotes_and_image_survives() {
     let big = unit.repeat(2200);
     assert!(big.len() > 50 * 1024, "big string too small: {}", big.len());
 
-    let items = vec![stdout_line(&big), image_item(), stdout_line("tail")];
-    let blocks = format_items(&items);
+    let items = vec![jsonl_str(&big), image_item(), jsonl_str("tail")];
+    let blocks = format_items(items);
     let body = collect_body_strip_media(&blocks);
     let arr = parse_array_of_strings(&body);
 
@@ -410,11 +392,3 @@ fn extreme_length_with_dense_quotes_and_image_survives() {
         .count();
     assert_eq!(image_count, 1, "exactly one image block expected");
 }
-
-/// Suppress the unused-import warning that the test corpus's
-/// borrowed-but-not-constructed types would otherwise raise on a
-/// debug build (FileBlob / InputAudio / ImageUrl are used via
-/// `serde_json::from_value` paths inside the formatter, not at the
-/// test layer).
-#[allow(dead_code)]
-fn _silence_unused(_: FileBlob, _: InputAudio, _: ImageUrl) {}

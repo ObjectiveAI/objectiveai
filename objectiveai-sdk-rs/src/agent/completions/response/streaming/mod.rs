@@ -10,6 +10,7 @@ mod agent_completion_ids;
 mod assistant_response_chunk;
 mod assistant_response_chunk_log;
 mod message_chunk;
+pub mod message_log_reference;
 mod object;
 
 pub use agent_completion_chunk::*;

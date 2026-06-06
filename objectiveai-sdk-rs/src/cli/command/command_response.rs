@@ -127,6 +127,35 @@ impl CommandResponse for crate::agent::completions::message::AssistantToolCallDe
 }
 
 #[cfg(feature = "mcp")]
+impl CommandResponse for crate::agent::completions::message::AssistantToolCall {
+    fn into_mcp(self) -> McpResponseItem {
+        McpResponseItem::JSONL(
+            serde_json::to_value(self).unwrap(),
+        )
+    }
+}
+
+#[cfg(feature = "mcp")]
+impl CommandResponse
+    for crate::agent::completions::response::streaming::AssistantResponseChunkLog
+{
+    fn into_mcp(self) -> McpResponseItem {
+        McpResponseItem::JSONL(
+            serde_json::to_value(self).unwrap(),
+        )
+    }
+}
+
+#[cfg(feature = "mcp")]
+impl CommandResponse for crate::agent::completions::response::ToolResponseLog {
+    fn into_mcp(self) -> McpResponseItem {
+        McpResponseItem::JSONL(
+            serde_json::to_value(self).unwrap(),
+        )
+    }
+}
+
+#[cfg(feature = "mcp")]
 impl CommandResponse for crate::agent::completions::message::MessageLog {
     fn into_mcp(self) -> McpResponseItem {
         McpResponseItem::JSONL(

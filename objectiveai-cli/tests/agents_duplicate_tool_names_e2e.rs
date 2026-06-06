@@ -263,15 +263,15 @@ async fn duplicate_tool_names_routed_across_turns() {
             .await
             .unwrap_or_else(|e| panic!("agents read id {id} failed: {e:?}"));
         // Tool-call rows always come back as
-        // `AgentsCompletionsResponseMessagesToolCalls(AssistantToolCallDelta)`.
+        // `AgentsCompletionsResponseMessagesAssistantToolCalls(AssistantToolCallDelta)`.
         // Other variants would mean the queue cross-referenced a
         // non-tool-call row id — surface that as a panic so we notice.
         let name = match resp {
-            ReadIdResponse::AgentsCompletionsResponseMessagesToolCalls(delta) => {
+            ReadIdResponse::AgentsCompletionsResponseMessagesAssistantToolCalls(delta) => {
                 delta.function.and_then(|f| f.name)
             }
             other => panic!(
-                "expected AgentsCompletionsResponseMessagesToolCalls for tool-call row id {id}, got {other:?}"
+                "expected AgentsCompletionsResponseMessagesAssistantToolCalls for tool-call row id {id}, got {other:?}"
             ),
         };
         if let Some(n) = name {

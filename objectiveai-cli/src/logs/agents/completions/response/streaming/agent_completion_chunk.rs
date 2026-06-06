@@ -3,6 +3,7 @@
 
 use objectiveai_sdk::agent::completions::response::streaming::{
     AgentCompletionChunk, AgentCompletionChunkLog, MessageChunk,
+    message_log_reference,
 };
 
 use objectiveai_sdk::logs::LogReference;
@@ -26,12 +27,26 @@ pub fn produce_files(
     }
 
     let mut files: Vec<LogFile> = Vec::new();
-    let mut message_refs: Vec<LogReference> = Vec::new();
+    let mut message_refs: Vec<message_log_reference::LogReference> =
+        Vec::new();
 
     for msg in &c.messages {
         let (reference, msg_files) =
             super::message_chunk::produce_files(msg, id, ROUTE);
-        message_refs.push(reference);
+        // Tag the reference with the message's role + index so a
+        // master-chunk consumer knows which role-specific command
+        // reads the sub-chunk without parsing the path.
+        let role = match msg {
+            MessageChunk::Assistant(_) => {
+                message_log_reference::Role::Assistant
+            }
+            MessageChunk::Tool(_) => message_log_reference::Role::Tool,
+        };
+        message_refs.push(message_log_reference::LogReference::new(
+            reference.path,
+            msg.index(),
+            role,
+        ));
         files.extend(msg_files);
     }
 
