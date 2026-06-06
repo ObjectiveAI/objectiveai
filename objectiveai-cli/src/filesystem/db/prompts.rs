@@ -277,6 +277,30 @@ fn enqueue_with_content(
         .lock()
         .expect("filesystem prompts db connection mutex poisoned");
     let tx = conn.unchecked_transaction()?;
+    let prompt_id = enqueue_with_content_in_tx(
+        &tx,
+        agent_instance_hierarchy,
+        agent_tag,
+        now_seconds(),
+        content,
+    )?;
+    tx.commit()?;
+    Ok(prompt_id)
+}
+
+/// Insert one prompt row + its content rows inside an existing
+/// transaction. Lets `re_enqueue_async` batch multiple inserts
+/// under a single transaction by reusing this body once per item.
+/// `enqueued_at` is parameterised so re-enqueue can preserve the
+/// originally-stored timestamp (and FIFO order across drain → fail
+/// → re-enqueue cycles).
+fn enqueue_with_content_in_tx(
+    tx: &rusqlite::Transaction<'_>,
+    agent_instance_hierarchy: Option<&str>,
+    agent_tag: Option<&str>,
+    enqueued_at: i64,
+    content: RichContent,
+) -> Result<i64, Error> {
     // Empty `prompt` placeholder — overwritten by the final UPDATE
     // once we know the id-referenced shape. `prompts.prompt` is
     // NOT NULL so we need *some* value here.
@@ -284,16 +308,15 @@ fn enqueue_with_content(
         "INSERT INTO prompts (agent_instance_hierarchy, agent_tag, prompt, enqueued_at) \
          VALUES (?1, ?2, '', ?3) \
          RETURNING id",
-        params![agent_instance_hierarchy, agent_tag, now_seconds()],
+        params![agent_instance_hierarchy, agent_tag, enqueued_at],
         |r| r.get(0),
     )?;
-    let response_content = walk_rich(&tx, prompt_id, content)?;
+    let response_content = walk_rich(tx, prompt_id, content)?;
     let json = serde_json::to_string(&response_content).map_err(Error::Json)?;
     tx.execute(
         "UPDATE prompts SET prompt = ?1 WHERE id = ?2",
         params![json, prompt_id],
     )?;
-    tx.commit()?;
     Ok(prompt_id)
 }
 
@@ -580,19 +603,43 @@ pub async fn list_async(client: Client, parent: String) -> Result<Vec<ResponseIt
 // Drain — atomically pull matching prompts out of the queue and
 // reconstruct each one as a `RichContent`. Used by `agents message`
 // and `agents spawn` to prepend queued content to the user's own
-// payload before the API call fires.
+// payload before the API call fires. If the surrounding call fails
+// before its first OK stream item, the caller hands the
+// `Vec<DrainedPrompt>` back to [`re_enqueue_async`] to restore the
+// queue state.
 // ---------------------------------------------------------------------------
+
+/// One drained prompt — carries enough metadata to re-INSERT the
+/// original row (same target columns, same `enqueued_at`) plus the
+/// reconstructed body for the join-and-prepend path. The caller
+/// joins `content`s into the outgoing message and keeps the
+/// `Vec<DrainedPrompt>` around for the rollback hook.
+#[derive(Debug, Clone)]
+pub struct DrainedPrompt {
+    /// Original `prompts.agent_instance_hierarchy`; `Some` when the
+    /// drained row was Direct-targeted.
+    pub agent_instance_hierarchy: Option<String>,
+    /// Original `prompts.agent_tag`; `Some` when the drained row
+    /// was Tag-targeted.
+    pub agent_tag: Option<String>,
+    /// Original `prompts.enqueued_at`. Preserved through re-enqueue
+    /// so FIFO ordering survives a drain → fail → re-enqueue cycle.
+    pub enqueued_at: i64,
+    /// Reconstructed body — used by the join-and-prepend path today,
+    /// and (in identical form) by re-enqueue's walker on failure.
+    pub content: RichContent,
+}
 
 /// Drain rows targeting `target_hierarchy`, `target_tag` (if some),
 /// or any BOUND tag whose `agent_instance_hierarchy` equals
-/// `target_hierarchy`. Returns reconstructed `RichContent`s in
-/// enqueue (oldest-first) order; deletes the matched rows in the
-/// same transaction.
+/// `target_hierarchy`. Returns drained prompts in enqueue
+/// (oldest-first) order; deletes the matched rows in the same
+/// transaction.
 pub async fn drain_for_message_async(
     client: Client,
     target_hierarchy: String,
     target_tag: Option<String>,
-) -> Result<Vec<RichContent>, Error> {
+) -> Result<Vec<DrainedPrompt>, Error> {
     tokio::task::spawn_blocking(move || {
         drain_for_message(&client, &target_hierarchy, target_tag.as_deref())
     })
@@ -604,7 +651,7 @@ fn drain_for_message(
     client: &Client,
     target_hierarchy: &str,
     target_tag: Option<&str>,
-) -> Result<Vec<RichContent>, Error> {
+) -> Result<Vec<DrainedPrompt>, Error> {
     let conn = super::tags::connection(client)?;
     let conn = conn
         .lock()
@@ -646,7 +693,7 @@ pub async fn drain_for_spawn_async(
     parent_hierarchy: String,
     agent_full_id: String,
     target_tag: Option<String>,
-) -> Result<Vec<RichContent>, Error> {
+) -> Result<Vec<DrainedPrompt>, Error> {
     tokio::task::spawn_blocking(move || {
         drain_for_spawn(
             &client,
@@ -664,7 +711,7 @@ fn drain_for_spawn(
     parent_hierarchy: &str,
     agent_full_id: &str,
     target_tag: Option<&str>,
-) -> Result<Vec<RichContent>, Error> {
+) -> Result<Vec<DrainedPrompt>, Error> {
     let conn = super::tags::connection(client)?;
     let conn = conn
         .lock()
@@ -698,16 +745,31 @@ fn drain_for_spawn(
     Ok(drained)
 }
 
-/// Run the SELECT inside `tx` and return `(prompt_id, prompt_json)`
-/// pairs ordered oldest-first. Shared by both drain predicates;
-/// only the `where_clause` differs.
+/// Row data the drain SELECT pulls out of `prompts`. Threaded into
+/// each [`DrainedPrompt`] so re-enqueue can recreate the original
+/// row exactly (minus the auto-incremented id, which is rebuilt).
+struct DrainedRow {
+    prompt_id: i64,
+    agent_instance_hierarchy: Option<String>,
+    agent_tag: Option<String>,
+    enqueued_at: i64,
+    prompt_json: String,
+}
+
+/// Run the SELECT inside `tx` and return matching rows ordered
+/// oldest-first. Shared by both drain predicates; only the
+/// `where_clause` differs.
 fn collect_matching_prompts(
     tx: &rusqlite::Transaction<'_>,
     where_clause: &str,
     params: impl rusqlite::Params,
-) -> Result<Vec<(i64, String)>, Error> {
+) -> Result<Vec<DrainedRow>, Error> {
     let sql = format!(
-        "SELECT p.id, p.prompt \
+        "SELECT p.id, \
+                p.agent_instance_hierarchy, \
+                p.agent_tag, \
+                p.enqueued_at, \
+                p.prompt \
          FROM prompts p \
          WHERE {where_clause} \
          ORDER BY p.id ASC"
@@ -715,33 +777,50 @@ fn collect_matching_prompts(
     let mut stmt = tx.prepare(&sql)?;
     let rows = stmt
         .query_map(params, |r| {
-            Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?))
+            Ok(DrainedRow {
+                prompt_id: r.get(0)?,
+                agent_instance_hierarchy: r.get(1)?,
+                agent_tag: r.get(2)?,
+                enqueued_at: r.get(3)?,
+                prompt_json: r.get(4)?,
+            })
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     Ok(rows)
 }
 
-/// For each matched `(prompt_id, prompt_json)`, decode the JSON
-/// column as `ResponseContent`, reconstruct a `RichContent` from
-/// the referenced per-kind rows, then DELETE the prompt row (which
+/// For each matched row, decode the JSON column as
+/// `ResponseContent`, reconstruct a `RichContent` from the
+/// referenced per-kind rows, then DELETE the prompt row (which
 /// cascades to its content rows via the FK chain). Returns the
-/// reconstructed `RichContent`s in input order.
+/// reconstructed prompts in input (oldest-first) order, each
+/// carrying enough metadata for [`re_enqueue_async`] to recreate
+/// the original row.
 fn reconstruct_and_delete(
     tx: &rusqlite::Transaction<'_>,
-    rows: Vec<(i64, String)>,
-) -> Result<Vec<RichContent>, Error> {
+    rows: Vec<DrainedRow>,
+) -> Result<Vec<DrainedPrompt>, Error> {
     let mut out = Vec::with_capacity(rows.len());
-    for (prompt_id, prompt_json) in rows {
-        let response_content: ResponseContent = if prompt_json.is_empty() {
+    for row in rows {
+        let response_content: ResponseContent = if row.prompt_json.is_empty() {
             ResponseContent::Many(Vec::new())
         } else {
-            serde_json::from_str(&prompt_json).map_err(Error::Json)?
+            serde_json::from_str(&row.prompt_json).map_err(Error::Json)?
         };
-        out.push(reconstruct_rich_content(tx, response_content)?);
+        let content = reconstruct_rich_content(tx, response_content)?;
         // ON DELETE CASCADE on prompt_contents.prompt_id sweeps the
         // master + per-kind rows. PRAGMA foreign_keys = ON is set
         // at connection open (see super::tags::connection).
-        tx.execute("DELETE FROM prompts WHERE id = ?1", params![prompt_id])?;
+        tx.execute(
+            "DELETE FROM prompts WHERE id = ?1",
+            params![row.prompt_id],
+        )?;
+        out.push(DrainedPrompt {
+            agent_instance_hierarchy: row.agent_instance_hierarchy,
+            agent_tag: row.agent_tag,
+            enqueued_at: row.enqueued_at,
+            content,
+        });
     }
     Ok(out)
 }
@@ -779,6 +858,53 @@ fn reconstruct_rich_content(
         }
     }
     Ok(RichContent::Parts(parts))
+}
+
+// ---------------------------------------------------------------------------
+// Re-enqueue — undo a drain when the surrounding spawn/message
+// call fails before its first OK stream item. Restores rows with
+// their original `enqueued_at` so FIFO ordering is stable across
+// the round trip.
+// ---------------------------------------------------------------------------
+
+/// Re-INSERT every item in `items` as a fresh `prompts` row + its
+/// content rows. Empty `items` short-circuits to `Ok(())` without
+/// touching the connection. Everything runs inside one transaction
+/// — any failure rolls every restored row back, leaving no orphans.
+///
+/// `prompts.id` is auto-incremented anew (the original id is gone
+/// after the drain DELETE); `enqueued_at` is preserved verbatim
+/// from each [`DrainedPrompt`] so subsequent drains find these
+/// rows in their original FIFO order.
+pub async fn re_enqueue_async(
+    client: Client,
+    items: Vec<DrainedPrompt>,
+) -> Result<(), Error> {
+    if items.is_empty() {
+        return Ok(());
+    }
+    tokio::task::spawn_blocking(move || re_enqueue(&client, items))
+        .await
+        .map_err(spawn_blocking_join_err)?
+}
+
+fn re_enqueue(client: &Client, items: Vec<DrainedPrompt>) -> Result<(), Error> {
+    let conn = super::tags::connection(client)?;
+    let conn = conn
+        .lock()
+        .expect("filesystem prompts db connection mutex poisoned");
+    let tx = conn.unchecked_transaction()?;
+    for item in items {
+        enqueue_with_content_in_tx(
+            &tx,
+            item.agent_instance_hierarchy.as_deref(),
+            item.agent_tag.as_deref(),
+            item.enqueued_at,
+            item.content,
+        )?;
+    }
+    tx.commit()?;
+    Ok(())
 }
 
 fn spawn_blocking_join_err(e: tokio::task::JoinError) -> Error {

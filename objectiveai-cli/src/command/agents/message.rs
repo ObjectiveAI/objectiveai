@@ -130,7 +130,9 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     // Drain queue items targeting this hierarchy (direct or via any
     // BOUND tag) plus, in Direct + binding-tag mode, the explicit
     // tag's inbox. Oldest-first; joined `\n\n`-separated with the
-    // user's own content appended.
+    // user's own content appended. The `drained` vec is kept around
+    // for the rollback hook below (re-enqueue on terminal failure
+    // before first OK stream item).
     let drained = crate::filesystem::db::prompts::drain_for_message_async(
         ctx.filesystem.clone(),
         agent_instance_hierarchy.clone(),
@@ -140,7 +142,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     let content = if drained.is_empty() {
         own_content
     } else {
-        let mut items = drained;
+        let mut items: Vec<RichContent> =
+            drained.iter().map(|d| d.content.clone()).collect();
         items.push(own_content);
         crate::command::queue_drain::join_with_separator(items)
     };
@@ -154,11 +157,13 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     // Retry loop wraps the pipe-delivery + continuation-fallback
     // decision. Slot-taken errors at the continuation-fallback level
     // trigger a re-run from the top so the next pass can deliver via
-    // the now-live pipe; everything else propagates.
-    loop {
-        // Try live delivery first. Any failure here falls through to
-        // the continuation fallback — pipe errors are never surfaced
-        // as fatal.
+    // the now-live pipe; everything else breaks out into the post-
+    // loop peek-and-rollback block.
+    //
+    // **Pipe delivery success short-circuits**: the unix-socket ack
+    // means the agent's runner received the content live; the drain
+    // *was* delivered. No re-enqueue needed.
+    let stream_or_err: Result<ItemStream, Error> = loop {
         if try_pipe_delivery(ctx, &agent_instance_hierarchy, &content)
             .await
             .is_ok()
@@ -178,9 +183,50 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         )
         .await
         {
-            Ok(s) => return Ok(s),
+            Ok(s) => break Ok(s),
             Err(Error::CliStreamSlotTaken { .. }) => continue,
-            Err(e) => return Err(e),
+            Err(e) => break Err(e),
+        }
+    };
+
+    // Terminal failure paths from here re-enqueue the drained rows
+    // before surfacing the error. The peek-first-item shape comes
+    // from `objectiveai-api/src/functions/executions/client.rs::
+    // create_streaming_handle_usage` — same StreamOnce-then-chain
+    // structure.
+    let mut tail = match stream_or_err {
+        Ok(s) => s,
+        Err(e) => {
+            crate::command::queue_drain::rollback_drain(&drained, &e);
+            crate::filesystem::db::prompts::re_enqueue_async(
+                ctx.filesystem.clone(),
+                drained,
+            )
+            .await?;
+            return Err(e);
+        }
+    };
+    match tail.as_mut().next().await {
+        Some(Ok(first)) => Ok(Box::pin(
+            objectiveai_sdk::cli::command::StreamOnce::new(Ok(first)).chain(tail),
+        )),
+        Some(Err(e)) => {
+            crate::command::queue_drain::rollback_drain(&drained, &e);
+            crate::filesystem::db::prompts::re_enqueue_async(
+                ctx.filesystem.clone(),
+                drained,
+            )
+            .await?;
+            Err(e)
+        }
+        None => {
+            crate::command::queue_drain::rollback_drain(&drained, &Error::EmptyStream);
+            crate::filesystem::db::prompts::re_enqueue_async(
+                ctx.filesystem.clone(),
+                drained,
+            )
+            .await?;
+            Err(Error::EmptyStream)
         }
     }
 }

@@ -58,7 +58,9 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     )
     .await?;
     if !drained.is_empty() {
-        let prepended = crate::command::queue_drain::join_with_separator(drained);
+        let prepended = crate::command::queue_drain::join_with_separator(
+            drained.iter().map(|d| d.content.clone()).collect(),
+        );
         messages.insert(
             0,
             Message::User(UserMessage {
@@ -93,7 +95,30 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         request.agent_tag,
         stream,
     );
-    Ok(Box::pin(raw.map(map_item)))
+    // Peek the first item before returning the stream. If the
+    // head is Err (or the producer closes without yielding
+    // anything), restore the drained queue rows via
+    // `db::prompts::re_enqueue_async` and surface the original
+    // error. On Ok, hand back a `StreamOnce::new(head).chain(tail)`
+    // — same pattern objectiveai-api's
+    // `functions/executions/client.rs::create_streaming_handle_usage`
+    // uses for peek-then-stream returns.
+    let mut tail: ItemStream = Box::pin(raw.map(map_item));
+    match tail.as_mut().next().await {
+        Some(Ok(first)) => Ok(Box::pin(
+            objectiveai_sdk::cli::command::StreamOnce::new(Ok(first)).chain(tail),
+        )),
+        Some(Err(e)) => {
+            crate::command::queue_drain::rollback_drain(&drained, &e);
+            db::prompts::re_enqueue_async(ctx.filesystem.clone(), drained).await?;
+            Err(e)
+        }
+        None => {
+            crate::command::queue_drain::rollback_drain(&drained, &Error::EmptyStream);
+            db::prompts::re_enqueue_async(ctx.filesystem.clone(), drained).await?;
+            Err(Error::EmptyStream)
+        }
+    }
 }
 
 fn map_item(item: Result<InstanceItem, Error>) -> Result<ResponseItem, Error> {
