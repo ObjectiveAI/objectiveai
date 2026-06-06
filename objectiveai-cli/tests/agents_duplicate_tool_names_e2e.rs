@@ -54,7 +54,7 @@ const PLUGIN_NAMES: [&str; 5] = [
 /// Arbitrary seed. The mock's RNG is hash-seeded from prompt + tool
 /// names + seed; if this value ever stops yielding ≥2 unique calls
 /// across three turns, try another small integer.
-const SEED: i64 = 7;
+const SEED: i64 = 13;
 
 /// Bare-bones plain mock agent. No `calls` override, no fallbacks,
 /// no fancy modes. The plugin surface lists every staged plugin's
