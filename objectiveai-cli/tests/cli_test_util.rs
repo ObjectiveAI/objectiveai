@@ -15,11 +15,22 @@
 //! run; `test.sh` wipes `.objectiveai-tests/` at the top of every
 //! invocation so stale runtime state from prior runs never leaks in.
 
+// `hang_preventing_executor` lives at sibling path
+// `tests/hang_preventing_executor.rs` and is declared as a child
+// module here so every integration-test file that does
+// `mod cli_test_util;` picks it up transitively. The `#[path]` is
+// needed because Rust would otherwise look for
+// `tests/cli_test_util/hang_preventing_executor.rs`.
+#[path = "hang_preventing_executor.rs"]
+pub mod hang_preventing_executor;
+
 use std::path::{Path, PathBuf};
 
 use futures::StreamExt;
 use objectiveai_sdk::cli::command::binary::BinaryExecutor;
 use objectiveai_sdk::cli::command::{CommandExecutor, CommandRequest, CommandResponse};
+
+pub use hang_preventing_executor::HangPreventingBinaryCommandExecutor;
 
 /// Reads `OBJECTIVEAI_TEST_PORT` and returns `http://127.0.0.1:<port>`.
 /// `None` when the env var isn't set — used by tests as a skip-gate
@@ -64,52 +75,64 @@ pub fn test_base_dir() -> PathBuf {
 
 /// Equivalent to `executor_with_base_dir(&test_base_dir())` — the
 /// default executor for tests that don't need a special base dir.
-pub fn executor() -> BinaryExecutor {
+pub fn executor() -> HangPreventingBinaryCommandExecutor {
     executor_with_base_dir(&test_base_dir())
 }
 
-/// Build a [`BinaryExecutor`] aimed at the pre-built cli binary with
-/// `CONFIG_BASE_DIR` pinned to `base_dir` and (when set)
-/// `OBJECTIVEAI_ADDRESS` pointing at the local test server.
-pub fn executor_with_base_dir(base_dir: &Path) -> BinaryExecutor {
+/// Build a hang-preventing executor aimed at the pre-built cli binary
+/// with `CONFIG_BASE_DIR` pinned to `base_dir` and (when set)
+/// `OBJECTIVEAI_ADDRESS` pointing at the local test server. The inner
+/// [`BinaryExecutor`] is wrapped in a [`HangPreventingBinaryCommandExecutor`]
+/// so a stuck cli child is killed after
+/// [`hang_preventing_executor::HANG_TIMEOUT`] of `CONFIG_BASE_DIR`
+/// inactivity rather than hanging the test indefinitely.
+pub fn executor_with_base_dir(base_dir: &Path) -> HangPreventingBinaryCommandExecutor {
     let mut exec = BinaryExecutor::from_path(cli_binary())
         .env("CONFIG_BASE_DIR", base_dir.to_string_lossy().into_owned());
     if let Some(addr) = test_api_address() {
         exec = exec.env("OBJECTIVEAI_ADDRESS", addr);
     }
-    exec
+    HangPreventingBinaryCommandExecutor::new(exec, base_dir.to_path_buf())
 }
 
 /// Run the leaf's streaming `execute` and collect every `ResponseItem`
 /// the cli emits. Panics on any executor error — tests want a hard
-/// failure, not silent skips.
-pub async fn collect_stream<R, T>(executor: &BinaryExecutor, request: R) -> Vec<T>
+/// failure, not silent skips. Generic over any [`CommandExecutor`] so
+/// tests can pass either the hang-preventing wrapper (the default
+/// returned by [`executor`]/[`executor_with_base_dir`]) or a bare
+/// [`BinaryExecutor`] when they really want one.
+pub async fn collect_stream<E, R, T>(executor: &E, request: R) -> Vec<T>
 where
+    E: CommandExecutor,
+    E::Error: std::fmt::Debug,
     R: CommandRequest + Send,
     T: CommandResponse + serde::de::DeserializeOwned + Send + 'static,
 {
     let stream = executor
         .execute::<R, T>(request, None)
         .await
-        .expect("BinaryExecutor::execute failed");
+        .expect("CommandExecutor::execute failed");
     let mut stream = std::pin::pin!(stream);
     let mut items = Vec::new();
     while let Some(item) = stream.next().await {
-        items.push(item.expect("BinaryExecutor stream item was Err"));
+        items.push(item.expect("CommandExecutor stream item was Err"));
     }
     items
 }
 
-/// Run a unary cli leaf and return its single response.
-pub async fn execute_one<R, T>(executor: &BinaryExecutor, request: R) -> T
+/// Run a unary cli leaf and return its single response. Generic over
+/// any [`CommandExecutor`] for the same reason as [`collect_stream`].
+pub async fn execute_one<E, R, T>(executor: &E, request: R) -> T
 where
+    E: CommandExecutor,
+    E::Error: std::fmt::Debug,
     R: CommandRequest + Send,
     T: CommandResponse + serde::de::DeserializeOwned + Send + 'static,
 {
     executor
         .execute_one::<R, T>(request, None)
         .await
-        .expect("BinaryExecutor::execute_one failed")
+        .expect("CommandExecutor::execute_one failed")
 }
 
 pub fn load_snapshot(dir: &Path, name: &str) -> serde_json::Value {

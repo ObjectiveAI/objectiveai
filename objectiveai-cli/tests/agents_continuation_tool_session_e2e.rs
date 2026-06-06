@@ -37,7 +37,7 @@ use objectiveai_sdk::cli::command::agents::spawn::{
     ResponseItem as SpawnResponseItem,
 };
 use objectiveai_sdk::cli::command::CommandExecutor;
-use objectiveai_sdk::cli::command::binary::BinaryExecutor;
+use cli_test_util::HangPreventingBinaryCommandExecutor;
 use serde_json::{Value, json};
 
 async fn poll_until<F: Fn() -> bool>(timeout: Duration, pred: F) -> Result<(), ()> {
@@ -103,7 +103,7 @@ fn agent_spec() -> AgentSpec {
 /// this `cli/<leaf>` shape (NOT on `chunk.agent_instance_hierarchy`,
 /// which is the api-side slot id `cli/{agent_full_id}-{leaf}` —
 /// useful for the api's internal routing, not for finding cli logs).
-async fn spawn_agent(executor: &BinaryExecutor, seed: i64) -> String {
+async fn spawn_agent(executor: &HangPreventingBinaryCommandExecutor, seed: i64) -> String {
     let request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
         prompt: RequestPrompt::Simple("go".to_string()),
         agent: agent_spec(),
@@ -170,7 +170,7 @@ async fn wait_for_completion(base_dir: &Path, full_lineage: &str) {
 /// the cli has `child.wait()`ed it). Without this, the cli detaches
 /// after emitting the bare `Queued` item and the runner outlives the
 /// test fn — which nextest flags as `LEAK`.
-async fn continue_agent(executor: &BinaryExecutor, spawn_id: &str, seed: i64) {
+async fn continue_agent(executor: &HangPreventingBinaryCommandExecutor, spawn_id: &str, seed: i64) {
     // Split the full lineage into (parent, instance) for the
     // two-field `MessageRequest` shape.
     let (parent, instance) = spawn_id
@@ -202,7 +202,7 @@ async fn continue_agent(executor: &BinaryExecutor, spawn_id: &str, seed: i64) {
 /// rebuilds the full hierarchy as `{caller}/{sub}` so we pass just
 /// the leaf (the part after the rsplit on '/'), avoiding the
 /// `cli/cli/<leaf>` double-prefix that would shadow the queue rows.
-async fn read_tool_response_ids(executor: &BinaryExecutor, sub_id: &str) -> Vec<i64> {
+async fn read_tool_response_ids(executor: &HangPreventingBinaryCommandExecutor, sub_id: &str) -> Vec<i64> {
     let leaf = sub_id
         .rsplit_once('/')
         .map(|(_, leaf)| leaf)
@@ -233,7 +233,7 @@ async fn read_tool_response_ids(executor: &BinaryExecutor, sub_id: &str) -> Vec<
 /// holds that number). Permissive — serializes the typed Response
 /// back to JSON and scans recursively for the first integer-shaped
 /// string or number.
-async fn read_count_for_id(executor: &BinaryExecutor, id: i64) -> Option<u64> {
+async fn read_count_for_id(executor: &HangPreventingBinaryCommandExecutor, id: i64) -> Option<u64> {
     let request = ReadIdRequest { path_type: objectiveai_sdk::cli::command::agents::read::id::Path::AgentsReadId, id, jq: None };
     let response: objectiveai_sdk::cli::command::agents::read::id::Response = executor
         .execute_one(request, None)

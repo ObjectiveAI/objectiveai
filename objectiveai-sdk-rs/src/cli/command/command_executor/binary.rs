@@ -33,6 +33,14 @@ pub struct BinaryExecutor {
     /// on top of the parent's environment (the child inherits the rest
     /// — this map only overrides). Set via [`Self::env`].
     extra_env: Vec<(String, String)>,
+    /// When `true`, the spawned child is sent a kill signal whenever
+    /// the [`tokio::process::Child`] held in the stream state is
+    /// dropped. Defaults to `false` (the SDK's long-standing
+    /// behaviour: drop-without-kill lets the child finish its work
+    /// orphaned). Set via [`Self::kill_on_drop`]. Test wrappers that
+    /// want to abort hung children (e.g. cli-test
+    /// `HangPreventingBinaryCommandExecutor`) flip this on.
+    kill_on_drop: bool,
 }
 
 impl BinaryExecutor {
@@ -41,6 +49,7 @@ impl BinaryExecutor {
             config_base_dir: config_base_dir.map(Into::into),
             explicit_path: None,
             extra_env: Vec::new(),
+            kill_on_drop: false,
         }
     }
 
@@ -53,6 +62,7 @@ impl BinaryExecutor {
             config_base_dir: None,
             explicit_path: Some(binary.into()),
             extra_env: Vec::new(),
+            kill_on_drop: false,
         }
     }
 
@@ -66,6 +76,16 @@ impl BinaryExecutor {
         value: impl Into<String>,
     ) -> Self {
         self.extra_env.push((key.into(), value.into()));
+        self
+    }
+
+    /// When `true`, the spawned [`tokio::process::Child`] held in the
+    /// stream state is sent a kill signal when the stream is dropped.
+    /// Defaults to `false`. Wrappers that detect hangs (e.g. the
+    /// cli-test `HangPreventingBinaryCommandExecutor`) toggle this on
+    /// so dropping the inner stream tears the cli child down.
+    pub fn kill_on_drop(mut self, on: bool) -> Self {
+        self.kill_on_drop = on;
         self
     }
 
@@ -153,7 +173,8 @@ impl CommandExecutor for BinaryExecutor {
             .args(&argv)
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::inherit());
+            .stderr(std::process::Stdio::inherit())
+            .kill_on_drop(self.kill_on_drop);
         for (k, v) in &self.extra_env {
             command.env(k, v);
         }
