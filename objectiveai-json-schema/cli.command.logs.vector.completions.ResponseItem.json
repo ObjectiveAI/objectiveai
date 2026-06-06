@@ -1,0 +1,13 @@
+{
+  "title": "cli.command.logs.vector.completions.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Request",
+      "$ref": "cli.command.logs.vector.completions.request.Response"
+    },
+    {
+      "title": "Response",
+      "$ref": "cli.command.logs.vector.completions.response.ResponseItem"
+    }
+  ]
+}

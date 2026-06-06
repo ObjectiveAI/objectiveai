@@ -5,6 +5,18 @@
     "agent": {
       "$ref": "cli.command.agents.spawn.AgentSpec"
     },
+    "agent_tag": {
+      "description": "Optional tag name to bind to the spawned agent's\n`agent_instance_hierarchy` on first chunk. See\n`agents tags` for the storage model.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "dangerous_advanced": {
       "anyOf": [
         {

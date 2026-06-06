@@ -1,0 +1,27 @@
+{
+  "title": "cli.command.config.functions.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.config.functions.get.Response"
+    },
+    {
+      "title": "GetRequestSchema"
+    },
+    {
+      "title": "GetResponseSchema"
+    },
+    {
+      "title": "Favorites",
+      "$ref": "cli.command.config.functions.favorites.ResponseItem"
+    },
+    {
+      "title": "Inventions",
+      "$ref": "cli.command.config.functions.inventions.Response"
+    },
+    {
+      "title": "Profiles",
+      "$ref": "cli.command.config.functions.profiles.ResponseItem"
+    }
+  ]
+}

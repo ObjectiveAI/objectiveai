@@ -1,0 +1,35 @@
+{
+  "title": "cli.command.logs.agents.completions.response.messages.assistant.logprobs.Response",
+  "anyOf": [
+    {
+      "title": "Clear",
+      "$ref": "cli.command.logs.agents.completions.response.messages.assistant.logprobs.clear.Response"
+    },
+    {
+      "title": "ClearRequestSchema"
+    },
+    {
+      "title": "ClearResponseSchema"
+    },
+    {
+      "title": "Get",
+      "$ref": "agent.completions.response.Logprobs"
+    },
+    {
+      "title": "GetRequestSchema"
+    },
+    {
+      "title": "GetResponseSchema"
+    },
+    {
+      "title": "Subscribe",
+      "$ref": "agent.completions.response.Logprobs"
+    },
+    {
+      "title": "SubscribeRequestSchema"
+    },
+    {
+      "title": "SubscribeResponseSchema"
+    }
+  ]
+}

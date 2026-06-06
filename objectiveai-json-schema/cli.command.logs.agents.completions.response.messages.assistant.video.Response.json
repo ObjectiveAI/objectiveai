@@ -1,0 +1,35 @@
+{
+  "title": "cli.command.logs.agents.completions.response.messages.assistant.video.Response",
+  "anyOf": [
+    {
+      "title": "Clear",
+      "$ref": "cli.command.logs.agents.completions.response.messages.assistant.video.clear.Response"
+    },
+    {
+      "title": "ClearRequestSchema"
+    },
+    {
+      "title": "ClearResponseSchema"
+    },
+    {
+      "title": "Get",
+      "$ref": "agent.completions.message.VideoUrl"
+    },
+    {
+      "title": "GetRequestSchema"
+    },
+    {
+      "title": "GetResponseSchema"
+    },
+    {
+      "title": "Subscribe",
+      "$ref": "agent.completions.message.VideoUrl"
+    },
+    {
+      "title": "SubscribeRequestSchema"
+    },
+    {
+      "title": "SubscribeResponseSchema"
+    }
+  ]
+}

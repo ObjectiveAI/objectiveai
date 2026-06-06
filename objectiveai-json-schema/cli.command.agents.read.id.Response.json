@@ -3,75 +3,318 @@
   "anyOf": [
     {
       "title": "AgentsCompletionsResponse",
-      "$ref": "agent.completions.response.streaming.AgentCompletionChunkLog"
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "agents_completions_response"
+          ]
+        },
+        "value": {
+          "$ref": "agent.completions.response.streaming.AgentCompletionChunkLog"
+        }
+      }
     },
     {
       "title": "AgentsCompletionsRequest",
-      "$ref": "agent.completions.request.AgentCompletionCreateParamsLog"
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "agents_completions_request"
+          ]
+        },
+        "value": {
+          "$ref": "agent.completions.request.AgentCompletionCreateParamsLog"
+        }
+      }
     },
     {
-      "title": "AgentsCompletionsResponseMessages",
-      "$ref": "agent.completions.message.MessageLog"
+      "title": "AgentsCompletionsResponseMessagesAssistant",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "agents_completions_response_messages_assistant"
+          ]
+        },
+        "value": {
+          "$ref": "agent.completions.response.streaming.AssistantResponseChunkLog"
+        }
+      }
     },
     {
-      "title": "AgentsCompletionsResponseMessagesLogprobs",
-      "$ref": "agent.completions.response.Logprobs"
+      "title": "AgentsCompletionsResponseMessagesTool",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "agents_completions_response_messages_tool"
+          ]
+        },
+        "value": {
+          "$ref": "agent.completions.response.ToolResponseLog"
+        }
+      }
     },
     {
-      "title": "AgentsCompletionsResponseMessagesToolCalls",
-      "$ref": "agent.completions.message.AssistantToolCallDelta"
+      "title": "AgentsCompletionsRequestMessages",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "agents_completions_request_messages"
+          ]
+        },
+        "value": {
+          "$ref": "agent.completions.message.MessageLog"
+        }
+      }
+    },
+    {
+      "title": "AgentsCompletionsResponseMessagesAssistantLogprobs",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "agents_completions_response_messages_assistant_logprobs"
+          ]
+        },
+        "value": {
+          "$ref": "agent.completions.response.Logprobs"
+        }
+      }
+    },
+    {
+      "title": "AgentsCompletionsResponseMessagesAssistantToolCalls",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "agents_completions_response_messages_assistant_tool_calls"
+          ]
+        },
+        "value": {
+          "$ref": "agent.completions.message.AssistantToolCallDelta"
+        }
+      }
+    },
+    {
+      "title": "AgentsCompletionsRequestMessagesAssistantToolCalls",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "agents_completions_request_messages_assistant_tool_calls"
+          ]
+        },
+        "value": {
+          "$ref": "agent.completions.message.AssistantToolCall"
+        }
+      }
     },
     {
       "title": "VectorCompletionsResponse",
-      "$ref": "vector.completions.response.streaming.VectorCompletionChunkLog"
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "vector_completions_response"
+          ]
+        },
+        "value": {
+          "$ref": "vector.completions.response.streaming.VectorCompletionChunkLog"
+        }
+      }
     },
     {
       "title": "VectorCompletionsRequest",
-      "$ref": "vector.completions.request.VectorCompletionCreateParams"
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "vector_completions_request"
+          ]
+        },
+        "value": {
+          "$ref": "vector.completions.request.VectorCompletionCreateParams"
+        }
+      }
     },
     {
       "title": "FunctionsExecutionsResponse",
-      "$ref": "functions.executions.response.streaming.FunctionExecutionChunkLog"
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "functions_executions_response"
+          ]
+        },
+        "value": {
+          "$ref": "functions.executions.response.streaming.FunctionExecutionChunkLog"
+        }
+      }
     },
     {
       "title": "FunctionsExecutionsRequest",
-      "$ref": "functions.executions.request.FunctionExecutionCreateParamsLog"
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "functions_executions_request"
+          ]
+        },
+        "value": {
+          "$ref": "functions.executions.request.FunctionExecutionCreateParamsLog"
+        }
+      }
     },
     {
       "title": "FunctionsInventionsResponse",
-      "$ref": "functions.inventions.response.streaming.FunctionInventionChunkLog"
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "functions_inventions_response"
+          ]
+        },
+        "value": {
+          "$ref": "functions.inventions.response.streaming.FunctionInventionChunkLog"
+        }
+      }
     },
     {
       "title": "FunctionsInventionsRequest",
-      "$ref": "functions.inventions.request.FunctionInventionCreateParams"
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "functions_inventions_request"
+          ]
+        },
+        "value": {
+          "$ref": "functions.inventions.request.FunctionInventionCreateParams"
+        }
+      }
     },
     {
       "title": "FunctionsInventionsRecursiveResponse",
-      "$ref": "functions.inventions.recursive.response.streaming.FunctionInventionRecursiveChunkLog"
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "functions_inventions_recursive_response"
+          ]
+        },
+        "value": {
+          "$ref": "functions.inventions.recursive.response.streaming.FunctionInventionRecursiveChunkLog"
+        }
+      }
     },
     {
       "title": "FunctionsInventionsRecursiveRequest",
-      "$ref": "functions.inventions.recursive.request.FunctionInventionRecursiveCreateParamsLog"
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "functions_inventions_recursive_request"
+          ]
+        },
+        "value": {
+          "$ref": "functions.inventions.recursive.request.FunctionInventionRecursiveCreateParamsLog"
+        }
+      }
     },
     {
       "title": "Text",
-      "type": "string"
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "text"
+          ]
+        },
+        "value": {
+          "type": "string"
+        }
+      }
     },
     {
       "title": "Image",
-      "$ref": "agent.completions.message.ImageUrl"
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "image"
+          ]
+        },
+        "value": {
+          "$ref": "agent.completions.message.ImageUrl"
+        }
+      }
     },
     {
       "title": "Audio",
-      "$ref": "agent.completions.message.InputAudio"
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "audio"
+          ]
+        },
+        "value": {
+          "$ref": "agent.completions.message.InputAudio"
+        }
+      }
     },
     {
       "title": "Video",
-      "$ref": "agent.completions.message.VideoUrl"
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "video"
+          ]
+        },
+        "value": {
+          "$ref": "agent.completions.message.VideoUrl"
+        }
+      }
     },
     {
       "title": "File",
-      "$ref": "agent.completions.message.File"
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "file"
+          ]
+        },
+        "value": {
+          "$ref": "agent.completions.message.File"
+        }
+      }
     }
   ]
 }

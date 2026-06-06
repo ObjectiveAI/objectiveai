@@ -1,0 +1,61 @@
+{
+  "title": "cli.command.agents.message.MessageTarget",
+  "description": "Mutually-exclusive addressing for an `agents message` call.\n\n`Direct` is the default â€” the CLI composes\n`{parent}/{agent_instance}` (parent defaults to\n`Config.agent_instance_hierarchy` when omitted) and optionally\nbinds `agent_tag` to that hierarchy as a side effect.\n\n`Tag` resolves the named tag to its bound hierarchy via the\ntags DB and addresses that hierarchy directly. PENDING and\nABSENT tags are rejected with structured errors at handler time.",
+  "anyOf": [
+    {
+      "title": "Direct",
+      "type": "object",
+      "properties": {
+        "agent_instance": {
+          "description": "Leaf id of the target agent.",
+          "type": "string"
+        },
+        "agent_tag": {
+          "description": "Optional tag to bind to the resolved\n`{parent}/{agent_instance}` hierarchy.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "by": {
+          "type": "string",
+          "enum": [
+            "direct"
+          ]
+        },
+        "parent_agent_instance_hierarchy": {
+          "description": "Lineage prefix to prepend to `agent_instance`. When\n`None`, the CLI substitutes its own\n`Config.agent_instance_hierarchy`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        }
+      }
+    },
+    {
+      "title": "Tag",
+      "type": "object",
+      "properties": {
+        "agent_tag": {
+          "type": "string"
+        },
+        "by": {
+          "type": "string",
+          "enum": [
+            "tag"
+          ]
+        }
+      }
+    }
+  ]
+}

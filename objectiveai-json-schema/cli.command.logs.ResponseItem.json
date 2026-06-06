@@ -1,0 +1,27 @@
+{
+  "title": "cli.command.logs.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Agents",
+      "$ref": "cli.command.logs.agents.completions.ResponseItem"
+    },
+    {
+      "title": "Clear",
+      "$ref": "cli.command.logs.clear.Response"
+    },
+    {
+      "title": "ClearRequestSchema"
+    },
+    {
+      "title": "ClearResponseSchema"
+    },
+    {
+      "title": "Functions",
+      "$ref": "cli.command.logs.functions.ResponseItem"
+    },
+    {
+      "title": "Vector",
+      "$ref": "cli.command.logs.vector.completions.ResponseItem"
+    }
+  ]
+}

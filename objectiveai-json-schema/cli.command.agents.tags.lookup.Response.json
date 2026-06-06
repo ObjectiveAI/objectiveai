@@ -1,0 +1,88 @@
+{
+  "title": "cli.command.agents.tags.lookup.Response",
+  "anyOf": [
+    {
+      "title": "AgentInstanceHierarchy",
+      "description": "A hierarchy can carry multiple tags (the schema's PK is the\n`name`, not the hierarchy). All matching BOUND tags are\nreturned, newest-bound first.",
+      "type": "object",
+      "properties": {
+        "by": {
+          "type": "string",
+          "enum": [
+            "agent_instance_hierarchy"
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "title": "Tag",
+      "description": "A successful tag → state lookup. Flattens the 2-state\nstatus onto the same JSON object — yielding e.g.\n`{\"by\":\"tag\",\"state\":\"bound\",\"agent_instance_hierarchy\":\"…\"}`.",
+      "anyOf": [
+        {
+          "title": "Bound",
+          "type": "object",
+          "properties": {
+            "agent_instance_hierarchy": {
+              "type": "string"
+            },
+            "by": {
+              "type": "string",
+              "enum": [
+                "tag"
+              ]
+            },
+            "state": {
+              "type": "string",
+              "enum": [
+                "bound"
+              ]
+            }
+          }
+        },
+        {
+          "title": "Pending",
+          "type": "object",
+          "properties": {
+            "agent_full_id": {
+              "type": "string"
+            },
+            "by": {
+              "type": "string",
+              "enum": [
+                "tag"
+              ]
+            },
+            "parent_agent_instance_hierarchy": {
+              "type": "string"
+            },
+            "state": {
+              "type": "string",
+              "enum": [
+                "pending"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "title": "Absent",
+      "description": "The looked-up tag is not registered. Hoisted to a top-level\nvariant (rather than as a `LookupState::Absent` nested in\n`Tag`) so the wire shape says \"no such tag\" instead of\n\"the tag exists with state absent\".",
+      "type": "object",
+      "properties": {
+        "by": {
+          "type": "string",
+          "enum": [
+            "absent"
+          ]
+        }
+      }
+    }
+  ]
+}

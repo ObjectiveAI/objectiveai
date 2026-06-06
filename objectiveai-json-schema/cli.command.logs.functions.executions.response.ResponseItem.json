@@ -1,0 +1,49 @@
+{
+  "title": "cli.command.logs.functions.executions.response.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Clear",
+      "$ref": "cli.command.logs.functions.executions.response.clear.Response"
+    },
+    {
+      "title": "ClearRequestSchema"
+    },
+    {
+      "title": "ClearResponseSchema"
+    },
+    {
+      "title": "Get",
+      "$ref": "functions.executions.response.streaming.FunctionExecutionChunkLog"
+    },
+    {
+      "title": "GetRequestSchema"
+    },
+    {
+      "title": "GetResponseSchema"
+    },
+    {
+      "title": "List",
+      "$ref": "cli.command.logs.functions.executions.response.list.ResponseItem"
+    },
+    {
+      "title": "ListRequestSchema"
+    },
+    {
+      "title": "ListResponseSchema"
+    },
+    {
+      "title": "RetryTokens",
+      "$ref": "cli.command.logs.functions.executions.response.retry_tokens.Response"
+    },
+    {
+      "title": "Subscribe",
+      "$ref": "functions.executions.response.streaming.FunctionExecutionChunkLog"
+    },
+    {
+      "title": "SubscribeRequestSchema"
+    },
+    {
+      "title": "SubscribeResponseSchema"
+    }
+  ]
+}

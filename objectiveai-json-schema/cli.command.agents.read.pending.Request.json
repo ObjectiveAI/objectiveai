@@ -2,12 +2,6 @@
   "title": "cli.command.agents.read.pending.Request",
   "type": "object",
   "properties": {
-    "agent_instance_hierarchies": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
     "jq": {
       "anyOf": [
         {
@@ -20,6 +14,12 @@
     },
     "path_type": {
       "$ref": "cli.command.agents.read.pending.Path"
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "$ref": "cli.command.agents.read.all.Target"
+      }
     }
   }
 }

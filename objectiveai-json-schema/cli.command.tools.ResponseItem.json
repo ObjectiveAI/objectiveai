@@ -1,0 +1,52 @@
+{
+  "title": "cli.command.tools.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Get",
+      "anyOf": [
+        {
+          "$ref": "cli.command.tools.get.ResponseManifest"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    {
+      "title": "GetRequestSchema"
+    },
+    {
+      "title": "GetResponseSchema"
+    },
+    {
+      "title": "Install",
+      "$ref": "cli.command.tools.install.Response"
+    },
+    {
+      "title": "InstallRequestSchema"
+    },
+    {
+      "title": "InstallResponseSchema"
+    },
+    {
+      "title": "List",
+      "$ref": "cli.command.tools.get.ResponseManifest"
+    },
+    {
+      "title": "ListRequestSchema"
+    },
+    {
+      "title": "ListResponseSchema"
+    },
+    {
+      "title": "Run",
+      "$ref": "cli.command.tools.run.ResponseItem"
+    },
+    {
+      "title": "RunRequestSchema"
+    },
+    {
+      "title": "RunResponseSchema"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "title": "cli.command.agents.message_queue.add.Request",
+  "type": "object",
+  "properties": {
+    "jq": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "key": {
+      "description": "Optional idempotency token (#213). When `Some`, any prior\nqueued row for the same `(target, key)` pair is overwritten\n— old content cascade-dropped, new content inserted with a\nfresh `enqueued_at`. Per-target scope: a `key` on a\nhierarchy and the same `key` on a tag coexist.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "message": {
+      "$ref": "cli.command.agents.message.RequestMessage"
+    },
+    "path_type": {
+      "$ref": "cli.command.agents.message_queue.add.Path"
+    },
+    "target": {
+      "$ref": "cli.command.agents.message_queue.add.Target"
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "title": "cli.command.functions.inventions.recursive.create.ResponseItem",
+  "anyOf": [
+    {
+      "title": "AlphaScalar",
+      "$ref": "cli.command.functions.inventions.recursive.create.alpha_scalar.ResponseItem"
+    },
+    {
+      "title": "AlphaScalarRequestSchema"
+    },
+    {
+      "title": "AlphaScalarResponseSchema"
+    },
+    {
+      "title": "AlphaVector",
+      "$ref": "cli.command.functions.inventions.recursive.create.alpha_vector.ResponseItem"
+    },
+    {
+      "title": "AlphaVectorRequestSchema"
+    },
+    {
+      "title": "AlphaVectorResponseSchema"
+    },
+    {
+      "title": "Remote",
+      "$ref": "cli.command.functions.inventions.recursive.create.remote.ResponseItem"
+    },
+    {
+      "title": "RemoteRequestSchema"
+    },
+    {
+      "title": "RemoteResponseSchema"
+    }
+  ]
+}

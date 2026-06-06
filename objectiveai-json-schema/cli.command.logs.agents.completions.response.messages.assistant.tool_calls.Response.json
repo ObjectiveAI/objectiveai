@@ -1,0 +1,35 @@
+{
+  "title": "cli.command.logs.agents.completions.response.messages.assistant.tool_calls.Response",
+  "anyOf": [
+    {
+      "title": "Clear",
+      "$ref": "cli.command.logs.agents.completions.response.messages.assistant.tool_calls.clear.Response"
+    },
+    {
+      "title": "ClearRequestSchema"
+    },
+    {
+      "title": "ClearResponseSchema"
+    },
+    {
+      "title": "Get",
+      "$ref": "agent.completions.message.AssistantToolCallDelta"
+    },
+    {
+      "title": "GetRequestSchema"
+    },
+    {
+      "title": "GetResponseSchema"
+    },
+    {
+      "title": "Subscribe",
+      "$ref": "agent.completions.message.AssistantToolCallDelta"
+    },
+    {
+      "title": "SubscribeRequestSchema"
+    },
+    {
+      "title": "SubscribeResponseSchema"
+    }
+  ]
+}

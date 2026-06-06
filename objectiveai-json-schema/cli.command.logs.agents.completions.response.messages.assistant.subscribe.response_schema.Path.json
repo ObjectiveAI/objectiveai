@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.logs.agents.completions.response.messages.assistant.subscribe.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "logs/agents/completions/response/messages/assistant/subscribe/response_schema"
+  ]
+}

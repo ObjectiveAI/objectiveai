@@ -1,0 +1,9 @@
+{
+  "title": "agent.completions.response.streaming.message_log_reference.Role",
+  "description": "The role of a referenced response-side message envelope — matches\nthe `role` tag serialized inside the referenced file\n(`AssistantResponseChunkLog` / `ToolResponseLog`).",
+  "type": "string",
+  "enum": [
+    "assistant",
+    "tool"
+  ]
+}

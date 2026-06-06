@@ -1,0 +1,45 @@
+{
+  "title": "cli.command.config.functions.profiles.pairs.favorites.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Add",
+      "$ref": "cli.command.Ok"
+    },
+    {
+      "title": "AddRequestSchema"
+    },
+    {
+      "title": "AddResponseSchema"
+    },
+    {
+      "title": "Del",
+      "$ref": "cli.command.Ok"
+    },
+    {
+      "title": "DelRequestSchema"
+    },
+    {
+      "title": "DelResponseSchema"
+    },
+    {
+      "title": "Edit",
+      "$ref": "cli.command.Ok"
+    },
+    {
+      "title": "EditRequestSchema"
+    },
+    {
+      "title": "EditResponseSchema"
+    },
+    {
+      "title": "Get",
+      "$ref": "cli.command.config.functions.profiles.pairs.favorites.get.ResponseItem"
+    },
+    {
+      "title": "GetRequestSchema"
+    },
+    {
+      "title": "GetResponseSchema"
+    }
+  ]
+}

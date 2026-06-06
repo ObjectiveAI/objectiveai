@@ -1,6 +1,6 @@
 {
   "title": "cli.command.functions.executions.create.ProfileSpec",
-  "description": "CLI-surface form for the `--profile-inline` argument: either a fully\nresolved inline-or-remote spec, or a bare favorite name that the CLI\nresolves to one of those at handler time. Untagged: an inline profile\nobject or remote-path object lands on `Resolved`; a bare JSON string\nlands on `Favorite`.",
+  "description": "CLI-surface form for the `--profile*` argument family — same\nshape as [`FunctionSpec`] but wrapping the profile inline-or-remote\nenum. See [`FunctionSpec`] for the variant semantics.",
   "anyOf": [
     {
       "title": "Resolved",
@@ -8,6 +8,18 @@
     },
     {
       "title": "Favorite",
+      "type": "string"
+    },
+    {
+      "title": "File",
+      "type": "string"
+    },
+    {
+      "title": "PythonInline",
+      "type": "string"
+    },
+    {
+      "title": "PythonFile",
       "type": "string"
     }
   ]

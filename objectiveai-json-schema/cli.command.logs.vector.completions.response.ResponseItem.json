@@ -1,0 +1,45 @@
+{
+  "title": "cli.command.logs.vector.completions.response.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Clear",
+      "$ref": "cli.command.logs.vector.completions.response.clear.Response"
+    },
+    {
+      "title": "ClearRequestSchema"
+    },
+    {
+      "title": "ClearResponseSchema"
+    },
+    {
+      "title": "Get",
+      "$ref": "vector.completions.response.streaming.VectorCompletionChunkLog"
+    },
+    {
+      "title": "GetRequestSchema"
+    },
+    {
+      "title": "GetResponseSchema"
+    },
+    {
+      "title": "List",
+      "$ref": "cli.command.logs.vector.completions.response.list.ResponseItem"
+    },
+    {
+      "title": "ListRequestSchema"
+    },
+    {
+      "title": "ListResponseSchema"
+    },
+    {
+      "title": "Subscribe",
+      "$ref": "vector.completions.response.streaming.VectorCompletionChunkLog"
+    },
+    {
+      "title": "SubscribeRequestSchema"
+    },
+    {
+      "title": "SubscribeResponseSchema"
+    }
+  ]
+}

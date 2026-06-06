@@ -1,0 +1,17 @@
+{
+  "title": "cli.command.agents.message.RequestDangerousAdvanced",
+  "type": "object",
+  "properties": {
+    "stream": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

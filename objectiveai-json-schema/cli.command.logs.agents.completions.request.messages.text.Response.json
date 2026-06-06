@@ -1,0 +1,15 @@
+{
+  "title": "cli.command.logs.agents.completions.request.messages.text.Response",
+  "anyOf": [
+    {
+      "title": "Get",
+      "type": "string"
+    },
+    {
+      "title": "GetRequestSchema"
+    },
+    {
+      "title": "GetResponseSchema"
+    }
+  ]
+}

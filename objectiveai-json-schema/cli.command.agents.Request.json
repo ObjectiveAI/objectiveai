@@ -54,6 +54,10 @@
       "$ref": "cli.command.agents.publish.response_schema.Request"
     },
     {
+      "title": "MessageQueue",
+      "$ref": "cli.command.agents.message_queue.Request"
+    },
+    {
       "title": "Read",
       "$ref": "cli.command.agents.read.Request"
     },
@@ -68,6 +72,14 @@
     {
       "title": "SpawnResponseSchema",
       "$ref": "cli.command.agents.spawn.response_schema.Request"
+    },
+    {
+      "title": "Tags",
+      "$ref": "cli.command.agents.tags.Request"
+    },
+    {
+      "title": "Tasks",
+      "$ref": "cli.command.agents.tasks.Request"
     }
   ]
 }

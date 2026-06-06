@@ -1,0 +1,31 @@
+{
+  "title": "cli.command.agents.message.ResponseItem",
+  "description": "Streamed-mode wire shape for `agents message`. Emitted as one\nJSON-line per item on the cli's stdout when\n`Request::dangerous_advanced.stream = Some(true)`. Untagged shape\nis forward-compatible with [`Response`]: in stream mode, item 0 is\nalways a `Queued` or `Delivered` variant carrying the same fields\nas the unary `Response::Queued` / `Response::Delivered`. Under the\n`Queued` path with streaming on, item 0 is followed by zero or\nmore `Chunk` items until the spawned instance-runner's stdout\nEOFs.",
+  "anyOf": [
+    {
+      "title": "Chunk",
+      "$ref": "agent.completions.response.streaming.AgentCompletionChunk"
+    },
+    {
+      "title": "Queued",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "response_id": {
+          "type": "string"
+        }
+      }
+    },
+    {
+      "title": "Delivered",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        }
+      }
+    }
+  ]
+}

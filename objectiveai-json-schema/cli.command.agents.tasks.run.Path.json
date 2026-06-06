@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.agents.tasks.run.Path",
+  "type": "string",
+  "enum": [
+    "agents/tasks/run"
+  ]
+}

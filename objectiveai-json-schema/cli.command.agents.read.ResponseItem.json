@@ -1,0 +1,45 @@
+{
+  "title": "cli.command.agents.read.ResponseItem",
+  "anyOf": [
+    {
+      "title": "All",
+      "$ref": "cli.command.agents.read.all.ResponseItem"
+    },
+    {
+      "title": "AllRequestSchema"
+    },
+    {
+      "title": "AllResponseSchema"
+    },
+    {
+      "title": "Id",
+      "$ref": "cli.command.agents.read.id.Response"
+    },
+    {
+      "title": "IdRequestSchema"
+    },
+    {
+      "title": "IdResponseSchema"
+    },
+    {
+      "title": "Pending",
+      "$ref": "cli.command.agents.read.pending.ResponseItem"
+    },
+    {
+      "title": "PendingRequestSchema"
+    },
+    {
+      "title": "PendingResponseSchema"
+    },
+    {
+      "title": "Subscribe",
+      "$ref": "cli.command.agents.read.subscribe.ResponseItem"
+    },
+    {
+      "title": "SubscribeRequestSchema"
+    },
+    {
+      "title": "SubscribeResponseSchema"
+    }
+  ]
+}

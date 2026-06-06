@@ -1,0 +1,75 @@
+{
+  "title": "cli.command.agents.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "agent.GetAgentResponse"
+    },
+    {
+      "title": "GetRequestSchema"
+    },
+    {
+      "title": "GetResponseSchema"
+    },
+    {
+      "title": "List",
+      "$ref": "cli.command.agents.list.ResponseItem"
+    },
+    {
+      "title": "Me",
+      "$ref": "cli.command.agents.me.Response"
+    },
+    {
+      "title": "MeRequestSchema"
+    },
+    {
+      "title": "MeResponseSchema"
+    },
+    {
+      "title": "Message",
+      "$ref": "cli.command.agents.message.ResponseItem"
+    },
+    {
+      "title": "MessageRequestSchema"
+    },
+    {
+      "title": "MessageResponseSchema"
+    },
+    {
+      "title": "Publish",
+      "$ref": "cli.command.agents.publish.Response"
+    },
+    {
+      "title": "PublishRequestSchema"
+    },
+    {
+      "title": "PublishResponseSchema"
+    },
+    {
+      "title": "MessageQueue",
+      "$ref": "cli.command.agents.message_queue.ResponseItem"
+    },
+    {
+      "title": "Read",
+      "$ref": "cli.command.agents.read.ResponseItem"
+    },
+    {
+      "title": "Spawn",
+      "$ref": "cli.command.agents.spawn.ResponseItem"
+    },
+    {
+      "title": "SpawnRequestSchema"
+    },
+    {
+      "title": "SpawnResponseSchema"
+    },
+    {
+      "title": "Tags",
+      "$ref": "cli.command.agents.tags.ResponseItem"
+    },
+    {
+      "title": "Tasks",
+      "$ref": "cli.command.agents.tasks.ResponseItem"
+    }
+  ]
+}

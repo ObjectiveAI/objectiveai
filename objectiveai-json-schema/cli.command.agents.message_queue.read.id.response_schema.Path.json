@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.agents.message_queue.read.id.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "agents/message-queue/read/id/response_schema"
+  ]
+}

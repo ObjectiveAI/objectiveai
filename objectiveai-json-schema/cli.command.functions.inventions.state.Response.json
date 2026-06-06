@@ -1,0 +1,15 @@
+{
+  "title": "cli.command.functions.inventions.state.Response",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "functions.inventions.state.GetFunctionInventionStateResponse"
+    },
+    {
+      "title": "GetRequestSchema"
+    },
+    {
+      "title": "GetResponseSchema"
+    }
+  ]
+}

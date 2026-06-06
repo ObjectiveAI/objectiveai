@@ -1,0 +1,25 @@
+{
+  "title": "cli.command.agents.tags.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Lookup",
+      "$ref": "cli.command.agents.tags.lookup.Response"
+    },
+    {
+      "title": "LookupRequestSchema"
+    },
+    {
+      "title": "LookupResponseSchema"
+    },
+    {
+      "title": "Add",
+      "$ref": "cli.command.agents.tags.add.Response"
+    },
+    {
+      "title": "AddRequestSchema"
+    },
+    {
+      "title": "AddResponseSchema"
+    }
+  ]
+}

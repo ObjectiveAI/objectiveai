@@ -1,0 +1,19 @@
+{
+  "title": "cli.command.config.agents.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.config.agents.get.Response"
+    },
+    {
+      "title": "GetRequestSchema"
+    },
+    {
+      "title": "GetResponseSchema"
+    },
+    {
+      "title": "Favorites",
+      "$ref": "cli.command.config.agents.favorites.ResponseItem"
+    }
+  ]
+}

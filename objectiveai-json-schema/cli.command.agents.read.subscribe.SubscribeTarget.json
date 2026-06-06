@@ -1,0 +1,49 @@
+{
+  "title": "cli.command.agents.read.subscribe.SubscribeTarget",
+  "description": "Mutually-exclusive target selector: either direct `(parent,\ninstance)` addressing (with the parent defaulting to the cli's\nown `Config.agent_instance_hierarchy` when omitted) OR a tag name\nthe cli resolves at handler time.",
+  "anyOf": [
+    {
+      "title": "Direct",
+      "type": "object",
+      "properties": {
+        "agent_instance": {
+          "description": "Leaf id of the target agent.",
+          "type": "string"
+        },
+        "by": {
+          "type": "string",
+          "enum": [
+            "direct"
+          ]
+        },
+        "parent_agent_instance_hierarchy": {
+          "description": "Lineage prefix to prepend to `agent_instance`. When\n`None`, the CLI substitutes its own\n`Config.agent_instance_hierarchy`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        }
+      }
+    },
+    {
+      "title": "Tag",
+      "type": "object",
+      "properties": {
+        "agent_tag": {
+          "type": "string"
+        },
+        "by": {
+          "type": "string",
+          "enum": [
+            "tag"
+          ]
+        }
+      }
+    }
+  ]
+}

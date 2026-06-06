@@ -1,0 +1,25 @@
+{
+  "title": "cli.command.agents.list.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Active",
+      "$ref": "cli.command.agents.list.active.ResponseItem"
+    },
+    {
+      "title": "ActiveRequestSchema"
+    },
+    {
+      "title": "ActiveResponseSchema"
+    },
+    {
+      "title": "Available",
+      "$ref": "cli.command.agents.list.available.ResponseItem"
+    },
+    {
+      "title": "AvailableRequestSchema"
+    },
+    {
+      "title": "AvailableResponseSchema"
+    }
+  ]
+}

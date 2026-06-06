@@ -1,0 +1,45 @@
+{
+  "title": "cli.command.logs.functions.inventions.response.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Clear",
+      "$ref": "cli.command.logs.functions.inventions.response.clear.Response"
+    },
+    {
+      "title": "ClearRequestSchema"
+    },
+    {
+      "title": "ClearResponseSchema"
+    },
+    {
+      "title": "Get",
+      "$ref": "functions.inventions.response.streaming.FunctionInventionChunkLog"
+    },
+    {
+      "title": "GetRequestSchema"
+    },
+    {
+      "title": "GetResponseSchema"
+    },
+    {
+      "title": "List",
+      "$ref": "cli.command.logs.functions.inventions.response.list.ResponseItem"
+    },
+    {
+      "title": "ListRequestSchema"
+    },
+    {
+      "title": "ListResponseSchema"
+    },
+    {
+      "title": "Subscribe",
+      "$ref": "functions.inventions.response.streaming.FunctionInventionChunkLog"
+    },
+    {
+      "title": "SubscribeRequestSchema"
+    },
+    {
+      "title": "SubscribeResponseSchema"
+    }
+  ]
+}

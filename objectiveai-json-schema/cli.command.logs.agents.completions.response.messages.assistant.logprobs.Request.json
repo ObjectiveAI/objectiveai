@@ -1,0 +1,41 @@
+{
+  "title": "cli.command.logs.agents.completions.response.messages.assistant.logprobs.Request",
+  "anyOf": [
+    {
+      "title": "Clear",
+      "$ref": "cli.command.logs.agents.completions.response.messages.assistant.logprobs.clear.Request"
+    },
+    {
+      "title": "ClearRequestSchema",
+      "$ref": "cli.command.logs.agents.completions.response.messages.assistant.logprobs.clear.request_schema.Request"
+    },
+    {
+      "title": "ClearResponseSchema",
+      "$ref": "cli.command.logs.agents.completions.response.messages.assistant.logprobs.clear.response_schema.Request"
+    },
+    {
+      "title": "Get",
+      "$ref": "cli.command.logs.agents.completions.response.messages.assistant.logprobs.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.logs.agents.completions.response.messages.assistant.logprobs.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.logs.agents.completions.response.messages.assistant.logprobs.get.response_schema.Request"
+    },
+    {
+      "title": "Subscribe",
+      "$ref": "cli.command.logs.agents.completions.response.messages.assistant.logprobs.subscribe.Request"
+    },
+    {
+      "title": "SubscribeRequestSchema",
+      "$ref": "cli.command.logs.agents.completions.response.messages.assistant.logprobs.subscribe.request_schema.Request"
+    },
+    {
+      "title": "SubscribeResponseSchema",
+      "$ref": "cli.command.logs.agents.completions.response.messages.assistant.logprobs.subscribe.response_schema.Request"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "title": "cli.command.config.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Agents",
+      "$ref": "cli.command.config.agents.ResponseItem"
+    },
+    {
+      "title": "Functions",
+      "$ref": "cli.command.config.functions.ResponseItem"
+    },
+    {
+      "title": "Mcp",
+      "$ref": "cli.command.config.mcp.Response"
+    },
+    {
+      "title": "Swarms",
+      "$ref": "cli.command.config.swarms.ResponseItem"
+    },
+    {
+      "title": "Viewer",
+      "$ref": "cli.command.config.viewer.Response"
+    }
+  ]
+}

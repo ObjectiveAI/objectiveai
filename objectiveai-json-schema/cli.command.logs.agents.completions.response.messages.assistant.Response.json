@@ -1,0 +1,71 @@
+{
+  "title": "cli.command.logs.agents.completions.response.messages.assistant.Response",
+  "anyOf": [
+    {
+      "title": "Audio",
+      "$ref": "cli.command.logs.agents.completions.response.messages.assistant.audio.Response"
+    },
+    {
+      "title": "Clear",
+      "$ref": "cli.command.logs.agents.completions.response.messages.assistant.clear.Response"
+    },
+    {
+      "title": "ClearRequestSchema"
+    },
+    {
+      "title": "ClearResponseSchema"
+    },
+    {
+      "title": "File",
+      "$ref": "cli.command.logs.agents.completions.response.messages.assistant.file.Response"
+    },
+    {
+      "title": "Get",
+      "$ref": "agent.completions.response.streaming.AssistantResponseChunkLog"
+    },
+    {
+      "title": "GetRequestSchema"
+    },
+    {
+      "title": "GetResponseSchema"
+    },
+    {
+      "title": "Image",
+      "$ref": "cli.command.logs.agents.completions.response.messages.assistant.image.Response"
+    },
+    {
+      "title": "Logprobs",
+      "$ref": "cli.command.logs.agents.completions.response.messages.assistant.logprobs.Response"
+    },
+    {
+      "title": "Reasoning",
+      "$ref": "cli.command.logs.agents.completions.response.messages.assistant.reasoning.Response"
+    },
+    {
+      "title": "Refusal",
+      "$ref": "cli.command.logs.agents.completions.response.messages.assistant.refusal.Response"
+    },
+    {
+      "title": "Subscribe",
+      "$ref": "agent.completions.response.streaming.AssistantResponseChunkLog"
+    },
+    {
+      "title": "SubscribeRequestSchema"
+    },
+    {
+      "title": "SubscribeResponseSchema"
+    },
+    {
+      "title": "Text",
+      "$ref": "cli.command.logs.agents.completions.response.messages.assistant.text.Response"
+    },
+    {
+      "title": "ToolCalls",
+      "$ref": "cli.command.logs.agents.completions.response.messages.assistant.tool_calls.Response"
+    },
+    {
+      "title": "Video",
+      "$ref": "cli.command.logs.agents.completions.response.messages.assistant.video.Response"
+    }
+  ]
+}

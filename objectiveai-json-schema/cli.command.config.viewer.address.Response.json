@@ -1,0 +1,25 @@
+{
+  "title": "cli.command.config.viewer.address.Response",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.config.viewer.address.get.Response"
+    },
+    {
+      "title": "GetRequestSchema"
+    },
+    {
+      "title": "GetResponseSchema"
+    },
+    {
+      "title": "Set",
+      "$ref": "cli.command.Ok"
+    },
+    {
+      "title": "SetRequestSchema"
+    },
+    {
+      "title": "SetResponseSchema"
+    }
+  ]
+}

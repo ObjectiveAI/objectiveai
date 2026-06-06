@@ -1,0 +1,25 @@
+{
+  "title": "cli.command.logs.vector.completions.request.Response",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "vector.completions.request.VectorCompletionCreateParams"
+    },
+    {
+      "title": "GetRequestSchema"
+    },
+    {
+      "title": "GetResponseSchema"
+    },
+    {
+      "title": "Subscribe",
+      "$ref": "vector.completions.request.VectorCompletionCreateParams"
+    },
+    {
+      "title": "SubscribeRequestSchema"
+    },
+    {
+      "title": "SubscribeResponseSchema"
+    }
+  ]
+}

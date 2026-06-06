@@ -1,0 +1,25 @@
+{
+  "title": "cli.command.config.mcp.address.Response",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.config.mcp.address.get.Response"
+    },
+    {
+      "title": "GetRequestSchema"
+    },
+    {
+      "title": "GetResponseSchema"
+    },
+    {
+      "title": "Set",
+      "$ref": "cli.command.Ok"
+    },
+    {
+      "title": "SetRequestSchema"
+    },
+    {
+      "title": "SetResponseSchema"
+    }
+  ]
+}

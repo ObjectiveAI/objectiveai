@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.agents.tags.add.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "agents/tags/add/response_schema"
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "title": "cli.command.agents.tags.add.Request",
+  "type": "object",
+  "properties": {
+    "agent_full_id": {
+      "type": "string"
+    },
+    "jq": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "name": {
+      "type": "string"
+    },
+    "parent_agent_instance_hierarchy": {
+      "description": "Optional parent scope. Falls back to\n`Config.agent_instance_hierarchy` at handler time.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "path_type": {
+      "$ref": "cli.command.agents.tags.add.Path"
+    }
+  }
+}

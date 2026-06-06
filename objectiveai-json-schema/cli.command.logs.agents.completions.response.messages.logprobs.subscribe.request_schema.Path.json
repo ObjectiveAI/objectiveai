@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.logs.agents.completions.response.messages.logprobs.subscribe.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "logs/agents/completions/response/messages/logprobs/subscribe/request_schema"
-  ]
-}

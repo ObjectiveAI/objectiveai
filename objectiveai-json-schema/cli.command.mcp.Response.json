@@ -1,0 +1,25 @@
+{
+  "title": "cli.command.mcp.Response",
+  "anyOf": [
+    {
+      "title": "Kill",
+      "$ref": "cli.command.mcp.kill.Response"
+    },
+    {
+      "title": "KillRequestSchema"
+    },
+    {
+      "title": "KillResponseSchema"
+    },
+    {
+      "title": "Spawn",
+      "$ref": "cli.command.mcp.spawn.Response"
+    },
+    {
+      "title": "SpawnRequestSchema"
+    },
+    {
+      "title": "SpawnResponseSchema"
+    }
+  ]
+}

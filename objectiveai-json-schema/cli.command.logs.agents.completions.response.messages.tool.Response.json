@@ -1,0 +1,55 @@
+{
+  "title": "cli.command.logs.agents.completions.response.messages.tool.Response",
+  "anyOf": [
+    {
+      "title": "Audio",
+      "$ref": "cli.command.logs.agents.completions.response.messages.tool.audio.Response"
+    },
+    {
+      "title": "Clear",
+      "$ref": "cli.command.logs.agents.completions.response.messages.tool.clear.Response"
+    },
+    {
+      "title": "ClearRequestSchema"
+    },
+    {
+      "title": "ClearResponseSchema"
+    },
+    {
+      "title": "File",
+      "$ref": "cli.command.logs.agents.completions.response.messages.tool.file.Response"
+    },
+    {
+      "title": "Get",
+      "$ref": "agent.completions.response.ToolResponseLog"
+    },
+    {
+      "title": "GetRequestSchema"
+    },
+    {
+      "title": "GetResponseSchema"
+    },
+    {
+      "title": "Image",
+      "$ref": "cli.command.logs.agents.completions.response.messages.tool.image.Response"
+    },
+    {
+      "title": "Subscribe",
+      "$ref": "agent.completions.response.ToolResponseLog"
+    },
+    {
+      "title": "SubscribeRequestSchema"
+    },
+    {
+      "title": "SubscribeResponseSchema"
+    },
+    {
+      "title": "Text",
+      "$ref": "cli.command.logs.agents.completions.response.messages.tool.text.Response"
+    },
+    {
+      "title": "Video",
+      "$ref": "cli.command.logs.agents.completions.response.messages.tool.video.Response"
+    }
+  ]
+}

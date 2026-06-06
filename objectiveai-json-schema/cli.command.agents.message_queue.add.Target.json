@@ -1,0 +1,49 @@
+{
+  "title": "cli.command.agents.message_queue.add.Target",
+  "description": "Mutually-exclusive target. `Direct` composes\n`{parent}/{agent_instance}` at handler time (parent defaults to\nthe cli's own `Config.agent_instance_hierarchy`). `Tag` stores\nthe tag name verbatim Ã¢â‚¬â€ no `tags.sqlite` lookup at enqueue time.",
+  "anyOf": [
+    {
+      "title": "Direct",
+      "type": "object",
+      "properties": {
+        "agent_instance": {
+          "description": "Leaf id of the target agent.",
+          "type": "string"
+        },
+        "by": {
+          "type": "string",
+          "enum": [
+            "direct"
+          ]
+        },
+        "parent_agent_instance_hierarchy": {
+          "description": "Lineage prefix to prepend to `agent_instance`. When\n`None`, the CLI substitutes its own\n`Config.agent_instance_hierarchy`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        }
+      }
+    },
+    {
+      "title": "Tag",
+      "type": "object",
+      "properties": {
+        "agent_tag": {
+          "type": "string"
+        },
+        "by": {
+          "type": "string",
+          "enum": [
+            "tag"
+          ]
+        }
+      }
+    }
+  ]
+}

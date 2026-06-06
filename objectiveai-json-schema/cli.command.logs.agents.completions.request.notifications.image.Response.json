@@ -1,0 +1,15 @@
+{
+  "title": "cli.command.logs.agents.completions.request.notifications.image.Response",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "agent.completions.message.ImageUrl"
+    },
+    {
+      "title": "GetRequestSchema"
+    },
+    {
+      "title": "GetResponseSchema"
+    }
+  ]
+}

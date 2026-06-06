@@ -1,0 +1,15 @@
+{
+  "title": "cli.command.logs.agents.completions.request.messages.file.Response",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "agent.completions.message.File"
+    },
+    {
+      "title": "GetRequestSchema"
+    },
+    {
+      "title": "GetResponseSchema"
+    }
+  ]
+}

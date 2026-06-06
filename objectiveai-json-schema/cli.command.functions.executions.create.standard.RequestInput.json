@@ -12,6 +12,16 @@
       "additionalProperties": false
     },
     {
+      "title": "File",
+      "type": "object",
+      "properties": {
+        "File": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
       "title": "PythonInline",
       "type": "object",
       "properties": {

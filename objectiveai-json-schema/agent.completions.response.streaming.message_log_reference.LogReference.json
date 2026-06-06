@@ -1,0 +1,23 @@
+{
+  "title": "agent.completions.response.streaming.message_log_reference.LogReference",
+  "type": "object",
+  "properties": {
+    "index": {
+      "description": "The message's index within the completion — the message-index\nargument to the role-specific read commands.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "path": {
+      "type": "string",
+      "omitempty": true
+    },
+    "role": {
+      "description": "Which role subdir the file lives in, i.e. which command family\nreads it.",
+      "$ref": "agent.completions.response.streaming.message_log_reference.Role"
+    },
+    "type": {
+      "$ref": "LogReferenceTag"
+    }
+  }
+}

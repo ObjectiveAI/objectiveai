@@ -1,0 +1,49 @@
+{
+  "title": "cli.command.agents.read.all.Target",
+  "description": "One queue-read target. Either direct `(parent, instance)` (parent\ndefaults to the cli's own `Config.agent_instance_hierarchy` when\nomitted) OR a tag name the cli resolves at handler time. Shared\nwith `agents read pending` via re-export.\n\nDocker-style `key=value,key=value` wire form on the CLI:\n  `--target instance=L`           (direct; parent defaults to ctx)\n  `--target instance=L,parent=P`  (direct; explicit parent)\n  `--target tag=T`                (tag; cli resolves via tags.sqlite)",
+  "anyOf": [
+    {
+      "title": "Direct",
+      "type": "object",
+      "properties": {
+        "agent_instance": {
+          "description": "Leaf id of the target agent.",
+          "type": "string"
+        },
+        "by": {
+          "type": "string",
+          "enum": [
+            "direct"
+          ]
+        },
+        "parent_agent_instance_hierarchy": {
+          "description": "Optional lineage prefix. `None` ⇒ cli substitutes\n`Config.agent_instance_hierarchy`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        }
+      }
+    },
+    {
+      "title": "Tag",
+      "type": "object",
+      "properties": {
+        "agent_tag": {
+          "type": "string"
+        },
+        "by": {
+          "type": "string",
+          "enum": [
+            "tag"
+          ]
+        }
+      }
+    }
+  ]
+}

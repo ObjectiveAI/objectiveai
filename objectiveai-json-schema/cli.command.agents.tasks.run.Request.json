@@ -1,0 +1,57 @@
+{
+  "title": "cli.command.agents.tasks.run.Request",
+  "type": "object",
+  "properties": {
+    "agent_instance_hierarchy": {
+      "description": "Literal hierarchy scope. Mutually exclusive with `tag`.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "depth": {
+      "description": "Cap descent depth from the scope root. `None` = unlimited.",
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "jq": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "path_type": {
+      "$ref": "cli.command.agents.tasks.run.Path"
+    },
+    "tag": {
+      "description": "Tag name; resolved BOUND-only at handler time. PENDING /\nABSENT raise structured errors. Mutually exclusive with\n`agent_instance_hierarchy`.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

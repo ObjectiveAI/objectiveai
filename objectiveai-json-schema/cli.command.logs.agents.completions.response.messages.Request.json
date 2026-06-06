@@ -2,80 +2,12 @@
   "title": "cli.command.logs.agents.completions.response.messages.Request",
   "anyOf": [
     {
-      "title": "Audio",
-      "$ref": "cli.command.logs.agents.completions.response.messages.audio.Request"
-    },
-    {
-      "title": "Clear",
-      "$ref": "cli.command.logs.agents.completions.response.messages.clear.Request"
-    },
-    {
-      "title": "ClearRequestSchema",
-      "$ref": "cli.command.logs.agents.completions.response.messages.clear.request_schema.Request"
-    },
-    {
-      "title": "ClearResponseSchema",
-      "$ref": "cli.command.logs.agents.completions.response.messages.clear.response_schema.Request"
-    },
-    {
-      "title": "File",
-      "$ref": "cli.command.logs.agents.completions.response.messages.file.Request"
-    },
-    {
-      "title": "Get",
-      "$ref": "cli.command.logs.agents.completions.response.messages.get.Request"
-    },
-    {
-      "title": "GetRequestSchema",
-      "$ref": "cli.command.logs.agents.completions.response.messages.get.request_schema.Request"
-    },
-    {
-      "title": "GetResponseSchema",
-      "$ref": "cli.command.logs.agents.completions.response.messages.get.response_schema.Request"
-    },
-    {
-      "title": "Image",
-      "$ref": "cli.command.logs.agents.completions.response.messages.image.Request"
-    },
-    {
-      "title": "Logprobs",
-      "$ref": "cli.command.logs.agents.completions.response.messages.logprobs.Request"
-    },
-    {
-      "title": "Reasoning",
-      "$ref": "cli.command.logs.agents.completions.response.messages.reasoning.Request"
-    },
-    {
-      "title": "Refusal",
-      "$ref": "cli.command.logs.agents.completions.response.messages.refusal.Request"
-    },
-    {
-      "title": "Subscribe",
-      "$ref": "cli.command.logs.agents.completions.response.messages.subscribe.Request"
-    },
-    {
-      "title": "SubscribeRequestSchema",
-      "$ref": "cli.command.logs.agents.completions.response.messages.subscribe.request_schema.Request"
-    },
-    {
-      "title": "SubscribeResponseSchema",
-      "$ref": "cli.command.logs.agents.completions.response.messages.subscribe.response_schema.Request"
-    },
-    {
-      "title": "Text",
-      "$ref": "cli.command.logs.agents.completions.response.messages.text.Request"
+      "title": "Assistant",
+      "$ref": "cli.command.logs.agents.completions.response.messages.assistant.Request"
     },
     {
       "title": "Tool",
       "$ref": "cli.command.logs.agents.completions.response.messages.tool.Request"
-    },
-    {
-      "title": "ToolCalls",
-      "$ref": "cli.command.logs.agents.completions.response.messages.tool_calls.Request"
-    },
-    {
-      "title": "Video",
-      "$ref": "cli.command.logs.agents.completions.response.messages.video.Request"
     }
   ]
 }

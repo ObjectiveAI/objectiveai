@@ -1,0 +1,15 @@
+{
+  "title": "cli.command.logs.agents.completions.request.messages.audio.Response",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "agent.completions.message.InputAudio"
+    },
+    {
+      "title": "GetRequestSchema"
+    },
+    {
+      "title": "GetResponseSchema"
+    }
+  ]
+}
