@@ -20,6 +20,11 @@ pub struct Client {
     /// `agents message-queue {add,list}` so the queue-list leaf can JOIN
     /// prompts â¨ tags in one query.
     tags_db_conn: Arc<Mutex<Option<Arc<Mutex<rusqlite::Connection>>>>>,
+    /// Parallel slot for the dedicated `tasks.sqlite` connection.
+    /// Hosts the `schedules` table for `agents tasks schedule` (and
+    /// future task-runner tables). Same lazy-init / no-poison
+    /// semantics as the other slots.
+    tasks_db_conn: Arc<Mutex<Option<Arc<Mutex<rusqlite::Connection>>>>>,
 }
 
 impl Client {
@@ -43,6 +48,7 @@ impl Client {
                         ),
                         db_conn: Arc::new(Mutex::new(None)),
                         tags_db_conn: Arc::new(Mutex::new(None)),
+                        tasks_db_conn: Arc::new(Mutex::new(None)),
                     };
                 }
                 dirs::home_dir()
@@ -56,6 +62,7 @@ impl Client {
             commit_author_email: resolve_author_email(commit_author_email),
             db_conn: Arc::new(Mutex::new(None)),
             tags_db_conn: Arc::new(Mutex::new(None)),
+            tasks_db_conn: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -75,6 +82,12 @@ impl Client {
     /// Also holds the `prompts` table for `agents message-queue {add,list}`.
     pub fn tags_db_path(&self) -> PathBuf {
         self.base_dir.join("tags.sqlite")
+    }
+
+    /// Path to the dedicated `tasks.sqlite` file under `base_dir`.
+    /// Hosts the `schedules` table for `agents tasks schedule`.
+    pub fn tasks_db_path(&self) -> PathBuf {
+        self.base_dir.join("tasks.sqlite")
     }
 
     pub fn logs_dir(&self) -> PathBuf {
@@ -104,6 +117,15 @@ impl Client {
         &self,
     ) -> &Mutex<Option<Arc<Mutex<rusqlite::Connection>>>> {
         &self.tags_db_conn
+    }
+
+    /// Internal accessor to the dedicated tasks-db lazy-init slot.
+    /// Used by `filesystem::db::tasks` to open the `tasks.sqlite`
+    /// connection on first use.
+    pub(crate) fn tasks_db_conn_slot(
+        &self,
+    ) -> &Mutex<Option<Arc<Mutex<rusqlite::Connection>>>> {
+        &self.tasks_db_conn
     }
 }
 

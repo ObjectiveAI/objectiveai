@@ -32,6 +32,7 @@ sha2 = "0.10.9"
 mime_guess = "2.0.5"
 git2 = { version = "0.20.4", default-features = false, features = ["vendored-libgit2"] }
 rusqlite = { version = "0.31.0", features = ["bundled"] }
+humantime = "2"
 zip = { version = "2.4.0", default-features = false, features = ["deflate"] }
 interprocess = { version = "2.4.2", features = ["tokio"] }
 ratatui = "0.30.0"

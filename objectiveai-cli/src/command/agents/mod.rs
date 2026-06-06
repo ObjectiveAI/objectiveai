@@ -22,6 +22,7 @@ pub mod message_queue;
 pub mod read;
 pub mod spawn;
 pub mod tags;
+pub mod tasks;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
@@ -108,6 +109,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::Tags(req) => {
             let inner = tags::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Tags)))
+        }
+        Request::Tasks(req) => {
+            let inner = tasks::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Tasks)))
         }
     };
     Ok(stream)
