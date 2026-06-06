@@ -968,7 +968,7 @@ mod tests {
         // The id may itself contain underscores — only the trailing
         // integer-shaped segments are indices.
         let k = LogFileKind::from_path(
-            "agents/completions/response/messages/reasoning/my_id_with_dashes_7.txt",
+            "agents/completions/response/messages/assistant/reasoning/my_id_with_dashes_7.txt",
         )
         .unwrap();
         assert_eq!(
