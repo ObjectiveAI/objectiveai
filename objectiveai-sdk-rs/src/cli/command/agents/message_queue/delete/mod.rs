@@ -56,6 +56,10 @@ pub struct Response {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub agent_tag: Option<String>,
+    /// Idempotency token, if the dropped row had one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub key: Option<String>,
     pub enqueued_at: i64,
     pub content: crate::agent::completions::message::RichContent,
 }

@@ -45,6 +45,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         ctx.filesystem.clone(),
         agent_instance_hierarchy.clone(),
         agent_tag.clone(),
+        request.key,
         content,
     )
     .await?;

@@ -73,6 +73,11 @@ pub enum ResponseItem {
     AgentInstance {
         id: i64,
         agent_instance: String,
+        /// Idempotency token, if the row was enqueued with `--key`.
+        /// Skipped from the wire shape when `None`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        key: Option<String>,
         content: super::super::super::read::all::ResponseContent,
     },
     #[schemars(title = "Tag")]
@@ -81,6 +86,10 @@ pub enum ResponseItem {
         agent_tag: String,
         #[serde(flatten)]
         state: LookupState,
+        /// Idempotency token, if the row was enqueued with `--key`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        key: Option<String>,
         content: super::super::super::read::all::ResponseContent,
     },
 }

@@ -83,6 +83,7 @@ fn init_tables(conn: &Connection) -> Result<(), Error> {
             agent_tag                TEXT, \
             prompt                   TEXT NOT NULL, \
             enqueued_at              INTEGER NOT NULL, \
+            key                      TEXT, \
             CHECK ( \
                 (agent_instance_hierarchy IS NOT NULL AND agent_tag IS NULL) \
                 OR \
@@ -95,6 +96,17 @@ fn init_tables(conn: &Connection) -> Result<(), Error> {
         CREATE INDEX IF NOT EXISTS prompts_tag_idx \
             ON prompts(agent_tag, id) \
             WHERE agent_tag IS NOT NULL;\
+        /* Partial unique indexes scope `key` uniqueness per target. \
+           A second `agents message-queue add` with the same \
+           (target, key) is upserted by the storage helper (explicit \
+           DELETE + INSERT). NULL keys are excluded from the index, \
+           so unkeyed items remain append-only. */ \
+        CREATE UNIQUE INDEX IF NOT EXISTS prompts_key_hierarchy_unique_idx \
+            ON prompts(agent_instance_hierarchy, key) \
+            WHERE agent_instance_hierarchy IS NOT NULL AND key IS NOT NULL;\
+        CREATE UNIQUE INDEX IF NOT EXISTS prompts_key_tag_unique_idx \
+            ON prompts(agent_tag, key) \
+            WHERE agent_tag IS NOT NULL AND key IS NOT NULL;\
         CREATE TABLE IF NOT EXISTS prompt_contents (\
             id        INTEGER PRIMARY KEY AUTOINCREMENT, \
             prompt_id INTEGER NOT NULL, \
@@ -136,6 +148,18 @@ fn init_tables(conn: &Connection) -> Result<(), Error> {
         );\
         ",
     )?;
+    // Defensive migration for `tags.sqlite` files that predate the
+    // `prompts.key` column (#213). New databases already have the
+    // column from the CREATE TABLE above; for existing ones, ALTER
+    // adds it. SQLite reports a SQLITE_ERROR ("duplicate column
+    // name: key") when the column is already present — treat that
+    // as a no-op, propagate anything else.
+    if let Err(e) = conn.execute("ALTER TABLE prompts ADD COLUMN key TEXT", []) {
+        let msg = e.to_string();
+        if !msg.contains("duplicate column name") {
+            return Err(e.into());
+        }
+    }
     Ok(())
 }
 
