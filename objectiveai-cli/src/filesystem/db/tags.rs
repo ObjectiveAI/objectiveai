@@ -148,18 +148,6 @@ fn init_tables(conn: &Connection) -> Result<(), Error> {
         );\
         ",
     )?;
-    // Defensive migration for `tags.sqlite` files that predate the
-    // `prompts.key` column (#213). New databases already have the
-    // column from the CREATE TABLE above; for existing ones, ALTER
-    // adds it. SQLite reports a SQLITE_ERROR ("duplicate column
-    // name: key") when the column is already present — treat that
-    // as a no-op, propagate anything else.
-    if let Err(e) = conn.execute("ALTER TABLE prompts ADD COLUMN key TEXT", []) {
-        let msg = e.to_string();
-        if !msg.contains("duplicate column name") {
-            return Err(e.into());
-        }
-    }
     Ok(())
 }
 
