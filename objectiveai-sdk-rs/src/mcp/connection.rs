@@ -225,6 +225,21 @@ impl Connection {
         }
     }
 
+    #[cfg(test)]
+    pub(crate) fn new_for_test_with_caps(
+        name: String,
+        url: String,
+        capabilities: super::initialize_result::ServerCapabilities,
+    ) -> Self {
+        Self {
+            inner: ConnectionInner::new_for_test_with_caps(
+                name,
+                url,
+                capabilities,
+            ),
+        }
+    }
+
     /// Send a JSON-RPC notification to the upstream. Used by `Client`
     /// right after `initialize` to send `notifications/initialized`.
     pub(super) async fn notify<P: serde::Serialize>(
@@ -549,9 +564,45 @@ pub struct ConnectionInner {
 }
 
 impl ConnectionInner {
-    /// Creates a minimal connection for unit testing.
+    /// Creates a minimal connection for unit testing. Declares both
+    /// `tools` and `resources` capabilities with `list_changed:
+    /// Some(true)` so callers exercise the present-cap +
+    /// list_changed-enabled paths in `list_*`, `refresh_*`, and
+    /// `subscribe_*`. For other capability shapes use
+    /// `new_for_test_with_caps`.
     #[cfg(test)]
     fn new_for_test(name: String, url: String) -> Arc<Self> {
+        Self::new_for_test_with_caps(
+            name,
+            url,
+            super::initialize_result::ServerCapabilities {
+                experimental: None,
+                logging: None,
+                completions: None,
+                prompts: None,
+                resources: Some(
+                    super::initialize_result::ResourcesCapability {
+                        subscribe: None,
+                        list_changed: Some(true),
+                    },
+                ),
+                tools: Some(super::initialize_result::ToolsCapability {
+                    list_changed: Some(true),
+                }),
+                tasks: None,
+            },
+        )
+    }
+
+    /// Creates a minimal connection for unit testing with an explicit
+    /// `ServerCapabilities`. Used by the capability-gating tests to
+    /// drive each gate's absent-cap branch.
+    #[cfg(test)]
+    fn new_for_test_with_caps(
+        name: String,
+        url: String,
+        capabilities: super::initialize_result::ServerCapabilities,
+    ) -> Arc<Self> {
         Arc::new(Self {
             http_client: reqwest::Client::new(),
             url,
@@ -567,15 +618,7 @@ impl ConnectionInner {
             call_timeout: Duration::from_secs(30),
             initialize_result: super::initialize_result::InitializeResult {
                 protocol_version: "2025-03-26".into(),
-                capabilities: super::initialize_result::ServerCapabilities {
-                    experimental: None,
-                    logging: None,
-                    completions: None,
-                    prompts: None,
-                    resources: None,
-                    tools: None,
-                    tasks: None,
-                },
+                capabilities,
                 server_info: super::initialize_result::Implementation {
                     name,
                     title: None,
@@ -729,6 +772,50 @@ impl ConnectionInner {
         }
 
         conn
+    }
+
+    /// Server declared a `tools` capability in its `InitializeResult`.
+    /// Gates `list_tools`, `call_tool`, `refresh_tools`. When `false` the
+    /// upstream cannot service `tools/*` RPCs at all and any attempt would
+    /// either hang in idempotent backoff (`tools/list`) or fail with
+    /// `SessionExpired` (`tools/call`).
+    fn has_tools_cap(&self) -> bool {
+        self.initialize_result.capabilities.tools.is_some()
+    }
+
+    /// Server declared a `resources` capability in its `InitializeResult`.
+    /// Gates `list_resources`, `read_resource`, `refresh_resources`, and
+    /// the post-`call_tool` ResourceLink resolution. Same hang-or-fail
+    /// shape as `has_tools_cap` when absent.
+    fn has_resources_cap(&self) -> bool {
+        self.initialize_result.capabilities.resources.is_some()
+    }
+
+    /// Server declared `tools.list_changed: true`. Gates
+    /// `subscribe_tools`'s wait-for-notify branch: when `false` the
+    /// upstream will never push `notifications/tools/list_changed`, so
+    /// awaiting the notify is unreachable and `subscribe_tools` returns
+    /// the current cache immediately.
+    fn has_tools_list_changed(&self) -> bool {
+        matches!(
+            self.initialize_result.capabilities.tools,
+            Some(super::initialize_result::ToolsCapability {
+                list_changed: Some(true),
+            })
+        )
+    }
+
+    /// Server declared `resources.list_changed: true`. Symmetric to
+    /// `has_tools_list_changed`; gates `subscribe_resources`'s
+    /// wait-for-notify branch.
+    fn has_resources_list_changed(&self) -> bool {
+        matches!(
+            self.initialize_result.capabilities.resources,
+            Some(super::initialize_result::ResourcesCapability {
+                list_changed: Some(true),
+                ..
+            })
+        )
     }
 
     /// Creates an exponential backoff configuration from the connection's fields.
@@ -1116,6 +1203,9 @@ impl ConnectionInner {
     async fn list_tools(
         &self,
     ) -> Result<Arc<Vec<super::tool::Tool>>, Arc<super::Error>> {
+        if !self.has_tools_cap() {
+            return Ok(Arc::new(Vec::new()));
+        }
         if let Some(cached) = self.tools.read().await.as_ref() {
             return cached.clone();
         }
@@ -1150,6 +1240,11 @@ impl ConnectionInner {
         &self,
         params: &super::tool::CallToolRequestParams,
     ) -> Result<super::tool::CallToolResult, super::Error> {
+        if !self.has_tools_cap() {
+            return Err(super::Error::UnsupportedCapability {
+                capability: "tools",
+            });
+        }
         // Mark the connection as deliberately used. Flipped at the top
         // of the method (not after success) because even a failed
         // `tools/call` may have mutated upstream state — we don't want
@@ -1281,6 +1376,9 @@ impl ConnectionInner {
     async fn list_resources(
         &self,
     ) -> Result<Arc<Vec<super::resource::Resource>>, Arc<super::Error>> {
+        if !self.has_resources_cap() {
+            return Ok(Arc::new(Vec::new()));
+        }
         if let Some(cached) = self.resources.read().await.as_ref() {
             return cached.clone();
         }
@@ -1309,6 +1407,14 @@ impl ConnectionInner {
         current: &[super::tool::Tool],
         timeout: Duration,
     ) -> Result<Arc<Vec<super::tool::Tool>>, Arc<super::Error>> {
+        if !self.has_tools_list_changed() {
+            // Server can't push `notifications/tools/list_changed` —
+            // awaiting the notify is unreachable. Return whatever's
+            // there right now (`Ok(empty)` on a tools-cap-absent
+            // server via `list_tools`'s own gate; the real cache
+            // otherwise).
+            return self.list_tools().await;
+        }
         // Arm BEFORE reading. `enable()` registers the future in the
         // wait queue without polling, so a `notify_waiters` racing
         // between our read and our await still wakes us.
@@ -1337,6 +1443,10 @@ impl ConnectionInner {
         current: &[super::resource::Resource],
         timeout: Duration,
     ) -> Result<Arc<Vec<super::resource::Resource>>, Arc<super::Error>> {
+        if !self.has_resources_list_changed() {
+            // Symmetric to `subscribe_tools` — see that gate.
+            return self.list_resources().await;
+        }
         let notified = self.resources_changed.notified();
         tokio::pin!(notified);
         notified.as_mut().enable();
@@ -1357,6 +1467,11 @@ impl ConnectionInner {
         &self,
         uri: &str,
     ) -> Result<super::resource::ReadResourceResult, super::Error> {
+        if !self.has_resources_cap() {
+            return Err(super::Error::UnsupportedCapability {
+                capability: "resources",
+            });
+        }
         // Mark the connection as deliberately used (same reasoning as
         // `call_tool` — see the drop-time orphan-DELETE gate).
         self.any_calls.store(true, Ordering::Relaxed);
@@ -1379,6 +1494,16 @@ impl ConnectionInner {
     /// re-emit `notifications/tools/list_changed` to its downstream client
     /// at the moment the staleness window opens.
     async fn refresh_tools(&self, on_change: Option<ListChangedCallback>) {
+        if !self.has_tools_cap() {
+            // No tools capability — install an empty Vec so the cache
+            // contract holds (`list_tools`'s `.expect("refresh_tools
+            // installs Some")` etc.) and return without paginating or
+            // signalling. No `notify_waiters` and no `on_change` —
+            // nothing real changed.
+            let mut guard = self.tools.write().await;
+            *guard = Some(Ok(Arc::new(Vec::new())));
+            return;
+        }
         // Listener-driven refresh. Visibility contract: any caller
         // that issues `list_tools()` after a `tools/list_changed`
         // notification has been observed must see the post-swap
@@ -1435,6 +1560,12 @@ impl ConnectionInner {
     /// "writer is in possession of the cache" before returning. Used by
     /// `ConnectionInner::new` to prevent a fast reader from acquiring
     /// the read lock before this writer has even started.
+    ///
+    /// **Caller invariant:** the spawn site in `ConnectionInner::new`
+    /// must gate this call on `capabilities.tools.is_some()`. This
+    /// method assumes the tools capability is present and issues
+    /// `tools/list` RPCs unconditionally — running it against a
+    /// no-tools server triggers the 15-min idempotent-backoff storm.
     async fn refresh_tools_signaling(
         &self,
         lock_held: tokio::sync::oneshot::Sender<()>,
@@ -1472,6 +1603,12 @@ impl ConnectionInner {
     /// See [`ConnectionInner::refresh_tools`] for the callback timing
     /// contract.
     async fn refresh_resources(&self, on_change: Option<ListChangedCallback>) {
+        if !self.has_resources_cap() {
+            // Symmetric to `refresh_tools` — see that gate.
+            let mut guard = self.resources.write().await;
+            *guard = Some(Ok(Arc::new(Vec::new())));
+            return;
+        }
         // Same paginate-while-acquiring-the-write-lock pattern as
         // `refresh_tools` — see that comment for the visibility +
         // performance rationale.
@@ -1503,7 +1640,9 @@ impl ConnectionInner {
         }
     }
 
-    /// Resource counterpart of [`Self::refresh_tools_signaling`].
+    /// Resource counterpart of [`Self::refresh_tools_signaling`]. The
+    /// same spawn-site-gate invariant applies: the caller must gate
+    /// the spawn on `capabilities.resources.is_some()`.
     async fn refresh_resources_signaling(
         &self,
         lock_held: tokio::sync::oneshot::Sender<()>,
@@ -1831,6 +1970,252 @@ async fn orphan_delete(
     // guard has already fired (it runs as part of the regular
     // `_listener_cancel_guard` drop inside the same `drop` call).
     let _ = request.send().await;
+}
+
+#[cfg(test)]
+mod capability_gate_tests {
+    use super::*;
+    use crate::mcp::initialize_result::{
+        ResourcesCapability, ServerCapabilities, ToolsCapability,
+    };
+    use crate::mcp::tool::{
+        CallToolRequestParams, Tool, ToolSchemaObject, ToolSchemaType,
+    };
+
+    /// Builds a `ServerCapabilities` with the given `tools` / `resources`
+    /// shapes and every other capability set to `None`. Each gate test
+    /// passes its own combination to exercise a specific cap-absent
+    /// branch.
+    fn caps(
+        tools: Option<ToolsCapability>,
+        resources: Option<ResourcesCapability>,
+    ) -> ServerCapabilities {
+        ServerCapabilities {
+            experimental: None,
+            logging: None,
+            completions: None,
+            prompts: None,
+            resources,
+            tools,
+            tasks: None,
+        }
+    }
+
+    fn tool(name: &str) -> Tool {
+        Tool {
+            name: name.to_string(),
+            title: None,
+            description: None,
+            icons: None,
+            input_schema: ToolSchemaObject {
+                r#type: ToolSchemaType::Object,
+                properties: None,
+                required: None,
+                extra: IndexMap::new(),
+            },
+            output_schema: None,
+            annotations: None,
+            execution: None,
+            _meta: None,
+        }
+    }
+
+    /// 3.1 — `list_tools` short-circuits to `Ok(empty)` when the server
+    /// declared no `tools` capability, *before* the cache is consulted.
+    /// We poison the cache with `Err` to prove the gate fires first.
+    #[tokio::test]
+    async fn list_tools_returns_empty_when_tools_cap_absent() {
+        let conn = Connection::new_for_test_with_caps(
+            "t".into(),
+            "http://x".into(),
+            caps(None, None),
+        );
+        let err = super::super::Error::NoSessionId {
+            url: "http://x".into(),
+            body: String::new(),
+        };
+        *conn.inner.tools.write().await = Some(Err(Arc::new(err)));
+
+        let got = conn.list_tools().await.unwrap();
+        assert!(got.is_empty());
+    }
+
+    /// 3.2 — symmetric to 3.1 for `list_resources`.
+    #[tokio::test]
+    async fn list_resources_returns_empty_when_resources_cap_absent() {
+        let conn = Connection::new_for_test_with_caps(
+            "t".into(),
+            "http://x".into(),
+            caps(None, None),
+        );
+        let err = super::super::Error::NoSessionId {
+            url: "http://x".into(),
+            body: String::new(),
+        };
+        *conn.inner.resources.write().await = Some(Err(Arc::new(err)));
+
+        let got = conn.list_resources().await.unwrap();
+        assert!(got.is_empty());
+    }
+
+    /// 3.3 — `read_resource` errors with `UnsupportedCapability` when
+    /// the server declared no `resources` capability, without hitting
+    /// the network.
+    #[tokio::test]
+    async fn read_resource_errors_when_resources_cap_absent() {
+        let conn = Connection::new_for_test_with_caps(
+            "t".into(),
+            "http://x".into(),
+            caps(None, None),
+        );
+        let got = conn.read_resource("file://nope").await;
+        assert!(matches!(
+            got,
+            Err(super::super::Error::UnsupportedCapability {
+                capability: "resources"
+            })
+        ));
+    }
+
+    /// 3.4 — `call_tool` errors with `UnsupportedCapability` when the
+    /// server declared no `tools` capability.
+    #[tokio::test]
+    async fn call_tool_errors_when_tools_cap_absent() {
+        let conn = Connection::new_for_test_with_caps(
+            "t".into(),
+            "http://x".into(),
+            caps(None, None),
+        );
+        let params = CallToolRequestParams {
+            name: "any".into(),
+            arguments: None,
+            _meta: None,
+            task: None,
+        };
+        let got = conn.call_tool(&params).await;
+        assert!(matches!(
+            got,
+            Err(super::super::Error::UnsupportedCapability {
+                capability: "tools"
+            })
+        ));
+    }
+
+    /// 3.5 — `refresh_tools` installs `Some(Ok(empty))` and returns
+    /// without paginating when the server declared no `tools`
+    /// capability. Clearing the cache first proves the install ran.
+    #[tokio::test]
+    async fn refresh_tools_installs_empty_when_tools_cap_absent() {
+        let conn = Connection::new_for_test_with_caps(
+            "t".into(),
+            "http://x".into(),
+            caps(None, None),
+        );
+        *conn.inner.tools.write().await = None;
+
+        conn.inner.refresh_tools(None).await;
+
+        let guard = conn.inner.tools.read().await;
+        let v = guard
+            .as_ref()
+            .expect("refresh installed Some")
+            .as_ref()
+            .expect("refresh installed Ok");
+        assert!(v.is_empty());
+    }
+
+    /// 3.6 — symmetric to 3.5 for `refresh_resources`.
+    #[tokio::test]
+    async fn refresh_resources_installs_empty_when_resources_cap_absent() {
+        let conn = Connection::new_for_test_with_caps(
+            "t".into(),
+            "http://x".into(),
+            caps(None, None),
+        );
+        *conn.inner.resources.write().await = None;
+
+        conn.inner.refresh_resources(None).await;
+
+        let guard = conn.inner.resources.read().await;
+        let v = guard
+            .as_ref()
+            .expect("refresh installed Some")
+            .as_ref()
+            .expect("refresh installed Ok");
+        assert!(v.is_empty());
+    }
+
+    /// 3.7 — `subscribe_tools` returns immediately (no wait-for-notify)
+    /// when the server declared `tools` but not
+    /// `tools.list_changed: Some(true)`. We populate the cache with a
+    /// non-empty list, pass a long timeout, and expect a fast return
+    /// with the cache contents.
+    #[tokio::test]
+    async fn subscribe_tools_short_circuits_when_list_changed_absent() {
+        let conn = Connection::new_for_test_with_caps(
+            "t".into(),
+            "http://x".into(),
+            caps(
+                Some(ToolsCapability { list_changed: None }),
+                None,
+            ),
+        );
+        *conn.inner.tools.write().await =
+            Some(Ok(Arc::new(vec![tool("a")])));
+
+        let start = std::time::Instant::now();
+        let got = conn
+            .subscribe_tools(&[tool("a")], Duration::from_secs(5))
+            .await
+            .unwrap();
+        assert!(
+            start.elapsed() < Duration::from_millis(100),
+            "elapsed: {:?}",
+            start.elapsed()
+        );
+        assert_eq!(got.as_slice(), &[tool("a")]);
+    }
+
+    /// 3.8 — symmetric to 3.7 for `subscribe_resources`.
+    #[tokio::test]
+    async fn subscribe_resources_short_circuits_when_list_changed_absent() {
+        use crate::mcp::resource::Resource;
+        let conn = Connection::new_for_test_with_caps(
+            "t".into(),
+            "http://x".into(),
+            caps(
+                None,
+                Some(ResourcesCapability {
+                    subscribe: None,
+                    list_changed: None,
+                }),
+            ),
+        );
+        let res = Resource {
+            uri: "file://a".into(),
+            name: "a".into(),
+            title: None,
+            description: None,
+            mime_type: None,
+            annotations: None,
+            icons: None,
+            _meta: None,
+        };
+        *conn.inner.resources.write().await =
+            Some(Ok(Arc::new(vec![res.clone()])));
+
+        let start = std::time::Instant::now();
+        let got = conn
+            .subscribe_resources(&[res.clone()], Duration::from_secs(5))
+            .await
+            .unwrap();
+        assert!(
+            start.elapsed() < Duration::from_millis(100),
+            "elapsed: {:?}",
+            start.elapsed()
+        );
+        assert_eq!(got.as_slice(), &[res]);
+    }
 }
 
 #[cfg(test)]

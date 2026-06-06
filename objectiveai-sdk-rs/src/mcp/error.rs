@@ -93,4 +93,13 @@ pub enum Error {
         /// What was wrong with the body, including a preview.
         message: String,
     },
+    /// The server did not declare the capability required to service this
+    /// request. Returned by `call_tool` when the server has no `tools`
+    /// capability, and by `read_resource` when the server has no
+    /// `resources` capability.
+    #[error("server does not support the {capability} capability")]
+    UnsupportedCapability {
+        /// The capability that's missing (`"tools"` or `"resources"`).
+        capability: &'static str,
+    },
 }
