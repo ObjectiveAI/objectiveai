@@ -2347,6 +2347,21 @@ impl Client {
         )
         .await
     }
+
+    /// Stream every queued prompt visible under `parent`. Direct
+    /// rows are filtered to direct children of `parent`; tag rows
+    /// are always included with the joined tag state from the
+    /// `tags` table. Same Vec-of-ResponseItem shape `list_active`
+    /// returns.
+    pub async fn queue_list(
+        &self,
+        parent: &str,
+    ) -> Result<
+        Vec<objectiveai_sdk::cli::command::agents::queue::list::ResponseItem>,
+        Error,
+    > {
+        super::super::db::prompts::list_async(self.clone(), parent.to_string()).await
+    }
 }
 
 // -- Pure helpers (no &Client) ---------------------------------------------

@@ -42,13 +42,17 @@ pub fn connection(client: &Client) -> Result<Arc<Mutex<Connection>>, Error> {
     }
     let conn = Connection::open(&db_path)?;
     conn.execute_batch("PRAGMA journal_mode=WAL;")?;
-    init_table(&conn)?;
+    init_tables(&conn)?;
     let arc = Arc::new(Mutex::new(conn));
     *guard = Some(arc.clone());
     Ok(arc)
 }
 
-fn init_table(conn: &Connection) -> Result<(), Error> {
+/// Create every table this DB hosts. `tags.sqlite` started as a
+/// single-table file but now also holds `prompts` (the deferred-
+/// message queue from `agents queue add`) so the queue-list leaf
+/// can JOIN prompts ⨝ tags in a single SELECT.
+fn init_tables(conn: &Connection) -> Result<(), Error> {
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS tags (\
             name                            TEXT PRIMARY KEY NOT NULL, \
@@ -69,7 +73,25 @@ fn init_table(conn: &Connection) -> Result<(), Error> {
         CREATE INDEX IF NOT EXISTS tags_hierarchy_idx \
             ON tags(agent_instance_hierarchy);\
         CREATE INDEX IF NOT EXISTS tags_pending_match_idx \
-            ON tags(agent_full_id, parent_agent_instance_hierarchy);",
+            ON tags(agent_full_id, parent_agent_instance_hierarchy);\
+        CREATE TABLE IF NOT EXISTS prompts (\
+            id                       INTEGER PRIMARY KEY AUTOINCREMENT, \
+            agent_instance_hierarchy TEXT, \
+            agent_tag                TEXT, \
+            prompt                   TEXT NOT NULL, \
+            enqueued_at              INTEGER NOT NULL, \
+            CHECK ( \
+                (agent_instance_hierarchy IS NOT NULL AND agent_tag IS NULL) \
+                OR \
+                (agent_instance_hierarchy IS NULL AND agent_tag IS NOT NULL) \
+            ) \
+        );\
+        CREATE INDEX IF NOT EXISTS prompts_hierarchy_idx \
+            ON prompts(agent_instance_hierarchy, id) \
+            WHERE agent_instance_hierarchy IS NOT NULL;\
+        CREATE INDEX IF NOT EXISTS prompts_tag_idx \
+            ON prompts(agent_tag, id) \
+            WHERE agent_tag IS NOT NULL;",
     )?;
     Ok(())
 }

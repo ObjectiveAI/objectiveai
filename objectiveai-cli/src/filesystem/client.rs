@@ -16,12 +16,10 @@ pub struct Client {
     /// Parallel slot for the dedicated `tags.sqlite` connection — same
     /// lazy-init semantics as `db_conn` but a separate file so the
     /// agent-tags lifecycle stays isolated from the main message-log
-    /// database.
+    /// database. Now also hosts the `prompts` table for
+    /// `agents queue {add,list}` so the queue-list leaf can JOIN
+    /// prompts ⨝ tags in one query.
     tags_db_conn: Arc<Mutex<Option<Arc<Mutex<rusqlite::Connection>>>>>,
-    /// Parallel slot for the dedicated `prompt_queue.sqlite`
-    /// connection — same lazy-init semantics, separate file. Holds
-    /// `agents enqueue`'s deferred-message rows.
-    prompt_queue_db_conn: Arc<Mutex<Option<Arc<Mutex<rusqlite::Connection>>>>>,
 }
 
 impl Client {
@@ -45,7 +43,6 @@ impl Client {
                         ),
                         db_conn: Arc::new(Mutex::new(None)),
                         tags_db_conn: Arc::new(Mutex::new(None)),
-                        prompt_queue_db_conn: Arc::new(Mutex::new(None)),
                     };
                 }
                 dirs::home_dir()
@@ -59,7 +56,6 @@ impl Client {
             commit_author_email: resolve_author_email(commit_author_email),
             db_conn: Arc::new(Mutex::new(None)),
             tags_db_conn: Arc::new(Mutex::new(None)),
-            prompt_queue_db_conn: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -76,14 +72,9 @@ impl Client {
     }
 
     /// Path to the dedicated `tags.sqlite` file under `base_dir`.
+    /// Also holds the `prompts` table for `agents queue {add,list}`.
     pub fn tags_db_path(&self) -> PathBuf {
         self.base_dir.join("tags.sqlite")
-    }
-
-    /// Path to the dedicated `prompt_queue.sqlite` file under
-    /// `base_dir` — holds `agents enqueue`'s deferred-message rows.
-    pub fn prompt_queue_db_path(&self) -> PathBuf {
-        self.base_dir.join("prompt_queue.sqlite")
     }
 
     pub fn logs_dir(&self) -> PathBuf {
@@ -107,20 +98,12 @@ impl Client {
 
     /// Internal accessor to the dedicated tags-db lazy-init slot. Used
     /// by `filesystem::db::tags` to open the `tags.sqlite` connection
-    /// on first use.
+    /// on first use. The connection is shared with `filesystem::db::prompts`
+    /// since both tables live in the same file.
     pub(crate) fn tags_db_conn_slot(
         &self,
     ) -> &Mutex<Option<Arc<Mutex<rusqlite::Connection>>>> {
         &self.tags_db_conn
-    }
-
-    /// Internal accessor to the dedicated prompt-queue-db lazy-init
-    /// slot. Used by `filesystem::db::prompt_queue` to open the
-    /// `prompt_queue.sqlite` connection on first use.
-    pub(crate) fn prompt_queue_db_conn_slot(
-        &self,
-    ) -> &Mutex<Option<Arc<Mutex<rusqlite::Connection>>>> {
-        &self.prompt_queue_db_conn
     }
 }
 

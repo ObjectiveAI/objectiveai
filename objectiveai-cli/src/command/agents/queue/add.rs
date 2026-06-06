@@ -1,5 +1,5 @@
 //! `agents queue add` — bare-naked handler. Persists a prompt into
-//! `prompt_queue.sqlite` against either the resolved
+//! the `prompts` table in `tags.sqlite` against either the resolved
 //! `{parent}/{instance}` hierarchy (Direct mode) or the literal tag
 //! name (Tag mode — no resolution).
 
@@ -45,7 +45,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         Target::Tag { agent_tag } => (None, Some(agent_tag)),
     };
 
-    let id = db::prompt_queue::insert_async(
+    let id = db::prompts::insert_async(
         ctx.filesystem.clone(),
         agent_instance_hierarchy.clone(),
         agent_tag.clone(),
