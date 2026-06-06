@@ -1,24 +1,24 @@
-//! `agents message-queue list` Ã¢â‚¬â€ async handler stub.
+//! `agents message-queue read pending` ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â async handler stub.
 //!
 //! Streams every queued prompt whose target is a direct child of
 //! the given parent. Direct rows match when their
-//! `agent_instance_hierarchy` is one segment under `parent` Ã¢â‚¬â€ same
+//! `agent_instance_hierarchy` is one segment under `parent` ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â same
 //! filter `agents list active` uses. Tag rows resolve their parent
 //! via the joined `tags` table:
 //!
-//! * BOUND tags Ã¢â€ â€™ parent is `parent_of(bound_agent_instance_hierarchy)`.
-//! * PENDING tags Ã¢â€ â€™ parent is the stored
+//! * BOUND tags ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ parent is `parent_of(bound_agent_instance_hierarchy)`.
+//! * PENDING tags ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ parent is the stored
 //!   `parent_agent_instance_hierarchy` from the tags row.
 //! * ABSENT tags (the tag was used at enqueue but never registered)
 //!   have no parent and are excluded.
 //!
 //! Each tag-row response item carries the joined 3-state status
-//! (`Bound { hierarchy } | Pending { Ã¢â‚¬Â¦ }`) for inspection.
+//! (`Bound { hierarchy } | Pending { ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ }`) for inspection.
 
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.message_queue.list.Request")]
+#[schemars(rename = "cli.command.agents.message_queue.read.pending.Request")]
 pub struct Request {
     pub path_type: Path,
     pub parent_agent_instance_hierarchy: Option<String>,
@@ -26,10 +26,10 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.message_queue.list.Path")]
+#[schemars(rename = "cli.command.agents.message_queue.read.pending.Path")]
 pub enum Path {
-    #[serde(rename = "agents/message-queue/list")]
-    AgentsQueueList,
+    #[serde(rename = "agents/message-queue/read/pending")]
+    AgentsMessageQueueReadPending,
 }
 
 impl CommandRequest for Request {
@@ -37,7 +37,8 @@ impl CommandRequest for Request {
         let mut argv = vec![
             "agents".to_string(),
             "message-queue".to_string(),
-            "list".to_string(),
+            "read".to_string(),
+            "pending".to_string(),
         ];
         if let Some(p) = &self.parent_agent_instance_hierarchy {
             argv.push(p.clone());
@@ -53,26 +54,26 @@ impl CommandRequest for Request {
 /// One queued prompt. Direct rows carry only the bare
 /// `agent_instance` (= leaf segment of the hierarchy); Tag rows
 /// carry the literal tag name and flatten the joined 2-state
-/// status onto the same JSON object Ã¢â‚¬â€ yielding e.g.
-/// `{"by":"tag","id":42,"agent_tag":"foo","state":"bound","agent_instance_hierarchy":"Ã¢â‚¬Â¦",
-/// "content":17}` (single-part) or `Ã¢â‚¬Â¦"content":[17,18,19]"` (multi-
+/// status onto the same JSON object ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â yielding e.g.
+/// `{"by":"tag","id":42,"agent_tag":"foo","state":"bound","agent_instance_hierarchy":"ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦",
+/// "content":17}` (single-part) or `ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦"content":[17,18,19]"` (multi-
 /// part) rather than nesting the state under its own object.
 ///
 /// Both variants carry the resolved content body as a
-/// [`super::super::read::all::ResponseContent`] Ã¢â‚¬â€ `One(i64)` for a
+/// [`super::super::super::read::all::ResponseContent`] ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â `One(i64)` for a
 /// single-part `RichContent::Text` (or single-element
 /// `RichContent::Parts`), `Many(Vec<i64>)` for multi-part payloads.
 /// Each id is a `prompt_contents.id` resolvable via
 /// `agents message-queue read id`.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(tag = "by", rename_all = "snake_case")]
-#[schemars(rename = "cli.command.agents.message_queue.list.ResponseItem")]
+#[schemars(rename = "cli.command.agents.message_queue.read.pending.ResponseItem")]
 pub enum ResponseItem {
     #[schemars(title = "AgentInstance")]
     AgentInstance {
         id: i64,
         agent_instance: String,
-        content: super::super::read::all::ResponseContent,
+        content: super::super::super::read::all::ResponseContent,
     },
     #[schemars(title = "Tag")]
     Tag {
@@ -80,13 +81,13 @@ pub enum ResponseItem {
         agent_tag: String,
         #[serde(flatten)]
         state: LookupState,
-        content: super::super::read::all::ResponseContent,
+        content: super::super::super::read::all::ResponseContent,
     },
 }
 
 // Reuse the same `LookupState` enum that `agents tags lookup`
-// already exposes Ã¢â‚¬â€ same wire shape, same Rust type, no fork.
-pub use super::super::tags::lookup::LookupState;
+// already exposes ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â same wire shape, same Rust type, no fork.
+pub use super::super::super::tags::lookup::LookupState;
 
 #[derive(clap::Args)]
 pub struct Args {
@@ -122,7 +123,7 @@ impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
         Ok(Self {
-            path_type: Path::AgentsQueueList,
+            path_type: Path::AgentsMessageQueueReadPending,
             parent_agent_instance_hierarchy: args.parent_agent_instance_hierarchy,
             jq: args.jq,
         })

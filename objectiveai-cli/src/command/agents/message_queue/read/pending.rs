@@ -1,11 +1,11 @@
-//! `agents message-queue list` Ã¢â‚¬â€ bare-naked streaming handler. Mirrors
+//! `agents message-queue read pending` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â bare-naked streaming handler. Mirrors
 //! `agents list active`'s shape: optional positional parent
 //! (defaults to ctx), `--jq`, async-stream over a `Vec`.
 
 use std::pin::Pin;
 
 use futures::Stream;
-use objectiveai_sdk::cli::command::agents::message_queue::list::{Request, ResponseItem};
+use objectiveai_sdk::cli::command::agents::message_queue::read::pending::{Request, ResponseItem};
 
 use crate::context::Context;
 use crate::error::Error;
@@ -34,8 +34,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
 }
 
 pub mod request_schema {
-    use objectiveai_sdk::cli::command::agents::message_queue::list as sdk;
-    use objectiveai_sdk::cli::command::agents::message_queue::list::request_schema::{
+    use objectiveai_sdk::cli::command::agents::message_queue::read::pending as sdk;
+    use objectiveai_sdk::cli::command::agents::message_queue::read::pending::request_schema::{
         Request, Response,
     };
 
@@ -50,8 +50,8 @@ pub mod request_schema {
 }
 
 pub mod response_schema {
-    use objectiveai_sdk::cli::command::agents::message_queue::list as sdk;
-    use objectiveai_sdk::cli::command::agents::message_queue::list::response_schema::{
+    use objectiveai_sdk::cli::command::agents::message_queue::read::pending as sdk;
+    use objectiveai_sdk::cli::command::agents::message_queue::read::pending::response_schema::{
         Request, Response,
     };
 

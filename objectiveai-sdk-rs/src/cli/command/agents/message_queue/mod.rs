@@ -21,7 +21,6 @@ use crate::cli::command::CommandRequest;
 
 pub mod add;
 pub mod delete;
-pub mod list;
 pub mod read;
 
 #[derive(clap::Subcommand)]
@@ -30,9 +29,9 @@ pub enum Command {
     Add(add::Command),
     /// Delete one queued prompt by id.
     Delete(delete::Command),
-    /// List queued prompts visible under a parent.
-    List(list::Command),
-    /// Read queued content by id (`agents message-queue read id <id>`).
+    /// Read queued content — `read id <id>` for a single content
+    /// piece, `read pending [parent]` for the list of queued
+    /// prompts under a parent.
     Read(ReadCommand),
 }
 
@@ -64,12 +63,6 @@ pub enum Request {
     DeleteRequestSchema(delete::request_schema::Request),
     #[schemars(title = "DeleteResponseSchema")]
     DeleteResponseSchema(delete::response_schema::Request),
-    #[schemars(title = "List")]
-    List(list::Request),
-    #[schemars(title = "ListRequestSchema")]
-    ListRequestSchema(list::request_schema::Request),
-    #[schemars(title = "ListResponseSchema")]
-    ListResponseSchema(list::response_schema::Request),
     #[schemars(title = "Read")]
     Read(read::Request),
 }
@@ -93,12 +86,6 @@ pub enum ResponseItem {
     DeleteRequestSchema(delete::request_schema::Response),
     #[schemars(title = "DeleteResponseSchema")]
     DeleteResponseSchema(delete::response_schema::Response),
-    #[schemars(title = "List")]
-    List(list::ResponseItem),
-    #[schemars(title = "ListRequestSchema")]
-    ListRequestSchema(list::request_schema::Response),
-    #[schemars(title = "ListResponseSchema")]
-    ListResponseSchema(list::response_schema::Response),
     #[schemars(title = "Read")]
     Read(read::ResponseItem),
 }
@@ -113,9 +100,6 @@ impl crate::cli::command::CommandResponse for ResponseItem {
             ResponseItem::Delete(v) => v.into_mcp(),
             ResponseItem::DeleteRequestSchema(v) => v.into_mcp(),
             ResponseItem::DeleteResponseSchema(v) => v.into_mcp(),
-            ResponseItem::List(v) => v.into_mcp(),
-            ResponseItem::ListRequestSchema(v) => v.into_mcp(),
-            ResponseItem::ListResponseSchema(v) => v.into_mcp(),
             ResponseItem::Read(v) => v.into_mcp(),
         }
     }
@@ -143,15 +127,6 @@ impl TryFrom<Command> for Request {
                     Request::DeleteResponseSchema(delete::response_schema::Request::try_from(args)?),
                 ),
             },
-            Command::List(cmd) => match cmd.schema {
-                None => Ok(Request::List(list::Request::try_from(cmd.args)?)),
-                Some(list::Schema::RequestSchema(args)) => Ok(
-                    Request::ListRequestSchema(list::request_schema::Request::try_from(args)?),
-                ),
-                Some(list::Schema::ResponseSchema(args)) => Ok(
-                    Request::ListResponseSchema(list::response_schema::Request::try_from(args)?),
-                ),
-            },
             Command::Read(rc) => Ok(Request::Read(read::Request::try_from(rc.sub)?)),
         }
     }
@@ -166,9 +141,6 @@ impl CommandRequest for Request {
             Request::Delete(inner) => inner.into_command(),
             Request::DeleteRequestSchema(inner) => inner.into_command(),
             Request::DeleteResponseSchema(inner) => inner.into_command(),
-            Request::List(inner) => inner.into_command(),
-            Request::ListRequestSchema(inner) => inner.into_command(),
-            Request::ListResponseSchema(inner) => inner.into_command(),
             Request::Read(inner) => inner.into_command(),
         }
     }
@@ -223,22 +195,6 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
                 ResponseItem::DeleteResponseSchema(value),
             )))
         }
-        Request::List(req) => {
-            let inner = list::execute(executor, req, agent_arguments).await?;
-            Box::pin(inner.map(|r| r.map(ResponseItem::List)))
-        }
-        Request::ListRequestSchema(req) => {
-            let value = list::request_schema::execute(executor, req, agent_arguments).await?;
-            Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                ResponseItem::ListRequestSchema(value),
-            )))
-        }
-        Request::ListResponseSchema(req) => {
-            let value = list::response_schema::execute(executor, req, agent_arguments).await?;
-            Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                ResponseItem::ListResponseSchema(value),
-            )))
-        }
         Request::Read(req) => {
             let inner = read::execute(executor, req, agent_arguments).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Read)))
@@ -286,20 +242,6 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
         Request::DeleteResponseSchema(req) => {
             let value =
                 delete::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
-            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
-        }
-        Request::List(req) => {
-            let inner = list::execute_jq(executor, req, jq, agent_arguments).await?;
-            Box::pin(inner)
-        }
-        Request::ListRequestSchema(req) => {
-            let value =
-                list::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
-            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
-        }
-        Request::ListResponseSchema(req) => {
-            let value =
-                list::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
         Request::Read(req) => {

@@ -1,13 +1,21 @@
-//! `agents message-queue read` sub-tier. One leaf today: `id`.
+//! `agents message-queue read` sub-tier. Two leaves:
+//!
+//! * `id <id>` — fetch one piece of queued content by
+//!   `prompt_contents.id`.
+//! * `pending [parent]` — stream queued prompts under `parent` (or
+//!   the cli's own position when omitted).
 
 use crate::cli::command::CommandRequest;
 
 pub mod id;
+pub mod pending;
 
 #[derive(clap::Subcommand)]
 pub enum Command {
     /// Fetch one piece of queued content by `prompt_contents.id`.
     Id(id::Command),
+    /// Stream queued prompts pending delivery under a parent.
+    Pending(pending::Command),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -20,6 +28,12 @@ pub enum Request {
     IdRequestSchema(id::request_schema::Request),
     #[schemars(title = "IdResponseSchema")]
     IdResponseSchema(id::response_schema::Request),
+    #[schemars(title = "Pending")]
+    Pending(pending::Request),
+    #[schemars(title = "PendingRequestSchema")]
+    PendingRequestSchema(pending::request_schema::Request),
+    #[schemars(title = "PendingResponseSchema")]
+    PendingResponseSchema(pending::response_schema::Request),
 }
 
 // Exempt from json-schema coverage: tier aggregate (see the root
@@ -35,6 +49,12 @@ pub enum ResponseItem {
     IdRequestSchema(id::request_schema::Response),
     #[schemars(title = "IdResponseSchema")]
     IdResponseSchema(id::response_schema::Response),
+    #[schemars(title = "Pending")]
+    Pending(pending::ResponseItem),
+    #[schemars(title = "PendingRequestSchema")]
+    PendingRequestSchema(pending::request_schema::Response),
+    #[schemars(title = "PendingResponseSchema")]
+    PendingResponseSchema(pending::response_schema::Response),
 }
 
 #[cfg(feature = "mcp")]
@@ -44,6 +64,9 @@ impl crate::cli::command::CommandResponse for ResponseItem {
             ResponseItem::Id(v) => v.into_mcp(),
             ResponseItem::IdRequestSchema(v) => v.into_mcp(),
             ResponseItem::IdResponseSchema(v) => v.into_mcp(),
+            ResponseItem::Pending(v) => v.into_mcp(),
+            ResponseItem::PendingRequestSchema(v) => v.into_mcp(),
+            ResponseItem::PendingResponseSchema(v) => v.into_mcp(),
         }
     }
 }
@@ -61,6 +84,15 @@ impl TryFrom<Command> for Request {
                     Request::IdResponseSchema(id::response_schema::Request::try_from(args)?),
                 ),
             },
+            Command::Pending(cmd) => match cmd.schema {
+                None => Ok(Request::Pending(pending::Request::try_from(cmd.args)?)),
+                Some(pending::Schema::RequestSchema(args)) => Ok(Request::PendingRequestSchema(
+                    pending::request_schema::Request::try_from(args)?,
+                )),
+                Some(pending::Schema::ResponseSchema(args)) => Ok(Request::PendingResponseSchema(
+                    pending::response_schema::Request::try_from(args)?,
+                )),
+            },
         }
     }
 }
@@ -71,6 +103,9 @@ impl CommandRequest for Request {
             Request::Id(inner) => inner.into_command(),
             Request::IdRequestSchema(inner) => inner.into_command(),
             Request::IdResponseSchema(inner) => inner.into_command(),
+            Request::Pending(inner) => inner.into_command(),
+            Request::PendingRequestSchema(inner) => inner.into_command(),
+            Request::PendingResponseSchema(inner) => inner.into_command(),
         }
     }
 }
@@ -84,6 +119,7 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>>,
     E::Error,
 > {
+    use futures::StreamExt;
     let stream: std::pin::Pin<
         Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>,
     > = match request {
@@ -103,6 +139,24 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
                 id::response_schema::execute(executor, req, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(
                 ResponseItem::IdResponseSchema(value),
+            )))
+        }
+        Request::Pending(req) => {
+            let inner = pending::execute(executor, req, agent_arguments).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Pending)))
+        }
+        Request::PendingRequestSchema(req) => {
+            let value =
+                pending::request_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::PendingRequestSchema(value),
+            )))
+        }
+        Request::PendingResponseSchema(req) => {
+            let value =
+                pending::response_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::PendingResponseSchema(value),
             )))
         }
     };
@@ -134,6 +188,20 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
         Request::IdResponseSchema(req) => {
             let value =
                 id::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::Pending(req) => {
+            let inner = pending::execute_jq(executor, req, jq, agent_arguments).await?;
+            Box::pin(inner)
+        }
+        Request::PendingRequestSchema(req) => {
+            let value =
+                pending::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::PendingResponseSchema(req) => {
+            let value =
+                pending::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
     };

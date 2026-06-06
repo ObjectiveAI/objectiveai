@@ -26,7 +26,7 @@
 use objectiveai_sdk::agent::completions::message::{
     File, ImageUrl, InputAudio, RichContent, RichContentPart, VideoUrl,
 };
-use objectiveai_sdk::cli::command::agents::message_queue::list::{
+use objectiveai_sdk::cli::command::agents::message_queue::read::pending::{
     LookupState, ResponseItem,
 };
 use objectiveai_sdk::cli::command::agents::read::all::ResponseContent;

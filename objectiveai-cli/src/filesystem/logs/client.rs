@@ -2357,7 +2357,7 @@ impl Client {
         &self,
         parent: &str,
     ) -> Result<
-        Vec<objectiveai_sdk::cli::command::agents::message_queue::list::ResponseItem>,
+        Vec<objectiveai_sdk::cli::command::agents::message_queue::read::pending::ResponseItem>,
         Error,
     > {
         super::super::db::prompts::list_async(self.clone(), parent.to_string()).await
