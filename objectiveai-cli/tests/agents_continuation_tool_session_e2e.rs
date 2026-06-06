@@ -30,7 +30,7 @@ use objectiveai_sdk::cli::command::agents::message::{
 };
 use objectiveai_sdk::cli::command::agents::read::all::{
     Request as ReadAllRequest, ResponseContent, ResponseItem as ReadAllItem,
-    ResponseQueueItem,
+    ResponseQueueItem, Target as ReadAllTarget,
 };
 use objectiveai_sdk::cli::command::agents::read::id::Request as ReadIdRequest;
 use objectiveai_sdk::cli::command::agents::spawn::{
@@ -213,7 +213,10 @@ async fn read_tool_response_ids(executor: &HangPreventingBinaryCommandExecutor, 
         .map(|(_, leaf)| leaf)
         .unwrap_or(sub_id);
     let request = ReadAllRequest { path_type: objectiveai_sdk::cli::command::agents::read::all::Path::AgentsReadAll,
-        agent_instance_hierarchies: vec![leaf.to_string()],
+        targets: vec![ReadAllTarget::Direct {
+            parent_agent_instance_hierarchy: None,
+            agent_instance: leaf.to_string(),
+        }],
         jq: None,
     };
     let items: Vec<ReadAllItem> =
