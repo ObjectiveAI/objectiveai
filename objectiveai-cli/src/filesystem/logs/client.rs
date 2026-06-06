@@ -321,56 +321,82 @@ impl Client {
             .await
     }
     pub async fn clear_agent_completion_messages(&self) -> Result<u64, Error> {
-        self.clear_endpoint("agents/completions/response/messages")
-            .await
+        // Message envelopes are split by role — assistant and tool
+        // subdirs — so clear both. `clear_endpoint` skips the nested
+        // per-kind subdirs (logprobs, text, ...), which have their own
+        // clear methods.
+        Ok(self
+            .clear_endpoint("agents/completions/response/messages/assistant")
+            .await?
+            + self
+                .clear_endpoint(
+                    "agents/completions/response/messages/tool",
+                )
+                .await?)
     }
     pub async fn clear_agent_completion_message_logprobs(
         &self,
     ) -> Result<u64, Error> {
-        self.clear_endpoint("agents/completions/response/messages/logprobs")
-            .await
+        self.clear_endpoint(
+            "agents/completions/response/messages/assistant/logprobs",
+        )
+        .await
     }
     pub async fn clear_agent_completion_message_reasoning(
         &self,
     ) -> Result<u64, Error> {
-        self.clear_endpoint("agents/completions/response/messages/reasoning")
-            .await
+        self.clear_endpoint(
+            "agents/completions/response/messages/assistant/reasoning",
+        )
+        .await
     }
     pub async fn clear_agent_completion_message_refusal(
         &self,
     ) -> Result<u64, Error> {
-        self.clear_endpoint("agents/completions/response/messages/refusal")
-            .await
+        self.clear_endpoint(
+            "agents/completions/response/messages/assistant/refusal",
+        )
+        .await
     }
     pub async fn clear_agent_completion_message_tool_calls(
         &self,
     ) -> Result<u64, Error> {
-        self.clear_endpoint("agents/completions/response/messages/tool_calls")
-            .await
+        self.clear_endpoint(
+            "agents/completions/response/messages/assistant/tool_calls",
+        )
+        .await
     }
     pub async fn clear_agent_completion_message_images(
         &self,
     ) -> Result<u64, Error> {
-        self.clear_endpoint("agents/completions/response/messages/image")
-            .await
+        self.clear_endpoint(
+            "agents/completions/response/messages/assistant/image",
+        )
+        .await
     }
     pub async fn clear_agent_completion_message_audio(
         &self,
     ) -> Result<u64, Error> {
-        self.clear_endpoint("agents/completions/response/messages/audio")
-            .await
+        self.clear_endpoint(
+            "agents/completions/response/messages/assistant/audio",
+        )
+        .await
     }
     pub async fn clear_agent_completion_message_video(
         &self,
     ) -> Result<u64, Error> {
-        self.clear_endpoint("agents/completions/response/messages/video")
-            .await
+        self.clear_endpoint(
+            "agents/completions/response/messages/assistant/video",
+        )
+        .await
     }
     pub async fn clear_agent_completion_message_files(
         &self,
     ) -> Result<u64, Error> {
-        self.clear_endpoint("agents/completions/response/messages/file")
-            .await
+        self.clear_endpoint(
+            "agents/completions/response/messages/assistant/file",
+        )
+        .await
     }
     pub async fn clear_vector_completions(&self) -> Result<u64, Error> {
         self.clear_endpoint("vector/completions/response").await
@@ -684,11 +710,29 @@ impl Client {
         id: &str,
         message_index: u64,
     ) -> Result<objectiveai_sdk::agent::completions::message::MessageLog, Error> {
-        self.read_json_typed(
-            "agents/completions/response/messages",
-            &format!("{id}_{message_index}"),
-        )
-        .await
+        // The response-side writers split message envelopes by role —
+        // `messages/assistant/<id>_<msg>.json` vs
+        // `messages/tool/<id>_<msg>.json` — so a tool message can't
+        // collide with an assistant message at the same index. A given
+        // (id, index) exists in exactly one of the two; probe the
+        // assistant subdir first, then fall back to tool.
+        let stem = format!("{id}_{message_index}");
+        match self
+            .read_json_typed(
+                "agents/completions/response/messages/assistant",
+                &stem,
+            )
+            .await
+        {
+            Err(Error::Read(..)) => {
+                self.read_json_typed(
+                    "agents/completions/response/messages/tool",
+                    &stem,
+                )
+                .await
+            }
+            r => r,
+        }
     }
     pub async fn read_agent_completion_message_logprobs(
         &self,
@@ -696,7 +740,7 @@ impl Client {
         message_index: u64,
     ) -> Result<objectiveai_sdk::agent::completions::response::Logprobs, Error> {
         self.read_json_typed(
-            "agents/completions/response/messages/logprobs",
+            "agents/completions/response/messages/assistant/logprobs",
             &format!("{id}_{message_index}"),
         )
         .await
@@ -710,7 +754,7 @@ impl Client {
         // `assistant_response_chunk.rs::extract_*` puts reasoning
         // there as plain bytes; no JSON quoting.)
         self.read_text(
-            "agents/completions/response/messages/reasoning",
+            "agents/completions/response/messages/assistant/reasoning",
             &format!("{id}_{message_index}"),
         )
         .await
@@ -722,7 +766,7 @@ impl Client {
     ) -> Result<String, Error> {
         // Raw text — `.txt` on disk, not `.json`. See reasoning.
         self.read_text(
-            "agents/completions/response/messages/refusal",
+            "agents/completions/response/messages/assistant/refusal",
             &format!("{id}_{message_index}"),
         )
         .await
@@ -734,7 +778,7 @@ impl Client {
         tool_call_index: u64,
     ) -> Result<objectiveai_sdk::agent::completions::message::AssistantToolCallDelta, Error> {
         self.read_json_typed(
-            "agents/completions/response/messages/tool_calls",
+            "agents/completions/response/messages/assistant/tool_calls",
             &format!("{id}_{message_index}_{tool_call_index}"),
         )
         .await
@@ -746,7 +790,7 @@ impl Client {
         media_index: u64,
     ) -> Result<ImageUrl, Error> {
         self.read_image_by_stem(
-            "agents/completions/response/messages/image",
+            "agents/completions/response/messages/assistant/image",
             &format!("{id}_{message_index}_{media_index}"),
         )
         .await
@@ -758,7 +802,7 @@ impl Client {
         media_index: u64,
     ) -> Result<InputAudio, Error> {
         self.read_audio_by_stem(
-            "agents/completions/response/messages/audio",
+            "agents/completions/response/messages/assistant/audio",
             &format!("{id}_{message_index}_{media_index}"),
         )
         .await
@@ -770,7 +814,7 @@ impl Client {
         media_index: u64,
     ) -> Result<VideoUrl, Error> {
         self.read_video_by_stem(
-            "agents/completions/response/messages/video",
+            "agents/completions/response/messages/assistant/video",
             &format!("{id}_{message_index}_{media_index}"),
         )
         .await
@@ -782,7 +826,7 @@ impl Client {
         media_index: u64,
     ) -> Result<File, Error> {
         self.read_file_by_stem(
-            "agents/completions/response/messages/file",
+            "agents/completions/response/messages/assistant/file",
             &format!("{id}_{message_index}_{media_index}"),
         )
         .await
@@ -885,8 +929,11 @@ impl Client {
         media_index: Option<u64>,
     ) -> Result<String, Error> {
         let stem = text_stem(id, message_index, media_index);
-        self.read_text("agents/completions/response/messages/text", &stem)
-            .await
+        self.read_text(
+            "agents/completions/response/messages/assistant/text",
+            &stem,
+        )
+        .await
     }
 
     // -- Tool response content (response side, under .../messages/tool/) ---
@@ -1009,6 +1056,90 @@ impl Client {
             &format!("{id}_{message_index}_{media_index}"),
         )
         .await
+    }
+    /// The per-role `MessageLog` envelope at
+    /// `request/messages/<id>_<msg>.json`. Envelopes for every role
+    /// share the bare `messages/` namespace (request message indices
+    /// are unique across roles); only the assistant-only extras
+    /// (reasoning / refusal / tool_calls) live under
+    /// `messages/assistant/`.
+    pub async fn read_agent_completion_request_message(
+        &self,
+        id: &str,
+        message_index: u64,
+    ) -> Result<objectiveai_sdk::agent::completions::message::MessageLog, Error> {
+        self.read_json_typed(
+            "agents/completions/request/messages",
+            &format!("{id}_{message_index}"),
+        )
+        .await
+    }
+    pub async fn read_agent_completion_request_message_assistant_reasoning(
+        &self,
+        id: &str,
+        message_index: u64,
+    ) -> Result<String, Error> {
+        // A JSON-encoded string — the request-side writer
+        // (`assistant_message.rs::extract`) serializes reasoning with
+        // `serde_json::to_vec_pretty`, unlike the response side's
+        // raw-bytes `.txt`.
+        self.read_json_typed(
+            "agents/completions/request/messages/assistant/reasoning",
+            &format!("{id}_{message_index}"),
+        )
+        .await
+    }
+    pub async fn read_agent_completion_request_message_assistant_refusal(
+        &self,
+        id: &str,
+        message_index: u64,
+    ) -> Result<String, Error> {
+        // A JSON-encoded string — see reasoning.
+        self.read_json_typed(
+            "agents/completions/request/messages/assistant/refusal",
+            &format!("{id}_{message_index}"),
+        )
+        .await
+    }
+    /// Request-side tool calls are full `AssistantToolCall`s (the
+    /// caller supplied them whole), unlike the response side's
+    /// streaming deltas. Convert to an `AssistantToolCallDelta` —
+    /// `tool_call_index` comes from the filename, every other field is
+    /// complete — so both sides surface the same shape through
+    /// `read_file_by_id`.
+    pub async fn read_agent_completion_request_message_assistant_tool_call(
+        &self,
+        id: &str,
+        message_index: u64,
+        tool_call_index: u64,
+    ) -> Result<objectiveai_sdk::agent::completions::message::AssistantToolCallDelta, Error> {
+        use objectiveai_sdk::agent::completions::message::{
+            AssistantToolCall, AssistantToolCallDelta,
+            AssistantToolCallFunctionDelta, AssistantToolCallType,
+        };
+        let tc: AssistantToolCall = self
+            .read_json_typed(
+                "agents/completions/request/messages/assistant/tool_calls",
+                &format!("{id}_{message_index}_{tool_call_index}"),
+            )
+            .await?;
+        let AssistantToolCall::Function { id, function } = tc;
+        Ok(AssistantToolCallDelta {
+            index: tool_call_index,
+            r#type: Some(AssistantToolCallType::Function),
+            id: Some(id),
+            function: Some(AssistantToolCallFunctionDelta {
+                name: Some(function.name),
+                arguments: Some(function.arguments),
+            }),
+        })
+    }
+    pub async fn read_agent_completion_request_continuation(
+        &self,
+        id: &str,
+    ) -> Result<String, Error> {
+        self.read_text("agents/completions/request/continuation", id)
+            .await
     }
 
     // -- Notification content ----------------------------------------------
@@ -1349,13 +1480,27 @@ impl Client {
         timeout: std::time::Duration,
         require_modification: bool,
     ) -> Result<objectiveai_sdk::agent::completions::message::MessageLog, Error> {
-        self.subscribe_json_typed(
-            "agents/completions/response/messages",
-            &format!("{id}_{message_index}"),
-            timeout,
-            require_modification,
-        )
-        .await
+        // Message envelopes are split by role — a given (id, index)
+        // lands in exactly one of `messages/assistant/` or
+        // `messages/tool/`, and the subscriber doesn't know which.
+        // Race both polls under the shared timeout; the branch whose
+        // file appears first wins, and if neither shows up both time
+        // out together.
+        let stem = format!("{id}_{message_index}");
+        tokio::select! {
+            r = self.subscribe_json_typed(
+                "agents/completions/response/messages/assistant",
+                &stem,
+                timeout,
+                require_modification,
+            ) => r,
+            r = self.subscribe_json_typed(
+                "agents/completions/response/messages/tool",
+                &stem,
+                timeout,
+                require_modification,
+            ) => r,
+        }
     }
     pub async fn subscribe_agent_completion_message_logprobs(
         &self,
@@ -1365,7 +1510,7 @@ impl Client {
         require_modification: bool,
     ) -> Result<objectiveai_sdk::agent::completions::response::Logprobs, Error> {
         self.subscribe_json_typed(
-            "agents/completions/response/messages/logprobs",
+            "agents/completions/response/messages/assistant/logprobs",
             &format!("{id}_{message_index}"),
             timeout,
             require_modification,
@@ -1382,7 +1527,7 @@ impl Client {
         // Raw text — `.txt` on disk, not `.json`. See
         // [`Self::read_agent_completion_message_reasoning`].
         self.subscribe_text(
-            "agents/completions/response/messages/reasoning",
+            "agents/completions/response/messages/assistant/reasoning",
             &format!("{id}_{message_index}"),
             timeout,
             require_modification,
@@ -1400,7 +1545,7 @@ impl Client {
         // Raw text — `.txt` on disk, not `.json`. See
         // [`Self::read_agent_completion_message_refusal`].
         self.subscribe_text(
-            "agents/completions/response/messages/refusal",
+            "agents/completions/response/messages/assistant/refusal",
             &format!("{id}_{message_index}"),
             timeout,
             require_modification,
@@ -1417,7 +1562,7 @@ impl Client {
         require_modification: bool,
     ) -> Result<objectiveai_sdk::agent::completions::message::AssistantToolCallDelta, Error> {
         self.subscribe_json_typed(
-            "agents/completions/response/messages/tool_calls",
+            "agents/completions/response/messages/assistant/tool_calls",
             &format!("{id}_{message_index}_{tool_call_index}"),
             timeout,
             require_modification,
@@ -1433,7 +1578,7 @@ impl Client {
         require_modification: bool,
     ) -> Result<ImageUrl, Error> {
         self.subscribe_image_by_stem(
-            "agents/completions/response/messages/image",
+            "agents/completions/response/messages/assistant/image",
             &format!("{id}_{message_index}_{media_index}"),
             timeout,
             require_modification,
@@ -1450,7 +1595,7 @@ impl Client {
         require_modification: bool,
     ) -> Result<InputAudio, Error> {
         self.subscribe_audio_by_stem(
-            "agents/completions/response/messages/audio",
+            "agents/completions/response/messages/assistant/audio",
             &format!("{id}_{message_index}_{media_index}"),
             timeout,
             require_modification,
@@ -1467,7 +1612,7 @@ impl Client {
         require_modification: bool,
     ) -> Result<VideoUrl, Error> {
         self.subscribe_video_by_stem(
-            "agents/completions/response/messages/video",
+            "agents/completions/response/messages/assistant/video",
             &format!("{id}_{message_index}_{media_index}"),
             timeout,
             require_modification,
@@ -1484,7 +1629,7 @@ impl Client {
         require_modification: bool,
     ) -> Result<File, Error> {
         self.subscribe_file_by_stem(
-            "agents/completions/response/messages/file",
+            "agents/completions/response/messages/assistant/file",
             &format!("{id}_{message_index}_{media_index}"),
             timeout,
             require_modification,
@@ -1966,6 +2111,10 @@ impl Client {
                 .read_agent_completion_continuation(&id)
                 .await
                 .map(R::Text),
+            K::AgentCompletionRequestContinuation { id } => self
+                .read_agent_completion_request_continuation(&id)
+                .await
+                .map(R::Text),
             K::VectorCompletion { id } => self
                 .read_vector_completion(&id)
                 .await
@@ -2227,6 +2376,45 @@ impl Client {
                 )
                 .await
                 .map(R::File),
+            // The request message envelope is the same `MessageLog`
+            // shape the response-side envelope reader returns, so it
+            // shares that variant.
+            K::AgentCompletionRequestMessage { id, message_index } => self
+                .read_agent_completion_request_message(&id, message_index)
+                .await
+                .map(R::AgentsCompletionsResponseMessages),
+            K::AgentCompletionRequestMessageAssistantReasoning {
+                id,
+                message_index,
+            } => self
+                .read_agent_completion_request_message_assistant_reasoning(
+                    &id,
+                    message_index,
+                )
+                .await
+                .map(R::Text),
+            K::AgentCompletionRequestMessageAssistantRefusal {
+                id,
+                message_index,
+            } => self
+                .read_agent_completion_request_message_assistant_refusal(
+                    &id,
+                    message_index,
+                )
+                .await
+                .map(R::Text),
+            K::AgentCompletionRequestMessageAssistantToolCall {
+                id,
+                message_index,
+                tool_call_index,
+            } => self
+                .read_agent_completion_request_message_assistant_tool_call(
+                    &id,
+                    message_index,
+                    tool_call_index,
+                )
+                .await
+                .map(R::AgentsCompletionsResponseMessagesToolCalls),
 
             // -- Notification content ---------------------------------------
             K::AgentCompletionNotificationText {
@@ -2289,6 +2477,7 @@ impl Client {
                 )
                 .await
                 .map(R::File),
+
         }
     }
 
