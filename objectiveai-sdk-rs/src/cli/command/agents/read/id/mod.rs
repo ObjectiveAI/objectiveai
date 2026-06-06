@@ -33,8 +33,14 @@ impl CommandRequest for Request {
     }
 }
 
+// Adjacently tagged on purpose — this union carries several
+// all-`Option` payload shapes (`Logprobs`, `File`) that deserialize
+// from ANY JSON object, so an untagged walk misclassifies whichever
+// payload comes after them (a tool-call delta re-materialized as an
+// empty `Logprobs`). The `type` value is the variant's schemars
+// title in snake_case; the payload rides under `value`.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(untagged)]
+#[serde(tag = "type", content = "value", rename_all = "snake_case")]
 #[schemars(rename = "cli.command.agents.read.id.Response")]
 pub enum Response {
     // Typed log envelopes — each variant name is the PascalCase form
@@ -46,10 +52,6 @@ pub enum Response {
     AgentsCompletionsResponse(crate::cli::command::logs::agents::completions::response::get::Response),
     #[schemars(title = "AgentsCompletionsRequest")]
     AgentsCompletionsRequest(crate::cli::command::logs::agents::completions::request::get::Response),
-    // NOTE: the chunk-log shapes must precede `MessageLog`-typed
-    // variants — untagged deserialization tries in order, and a
-    // role-tagged chunk log would otherwise lossily match
-    // `MessageLog` first.
     #[schemars(title = "AgentsCompletionsResponseMessagesAssistant")]
     AgentsCompletionsResponseMessagesAssistant(crate::cli::command::logs::agents::completions::response::messages::assistant::get::Response),
     #[schemars(title = "AgentsCompletionsResponseMessagesTool")]
@@ -61,9 +63,7 @@ pub enum Response {
     #[schemars(title = "AgentsCompletionsResponseMessagesAssistantToolCalls")]
     AgentsCompletionsResponseMessagesAssistantToolCalls(crate::cli::command::logs::agents::completions::response::messages::assistant::tool_calls::get::Response),
     // Request-side tool calls are written as full `AssistantToolCall`s
-    // (no `index`), unlike the response side's streaming deltas. Must
-    // come after the delta variant so a complete delta still matches
-    // the delta shape first.
+    // (no `index`), unlike the response side's streaming deltas.
     #[schemars(title = "AgentsCompletionsRequestMessagesAssistantToolCalls")]
     AgentsCompletionsRequestMessagesAssistantToolCalls(crate::agent::completions::message::AssistantToolCall),
 
@@ -88,7 +88,7 @@ pub enum Response {
     FunctionsInventionsRecursiveRequest(crate::cli::command::logs::functions::inventions::recursive::request::get::Response),
 
     // Collapsed text/media — one variant per content kind, regardless
-    // of where the file lives. Untagged tuple variants, no wrapper keys.
+    // of where the file lives.
     #[schemars(title = "Text")]
     Text(String),
     #[schemars(title = "Image")]
