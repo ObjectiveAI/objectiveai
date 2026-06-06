@@ -137,8 +137,6 @@ func (v ClientObjectiveaiMcpServerResponseResponseInitialize) Validate() error {
 	}
 	return variantValidator.Struct(v)
 }
-type ClientObjectiveaiMcpServerResponseResponseInitialize ClientObjectiveaiMcpServerResponseResponseInitialize
-
 func (ClientObjectiveaiMcpServerResponseResponseInitialize) SchemaVariantTitle() string { return "Initialize" }
 
 // Method returned a typed result.
@@ -265,8 +263,6 @@ func (v ClientObjectiveaiMcpServerResponseResponseToolsList) Validate() error {
 	}
 	return variantValidator.Struct(v)
 }
-type ClientObjectiveaiMcpServerResponseResponseToolsList ClientObjectiveaiMcpServerResponseResponseToolsList
-
 func (ClientObjectiveaiMcpServerResponseResponseToolsList) SchemaVariantTitle() string { return "ToolsList" }
 
 // Method returned a typed result.
@@ -393,8 +389,6 @@ func (v ClientObjectiveaiMcpServerResponseResponseToolsCall) Validate() error {
 	}
 	return variantValidator.Struct(v)
 }
-type ClientObjectiveaiMcpServerResponseResponseToolsCall ClientObjectiveaiMcpServerResponseResponseToolsCall
-
 func (ClientObjectiveaiMcpServerResponseResponseToolsCall) SchemaVariantTitle() string { return "ToolsCall" }
 
 // Method returned a typed result.
@@ -522,8 +516,6 @@ func (v ClientObjectiveaiMcpServerResponseResponseResourcesList) Validate() erro
 	}
 	return variantValidator.Struct(v)
 }
-type ClientObjectiveaiMcpServerResponseResponseResourcesList ClientObjectiveaiMcpServerResponseResponseResourcesList
-
 func (ClientObjectiveaiMcpServerResponseResponseResourcesList) SchemaVariantTitle() string { return "ResourcesList" }
 
 // Method returned a typed result.
@@ -651,8 +643,6 @@ func (v ClientObjectiveaiMcpServerResponseResponseResourcesRead) Validate() erro
 	}
 	return variantValidator.Struct(v)
 }
-type ClientObjectiveaiMcpServerResponseResponseResourcesRead ClientObjectiveaiMcpServerResponseResponseResourcesRead
-
 func (ClientObjectiveaiMcpServerResponseResponseResourcesRead) SchemaVariantTitle() string { return "ResourcesRead" }
 
 // Method returned a typed result.
@@ -783,8 +773,6 @@ func (v ClientObjectiveaiMcpServerResponseResponseSessionTerminate) Validate() e
 	}
 	return variantValidator.Struct(v)
 }
-type ClientObjectiveaiMcpServerResponseResponseSessionTerminate ClientObjectiveaiMcpServerResponseResponseSessionTerminate
-
 func (ClientObjectiveaiMcpServerResponseResponseSessionTerminate) SchemaVariantTitle() string { return "SessionTerminate" }
 
 // One reply the calling client's `McpHandler` produced for a

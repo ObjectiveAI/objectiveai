@@ -155,8 +155,6 @@ func (v CliCommandAgentsMessageQueueReadPendingResponseItemTag) Validate() error
 	}
 	return variantValidator.Struct(v)
 }
-type CliCommandAgentsMessageQueueReadPendingResponseItemTag CliCommandAgentsMessageQueueReadPendingResponseItemTag
-
 func (CliCommandAgentsMessageQueueReadPendingResponseItemTag) SchemaVariantTitle() string { return "Tag" }
 
 // One queued prompt. Direct rows carry only the bare

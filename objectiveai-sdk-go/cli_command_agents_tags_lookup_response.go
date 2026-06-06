@@ -141,8 +141,6 @@ func (v CliCommandAgentsTagsLookupResponseTag) Validate() error {
 	}
 	return variantValidator.Struct(v)
 }
-type CliCommandAgentsTagsLookupResponseTag CliCommandAgentsTagsLookupResponseTag
-
 func (CliCommandAgentsTagsLookupResponseTag) SchemaVariantTitle() string { return "Tag" }
 
 // The looked-up tag is not registered. Hoisted to a top-level

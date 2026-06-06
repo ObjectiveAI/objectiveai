@@ -827,7 +827,11 @@ func generateAnyOfStruct(typeName string, anyOf []any, selfTitle string, schema 
 			goT := resolveFieldTypeWithInline(m, selfTitle, allTitles, vStructName, "", &auxiliary)
 			// Strip pointer — nullable is tracked on the parent field via nullable tag
 			goT = strings.TrimPrefix(goT, "*")
-			auxiliary.WriteString(fmt.Sprintf("type %s %s\n\n", vStructName, goT))
+			// If resolveFieldTypeWithInline already emitted a struct under
+			// vStructName (nested anyOf case), don't emit `type X X` self-alias.
+			if goT != vStructName {
+				auxiliary.WriteString(fmt.Sprintf("type %s %s\n\n", vStructName, goT))
+			}
 			auxiliary.WriteString(fmt.Sprintf("func (%s) SchemaVariantTitle() string { return %q }\n\n", vStructName, variantTitle))
 			// Go type definitions don't inherit methods from the underlying type,
 			// so we forward marshal/unmarshal for special types.

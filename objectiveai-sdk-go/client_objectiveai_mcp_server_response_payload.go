@@ -125,8 +125,6 @@ func (v ClientObjectiveaiMcpServerResponsePayloadInitialize) Validate() error {
 	}
 	return variantValidator.Struct(v)
 }
-type ClientObjectiveaiMcpServerResponsePayloadInitialize ClientObjectiveaiMcpServerResponsePayloadInitialize
-
 func (ClientObjectiveaiMcpServerResponsePayloadInitialize) SchemaVariantTitle() string { return "Initialize" }
 
 // Method returned a typed result.
@@ -241,8 +239,6 @@ func (v ClientObjectiveaiMcpServerResponsePayloadToolsList) Validate() error {
 	}
 	return variantValidator.Struct(v)
 }
-type ClientObjectiveaiMcpServerResponsePayloadToolsList ClientObjectiveaiMcpServerResponsePayloadToolsList
-
 func (ClientObjectiveaiMcpServerResponsePayloadToolsList) SchemaVariantTitle() string { return "ToolsList" }
 
 // Method returned a typed result.
@@ -357,8 +353,6 @@ func (v ClientObjectiveaiMcpServerResponsePayloadToolsCall) Validate() error {
 	}
 	return variantValidator.Struct(v)
 }
-type ClientObjectiveaiMcpServerResponsePayloadToolsCall ClientObjectiveaiMcpServerResponsePayloadToolsCall
-
 func (ClientObjectiveaiMcpServerResponsePayloadToolsCall) SchemaVariantTitle() string { return "ToolsCall" }
 
 // Method returned a typed result.
@@ -474,8 +468,6 @@ func (v ClientObjectiveaiMcpServerResponsePayloadResourcesList) Validate() error
 	}
 	return variantValidator.Struct(v)
 }
-type ClientObjectiveaiMcpServerResponsePayloadResourcesList ClientObjectiveaiMcpServerResponsePayloadResourcesList
-
 func (ClientObjectiveaiMcpServerResponsePayloadResourcesList) SchemaVariantTitle() string { return "ResourcesList" }
 
 // Method returned a typed result.
@@ -591,8 +583,6 @@ func (v ClientObjectiveaiMcpServerResponsePayloadResourcesRead) Validate() error
 	}
 	return variantValidator.Struct(v)
 }
-type ClientObjectiveaiMcpServerResponsePayloadResourcesRead ClientObjectiveaiMcpServerResponsePayloadResourcesRead
-
 func (ClientObjectiveaiMcpServerResponsePayloadResourcesRead) SchemaVariantTitle() string { return "ResourcesRead" }
 
 // Method returned a typed result.
@@ -711,8 +701,6 @@ func (v ClientObjectiveaiMcpServerResponsePayloadSessionTerminate) Validate() er
 	}
 	return variantValidator.Struct(v)
 }
-type ClientObjectiveaiMcpServerResponsePayloadSessionTerminate ClientObjectiveaiMcpServerResponsePayloadSessionTerminate
-
 func (ClientObjectiveaiMcpServerResponsePayloadSessionTerminate) SchemaVariantTitle() string { return "SessionTerminate" }
 
 // Tagged union of every reply the CLI can send back to the API in
