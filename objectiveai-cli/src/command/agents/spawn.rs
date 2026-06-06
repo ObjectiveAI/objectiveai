@@ -109,12 +109,15 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             objectiveai_sdk::cli::command::StreamOnce::new(Ok(first)).chain(tail),
         )),
         Some(Err(e)) => {
-            db::prompts::re_enqueue_async(ctx.filesystem.clone(), drained).await?;
-            Err(e)
+            let r = db::prompts::re_enqueue_async(ctx.filesystem.clone(), drained).await;
+            Err(crate::command::queue_drain::combine_drain_failure(e, r))
         }
         None => {
-            db::prompts::re_enqueue_async(ctx.filesystem.clone(), drained).await?;
-            Err(Error::EmptyStream)
+            let r = db::prompts::re_enqueue_async(ctx.filesystem.clone(), drained).await;
+            Err(crate::command::queue_drain::combine_drain_failure(
+                Error::EmptyStream,
+                r,
+            ))
         }
     }
 }

@@ -197,12 +197,12 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     let mut tail = match stream_or_err {
         Ok(s) => s,
         Err(e) => {
-            crate::filesystem::db::prompts::re_enqueue_async(
+            let r = crate::filesystem::db::prompts::re_enqueue_async(
                 ctx.filesystem.clone(),
                 drained,
             )
-            .await?;
-            return Err(e);
+            .await;
+            return Err(crate::command::queue_drain::combine_drain_failure(e, r));
         }
     };
     match tail.as_mut().next().await {
@@ -210,20 +210,23 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             objectiveai_sdk::cli::command::StreamOnce::new(Ok(first)).chain(tail),
         )),
         Some(Err(e)) => {
-            crate::filesystem::db::prompts::re_enqueue_async(
+            let r = crate::filesystem::db::prompts::re_enqueue_async(
                 ctx.filesystem.clone(),
                 drained,
             )
-            .await?;
-            Err(e)
+            .await;
+            Err(crate::command::queue_drain::combine_drain_failure(e, r))
         }
         None => {
-            crate::filesystem::db::prompts::re_enqueue_async(
+            let r = crate::filesystem::db::prompts::re_enqueue_async(
                 ctx.filesystem.clone(),
                 drained,
             )
-            .await?;
-            Err(Error::EmptyStream)
+            .await;
+            Err(crate::command::queue_drain::combine_drain_failure(
+                Error::EmptyStream,
+                r,
+            ))
         }
     }
 }

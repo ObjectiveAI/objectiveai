@@ -24,6 +24,31 @@
 
 use objectiveai_sdk::agent::completions::message::{RichContent, RichContentPart};
 
+use crate::error::Error;
+
+/// Combine the original spawn/message failure with the result of
+/// `db::prompts::re_enqueue_async`. When re-enqueue succeeds, the
+/// original error wins — the queue is whole; only delivery failed.
+/// When re-enqueue *also* fails, both are surfaced via
+/// [`Error::DrainLost`] so the caller sees what failed and that
+/// the queued content is lost.
+///
+/// `re_enqueue_async` returns `Result<(), filesystem::Error>`; this
+/// helper handles the `From<filesystem::Error> for Error` conversion
+/// internally so call sites can pass the raw `.await` result.
+pub fn combine_drain_failure(
+    original: Error,
+    re_enqueue: Result<(), crate::filesystem::Error>,
+) -> Error {
+    match re_enqueue {
+        Ok(()) => original,
+        Err(re_enqueue) => Error::DrainLost {
+            original: Box::new(original),
+            re_enqueue: Box::new(re_enqueue.into()),
+        },
+    }
+}
+
 /// `\n\n`-separated concatenation of `items` into one
 /// [`RichContent`]. An empty input yields `RichContent::Text("")`;
 /// a single-element input is returned unchanged (no separator
