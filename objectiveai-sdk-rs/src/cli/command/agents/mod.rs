@@ -5,6 +5,7 @@ pub mod message;
 pub mod publish;
 pub mod read;
 pub mod spawn;
+pub mod tags;
 
 #[derive(clap::Subcommand)]
 pub enum Command {
@@ -30,6 +31,11 @@ pub enum Command {
     },
     /// Spawn an agent completion (open a streaming run as a child of this caller).
     Spawn(spawn::Command),
+    /// Client-side agent tags — get / add.
+    Tags {
+        #[command(subcommand)]
+        command: tags::Command,
+    },
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -70,6 +76,8 @@ pub enum Request {
     SpawnRequestSchema(spawn::request_schema::Request),
     #[schemars(title = "SpawnResponseSchema")]
     SpawnResponseSchema(spawn::response_schema::Request),
+    #[schemars(title = "Tags")]
+    Tags(tags::Request),
 }
 
 // Exempt from json-schema coverage: tier aggregate (see the root
@@ -113,6 +121,8 @@ pub enum ResponseItem {
     SpawnRequestSchema(spawn::request_schema::Response),
     #[schemars(title = "SpawnResponseSchema")]
     SpawnResponseSchema(spawn::response_schema::Response),
+    #[schemars(title = "Tags")]
+    Tags(tags::ResponseItem),
 }
 
 #[cfg(feature = "mcp")]
@@ -136,6 +146,7 @@ impl crate::cli::command::CommandResponse for ResponseItem {
             ResponseItem::Spawn(v) => v.into_mcp(),
             ResponseItem::SpawnRequestSchema(v) => v.into_mcp(),
             ResponseItem::SpawnResponseSchema(v) => v.into_mcp(),
+            ResponseItem::Tags(v) => v.into_mcp(),
         }
     }
 }
@@ -183,6 +194,8 @@ impl TryFrom<Command> for Request {
                 Some(spawn::Schema::ResponseSchema(args)) =>
                     Ok(Request::SpawnResponseSchema(spawn::response_schema::Request::try_from(args)?)),
             },
+            Command::Tags { command } =>
+                Ok(Request::Tags(tags::Request::try_from(command)?)),
         }
     }
 }
@@ -207,6 +220,7 @@ impl crate::cli::command::CommandRequest for Request {
             Request::Spawn(inner) => inner.into_command(),
             Request::SpawnRequestSchema(inner) => inner.into_command(),
             Request::SpawnResponseSchema(inner) => inner.into_command(),
+            Request::Tags(inner) => inner.into_command(),
         }
     }
 }
@@ -332,6 +346,10 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
                     ResponseItem::SpawnResponseSchema(value),
                 )))
             }
+            Request::Tags(req) => {
+                let inner = tags::execute(executor, req, agent_arguments).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Tags)))
+            }
         };
     Ok(stream)
 }
@@ -426,6 +444,10 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
             Request::SpawnResponseSchema(req) => {
                 let value = spawn::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::Tags(req) => {
+                let inner = tags::execute_jq(executor, req, jq, agent_arguments).await?;
+                Box::pin(inner)
             }
         };
     Ok(stream)

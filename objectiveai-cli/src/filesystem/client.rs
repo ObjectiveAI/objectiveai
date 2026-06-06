@@ -13,6 +13,11 @@ pub struct Client {
     /// the slot — a failed attempt leaves the inner `Option::None`
     /// intact and later calls can retry.
     db_conn: Arc<Mutex<Option<Arc<Mutex<rusqlite::Connection>>>>>,
+    /// Parallel slot for the dedicated `tags.sqlite` connection — same
+    /// lazy-init semantics as `db_conn` but a separate file so the
+    /// agent-tags lifecycle stays isolated from the main message-log
+    /// database.
+    tags_db_conn: Arc<Mutex<Option<Arc<Mutex<rusqlite::Connection>>>>>,
 }
 
 impl Client {
@@ -35,6 +40,7 @@ impl Client {
                             commit_author_email,
                         ),
                         db_conn: Arc::new(Mutex::new(None)),
+                        tags_db_conn: Arc::new(Mutex::new(None)),
                     };
                 }
                 dirs::home_dir()
@@ -47,6 +53,7 @@ impl Client {
             commit_author_name: resolve_author_name(commit_author_name),
             commit_author_email: resolve_author_email(commit_author_email),
             db_conn: Arc::new(Mutex::new(None)),
+            tags_db_conn: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -60,6 +67,11 @@ impl Client {
 
     pub fn db_path(&self) -> PathBuf {
         self.base_dir.join("db.sqlite")
+    }
+
+    /// Path to the dedicated `tags.sqlite` file under `base_dir`.
+    pub fn tags_db_path(&self) -> PathBuf {
+        self.base_dir.join("tags.sqlite")
     }
 
     pub fn logs_dir(&self) -> PathBuf {
@@ -79,6 +91,15 @@ impl Client {
         &self,
     ) -> &Mutex<Option<Arc<Mutex<rusqlite::Connection>>>> {
         &self.db_conn
+    }
+
+    /// Internal accessor to the dedicated tags-db lazy-init slot. Used
+    /// by `filesystem::db::tags` to open the `tags.sqlite` connection
+    /// on first use.
+    pub(crate) fn tags_db_conn_slot(
+        &self,
+    ) -> &Mutex<Option<Arc<Mutex<rusqlite::Connection>>>> {
+        &self.tags_db_conn
     }
 }
 

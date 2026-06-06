@@ -1,7 +1,7 @@
 //! `agents message` — bare-naked handler.
 //!
 //! Deliver a rich-content message to a running spawned agent. If the
-//! per-agent socket (`${config_base_dir}/pipes/<full_id>/socket`) is
+//! per-agent socket (`${config_base_dir}/pipes/<agent_instance_hierarchy>/socket`) is
 //! bound and acks the line, return [`Response::Delivered`]. If the
 //! socket is unreachable or refuses to ack, fall back to continuing
 //! the agent's most recent completion via its stored continuation
@@ -54,11 +54,25 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         .parent_agent_instance_hierarchy
         .as_deref()
         .unwrap_or(&ctx.config.agent_instance_hierarchy);
-    let full_id = format!("{parent}/{}", request.agent_instance);
+    let agent_instance_hierarchy = format!("{parent}/{}", request.agent_instance);
     let content = resolve_message(request.message)?;
 
+    // `--agent-tag` binds the tag to the resolved hierarchy directly,
+    // regardless of whether delivery ends up live (Delivered) or queued
+    // via continuation (Queued). The binding is independent of the
+    // delivery path's success and is applied before the loop so a
+    // SLOT_TAKEN retry doesn't repeat the write.
+    if let Some(tag) = &request.agent_tag {
+        crate::filesystem::db::tags::upsert_bound_async(
+            ctx.filesystem.clone(),
+            tag.clone(),
+            agent_instance_hierarchy.clone(),
+        )
+        .await?;
+    }
+
     loop {
-        match handle_once(ctx, &full_id, content.clone(), request.seed).await {
+        match handle_once(ctx, &agent_instance_hierarchy, content.clone(), request.seed).await {
             Err(Error::CliStreamSlotTaken { .. }) => continue,
             other => return other,
         }
@@ -67,27 +81,27 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
 
 async fn handle_once(
     ctx: &Context,
-    full_id: &str,
+    agent_instance_hierarchy: &str,
     content: RichContent,
     seed: Option<i64>,
 ) -> Result<Response, Error> {
     // Try live delivery first. Any failure here triggers the
     // continuation fallback — pipe errors are never surfaced as fatal.
-    match try_pipe_delivery(ctx, full_id, &content).await {
+    match try_pipe_delivery(ctx, agent_instance_hierarchy, &content).await {
         Ok(()) => Ok(Response::Delivered {
-            agent_instance_hierarchy: full_id.to_string(),
+            agent_instance_hierarchy: agent_instance_hierarchy.to_string(),
         }),
-        Err(_) => fallback_via_continuation(ctx, full_id, content, seed).await,
+        Err(_) => fallback_via_continuation(ctx, agent_instance_hierarchy, content, seed).await,
     }
 }
 
-/// Connect to `${config_base_dir}/pipes/<full_id>/socket`, write one
+/// Connect to `${config_base_dir}/pipes/<agent_instance_hierarchy>/socket`, write one
 /// NDJSON `RichContent` line, and read back one `PipeAck` line.
 /// Returns `Ok(())` only on `PipeAck::Ok`; any IO failure, timeout,
 /// parse error, or `PipeAck::Error` is reported as `Err`.
 async fn try_pipe_delivery(
     ctx: &Context,
-    full_id: &str,
+    agent_instance_hierarchy: &str,
     content: &RichContent,
 ) -> Result<(), PipeError> {
     let base_dir = ctx
@@ -95,7 +109,7 @@ async fn try_pipe_delivery(
         .config_base_dir
         .as_deref()
         .ok_or(PipeError::NoBaseDir)?;
-    let socket_path = Path::new(base_dir).join("pipes").join(full_id).join("socket");
+    let socket_path = Path::new(base_dir).join("pipes").join(agent_instance_hierarchy).join("socket");
     let name = socket_path
         .clone()
         .to_fs_name::<GenericFilePath>()
@@ -178,7 +192,7 @@ impl std::fmt::Display for PipeError {
 /// handshake fires.
 async fn fallback_via_continuation(
     ctx: &Context,
-    full_id: &str,
+    agent_instance_hierarchy: &str,
     content: RichContent,
     cli_seed: Option<i64>,
 ) -> Result<Response, Error> {
@@ -186,16 +200,16 @@ async fn fallback_via_continuation(
     // Walk-back is in the filesystem helper — it tries each request
     // newest-first and returns the most recent one whose continuation
     // file exists, only erroring if NONE have one.
-    let latest = match ctx.filesystem.read_latest_continuation(full_id).await? {
+    let latest = match ctx.filesystem.read_latest_continuation(agent_instance_hierarchy).await? {
         LatestContinuationOutcome::Found(l) => l,
         LatestContinuationOutcome::NoRequests => {
             return Err(Error::AgentNoPriorRequest {
-                agent_instance_hierarchy: full_id.to_string(),
+                agent_instance_hierarchy: agent_instance_hierarchy.to_string(),
             });
         }
         LatestContinuationOutcome::NoContinuationsFound { request_count } => {
             return Err(Error::AgentNoContinuation {
-                agent_instance_hierarchy: full_id.to_string(),
+                agent_instance_hierarchy: agent_instance_hierarchy.to_string(),
                 request_count,
             });
         }
@@ -223,12 +237,13 @@ async fn fallback_via_continuation(
     let mut stream = instance_subprocess_stream(
         ctx,
         crate::instance::request::InstanceEndpoint::AgentsSpawn(params),
-        Some(full_id.to_string()),
+        Some(agent_instance_hierarchy.to_string()),
+        None,
         false,
     );
     match stream.next().await {
         Some(Ok(InstanceItem::Id(new_response_id))) => Ok(Response::Queued {
-            agent_instance_hierarchy: full_id.to_string(),
+            agent_instance_hierarchy: agent_instance_hierarchy.to_string(),
             response_id: new_response_id,
         }),
         Some(Ok(InstanceItem::Chunk(_))) => {

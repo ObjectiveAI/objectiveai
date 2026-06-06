@@ -19,6 +19,13 @@ pub struct Request {
     pub agent_instance: String,
     pub message: RequestMessage,
     pub seed: Option<i64>,
+    /// Optional tag name to bind directly to the resolved
+    /// `{parent}/{agent_instance}` hierarchy. Applied at handler
+    /// time, regardless of whether the message is delivered live
+    /// (notification) or queued (continuation).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub agent_tag: Option<String>,
     pub jq: Option<String>,
 }
 
@@ -90,6 +97,10 @@ impl CommandRequest for Request {
             argv.push("--seed".to_string());
             argv.push(seed.to_string());
         }
+        if let Some(tag) = &self.agent_tag {
+            argv.push("--agent-tag".to_string());
+            argv.push(tag.clone());
+        }
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
             argv.push(jq.clone());
@@ -129,6 +140,9 @@ pub struct Args {
     /// Seed for deterministic mock responses.
     #[arg(long)]
     pub seed: Option<i64>,
+    /// Optional tag to bind to the resolved hierarchy.
+    #[arg(long = "agent-tag")]
+    pub agent_tag: Option<String>,
     /// jq filter applied to the JSON output.
     #[arg(long)]
     pub jq: Option<String>,
@@ -198,6 +212,7 @@ impl TryFrom<Args> for Request {
             agent_instance: args.agent_instance,
             message,
             seed: args.seed,
+            agent_tag: args.agent_tag,
             jq: args.jq,
         })
     }
