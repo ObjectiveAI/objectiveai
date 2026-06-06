@@ -119,6 +119,110 @@ pub fn load_snapshot(dir: &Path, name: &str) -> serde_json::Value {
     serde_json::from_str(&content).unwrap()
 }
 
+/// Canonical structural-Value snapshot assertion. Mirrors the
+/// `assert result == expected` step in
+/// `objectiveai-sdk-py/tests/http_test_util.py`,
+/// `objectiveai-sdk-js/src/httpTestUtil.ts`, and
+/// `objectiveai-sdk-go/tests/http_test_util_test.go`:
+///
+/// 1. Load the snapshot file at `snapshot_path` as a
+///    `serde_json::Value`.
+/// 2. Round the **whole** snapshot via [`rounded`].
+/// 3. Serialise `normalized` (which should already have had
+///    `normalize_for_tests` called on it) to a `Value` and round it
+///    the same way.
+/// 4. Structural-equality compare on the two rounded objects.
+///
+/// On mismatch, serialise both rounded forms pretty-printed, write
+/// them to `<runtime>/<test-fn>/<snapshot_name>.{actual,expected}.json`,
+/// and panic with a `diff -u …` command + the first diverging lines
+/// for at-a-glance triage.
+pub fn assert_normalized_snapshot<T: serde::Serialize>(
+    snapshot_path: &Path,
+    snapshot_name: &str,
+    normalized: &T,
+) {
+    let expected_raw = std::fs::read_to_string(snapshot_path)
+        .unwrap_or_else(|e| panic!("read snapshot {}: {e}", snapshot_path.display()));
+    let expected_value: serde_json::Value = serde_json::from_str(&expected_raw)
+        .unwrap_or_else(|e| panic!("parse snapshot {}: {e}", snapshot_path.display()));
+    let expected_rounded = rounded(&expected_value);
+
+    let actual_value =
+        serde_json::to_value(normalized).expect("normalized value serialises");
+    let actual_rounded = rounded(&actual_value);
+
+    if actual_rounded == expected_rounded {
+        return;
+    }
+
+    let actual_pretty = serde_json::to_string_pretty(&actual_rounded)
+        .expect("rounded Value serialises to pretty JSON");
+    let expected_pretty = serde_json::to_string_pretty(&expected_rounded)
+        .expect("rounded Value serialises to pretty JSON");
+    let dir = test_base_dir();
+    std::fs::create_dir_all(&dir)
+        .unwrap_or_else(|e| panic!("create {} for snapshot diff: {e}", dir.display()));
+    let actual_path = dir.join(format!("{snapshot_name}.actual.json"));
+    let expected_path = dir.join(format!("{snapshot_name}.expected.json"));
+    std::fs::write(&actual_path, &actual_pretty)
+        .unwrap_or_else(|e| panic!("write {}: {e}", actual_path.display()));
+    std::fs::write(&expected_path, &expected_pretty)
+        .unwrap_or_else(|e| panic!("write {}: {e}", expected_path.display()));
+
+    panic!(
+        "snapshot mismatch for `{snapshot_name}`\n  \
+           source:   {}\n  \
+           expected: {}\n  \
+           actual:   {}\n  \
+           diff:     diff -u {} {}\n\
+         {}",
+        snapshot_path.display(),
+        expected_path.display(),
+        actual_path.display(),
+        expected_path.display(),
+        actual_path.display(),
+        first_diff_lines(&expected_pretty, &actual_pretty, 30),
+    );
+}
+
+/// Compose a short report of the first diverging lines so the panic
+/// message itself surfaces the gist of the diff. Not a full unified
+/// diff — for that, the test reports the absolute paths so a
+/// developer can `diff -u expected actual` themselves.
+fn first_diff_lines(expected: &str, actual: &str, max_lines: usize) -> String {
+    let mut out = String::from("  first diverging lines:\n");
+    let mut e_lines = expected.lines();
+    let mut a_lines = actual.lines();
+    let mut emitted = 0usize;
+    let mut line_no = 0usize;
+    loop {
+        let el = e_lines.next();
+        let al = a_lines.next();
+        line_no += 1;
+        match (el, al) {
+            (None, None) => break,
+            (Some(es), Some(as_)) if es == as_ => continue,
+            (es, as_) => {
+                out.push_str(&format!("    L{line_no:>4} - {}\n", es.unwrap_or("<EOF>")));
+                out.push_str(&format!("    L{line_no:>4} + {}\n", as_.unwrap_or("<EOF>")));
+                emitted += 1;
+                if emitted >= max_lines {
+                    out.push_str(&format!(
+                        "    … ({} max lines reached; run the diff command above for the full picture)\n",
+                        max_lines
+                    ));
+                    break;
+                }
+            }
+        }
+    }
+    if emitted == 0 {
+        out.push_str("    (no line-level differences — check pretty-print formatting)\n");
+    }
+    out
+}
+
 /// Round floats to 8 significant figures to match cross-language comparison.
 pub fn rounded(value: &serde_json::Value) -> serde_json::Value {
     match value {

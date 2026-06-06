@@ -11,12 +11,21 @@
 //! JsonSchema output mode where every agent declares 10 entries in
 //! `client_objectiveai_mcp.tools` (no plugins, `objectiveai` field
 //! omitted). The function execution accumulates `FunctionExecutionChunk`s
-//! into a unary `FunctionExecution`, normalizes for determinism, and
-//! diffs the serialized form against the CLI-side snapshot under
+//! into a unary `FunctionExecution`, normalises it via the Rust SDK's
+//! `normalize_for_tests`, and structurally compares the **whole**
+//! rounded result against the snapshot under
 //! `objectiveai-cli/assets/function/executions/snapshots/`.
 //!
+//! Mirrors the canonical 3-SDK pattern in
+//! `objectiveai-sdk-py/tests/http_test_util.py`,
+//! `objectiveai-sdk-js/src/httpTestUtil.ts`, and
+//! `objectiveai-sdk-go/tests/http_test_util_test.go`. The cli stays
+//! streaming-only by transport-level necessity; every other piece of
+//! the canonical pattern carries over verbatim.
+//!
 //! Set `UPDATE_VECTOR_COMPLETIONS_CLIENT_TESTS_SNAPSHOTS=1` to (re)write
-//! the snapshot, matching the API integration suite's convention.
+//! the snapshot — it serialises the normalised rounded form so the
+//! committed file matches what the assertion path reads back.
 
 mod cli_test_util;
 
@@ -38,24 +47,22 @@ fn snapshots_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/function/executions/snapshots")
 }
 
-fn assert_snapshot(actual: &str, name: &str) {
+/// Write `normalized` to the committed snapshot file in
+/// `assets/function/executions/snapshots/` as a pretty-printed
+/// rounded `Value`. Mirrors the read shape used by
+/// [`cli_test_util::assert_normalized_snapshot`] so the committed
+/// file round-trips byte-for-byte.
+fn update_snapshot<T: serde::Serialize>(name: &str, normalized: &T) {
     let path = snapshots_dir().join(format!("{name}.json"));
-    if std::env::var("UPDATE_VECTOR_COMPLETIONS_CLIENT_TESTS_SNAPSHOTS").as_deref() == Ok("1") {
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).unwrap();
-        }
-        std::fs::write(&path, format!("{actual}\n")).unwrap();
-        eprintln!("Updated snapshot: {}", path.display());
-        return;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).unwrap();
     }
-    let expected = std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("failed to read snapshot {}: {e}", path.display()));
-    assert_eq!(
-        actual,
-        expected.trim_end(),
-        "snapshot mismatch for {}",
-        path.display(),
-    );
+    let value = serde_json::to_value(normalized).expect("normalized value serialises");
+    let rounded_value = cli_test_util::rounded(&value);
+    let pretty = serde_json::to_string_pretty(&rounded_value)
+        .expect("rounded Value serialises to pretty JSON");
+    std::fs::write(&path, format!("{pretty}\n")).unwrap();
+    eprintln!("Updated snapshot: {}", path.display());
 }
 
 #[tokio::test]
@@ -127,6 +134,11 @@ async fn test_twenty_agents_json_schema_10x_tools_seed_42() {
     let mut result: FunctionExecution = agg.into();
     result.normalize_for_tests();
 
-    let actual_str = serde_json::to_string_pretty(&result).unwrap();
-    assert_snapshot(&actual_str, "twenty_agents_json_schema_10x_tools_seed_42");
+    let name = "twenty_agents_json_schema_10x_tools_seed_42";
+    if std::env::var("UPDATE_VECTOR_COMPLETIONS_CLIENT_TESTS_SNAPSHOTS").as_deref() == Ok("1") {
+        update_snapshot(name, &result);
+        return;
+    }
+    let snapshot_path = snapshots_dir().join(format!("{name}.json"));
+    cli_test_util::assert_normalized_snapshot(&snapshot_path, name, &result);
 }
