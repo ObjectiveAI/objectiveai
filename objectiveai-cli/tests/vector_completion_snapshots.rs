@@ -13,7 +13,7 @@
 //! omitted). The function execution accumulates `FunctionExecutionChunk`s
 //! into a unary `FunctionExecution`, normalizes for determinism, and
 //! diffs the serialized form against the CLI-side snapshot under
-//! `objectiveai-cli/assets/vector/completions/snapshots/`.
+//! `objectiveai-cli/assets/function/executions/snapshots/`.
 //!
 //! Set `UPDATE_VECTOR_COMPLETIONS_CLIENT_TESTS_SNAPSHOTS=1` to (re)write
 //! the snapshot, matching the API integration suite's convention.
@@ -35,7 +35,7 @@ use objectiveai_sdk::functions::executions::response::streaming::FunctionExecuti
 use objectiveai_sdk::functions::executions::response::unary::FunctionExecution;
 
 fn snapshots_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/vector/completions/snapshots")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/function/executions/snapshots")
 }
 
 fn assert_snapshot(actual: &str, name: &str) {
