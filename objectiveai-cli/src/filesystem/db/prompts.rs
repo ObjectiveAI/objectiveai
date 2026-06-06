@@ -107,14 +107,45 @@ pub enum ContentRow {
     File(File),
 }
 
+/// Map one [`ContentRow`] to its matching SDK [`RichContentPart`]
+/// variant. Shared by `agents queue read id`'s handler (single-id
+/// fetch) and the drain helpers below (reconstruct a whole prompt).
+/// The walker stored both `InputVideo` and `VideoUrl` parts as
+/// `prompt_videos` (just a URL), so reading back always yields
+/// `VideoUrl` — the lossless choice for a bare URL.
+pub fn content_row_to_part(row: ContentRow) -> RichContentPart {
+    match row {
+        ContentRow::Text(text) => RichContentPart::Text { text },
+        ContentRow::Image(image_url) => RichContentPart::ImageUrl { image_url },
+        ContentRow::Audio(input_audio) => RichContentPart::InputAudio { input_audio },
+        ContentRow::Video(video_url) => RichContentPart::VideoUrl { video_url },
+        ContentRow::File(file) => RichContentPart::File { file },
+    }
+}
+
 /// Look up a single content row by `prompt_contents.id`. Returns
 /// `None` when the id doesn't exist (`prompt_contents` miss) — a
 /// per-kind miss is a DB corruption and is reported as an `Error`.
+///
+/// Locking wrapper around [`read_content_with_conn`]; callers that
+/// already hold the `tags` connection (e.g. inside a drain
+/// transaction) should call the `_with_conn` variant directly.
 pub fn read_content(client: &Client, id: i64) -> Result<Option<ContentRow>, Error> {
     let conn = super::tags::connection(client)?;
     let conn = conn
         .lock()
         .expect("filesystem prompts db connection mutex poisoned");
+    read_content_with_conn(&conn, id)
+}
+
+/// `read_content` that operates on an externally-acquired
+/// connection (or [`rusqlite::Transaction`], which derefs to
+/// `&Connection`). Used by the drain helpers below so reconstruction
+/// composes inside the surrounding transaction.
+pub fn read_content_with_conn(
+    conn: &Connection,
+    id: i64,
+) -> Result<Option<ContentRow>, Error> {
     let kind: Option<String> = conn
         .query_row(
             "SELECT kind FROM prompt_contents WHERE id = ?1",
@@ -543,6 +574,211 @@ pub async fn list_async(client: Client, parent: String) -> Result<Vec<ResponseIt
     tokio::task::spawn_blocking(move || list(&client, &parent))
         .await
         .map_err(spawn_blocking_join_err)?
+}
+
+// ---------------------------------------------------------------------------
+// Drain — atomically pull matching prompts out of the queue and
+// reconstruct each one as a `RichContent`. Used by `agents message`
+// and `agents spawn` to prepend queued content to the user's own
+// payload before the API call fires.
+// ---------------------------------------------------------------------------
+
+/// Drain rows targeting `target_hierarchy`, `target_tag` (if some),
+/// or any BOUND tag whose `agent_instance_hierarchy` equals
+/// `target_hierarchy`. Returns reconstructed `RichContent`s in
+/// enqueue (oldest-first) order; deletes the matched rows in the
+/// same transaction.
+pub async fn drain_for_message_async(
+    client: Client,
+    target_hierarchy: String,
+    target_tag: Option<String>,
+) -> Result<Vec<RichContent>, Error> {
+    tokio::task::spawn_blocking(move || {
+        drain_for_message(&client, &target_hierarchy, target_tag.as_deref())
+    })
+    .await
+    .map_err(spawn_blocking_join_err)?
+}
+
+fn drain_for_message(
+    client: &Client,
+    target_hierarchy: &str,
+    target_tag: Option<&str>,
+) -> Result<Vec<RichContent>, Error> {
+    let conn = super::tags::connection(client)?;
+    let conn = conn
+        .lock()
+        .expect("filesystem prompts db connection mutex poisoned");
+    let tx = conn.unchecked_transaction()?;
+    // Three-rule predicate (see plan):
+    //  1. p.agent_instance_hierarchy = ?1
+    //  2. p.agent_tag → tag BOUND to ?1
+    //  3. ?2 is some AND p.agent_tag = ?2
+    // ?2 may be NULL — rule 3 silently fails the AND in that case.
+    let rows = collect_matching_prompts(
+        &tx,
+        "p.agent_instance_hierarchy = ?1 \
+         OR ( \
+             p.agent_tag IS NOT NULL \
+             AND EXISTS ( \
+                 SELECT 1 FROM tags t \
+                 WHERE t.name = p.agent_tag \
+                   AND t.agent_instance_hierarchy = ?1 \
+             ) \
+         ) \
+         OR ( \
+             ?2 IS NOT NULL \
+             AND p.agent_tag = ?2 \
+         )",
+        params![target_hierarchy, target_tag],
+    )?;
+    let drained = reconstruct_and_delete(&tx, rows)?;
+    tx.commit()?;
+    Ok(drained)
+}
+
+/// Drain rows targeting `target_tag` (if some), or any PENDING tag
+/// whose `(parent_agent_instance_hierarchy, agent_full_id)` pair
+/// matches `(parent_hierarchy, agent_full_id)` — i.e. every tag
+/// that the spawn about to fire will auto-promote on first chunk.
+pub async fn drain_for_spawn_async(
+    client: Client,
+    parent_hierarchy: String,
+    agent_full_id: String,
+    target_tag: Option<String>,
+) -> Result<Vec<RichContent>, Error> {
+    tokio::task::spawn_blocking(move || {
+        drain_for_spawn(
+            &client,
+            &parent_hierarchy,
+            &agent_full_id,
+            target_tag.as_deref(),
+        )
+    })
+    .await
+    .map_err(spawn_blocking_join_err)?
+}
+
+fn drain_for_spawn(
+    client: &Client,
+    parent_hierarchy: &str,
+    agent_full_id: &str,
+    target_tag: Option<&str>,
+) -> Result<Vec<RichContent>, Error> {
+    let conn = super::tags::connection(client)?;
+    let conn = conn
+        .lock()
+        .expect("filesystem prompts db connection mutex poisoned");
+    let tx = conn.unchecked_transaction()?;
+    // Two-rule predicate (see plan):
+    //  1. ?3 is some AND p.agent_tag = ?3 — the explicit binding tag.
+    //  2. p.agent_tag → PENDING tag with (?1, ?2) match.
+    // No direct-hierarchy rule: queue/add Direct mode rejects
+    // targets without prior completions, so no Direct row can pre-
+    // exist for an unspawned agent.
+    let rows = collect_matching_prompts(
+        &tx,
+        "( \
+             ?3 IS NOT NULL \
+             AND p.agent_tag = ?3 \
+         ) \
+         OR ( \
+             p.agent_tag IS NOT NULL \
+             AND EXISTS ( \
+                 SELECT 1 FROM tags t \
+                 WHERE t.name = p.agent_tag \
+                   AND t.parent_agent_instance_hierarchy = ?1 \
+                   AND t.agent_full_id = ?2 \
+             ) \
+         )",
+        params![parent_hierarchy, agent_full_id, target_tag],
+    )?;
+    let drained = reconstruct_and_delete(&tx, rows)?;
+    tx.commit()?;
+    Ok(drained)
+}
+
+/// Run the SELECT inside `tx` and return `(prompt_id, prompt_json)`
+/// pairs ordered oldest-first. Shared by both drain predicates;
+/// only the `where_clause` differs.
+fn collect_matching_prompts(
+    tx: &rusqlite::Transaction<'_>,
+    where_clause: &str,
+    params: impl rusqlite::Params,
+) -> Result<Vec<(i64, String)>, Error> {
+    let sql = format!(
+        "SELECT p.id, p.prompt \
+         FROM prompts p \
+         WHERE {where_clause} \
+         ORDER BY p.id ASC"
+    );
+    let mut stmt = tx.prepare(&sql)?;
+    let rows = stmt
+        .query_map(params, |r| {
+            Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(rows)
+}
+
+/// For each matched `(prompt_id, prompt_json)`, decode the JSON
+/// column as `ResponseContent`, reconstruct a `RichContent` from
+/// the referenced per-kind rows, then DELETE the prompt row (which
+/// cascades to its content rows via the FK chain). Returns the
+/// reconstructed `RichContent`s in input order.
+fn reconstruct_and_delete(
+    tx: &rusqlite::Transaction<'_>,
+    rows: Vec<(i64, String)>,
+) -> Result<Vec<RichContent>, Error> {
+    let mut out = Vec::with_capacity(rows.len());
+    for (prompt_id, prompt_json) in rows {
+        let response_content: ResponseContent = if prompt_json.is_empty() {
+            ResponseContent::Many(Vec::new())
+        } else {
+            serde_json::from_str(&prompt_json).map_err(Error::Json)?
+        };
+        out.push(reconstruct_rich_content(tx, response_content)?);
+        // ON DELETE CASCADE on prompt_contents.prompt_id sweeps the
+        // master + per-kind rows. PRAGMA foreign_keys = ON is set
+        // at connection open (see super::tags::connection).
+        tx.execute("DELETE FROM prompts WHERE id = ?1", params![prompt_id])?;
+    }
+    Ok(out)
+}
+
+/// Look up every content row referenced by `rc`, map each to a
+/// `RichContentPart`, then bypass `RichContent::from`'s all-text
+/// collapse so callers get exactly the shape the queue stored.
+/// (The drain join helper in the CLI handlers reapplies the
+/// separator logic on top of these.)
+fn reconstruct_rich_content(
+    tx: &rusqlite::Transaction<'_>,
+    rc: ResponseContent,
+) -> Result<RichContent, Error> {
+    let ids: Vec<i64> = match rc {
+        ResponseContent::One(id) => vec![id],
+        ResponseContent::Many(ids) => ids,
+    };
+    let mut parts: Vec<RichContentPart> = Vec::with_capacity(ids.len());
+    for id in ids {
+        let row = read_content_with_conn(tx, id)?.ok_or_else(|| {
+            Error::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("queue prompt referenced missing prompt_contents id {id}"),
+            ))
+        })?;
+        parts.push(content_row_to_part(row));
+    }
+    // Collapse single-text-part to RichContent::Text (lossless).
+    // Multi-part — even if all-text — stays RichContent::Parts so
+    // the join helper at the call site can insert separators
+    // between distinct queue items without losing structure.
+    if parts.len() == 1 {
+        if let RichContentPart::Text { text } = &parts[0] {
+            return Ok(RichContent::Text(text.clone()));
+        }
+    }
+    Ok(RichContent::Parts(parts))
 }
 
 fn spawn_blocking_join_err(e: tokio::task::JoinError) -> Error {

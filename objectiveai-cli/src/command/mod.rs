@@ -17,6 +17,7 @@ pub mod list_helpers;
 pub mod logs;
 pub mod mcp;
 pub mod plugins;
+pub mod queue_drain;
 pub mod swarms;
 pub mod tools;
 pub mod update;

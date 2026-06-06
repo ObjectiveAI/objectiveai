@@ -69,7 +69,14 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     // to the resolved hierarchy as a side effect. Tag mode looks the
     // name up in `tags.sqlite`; BOUND resolves to the target,
     // PENDING / ABSENT raise structured errors.
-    let agent_instance_hierarchy = match request.target {
+    // Returns `(hierarchy, opt_tag)`. `opt_tag` is `Some` only in
+    // Direct mode when the caller supplied `--agent-tag` alongside
+    // the agent instance (the binding-tag case); the drain below
+    // uses it for rule 3 of the predicate (`p.agent_tag = opt_tag`).
+    // Tag-mode resolution sets `opt_tag = None` — per the user
+    // spec, the resolved hierarchy is enough; rule 2 of the drain
+    // predicate sweeps all tags pointing to that hierarchy.
+    let (agent_instance_hierarchy, opt_tag) = match request.target {
         MessageTarget::Direct {
             parent_agent_instance_hierarchy,
             agent_instance,
@@ -79,22 +86,29 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
                 .as_deref()
                 .unwrap_or(&ctx.config.agent_instance_hierarchy);
             let full_id = format!("{parent}/{agent_instance}");
-            if let Some(tag) = agent_tag {
+            if let Some(tag) = &agent_tag {
                 // Bind once, before the delivery loop, so a SLOT_TAKEN
                 // retry doesn't repeat the write.
                 crate::filesystem::db::tags::upsert_bound_async(
                     ctx.filesystem.clone(),
-                    tag,
+                    tag.clone(),
                     full_id.clone(),
                 )
                 .await?;
             }
-            full_id
+            (full_id, agent_tag)
         }
         MessageTarget::Tag { agent_tag } => {
             use crate::filesystem::db::tags;
-            match tags::lookup_async(ctx.filesystem.clone(), agent_tag.clone()).await? {
-                tags::LookupState::Bound { agent_instance_hierarchy } => agent_instance_hierarchy,
+            let hierarchy = match tags::lookup_async(
+                ctx.filesystem.clone(),
+                agent_tag.clone(),
+            )
+            .await?
+            {
+                tags::LookupState::Bound { agent_instance_hierarchy } => {
+                    agent_instance_hierarchy
+                }
                 tags::LookupState::Pending {
                     parent_agent_instance_hierarchy,
                     agent_full_id,
@@ -106,11 +120,30 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
                     });
                 }
                 tags::LookupState::Absent => return Err(Error::TagNotFound(agent_tag)),
-            }
+            };
+            (hierarchy, None)
         }
     };
 
-    let content = resolve_message(request.message)?;
+    let own_content = resolve_message(request.message)?;
+
+    // Drain queue items targeting this hierarchy (direct or via any
+    // BOUND tag) plus, in Direct + binding-tag mode, the explicit
+    // tag's inbox. Oldest-first; joined `\n\n`-separated with the
+    // user's own content appended.
+    let drained = crate::filesystem::db::prompts::drain_for_message_async(
+        ctx.filesystem.clone(),
+        agent_instance_hierarchy.clone(),
+        opt_tag,
+    )
+    .await?;
+    let content = if drained.is_empty() {
+        own_content
+    } else {
+        let mut items = drained;
+        items.push(own_content);
+        crate::command::queue_drain::join_with_separator(items)
+    };
     let stream_flag = request
         .dangerous_advanced
         .as_ref()

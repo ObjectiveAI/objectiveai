@@ -2,12 +2,11 @@
 //! typed payload via the per-kind content tables, returning a
 //! `RichContentPart` directly.
 
-use objectiveai_sdk::agent::completions::message::RichContentPart;
 use objectiveai_sdk::cli::command::agents::queue::read::id::{Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
-use crate::filesystem::db::{self, prompts::ContentRow};
+use crate::filesystem::db;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
     let row = db::prompts::read_content_async(ctx.filesystem.clone(), request.id)
@@ -18,17 +17,9 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                 request.id
             )))
         })?;
-    // `Response` is a type alias for `RichContentPart`. The walker
-    // stored both `InputVideo` and `VideoUrl` parts as the same
-    // `prompt_videos` row shape (just a URL), so reading them back
-    // collapses to `VideoUrl` — the lossless choice for a bare URL.
-    Ok(match row {
-        ContentRow::Text(text) => RichContentPart::Text { text },
-        ContentRow::Image(image_url) => RichContentPart::ImageUrl { image_url },
-        ContentRow::Audio(input_audio) => RichContentPart::InputAudio { input_audio },
-        ContentRow::Video(video_url) => RichContentPart::VideoUrl { video_url },
-        ContentRow::File(file) => RichContentPart::File { file },
-    })
+    // `Response` is a type alias for `RichContentPart`; the shared
+    // helper does the variant mapping.
+    Ok(db::prompts::content_row_to_part(row))
 }
 
 pub mod request_schema {

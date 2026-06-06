@@ -83,6 +83,8 @@ pub enum Error {
     Updater(String),
     #[error("instance runner: {0}")]
     Instance(String),
+    #[error("invalid agent definition: {0}")]
+    AgentConvert(String),
     #[error("{0}")]
     ClapParse(#[from] clap::Error),
     #[error("argument parse error at `{}`: {}", .0.field, .0.source)]

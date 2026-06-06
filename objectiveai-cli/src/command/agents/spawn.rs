@@ -32,12 +32,42 @@ use objectiveai_sdk::cli::command::agents::spawn::{
 
 use crate::context::Context;
 use crate::error::Error;
+use crate::filesystem::db;
 use crate::streaming::{InstanceItem, instance_subprocess_stream};
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
-    let messages = resolve_prompt(request.prompt)?;
+    let mut messages = resolve_prompt(request.prompt)?;
+
+    // Drain the queue *before* the instance fires. Two-rule
+    // predicate (see `db::prompts::drain_for_spawn_async`):
+    //   1. queue items addressed to `request.agent_tag` directly
+    //   2. queue items addressed to any PENDING tag whose
+    //      (parent, agent_full_id) matches this spawn — i.e. tags
+    //      that the first-chunk auto-promotion hook will bind.
+    // The drained items get joined oldest-first with `\n\n`
+    // separators and prepended as a fresh User message at the head
+    // of `messages`.
+    let agent_full_id = resolve_agent_full_id(ctx, &request.agent).await?;
+    let drained = db::prompts::drain_for_spawn_async(
+        ctx.filesystem.clone(),
+        ctx.config.agent_instance_hierarchy.clone(),
+        agent_full_id,
+        request.agent_tag.clone(),
+    )
+    .await?;
+    if !drained.is_empty() {
+        let prepended = crate::command::queue_drain::join_with_separator(drained);
+        messages.insert(
+            0,
+            Message::User(UserMessage {
+                content: prepended,
+                name: None,
+            }),
+        );
+    }
+
     let agent = resolve_agent(ctx, request.agent).await?;
 
     let params = AgentCompletionCreateParams {
@@ -114,6 +144,48 @@ async fn resolve_agent(
             ))
         }
     }
+}
+
+/// Compute the content-addressed `agent_full_id` (concatenated
+/// base62 ids of the primary agent + each fallback) for `spec`
+/// **before** the spawn fires. Used by the queue drain to address
+/// PENDING tags that this spawn will bind on first chunk.
+///
+/// - `AgentSpec::Resolved(InlineAgentBaseWithFallbacks)`: compute
+///   locally via `.convert().full_id()` — no HTTP.
+/// - `AgentSpec::Resolved(Remote)` and `AgentSpec::Favorite`: fetch
+///   the remote definition via the same `objectiveai_sdk::agent::
+///   get_agent` call `agents get` uses, then call `.full_id()` on
+///   the returned `RemoteAgentWithFallbacks`.
+async fn resolve_agent_full_id(
+    ctx: &Context,
+    spec: &AgentSpec,
+) -> Result<String, Error> {
+    let path = match spec {
+        AgentSpec::Resolved(InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+            base,
+        )) => {
+            let with_ids = base
+                .clone()
+                .convert()
+                .map_err(Error::AgentConvert)?;
+            return Ok(with_ids.full_id());
+        }
+        AgentSpec::Resolved(InlineAgentBaseWithFallbacksOrRemoteCommitOptional::Remote(
+            p,
+        )) => p.clone(),
+        AgentSpec::Favorite(name) => {
+            let mut config = ctx.filesystem.read_config().await?;
+            let favorites = config.agents().get_favorites();
+            let fav = favorites
+                .iter()
+                .find(|f| f.get_name() == name)
+                .ok_or_else(|| Error::FavoriteNotFound(name.clone()))?;
+            fav.path.clone()
+        }
+    };
+    let response = objectiveai_sdk::agent::get_agent(&ctx.http, path).await?;
+    Ok(response.inner.full_id())
 }
 
 pub mod request_schema {
