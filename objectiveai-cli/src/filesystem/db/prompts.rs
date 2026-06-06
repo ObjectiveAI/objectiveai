@@ -980,6 +980,92 @@ fn delete_by_id(client: &Client, id: i64) -> Result<Option<DrainedPrompt>, Error
     Ok(items.pop())
 }
 
+// ---------------------------------------------------------------------------
+// Delivery enumeration — list every distinct `(resolved hierarchy,
+// agent_tag)` pair with pending queue rows under (or at) a parent
+// hierarchy. Powers `agents message-queue deliver`, which fans out
+// one `agents message` call per returned target in parallel.
+// ---------------------------------------------------------------------------
+
+/// One addressed delivery target. `agent_instance_hierarchy` is the
+/// resolved hierarchy the row would be delivered to (either the
+/// row's own hierarchy for Direct rows, or the BOUND tag's bound
+/// hierarchy for Tag rows). `agent_tag` is `Some` when the row was
+/// originally Tag-addressed — the deliver leaf passes it through
+/// to `agents message` as the binding-tag side effect, and
+/// surfaces it as the response item's attribution.
+#[derive(Debug, Clone)]
+pub struct DeliveryTarget {
+    pub agent_instance_hierarchy: String,
+    pub agent_tag: Option<String>,
+}
+
+/// Enumerate every distinct `(resolved hierarchy, agent_tag)` pair
+/// with pending queue rows in the subtree rooted at `parent`
+/// (inclusive — `parent` itself is in scope). PENDING / ABSENT tag
+/// rows are filtered out at the SQL level so the caller never sees
+/// addressings that don't resolve to a spawned target.
+pub async fn list_delivery_targets_async(
+    client: Client,
+    parent: String,
+) -> Result<Vec<DeliveryTarget>, Error> {
+    tokio::task::spawn_blocking(move || list_delivery_targets(&client, &parent))
+        .await
+        .map_err(spawn_blocking_join_err)?
+}
+
+fn list_delivery_targets(
+    client: &Client,
+    parent: &str,
+) -> Result<Vec<DeliveryTarget>, Error> {
+    let conn = super::tags::connection(client)?;
+    let conn = conn
+        .lock()
+        .expect("filesystem prompts db connection mutex poisoned");
+    // Single round-trip. The LEFT JOIN's
+    // `t.agent_instance_hierarchy IS NOT NULL` predicate filters
+    // PENDING / ABSENT tag rows. DISTINCT collapses true duplicates
+    // (multiple rows addressing the same `(hierarchy, tag)` pair).
+    let mut stmt = conn.prepare_cached(
+        "SELECT DISTINCT \
+                COALESCE(t.agent_instance_hierarchy, p.agent_instance_hierarchy) AS hier, \
+                p.agent_tag \
+         FROM prompts p \
+         LEFT JOIN tags t \
+             ON p.agent_tag = t.name \
+             AND t.agent_instance_hierarchy IS NOT NULL \
+         WHERE \
+             /* Direct row: target hierarchy in subtree (inclusive). */ \
+             ( \
+                 p.agent_instance_hierarchy IS NOT NULL \
+                 AND ( \
+                     p.agent_instance_hierarchy = ?1 \
+                     OR p.agent_instance_hierarchy LIKE (?1 || '/%') \
+                 ) \
+             ) \
+             OR \
+             /* Tag row resolves through a BOUND tag in the subtree. */ \
+             ( \
+                 p.agent_tag IS NOT NULL \
+                 AND t.agent_instance_hierarchy IS NOT NULL \
+                 AND ( \
+                     t.agent_instance_hierarchy = ?1 \
+                     OR t.agent_instance_hierarchy LIKE (?1 || '/%') \
+                 ) \
+             ) \
+         ORDER BY hier, p.agent_tag",
+    )?;
+    let rows = stmt
+        .query_map([parent], |r| {
+            Ok(DeliveryTarget {
+                agent_instance_hierarchy: r.get::<_, String>(0)?,
+                agent_tag: r.get::<_, Option<String>>(1)?,
+            })
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(rows)
+}
+
 fn spawn_blocking_join_err(e: tokio::task::JoinError) -> Error {
     Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e))
 }

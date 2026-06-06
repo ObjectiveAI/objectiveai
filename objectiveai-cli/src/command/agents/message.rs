@@ -144,9 +144,25 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     } else {
         let mut items: Vec<RichContent> =
             drained.iter().map(|d| d.content.clone()).collect();
-        items.push(own_content);
+        // `agents message-queue deliver` calls this handler in-process
+        // with an empty `own_content` to trigger a drain-only delivery.
+        // Skip the append when it's empty so the join doesn't tack a
+        // trailing `\n\n` (or an empty Text part on the mixed-media
+        // path) onto an otherwise-clean drained transcript.
+        if !own_content.is_empty() {
+            items.push(own_content);
+        }
         crate::command::message_queue_drain::join_with_separator(items)
     };
+
+    // Drain-only no-op: when both the drain and the caller's own
+    // content are empty, there is genuinely nothing to deliver.
+    // Yield an empty stream so the second-and-later parallel deliver
+    // fan-out calls to the same hierarchy (after the first one
+    // already drained everything) succeed silently.
+    if content.is_empty() {
+        return Ok(Box::pin(futures::stream::empty()));
+    }
     let stream_flag = request
         .dangerous_advanced
         .as_ref()
