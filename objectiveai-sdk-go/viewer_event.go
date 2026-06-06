@@ -40,11 +40,11 @@ func (v *ViewerEventInbound) UnmarshalJSON(data []byte) error {
 }
 func (ViewerEventInbound) SchemaVariantTitle() string { return "Inbound" }
 
-// Host → iframe. One JSON line of cli output emitted by an
-// in-process `objectiveai_cli::run()` invocation started by
-// this iframe via `invokeCli`. `value` is the cli's `Output<T>`
-// envelope. No sub_type — a single invocation produces a single
-// stream of lines.
+// Host → iframe. One stdout JSONL line from an objectiveai cli
+// binary the host spawned for an `invokeCli` this iframe
+// started, terminated by a synthetic `{"type":"end"}` line. No
+// sub_type — a single invocation produces a single stream of
+// lines.
 type ViewerEventCliCommand struct {
 	Destination string `json:"destination"`
 	Type string `json:"type" validate:"oneof=cli_command"`
@@ -88,11 +88,11 @@ type ViewerEvent struct {
 	// `laboratories_executions`; plugins: whatever they declared in
 	// their manifest's `viewer_routes[i].type`).
 	Inbound *ViewerEventInbound `outerObject:"true"`
-	// Host → iframe. One JSON line of cli output emitted by an
-	// in-process `objectiveai_cli::run()` invocation started by
-	// this iframe via `invokeCli`. `value` is the cli's `Output<T>`
-	// envelope. No sub_type — a single invocation produces a single
-	// stream of lines.
+	// Host → iframe. One stdout JSONL line from an objectiveai cli
+	// binary the host spawned for an `invokeCli` this iframe
+	// started, terminated by a synthetic `{"type":"end"}` line. No
+	// sub_type — a single invocation produces a single stream of
+	// lines.
 	CliCommand *ViewerEventCliCommand `outerObject:"true"`
 }
 

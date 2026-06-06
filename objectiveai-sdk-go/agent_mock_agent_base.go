@@ -9,6 +9,18 @@ import (
 
 // The base configuration for a Mock Agent (without computed ID).
 type AgentMockAgentBase struct {
+	// Deterministic-script override. When `Some`, the mock agent
+	// emits each [`super::Call`] as its own assistant turn —
+	// `tool_calls` first, then `content` — in array order. Each
+	// subsequent turn inspects the continuation to count how many
+	// `Call`s have already been satisfied (assistant message with
+	// exactly that `Call`'s `tool_calls` (by name+arguments) and
+	// `content`); the next un-matched `Call` is what that turn
+	// emits. Once every `Call` has been satisfied in the
+	// continuation, the mock falls through to its normal mode-driven
+	// dispatcher. Pure addition — agents without `calls` are
+	// unaffected.
+	Calls *[]AgentMockCall `json:"calls,omitempty"`
 	// Client-side ObjectiveAI MCP surface the calling client is
 	// expected to expose locally back to the API (objectiveai
 	// built-in, plus specific plugins / tools by owner+name+version).

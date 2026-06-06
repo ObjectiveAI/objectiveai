@@ -13,7 +13,7 @@ type FunctionsExecutionsResponseStreamingVectorCompletionTaskLogReferenceLogRefe
 	Path string `json:"path,omitempty"`
 	TaskIndex uint64 `json:"task_index" validate:"min=0,max=18446744073709551615"`
 	TaskPath []uint64 `json:"task_path" validate:"dive,min=0,max=18446744073709551615"`
-	Type FilesystemLogsLogReferenceTag `json:"type"`
+	Type LogReferenceTag `json:"type"`
 }
 
 func (FunctionsExecutionsResponseStreamingVectorCompletionTaskLogReferenceLogReference) SchemaTitle() string { return "functions.executions.response.streaming.vector_completion_task_log_reference.LogReference" }

@@ -5,9 +5,9 @@ package objectiveai
 type AgentCompletionsMessageAssistantMessageLog struct {
 	Content *AgentCompletionsMessageRichContentLog `json:"content,omitempty"`
 	Name *string `json:"name,omitempty"`
-	Reasoning *FilesystemLogsLogReference `json:"reasoning,omitempty"`
-	Refusal *FilesystemLogsLogReference `json:"refusal,omitempty"`
-	ToolCalls *[]FilesystemLogsLogReference `json:"tool_calls,omitempty"`
+	Reasoning *LogReference `json:"reasoning,omitempty"`
+	Refusal *LogReference `json:"refusal,omitempty"`
+	ToolCalls *[]LogReference `json:"tool_calls,omitempty"`
 }
 
 func (AgentCompletionsMessageAssistantMessageLog) SchemaTitle() string { return "agent.completions.message.AssistantMessageLog" }

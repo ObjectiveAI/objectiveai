@@ -9,10 +9,10 @@ import (
 
 type AgentCompletionsRequestAgentCompletionCreateParamsLog struct {
 	Agent AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptional `json:"agent"`
-	Continuation *FilesystemLogsLogReference `json:"continuation,omitempty"`
-	Messages []FilesystemLogsLogReference `json:"messages"`
+	Continuation *LogReference `json:"continuation,omitempty"`
+	Messages []LogReference `json:"messages"`
 	Provider *AgentCompletionsRequestProvider `json:"provider,omitempty"`
-	ResponseFormat *FilesystemLogsLogReference `json:"response_format,omitempty"`
+	ResponseFormat *LogReference `json:"response_format,omitempty"`
 	Seed *int64 `json:"seed,omitempty" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
 	Stream *bool `json:"stream,omitempty"`
 }

@@ -13,6 +13,21 @@ import (
 // accumulated into a complete [`AgentCompletion`](response::unary::AgentCompletion)
 // using the [`push`](Self::push) method.
 type AgentCompletionsResponseStreamingAgentCompletionChunk struct {
+	// WF-level id: concatenation of the primary agent's id with all
+	// fallback ids (see `InlineAgentWithFallbacks::full_id`). Same
+	// for every slot in the same WF request.
+	AgentFullID string `json:"agent_full_id"`
+	// Leaf agent id of the slot that produced this chunk. For the
+	// primary attempt this is the primary agent's id; on fallback it
+	// is the fallback agent's id. Same on every chunk of a slot.
+	AgentID string `json:"agent_id"`
+	// Full agent instance hierarchy for this completion's slot —
+	// `{ctx lineage}/{agent_full_id}-{response_id}`, or the fixed
+	// continuation value on resume. Same on every chunk of a slot.
+	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
+	// `RemotePath` the WF was fetched from. `None` when the WF was
+	// supplied inline. Same for every slot in the same WF request.
+	AgentRemote *RemotePath `json:"agent_remote,omitempty"`
 	// Continuation state for multi-turn conversations (only present in the final chunk).
 	Continuation *string `json:"continuation,omitempty"`
 	Created uint64 `json:"created" validate:"min=0,max=18446744073709551615"`
@@ -45,7 +60,7 @@ func (v *AgentCompletionsResponseStreamingAgentCompletionChunk) UnmarshalJSON(da
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"created", "id", "messages", "object", "upstream"} {
+	for _, key := range []string{"agent_full_id", "agent_id", "agent_instance_hierarchy", "created", "id", "messages", "object", "upstream"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("AgentCompletionsResponseStreamingAgentCompletionChunk: missing required field %q", key)
 		}

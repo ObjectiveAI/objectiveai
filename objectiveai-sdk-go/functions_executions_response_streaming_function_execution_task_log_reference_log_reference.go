@@ -15,7 +15,7 @@ type FunctionsExecutionsResponseStreamingFunctionExecutionTaskLogReferenceLogRef
 	SwissRound *uint64 `json:"swiss_round,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 	TaskIndex uint64 `json:"task_index" validate:"min=0,max=18446744073709551615"`
 	TaskPath []uint64 `json:"task_path" validate:"dive,min=0,max=18446744073709551615"`
-	Type FilesystemLogsLogReferenceTag `json:"type"`
+	Type LogReferenceTag `json:"type"`
 }
 
 func (FunctionsExecutionsResponseStreamingFunctionExecutionTaskLogReferenceLogReference) SchemaTitle() string { return "functions.executions.response.streaming.function_execution_task_log_reference.LogReference" }

@@ -9,7 +9,6 @@ import (
 
 // An assistant response in a unary agent completion.
 type AgentCompletionsResponseUnaryAssistantResponse struct {
-	Agent string `json:"agent"`
 	Content *AgentCompletionsMessageRichContent `json:"content"`
 	Created uint64 `json:"created" validate:"min=0,max=18446744073709551615"`
 	FinishReason AgentCompletionsResponseFinishReason `json:"finish_reason"`
@@ -38,7 +37,7 @@ func (v *AgentCompletionsResponseUnaryAssistantResponse) UnmarshalJSON(data []by
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"agent", "created", "finish_reason", "index", "model", "role", "upstream_id", "usage"} {
+	for _, key := range []string{"created", "finish_reason", "index", "model", "role", "upstream_id", "usage"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("AgentCompletionsResponseUnaryAssistantResponse: missing required field %q", key)
 		}

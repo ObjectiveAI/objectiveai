@@ -7,12 +7,12 @@ import (
 	"fmt"
 )
 
-type AgentCompletionsMessageRichContentLogParts []FilesystemLogsLogReference
+type AgentCompletionsMessageRichContentLogParts []LogReference
 
 func (AgentCompletionsMessageRichContentLogParts) SchemaVariantTitle() string { return "Parts" }
 
 type AgentCompletionsMessageRichContentLog struct {
-	Reference *FilesystemLogsLogReference 
+	Reference *LogReference 
 	Parts *AgentCompletionsMessageRichContentLogParts 
 }
 
@@ -28,7 +28,7 @@ func (v AgentCompletionsMessageRichContentLog) MarshalJSON() ([]byte, error) {
 
 func (v *AgentCompletionsMessageRichContentLog) UnmarshalJSON(data []byte) error {
 	{
-		var try FilesystemLogsLogReference
+		var try LogReference
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := AgentCompletionsMessageRichContentLog{}
 			candidate.Reference = &try

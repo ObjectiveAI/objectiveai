@@ -9,14 +9,14 @@ import (
 
 type FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParamsLog struct {
 	Agent AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptional `json:"agent"`
-	Continuation *FilesystemLogsLogReference `json:"continuation,omitempty"`
+	Continuation *LogReference `json:"continuation,omitempty"`
 	MaxStepRetries *uint32 `json:"max_step_retries,omitempty" validate:"omitempty,min=0,max=4294967295"`
 	Overwrite *bool `json:"overwrite,omitempty"`
 	Prompt FunctionsInventionsPromptsInlinePromptOrRemoteCommitOptional `json:"prompt"`
 	Provider *AgentCompletionsRequestProvider `json:"provider,omitempty"`
 	Remote Remote `json:"remote"`
 	Seed *int64 `json:"seed,omitempty" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
-	State FilesystemLogsLogReference `json:"state"`
+	State LogReference `json:"state"`
 	Stream *bool `json:"stream,omitempty"`
 }
 

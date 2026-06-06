@@ -6,11 +6,11 @@ func init() {
 	RegisterOrderedMapTypes(variantValidator,
 		OrderedMap[string, *string]{},
 		OrderedMap[string, AgentCompletionsRequestResponseFormat]{},
-		OrderedMap[string, FilesystemLogsLogReference]{},
 		OrderedMap[string, FunctionsExpressionInputSchema]{},
 		OrderedMap[string, FunctionsExpressionInputValue]{},
 		OrderedMap[string, FunctionsExpressionInputValueExpressionObjectValue]{},
 		OrderedMap[string, JsonValue]{},
+		OrderedMap[string, LogReference]{},
 		OrderedMap[string, int64]{},
 		OrderedMap[string, string]{},
 	)

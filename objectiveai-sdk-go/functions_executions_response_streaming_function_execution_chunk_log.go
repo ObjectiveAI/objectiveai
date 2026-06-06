@@ -19,7 +19,7 @@ type FunctionsExecutionsResponseStreamingFunctionExecutionChunkLog struct {
 	// old code inserted `reasoning` via `Map::insert` AFTER all
 	// the shell fields, putting it at the tail of the object.
 	Reasoning *FunctionsExecutionsResponseStreamingReasoningSummaryLogReferenceLogReference `json:"reasoning,omitempty"`
-	RetryToken *FilesystemLogsLogReference `json:"retry_token,omitempty"`
+	RetryToken *LogReference `json:"retry_token,omitempty"`
 	Tasks []FunctionsExecutionsResponseStreamingTaskLogReferenceLogReference `json:"tasks"`
 	TasksErrors *bool `json:"tasks_errors,omitempty"`
 	Usage *AgentCompletionsResponseUsage `json:"usage,omitempty"`

@@ -13,6 +13,10 @@ type AgentOpenrouterAgentBase struct {
 	// expected to expose locally back to the API (objectiveai
 	// built-in, plus specific plugins / tools by owner+name+version).
 	ClientObjectiveaiMCP *AgentClientObjectiveaiMcp `json:"client_objectiveai_mcp,omitempty"`
+	// Context compression engine for long contexts. When set, the
+	// upstream client emits the matching `plugins` entry on the
+	// outgoing OpenRouter chat-completions request.
+	ContextCompression *AgentOpenrouterContextCompression `json:"context_compression,omitempty"`
 	// Penalizes tokens based on their frequency in the output so far (-2.0 to 2.0).
 	FrequencyPenalty *float64 `json:"frequency_penalty,omitempty" validate:"omitempty,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 	// Token ID to bias mapping (-100 to 100). Positive values increase likelihood.

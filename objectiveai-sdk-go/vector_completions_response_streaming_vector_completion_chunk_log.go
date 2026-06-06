@@ -8,7 +8,7 @@ import (
 )
 
 type VectorCompletionsResponseStreamingVectorCompletionChunkLog struct {
-	Completions []FilesystemLogsIndexedReferenceLogReference `json:"completions"`
+	Completions []IndexedLogReference `json:"completions"`
 	Created uint64 `json:"created" validate:"min=0,max=18446744073709551615"`
 	ID string `json:"id"`
 	Object VectorCompletionsResponseStreamingObject `json:"object"`

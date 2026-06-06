@@ -8,7 +8,7 @@ import (
 )
 
 type FunctionsExecutionsRequestFunctionExecutionCreateParamsLog struct {
-	Continuation *FilesystemLogsLogReference `json:"continuation,omitempty"`
+	Continuation *LogReference `json:"continuation,omitempty"`
 	FromCache *bool `json:"from_cache,omitempty"`
 	Function FunctionsFullInlineFunctionOrRemoteCommitOptional `json:"function"`
 	Input FunctionsExpressionInputValueLog `json:"input"`

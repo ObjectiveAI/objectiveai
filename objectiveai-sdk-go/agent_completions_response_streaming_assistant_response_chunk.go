@@ -13,7 +13,6 @@ import (
 // accumulated into a complete [`AgentCompletion`](response::unary::AgentCompletion)
 // using the [`push`](Self::push) method.
 type AgentCompletionsResponseStreamingAssistantResponseChunk struct {
-	Agent string `json:"agent"`
 	Content *AgentCompletionsMessageRichContent `json:"content,omitempty"`
 	Created uint64 `json:"created" validate:"min=0,max=18446744073709551615"`
 	FinishReason *AgentCompletionsResponseFinishReason `json:"finish_reason"`
@@ -42,7 +41,7 @@ func (v *AgentCompletionsResponseStreamingAssistantResponseChunk) UnmarshalJSON(
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"agent", "created", "index", "model", "role", "upstream_id"} {
+	for _, key := range []string{"created", "index", "model", "role", "upstream_id"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("AgentCompletionsResponseStreamingAssistantResponseChunk: missing required field %q", key)
 		}

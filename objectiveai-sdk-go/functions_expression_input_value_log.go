@@ -8,28 +8,28 @@ import (
 	orderedmap "github.com/wk8/go-ordered-map/v2"
 )
 
-type FunctionsExpressionInputValueLogObject OrderedMap[string, FilesystemLogsLogReference]
+type FunctionsExpressionInputValueLogObject OrderedMap[string, LogReference]
 
 func (FunctionsExpressionInputValueLogObject) SchemaVariantTitle() string { return "Object" }
 
-func NewFunctionsExpressionInputValueLogObject(pairs ...orderedmap.Pair[string, FilesystemLogsLogReference]) FunctionsExpressionInputValueLogObject {
-	return FunctionsExpressionInputValueLogObject(NewOrderedMap[string, FilesystemLogsLogReference](pairs...))
+func NewFunctionsExpressionInputValueLogObject(pairs ...orderedmap.Pair[string, LogReference]) FunctionsExpressionInputValueLogObject {
+	return FunctionsExpressionInputValueLogObject(NewOrderedMap[string, LogReference](pairs...))
 }
 
 func (v FunctionsExpressionInputValueLogObject) MarshalJSON() ([]byte, error) {
-	return OrderedMap[string, FilesystemLogsLogReference](v).MarshalJSON()
+	return OrderedMap[string, LogReference](v).MarshalJSON()
 }
 
 func (v *FunctionsExpressionInputValueLogObject) UnmarshalJSON(data []byte) error {
-	return (*OrderedMap[string, FilesystemLogsLogReference])(v).UnmarshalJSON(data)
+	return (*OrderedMap[string, LogReference])(v).UnmarshalJSON(data)
 }
 
-type FunctionsExpressionInputValueLogArray []FilesystemLogsLogReference
+type FunctionsExpressionInputValueLogArray []LogReference
 
 func (FunctionsExpressionInputValueLogArray) SchemaVariantTitle() string { return "Array" }
 
 type FunctionsExpressionInputValueLog struct {
-	Reference *FilesystemLogsLogReference 
+	Reference *LogReference 
 	Object *FunctionsExpressionInputValueLogObject `outerObject:"true"`
 	Array *FunctionsExpressionInputValueLogArray 
 }
@@ -49,7 +49,7 @@ func (v FunctionsExpressionInputValueLog) MarshalJSON() ([]byte, error) {
 
 func (v *FunctionsExpressionInputValueLog) UnmarshalJSON(data []byte) error {
 	{
-		var try FilesystemLogsLogReference
+		var try LogReference
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := FunctionsExpressionInputValueLog{}
 			candidate.Reference = &try

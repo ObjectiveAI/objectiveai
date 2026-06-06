@@ -48,11 +48,11 @@ func (v ClientObjectiveaiMcpClientRequestRequestAgentCompletionNotify) MarshalJS
 }
 func (ClientObjectiveaiMcpClientRequestRequestAgentCompletionNotify) SchemaVariantTitle() string { return "AgentCompletionNotify" }
 
-// The CLI's upstream `mcp::Connection` for `mcp_session_id`
-// fired `notifications/<kind>/list_changed`. The API
-// dispatches this onto its per-`(ws_session_id, mcp_session_id)`
-// broadcast so every matching MCP GET-SSE listener sees a
-// standard MCP notification frame.
+// The CLI's upstream `mcp::Connection` for `mcp_kind` fired
+// `notifications/<kind>/list_changed`. The API dispatches this
+// onto its per-`(response_id, McpKind)` broadcast so the
+// matching MCP GET-SSE listener sees a standard MCP
+// notification frame.
 type ClientObjectiveaiMcpClientRequestRequestMcpListChanged struct {
 	ClientObjectiveaiMcpClientRequestMcpListChanged
 	// Client-minted correlation id. Echoed by the matching
@@ -103,11 +103,11 @@ func (ClientObjectiveaiMcpClientRequestRequestMcpListChanged) SchemaVariantTitle
 // ```
 type ClientObjectiveaiMcpClientRequestRequest struct {
 	AgentCompletionNotify *ClientObjectiveaiMcpClientRequestRequestAgentCompletionNotify `outerObject:"true"`
-	// The CLI's upstream `mcp::Connection` for `mcp_session_id`
-	// fired `notifications/<kind>/list_changed`. The API
-	// dispatches this onto its per-`(ws_session_id, mcp_session_id)`
-	// broadcast so every matching MCP GET-SSE listener sees a
-	// standard MCP notification frame.
+	// The CLI's upstream `mcp::Connection` for `mcp_kind` fired
+	// `notifications/<kind>/list_changed`. The API dispatches this
+	// onto its per-`(response_id, McpKind)` broadcast so the
+	// matching MCP GET-SSE listener sees a standard MCP
+	// notification frame.
 	McpListChanged *ClientObjectiveaiMcpClientRequestRequestMcpListChanged `outerObject:"true"`
 }
 

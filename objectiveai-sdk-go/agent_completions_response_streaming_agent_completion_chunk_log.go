@@ -8,11 +8,15 @@ import (
 )
 
 type AgentCompletionsResponseStreamingAgentCompletionChunkLog struct {
-	Continuation *FilesystemLogsLogReference `json:"continuation,omitempty"`
+	AgentFullID string `json:"agent_full_id"`
+	AgentID string `json:"agent_id"`
+	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
+	AgentRemote *RemotePath `json:"agent_remote,omitempty"`
+	Continuation *LogReference `json:"continuation,omitempty"`
 	Created uint64 `json:"created" validate:"min=0,max=18446744073709551615"`
 	Error *ErrorResponseError `json:"error,omitempty"`
 	ID string `json:"id"`
-	Messages []FilesystemLogsLogReference `json:"messages"`
+	Messages []AgentCompletionsResponseStreamingLogReference `json:"messages"`
 	MessagesQueued *bool `json:"messages_queued,omitempty"`
 	Object AgentCompletionsResponseStreamingObject `json:"object"`
 	Upstream AgentUpstream `json:"upstream"`
@@ -29,7 +33,7 @@ func (v *AgentCompletionsResponseStreamingAgentCompletionChunkLog) UnmarshalJSON
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"created", "id", "messages", "object", "upstream"} {
+	for _, key := range []string{"agent_full_id", "agent_id", "agent_instance_hierarchy", "created", "id", "messages", "object", "upstream"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("AgentCompletionsResponseStreamingAgentCompletionChunkLog: missing required field %q", key)
 		}

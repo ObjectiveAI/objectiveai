@@ -7,54 +7,495 @@ import (
 	"fmt"
 )
 
-// One HTTP request the proxy made against the API's
-// `/objectiveai-mcp/{session_id}` route, forwarded verbatim down
-// the reverse-attach WS to the calling client. The client returns
-// a matching [`super::super::server_response::Response`] echoing
-// the request `id`.
-//
-// Wire shape:
-//
-// ```json
-// {"id":"…","method":"POST","headers":{"Mcp-Session-Id":"…"},"body":{…}}
-// ```
-type ClientObjectiveaiMcpServerRequestRequest struct {
-	// Request body. `None` for `GET` and `DELETE`. For `POST`,
-	// this is the JSON-RPC envelope the proxy sent.
-	Body JsonValue `json:"body,omitempty"`
+// POST `initialize`. The proxy's `protocolVersion` doesn't ride
+// across this hop — the API discards it on the way in and
+// substitutes its own `canonical_initialize_result` on the way
+// out. The variant carries the plugin arguments the CLI needs at
+// dial time (parsed by the API off the URL query string).
+type ClientObjectiveaiMcpServerRequestRequestInitialize struct {
+	ClientObjectiveaiMcpServerRequestInitializeRequest
 	// Verbatim copy of the headers the proxy sent on its HTTP
-	// request to the API. The handler stamps these on its own
-	// request to the local objectiveai-mcp, with `Accept` always
-	// forced to `application/json` so no SSE flows on the handler
-	// leg.
+	// request to the API. The CLI conduit reads several custom
+	// `X-OBJECTIVEAI-*` routing headers + `Mcp-Session-Id` off this
+	// map; protocol-level headers (Host, Content-Length, …) the API
+	// already stripped on its way in.
 	Headers OrderedMap[string, string] `json:"headers,omitempty"`
 	// Server-minted correlation id. Echoed by the matching
 	// [`super::super::server_response::Response`].
 	ID string `json:"id"`
-	// HTTP method (`POST`, `GET`, `DELETE`).
-	Method string `json:"method"`
+	// Which CLI-hosted MCP server this request targets.
+	MCPKind ClientObjectiveaiMcpMcpKind `json:"mcp_kind"`
+	Type string `json:"type" validate:"oneof=initialize"`
 }
 
-func (ClientObjectiveaiMcpServerRequestRequest) SchemaTitle() string { return "client_objectiveai_mcp.server_request.Request" }
-func (v ClientObjectiveaiMcpServerRequestRequest) Validate() error {
-	return variantValidator.Struct(v)
+func (v *ClientObjectiveaiMcpServerRequestRequestInitialize) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(data, &v.ClientObjectiveaiMcpServerRequestInitializeRequest); err != nil {
+		return err
+	}
+	var local struct {
+		Headers OrderedMap[string, string] `json:"headers,omitempty"`
+		ID string `json:"id"`
+		MCPKind ClientObjectiveaiMcpMcpKind `json:"mcp_kind"`
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(data, &local); err != nil {
+		return err
+	}
+	v.Headers = local.Headers
+	v.ID = local.ID
+	v.MCPKind = local.MCPKind
+	v.Type = local.Type
+	return nil
 }
 
-func (v *ClientObjectiveaiMcpServerRequestRequest) UnmarshalJSON(data []byte) error {
+func (v ClientObjectiveaiMcpServerRequestRequestInitialize) MarshalJSON() ([]byte, error) {
+	base, err := json.Marshal(v.ClientObjectiveaiMcpServerRequestInitializeRequest)
+	if err != nil {
+		return nil, err
+	}
+	var merged map[string]json.RawMessage
+	json.Unmarshal(base, &merged)
+	if raw, err := json.Marshal(v.Headers); err == nil {
+		merged["headers"] = raw
+	}
+	if raw, err := json.Marshal(v.ID); err == nil {
+		merged["id"] = raw
+	}
+	if raw, err := json.Marshal(v.MCPKind); err == nil {
+		merged["mcp_kind"] = raw
+	}
+	if raw, err := json.Marshal(v.Type); err == nil {
+		merged["type"] = raw
+	}
+	return json.Marshal(merged)
+}
+func (ClientObjectiveaiMcpServerRequestRequestInitialize) SchemaVariantTitle() string { return "Initialize" }
+
+// POST `tools/list`.
+type ClientObjectiveaiMcpServerRequestRequestToolsList struct {
+	McpToolListToolsRequest
+	// Verbatim copy of the headers the proxy sent on its HTTP
+	// request to the API. The CLI conduit reads several custom
+	// `X-OBJECTIVEAI-*` routing headers + `Mcp-Session-Id` off this
+	// map; protocol-level headers (Host, Content-Length, …) the API
+	// already stripped on its way in.
+	Headers OrderedMap[string, string] `json:"headers,omitempty"`
+	// Server-minted correlation id. Echoed by the matching
+	// [`super::super::server_response::Response`].
+	ID string `json:"id"`
+	// Which CLI-hosted MCP server this request targets.
+	MCPKind ClientObjectiveaiMcpMcpKind `json:"mcp_kind"`
+	Type string `json:"type" validate:"oneof=tools_list"`
+}
+
+func (v *ClientObjectiveaiMcpServerRequestRequestToolsList) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(data, &v.McpToolListToolsRequest); err != nil {
+		return err
+	}
+	var local struct {
+		Headers OrderedMap[string, string] `json:"headers,omitempty"`
+		ID string `json:"id"`
+		MCPKind ClientObjectiveaiMcpMcpKind `json:"mcp_kind"`
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(data, &local); err != nil {
+		return err
+	}
+	v.Headers = local.Headers
+	v.ID = local.ID
+	v.MCPKind = local.MCPKind
+	v.Type = local.Type
+	return nil
+}
+
+func (v ClientObjectiveaiMcpServerRequestRequestToolsList) MarshalJSON() ([]byte, error) {
+	base, err := json.Marshal(v.McpToolListToolsRequest)
+	if err != nil {
+		return nil, err
+	}
+	var merged map[string]json.RawMessage
+	json.Unmarshal(base, &merged)
+	if raw, err := json.Marshal(v.Headers); err == nil {
+		merged["headers"] = raw
+	}
+	if raw, err := json.Marshal(v.ID); err == nil {
+		merged["id"] = raw
+	}
+	if raw, err := json.Marshal(v.MCPKind); err == nil {
+		merged["mcp_kind"] = raw
+	}
+	if raw, err := json.Marshal(v.Type); err == nil {
+		merged["type"] = raw
+	}
+	return json.Marshal(merged)
+}
+func (ClientObjectiveaiMcpServerRequestRequestToolsList) SchemaVariantTitle() string { return "ToolsList" }
+
+// POST `tools/call`.
+type ClientObjectiveaiMcpServerRequestRequestToolsCall struct {
+	McpToolCallToolRequestParams
+	// Verbatim copy of the headers the proxy sent on its HTTP
+	// request to the API. The CLI conduit reads several custom
+	// `X-OBJECTIVEAI-*` routing headers + `Mcp-Session-Id` off this
+	// map; protocol-level headers (Host, Content-Length, …) the API
+	// already stripped on its way in.
+	Headers OrderedMap[string, string] `json:"headers,omitempty"`
+	// Server-minted correlation id. Echoed by the matching
+	// [`super::super::server_response::Response`].
+	ID string `json:"id"`
+	// Which CLI-hosted MCP server this request targets.
+	MCPKind ClientObjectiveaiMcpMcpKind `json:"mcp_kind"`
+	Type string `json:"type" validate:"oneof=tools_call"`
+}
+
+func (v *ClientObjectiveaiMcpServerRequestRequestToolsCall) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(data, &v.McpToolCallToolRequestParams); err != nil {
+		return err
+	}
+	var local struct {
+		Headers OrderedMap[string, string] `json:"headers,omitempty"`
+		ID string `json:"id"`
+		MCPKind ClientObjectiveaiMcpMcpKind `json:"mcp_kind"`
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(data, &local); err != nil {
+		return err
+	}
+	v.Headers = local.Headers
+	v.ID = local.ID
+	v.MCPKind = local.MCPKind
+	v.Type = local.Type
+	return nil
+}
+
+func (v ClientObjectiveaiMcpServerRequestRequestToolsCall) MarshalJSON() ([]byte, error) {
+	base, err := json.Marshal(v.McpToolCallToolRequestParams)
+	if err != nil {
+		return nil, err
+	}
+	var merged map[string]json.RawMessage
+	json.Unmarshal(base, &merged)
+	if raw, err := json.Marshal(v.Headers); err == nil {
+		merged["headers"] = raw
+	}
+	if raw, err := json.Marshal(v.ID); err == nil {
+		merged["id"] = raw
+	}
+	if raw, err := json.Marshal(v.MCPKind); err == nil {
+		merged["mcp_kind"] = raw
+	}
+	if raw, err := json.Marshal(v.Type); err == nil {
+		merged["type"] = raw
+	}
+	return json.Marshal(merged)
+}
+func (ClientObjectiveaiMcpServerRequestRequestToolsCall) SchemaVariantTitle() string { return "ToolsCall" }
+
+// POST `resources/list`.
+type ClientObjectiveaiMcpServerRequestRequestResourcesList struct {
+	McpResourceListResourcesRequest
+	// Verbatim copy of the headers the proxy sent on its HTTP
+	// request to the API. The CLI conduit reads several custom
+	// `X-OBJECTIVEAI-*` routing headers + `Mcp-Session-Id` off this
+	// map; protocol-level headers (Host, Content-Length, …) the API
+	// already stripped on its way in.
+	Headers OrderedMap[string, string] `json:"headers,omitempty"`
+	// Server-minted correlation id. Echoed by the matching
+	// [`super::super::server_response::Response`].
+	ID string `json:"id"`
+	// Which CLI-hosted MCP server this request targets.
+	MCPKind ClientObjectiveaiMcpMcpKind `json:"mcp_kind"`
+	Type string `json:"type" validate:"oneof=resources_list"`
+}
+
+func (v *ClientObjectiveaiMcpServerRequestRequestResourcesList) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(data, &v.McpResourceListResourcesRequest); err != nil {
+		return err
+	}
+	var local struct {
+		Headers OrderedMap[string, string] `json:"headers,omitempty"`
+		ID string `json:"id"`
+		MCPKind ClientObjectiveaiMcpMcpKind `json:"mcp_kind"`
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(data, &local); err != nil {
+		return err
+	}
+	v.Headers = local.Headers
+	v.ID = local.ID
+	v.MCPKind = local.MCPKind
+	v.Type = local.Type
+	return nil
+}
+
+func (v ClientObjectiveaiMcpServerRequestRequestResourcesList) MarshalJSON() ([]byte, error) {
+	base, err := json.Marshal(v.McpResourceListResourcesRequest)
+	if err != nil {
+		return nil, err
+	}
+	var merged map[string]json.RawMessage
+	json.Unmarshal(base, &merged)
+	if raw, err := json.Marshal(v.Headers); err == nil {
+		merged["headers"] = raw
+	}
+	if raw, err := json.Marshal(v.ID); err == nil {
+		merged["id"] = raw
+	}
+	if raw, err := json.Marshal(v.MCPKind); err == nil {
+		merged["mcp_kind"] = raw
+	}
+	if raw, err := json.Marshal(v.Type); err == nil {
+		merged["type"] = raw
+	}
+	return json.Marshal(merged)
+}
+func (ClientObjectiveaiMcpServerRequestRequestResourcesList) SchemaVariantTitle() string { return "ResourcesList" }
+
+// POST `resources/read`.
+type ClientObjectiveaiMcpServerRequestRequestResourcesRead struct {
+	McpResourceReadResourceRequestParams
+	// Verbatim copy of the headers the proxy sent on its HTTP
+	// request to the API. The CLI conduit reads several custom
+	// `X-OBJECTIVEAI-*` routing headers + `Mcp-Session-Id` off this
+	// map; protocol-level headers (Host, Content-Length, …) the API
+	// already stripped on its way in.
+	Headers OrderedMap[string, string] `json:"headers,omitempty"`
+	// Server-minted correlation id. Echoed by the matching
+	// [`super::super::server_response::Response`].
+	ID string `json:"id"`
+	// Which CLI-hosted MCP server this request targets.
+	MCPKind ClientObjectiveaiMcpMcpKind `json:"mcp_kind"`
+	Type string `json:"type" validate:"oneof=resources_read"`
+}
+
+func (v *ClientObjectiveaiMcpServerRequestRequestResourcesRead) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(data, &v.McpResourceReadResourceRequestParams); err != nil {
+		return err
+	}
+	var local struct {
+		Headers OrderedMap[string, string] `json:"headers,omitempty"`
+		ID string `json:"id"`
+		MCPKind ClientObjectiveaiMcpMcpKind `json:"mcp_kind"`
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(data, &local); err != nil {
+		return err
+	}
+	v.Headers = local.Headers
+	v.ID = local.ID
+	v.MCPKind = local.MCPKind
+	v.Type = local.Type
+	return nil
+}
+
+func (v ClientObjectiveaiMcpServerRequestRequestResourcesRead) MarshalJSON() ([]byte, error) {
+	base, err := json.Marshal(v.McpResourceReadResourceRequestParams)
+	if err != nil {
+		return nil, err
+	}
+	var merged map[string]json.RawMessage
+	json.Unmarshal(base, &merged)
+	if raw, err := json.Marshal(v.Headers); err == nil {
+		merged["headers"] = raw
+	}
+	if raw, err := json.Marshal(v.ID); err == nil {
+		merged["id"] = raw
+	}
+	if raw, err := json.Marshal(v.MCPKind); err == nil {
+		merged["mcp_kind"] = raw
+	}
+	if raw, err := json.Marshal(v.Type); err == nil {
+		merged["type"] = raw
+	}
+	return json.Marshal(merged)
+}
+func (ClientObjectiveaiMcpServerRequestRequestResourcesRead) SchemaVariantTitle() string { return "ResourcesRead" }
+
+// `DELETE` on the routed MCP URL — the proxy closing the
+// session. No body.
+type ClientObjectiveaiMcpServerRequestRequestSessionTerminate struct {
+	// Verbatim copy of the headers the proxy sent on its HTTP
+	// request to the API. The CLI conduit reads several custom
+	// `X-OBJECTIVEAI-*` routing headers + `Mcp-Session-Id` off this
+	// map; protocol-level headers (Host, Content-Length, …) the API
+	// already stripped on its way in.
+	Headers OrderedMap[string, string] `json:"headers,omitempty"`
+	// Server-minted correlation id. Echoed by the matching
+	// [`super::super::server_response::Response`].
+	ID string `json:"id"`
+	// Which CLI-hosted MCP server this request targets.
+	MCPKind ClientObjectiveaiMcpMcpKind `json:"mcp_kind"`
+	Type string `json:"type" validate:"oneof=session_terminate"`
+}
+
+func (v *ClientObjectiveaiMcpServerRequestRequestSessionTerminate) UnmarshalJSON(data []byte) error {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"body", "headers", "id", "method"} {
+	for _, key := range []string{"headers", "id", "mcp_kind", "type"} {
 		if _, ok := raw[key]; !ok {
-			return fmt.Errorf("ClientObjectiveaiMcpServerRequestRequest: missing required field %q", key)
+			return fmt.Errorf("ClientObjectiveaiMcpServerRequestRequestSessionTerminate: missing required field %q", key)
 		}
 	}
-	type Alias ClientObjectiveaiMcpServerRequestRequest
+	type Alias ClientObjectiveaiMcpServerRequestRequestSessionTerminate
 	var alias Alias
 	if err := json.Unmarshal(data, &alias); err != nil {
 		return err
 	}
-	*v = ClientObjectiveaiMcpServerRequestRequest(alias)
+	*v = ClientObjectiveaiMcpServerRequestRequestSessionTerminate(alias)
 	return nil
 }
+func (ClientObjectiveaiMcpServerRequestRequestSessionTerminate) SchemaVariantTitle() string { return "SessionTerminate" }
+
+// One reverse-attach request the API has shipped to the calling
+// client. The proxy's HTTP method (`POST` for the five JSON-RPC
+// methods, `DELETE` for session terminate) is implicit in the
+// [`super::Payload`] variant; the JSON-RPC `{jsonrpc, id, method,
+// params}` envelope is unwrapped into the typed variant payload.
+//
+// Which CLI-hosted MCP server the request targets rides as
+// `mcp_kind` on the envelope. The API parses this off the inbound
+// URL path (`/objectiveai` → [`super::super::McpKind::ObjectiveAi`];
+// `/{owner}/{name}/{version}/{mcp}` → [`super::super::McpKind::Other`])
+// before forwarding.
+//
+// Wire shape (envelope is `{id, mcp_kind, headers?, type, …variant
+// fields…}` after the `#[serde(flatten)]` on `payload`):
+//
+// ```json
+// {
+//   "id":"…",
+//   "mcp_kind":{"type":"objective_ai"},
+//   "headers":{"Mcp-Session-Id":"…"},
+//   "type":"tools_list",
+//   "cursor":"…"
+// }
+// ```
+type ClientObjectiveaiMcpServerRequestRequest struct {
+	// POST `initialize`. The proxy's `protocolVersion` doesn't ride
+	// across this hop — the API discards it on the way in and
+	// substitutes its own `canonical_initialize_result` on the way
+	// out. The variant carries the plugin arguments the CLI needs at
+	// dial time (parsed by the API off the URL query string).
+	Initialize *ClientObjectiveaiMcpServerRequestRequestInitialize `outerObject:"true"`
+	// POST `tools/list`.
+	ToolsList *ClientObjectiveaiMcpServerRequestRequestToolsList `outerObject:"true"`
+	// POST `tools/call`.
+	ToolsCall *ClientObjectiveaiMcpServerRequestRequestToolsCall `outerObject:"true"`
+	// POST `resources/list`.
+	ResourcesList *ClientObjectiveaiMcpServerRequestRequestResourcesList `outerObject:"true"`
+	// POST `resources/read`.
+	ResourcesRead *ClientObjectiveaiMcpServerRequestRequestResourcesRead `outerObject:"true"`
+	// `DELETE` on the routed MCP URL — the proxy closing the
+	// session. No body.
+	SessionTerminate *ClientObjectiveaiMcpServerRequestRequestSessionTerminate `outerObject:"true"`
+}
+
+func (v ClientObjectiveaiMcpServerRequestRequest) MarshalJSON() ([]byte, error) {
+	if v.Initialize != nil {
+		return json.Marshal(v.Initialize)
+	}
+	if v.ToolsList != nil {
+		return json.Marshal(v.ToolsList)
+	}
+	if v.ToolsCall != nil {
+		return json.Marshal(v.ToolsCall)
+	}
+	if v.ResourcesList != nil {
+		return json.Marshal(v.ResourcesList)
+	}
+	if v.ResourcesRead != nil {
+		return json.Marshal(v.ResourcesRead)
+	}
+	if v.SessionTerminate != nil {
+		return json.Marshal(v.SessionTerminate)
+	}
+	return []byte("null"), nil
+}
+
+func (v *ClientObjectiveaiMcpServerRequestRequest) UnmarshalJSON(data []byte) error {
+	{
+		var try ClientObjectiveaiMcpServerRequestRequestInitialize
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := ClientObjectiveaiMcpServerRequestRequest{}
+			candidate.Initialize = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try ClientObjectiveaiMcpServerRequestRequestToolsList
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := ClientObjectiveaiMcpServerRequestRequest{}
+			candidate.ToolsList = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try ClientObjectiveaiMcpServerRequestRequestToolsCall
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := ClientObjectiveaiMcpServerRequestRequest{}
+			candidate.ToolsCall = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try ClientObjectiveaiMcpServerRequestRequestResourcesList
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := ClientObjectiveaiMcpServerRequestRequest{}
+			candidate.ResourcesList = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try ClientObjectiveaiMcpServerRequestRequestResourcesRead
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := ClientObjectiveaiMcpServerRequestRequest{}
+			candidate.ResourcesRead = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try ClientObjectiveaiMcpServerRequestRequestSessionTerminate
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := ClientObjectiveaiMcpServerRequestRequest{}
+			candidate.SessionTerminate = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("data did not match any variant of ClientObjectiveaiMcpServerRequestRequest")
+}
+
+func (v ClientObjectiveaiMcpServerRequestRequest) Validate() error {
+	count := 0
+	if v.Initialize != nil { count++ }
+	if v.ToolsList != nil { count++ }
+	if v.ToolsCall != nil { count++ }
+	if v.ResourcesList != nil { count++ }
+	if v.ResourcesRead != nil { count++ }
+	if v.SessionTerminate != nil { count++ }
+	if count != 1 {
+		return fmt.Errorf("ClientObjectiveaiMcpServerRequestRequest: exactly one variant must be set, got %d", count)
+	}
+	return variantValidator.Struct(v)
+}
+func (ClientObjectiveaiMcpServerRequestRequest) SchemaTitle() string { return "client_objectiveai_mcp.server_request.Request" }
+

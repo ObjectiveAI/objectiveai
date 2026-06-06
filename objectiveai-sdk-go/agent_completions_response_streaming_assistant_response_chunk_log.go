@@ -8,20 +8,19 @@ import (
 )
 
 type AgentCompletionsResponseStreamingAssistantResponseChunkLog struct {
-	Agent string `json:"agent"`
 	Content *AgentCompletionsMessageRichContentLog `json:"content,omitempty"`
 	Created uint64 `json:"created" validate:"min=0,max=18446744073709551615"`
 	FinishReason *AgentCompletionsResponseFinishReason `json:"finish_reason"`
 	Index uint64 `json:"index" validate:"min=0,max=18446744073709551615"`
-	Logprobs *FilesystemLogsLogReference `json:"logprobs,omitempty"`
+	Logprobs *LogReference `json:"logprobs,omitempty"`
 	Model string `json:"model"`
 	Provider *string `json:"provider,omitempty"`
-	Reasoning *FilesystemLogsLogReference `json:"reasoning,omitempty"`
-	Refusal *FilesystemLogsLogReference `json:"refusal,omitempty"`
+	Reasoning *LogReference `json:"reasoning,omitempty"`
+	Refusal *LogReference `json:"refusal,omitempty"`
 	Role AgentCompletionsResponseAssistantRole `json:"role"`
 	ServiceTier *string `json:"service_tier,omitempty"`
 	SystemFingerprint *string `json:"system_fingerprint,omitempty"`
-	ToolCalls *[]FilesystemLogsLogReference `json:"tool_calls,omitempty"`
+	ToolCalls *[]LogReference `json:"tool_calls,omitempty"`
 	UpstreamID string `json:"upstream_id"`
 	Usage *AgentCompletionsResponseUpstreamUsage `json:"usage,omitempty"`
 }
@@ -36,7 +35,7 @@ func (v *AgentCompletionsResponseStreamingAssistantResponseChunkLog) UnmarshalJS
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"agent", "created", "index", "model", "role", "upstream_id"} {
+	for _, key := range []string{"created", "index", "model", "role", "upstream_id"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("AgentCompletionsResponseStreamingAssistantResponseChunkLog: missing required field %q", key)
 		}

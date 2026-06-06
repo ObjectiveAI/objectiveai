@@ -8,7 +8,7 @@ import (
 )
 
 type FunctionsInventionsResponseStreamingFunctionInventionChunkLog struct {
-	Completions []FilesystemLogsIndexedReferenceLogReference `json:"completions"`
+	Completions []IndexedLogReference `json:"completions"`
 	Created uint64 `json:"created" validate:"min=0,max=18446744073709551615"`
 	Error *ErrorResponseError `json:"error,omitempty"`
 	Function *FunctionsFullRemoteFunction `json:"function,omitempty"`

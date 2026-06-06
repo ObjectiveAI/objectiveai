@@ -40,11 +40,11 @@ func (v ClientObjectiveaiMcpClientRequestPayloadAgentCompletionNotify) MarshalJS
 }
 func (ClientObjectiveaiMcpClientRequestPayloadAgentCompletionNotify) SchemaVariantTitle() string { return "AgentCompletionNotify" }
 
-// The CLI's upstream `mcp::Connection` for `mcp_session_id`
-// fired `notifications/<kind>/list_changed`. The API
-// dispatches this onto its per-`(ws_session_id, mcp_session_id)`
-// broadcast so every matching MCP GET-SSE listener sees a
-// standard MCP notification frame.
+// The CLI's upstream `mcp::Connection` for `mcp_kind` fired
+// `notifications/<kind>/list_changed`. The API dispatches this
+// onto its per-`(response_id, McpKind)` broadcast so the
+// matching MCP GET-SSE listener sees a standard MCP
+// notification frame.
 type ClientObjectiveaiMcpClientRequestPayloadMcpListChanged struct {
 	ClientObjectiveaiMcpClientRequestMcpListChanged
 	Type string `json:"type" validate:"oneof=mcp_list_changed"`
@@ -87,19 +87,20 @@ func (ClientObjectiveaiMcpClientRequestPayloadMcpListChanged) SchemaVariantTitle
 // - **client → API**: `McpListChanged` (the CLI's upstream
 //   `mcp::Connection` fired
 //   `notifications/{tools,resources}/list_changed` and the API
-//   re-emits it as an SSE event on the matching
-//   `/objectiveai-mcp/{ws_session_id}` GET stream).
+//   re-emits it as an SSE event on the matching per-MCP GET
+//   stream — `/objectiveai` or `/{owner}/{name}/{ver}/{mcp}`,
+//   routed by `X-OBJECTIVEAI-RESPONSE-ID`).
 //
 // The wire envelope's `id` field always belongs to whichever side
 // originated the request; the receiver's `client_response::Response`
 // echoes the same `id`.
 type ClientObjectiveaiMcpClientRequestPayload struct {
 	AgentCompletionNotify *ClientObjectiveaiMcpClientRequestPayloadAgentCompletionNotify `outerObject:"true"`
-	// The CLI's upstream `mcp::Connection` for `mcp_session_id`
-	// fired `notifications/<kind>/list_changed`. The API
-	// dispatches this onto its per-`(ws_session_id, mcp_session_id)`
-	// broadcast so every matching MCP GET-SSE listener sees a
-	// standard MCP notification frame.
+	// The CLI's upstream `mcp::Connection` for `mcp_kind` fired
+	// `notifications/<kind>/list_changed`. The API dispatches this
+	// onto its per-`(response_id, McpKind)` broadcast so the
+	// matching MCP GET-SSE listener sees a standard MCP
+	// notification frame.
 	McpListChanged *ClientObjectiveaiMcpClientRequestPayloadMcpListChanged `outerObject:"true"`
 }
 

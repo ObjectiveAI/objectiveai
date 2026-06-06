@@ -11,9 +11,11 @@ import (
 type ClientObjectiveaiMcpClientRequestMcpListChanged struct {
 	// Which catalog changed.
 	Kind ClientObjectiveaiMcpClientRequestMcpListChangedKind `json:"kind"`
-	// The remote-minted `Mcp-Session-Id` of the upstream MCP
-	// connection that fired the list-changed notification.
-	MCPSessionID string `json:"mcp_session_id"`
+	// Which CLI-hosted MCP server fired the list-changed
+	// notification. The API uses this to look up the right
+	// per-MCP SSE broadcast and republish a standard MCP
+	// notification frame to that upstream's proxy subscriber.
+	MCPKind ClientObjectiveaiMcpMcpKind `json:"mcp_kind"`
 }
 
 func (ClientObjectiveaiMcpClientRequestMcpListChanged) SchemaTitle() string { return "client_objectiveai_mcp.client_request.McpListChanged" }
@@ -26,7 +28,7 @@ func (v *ClientObjectiveaiMcpClientRequestMcpListChanged) UnmarshalJSON(data []b
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"kind", "mcp_session_id"} {
+	for _, key := range []string{"kind", "mcp_kind"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("ClientObjectiveaiMcpClientRequestMcpListChanged: missing required field %q", key)
 		}

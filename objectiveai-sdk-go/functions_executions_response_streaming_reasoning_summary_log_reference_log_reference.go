@@ -10,7 +10,7 @@ import (
 type FunctionsExecutionsResponseStreamingReasoningSummaryLogReferenceLogReference struct {
 	Error JsonValue `json:"error,omitempty"`
 	Path string `json:"path,omitempty"`
-	Type FilesystemLogsLogReferenceTag `json:"type"`
+	Type LogReferenceTag `json:"type"`
 }
 
 func (FunctionsExecutionsResponseStreamingReasoningSummaryLogReferenceLogReference) SchemaTitle() string { return "functions.executions.response.streaming.reasoning_summary_log_reference.LogReference" }

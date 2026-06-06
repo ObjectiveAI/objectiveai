@@ -10,7 +10,7 @@ import (
 type FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkLog struct {
 	Created uint64 `json:"created" validate:"min=0,max=18446744073709551615"`
 	ID string `json:"id"`
-	Inventions []FilesystemLogsIndexedReferenceLogReference `json:"inventions"`
+	Inventions []IndexedLogReference `json:"inventions"`
 	InventionsErrors *bool `json:"inventions_errors,omitempty"`
 	Object FunctionsInventionsRecursiveResponseStreamingObject `json:"object"`
 	Usage *AgentCompletionsResponseUsage `json:"usage,omitempty"`
