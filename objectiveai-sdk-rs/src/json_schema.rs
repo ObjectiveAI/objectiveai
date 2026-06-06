@@ -19,6 +19,7 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::agent::AgentWithFallbacksWithCount),
         schemars::schema_for!(crate::agent::ClientObjectiveaiMcp),
         schemars::schema_for!(crate::agent::ClientObjectiveaiMcpEntry),
+        schemars::schema_for!(crate::agent::ClientObjectiveaiMcpHeaders),
         schemars::schema_for!(crate::agent::ClientObjectiveaiMcpPluginEntry),
         schemars::schema_for!(crate::agent::ClientObjectiveaiMcpPluginMcpServer),
         schemars::schema_for!(crate::agent::Continuation),
