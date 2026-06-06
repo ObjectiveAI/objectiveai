@@ -16,6 +16,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 LOG_DIR="$REPO_ROOT/.logs/test"
 LOG_FILE="$LOG_DIR/$MODULE.txt"
+NEXTEST="$REPO_ROOT/bin/cargo-nextest"
 
 mkdir -p "$LOG_DIR"
 > "$LOG_FILE"
@@ -24,7 +25,7 @@ run_all() {
   # `set -e` is automatically disabled inside a function called in an
   # `|| EXIT=$?` context, so we can't rely on early steps short-
   # circuiting the function. Track exit status explicitly per step and
-  # OR them together so a failing cargo test isn't masked by a passing
+  # OR them together so a failing nextest run isn't masked by a passing
   # pnpm run (or vice versa).
   local rc=0
   echo "==> Building release binaries"
@@ -32,8 +33,10 @@ run_all() {
     --manifest-path "$REPO_ROOT/Cargo.toml" \
     -p objectiveai-mcp-proxy \
     -p test-upstream || rc=$?
+  # cargo-nextest is installed locally by `build-bin.sh` into `bin/` —
+  # see the [workspace.metadata.tools] table in the root Cargo.toml.
   echo "==> Rust integration tests (rmcp client → proxy)"
-  cargo test \
+  "$NEXTEST" nextest run \
     --manifest-path "$REPO_ROOT/Cargo.toml" \
     -p objectiveai-mcp-proxy \
     --tests || rc=$?

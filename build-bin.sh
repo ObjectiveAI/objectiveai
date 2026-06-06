@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Installs build tools (wasm-pack, maturin) into ./bin/ using versions
-# from [workspace.metadata.tools] in Cargo.toml.
+# Installs build / dev tools (wasm-pack, maturin, cargo-nextest) into
+# ./bin/ using versions from [workspace.metadata.tools] in Cargo.toml.
 # Output is captured to .logs/build/build-bin.txt.
 #
 # Usage:
@@ -19,9 +19,11 @@ run() {
   # Parse tool versions from Cargo.toml [workspace.metadata.tools]
   WASM_PACK_VERSION=$(sed -n 's/^wasm-pack *= *"\(.*\)"/\1/p' "$REPO_ROOT/Cargo.toml")
   MATURIN_VERSION=$(sed -n 's/^maturin *= *"\(.*\)"/\1/p' "$REPO_ROOT/Cargo.toml")
+  CARGO_NEXTEST_VERSION=$(sed -n 's/^cargo-nextest *= *"\(.*\)"/\1/p' "$REPO_ROOT/Cargo.toml")
 
   [ -n "$WASM_PACK_VERSION" ] || { echo "ERROR: Could not read wasm-pack version from Cargo.toml" >&2; exit 1; }
   [ -n "$MATURIN_VERSION" ] || { echo "ERROR: Could not read maturin version from Cargo.toml" >&2; exit 1; }
+  [ -n "$CARGO_NEXTEST_VERSION" ] || { echo "ERROR: Could not read cargo-nextest version from Cargo.toml" >&2; exit 1; }
 
   BIN_DIR="$REPO_ROOT/bin"
 
@@ -42,8 +44,11 @@ run() {
 
   install_if_needed wasm-pack "$WASM_PACK_VERSION"
   install_if_needed maturin "$MATURIN_VERSION"
+  install_if_needed cargo-nextest "$CARGO_NEXTEST_VERSION"
 
   echo "Done. Tools at $BIN_DIR/"
+  echo "Add it to PATH (e.g. \`export PATH=\"$BIN_DIR:\$PATH\"\`) so"
+  echo "cargo subcommands (e.g. \`cargo nextest run\`) can find them."
 }
 
 if run > "$LOG_FILE" 2>&1; then
