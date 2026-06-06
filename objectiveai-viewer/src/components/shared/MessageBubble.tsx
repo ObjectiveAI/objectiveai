@@ -50,8 +50,7 @@ export function AssistantBubble({ msg }: { msg: AssistantResponseChunkLike }) {
     <div className={cn("self-start", "max-w-[85%]", "bg-ground-raised", "border", "border-node-border", "rounded-xl", "rounded-bl-sm", "px-3.5", "py-2.5")}>
       <div className={cn("text-[10px]", "text-info-dim", "mb-1.5", "flex", "gap-2", "items-center")}>
         <span className={cn("font-semibold", "uppercase", "tracking-wide")}>Assistant</span>
-        {msg.model && msg.model !== msg.agent && <span className={cn("text-info-mid")}>{msg.model}</span>}
-        {msg.agent && <span className={cn("font-mono", "text-[10px]", "text-copper-dim")}>{msg.agent}</span>}
+        {msg.model && <span className={cn("text-info-mid")}>{msg.model}</span>}
         {msg.finish_reason && <FinishBadge reason={msg.finish_reason} />}
       </div>
 

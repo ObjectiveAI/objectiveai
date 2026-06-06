@@ -5,8 +5,8 @@ import { z } from "zod";
 import {
   ViewerEventSchema,
   type ViewerEvent,
-  FilesystemConfigFavoriteSchema,
-  type FilesystemConfigFavorite,
+  CliCommandConfigAgentsFavoritesGetResponseItemSchema,
+  type CliCommandConfigAgentsFavoritesGetResponseItem,
   AgentFavoritesChangedNotificationSchema,
 } from "@objectiveai/sdk";
 
@@ -18,12 +18,12 @@ const FavoritesListNotificationSchema = z.object({
   type: z.literal("notification"),
   value: z.object({
     kind: z.literal("other"),
-    value: z.array(FilesystemConfigFavoriteSchema),
+    value: z.array(CliCommandConfigAgentsFavoritesGetResponseItemSchema),
   }),
 });
 
 export function useFavoriteAgents() {
-  const [favorites, setFavorites] = useState<FilesystemConfigFavorite[]>([]);
+  const [favorites, setFavorites] = useState<CliCommandConfigAgentsFavoritesGetResponseItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const reqCounter = useRef(0);
@@ -35,7 +35,7 @@ export function useFavoriteAgents() {
 
     let unlisten: UnlistenFn | undefined;
     try {
-      const result = await new Promise<FilesystemConfigFavorite[]>(
+      const result = await new Promise<CliCommandConfigAgentsFavoritesGetResponseItem[]>(
         (resolve, reject) => {
           listen<ViewerEvent>(origin, (ev) => {
             const parsed = ViewerEventSchema.safeParse(ev.payload);
