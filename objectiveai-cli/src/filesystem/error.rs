@@ -14,6 +14,11 @@ pub enum Error {
     Utf8(std::path::PathBuf, std::string::FromUtf8Error),
     #[error("failed to serialize: {0}")]
     Serialize(serde_json::Error),
+    /// Generic inline JSON encode/decode. Used by the queue
+    /// content-row reader where the offending bytes don't have a
+    /// path attached (they came from a SQLite column).
+    #[error("inline JSON error: {0}")]
+    Json(#[from] serde_json::Error),
     #[error("failed to write file {0}: {1}")]
     Write(std::path::PathBuf, std::io::Error),
     #[error("not found: {0}")]

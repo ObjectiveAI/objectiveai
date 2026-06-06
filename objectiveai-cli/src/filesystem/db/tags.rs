@@ -42,6 +42,9 @@ pub fn connection(client: &Client) -> Result<Arc<Mutex<Connection>>, Error> {
     }
     let conn = Connection::open(&db_path)?;
     conn.execute_batch("PRAGMA journal_mode=WAL;")?;
+    // FK cascade for the queue content-row tables. The existing
+    // `tags` table has no FKs, so this is a no-op for that surface.
+    conn.execute_batch("PRAGMA foreign_keys = ON;")?;
     init_tables(&conn)?;
     let arc = Arc::new(Mutex::new(conn));
     *guard = Some(arc.clone());
@@ -91,7 +94,67 @@ fn init_tables(conn: &Connection) -> Result<(), Error> {
             WHERE agent_instance_hierarchy IS NOT NULL;\
         CREATE INDEX IF NOT EXISTS prompts_tag_idx \
             ON prompts(agent_tag, id) \
-            WHERE agent_tag IS NOT NULL;",
+            WHERE agent_tag IS NOT NULL;\
+        CREATE TABLE IF NOT EXISTS prompt_contents (\
+            id        INTEGER PRIMARY KEY AUTOINCREMENT, \
+            prompt_id INTEGER NOT NULL, \
+            kind      TEXT NOT NULL \
+                CHECK (kind IN ('text','image','audio','video','file',\
+                                'reasoning','refusal','tool_call')), \
+            FOREIGN KEY (prompt_id) REFERENCES prompts(id) ON DELETE CASCADE\
+        );\
+        CREATE INDEX IF NOT EXISTS prompt_contents_prompt_idx \
+            ON prompt_contents(prompt_id);\
+        CREATE TABLE IF NOT EXISTS prompt_texts (\
+            id   INTEGER PRIMARY KEY, \
+            text TEXT NOT NULL, \
+            FOREIGN KEY (id) REFERENCES prompt_contents(id) ON DELETE CASCADE\
+        );\
+        CREATE TABLE IF NOT EXISTS prompt_images (\
+            id     INTEGER PRIMARY KEY, \
+            url    TEXT NOT NULL, \
+            detail TEXT, \
+            FOREIGN KEY (id) REFERENCES prompt_contents(id) ON DELETE CASCADE\
+        );\
+        CREATE TABLE IF NOT EXISTS prompt_audios (\
+            id     INTEGER PRIMARY KEY, \
+            data   TEXT NOT NULL, \
+            format TEXT NOT NULL, \
+            FOREIGN KEY (id) REFERENCES prompt_contents(id) ON DELETE CASCADE\
+        );\
+        CREATE TABLE IF NOT EXISTS prompt_videos (\
+            id  INTEGER PRIMARY KEY, \
+            url TEXT NOT NULL, \
+            FOREIGN KEY (id) REFERENCES prompt_contents(id) ON DELETE CASCADE\
+        );\
+        CREATE TABLE IF NOT EXISTS prompt_files (\
+            id        INTEGER PRIMARY KEY, \
+            file_data TEXT, \
+            file_id   TEXT, \
+            filename  TEXT, \
+            file_url  TEXT, \
+            FOREIGN KEY (id) REFERENCES prompt_contents(id) ON DELETE CASCADE\
+        );\
+        /* reasoning + refusal are plain SDK strings (no envelope), \
+           so the columns store them raw — no JSON encode/decode. */ \
+        CREATE TABLE IF NOT EXISTS prompt_reasonings (\
+            id        INTEGER PRIMARY KEY, \
+            reasoning TEXT NOT NULL, \
+            FOREIGN KEY (id) REFERENCES prompt_contents(id) ON DELETE CASCADE\
+        );\
+        CREATE TABLE IF NOT EXISTS prompt_refusals (\
+            id      INTEGER PRIMARY KEY, \
+            refusal TEXT NOT NULL, \
+            FOREIGN KEY (id) REFERENCES prompt_contents(id) ON DELETE CASCADE\
+        );\
+        /* tool_call is the structured `AssistantToolCall` SDK type, \
+           so the column stores its JSON serialization and the reader \
+           deserializes back to the proper type. */ \
+        CREATE TABLE IF NOT EXISTS prompt_tool_calls (\
+            id        INTEGER PRIMARY KEY, \
+            tool_call TEXT NOT NULL, \
+            FOREIGN KEY (id) REFERENCES prompt_contents(id) ON DELETE CASCADE\
+        );",
     )?;
     Ok(())
 }

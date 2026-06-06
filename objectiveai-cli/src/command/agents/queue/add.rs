@@ -15,7 +15,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     // File / Python sources are read NOW so they don't need to
     // survive until the future dequeue.
     let messages = crate::command::agents::spawn::resolve_prompt(request.prompt)?;
-    let prompt_json = serde_json::to_string(&messages).map_err(Error::InlineJson)?;
 
     // Normalise the target to (Option<full_hierarchy>, Option<tag>).
     // Exactly one is Some; the table's CHECK enforces this at the
@@ -45,11 +44,11 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         Target::Tag { agent_tag } => (None, Some(agent_tag)),
     };
 
-    let id = db::prompts::insert_async(
+    let id = db::prompts::enqueue_with_content_async(
         ctx.filesystem.clone(),
         agent_instance_hierarchy.clone(),
         agent_tag.clone(),
-        prompt_json,
+        messages,
     )
     .await?;
 

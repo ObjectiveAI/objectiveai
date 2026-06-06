@@ -10,6 +10,7 @@ use crate::error::Error;
 
 pub mod add;
 pub mod list;
+pub mod read;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
@@ -44,6 +45,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::ListResponseSchema(req) => {
             let value = list::response_schema::execute(ctx, req).await?;
             once(Ok(ResponseItem::ListResponseSchema(value)))
+        }
+        Request::Read(req) => {
+            let inner = read::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Read)))
         }
     };
     Ok(stream)

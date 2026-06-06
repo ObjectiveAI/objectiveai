@@ -1,4 +1,4 @@
-//! `agents queue` — deferred prompts queue. Two leaves:
+//! `agents queue` — deferred prompts queue. Two top-level subcommands:
 //!
 //! - `add` — write-only enqueue. Stores a prompt in `tags.sqlite`
 //!   (the `prompts` table) against either a resolved
@@ -7,7 +7,13 @@
 //! - `list` — streaming inspection. Both Direct and Tag rows are
 //!   filtered to direct children of a parent (Tag rows resolve
 //!   their parent via the joined `tags` table). Each tag-row item
-//!   carries the joined 3-state status.
+//!   carries the joined 3-state status and the resolved prompt
+//!   body as `Vec<ResponseQueueMessage>` (id-referenced into the
+//!   per-kind content tables).
+//! - `read` (nested) — sub-tier whose only leaf today is `id`,
+//!   which fetches one piece of queued content by its
+//!   `prompt_contents.id`. The wire shape mirrors `RichContentPart`
+//!   (tagged by `type`).
 //!
 //! Dequeue / delete leaves will land in follow-up passes.
 
@@ -15,6 +21,7 @@ use crate::cli::command::CommandRequest;
 
 pub mod add;
 pub mod list;
+pub mod read;
 
 #[derive(clap::Subcommand)]
 pub enum Command {
@@ -22,6 +29,20 @@ pub enum Command {
     Add(add::Command),
     /// List queued prompts visible under a parent.
     List(list::Command),
+    /// Read queued content by id (`agents queue read id <id>`).
+    Read(ReadCommand),
+}
+
+/// Intermediate clap level for the `read` sub-tier — its only
+/// subcommand today is `id`. Splitting it into its own wrapper
+/// (rather than a fattened `ReadId` variant on [`Command`]) gives
+/// the CLI surface `agents queue read id <num>` to match the user's
+/// invocation style and keeps the door open for additional
+/// `read <…>` leaves later.
+#[derive(clap::Args)]
+pub struct ReadCommand {
+    #[command(subcommand)]
+    pub sub: read::Command,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -40,6 +61,8 @@ pub enum Request {
     ListRequestSchema(list::request_schema::Request),
     #[schemars(title = "ListResponseSchema")]
     ListResponseSchema(list::response_schema::Request),
+    #[schemars(title = "Read")]
+    Read(read::Request),
 }
 
 // Exempt from json-schema coverage: tier aggregate (see the root
@@ -61,6 +84,8 @@ pub enum ResponseItem {
     ListRequestSchema(list::request_schema::Response),
     #[schemars(title = "ListResponseSchema")]
     ListResponseSchema(list::response_schema::Response),
+    #[schemars(title = "Read")]
+    Read(read::ResponseItem),
 }
 
 #[cfg(feature = "mcp")]
@@ -73,6 +98,7 @@ impl crate::cli::command::CommandResponse for ResponseItem {
             ResponseItem::List(v) => v.into_mcp(),
             ResponseItem::ListRequestSchema(v) => v.into_mcp(),
             ResponseItem::ListResponseSchema(v) => v.into_mcp(),
+            ResponseItem::Read(v) => v.into_mcp(),
         }
     }
 }
@@ -99,6 +125,7 @@ impl TryFrom<Command> for Request {
                     Request::ListResponseSchema(list::response_schema::Request::try_from(args)?),
                 ),
             },
+            Command::Read(rc) => Ok(Request::Read(read::Request::try_from(rc.sub)?)),
         }
     }
 }
@@ -112,6 +139,7 @@ impl CommandRequest for Request {
             Request::List(inner) => inner.into_command(),
             Request::ListRequestSchema(inner) => inner.into_command(),
             Request::ListResponseSchema(inner) => inner.into_command(),
+            Request::Read(inner) => inner.into_command(),
         }
     }
 }
@@ -161,6 +189,10 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
                 ResponseItem::ListResponseSchema(value),
             )))
         }
+        Request::Read(req) => {
+            let inner = read::execute(executor, req, agent_arguments).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Read)))
+        }
     };
     Ok(stream)
 }
@@ -205,6 +237,10 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
             let value =
                 list::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::Read(req) => {
+            let inner = read::execute_jq(executor, req, jq, agent_arguments).await?;
+            Box::pin(inner)
         }
     };
     Ok(stream)
