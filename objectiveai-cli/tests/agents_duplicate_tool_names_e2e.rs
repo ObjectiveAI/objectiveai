@@ -22,9 +22,7 @@
 
 mod cli_test_util;
 
-use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::sync::Once;
+use std::path::Path;
 use std::time::{Duration, Instant};
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
@@ -54,65 +52,6 @@ const PLUGIN_NAMES: [&str; 5] = [
 /// names + seed; if this value ever stops yielding ≥2 unique calls
 /// across three turns, try another small integer.
 const SEED: i64 = 7;
-
-static BUILD_PLUGIN_ONCE: Once = Once::new();
-
-fn plugin_binary() -> PathBuf {
-    let target = cli_test_util::test_target_dir();
-    let mut path = target.join("debug/test-mcp-plugin-named");
-    if cfg!(windows) {
-        path.set_extension("exe");
-    }
-    BUILD_PLUGIN_ONCE.call_once(|| {
-        let status = Command::new("cargo")
-            .args([
-                "build",
-                "-p",
-                "test-mcp-plugin-named",
-                "--target-dir",
-                target.to_str().unwrap(),
-            ])
-            .status()
-            .expect("spawn cargo build test-mcp-plugin-named");
-        assert!(status.success(), "test-mcp-plugin-named build failed");
-    });
-    path
-}
-
-/// Stage all five plugin installs at `<base>/plugins/<name>` with
-/// manifests at `<base>/plugins/<name>.json`. The same binary backs
-/// every install — uniqueness comes from the install name (which the
-/// agent's `client_objectiveai_mcp.plugins[].name` references) plus
-/// the `--name` argv we feed each one (which becomes its upstream
-/// `serverInfo.name`).
-fn stage_plugins(base: &Path) {
-    let plugins = base.join("plugins");
-    let bin = plugin_binary();
-    for name in PLUGIN_NAMES {
-        let install = plugins.join(name);
-        std::fs::create_dir_all(&install).unwrap();
-        let manifest = json!({
-            "description": format!("{name} fixture"),
-            "version": "1.0.0",
-            "owner": "testorg",
-            "mcp_servers": [
-                { "name": "demo", "url": "http://127.0.0.1:0", "authorization": false }
-            ]
-        });
-        std::fs::write(
-            plugins.join(format!("{name}.json")),
-            serde_json::to_vec_pretty(&manifest).unwrap(),
-        )
-        .unwrap();
-        let installed = install.join(if cfg!(windows) { "plugin.exe" } else { "plugin" });
-        std::fs::copy(&bin, &installed).expect("copy fixture binary");
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&installed, std::fs::Permissions::from_mode(0o755)).unwrap();
-        }
-    }
-}
 
 /// Bare-bones plain mock agent. No `calls` override, no fallbacks,
 /// no fancy modes. The plugin surface lists every staged plugin's
@@ -180,12 +119,7 @@ async fn duplicate_tool_names_routed_across_turns() {
         );
         return;
     }
-    let _ = cli_test_util::cli_binary();
-    let _ = plugin_binary();
-
     let base = cli_test_util::test_base_dir();
-
-    stage_plugins(&base);
 
     let agent = AgentSpec::Resolved(
         serde_json::from_value::<InlineAgentBaseWithFallbacksOrRemoteCommitOptional>(mock_agent())

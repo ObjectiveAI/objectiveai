@@ -205,8 +205,6 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
         );
         return;
     }
-    let _ = cli_test_util::cli_binary();
-
     let base = cli_test_util::test_base_dir();
 
     let output_path = Arc::new(base.join("response-ids.txt"));

@@ -18,9 +18,8 @@
 
 mod cli_test_util;
 
-use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::sync::{Arc, Once};
+use std::path::Path;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
@@ -40,33 +39,6 @@ use objectiveai_sdk::cli::command::CommandExecutor;
 use objectiveai_sdk::cli::command::binary::BinaryExecutor;
 use serde_json::{Value, json};
 
-static BUILD_COUNT_TOOL_ONCE: Once = Once::new();
-
-/// Build the `count-tool` fixture binary into the shared per-test
-/// target dir, then return its path. Reads `CARGO_TARGET_DIR` only
-/// once via the same `BUILD_ONCE` cadence as the cli binary itself.
-fn count_tool_binary() -> PathBuf {
-    let target_dir = cli_test_util::test_target_dir();
-    let mut path = target_dir.join("debug/count-tool");
-    if cfg!(windows) {
-        path.set_extension("exe");
-    }
-    BUILD_COUNT_TOOL_ONCE.call_once(|| {
-        let status = Command::new("cargo")
-            .args([
-                "build",
-                "-p",
-                "count-tool",
-                "--target-dir",
-                target_dir.to_str().unwrap(),
-            ])
-            .status()
-            .expect("spawn cargo build count-tool");
-        assert!(status.success(), "count-tool build failed");
-    });
-    path
-}
-
 async fn poll_until<F: Fn() -> bool>(timeout: Duration, pred: F) -> Result<(), ()> {
     let start = Instant::now();
     while start.elapsed() < timeout {
@@ -76,37 +48,6 @@ async fn poll_until<F: Fn() -> bool>(timeout: Duration, pred: F) -> Result<(), (
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
     Err(())
-}
-
-/// The test runs against the shared `_mcp_session/tools/` fixture
-/// registry seeded by `test-seed-tool-fixtures.sh`, which has
-/// already laid down `testorg/tool{0..9}/1.0.0` manifests pointing
-/// at the `echo-arglen` binary. We **commandeer** that binary by
-/// overwriting it with our `count-tool` build — `count-tool` falls
-/// back to the `_default` session id when `MCP_SESSION_ID` is unset,
-/// so any test that happens to dispatch one of these tools without
-/// setting the env still gets a valid (just session-less) output.
-fn install_count_tool_over_echo_arglen() {
-    let exec_name = if cfg!(windows) {
-        "echo-arglen.exe"
-    } else {
-        "echo-arglen"
-    };
-    let dest = cli_test_util::mcp_session_shared_dir().join("tools").join(exec_name);
-    assert!(
-        dest.exists(),
-        "expected the fixture echo-arglen at {} — \
-         did `test-seed-tool-fixtures.sh` run?",
-        dest.display(),
-    );
-    let bin = count_tool_binary();
-    std::fs::copy(&bin, &dest).unwrap_or_else(|e| panic!("overwrite {}: {e}", dest.display()));
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&dest, std::fs::Permissions::from_mode(0o755))
-            .expect("chmod count-tool");
-    }
 }
 
 /// Inline mock-agent spec wired to the 10 `testorg/tool{0..9}/1.0.0`
@@ -311,31 +252,13 @@ async fn two_agents_continuations_count_persists_per_session() {
         return;
     }
 
-    // Use the shared MCP-session scratch dir — the same path
-    // `test-seed-tool-fixtures.sh` lays the `tools/` fixtures into
-    // and that every cli child stamps as its `CONFIG_BASE_DIR`, so
-    // the in-process objectiveai-mcp server inside each cli sees
-    // the registry. This dir sits OUTSIDE the per-binary run-start
-    // wipe (it's at `.objectiveai-tests/_mcp_session/`, not under
-    // a `<binary>/` subfolder), so we still hand-wipe `logs`/
-    // `pipes` here to clear prior-run state without nuking the
-    // fixture `tools/`.
-    let base_dir = cli_test_util::mcp_session_shared_dir();
-    for sub in &["logs", "pipes"] {
-        let p = base_dir.join(sub);
-        if p.exists() {
-            let _ = std::fs::remove_dir_all(&p);
-        }
-    }
-
-    install_count_tool_over_echo_arglen();
-
-    // Reset the count-tool state so the assertion sees only this
-    // test's tool calls.
-    let tool_data_dir = base_dir.join("tools").join("data");
-    if tool_data_dir.exists() {
-        let _ = std::fs::remove_dir_all(&tool_data_dir);
-    }
+    // Per-test base dir staged by `objectiveai-tests/prepare.sh`:
+    // the ten `testorg/tool{0..9}/1.0.0` manifests + the `count-tool`
+    // binary are already in place under `<base>/tools/`. The cli
+    // writes its `logs/`/`pipes/` runtime artefacts here over the
+    // test run; `test.sh` wipes `.objectiveai-tests/` on its way in
+    // so no stale state leaks across runs.
+    let base_dir = cli_test_util::test_base_dir();
 
     // One shared executor — all cli invocations point at the same
     // `CONFIG_BASE_DIR`.
