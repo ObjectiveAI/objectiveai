@@ -19,31 +19,18 @@ RUNTIME_DIR="$SCRIPT_DIR/.objectiveai-tests"
 mkdir -p "$LOG_DIR"
 : > "$LOG_FILE"
 
-# Tear-down: wipe the runtime staging dir, kill anything we spawned.
-# Runs on every exit path (success, failure, interrupt). We bail any
-# half-finished prepare-step or api-spawn child before deleting the
-# runtime dir so neither holds a handle open across the cleanup.
-PREP_PID=""
-SPAWN_PID=""
-CLI_TEST_API_PID=""
+# Tear-down: wipe the runtime staging dir + the api-spawn port file.
+# Runs on every exit path (success, failure, interrupt). We don't
+# kill child processes here — anything we spawned (prepare-step
+# cargo, api server, test child processes) is expected to either
+# return cleanly or self-terminate. A leaked process at script exit
+# is a harness bug; surface it, don't paper over it.
 PORT_FILE=""
 cleanup() {
-  if [ -n "$PREP_PID" ]; then
-    kill "$PREP_PID" 2>/dev/null || true
-    wait "$PREP_PID" 2>/dev/null || true
-  fi
-  if [ -n "$SPAWN_PID" ]; then
-    kill "$SPAWN_PID" 2>/dev/null || true
-    wait "$SPAWN_PID" 2>/dev/null || true
-  fi
   if [ -n "$PORT_FILE" ]; then
     rm -f "$PORT_FILE"
   fi
   rm -rf "$RUNTIME_DIR"
-  if [ -n "$CLI_TEST_API_PID" ]; then
-    kill "$CLI_TEST_API_PID" 2>/dev/null || true
-    wait "$CLI_TEST_API_PID" 2>/dev/null || true
-  fi
 }
 trap cleanup EXIT INT TERM
 
@@ -73,15 +60,16 @@ if [ -z "${OBJECTIVEAI_TEST_PORT:-}" ]; then
   bash "$REPO_ROOT/test-spawn-api-server.sh" > "$PORT_FILE" 2>>"$LOG_FILE" &
   SPAWN_PID=$!
   wait "$SPAWN_PID"
-  SPAWN_PID=""
-  read -r PORT CLI_TEST_API_PID < "$PORT_FILE"
+  # test-spawn-api-server.sh prints "<port> <pid>"; we only need the
+  # port. The api server keeps running in the background and is
+  # expected to clean itself up (or be reaped by a parent harness).
+  read -r PORT _ < "$PORT_FILE"
   rm -f "$PORT_FILE"
   PORT_FILE=""
   export OBJECTIVEAI_TEST_PORT="$PORT"
 fi
 
 wait "$PREP_PID"
-PREP_PID=""
 
 # Run tests, capture all output. cargo-nextest is installed locally by
 # `build-bin.sh` into `bin/` — see the [workspace.metadata.tools] table
