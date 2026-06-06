@@ -14,27 +14,38 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 LOG_DIR="$REPO_ROOT/.logs/test"
 LOG_FILE="$LOG_DIR/$MODULE.txt"
 NEXTEST="$REPO_ROOT/bin/cargo-nextest"
+RUNTIME_DIR="$SCRIPT_DIR/.objectiveai-tests"
 
 mkdir -p "$LOG_DIR"
+: > "$LOG_FILE"
 
-# Deterministically wipe CLI test artifacts on every exit path (success,
-# failure, or interrupt). Keeps the tests folder free of gitignored runtime
-# state (logs, cached repos, filesystem config) between runs.
-#
-# Also reap the api server we spawned, if any. CLI_TEST_API_PID is set
-# below only when this script spawned the server itself — under the
-# root test.sh harness OBJECTIVEAI_TEST_PORT is pre-set and we leave
-# the parent's server alone.
-CLI_TESTS_SCRATCH="$SCRIPT_DIR/tests/.objectiveai"
+# Tear-down: wipe the runtime staging dir, kill anything we spawned.
+# Runs on every exit path (success, failure, interrupt). We bail any
+# half-finished prepare-step or api-spawn child before deleting the
+# runtime dir so neither holds a handle open across the cleanup.
+PREP_PID=""
+SPAWN_PID=""
+CLI_TEST_API_PID=""
+PORT_FILE=""
 cleanup() {
-  rm -rf "$CLI_TESTS_SCRATCH"
-  if [ -n "${CLI_TEST_API_PID:-}" ]; then
+  if [ -n "$PREP_PID" ]; then
+    kill "$PREP_PID" 2>/dev/null || true
+    wait "$PREP_PID" 2>/dev/null || true
+  fi
+  if [ -n "$SPAWN_PID" ]; then
+    kill "$SPAWN_PID" 2>/dev/null || true
+    wait "$SPAWN_PID" 2>/dev/null || true
+  fi
+  if [ -n "$PORT_FILE" ]; then
+    rm -f "$PORT_FILE"
+  fi
+  rm -rf "$RUNTIME_DIR"
+  if [ -n "$CLI_TEST_API_PID" ]; then
     kill "$CLI_TEST_API_PID" 2>/dev/null || true
     wait "$CLI_TEST_API_PID" 2>/dev/null || true
   fi
 }
 trap cleanup EXIT INT TERM
-cleanup  # start from a clean slate as well
 
 # Parse flags
 CARGO_ARGS=()
@@ -45,30 +56,38 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Spawn the test api server only if not already provided by a parent
-# harness (e.g. the root test.sh). Same pattern as objectiveai-sdk-{py,js,go}.
+# Stage the runtime test tree: a fresh copy of the committed
+# `objectiveai-tests/` source. The copied tree includes a self-
+# removing `prepare.sh` which cargo-builds the cli + every fixture
+# crate and slots binaries into the right per-test directories.
+rm -rf "$RUNTIME_DIR"
+cp -R "$SCRIPT_DIR/objectiveai-tests" "$RUNTIME_DIR"
+bash "$RUNTIME_DIR/prepare.sh" >>"$LOG_FILE" 2>&1 &
+PREP_PID=$!
+
+# Spawn the test api server in parallel — unless a parent harness has
+# already provided `OBJECTIVEAI_TEST_PORT` (e.g. the root `test.sh`
+# shares one server across all suites).
 if [ -z "${OBJECTIVEAI_TEST_PORT:-}" ]; then
-  read -r PORT CLI_TEST_API_PID < <(bash "$REPO_ROOT/test-spawn-api-server.sh" 2>>"$LOG_FILE")
+  PORT_FILE="$(mktemp)"
+  bash "$REPO_ROOT/test-spawn-api-server.sh" > "$PORT_FILE" 2>>"$LOG_FILE" &
+  SPAWN_PID=$!
+  wait "$SPAWN_PID"
+  SPAWN_PID=""
+  read -r PORT CLI_TEST_API_PID < "$PORT_FILE"
+  rm -f "$PORT_FILE"
+  PORT_FILE=""
   export OBJECTIVEAI_TEST_PORT="$PORT"
 fi
 
-# Seed the shared CLI tool-fixtures registry the integration tests
-# rely on. The conduit dials its embedded `objectiveai-mcp` (since the
-# in-process refactor) so no standalone server is spawned — but the
-# on-disk `tools/` registry is still consumed by
-# `filesystem::Client::list_tools` inside every cli child.
-bash "$REPO_ROOT/test-seed-tool-fixtures.sh" 2>>"$LOG_FILE"
+wait "$PREP_PID"
+PREP_PID=""
 
-# Run tests, capture all output.
-#
-# nextest parallelizes across test binaries (cargo test serialises one
-# binary at a time); each `tests/*.rs` integration test gets its own
-# binary, so this is a large wall-clock win for the cli's e2e suite.
-# Per-test isolation contract is unchanged: every test still gets its
-# own `CONFIG_BASE_DIR` via `cli_test_util::test_base_dir`. cargo-nextest
-# is installed locally by `build-bin.sh` into `bin/` — see the
-# [workspace.metadata.tools] table in the root Cargo.toml.
-if "$NEXTEST" nextest run --manifest-path "$SCRIPT_DIR/Cargo.toml" "${CARGO_ARGS[@]}" > "$LOG_FILE" 2>&1; then
+# Run tests, capture all output. cargo-nextest is installed locally by
+# `build-bin.sh` into `bin/` — see the [workspace.metadata.tools] table
+# in the root Cargo.toml. Output is appended to $LOG_FILE so any
+# prepare-step or api-spawn errors that landed there survive.
+if "$NEXTEST" nextest run --manifest-path "$SCRIPT_DIR/Cargo.toml" "${CARGO_ARGS[@]}" >>"$LOG_FILE" 2>&1; then
   PASSED=$(sed -n 's/.* \([0-9][0-9]*\) passed.*/\1/p' "$LOG_FILE" | awk '{s+=$1} END {print s+0}')
   FAILED=$(sed -n 's/.* \([0-9][0-9]*\) failed.*/\1/p' "$LOG_FILE" | awk '{s+=$1} END {print s+0}')
   TOTAL=$((PASSED + FAILED))
