@@ -41,11 +41,15 @@ pub fn connection(client: &Client) -> Result<Arc<Mutex<Connection>>, Error> {
 
 /// Create every table this DB hosts. Today: just `schedules`.
 fn init_tables(conn: &Connection) -> Result<(), Error> {
+    // `interval_seconds` is nullable: NULL means oneshot (the
+    // runner fires it once on the next poll and deletes the row);
+    // non-NULL means a recurring schedule with that minimum
+    // interval. The CHECK still binds the non-NULL case.
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS schedules (\
             id               INTEGER PRIMARY KEY AUTOINCREMENT, \
             command          TEXT NOT NULL, \
-            interval_seconds INTEGER NOT NULL CHECK (interval_seconds >= 0), \
+            interval_seconds INTEGER CHECK (interval_seconds IS NULL OR interval_seconds >= 0), \
             agent_arguments  TEXT NOT NULL, \
             created_at       INTEGER NOT NULL \
         );",
@@ -70,7 +74,7 @@ fn now_seconds() -> i64 {
 pub fn insert_schedule(
     client: &Client,
     command: &[String],
-    interval_seconds: u64,
+    interval_seconds: Option<u64>,
     agent_arguments: &AgentArguments,
 ) -> Result<i64, Error> {
     let command_json = serde_json::to_string(command).map_err(Error::Json)?;
@@ -85,10 +89,11 @@ pub fn insert_schedule(
          VALUES (?1, ?2, ?3, ?4) \
          RETURNING id",
     )?;
+    let interval_param: Option<i64> = interval_seconds.map(|s| s as i64);
     let id = stmt.query_row(
         params![
             command_json,
-            interval_seconds as i64,
+            interval_param,
             agent_arguments_json,
             now_seconds()
         ],
@@ -101,7 +106,7 @@ pub fn insert_schedule(
 pub async fn insert_schedule_async(
     client: Client,
     command: Vec<String>,
-    interval_seconds: u64,
+    interval_seconds: Option<u64>,
     agent_arguments: AgentArguments,
 ) -> Result<i64, Error> {
     tokio::task::spawn_blocking(move || {
@@ -135,7 +140,7 @@ mod tests {
         let id = insert_schedule(
             &c,
             &["echo".into(), "hi".into()],
-            30,
+            Some(30),
             &AgentArguments::default(),
         )
         .unwrap();
@@ -145,9 +150,9 @@ mod tests {
     #[test]
     fn ids_increment_across_inserts() {
         let (c, _tmp) = fresh_client();
-        let a = insert_schedule(&c, &["a".into()], 1, &AgentArguments::default()).unwrap();
-        let b = insert_schedule(&c, &["b".into()], 1, &AgentArguments::default()).unwrap();
-        let c2 = insert_schedule(&c, &["c".into()], 1, &AgentArguments::default()).unwrap();
+        let a = insert_schedule(&c, &["a".into()], Some(1), &AgentArguments::default()).unwrap();
+        let b = insert_schedule(&c, &["b".into()], Some(1), &AgentArguments::default()).unwrap();
+        let c2 = insert_schedule(&c, &["c".into()], Some(1), &AgentArguments::default()).unwrap();
         assert!(a < b && b < c2);
     }
 
@@ -155,7 +160,15 @@ mod tests {
     fn zero_interval_allowed() {
         let (c, _tmp) = fresh_client();
         let id =
-            insert_schedule(&c, &["x".into()], 0, &AgentArguments::default()).unwrap();
+            insert_schedule(&c, &["x".into()], Some(0), &AgentArguments::default()).unwrap();
+        assert!(id > 0);
+    }
+
+    #[test]
+    fn oneshot_interval_null_allowed() {
+        let (c, _tmp) = fresh_client();
+        let id =
+            insert_schedule(&c, &["x".into()], None, &AgentArguments::default()).unwrap();
         assert!(id > 0);
     }
 }
