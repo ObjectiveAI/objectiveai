@@ -23,6 +23,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         id: request.id,
         agent_instance_hierarchy: item.agent_instance_hierarchy,
         agent_tag: item.agent_tag,
+        key: item.key,
         enqueued_at: item.enqueued_at,
         content: item.content,
     })

@@ -252,6 +252,7 @@ pub async fn enqueue_with_content_async(
     client: Client,
     agent_instance_hierarchy: Option<String>,
     agent_tag: Option<String>,
+    key: Option<String>,
     content: RichContent,
 ) -> Result<i64, Error> {
     tokio::task::spawn_blocking(move || {
@@ -259,6 +260,7 @@ pub async fn enqueue_with_content_async(
             &client,
             agent_instance_hierarchy.as_deref(),
             agent_tag.as_deref(),
+            key.as_deref(),
             content,
         )
     })
@@ -270,6 +272,7 @@ fn enqueue_with_content(
     client: &Client,
     agent_instance_hierarchy: Option<&str>,
     agent_tag: Option<&str>,
+    key: Option<&str>,
     content: RichContent,
 ) -> Result<i64, Error> {
     let conn = super::tags::connection(client)?;
@@ -281,6 +284,7 @@ fn enqueue_with_content(
         &tx,
         agent_instance_hierarchy,
         agent_tag,
+        key,
         now_seconds(),
         content,
     )?;
@@ -298,17 +302,38 @@ fn enqueue_with_content_in_tx(
     tx: &rusqlite::Transaction<'_>,
     agent_instance_hierarchy: Option<&str>,
     agent_tag: Option<&str>,
+    key: Option<&str>,
     enqueued_at: i64,
     content: RichContent,
 ) -> Result<i64, Error> {
+    if let Some(key_value) = key {
+        // Upsert: drop any prior row for this (target, key) pair so
+        // the partial unique index never trips. Cascade on
+        // `prompt_contents.prompt_id` sweeps the prior row's
+        // content rows in the same transaction.
+        tx.execute(
+            "DELETE FROM prompts \
+             WHERE key = ?3 \
+               AND ( \
+                   (agent_instance_hierarchy IS NOT NULL \
+                    AND ?1 IS NOT NULL \
+                    AND agent_instance_hierarchy = ?1) \
+                   OR \
+                   (agent_tag IS NOT NULL \
+                    AND ?2 IS NOT NULL \
+                    AND agent_tag = ?2) \
+               )",
+            params![agent_instance_hierarchy, agent_tag, key_value],
+        )?;
+    }
     // Empty `prompt` placeholder Ã¢â‚¬â€ overwritten by the final UPDATE
     // once we know the id-referenced shape. `prompts.prompt` is
     // NOT NULL so we need *some* value here.
     let prompt_id: i64 = tx.query_row(
-        "INSERT INTO prompts (agent_instance_hierarchy, agent_tag, prompt, enqueued_at) \
-         VALUES (?1, ?2, '', ?3) \
+        "INSERT INTO prompts (agent_instance_hierarchy, agent_tag, prompt, enqueued_at, key) \
+         VALUES (?1, ?2, '', ?3, ?4) \
          RETURNING id",
-        params![agent_instance_hierarchy, agent_tag, enqueued_at],
+        params![agent_instance_hierarchy, agent_tag, enqueued_at, key],
         |r| r.get(0),
     )?;
     let response_content = walk_rich(tx, prompt_id, content)?;
@@ -491,6 +516,7 @@ pub fn list(client: &Client, parent: &str) -> Result<Vec<ResponseItem>, Error> {
         "SELECT p.id, \
                 p.agent_instance_hierarchy, \
                 p.agent_tag, \
+                p.key, \
                 p.prompt, \
                 t.agent_instance_hierarchy        AS tag_bound_hierarchy, \
                 t.parent_agent_instance_hierarchy AS tag_pending_parent, \
@@ -524,10 +550,11 @@ pub fn list(client: &Client, parent: &str) -> Result<Vec<ResponseItem>, Error> {
                 r.get::<_, i64>(0)?,
                 r.get::<_, Option<String>>(1)?,
                 r.get::<_, Option<String>>(2)?,
-                r.get::<_, String>(3)?,
-                r.get::<_, Option<String>>(4)?,
+                r.get::<_, Option<String>>(3)?,
+                r.get::<_, String>(4)?,
                 r.get::<_, Option<String>>(5)?,
                 r.get::<_, Option<String>>(6)?,
+                r.get::<_, Option<String>>(7)?,
             ))
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
@@ -537,6 +564,7 @@ pub fn list(client: &Client, parent: &str) -> Result<Vec<ResponseItem>, Error> {
         id,
         agent_instance_hierarchy,
         agent_tag,
+        key,
         prompt_json,
         tag_bound_hierarchy,
         tag_pending_parent,
@@ -561,6 +589,7 @@ pub fn list(client: &Client, parent: &str) -> Result<Vec<ResponseItem>, Error> {
             out.push(ResponseItem::AgentInstance {
                 id,
                 agent_instance,
+                key,
                 content,
             });
         } else if let Some(tag) = agent_tag {
@@ -583,6 +612,7 @@ pub fn list(client: &Client, parent: &str) -> Result<Vec<ResponseItem>, Error> {
                 id,
                 agent_tag: tag,
                 state,
+                key,
                 content,
             });
         } else {
@@ -622,6 +652,10 @@ pub struct DrainedPrompt {
     /// Original `prompts.agent_tag`; `Some` when the drained row
     /// was Tag-targeted.
     pub agent_tag: Option<String>,
+    /// Original `prompts.key`. Preserved through re-enqueue so a
+    /// failed delivery doesn't lose the idempotency token (#213).
+    /// `None` for unkeyed rows.
+    pub key: Option<String>,
     /// Original `prompts.enqueued_at`. Preserved through re-enqueue
     /// so FIFO ordering survives a drain Ã¢â€ â€™ fail Ã¢â€ â€™ re-enqueue cycle.
     pub enqueued_at: i64,
@@ -752,6 +786,7 @@ struct DrainedRow {
     prompt_id: i64,
     agent_instance_hierarchy: Option<String>,
     agent_tag: Option<String>,
+    key: Option<String>,
     enqueued_at: i64,
     prompt_json: String,
 }
@@ -768,6 +803,7 @@ fn collect_matching_prompts(
         "SELECT p.id, \
                 p.agent_instance_hierarchy, \
                 p.agent_tag, \
+                p.key, \
                 p.enqueued_at, \
                 p.prompt \
          FROM prompts p \
@@ -781,8 +817,9 @@ fn collect_matching_prompts(
                 prompt_id: r.get(0)?,
                 agent_instance_hierarchy: r.get(1)?,
                 agent_tag: r.get(2)?,
-                enqueued_at: r.get(3)?,
-                prompt_json: r.get(4)?,
+                key: r.get(3)?,
+                enqueued_at: r.get(4)?,
+                prompt_json: r.get(5)?,
             })
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
@@ -818,6 +855,7 @@ fn reconstruct_and_delete(
         out.push(DrainedPrompt {
             agent_instance_hierarchy: row.agent_instance_hierarchy,
             agent_tag: row.agent_tag,
+            key: row.key,
             enqueued_at: row.enqueued_at,
             content,
         });
@@ -899,6 +937,7 @@ fn re_enqueue(client: &Client, items: Vec<DrainedPrompt>) -> Result<(), Error> {
             &tx,
             item.agent_instance_hierarchy.as_deref(),
             item.agent_tag.as_deref(),
+            item.key.as_deref(),
             item.enqueued_at,
             item.content,
         )?;

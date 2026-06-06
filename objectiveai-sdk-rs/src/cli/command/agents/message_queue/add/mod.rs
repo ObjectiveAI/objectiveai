@@ -25,6 +25,14 @@ pub struct Request {
     pub path_type: Path,
     pub target: Target,
     pub message: super::super::message::RequestMessage,
+    /// Optional idempotency token (#213). When `Some`, any prior
+    /// queued row for the same `(target, key)` pair is overwritten
+    /// — old content cascade-dropped, new content inserted with a
+    /// fresh `enqueued_at`. Per-target scope: a `key` on a
+    /// hierarchy and the same `key` on a tag coexist.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub key: Option<String>,
     pub jq: Option<String>,
 }
 
@@ -82,6 +90,10 @@ impl CommandRequest for Request {
             }
         }
         self.message.push_flags(&mut argv);
+        if let Some(key) = &self.key {
+            argv.push("--key".to_string());
+            argv.push(key.clone());
+        }
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
             argv.push(jq.clone());
@@ -132,6 +144,12 @@ pub struct Args {
     /// `--file` / `--python-inline` / `--python-file`). Required.
     #[command(flatten)]
     pub message: super::super::message::MessageArgs,
+    /// Optional idempotency token. When set, a second `add` with
+    /// the same `(target, key)` overwrites the prior queued row
+    /// instead of stacking a new one. Per-target scope — a key on
+    /// a hierarchy and the same key on a tag coexist.
+    #[arg(long)]
+    pub key: Option<String>,
     /// jq filter applied to the JSON output.
     #[arg(long)]
     pub jq: Option<String>,
@@ -192,6 +210,7 @@ impl TryFrom<Args> for Request {
             path_type: Path::AgentsQueueAdd,
             target,
             message,
+            key: args.key,
             jq: args.jq,
         })
     }
