@@ -185,11 +185,6 @@ fn spawn_server() -> ServerHandle {
         .env("CODEX_SDK_ENABLED", "false")
         .env("MOCK_DELAY_MS", "0")
         .env("MOCK_MAX_TOOL_CALLS", "1000")
-        // Use the in-process mock laboratory orchestrator so the server
-        // doesn't need a real Docker daemon; the spawned api server's
-        // `run.rs` swaps in `crate::laboratories::orchestrator::mock`
-        // when this env var is set.
-        .env("LABORATORY_USE_MOCK_ORCHESTRATOR", "1")
         // Generous wait limits so we don't time out on slow CI but with
         // zero retry/backoff so a real first-try MCP failure surfaces
         // instead of being masked. Each test binary has its own server

@@ -10,8 +10,8 @@
 //!
 //! Every integration test category — `agent_completions`,
 //! `vector_completions`, `functions_executions`, `functions_inventions`
-//! (split internally by scalar/vector/validation/recursive),
-//! `laboratories_executions`, and `asset_tests` — is a sibling-file
+//! (split internally by scalar/vector/validation/recursive), and
+//! `asset_tests` — is a sibling-file
 //! module under `tests/integration/` pulled in via `mod` declarations
 //! from this entrypoint. Sibling files inside a subdirectory aren't
 //! auto-discovered by cargo as separate binaries, so the whole
@@ -31,6 +31,5 @@ mod integration {
     pub mod functions_inventions_scalar;
     pub mod functions_inventions_validation;
     pub mod functions_inventions_vector;
-    pub mod laboratories_executions;
     pub mod vector_completions;
 }
