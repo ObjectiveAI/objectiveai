@@ -865,6 +865,31 @@ where
                     }
                 }
 
+                // Stamp the three `X-OBJECTIVEAI-MCP-*` headers on
+                // the `/objectiveai` per-URL entry. Stamped
+                // unconditionally — the proxy ignores inbound
+                // `X-MCP-Headers` entirely on its resume path (it
+                // rebuilds the per-URL header bag from the AEAD-encoded
+                // payload), so emitting them on a resume is inert.
+                // `per_url_headers` only contains the `/objectiveai`
+                // key when `client_mcp_synthetic_urls` synthesized it
+                // above (driven by `needs_objectiveai`), so a missing
+                // entry is the correct no-op signal.
+                if let (Some(mcp_port), Some(client_mcp)) = (
+                    mcp_port_for_synth,
+                    agent.base().client_objectiveai_mcp(),
+                ) {
+                    let objectiveai_url =
+                        format!("http://127.0.0.1:{mcp_port}/objectiveai");
+                    if let Some(entry) =
+                        per_url_headers.get_mut(&objectiveai_url)
+                    {
+                        for (k, v) in client_mcp.mcp_headers().to_headers() {
+                            entry.insert(k, v);
+                        }
+                    }
+                }
+
                 // Both `agent_instance_hierarchy` and `id` here are the closure's
                 // per-slot bindings (zipped in from `agent_instance_hierarchies` and
                 // `response_ids` above). `agent_instance_hierarchy` is the full
