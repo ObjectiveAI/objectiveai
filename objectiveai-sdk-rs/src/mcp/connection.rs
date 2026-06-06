@@ -145,13 +145,7 @@ impl Connection {
             let _ = guard.take();
         }
 
-        // 3. Mock connections never opened an HTTP session, so the
-        //    DELETE call would 404. Short-circuit to success.
-        if self.inner.mock {
-            return Ok(());
-        }
-
-        // 4. Build + send HTTP DELETE. Mirrors `Client::connect_once`'s
+        // 3. Build + send HTTP DELETE. Mirrors `Client::connect_once`'s
         //    request-stamp shape: header loop first, explicit
         //    `Mcp-Session-Id` always wins.
         let request = self
@@ -167,7 +161,7 @@ impl Connection {
             }
         })?;
 
-        // 5. 404 / 401 / 403 → success; other non-2xx → real error.
+        // 4. 404 / 401 / 403 → success; other non-2xx → real error.
         let status = response.status();
         if matches!(
             status,
@@ -222,12 +216,6 @@ impl Connection {
         )
         .await;
         Self { inner }
-    }
-
-    pub(super) fn new_mock(url: String) -> Self {
-        Self {
-            inner: ConnectionInner::new_mock(url),
-        }
     }
 
     #[cfg(test)]
@@ -469,9 +457,6 @@ pub struct ConnectionInner {
     /// The server's capabilities and info from the initialize response.
     pub initialize_result: super::initialize_result::InitializeResult,
 
-    /// If true, all RPC/notify calls are no-ops. Used for mock orchestrator URLs.
-    mock: bool,
-
     /// `true` iff this connection was opened by resuming an existing
     /// upstream session — i.e. [`Client::connect`](super::Client::connect)
     /// was called with `session_id: Some(...)`. Set once at
@@ -564,61 +549,6 @@ pub struct ConnectionInner {
 }
 
 impl ConnectionInner {
-    /// Creates a mock connection that never makes network requests.
-    /// All RPC calls return empty/default results.
-    fn new_mock(url: String) -> Arc<Self> {
-        Arc::new(Self {
-            http_client: reqwest::Client::new(),
-            url,
-            session_id: String::new(),
-            headers: IndexMap::new(),
-            extra_headers: RwLock::new(IndexMap::new()),
-            backoff_current_interval: Duration::ZERO,
-            backoff_initial_interval: Duration::ZERO,
-            backoff_randomization_factor: 0.0,
-            backoff_multiplier: 1.0,
-            backoff_max_interval: Duration::ZERO,
-            backoff_max_elapsed_time: Duration::ZERO,
-            call_timeout: Duration::ZERO,
-            initialize_result: super::initialize_result::InitializeResult {
-                protocol_version: "2025-03-26".into(),
-                capabilities: super::initialize_result::ServerCapabilities {
-                    experimental: None,
-                    logging: None,
-                    completions: None,
-                    prompts: None,
-                    resources: None,
-                    tools: None,
-                    tasks: None,
-                },
-                server_info: super::initialize_result::Implementation {
-                    name: "mock".into(),
-                    title: None,
-                    version: "0.0.0".into(),
-                    website_url: None,
-                    description: None,
-                    icons: None,
-                },
-                instructions: None,
-                _meta: None,
-            },
-            mock: true,
-            is_reconnect: false,
-            any_calls: AtomicBool::new(false),
-            next_id: AtomicU64::new(2),
-            // Mock has no listener and never refreshes; seed with an
-            // empty Ok so `list_tools` returns immediately instead of
-            // trying to paginate over a non-existent upstream.
-            tools: RwLock::new(Some(Ok(Arc::new(Vec::new())))),
-            resources: RwLock::new(Some(Ok(Arc::new(Vec::new())))),
-            _listener_cancel_guard: std::sync::Mutex::new(None),
-            on_tools_list_changed: CallbackSlot::new(),
-            on_resources_list_changed: CallbackSlot::new(),
-            tools_changed: Notify::new(),
-            resources_changed: Notify::new(),
-        })
-    }
-
     /// Creates a minimal connection for unit testing.
     #[cfg(test)]
     fn new_for_test(name: String, url: String) -> Arc<Self> {
@@ -657,7 +587,6 @@ impl ConnectionInner {
                 instructions: None,
                 _meta: None,
             },
-            mock: false,
             is_reconnect: false,
             any_calls: AtomicBool::new(false),
             next_id: AtomicU64::new(2),
@@ -721,7 +650,6 @@ impl ConnectionInner {
             backoff_max_elapsed_time,
             call_timeout,
             initialize_result,
-            mock: false,
             is_reconnect,
             any_calls: AtomicBool::new(false),
             next_id: AtomicU64::new(2),
@@ -980,9 +908,6 @@ impl ConnectionInner {
         method: &str,
         params: &P,
     ) -> Result<(), super::Error> {
-        if self.mock {
-            return Ok(());
-        }
         let body = serde_json::json!({
             "jsonrpc": "2.0",
             "method": method,
@@ -1035,10 +960,6 @@ impl ConnectionInner {
     async fn drain_notifications(
         &self,
     ) -> Result<Vec<super::tool::ContentBlock>, super::Error> {
-        if self.mock {
-            return Ok(Vec::new());
-        }
-
         let url = format!("{}/notify", self.url.trim_end_matches('/'));
         let request = self
             .http_client
@@ -1083,10 +1004,6 @@ impl ConnectionInner {
         &self,
         blocks: &[super::tool::ContentBlock],
     ) -> Result<(), super::Error> {
-        if self.mock {
-            return Ok(());
-        }
-
         let url = format!("{}/notify", self.url.trim_end_matches('/'));
         let request = self
             .http_client
@@ -1128,10 +1045,6 @@ impl ConnectionInner {
     /// A 404 (session unknown) is mapped to `Ok(false)` to match the
     /// drain path's soft-fallback contract.
     async fn has_pending_notifications(&self) -> Result<bool, super::Error> {
-        if self.mock {
-            return Ok(false);
-        }
-
         let url = format!("{}/notify/queued", self.url.trim_end_matches('/'));
         let request = self
             .http_client
@@ -1242,20 +1155,6 @@ impl ConnectionInner {
         // `tools/call` may have mutated upstream state — we don't want
         // the drop-time orphan-DELETE second-guessing that.
         self.any_calls.store(true, Ordering::Relaxed);
-        if self.mock {
-            return Ok(super::tool::CallToolResult {
-                content: vec![super::tool::ContentBlock::Text(
-                    super::tool::TextContent {
-                        text: "mock".to_string(),
-                        annotations: None,
-                        _meta: None,
-                    },
-                )],
-                structured_content: None,
-                is_error: None,
-                _meta: None,
-            });
-        }
         let mut result: super::tool::CallToolResult =
             self.rpc("tools/call", params, false).await?;
 
@@ -1869,9 +1768,6 @@ impl Drop for ConnectionInner {
     /// time the orphan DELETE goes out the listener task has already
     /// been told to cancel — no SSE/GET race with the upstream DELETE.
     fn drop(&mut self) {
-        if self.mock {
-            return;
-        }
         if self.is_reconnect {
             return;
         }
@@ -2180,13 +2076,6 @@ mod drain_notifications_tests {
         }
     }
 
-    /// Mock connections never hit the network and always return empty.
-    #[tokio::test]
-    async fn drain_notifications_mock_returns_empty() {
-        let conn = Connection::new_mock("http://does-not-matter".into());
-        let blocks = conn.drain_notifications().await.expect("mock ok");
-        assert!(blocks.is_empty());
-    }
 }
 
 #[cfg(test)]
@@ -2273,11 +2162,4 @@ mod has_pending_notifications_tests {
         }
     }
 
-    /// Mock connections never hit the network and always return false.
-    #[tokio::test]
-    async fn has_pending_notifications_mock_returns_false() {
-        let conn = Connection::new_mock("http://does-not-matter".into());
-        let got = conn.has_pending_notifications().await.expect("mock ok");
-        assert!(!got);
-    }
 }

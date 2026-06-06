@@ -132,10 +132,6 @@ impl Client {
         session_id: Option<String>,
         headers: Option<IndexMap<String, String>>,
     ) -> Result<super::Connection, super::Error> {
-        if url == "mock" {
-            return Ok(super::Connection::new_mock(url));
-        }
-
         // Merge the caller's headers with the client's defaults once,
         // then reuse the same merged map across every retry of the
         // handshake AND hand it to the resulting Connection for every
@@ -203,9 +199,6 @@ impl Client {
         session_id: String,
         headers: Option<IndexMap<String, String>>,
     ) -> Result<(), super::Error> {
-        if url == "mock" {
-            return Ok(());
-        }
         let headers = self.headers(headers);
         let mut request = self
             .http_client
