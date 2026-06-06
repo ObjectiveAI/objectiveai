@@ -28,16 +28,27 @@ type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     let kind_filter = request.kind;
-    let caller = ctx.config.agent_instance_hierarchy.clone();
-    let spawned = format!("{caller}/{}", request.agent_instance_hierarchy);
-    let sub_id = request.agent_instance_hierarchy;
+    // Mirror the `agents message` parent-fallback pattern: an
+    // explicit `--parent-agent-instance-hierarchy` overrides the
+    // cli's own position; otherwise the cli substitutes its own
+    // `Config.agent_instance_hierarchy`. The resolved `parent`
+    // becomes the `caller` argument to `subscribe_recursive` — the
+    // downstream `fs.read_new_from_queue(&caller, &spawned)` calls
+    // expect the parent of the spawned agent as that argument.
+    let parent = request
+        .parent_agent_instance_hierarchy
+        .as_deref()
+        .unwrap_or(&ctx.config.agent_instance_hierarchy)
+        .to_string();
+    let spawned = format!("{parent}/{}", request.agent_instance);
+    let sub_id = request.agent_instance;
     let fs = ctx.filesystem.clone();
     let pipes_dir = fs.pipes_dir();
 
     let (tx, rx) = mpsc::channel::<Result<ResponseItem, Error>>(16);
     tokio::spawn(async move {
         let result =
-            subscribe_recursive(fs, pipes_dir, caller, spawned, sub_id, kind_filter, &tx).await;
+            subscribe_recursive(fs, pipes_dir, parent, spawned, sub_id, kind_filter, &tx).await;
         if let Err(e) = result {
             let _ = tx.send(Err(e)).await;
         }

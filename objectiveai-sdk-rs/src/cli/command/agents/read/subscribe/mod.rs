@@ -22,7 +22,18 @@ pub enum RequestMessageKind {
 #[schemars(rename = "cli.command.agents.read.subscribe.Request")]
 pub struct Request {
     pub path_type: Path,
-    pub agent_instance_hierarchy: String,
+    /// Lineage prefix to prepend to [`Self::agent_instance`]. When
+    /// `None`, the CLI substitutes its own
+    /// `Config.agent_instance_hierarchy` (the cli's "caller"
+    /// position). Full target lineage is `"{parent}/{instance}"`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub parent_agent_instance_hierarchy: Option<String>,
+    /// Leaf id of the target agent. Combined with
+    /// [`Self::parent_agent_instance_hierarchy`] (or the cli's
+    /// caller position when that is `None`) to form the full
+    /// hierarchy.
+    pub agent_instance: String,
     pub kind: Option<RequestMessageKind>,
     pub jq: Option<String>,
 }
@@ -40,8 +51,12 @@ impl CommandRequest for Request {
             "agents".to_string(),
             "read".to_string(),
             "subscribe".to_string(),
-            self.agent_instance_hierarchy.clone(),
+            self.agent_instance.clone(),
         ];
+        if let Some(parent) = &self.parent_agent_instance_hierarchy {
+            argv.push("--parent-agent-instance-hierarchy".to_string());
+            argv.push(parent.clone());
+        }
         if let Some(kind) = &self.kind {
             argv.push("--kind".to_string());
             argv.push(message_kind_flag(kind).to_string());
@@ -90,8 +105,15 @@ pub enum ResponseItem {
 
 #[derive(clap::Args)]
 pub struct Args {
-    /// Lineage path of the agent to subscribe to.
-    pub agent_instance_hierarchy: String,
+    /// Leaf id of the target agent. Combined with `--parent` (or
+    /// the cli's own `Config.agent_instance_hierarchy` when
+    /// `--parent` is omitted) to form the full lineage.
+    pub agent_instance: String,
+    /// Optional lineage prefix to prepend to `agent_instance`.
+    /// When omitted, the cli substitutes its own
+    /// `Config.agent_instance_hierarchy`.
+    #[arg(long = "parent-agent-instance-hierarchy")]
+    pub parent_agent_instance_hierarchy: Option<String>,
     /// Filter the stream to messages of this kind only.
     #[arg(long, value_enum)]
     pub kind: Option<RequestMessageKind>,
@@ -120,8 +142,10 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path_type: Path::AgentsReadSubscribe,
-            agent_instance_hierarchy: args.agent_instance_hierarchy,
+        Ok(Self {
+            path_type: Path::AgentsReadSubscribe,
+            parent_agent_instance_hierarchy: args.parent_agent_instance_hierarchy,
+            agent_instance: args.agent_instance,
             kind: args.kind,
             jq: args.jq,
         })
