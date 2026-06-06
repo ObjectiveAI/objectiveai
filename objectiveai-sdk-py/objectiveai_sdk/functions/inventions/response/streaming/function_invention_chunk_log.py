@@ -5,17 +5,17 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 from objectiveai_sdk.agent.completions.response.usage import Usage
 from objectiveai_sdk.error.response_error import ResponseError
-from objectiveai_sdk.filesystem.logs.indexed_reference.log_reference import LogReference
 from objectiveai_sdk.functions.full_remote_function import FullRemoteFunction
 from objectiveai_sdk.functions.inventions.response.streaming.object import Object
 from objectiveai_sdk.functions.inventions.state.state import State
+from objectiveai_sdk.indexed_log_reference import IndexedLogReference
 from objectiveai_sdk.remote_path import RemotePath
 
 
 class FunctionInventionChunkLog(BaseModel):
     model_config = ConfigDict(title='functions.inventions.response.streaming.FunctionInventionChunkLog')
 
-    completions: list[LogReference]
+    completions: list[IndexedLogReference]
     created: int = Field(..., ge=0, le=18446744073709551615)
     error: Optional[ResponseError] = Field(None, json_schema_extra={'omitempty': True})
     function: Optional[FullRemoteFunction] = Field(None, json_schema_extra={'omitempty': True})

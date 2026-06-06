@@ -42,17 +42,85 @@ def title_to_pascal(title: str) -> str:
 
 
 
+_PY_KEYWORDS = {
+    "False", "None", "True", "and", "as", "assert", "async", "await",
+    "break", "class", "continue", "def", "del", "elif", "else", "except",
+    "finally", "for", "from", "global", "if", "import", "in", "is",
+    "lambda", "nonlocal", "not", "or", "pass", "raise", "return", "try",
+    "while", "with", "yield",
+}
+
+
+def _escape_py_keyword(segment: str) -> str:
+    """If `segment` is a Python keyword, suffix it with `_` so it works as
+    a module-name component (e.g. `del` → `del_`)."""
+    return segment + "_" if segment in _PY_KEYWORDS else segment
+
+
+def _safe_docstring(desc: str | None) -> str:
+    """Escape a description so it can be wrapped in `\"\"\"...\"\"\"` safely.
+
+    Replaces embedded `\"\"\"` with escaped form and escapes trailing `\"`
+    runs so the closing triple-quote isn't ambiguous (e.g. without this
+    `... \"it worked.\"\"\"\"` → SyntaxError). Python interprets `\\"`
+    inside a triple-quoted string as a literal `\"`, so the runtime
+    description value is preserved byte-for-byte."""
+    if not desc:
+        return ""
+    safe = desc.replace('"""', '\\"\\"\\"')
+    # Walk trailing quote run and escape each.
+    i = len(safe)
+    while i > 0 and safe[i - 1] == '"':
+        i -= 1
+    if i < len(safe):
+        safe = safe[:i] + ''.join('\\"' for _ in range(len(safe) - i))
+    return safe
+
+
+# Paths (dir/file) that collide with a sibling directory of the same
+# name. Computed once from the full title set; the affected titles get
+# their content emitted as `<dir>/<file>/_root.py` instead of
+# `<dir>/<file>.py`, so the `<file>` package's `_generated.py` re-exports
+# the relocated classes.
+_COLLIDING_PATHS: set[str] = set()
+
+
+def compute_colliding_paths(all_titles: set[str]) -> None:
+    """Populate `_COLLIDING_PATHS` with file paths that collide with
+    package directories from other titles."""
+    # Determine the set of directory paths used by any title.
+    dir_paths: set[str] = set()
+    file_paths: set[str] = set()
+    for title in all_titles:
+        parts = title.split(".")
+        parts = [_escape_py_keyword(p) for p in parts[:-1]] + [_escape_py_keyword(_to_snake(parts[-1]))]
+        # Each prefix of `parts[:-1]` is a directory.
+        for i in range(1, len(parts)):
+            dir_paths.add("/".join(parts[:i]))
+        file_paths.add("/".join(parts))
+    _COLLIDING_PATHS.clear()
+    _COLLIDING_PATHS.update(file_paths & dir_paths)
+
+
 def title_to_path(title: str) -> tuple[str, str]:
     """Map a schema title to (directory, filename) relative to SRC_DIR.
 
     "agent.Agent" → ("agent", "agent")
     "ResponseError" → ("", "response_error")
     "agent.completions.message.File" → ("agent/completions/message", "file")
-    """
+
+    If the natural file path collides with a sibling directory (some
+    other title has that directory as a prefix), the file is suffixed
+    with `_` (e.g. `request.py` → `request_.py`) so Python's package
+    resolver doesn't pick up the sub-package directory in place of the
+    module."""
     parts = title.split(".")
     type_name = parts.pop()
-    dir_path = "/".join(parts)
-    file_name = _to_snake(type_name)
+    dir_path = "/".join(_escape_py_keyword(p) for p in parts)
+    file_name = _escape_py_keyword(_to_snake(type_name))
+    natural = f"{dir_path}/{file_name}" if dir_path else file_name
+    if natural in _COLLIDING_PATHS:
+        file_name = file_name + "_"
     return dir_path, file_name
 
 
@@ -146,7 +214,7 @@ def _generate_inline_type(schema: dict, self_title: str, all_titles: set[str]) -
     if ref_target == "#":
         ref_target = self_title
     desc = schema.get("description", "")
-    safe_desc = desc.replace('"""', '\\"\\"\\"') if desc else ""
+    safe_desc = _safe_docstring(desc)
     code = _generate_flattened_ref_model(
         self_title, schema, refs, all_titles,
         class_name, safe_desc, ref_target, all_schemas=_all_schemas,
@@ -164,7 +232,7 @@ def _generate_inline_anyof(any_of: list[dict], self_title: str, all_titles: set[
     Creates variant wrapper classes with docstrings to preserve descriptions.
     """
     class_name = "".join(_naming_context)
-    safe_desc = description.replace('"""', '\\"\\"\\"') if description else ""
+    safe_desc = _safe_docstring(description)
     refs: set[str] = set()
     variant_codes: list[str] = []
     union_members: list[str] = []
@@ -459,7 +527,7 @@ def generate_model(
     type_ = schema.get("type")
 
     description = schema.get("description", "")
-    safe_desc = description.replace('"""', '\\"\\"\\"') if description else ""
+    safe_desc = _safe_docstring(description)
 
     # Case 1a: Object with properties AND anyOf (serde flatten)
     if has_properties and has_any_of:
@@ -563,7 +631,7 @@ def _generate_variant_class(
     class_name = f"{parent_name}{variant_title.replace('.', '')}"
     refs: set[str] = set()
     desc = variant_schema.get("description", "")
-    safe_desc = desc.replace('"""', '\\"\\"\\"') if desc else ""
+    safe_desc = _safe_docstring(desc)
 
     has_properties = "properties" in variant_schema
     has_any_of = "anyOf" in variant_schema
@@ -1336,6 +1404,10 @@ def main() -> None:
     print(f"Read {len(schemas)} schemas")
 
     all_titles = set(schemas.keys())
+
+    # Detect file/dir collisions before any title_to_path call so that
+    # collision-relocated titles use the same path everywhere.
+    compute_colliding_paths(all_titles)
 
     # Auto-detect generic prefixes from schema titles
 

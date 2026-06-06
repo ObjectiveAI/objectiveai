@@ -15,11 +15,11 @@ class RequestAgentCompletionNotify(AgentCompletionNotifyParams):
 
 
 class RequestMcpListChanged(McpListChanged):
-    """The CLI's upstream `mcp::Connection` for `mcp_session_id`
-fired `notifications/<kind>/list_changed`. The API
-dispatches this onto its per-`(ws_session_id, mcp_session_id)`
-broadcast so every matching MCP GET-SSE listener sees a
-standard MCP notification frame."""
+    """The CLI's upstream `mcp::Connection` for `mcp_kind` fired
+`notifications/<kind>/list_changed`. The API dispatches this
+onto its per-`(response_id, McpKind)` broadcast so the
+matching MCP GET-SSE listener sees a standard MCP
+notification frame."""
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'McpListChanged'})
 
     id: str = Field(..., description='Client-minted correlation id. Echoed by the matching\n[`super::super::client_response::Response`].')

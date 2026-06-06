@@ -3,21 +3,27 @@
 from __future__ import annotations
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
+from objectiveai_sdk.agent.completions.response.streaming.log_reference import LogReference as AgentCompletionsResponseStreamingLogReference
 from objectiveai_sdk.agent.completions.response.streaming.object import Object
 from objectiveai_sdk.agent.completions.response.usage import Usage
 from objectiveai_sdk.agent.upstream import Upstream
 from objectiveai_sdk.error.response_error import ResponseError
-from objectiveai_sdk.filesystem.logs.log_reference import LogReference
+from objectiveai_sdk.log_reference import LogReference
+from objectiveai_sdk.remote_path import RemotePath
 
 
 class AgentCompletionChunkLog(BaseModel):
     model_config = ConfigDict(title='agent.completions.response.streaming.AgentCompletionChunkLog')
 
+    agent_full_id: str
+    agent_id: str
+    agent_instance_hierarchy: str
+    agent_remote: Optional[RemotePath] = Field(None, json_schema_extra={'omitempty': True})
     continuation: Optional[LogReference] = Field(None, json_schema_extra={'omitempty': True})
     created: int = Field(..., ge=0, le=18446744073709551615)
     error: Optional[ResponseError] = Field(None, json_schema_extra={'omitempty': True})
     id: str
-    messages: list[LogReference]
+    messages: list[AgentCompletionsResponseStreamingLogReference]
     messages_queued: Optional[bool] = Field(None, json_schema_extra={'omitempty': True})
     object: Object
     upstream: Upstream

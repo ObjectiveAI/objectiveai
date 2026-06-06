@@ -8,13 +8,18 @@ from objectiveai_sdk.agent.completions.response.unary.object import Object
 from objectiveai_sdk.agent.completions.response.usage import Usage
 from objectiveai_sdk.agent.upstream import Upstream
 from objectiveai_sdk.error.response_error import ResponseError
+from objectiveai_sdk.remote_path import RemotePath
 
 
 class Builder(BaseModel):
     """A single builder agent completion within a laboratory execution (non-streaming)."""
     model_config = ConfigDict(title='laboratories.executions.response.unary.Builder')
 
+    agent_full_id: str = Field(..., description='WF-level id: see\n[`super::streaming::AgentCompletionChunk::agent_full_id`].')
+    agent_id: str = Field(..., description='Leaf agent id of the slot that produced this completion. See\n[`super::streaming::AgentCompletionChunk::agent_id`].')
     agent_index: int = Field(..., description='Agent index (0-based).', ge=0, le=18446744073709551615)
+    agent_instance_hierarchy: str = Field(..., description="Full agent instance hierarchy for this completion's slot. See\n[`super::streaming::AgentCompletionChunk::agent_instance_hierarchy`].")
+    agent_remote: Optional[RemotePath] = Field(None, description='`RemotePath` the WF was fetched from, or `None` when inline.\nSee [`super::streaming::AgentCompletionChunk::agent_remote`].', json_schema_extra={'omitempty': True})
     continuation: Optional[str] = Field(None, description='Continuation state for multi-turn conversations.')
     created: int = Field(..., ge=0, le=18446744073709551615)
     error: Optional[ResponseError] = Field(None, description='Error details if this completion failed.')

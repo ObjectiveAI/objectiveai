@@ -4,8 +4,8 @@ from __future__ import annotations
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 from objectiveai_sdk.agent.completions.response.usage import Usage
-from objectiveai_sdk.filesystem.logs.indexed_reference.log_reference import LogReference
 from objectiveai_sdk.functions.inventions.recursive.response.streaming.object import Object
+from objectiveai_sdk.indexed_log_reference import IndexedLogReference
 
 
 class FunctionInventionRecursiveChunkLog(BaseModel):
@@ -13,7 +13,7 @@ class FunctionInventionRecursiveChunkLog(BaseModel):
 
     created: int = Field(..., ge=0, le=18446744073709551615)
     id: str
-    inventions: list[LogReference]
+    inventions: list[IndexedLogReference]
     inventions_errors: Optional[bool] = Field(None, json_schema_extra={'omitempty': True})
     object: Object
     usage: Optional[Usage] = Field(None, json_schema_extra={'omitempty': True})

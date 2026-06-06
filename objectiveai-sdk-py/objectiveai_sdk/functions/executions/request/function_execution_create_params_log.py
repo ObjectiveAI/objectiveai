@@ -4,12 +4,12 @@ from __future__ import annotations
 from typing import Annotated, Optional
 from pydantic import BaseModel, ConfigDict, Field
 from objectiveai_sdk.agent.completions.request.provider import Provider
-from objectiveai_sdk.filesystem.logs.log_reference import LogReference
 from objectiveai_sdk.functions.executions.request.reasoning import Reasoning
 from objectiveai_sdk.functions.executions.request.strategy import Strategy
 from objectiveai_sdk.functions.expression.input_value_log import InputValueLog
 from objectiveai_sdk.functions.full_inline_function_or_remote_commit_optional import FullInlineFunctionOrRemoteCommitOptional
 from objectiveai_sdk.functions.inline_profile_or_remote_commit_optional import InlineProfileOrRemoteCommitOptional
+from objectiveai_sdk.log_reference import LogReference
 
 
 class FunctionExecutionCreateParamsLog(BaseModel):

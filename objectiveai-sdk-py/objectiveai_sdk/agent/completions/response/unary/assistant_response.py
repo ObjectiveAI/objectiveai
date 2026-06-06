@@ -15,7 +15,6 @@ class AssistantResponse(BaseModel):
     """An assistant response in a unary agent completion."""
     model_config = ConfigDict(title='agent.completions.response.unary.AssistantResponse')
 
-    agent: str
     content: Optional[RichContent] = None
     created: int = Field(..., ge=0, le=18446744073709551615)
     finish_reason: FinishReason

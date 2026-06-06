@@ -7,13 +7,12 @@ from objectiveai_sdk.agent.completions.message.rich_content_log import RichConte
 from objectiveai_sdk.agent.completions.response.assistant_role import AssistantRole
 from objectiveai_sdk.agent.completions.response.finish_reason import FinishReason
 from objectiveai_sdk.agent.completions.response.upstream_usage import UpstreamUsage
-from objectiveai_sdk.filesystem.logs.log_reference import LogReference
+from objectiveai_sdk.log_reference import LogReference
 
 
 class AssistantResponseChunkLog(BaseModel):
     model_config = ConfigDict(title='agent.completions.response.streaming.AssistantResponseChunkLog')
 
-    agent: str
     content: Optional[RichContentLog] = Field(None, json_schema_extra={'omitempty': True})
     created: int = Field(..., ge=0, le=18446744073709551615)
     finish_reason: Optional[FinishReason] = None

@@ -19,7 +19,6 @@ accumulated into a complete [`AgentCompletion`](response::unary::AgentCompletion
 using the [`push`](Self::push) method."""
     model_config = ConfigDict(title='agent.completions.response.streaming.AssistantResponseChunk')
 
-    agent: str
     content: Optional[RichContent] = Field(None, json_schema_extra={'omitempty': True})
     created: int = Field(..., ge=0, le=18446744073709551615)
     finish_reason: Optional[FinishReason] = None

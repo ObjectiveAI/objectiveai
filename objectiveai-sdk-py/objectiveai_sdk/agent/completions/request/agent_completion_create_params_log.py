@@ -5,7 +5,7 @@ from typing import Annotated, Optional
 from pydantic import BaseModel, ConfigDict, Field
 from objectiveai_sdk.agent.completions.request.provider import Provider
 from objectiveai_sdk.agent.inline_agent_base_with_fallbacks_or_remote_commit_optional import InlineAgentBaseWithFallbacksOrRemoteCommitOptional
-from objectiveai_sdk.filesystem.logs.log_reference import LogReference
+from objectiveai_sdk.log_reference import LogReference
 
 
 class AgentCompletionCreateParamsLog(BaseModel):

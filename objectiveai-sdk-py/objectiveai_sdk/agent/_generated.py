@@ -6,6 +6,7 @@ from .agent_with_fallbacks import AgentWithFallbacks, AgentWithFallbacksInline, 
 from .agent_with_fallbacks_with_count import AgentWithFallbacksWithCount, AgentWithFallbacksWithCountInlineClaudeAgentSdk, AgentWithFallbacksWithCountInlineCodexSdk, AgentWithFallbacksWithCountInlineMock, AgentWithFallbacksWithCountInlineOpenrouter, AgentWithFallbacksWithCountRemoteClaudeAgentSdk, AgentWithFallbacksWithCountRemoteCodexSdk, AgentWithFallbacksWithCountRemoteMock, AgentWithFallbacksWithCountRemoteOpenrouter  # noqa: F401
 from .client_objectiveai_mcp import ClientObjectiveaiMcp  # noqa: F401
 from .client_objectiveai_mcp_entry import ClientObjectiveaiMcpEntry  # noqa: F401
+from .client_objectiveai_mcp_headers import ClientObjectiveaiMcpHeaders  # noqa: F401
 from .client_objectiveai_mcp_plugin_entry import ClientObjectiveaiMcpPluginEntry  # noqa: F401
 from .client_objectiveai_mcp_plugin_mcp_server import ClientObjectiveaiMcpPluginMcpServer  # noqa: F401
 from .continuation import Continuation, ContinuationClaudeAgentSdk, ContinuationCodexSdk, ContinuationMock, ContinuationOpenrouter  # noqa: F401

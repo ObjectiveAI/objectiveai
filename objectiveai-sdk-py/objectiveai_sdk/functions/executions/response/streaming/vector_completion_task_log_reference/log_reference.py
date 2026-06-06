@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Annotated
 from objectiveai_sdk.json_value import JsonValue
 from pydantic import BaseModel, ConfigDict, Field
-from objectiveai_sdk.filesystem.logs.log_reference_tag import LogReferenceTag
+from objectiveai_sdk.log_reference_tag import LogReferenceTag
 
 
 class LogReference(BaseModel):

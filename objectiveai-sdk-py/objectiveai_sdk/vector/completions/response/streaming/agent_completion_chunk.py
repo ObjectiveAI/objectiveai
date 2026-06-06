@@ -8,6 +8,7 @@ from objectiveai_sdk.agent.completions.response.streaming.object import Object
 from objectiveai_sdk.agent.completions.response.usage import Usage
 from objectiveai_sdk.agent.upstream import Upstream
 from objectiveai_sdk.error.response_error import ResponseError
+from objectiveai_sdk.remote_path import RemotePath
 
 
 class AgentCompletionChunk(BaseModel):
@@ -17,6 +18,10 @@ The `index` field is used to correlate chunks belonging to the same
 underlying completion when accumulating via [`push`](Self::push)."""
     model_config = ConfigDict(title='vector.completions.response.streaming.AgentCompletionChunk')
 
+    agent_full_id: str = Field(..., description="WF-level id: concatenation of the primary agent's id with all\nfallback ids (see `InlineAgentWithFallbacks::full_id`). Same\nfor every slot in the same WF request.")
+    agent_id: str = Field(..., description="Leaf agent id of the slot that produced this chunk. For the\nprimary attempt this is the primary agent's id; on fallback it\nis the fallback agent's id. Same on every chunk of a slot.")
+    agent_instance_hierarchy: str = Field(..., description="Full agent instance hierarchy for this completion's slot —\n`{ctx lineage}/{agent_full_id}-{response_id}`, or the fixed\ncontinuation value on resume. Same on every chunk of a slot.")
+    agent_remote: Optional[RemotePath] = Field(None, description='`RemotePath` the WF was fetched from. `None` when the WF was\nsupplied inline. Same for every slot in the same WF request.', json_schema_extra={'omitempty': True})
     continuation: Optional[str] = Field(None, description='Continuation state for multi-turn conversations (only present in the final chunk).', json_schema_extra={'omitempty': True})
     created: int = Field(..., ge=0, le=18446744073709551615)
     error: Optional[ResponseError] = Field(None, description='Error details if this completion failed.', json_schema_extra={'omitempty': True})

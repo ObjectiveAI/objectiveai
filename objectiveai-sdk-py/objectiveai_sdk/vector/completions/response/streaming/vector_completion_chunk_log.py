@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Annotated, Optional
 from pydantic import BaseModel, ConfigDict, Field
 from objectiveai_sdk.agent.completions.response.usage import Usage
-from objectiveai_sdk.filesystem.logs.indexed_reference.log_reference import LogReference
+from objectiveai_sdk.indexed_log_reference import IndexedLogReference
 from objectiveai_sdk.vector.completions.response.streaming.object import Object
 from objectiveai_sdk.vector.completions.response.vote import Vote
 
@@ -12,7 +12,7 @@ from objectiveai_sdk.vector.completions.response.vote import Vote
 class VectorCompletionChunkLog(BaseModel):
     model_config = ConfigDict(title='vector.completions.response.streaming.VectorCompletionChunkLog')
 
-    completions: list[LogReference]
+    completions: list[IndexedLogReference]
     created: int = Field(..., ge=0, le=18446744073709551615)
     id: str
     object: Object

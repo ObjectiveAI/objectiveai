@@ -5,6 +5,7 @@ from typing import Annotated, Optional
 from pydantic import BaseModel, ConfigDict, Field
 from objectiveai_sdk.agent.client_objectiveai_mcp import ClientObjectiveaiMcp
 from objectiveai_sdk.agent.mcp_server import McpServer
+from objectiveai_sdk.agent.mock.call import Call
 from objectiveai_sdk.agent.mock.mode import Mode
 from objectiveai_sdk.agent.mock.output_mode import OutputMode
 from objectiveai_sdk.agent.mock.upstream import Upstream
@@ -14,6 +15,7 @@ class AgentBase(BaseModel):
     """The base configuration for a Mock Agent (without computed ID)."""
     model_config = ConfigDict(title='agent.mock.AgentBase')
 
+    calls: Optional[list[Call]] = Field(None, description="Deterministic-script override. When `Some`, the mock agent\nemits each [`super::Call`] as its own assistant turn —\n`tool_calls` first, then `content` — in array order. Each\nsubsequent turn inspects the continuation to count how many\n`Call`s have already been satisfied (assistant message with\nexactly that `Call`'s `tool_calls` (by name+arguments) and\n`content`); the next un-matched `Call` is what that turn\nemits. Once every `Call` has been satisfied in the\ncontinuation, the mock falls through to its normal mode-driven\ndispatcher. Pure addition — agents without `calls` are\nunaffected.", json_schema_extra={'omitempty': True})
     client_objectiveai_mcp: Optional[ClientObjectiveaiMcp] = Field(None, description='Client-side ObjectiveAI MCP surface the calling client is\nexpected to expose locally back to the API (objectiveai\nbuilt-in, plus specific plugins / tools by owner+name+version).', json_schema_extra={'omitempty': True})
     error: Optional[bool] = Field(None, description='If true, the mock client will return an error instead of a response.', json_schema_extra={'omitempty': True})
     error_probability: Optional[Annotated[int, Field(ge=0, le=255)]] = Field(None, description='Probability (0-100) that the mock returns an error mid-stream.\nRequires `error` to be `Some(true)`.', json_schema_extra={'omitempty': True})

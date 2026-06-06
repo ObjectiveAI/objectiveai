@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from objectiveai_sdk.agent.client_objectiveai_mcp import ClientObjectiveaiMcp
 from objectiveai_sdk.agent.completions.message.message import Message
 from objectiveai_sdk.agent.mcp_server import McpServer
+from objectiveai_sdk.agent.openrouter.context_compression import ContextCompression
 from objectiveai_sdk.agent.openrouter.output_mode import OutputMode
 from objectiveai_sdk.agent.openrouter.provider import Provider
 from objectiveai_sdk.agent.openrouter.reasoning import Reasoning
@@ -19,6 +20,7 @@ class Agent(BaseModel):
     model_config = ConfigDict(title='agent.openrouter.Agent')
 
     client_objectiveai_mcp: Optional[ClientObjectiveaiMcp] = Field(None, description='Client-side ObjectiveAI MCP surface the calling client is\nexpected to expose locally back to the API (objectiveai\nbuilt-in, plus specific plugins / tools by owner+name+version).', json_schema_extra={'omitempty': True})
+    context_compression: Optional[ContextCompression] = Field(None, description='Context compression engine for long contexts. When set, the\nupstream client emits the matching `plugins` entry on the\noutgoing OpenRouter chat-completions request.', json_schema_extra={'omitempty': True})
     frequency_penalty: Optional[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(None, description='Penalizes tokens based on their frequency in the output so far (-2.0 to 2.0).', json_schema_extra={'omitempty': True})
     id: str = Field(..., description='The deterministic content-addressed ID (22-character base62 string).')
     logit_bias: Optional[dict[str, Annotated[int, Field(ge=-9223372036854775808, le=9223372036854775807)]]] = Field(None, description='Token ID to bias mapping (-100 to 100). Positive values increase likelihood.', json_schema_extra={'omitempty': True})

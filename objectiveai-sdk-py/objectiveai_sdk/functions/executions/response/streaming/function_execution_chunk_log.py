@@ -5,11 +5,11 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 from objectiveai_sdk.agent.completions.response.usage import Usage
 from objectiveai_sdk.error.response_error import ResponseError
-from objectiveai_sdk.filesystem.logs.log_reference import LogReference as FilesystemLogsLogReference
 from objectiveai_sdk.functions.executions.response.output import Output
 from objectiveai_sdk.functions.executions.response.streaming.object import Object
 from objectiveai_sdk.functions.executions.response.streaming.reasoning_summary_log_reference.log_reference import LogReference as FunctionsExecutionsResponseStreamingReasoningSummaryLogReferenceLogReference
 from objectiveai_sdk.functions.executions.response.streaming.task_log_reference.log_reference import LogReference as FunctionsExecutionsResponseStreamingTaskLogReferenceLogReference
+from objectiveai_sdk.log_reference import LogReference
 from objectiveai_sdk.remote_path import RemotePath
 
 
@@ -24,7 +24,7 @@ class FunctionExecutionChunkLog(BaseModel):
     output: Optional[Output] = Field(None, json_schema_extra={'omitempty': True})
     profile: Optional[RemotePath] = None
     reasoning: Optional[FunctionsExecutionsResponseStreamingReasoningSummaryLogReferenceLogReference] = Field(None, description='Appended at the end to match the legacy on-disk order: the\nold code inserted `reasoning` via `Map::insert` AFTER all\nthe shell fields, putting it at the tail of the object.', json_schema_extra={'omitempty': True})
-    retry_token: Optional[FilesystemLogsLogReference] = Field(None, json_schema_extra={'omitempty': True})
+    retry_token: Optional[LogReference] = Field(None, json_schema_extra={'omitempty': True})
     tasks: list[FunctionsExecutionsResponseStreamingTaskLogReferenceLogReference]
     tasks_errors: Optional[bool] = Field(None, json_schema_extra={'omitempty': True})
     usage: Optional[Usage] = Field(None, json_schema_extra={'omitempty': True})
