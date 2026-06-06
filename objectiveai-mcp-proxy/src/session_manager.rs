@@ -487,13 +487,7 @@ mod tests {
         for (u, h) in url_entries {
             connections.insert(u, h);
         }
-        let payload = SessionPayload {
-            connections,
-            agent_instance_hierarchy: None,
-            agent_id: None,
-            agent_full_id: None,
-            agent_remote: None,
-        };
+        let payload = SessionPayload { connections };
 
         let urls: Vec<&String> = payload.connections.keys().collect();
         assert_eq!(urls, vec![&conn_b_url, &conn_a_url]); // a.example before b.example
