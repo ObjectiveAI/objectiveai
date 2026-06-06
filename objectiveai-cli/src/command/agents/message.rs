@@ -197,7 +197,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     let mut tail = match stream_or_err {
         Ok(s) => s,
         Err(e) => {
-            crate::command::queue_drain::rollback_drain(&drained, &e);
             crate::filesystem::db::prompts::re_enqueue_async(
                 ctx.filesystem.clone(),
                 drained,
@@ -211,7 +210,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             objectiveai_sdk::cli::command::StreamOnce::new(Ok(first)).chain(tail),
         )),
         Some(Err(e)) => {
-            crate::command::queue_drain::rollback_drain(&drained, &e);
             crate::filesystem::db::prompts::re_enqueue_async(
                 ctx.filesystem.clone(),
                 drained,
@@ -220,7 +218,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             Err(e)
         }
         None => {
-            crate::command::queue_drain::rollback_drain(&drained, &Error::EmptyStream);
             crate::filesystem::db::prompts::re_enqueue_async(
                 ctx.filesystem.clone(),
                 drained,

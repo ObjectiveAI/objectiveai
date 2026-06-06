@@ -24,24 +24,6 @@
 
 use objectiveai_sdk::agent::completions::message::{RichContent, RichContentPart};
 
-use crate::error::Error;
-use crate::filesystem::db::prompts::DrainedPrompt;
-
-/// Diagnostic logged before re-enqueueing a drained batch when
-/// the surrounding spawn/message call fails. Goes to stderr (same
-/// channel as the existing `streaming.rs` failure logs) so the
-/// original error remains visible even if `re_enqueue_async`
-/// itself ends up surfacing a different one.
-pub fn rollback_drain(drained: &[DrainedPrompt], err: &Error) {
-    if drained.is_empty() {
-        return;
-    }
-    eprintln!(
-        "queue drain rollback: {n} item(s) re-enqueued after error: {err}",
-        n = drained.len(),
-    );
-}
-
 /// `\n\n`-separated concatenation of `items` into one
 /// [`RichContent`]. An empty input yields `RichContent::Text("")`;
 /// a single-element input is returned unchanged (no separator
