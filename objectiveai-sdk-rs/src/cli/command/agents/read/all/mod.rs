@@ -1,12 +1,68 @@
 //! `agents read all` — async handler stub.
 
+use std::str::FromStr;
+
 use crate::cli::command::CommandRequest;
+use crate::cli::command::path_ref::tokenize;
+
+/// One queue-read target. `agent_instance` is the leaf id; `parent`
+/// defaults to the cli's own `Config.agent_instance_hierarchy` when
+/// `None`. Resolved full lineage is `{parent}/{agent_instance}`.
+///
+/// Docker-style `key=value,key=value` wire form on the CLI:
+///   `--target instance=L`           (parent defaults to ctx)
+///   `--target instance=L,parent=P`  (explicit parent)
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.read.all.Target")]
+pub struct Target {
+    /// Optional lineage prefix. `None` ⇒ cli substitutes
+    /// `Config.agent_instance_hierarchy`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub parent_agent_instance_hierarchy: Option<String>,
+    /// Leaf id of the target agent.
+    pub agent_instance: String,
+}
+
+impl FromStr for Target {
+    type Err = String;
+    /// Parse a `--target` arg. Accepted keys: `instance` (required),
+    /// `parent` (optional). Anything else is an unknown-key error.
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut parent: Option<String> = None;
+        let mut instance: Option<String> = None;
+        for (k, v) in tokenize(s)? {
+            match k {
+                "instance" => instance = Some(v.to_string()),
+                "parent" => parent = Some(v.to_string()),
+                other => return Err(format!("unknown key: {other}")),
+            }
+        }
+        let instance = instance.ok_or_else(|| "instance is required".to_string())?;
+        Ok(Self {
+            parent_agent_instance_hierarchy: parent,
+            agent_instance: instance,
+        })
+    }
+}
+
+impl Target {
+    /// Inverse of [`FromStr::from_str`]: emit the docker-style
+    /// `key=value,key=value` wire form for round-tripping.
+    pub fn into_arg_string(&self) -> String {
+        let mut s = format!("instance={}", self.agent_instance);
+        if let Some(p) = &self.parent_agent_instance_hierarchy {
+            s.push_str(&format!(",parent={p}"));
+        }
+        s
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.read.all.Request")]
 pub struct Request {
     pub path_type: Path,
-    pub agent_instance_hierarchies: Vec<String>,
+    pub targets: Vec<Target>,
     pub jq: Option<String>,
 }
 
@@ -24,7 +80,10 @@ impl CommandRequest for Request {
             "read".to_string(),
             "all".to_string(),
         ];
-        argv.extend(self.agent_instance_hierarchies.iter().cloned());
+        for target in &self.targets {
+            argv.push("--target".to_string());
+            argv.push(target.into_arg_string());
+        }
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
             argv.push(jq.clone());
@@ -144,9 +203,11 @@ pub struct ResponseItem {
 
 #[derive(clap::Args)]
 pub struct Args {
-    /// One or more agent_instance_hierarchy values.
-    #[arg(required = true)]
-    pub agent_instance_hierarchies: Vec<String>,
+    /// One or more `--target instance=L[,parent=P]` entries. `parent`
+    /// defaults to the cli's own `Config.agent_instance_hierarchy`
+    /// when omitted on an individual target.
+    #[arg(long = "target", required = true)]
+    pub targets: Vec<String>,
     /// jq filter applied to the JSON output.
     #[arg(long)]
     pub jq: Option<String>,
@@ -172,8 +233,18 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path_type: Path::AgentsReadAll,
-            agent_instance_hierarchies: args.agent_instance_hierarchies,
+        let targets = args
+            .targets
+            .iter()
+            .map(|s| {
+                s.parse::<Target>().map_err(|msg| {
+                    crate::cli::command::FromArgsError::path_parse("target", msg)
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(Self {
+            path_type: Path::AgentsReadAll,
+            targets,
             jq: args.jq,
         })
     }

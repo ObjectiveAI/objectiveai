@@ -13,17 +13,22 @@ use crate::error::Error;
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
-    let caller = ctx.config.agent_instance_hierarchy.clone();
+    let default_parent = ctx.config.agent_instance_hierarchy.clone();
     let fs = ctx.filesystem.clone();
     let stream = async_stream::stream! {
         let mut inflight = FuturesUnordered::new();
-        for sub in request.agent_instance_hierarchies {
+        for target in request.targets {
             let fs = fs.clone();
-            let caller = caller.clone();
+            // Per-target parent fallback: explicit `parent=` overrides
+            // the cli's own position; otherwise fall back to ctx.
+            let parent = target
+                .parent_agent_instance_hierarchy
+                .unwrap_or_else(|| default_parent.clone());
+            let leaf = target.agent_instance;
             inflight.push(async move {
-                let spawned = format!("{caller}/{sub}");
-                let items = fs.read_new_from_queue(&caller, &spawned).await?;
-                Ok::<_, Error>(ResponseItem { agent_id: sub, items })
+                let spawned = format!("{parent}/{leaf}");
+                let items = fs.read_new_from_queue(&parent, &spawned).await?;
+                Ok::<_, Error>(ResponseItem { agent_id: leaf, items })
             });
         }
         while let Some(result) = inflight.next().await {

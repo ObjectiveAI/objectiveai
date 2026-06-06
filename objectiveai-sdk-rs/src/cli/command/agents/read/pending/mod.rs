@@ -6,7 +6,7 @@ use crate::cli::command::CommandRequest;
 #[schemars(rename = "cli.command.agents.read.pending.Request")]
 pub struct Request {
     pub path_type: Path,
-    pub agent_instance_hierarchies: Vec<String>,
+    pub targets: Vec<Target>,
     pub jq: Option<String>,
 }
 
@@ -24,7 +24,10 @@ impl CommandRequest for Request {
             "read".to_string(),
             "pending".to_string(),
         ];
-        argv.extend(self.agent_instance_hierarchies.iter().cloned());
+        for target in &self.targets {
+            argv.push("--target".to_string());
+            argv.push(target.into_arg_string());
+        }
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
             argv.push(jq.clone());
@@ -33,10 +36,11 @@ impl CommandRequest for Request {
     }
 }
 
-// Share the queue-item / queue-message / content shapes with
-// `agents read all` — same on-disk persistence rows surfaced as
-// either the full or the watermark-delta slice.
-pub use super::all::{ResponseContent, ResponseQueueItem, ResponseQueueMessage};
+// Share the queue-item / queue-message / content shapes AND the
+// docker-style `Target` parser with `agents read all` — same on-disk
+// persistence rows surfaced as either the full or the watermark-
+// delta slice, same per-target input shape.
+pub use super::all::{ResponseContent, ResponseQueueItem, ResponseQueueMessage, Target};
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.read.pending.ResponseItem")]
@@ -47,9 +51,11 @@ pub struct ResponseItem {
 
 #[derive(clap::Args)]
 pub struct Args {
-    /// One or more agent_instance_hierarchy values.
-    #[arg(required = true)]
-    pub agent_instance_hierarchies: Vec<String>,
+    /// One or more `--target instance=L[,parent=P]` entries. `parent`
+    /// defaults to the cli's own `Config.agent_instance_hierarchy`
+    /// when omitted on an individual target.
+    #[arg(long = "target", required = true)]
+    pub targets: Vec<String>,
     /// jq filter applied to the JSON output.
     #[arg(long)]
     pub jq: Option<String>,
@@ -75,8 +81,18 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path_type: Path::AgentsReadPending,
-            agent_instance_hierarchies: args.agent_instance_hierarchies,
+        let targets = args
+            .targets
+            .iter()
+            .map(|s| {
+                s.parse::<Target>().map_err(|msg| {
+                    crate::cli::command::FromArgsError::path_parse("target", msg)
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(Self {
+            path_type: Path::AgentsReadPending,
+            targets,
             jq: args.jq,
         })
     }
