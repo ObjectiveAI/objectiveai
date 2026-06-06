@@ -250,29 +250,40 @@ pub async fn run(
     args: Vec<String>,
     ctx: Option<Context>,
 ) -> Result<RunStream, Error> {
+    // Windows: clear the inheritance flag on this process's
+    // stdin/stdout/stderr handles. They were marked inheritable by
+    // whoever spawned us via `Stdio::piped()` — necessary so we
+    // inherit them at all — but if we leave the flag set, every
+    // grandchild process we (or any of our descendants) spawn with
+    // `Stdio::piped()` (which sets `bInheritHandles=TRUE`) inherits
+    // OUR stdio handles in addition to its own new pipes. That
+    // grandchild (e.g. a plugin RMCP server living for the whole
+    // agent completion) then holds our stdio write ends open even
+    // after we exit, leaving our parent's reads of our stdout/stderr
+    // hanging forever instead of EOF'ing.
+    //
+    // Applies to BOTH branches:
+    //   - The `instance` branch (called from a parent cli) so plugin
+    //     grandchildren don't inherit the instance's stdio.
+    //   - The non-instance branch (the outer cli, called from a test
+    //     harness or another shell) so the instance subprocess
+    //     doesn't inherit the outer cli's stdio — otherwise an
+    //     orphan plugin grandchild keeps the outer cli's stdout
+    //     pipe alive after the instance dies, and the harness
+    //     hangs waiting for stdout EOF.
+    //
+    // Clearing the flag is a no-op for our own use of std{in,out,err}
+    // — we keep using them normally. It only affects what gets
+    // propagated on subsequent `CreateProcessW` calls.
+    #[cfg(windows)]
+    clear_stdio_inheritance();
+
     let ctx = match ctx {
         Some(c) => c,
         None => Context::new(load_config()).await?,
     };
 
     if args.get(1).map(String::as_str) == Some("instance") {
-        // Windows: clear the inheritance flag on this process's
-        // stdin/stdout/stderr handles. They were marked inheritable
-        // by the parent cli when it spawned us via `Stdio::piped()` —
-        // necessary so we inherit them at all — but if we leave the
-        // flag set, every grandchild process we spawn with `Stdio::piped()`
-        // (which sets `bInheritHandles=TRUE`) inherits OUR stdio
-        // handles in addition to its own new pipes. That grandchild
-        // (e.g. a plugin RMCP server living for the whole agent
-        // completion) then holds our stdio write ends open even after
-        // we exit, leaving the cli outer's reads of our stdout/stderr
-        // hanging forever instead of EOF'ing.
-        //
-        // Clearing the flag is a no-op for our own use of std{in,out,err}
-        // — we keep using them normally. It only affects what gets
-        // propagated on subsequent `CreateProcessW` calls.
-        #[cfg(windows)]
-        clear_stdio_inheritance();
         let inst = crate::instance::run(ctx).await?;
         return Ok(Box::pin(inst.map(|r| r.map(RunItem::Instance))));
     }

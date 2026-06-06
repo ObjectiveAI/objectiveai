@@ -27,11 +27,13 @@ use std::time::{Duration, Instant};
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use objectiveai_sdk::cli::command::agents::message::{
-    Request as MessageRequest, RequestDangerousAdvanced as MessageDangerousAdvanced,
-    RequestMessage, ResponseItem as MessageResponseItem,
+    MessageTarget, Request as MessageRequest,
+    RequestDangerousAdvanced as MessageDangerousAdvanced, RequestMessage,
+    ResponseItem as MessageResponseItem,
 };
 use objectiveai_sdk::cli::command::agents::read::all::{
     Request as ReadAllRequest, ResponseItem as ReadAllItem, ResponseQueueItem,
+    Target as ReadAllTarget,
 };
 use objectiveai_sdk::cli::command::agents::read::id::{
     Request as ReadIdRequest, Response as ReadIdResponse,
@@ -132,6 +134,7 @@ async fn duplicate_tool_names_routed_across_turns() {
     let spawn = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
         prompt: RequestPrompt::Simple("use a tool".to_string()),
         agent,
+        agent_tag: None,
         seed: Some(SEED),
         // Stream so we get `Chunk(_)` items (needed for `chunk.id`)
         // and so the cli stays attached to the instance subprocess
@@ -177,8 +180,11 @@ async fn duplicate_tool_names_routed_across_turns() {
     // returning implies the runner exited (no leak).
     let msg1 = MessageRequest {
         path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
-        parent_agent_instance_hierarchy: parent.clone(),
-        agent_instance: instance.clone(),
+        target: MessageTarget::Direct {
+            parent_agent_instance_hierarchy: parent.clone(),
+            agent_instance: instance.clone(),
+            agent_tag: None,
+        },
         message: RequestMessage::Simple("again".to_string()),
         seed: Some(SEED),
         dangerous_advanced: Some(MessageDangerousAdvanced {
@@ -196,8 +202,11 @@ async fn duplicate_tool_names_routed_across_turns() {
     // Turn 3: agents message — second continuation ───────────────
     let msg2 = MessageRequest {
         path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
-        parent_agent_instance_hierarchy: parent.clone(),
-        agent_instance: instance.clone(),
+        target: MessageTarget::Direct {
+            parent_agent_instance_hierarchy: parent.clone(),
+            agent_instance: instance.clone(),
+            agent_tag: None,
+        },
         message: RequestMessage::Simple("one more".to_string()),
         seed: Some(SEED),
         dangerous_advanced: Some(MessageDangerousAdvanced {
@@ -213,8 +222,17 @@ async fn duplicate_tool_names_routed_across_turns() {
     // all`, then resolve each row id through `agents read id` to pull
     // the typed `AssistantToolCallDelta` whose `function.name` carries
     // the prefixed tool name.
+    // Split `spawn_id` (`cli/<leaf>`) into (parent, leaf) for the
+    // direct-target shape.
+    let (read_parent, read_instance) = spawn_id
+        .rsplit_once('/')
+        .map(|(p, i)| (Some(p.to_string()), i.to_string()))
+        .unwrap_or_else(|| (None, spawn_id.clone()));
     let read_all = ReadAllRequest { path_type: objectiveai_sdk::cli::command::agents::read::all::Path::AgentsReadAll,
-        agent_instance_hierarchies: vec![spawn_id.clone()],
+        targets: vec![ReadAllTarget::Direct {
+            parent_agent_instance_hierarchy: read_parent,
+            agent_instance: read_instance,
+        }],
         jq: None,
     };
     let read_items: Vec<ReadAllItem> = cli_test_util::collect_stream(&executor, read_all).await;
@@ -245,15 +263,15 @@ async fn duplicate_tool_names_routed_across_turns() {
             .await
             .unwrap_or_else(|e| panic!("agents read id {id} failed: {e:?}"));
         // Tool-call rows always come back as
-        // `AgentsCompletionsResponseMessagesToolCalls(AssistantToolCallDelta)`.
+        // `AgentsCompletionsResponseMessagesAssistantToolCalls(AssistantToolCallDelta)`.
         // Other variants would mean the queue cross-referenced a
         // non-tool-call row id — surface that as a panic so we notice.
         let name = match resp {
-            ReadIdResponse::AgentsCompletionsResponseMessagesToolCalls(delta) => {
+            ReadIdResponse::AgentsCompletionsResponseMessagesAssistantToolCalls(delta) => {
                 delta.function.and_then(|f| f.name)
             }
             other => panic!(
-                "expected AgentsCompletionsResponseMessagesToolCalls for tool-call row id {id}, got {other:?}"
+                "expected AgentsCompletionsResponseMessagesAssistantToolCalls for tool-call row id {id}, got {other:?}"
             ),
         };
         if let Some(n) = name {

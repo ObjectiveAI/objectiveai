@@ -24,12 +24,13 @@ use std::time::{Duration, Instant};
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use objectiveai_sdk::cli::command::agents::message::{
-    Request as MessageRequest, RequestDangerousAdvanced as MessageDangerousAdvanced,
-    RequestMessage, ResponseItem as MessageResponseItem,
+    MessageTarget, Request as MessageRequest,
+    RequestDangerousAdvanced as MessageDangerousAdvanced, RequestMessage,
+    ResponseItem as MessageResponseItem,
 };
 use objectiveai_sdk::cli::command::agents::read::all::{
     Request as ReadAllRequest, ResponseContent, ResponseItem as ReadAllItem,
-    ResponseQueueItem,
+    ResponseQueueItem, Target as ReadAllTarget,
 };
 use objectiveai_sdk::cli::command::agents::read::id::Request as ReadIdRequest;
 use objectiveai_sdk::cli::command::agents::spawn::{
@@ -107,6 +108,7 @@ async fn spawn_agent(executor: &HangPreventingBinaryCommandExecutor, seed: i64) 
     let request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
         prompt: RequestPrompt::Simple("go".to_string()),
         agent: agent_spec(),
+        agent_tag: None,
         seed: Some(seed),
         // Stream so the cli stays attached to the instance subprocess
         // through `LogStreamReady` + every chunk; we need at least one
@@ -179,8 +181,11 @@ async fn continue_agent(executor: &HangPreventingBinaryCommandExecutor, spawn_id
         .unwrap_or_else(|| (None, spawn_id.to_string()));
     let request = MessageRequest {
         path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
-        parent_agent_instance_hierarchy: parent,
-        agent_instance: instance,
+        target: MessageTarget::Direct {
+            parent_agent_instance_hierarchy: parent,
+            agent_instance: instance,
+            agent_tag: None,
+        },
         message: RequestMessage::Simple("more".to_string()),
         seed: Some(seed),
         dangerous_advanced: Some(MessageDangerousAdvanced {
@@ -208,7 +213,10 @@ async fn read_tool_response_ids(executor: &HangPreventingBinaryCommandExecutor, 
         .map(|(_, leaf)| leaf)
         .unwrap_or(sub_id);
     let request = ReadAllRequest { path_type: objectiveai_sdk::cli::command::agents::read::all::Path::AgentsReadAll,
-        agent_instance_hierarchies: vec![leaf.to_string()],
+        targets: vec![ReadAllTarget::Direct {
+            parent_agent_instance_hierarchy: None,
+            agent_instance: leaf.to_string(),
+        }],
         jq: None,
     };
     let items: Vec<ReadAllItem> =

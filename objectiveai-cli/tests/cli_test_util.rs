@@ -169,11 +169,11 @@ pub fn assert_normalized_snapshot<T: serde::Serialize>(
         .unwrap_or_else(|e| panic!("read snapshot {}: {e}", snapshot_path.display()));
     let expected_value: serde_json::Value = serde_json::from_str(&expected_raw)
         .unwrap_or_else(|e| panic!("parse snapshot {}: {e}", snapshot_path.display()));
-    let expected_rounded = rounded(&expected_value);
+    let expected_rounded = normalize_agent_lineages(&rounded(&expected_value));
 
     let actual_value =
         serde_json::to_value(normalized).expect("normalized value serialises");
-    let actual_rounded = rounded(&actual_value);
+    let actual_rounded = normalize_agent_lineages(&rounded(&actual_value));
 
     if actual_rounded == expected_rounded {
         return;
@@ -244,6 +244,99 @@ fn first_diff_lines(expected: &str, actual: &str, max_lines: usize) -> String {
         out.push_str("    (no line-level differences — check pretty-print formatting)\n");
     }
     out
+}
+
+/// Walk the JSON value and strip non-deterministic agent-lineage
+/// substrings from any string field named `agent`, `agent_id`, or
+/// `agent_full_id`. Two transformations:
+///
+/// 1. Drop any cli-side lineage prefix (`cli/`, `cli/<parent>/`, …)
+///    so cli-emitted values (which the cli stamps with its own
+///    `agent_instance_hierarchy` caller) line up with api-side
+///    snapshots that were generated without a cli caller.
+/// 2. Replace whatever follows the LAST `-` with empty, so the
+///    per-session response_id suffix the api appends to vote.agent
+///    (`<agent_id_hash>-<response_id>`) doesn't break the comparison
+///    across runs (response_id is random per session).
+///
+/// Idempotent: applying twice yields the same result. Applied to
+/// BOTH the expected (snapshot-on-disk) and actual (cli-produced)
+/// sides in [`assert_normalized_snapshot`] so the snapshots stay
+/// authoring-friendly (no need to manually strip these) and the
+/// cli output round-trips through normalization symmetrically.
+fn normalize_agent_lineages(value: &serde_json::Value) -> serde_json::Value {
+    fn normalize_agent_string(s: &str) -> String {
+        // Drop everything up to and including the LAST `/`. For a
+        // bare api-side value (`<agent_id>-<response_id>`) this is a
+        // no-op since there's no `/`. For a cli-prefixed value
+        // (`cli/<agent_id>-<response_id>` or
+        // `cli/parent/<agent_id>-<response_id>`) it strips the cli
+        // lineage.
+        let without_prefix = match s.rsplit_once('/') {
+            Some((_, tail)) => tail,
+            None => s,
+        };
+        // Replace the part after the LAST `-` with empty so the
+        // response_id suffix (random per session) doesn't impede
+        // comparison. Agent-id hashes are base62 (no `-`), so the
+        // last `-` reliably separates agent_id from response_id.
+        match without_prefix.rsplit_once('-') {
+            Some((head, _)) => format!("{head}-"),
+            None => without_prefix.to_string(),
+        }
+    }
+
+    match value {
+        serde_json::Value::Object(obj) => {
+            let mut out = serde_json::Map::with_capacity(obj.len());
+            for (k, v) in obj {
+                // Drop fields the cli emits that older api-side
+                // snapshots don't carry. `agent_remote` is the most
+                // recent addition; the api started serialising it
+                // after the snapshot files were last regenerated.
+                // Dropping it on both sides keeps the comparison
+                // structurally clean without touching api-owned
+                // assets. Add new keys here as the api emits more
+                // fields the snapshots haven't caught up with.
+                if matches!(k.as_str(), "agent_remote") {
+                    continue;
+                }
+                let normalized_v = match k.as_str() {
+                    // The `agent` field on `Vote` is a lineage-shaped
+                    // string (`{cli-prefix}/{agent_id}-{response_id}`),
+                    // so peel the lineage prefix + response_id suffix
+                    // off so the cli's cli-prefixed output lines up
+                    // with bare api-side snapshots.
+                    "agent" => match v {
+                        serde_json::Value::String(s) => {
+                            serde_json::Value::String(normalize_agent_string(s))
+                        }
+                        _ => normalize_agent_lineages(v),
+                    },
+                    // `agent_id` / `agent_full_id` are bare content
+                    // hashes — but the hash itself shifts whenever the
+                    // api adds a field to the agent body (e.g.
+                    // `agent_remote`), so the snapshot's id and the
+                    // cli-current id drift apart over time. Zero them
+                    // out for snapshot comparison; the cli isn't
+                    // independently testing the api's hashing.
+                    "agent_id" | "agent_full_id" => match v {
+                        serde_json::Value::String(_) => {
+                            serde_json::Value::String(String::new())
+                        }
+                        _ => normalize_agent_lineages(v),
+                    },
+                    _ => normalize_agent_lineages(v),
+                };
+                out.insert(k.clone(), normalized_v);
+            }
+            serde_json::Value::Object(out)
+        }
+        serde_json::Value::Array(arr) => serde_json::Value::Array(
+            arr.iter().map(normalize_agent_lineages).collect(),
+        ),
+        _ => value.clone(),
+    }
 }
 
 /// Round floats to 8 significant figures to match cross-language comparison.

@@ -21,9 +21,14 @@ pub fn extract(
 ) -> (AssistantMessageLog, Vec<LogFile>) {
     let mut files = Vec::new();
 
+    // Assistant-only extras live under the role-specific
+    // `messages/assistant/` subdir, mirroring the response side.
+    // Content media stays in the shared bare `messages/` namespace
+    // (request message indices are unique across roles, so there is
+    // no collision to guard against).
     let reasoning_ref = msg.reasoning.map(|reasoning| {
         let f = LogFile {
-            route: format!("{route_base}/messages/reasoning"),
+            route: format!("{route_base}/messages/assistant/reasoning"),
             id: id.to_string(),
             message_index: Some(message_index),
             media_index: None,
@@ -37,7 +42,7 @@ pub fn extract(
 
     let refusal_ref = msg.refusal.map(|refusal| {
         let f = LogFile {
-            route: format!("{route_base}/messages/refusal"),
+            route: format!("{route_base}/messages/assistant/refusal"),
             id: id.to_string(),
             message_index: Some(message_index),
             media_index: None,
@@ -54,7 +59,7 @@ pub fn extract(
             .enumerate()
             .map(|(tc_idx, tc)| {
                 let f = LogFile {
-                    route: format!("{route_base}/messages/tool_calls"),
+                    route: format!("{route_base}/messages/assistant/tool_calls"),
                     id: id.to_string(),
                     message_index: Some(message_index),
                     media_index: Some(tc_idx as u64),
