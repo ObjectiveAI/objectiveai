@@ -1,22 +1,22 @@
-//! Deferred-prompt storage for `agents queue {add, list, read id}`.
+//! Deferred-prompt storage for `agents message-queue {add, list, read id}`.
 //!
 //! Co-located in `tags.sqlite` with the `tags` table so the
-//! queue-list leaf can JOIN prompts ⨝ tags in a single SELECT (to
+//! queue-list leaf can JOIN prompts Ã¢Â¨Â tags in a single SELECT (to
 //! surface each tag-keyed row's BOUND / PENDING state). The
 //! connection slot is owned by [`super::tags`]; this module
 //! piggybacks on it.
 //!
 //! ## Schema
 //!
-//! `prompts` — one row per queued prompt (which is a single
+//! `prompts` Ã¢â‚¬â€ one row per queued prompt (which is a single
 //! user-message-equivalent `RichContent`), targeting either an
-//! `agent_instance_hierarchy` OR an `agent_tag` (never both —
+//! `agent_instance_hierarchy` OR an `agent_tag` (never both Ã¢â‚¬â€
 //! `CHECK` enforces it). The `prompt` column holds the JSON
-//! serialization of one [`ResponseContent`] — either `One(i64)`
-//! for single-part content or `Many(Vec<i64>)` for multi-part —
+//! serialization of one [`ResponseContent`] Ã¢â‚¬â€ either `One(i64)`
+//! for single-part content or `Many(Vec<i64>)` for multi-part Ã¢â‚¬â€
 //! referencing rows in the per-kind content tables below.
 //!
-//! `prompt_contents` — master content registry, FK-anchored at
+//! `prompt_contents` Ã¢â‚¬â€ master content registry, FK-anchored at
 //! `prompt_id` so a single `DELETE FROM prompts WHERE id = ?`
 //! cascades the entire prompt out. Per-kind tables (`prompt_texts`,
 //! `prompt_images`, `prompt_audios`, `prompt_videos`,
@@ -26,7 +26,7 @@
 use objectiveai_sdk::agent::completions::message::{
     File, ImageUrl, InputAudio, RichContent, RichContentPart, VideoUrl,
 };
-use objectiveai_sdk::cli::command::agents::queue::list::{
+use objectiveai_sdk::cli::command::agents::message_queue::list::{
     LookupState, ResponseItem,
 };
 use objectiveai_sdk::cli::command::agents::read::all::ResponseContent;
@@ -88,13 +88,13 @@ pub async fn insert_async(
     .map_err(spawn_blocking_join_err)?
 }
 
-/// One content row — typed payload of a single `prompt_contents.id`.
+/// One content row Ã¢â‚¬â€ typed payload of a single `prompt_contents.id`.
 /// Returned by [`read_content`] / [`read_content_async`].
 ///
 /// Variants map one-to-one to `prompt_contents.kind`. The
 /// `CHECK (kind IN ('text','image','audio','video','file'))`
 /// constraint on the master table guarantees the five variants here
-/// are exhaustive — no assistant-side kinds (reasoning, refusal,
+/// are exhaustive Ã¢â‚¬â€ no assistant-side kinds (reasoning, refusal,
 /// tool_call) exist for queue content because the queue stores one
 /// user-message-equivalent `RichContent` per row, not arbitrary
 /// conversation history.
@@ -108,11 +108,11 @@ pub enum ContentRow {
 }
 
 /// Map one [`ContentRow`] to its matching SDK [`RichContentPart`]
-/// variant. Shared by `agents queue read id`'s handler (single-id
+/// variant. Shared by `agents message-queue read id`'s handler (single-id
 /// fetch) and the drain helpers below (reconstruct a whole prompt).
 /// The walker stored both `InputVideo` and `VideoUrl` parts as
 /// `prompt_videos` (just a URL), so reading back always yields
-/// `VideoUrl` — the lossless choice for a bare URL.
+/// `VideoUrl` Ã¢â‚¬â€ the lossless choice for a bare URL.
 pub fn content_row_to_part(row: ContentRow) -> RichContentPart {
     match row {
         ContentRow::Text(text) => RichContentPart::Text { text },
@@ -124,7 +124,7 @@ pub fn content_row_to_part(row: ContentRow) -> RichContentPart {
 }
 
 /// Look up a single content row by `prompt_contents.id`. Returns
-/// `None` when the id doesn't exist (`prompt_contents` miss) — a
+/// `None` when the id doesn't exist (`prompt_contents` miss) Ã¢â‚¬â€ a
 /// per-kind miss is a DB corruption and is reported as an `Error`.
 ///
 /// Locking wrapper around [`read_content_with_conn`]; callers that
@@ -236,7 +236,7 @@ pub async fn read_content_async(
 }
 
 // ---------------------------------------------------------------------------
-// Transactional walker — Vec<Message> → (prompt_id, Vec<ResponseQueueMessage>)
+// Transactional walker Ã¢â‚¬â€ Vec<Message> Ã¢â€ â€™ (prompt_id, Vec<ResponseQueueMessage>)
 // ---------------------------------------------------------------------------
 
 /// Atomic enqueue: inserts the `prompts` row, walks `content` and
@@ -246,7 +246,7 @@ pub async fn read_content_async(
 /// `Many(Vec<i64>)` for multi-part). Returns the new `prompts.id`.
 ///
 /// Everything runs inside one rusqlite transaction on the shared
-/// `tags.sqlite` connection — any failure rolls the prompt and all
+/// `tags.sqlite` connection Ã¢â‚¬â€ any failure rolls the prompt and all
 /// its content rows back, leaving no orphans.
 pub async fn enqueue_with_content_async(
     client: Client,
@@ -292,8 +292,8 @@ fn enqueue_with_content(
 /// transaction. Lets `re_enqueue_async` batch multiple inserts
 /// under a single transaction by reusing this body once per item.
 /// `enqueued_at` is parameterised so re-enqueue can preserve the
-/// originally-stored timestamp (and FIFO order across drain → fail
-/// → re-enqueue cycles).
+/// originally-stored timestamp (and FIFO order across drain Ã¢â€ â€™ fail
+/// Ã¢â€ â€™ re-enqueue cycles).
 fn enqueue_with_content_in_tx(
     tx: &rusqlite::Transaction<'_>,
     agent_instance_hierarchy: Option<&str>,
@@ -301,7 +301,7 @@ fn enqueue_with_content_in_tx(
     enqueued_at: i64,
     content: RichContent,
 ) -> Result<i64, Error> {
-    // Empty `prompt` placeholder — overwritten by the final UPDATE
+    // Empty `prompt` placeholder Ã¢â‚¬â€ overwritten by the final UPDATE
     // once we know the id-referenced shape. `prompts.prompt` is
     // NOT NULL so we need *some* value here.
     let prompt_id: i64 = tx.query_row(
@@ -366,7 +366,7 @@ fn insert_content_part(
 }
 
 // ---------------------------------------------------------------------------
-// Per-kind insert helpers — each mints a `prompt_contents.id` for the
+// Per-kind insert helpers Ã¢â‚¬â€ each mints a `prompt_contents.id` for the
 // caller-supplied `prompt_id`, then inserts the per-kind row sharing
 // that id. All helpers take `&Connection` so they compose inside the
 // `enqueue_with_content` transaction.
@@ -461,24 +461,24 @@ fn insert_content_file(
 // List
 // ---------------------------------------------------------------------------
 
-/// List all queued prompts visible under `parent`. Every row —
-/// Direct or Tag — must resolve to a parent matching the filter:
+/// List all queued prompts visible under `parent`. Every row Ã¢â‚¬â€
+/// Direct or Tag Ã¢â‚¬â€ must resolve to a parent matching the filter:
 ///
 /// * **Direct rows:** `agent_instance_hierarchy` is a direct child
 ///   of `parent` (the same `LIKE 'parent/%' AND no_further_slash`
 ///   pattern `list_direct_active_children` uses).
 /// * **BOUND tag rows (LEFT JOIN finds the tag):** the tag's bound
-///   `agent_instance_hierarchy` is a direct child of `parent` — same
+///   `agent_instance_hierarchy` is a direct child of `parent` Ã¢â‚¬â€ same
 ///   predicate, applied against the joined `t.agent_instance_hierarchy`.
 /// * **PENDING tag rows:** the tag's stored
 ///   `parent_agent_instance_hierarchy` equals `parent` exactly.
-/// * **ABSENT tag rows (LEFT JOIN returns no match):** excluded —
+/// * **ABSENT tag rows (LEFT JOIN returns no match):** excluded Ã¢â‚¬â€
 ///   no parent info available.
 ///
 /// Each returned item embeds the prompt body as a
 /// [`ResponseContent`] (`One(i64)` or `Many(Vec<i64>)`, decoded
 /// directly from the `prompts.prompt` JSON column) so callers can
-/// fan out to `agents queue read id` per piece without re-fetching
+/// fan out to `agents message-queue read id` per piece without re-fetching
 /// the prompt.
 ///
 /// Returned items are ordered by `prompts.id` (FIFO of enqueue).
@@ -545,7 +545,7 @@ pub fn list(client: &Client, parent: &str) -> Result<Vec<ResponseItem>, Error> {
     {
         // The placeholder empty string can briefly exist mid-
         // transaction, but a committed row always carries the final
-        // ResponseContent JSON. Treat empty defensively as One(0) →
+        // ResponseContent JSON. Treat empty defensively as One(0) Ã¢â€ â€™
         // really a corrupted row; we surface it as Many([]) which
         // serialises cleanly and is harmless downstream.
         let content: ResponseContent = if prompt_json.is_empty() {
@@ -600,7 +600,7 @@ pub async fn list_async(client: Client, parent: String) -> Result<Vec<ResponseIt
 }
 
 // ---------------------------------------------------------------------------
-// Drain — atomically pull matching prompts out of the queue and
+// Drain Ã¢â‚¬â€ atomically pull matching prompts out of the queue and
 // reconstruct each one as a `RichContent`. Used by `agents message`
 // and `agents spawn` to prepend queued content to the user's own
 // payload before the API call fires. If the surrounding call fails
@@ -609,7 +609,7 @@ pub async fn list_async(client: Client, parent: String) -> Result<Vec<ResponseIt
 // queue state.
 // ---------------------------------------------------------------------------
 
-/// One drained prompt — carries enough metadata to re-INSERT the
+/// One drained prompt Ã¢â‚¬â€ carries enough metadata to re-INSERT the
 /// original row (same target columns, same `enqueued_at`) plus the
 /// reconstructed body for the join-and-prepend path. The caller
 /// joins `content`s into the outgoing message and keeps the
@@ -623,9 +623,9 @@ pub struct DrainedPrompt {
     /// was Tag-targeted.
     pub agent_tag: Option<String>,
     /// Original `prompts.enqueued_at`. Preserved through re-enqueue
-    /// so FIFO ordering survives a drain → fail → re-enqueue cycle.
+    /// so FIFO ordering survives a drain Ã¢â€ â€™ fail Ã¢â€ â€™ re-enqueue cycle.
     pub enqueued_at: i64,
-    /// Reconstructed body — used by the join-and-prepend path today,
+    /// Reconstructed body Ã¢â‚¬â€ used by the join-and-prepend path today,
     /// and (in identical form) by re-enqueue's walker on failure.
     pub content: RichContent,
 }
@@ -659,9 +659,9 @@ fn drain_for_message(
     let tx = conn.unchecked_transaction()?;
     // Three-rule predicate (see plan):
     //  1. p.agent_instance_hierarchy = ?1
-    //  2. p.agent_tag → tag BOUND to ?1
+    //  2. p.agent_tag Ã¢â€ â€™ tag BOUND to ?1
     //  3. ?2 is some AND p.agent_tag = ?2
-    // ?2 may be NULL — rule 3 silently fails the AND in that case.
+    // ?2 may be NULL Ã¢â‚¬â€ rule 3 silently fails the AND in that case.
     let rows = collect_matching_prompts(
         &tx,
         "p.agent_instance_hierarchy = ?1 \
@@ -686,7 +686,7 @@ fn drain_for_message(
 
 /// Drain rows targeting `target_tag` (if some), or any PENDING tag
 /// whose `(parent_agent_instance_hierarchy, agent_full_id)` pair
-/// matches `(parent_hierarchy, agent_full_id)` — i.e. every tag
+/// matches `(parent_hierarchy, agent_full_id)` Ã¢â‚¬â€ i.e. every tag
 /// that the spawn about to fire will auto-promote on first chunk.
 pub async fn drain_for_spawn_async(
     client: Client,
@@ -718,8 +718,8 @@ fn drain_for_spawn(
         .expect("filesystem prompts db connection mutex poisoned");
     let tx = conn.unchecked_transaction()?;
     // Two-rule predicate (see plan):
-    //  1. ?3 is some AND p.agent_tag = ?3 — the explicit binding tag.
-    //  2. p.agent_tag → PENDING tag with (?1, ?2) match.
+    //  1. ?3 is some AND p.agent_tag = ?3 Ã¢â‚¬â€ the explicit binding tag.
+    //  2. p.agent_tag Ã¢â€ â€™ PENDING tag with (?1, ?2) match.
     // No direct-hierarchy rule: queue/add Direct mode rejects
     // targets without prior completions, so no Direct row can pre-
     // exist for an unspawned agent.
@@ -849,7 +849,7 @@ fn reconstruct_rich_content(
         parts.push(content_row_to_part(row));
     }
     // Collapse single-text-part to RichContent::Text (lossless).
-    // Multi-part — even if all-text — stays RichContent::Parts so
+    // Multi-part Ã¢â‚¬â€ even if all-text Ã¢â‚¬â€ stays RichContent::Parts so
     // the join helper at the call site can insert separators
     // between distinct queue items without losing structure.
     if parts.len() == 1 {
@@ -861,7 +861,7 @@ fn reconstruct_rich_content(
 }
 
 // ---------------------------------------------------------------------------
-// Re-enqueue — undo a drain when the surrounding spawn/message
+// Re-enqueue Ã¢â‚¬â€ undo a drain when the surrounding spawn/message
 // call fails before its first OK stream item. Restores rows with
 // their original `enqueued_at` so FIFO ordering is stable across
 // the round trip.
@@ -870,7 +870,7 @@ fn reconstruct_rich_content(
 /// Re-INSERT every item in `items` as a fresh `prompts` row + its
 /// content rows. Empty `items` short-circuits to `Ok(())` without
 /// touching the connection. Everything runs inside one transaction
-/// — any failure rolls every restored row back, leaving no orphans.
+/// Ã¢â‚¬â€ any failure rolls every restored row back, leaving no orphans.
 ///
 /// `prompts.id` is auto-incremented anew (the original id is gone
 /// after the drain DELETE); `enqueued_at` is preserved verbatim
@@ -905,6 +905,40 @@ fn re_enqueue(client: &Client, items: Vec<DrainedPrompt>) -> Result<(), Error> {
     }
     tx.commit()?;
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Delete-by-id â€” manually drop a queued prompt without firing
+// `agents spawn` / `agents message`. Powers `agents message-queue
+// delete <id>`.
+// ---------------------------------------------------------------------------
+
+/// Atomically delete the `prompts` row with the given `id` and
+/// return its reconstructed shape (same `DrainedPrompt` the drain
+/// helpers produce). `None` when no row matches the id. Cascade
+/// on `prompt_contents.prompt_id` sweeps every per-kind content
+/// row inside the same transaction.
+pub async fn delete_by_id_async(
+    client: Client,
+    id: i64,
+) -> Result<Option<DrainedPrompt>, Error> {
+    tokio::task::spawn_blocking(move || delete_by_id(&client, id))
+        .await
+        .map_err(spawn_blocking_join_err)?
+}
+
+fn delete_by_id(client: &Client, id: i64) -> Result<Option<DrainedPrompt>, Error> {
+    let conn = super::tags::connection(client)?;
+    let conn = conn
+        .lock()
+        .expect("filesystem prompts db connection mutex poisoned");
+    let tx = conn.unchecked_transaction()?;
+    // Reuse the shared SELECT-and-DELETE pair the drain helpers
+    // use; the only difference is the single-row WHERE predicate.
+    let rows = collect_matching_prompts(&tx, "p.id = ?1", params![id])?;
+    let mut items = reconstruct_and_delete(&tx, rows)?;
+    tx.commit()?;
+    Ok(items.pop())
 }
 
 fn spawn_blocking_join_err(e: tokio::task::JoinError) -> Error {

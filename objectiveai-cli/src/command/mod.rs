@@ -5,7 +5,7 @@
 //! (and `execute_streaming` / `execute_streaming_jq` for chunk-or-id
 //! leaves) that actually do the work.
 //!
-//! `run.rs` parses argv → SDK `Command` → SDK `Request` (via the SDK's
+//! `run.rs` parses argv â†’ SDK `Command` â†’ SDK `Request` (via the SDK's
 //! `TryFrom` impls), then dispatches to [`execute`] which fans out
 //! through the tier `mod.rs` files to the leaves below.
 
@@ -17,7 +17,7 @@ pub mod list_helpers;
 pub mod logs;
 pub mod mcp;
 pub mod plugins;
-pub mod queue_drain;
+pub mod message_queue_drain;
 pub mod swarms;
 pub mod tools;
 pub mod update;

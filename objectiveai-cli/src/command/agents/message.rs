@@ -1,4 +1,4 @@
-//! `agents message` — bare-naked chunk-or-id streaming handler.
+//! `agents message` â€” bare-naked chunk-or-id streaming handler.
 //!
 //! Deliver a rich-content message to a running spawned agent. If the
 //! per-agent socket
@@ -10,25 +10,25 @@
 //! The streamed item shape then depends on
 //! `dangerous_advanced.stream`:
 //!
-//! - **`None | Some(false)` (default)** — yield a single
+//! - **`None | Some(false)` (default)** â€” yield a single
 //!   [`ResponseItem::Queued`] carrying the new turn's `response_id`,
 //!   then end. The instance runner child keeps running orphaned and
 //!   drives the completion to completion (same shape as the legacy
-//!   `agents message` behaviour — preserved unchanged for callers who
+//!   `agents message` behaviour â€” preserved unchanged for callers who
 //!   don't set the flag).
-//! - **`Some(true)`** — yield the same [`ResponseItem::Queued`]
+//! - **`Some(true)`** â€” yield the same [`ResponseItem::Queued`]
 //!   first, then one [`ResponseItem::Chunk`] per chunk Notification
 //!   the runner emits, until the runner's stdout EOFs. The parent
 //!   cli stays attached and `child.wait()`s the runner before its
 //!   own exit, so `collect_stream` returning implies process exit
-//!   — the synchronisation primitive integration tests need to avoid
+//!   â€” the synchronisation primitive integration tests need to avoid
 //!   leaked instance-runner processes.
 //!
 //! Retry on [`Error::CliStreamSlotTaken`] is unchanged from the
-//! legacy handler — another caller's instance runner currently owns
+//! legacy handler â€” another caller's instance runner currently owns
 //! the per-agent socket, so we re-run `try_pipe_delivery` (cheap);
 //! once the winner has bound and is serving, the next pass delivers
-//! via the pipe and never re-spawns. Unbounded — the only way to
+//! via the pipe and never re-spawns. Unbounded â€” the only way to
 //! escape `SlotTaken` is for the winner to release the socket, at
 //! which point we win or deliver via the now-live pipe.
 
@@ -73,7 +73,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     // Direct mode when the caller supplied `--agent-tag` alongside
     // the agent instance (the binding-tag case); the drain below
     // uses it for rule 3 of the predicate (`p.agent_tag = opt_tag`).
-    // Tag-mode resolution sets `opt_tag = None` — per the user
+    // Tag-mode resolution sets `opt_tag = None` â€” per the user
     // spec, the resolved hierarchy is enough; rule 2 of the drain
     // predicate sweeps all tags pointing to that hierarchy.
     let (agent_instance_hierarchy, opt_tag) = match request.target {
@@ -145,7 +145,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         let mut items: Vec<RichContent> =
             drained.iter().map(|d| d.content.clone()).collect();
         items.push(own_content);
-        crate::command::queue_drain::join_with_separator(items)
+        crate::command::message_queue_drain::join_with_separator(items)
     };
     let stream_flag = request
         .dangerous_advanced
@@ -192,7 +192,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     // Terminal failure paths from here re-enqueue the drained rows
     // before surfacing the error. The peek-first-item shape comes
     // from `objectiveai-api/src/functions/executions/client.rs::
-    // create_streaming_handle_usage` — same StreamOnce-then-chain
+    // create_streaming_handle_usage` â€” same StreamOnce-then-chain
     // structure.
     let mut tail = match stream_or_err {
         Ok(s) => s,
@@ -202,7 +202,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
                 drained,
             )
             .await;
-            return Err(crate::command::queue_drain::combine_drain_failure(e, r));
+            return Err(crate::command::message_queue_drain::combine_drain_failure(e, r));
         }
     };
     match tail.as_mut().next().await {
@@ -215,7 +215,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
                 drained,
             )
             .await;
-            Err(crate::command::queue_drain::combine_drain_failure(e, r))
+            Err(crate::command::message_queue_drain::combine_drain_failure(e, r))
         }
         None => {
             let r = crate::filesystem::db::prompts::re_enqueue_async(
@@ -223,7 +223,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
                 drained,
             )
             .await;
-            Err(crate::command::queue_drain::combine_drain_failure(
+            Err(crate::command::message_queue_drain::combine_drain_failure(
                 Error::EmptyStream,
                 r,
             ))
@@ -322,7 +322,7 @@ impl std::fmt::Display for PipeError {
     }
 }
 
-/// Live delivery failed — look up the agent's most recent completion,
+/// Live delivery failed â€” look up the agent's most recent completion,
 /// resume via continuation, peek the spawned instance runner's first
 /// item to extract the new turn's `response_id`, and produce the
 /// `Queued` (plus optional `Chunk`s) stream.
@@ -332,7 +332,7 @@ impl std::fmt::Display for PipeError {
 /// orphaned after we yield the single `Queued` item and drop the
 /// remainder. `stream_flag = true`: we chain the remaining
 /// `InstanceItem::Chunk`s through, and the inner stream ends only
-/// when the parent cli has `child.wait()`ed instance-runner — so
+/// when the parent cli has `child.wait()`ed instance-runner â€” so
 /// `collect_stream` returning genuinely implies process exit.
 async fn start_continuation_stream(
     ctx: &Context,
@@ -342,7 +342,7 @@ async fn start_continuation_stream(
     stream_flag: bool,
 ) -> Result<ItemStream, Error> {
     // The plan's hard rule: a non-existent agent id does NOT auto-spawn.
-    // Walk-back is in the filesystem helper — it tries each request
+    // Walk-back is in the filesystem helper â€” it tries each request
     // newest-first and returns the most recent one whose continuation
     // file exists, only erroring if NONE have one.
     let latest = match ctx
@@ -378,7 +378,7 @@ async fn start_continuation_stream(
         continuation: Some(latest.continuation),
     };
 
-    // Eager admission probe — claim the per-agent socket before opening
+    // Eager admission probe â€” claim the per-agent socket before opening
     // the API stream so a racing peer's instance runner gets the
     // SLOT_TAKEN exit immediately rather than after some wasted API
     // work. `stream_flag` controls only the parent cli's attachment
@@ -417,7 +417,7 @@ async fn start_continuation_stream(
     if stream_flag {
         // Chain every subsequent `InstanceItem::Chunk` as
         // `ResponseItem::Chunk`. The inner stream ends when the
-        // instance runner's stdout EOFs — i.e. after the cli has
+        // instance runner's stdout EOFs â€” i.e. after the cli has
         // `child.wait()`ed it. Returning from `collect_stream` on the
         // caller side therefore implies the runner exited.
         let tail = sub.map(|item| match item? {
