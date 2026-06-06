@@ -1,6 +1,6 @@
-//! `agents tags get` — bare-naked handler.
+//! `agents tags lookup` — bare-naked handler.
 
-use objectiveai_sdk::cli::command::agents::tags::get::{Request, Response};
+use objectiveai_sdk::cli::command::agents::tags::lookup::{Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
@@ -30,8 +30,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
 }
 
 pub mod request_schema {
-    use objectiveai_sdk::cli::command::agents::tags::get as sdk;
-    use objectiveai_sdk::cli::command::agents::tags::get::request_schema::{Request, Response};
+    use objectiveai_sdk::cli::command::agents::tags::lookup as sdk;
+    use objectiveai_sdk::cli::command::agents::tags::lookup::request_schema::{Request, Response};
 
     use crate::context::Context;
     use crate::error::Error;
@@ -44,8 +44,8 @@ pub mod request_schema {
 }
 
 pub mod response_schema {
-    use objectiveai_sdk::cli::command::agents::tags::get as sdk;
-    use objectiveai_sdk::cli::command::agents::tags::get::response_schema::{Request, Response};
+    use objectiveai_sdk::cli::command::agents::tags::lookup as sdk;
+    use objectiveai_sdk::cli::command::agents::tags::lookup::response_schema::{Request, Response};
 
     use crate::context::Context;
     use crate::error::Error;

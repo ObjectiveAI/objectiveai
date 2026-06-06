@@ -1,18 +1,18 @@
-//! `agents tags get` — resolve a tag → agent-instance-hierarchy or
+//! `agents tags lookup` — resolve a tag → agent-instance-hierarchy or
 //! vice versa. Request and Response are mutually-exclusive enums
 //! (one input, one output direction).
 
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.tags.get.Path")]
+#[schemars(rename = "cli.command.agents.tags.lookup.Path")]
 pub enum Path {
-    #[serde(rename = "agents/tags/get")]
-    AgentsTagsGet,
+    #[serde(rename = "agents/tags/lookup")]
+    AgentsTagsLookup,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.tags.get.Request")]
+#[schemars(rename = "cli.command.agents.tags.lookup.Request")]
 #[serde(tag = "by", rename_all = "snake_case")]
 pub enum Request {
     #[schemars(title = "AgentInstanceHierarchy")]
@@ -43,7 +43,7 @@ impl Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.tags.get.Response")]
+#[schemars(rename = "cli.command.agents.tags.lookup.Response")]
 #[serde(tag = "by", rename_all = "snake_case")]
 pub enum Response {
     #[schemars(title = "AgentInstanceHierarchy")]
@@ -62,7 +62,7 @@ pub enum Response {
 
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
-        let mut argv = vec!["agents".to_string(), "tags".to_string(), "get".to_string()];
+        let mut argv = vec!["agents".to_string(), "tags".to_string(), "lookup".to_string()];
         match self {
             Request::AgentInstanceHierarchy {
                 agent_instance_hierarchy,
@@ -131,13 +131,13 @@ impl TryFrom<Args> for Request {
     fn try_from(args: Args) -> Result<Self, Self::Error> {
         if let Some(h) = args.by.agent_instance_hierarchy {
             Ok(Request::AgentInstanceHierarchy {
-                path_type: Path::AgentsTagsGet,
+                path_type: Path::AgentsTagsLookup,
                 agent_instance_hierarchy: h,
                 jq: args.jq,
             })
         } else {
             Ok(Request::Tag {
-                path_type: Path::AgentsTagsGet,
+                path_type: Path::AgentsTagsLookup,
                 tag: args.by.tag.expect("clap group ensures one of agent-instance-hierarchy or tag is set"),
                 jq: args.jq,
             })

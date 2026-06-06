@@ -9,7 +9,7 @@ use crate::context::Context;
 use crate::error::Error;
 
 pub mod add;
-pub mod get;
+pub mod lookup;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
@@ -21,17 +21,17 @@ fn once<T: Send + 'static>(
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     let stream: ItemStream = match request {
-        Request::Get(req) => {
-            let value = get::execute(ctx, req).await?;
-            once(Ok(ResponseItem::Get(value)))
+        Request::Lookup(req) => {
+            let value = lookup::execute(ctx, req).await?;
+            once(Ok(ResponseItem::Lookup(value)))
         }
-        Request::GetRequestSchema(req) => {
-            let value = get::request_schema::execute(ctx, req).await?;
-            once(Ok(ResponseItem::GetRequestSchema(value)))
+        Request::LookupRequestSchema(req) => {
+            let value = lookup::request_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::LookupRequestSchema(value)))
         }
-        Request::GetResponseSchema(req) => {
-            let value = get::response_schema::execute(ctx, req).await?;
-            once(Ok(ResponseItem::GetResponseSchema(value)))
+        Request::LookupResponseSchema(req) => {
+            let value = lookup::response_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::LookupResponseSchema(value)))
         }
         Request::Add(req) => {
             let value = add::execute(ctx, req).await?;

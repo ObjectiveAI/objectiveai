@@ -31,7 +31,7 @@ pub enum Command {
     },
     /// Spawn an agent completion (open a streaming run as a child of this caller).
     Spawn(spawn::Command),
-    /// Client-side agent tags — get / add.
+    /// Client-side agent tags — lookup / add.
     Tags {
         #[command(subcommand)]
         command: tags::Command,
