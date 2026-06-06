@@ -1,16 +1,53 @@
 //! `agents tasks` — CLI-side dispatch for the tasks subtree.
-//! Two leaves today: `schedule` and `list`.
+//! Three leaves today: `schedule`, `list`, `run`.
 
 use std::pin::Pin;
 
-use futures::{Stream, stream};
+use futures::{Stream, StreamExt, stream};
 use objectiveai_sdk::cli::command::agents::tasks::{Request, ResponseItem};
 
 use crate::context::Context;
 use crate::error::Error;
 
 pub mod list;
+pub mod run;
 pub mod schedule;
+
+/// Resolve the scope `(agent_instance_hierarchy?, tag?)` pair
+/// shared by `list` and `run` into a single hierarchy string.
+/// `tag` resolves through `tags.sqlite` BOUND-only — PENDING /
+/// ABSENT raise structured errors. When neither is given, falls
+/// back to the cli's own `Config.agent_instance_hierarchy`.
+pub(crate) async fn resolve_scope(
+    ctx: &Context,
+    agent_instance_hierarchy: Option<String>,
+    tag: Option<String>,
+) -> Result<String, Error> {
+    match (agent_instance_hierarchy, tag) {
+        (Some(h), None) => Ok(h),
+        (None, Some(tag)) => {
+            use crate::filesystem::db::tags;
+            match tags::lookup_async(ctx.filesystem.clone(), tag.clone()).await? {
+                tags::LookupState::Bound { agent_instance_hierarchy } => {
+                    Ok(agent_instance_hierarchy)
+                }
+                tags::LookupState::Pending {
+                    parent_agent_instance_hierarchy,
+                    agent_full_id,
+                } => Err(Error::TagPending {
+                    tag,
+                    parent_agent_instance_hierarchy,
+                    agent_full_id,
+                }),
+                tags::LookupState::Absent => Err(Error::TagNotFound(tag)),
+            }
+        }
+        (None, None) => Ok(ctx.config.agent_instance_hierarchy.clone()),
+        (Some(_), Some(_)) => unreachable!(
+            "clap group `scope` enforces mutex between --agent-instance-hierarchy / --tag"
+        ),
+    }
+}
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
@@ -49,6 +86,18 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::ListResponseSchema(req) => {
             let value = list::response_schema::execute(ctx, req).await?;
             once(Ok(ResponseItem::ListResponseSchema(value)))
+        }
+        Request::Run(req) => {
+            let inner = run::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Run)))
+        }
+        Request::RunRequestSchema(req) => {
+            let value = run::request_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::RunRequestSchema(value)))
+        }
+        Request::RunResponseSchema(req) => {
+            let value = run::response_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::RunResponseSchema(value)))
         }
     };
     Ok(stream)

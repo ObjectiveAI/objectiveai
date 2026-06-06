@@ -120,7 +120,11 @@ impl CommandRequest for Request {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.tasks.list.ResponseItem")]
 pub struct ResponseItem {
-    pub id: i64,
+    /// Stable identifier — `"{name}-{db_id}"` where `name` is the
+    /// `--name` passed to `agents tasks schedule` and `db_id` is
+    /// the row id from `schedules`. Same shape `agents tasks run`
+    /// tags each emitted item with.
+    pub id: String,
     pub agent_instance_hierarchy: String,
     pub command: Vec<String>,
     pub description: String,

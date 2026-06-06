@@ -25,8 +25,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         mcp_session_id: ctx.config.mcp_session_id.clone(),
     };
 
-    let id = db::tasks::insert_schedule_async(
+    let name = request.name.clone();
+    let db_id = db::tasks::insert_schedule_async(
         ctx.filesystem.clone(),
+        request.name,
         request.command,
         request.description,
         ctx.config.agent_instance_hierarchy.clone(),
@@ -35,7 +37,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     )
     .await?;
 
-    Ok(Response { id })
+    Ok(Response { id: format!("{name}-{db_id}") })
 }
 
 pub mod request_schema {

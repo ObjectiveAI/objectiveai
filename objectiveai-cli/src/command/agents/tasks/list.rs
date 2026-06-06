@@ -16,32 +16,8 @@ use crate::error::Error;
 use crate::filesystem::db;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Vec<ResponseItem>, Error> {
-    let parent = match (request.agent_instance_hierarchy, request.tag) {
-        (Some(h), None) => h,
-        (None, Some(tag)) => {
-            use crate::filesystem::db::tags;
-            match tags::lookup_async(ctx.filesystem.clone(), tag.clone()).await? {
-                tags::LookupState::Bound { agent_instance_hierarchy } => {
-                    agent_instance_hierarchy
-                }
-                tags::LookupState::Pending {
-                    parent_agent_instance_hierarchy,
-                    agent_full_id,
-                } => {
-                    return Err(Error::TagPending {
-                        tag,
-                        parent_agent_instance_hierarchy,
-                        agent_full_id,
-                    });
-                }
-                tags::LookupState::Absent => return Err(Error::TagNotFound(tag)),
-            }
-        }
-        (None, None) => ctx.config.agent_instance_hierarchy.clone(),
-        (Some(_), Some(_)) => unreachable!(
-            "clap group `scope` enforces mutex between --agent-instance-hierarchy / --tag"
-        ),
-    };
+    let parent =
+        super::resolve_scope(ctx, request.agent_instance_hierarchy, request.tag).await?;
 
     let rows = db::tasks::list_schedules_async(
         ctx.filesystem.clone(),
@@ -59,7 +35,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Vec<ResponseItem
     Ok(rows
         .into_iter()
         .map(|r| ResponseItem {
-            id: r.id,
+            id: format!("{}-{}", r.name, r.id),
             agent_instance_hierarchy: r.agent_instance_hierarchy,
             command: r.command,
             description: r.description,

@@ -19,6 +19,12 @@ use crate::cli::command::CommandRequest;
 #[schemars(rename = "cli.command.agents.tasks.schedule.Request")]
 pub struct Request {
     pub path_type: Path,
+    /// User-facing identifier. Globally unique — a second
+    /// `schedule` with the same name fails the
+    /// `schedules.name` UNIQUE constraint. `agents tasks run`
+    /// tags every streamed output line with this name so the
+    /// caller can attribute output to its source schedule.
+    pub name: String,
     /// argv to invoke on each scheduled poll.
     pub command: Vec<String>,
     /// Human-readable label. Required — surfaces on every
@@ -50,6 +56,8 @@ impl CommandRequest for Request {
             "tasks".to_string(),
             "schedule".to_string(),
         ];
+        argv.push("--name".to_string());
+        argv.push(self.name.clone());
         argv.push("--description".to_string());
         argv.push(self.description.clone());
         match self.interval_seconds {
@@ -77,11 +85,14 @@ impl CommandRequest for Request {
     }
 }
 
-/// `id` is the row id from `tasks.sqlite`'s `schedules` table.
+/// `id` is the stable identifier `"{name}-{db_id}"` — the
+/// user-supplied `--name` joined to the row id from
+/// `tasks.sqlite`'s `schedules` table. Same shape `list` and
+/// `run` use to identify rows on the wire.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.tasks.schedule.Response")]
 pub struct Response {
-    pub id: i64,
+    pub id: String,
 }
 
 #[derive(clap::Args)]
@@ -98,6 +109,10 @@ pub struct Args {
     /// `--oneshot`.
     #[arg(long)]
     pub interval: Option<String>,
+    /// User-facing identifier. Globally unique. `agents tasks
+    /// run` tags every streamed output line with this name.
+    #[arg(long)]
+    pub name: String,
     /// Human-readable label for this schedule. Required —
     /// surfaces on every `agents tasks list` row.
     #[arg(long)]
@@ -165,6 +180,7 @@ impl TryFrom<Args> for Request {
         }
         Ok(Self {
             path_type: Path::AgentsTasksSchedule,
+            name: args.name,
             command: args.command,
             description: args.description,
             interval_seconds,
