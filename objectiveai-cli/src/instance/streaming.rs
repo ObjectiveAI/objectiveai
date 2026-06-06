@@ -105,93 +105,90 @@ where
     let mut log_ready_emitted = false;
 
     let mut stream_err: Option<String> = None;
-    while let Some(item) = stream.next().await {
-        match item {
-            Ok(chunk) => {
-                // 1. Hand a clone to the writer task so it can flush
-                //    a log entry and expose `primary_id`.
-                let _ = tx.send(chunk.clone());
+    loop {
+        tokio::select! {
+            biased;
 
-                // 2. Non-blocking check on the log-ready oneshot. If
-                //    the writer has populated primary_id, emit
-                //    LogStreamReady + drain the buffer; from here on
-                //    chunks emit directly.
-                if !log_ready_emitted {
-                    if let Some(rx) = log_ready_id_rx.as_mut() {
-                        use tokio::sync::oneshot::error::TryRecvError;
-                        match rx.try_recv() {
-                            Ok(id) => {
-                                send_log_stream_ready(&emissions_tx, &id).await;
-                                for buf in buffered.drain(..) {
-                                    send_chunk(&emissions_tx, &buf).await;
-                                }
-                                log_ready_id_rx = None;
-                                log_ready_emitted = true;
-                            }
-                            Err(TryRecvError::Empty) => {}
-                            Err(TryRecvError::Closed) => {
-                                // Writer dropped without signalling
-                                // — best-effort drain without
-                                // LogStreamReady. The writer error
-                                // propagates below via
-                                // `writer_task.await`.
-                                for buf in buffered.drain(..) {
-                                    send_chunk(&emissions_tx, &buf).await;
-                                }
-                                log_ready_id_rx = None;
-                                log_ready_emitted = true;
-                            }
-                        }
-                    }
+            // The writer's primary_id landed. Emit `LogStreamReady`,
+            // drain everything we've been holding back, and from here
+            // on each chunk emits directly. This branch runs at most
+            // once per stream — disabled the moment `log_ready_emitted`
+            // flips. By keeping it in the same `select!` as the chunk
+            // stream we react the instant the oneshot fires instead
+            // of waiting for the next chunk to come around and poll
+            // `try_recv` — important when the api goes quiet between
+            // the last burst of chunks and the WS close, which is
+            // exactly the window the watchdog used to fire on.
+            ready_result = async {
+                log_ready_id_rx.as_mut().unwrap().await
+            }, if !log_ready_emitted && log_ready_id_rx.is_some() => {
+                log_ready_id_rx = None;
+                log_ready_emitted = true;
+                if let Ok(id) = ready_result {
+                    send_log_stream_ready(&emissions_tx, &id).await;
                 }
-
-                // 3. Emit this chunk directly, or buffer for later.
-                if log_ready_emitted {
-                    send_chunk(&emissions_tx, &chunk).await;
-                } else {
-                    buffered.push(chunk.clone());
+                for buf in buffered.drain(..) {
+                    send_chunk(&emissions_tx, &buf).await;
                 }
-
-                // 4. Ensure a pipe is bound for every agent id this
-                //    chunk references.
-                for raw in chunk.agent_completion_ids() {
-                    let lineage_id = match &caller_agent_instance_hierarchy {
-                        Some(c) => format!("{c}/{raw}"),
-                        None => raw.to_string(),
-                    };
-                    match registry
-                        .ensure_pipe(
-                            &lineage_id,
-                            raw,
-                            &pipes_root,
-                            notifier.clone(),
-                            notif_tx.clone(),
-                        )
-                        .await
-                    {
-                        Ok(()) => {}
-                        Err(BindStatus::Live) => {
-                            std::process::exit(crate::instance::api::SLOT_TAKEN_EXIT_CODE);
-                        }
-                        Err(BindStatus::Io) => {
-                            // Degraded path — warning already eprintln'd.
-                        }
-                    }
-                    registry
-                        .ensure_outbound_pipe(&lineage_id, &pipes_root)
-                        .await;
-                }
-
-                // 5. Accumulate main-side.
-                match aggregate.as_mut() {
-                    Some(acc) => push(acc, &chunk),
-                    None => aggregate = Some(chunk),
-                }
-                chunk_count += 1;
             }
-            Err(e) => {
-                stream_err = Some(format!("{e}"));
-                break;
+
+            item = stream.next() => {
+                match item {
+                    Some(Ok(chunk)) => {
+                        // 1. Hand a clone to the writer task so it can flush
+                        //    a log entry and expose `primary_id`.
+                        let _ = tx.send(chunk.clone());
+
+                        // 2. Emit this chunk directly, or buffer for later.
+                        if log_ready_emitted {
+                            send_chunk(&emissions_tx, &chunk).await;
+                        } else {
+                            buffered.push(chunk.clone());
+                        }
+
+                        // 3. Ensure a pipe is bound for every agent id this
+                        //    chunk references.
+                        for raw in chunk.agent_completion_ids() {
+                            let lineage_id = match &caller_agent_instance_hierarchy {
+                                Some(c) => format!("{c}/{raw}"),
+                                None => raw.to_string(),
+                            };
+                            match registry
+                                .ensure_pipe(
+                                    &lineage_id,
+                                    raw,
+                                    &pipes_root,
+                                    notifier.clone(),
+                                    notif_tx.clone(),
+                                )
+                                .await
+                            {
+                                Ok(()) => {}
+                                Err(BindStatus::Live) => {
+                                    std::process::exit(crate::instance::api::SLOT_TAKEN_EXIT_CODE);
+                                }
+                                Err(BindStatus::Io) => {
+                                    // Degraded path — warning already eprintln'd.
+                                }
+                            }
+                            registry
+                                .ensure_outbound_pipe(&lineage_id, &pipes_root)
+                                .await;
+                        }
+
+                        // 4. Accumulate main-side.
+                        match aggregate.as_mut() {
+                            Some(acc) => push(acc, &chunk),
+                            None => aggregate = Some(chunk),
+                        }
+                        chunk_count += 1;
+                    }
+                    Some(Err(e)) => {
+                        stream_err = Some(format!("{e}"));
+                        break;
+                    }
+                    None => break,
+                }
             }
         }
     }
