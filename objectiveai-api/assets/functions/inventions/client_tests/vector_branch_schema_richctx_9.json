@@ -4,13 +4,15 @@
     {
       "index": 0,
       "id": "",
+      "agent_instance_hierarchy": "",
+      "agent_id": "5eJ6YFzooQhQ36cDEN5Tnw",
+      "agent_full_id": "5eJ6YFzooQhQ36cDEN5Tnw",
       "created": 0,
       "messages": [
         {
           "role": "assistant",
           "index": 0,
           "created": 0,
-          "agent": "5eJ6YFzooQhQ36cDEN5Tnw",
           "model": "mock",
           "upstream_id": "",
           "tool_calls": [
@@ -47,7 +49,6 @@
           "role": "assistant",
           "index": 2,
           "created": 0,
-          "agent": "5eJ6YFzooQhQ36cDEN5Tnw",
           "model": "mock",
           "upstream_id": "",
           "reasoning": "AtVBa26DtYECi5zicAEsLRlapZc5NMqlLbT3FN4znUuz2kwk7czbhviSN4X89Hje7cznALTADTL5srsSKuCqNIUEdYZoNdoG",
@@ -82,13 +83,15 @@
     {
       "index": 1,
       "id": "",
+      "agent_instance_hierarchy": "",
+      "agent_id": "5eJ6YFzooQhQ36cDEN5Tnw",
+      "agent_full_id": "5eJ6YFzooQhQ36cDEN5Tnw",
       "created": 0,
       "messages": [
         {
           "role": "assistant",
           "index": 3,
           "created": 0,
-          "agent": "5eJ6YFzooQhQ36cDEN5Tnw",
           "model": "mock",
           "upstream_id": "",
           "reasoning": "ecYIIKmY48CKIEa4piFFQ77TdJbFtpGg7VncIo234gr4ndWB8wL8a9fDbrhvWwxzyL0qBv6RG0gq3 7aUP1qbupFP1MpUGesoIxu2j30ipClXpa00OrkSX7kREnxigHk7cD40C3bc2cXzZBfYo0R9aCHJjCqDbiQXUgV9clCtvKP0rCmov6V6g1Jg47NPl1nQFMMmUBUtaeLUptyIZSPMn4e21wLuB0AHRYRWZDWbfmatoKA0WACcxPOxR7ti6TJtDpEQYhceyCNKUDmw2O LWngl4ZXqnOZDubCjk8APGV3zJH2vSxnB6YrZc3KS9fsYuT7GwwOMhAci2r BakREFq6VHT6Orhno1b6q g1yHlvo3EPUL0DsmKVbVRzNzCNAdJKufRxcz1eMi 3ICjKwjmgGd1AGpEmyb2IjtVLc2E8H1M73AUvu1XV2ClptQApDKULLyECgfwQ8NFs2dN9zceJPMPI1w",
@@ -138,13 +141,15 @@
     {
       "index": 2,
       "id": "",
+      "agent_instance_hierarchy": "",
+      "agent_id": "5eJ6YFzooQhQ36cDEN5Tnw",
+      "agent_full_id": "5eJ6YFzooQhQ36cDEN5Tnw",
       "created": 0,
       "messages": [
         {
           "role": "assistant",
           "index": 6,
           "created": 0,
-          "agent": "5eJ6YFzooQhQ36cDEN5Tnw",
           "model": "mock",
           "upstream_id": "",
           "reasoning": "AzBBVA2kkoBosXX5iwUBVLtrZvzGF6HJMrlSU2NzCVT6cBOcUU3rnU DVhA2FAPIERQezOBm0LjNexdwhGROUAnpphE6cl OKcJEq5jS3TyX40mS83OmyX7Qdb6IBTIzUV2IpTwdTvPCsHBJ6FIKezaXddzRJYejXswQeTaKIEB4yiyLmv9mgnGSTax9ygoOUuB0kVD5Y11QE5TvcXO VQvsHygCtzmvRJEKD7FfKTcFmZhMECnxPcrklpzJQ5hObr2kVlIt hKziUTDj2fKjxXk51NeAbrtr33JTqqQuBC5lYHuVmzeVKhKD7L99SIBqg9rLzameF2m7fzDqg3",
@@ -182,7 +187,6 @@
           "role": "assistant",
           "index": 8,
           "created": 0,
-          "agent": "5eJ6YFzooQhQ36cDEN5Tnw",
           "model": "mock",
           "upstream_id": "",
           "reasoning": "zX9zdBDt4g2Zu7XXLjvV7oF6V4dUuG7R1fAINQawR1F4ywXy oOpMkLwM4WjVMNp3WE JSjNYMEDqbmTiWgOKDrv8aJKUqUXgnihJNywdp58TLxz sEpS1eHyRzA1D5 en4mOvjesylXCgenr7d tqmERrheah2S6aulfJ23WBFmijN7hvqIJPIXs0oK4d A2wm5g3ndAFvKcwPqnKQRsK9pxjIvsQI7ey2XVQqncMLtdDVpQPhpsLY 2f0NoWTBwhljOvZtyiShfwAtZk8sJ b512CX91RLQl9YBKQJz5NxxJHXpSg I6FZbEHs8RMyHIdjHiXJzXvCe6hBEA1 Wl2j5wV1Ir2w42kdjJf1oaAUUSmmWHdoJg aINwmBdUwvgBpu 2v7jzEX2lD0adaPoHnF1Ur2S8YKdC 0n6Om4wxUIFLWMx8nzpTLIUZBkRvOYCQsx3ZtPrX6LiQc vCEXSufICoTJYhXXi8Ser1VkIRjnlniTn8FU983tD8Jr MqyhqH0QJp2Atb5EXFT2OUznbOU4GJMKym6r0DGS4OKSjty018G",
@@ -217,13 +221,15 @@
     {
       "index": 3,
       "id": "",
+      "agent_instance_hierarchy": "",
+      "agent_id": "5eJ6YFzooQhQ36cDEN5Tnw",
+      "agent_full_id": "5eJ6YFzooQhQ36cDEN5Tnw",
       "created": 0,
       "messages": [
         {
           "role": "assistant",
           "index": 9,
           "created": 0,
-          "agent": "5eJ6YFzooQhQ36cDEN5Tnw",
           "model": "mock",
           "upstream_id": "",
           "tool_calls": [
@@ -260,7 +266,6 @@
           "role": "assistant",
           "index": 11,
           "created": 0,
-          "agent": "5eJ6YFzooQhQ36cDEN5Tnw",
           "model": "mock",
           "upstream_id": "",
           "tool_calls": null,

@@ -4,13 +4,15 @@
     {
       "index": 0,
       "id": "",
+      "agent_instance_hierarchy": "",
+      "agent_id": "4b6Q8wMySsDjDv3NoTMx8o",
+      "agent_full_id": "4b6Q8wMySsDjDv3NoTMx8o",
       "created": 0,
       "messages": [
         {
           "role": "assistant",
           "index": 0,
           "created": 0,
-          "agent": "4b6Q8wMySsDjDv3NoTMx8o",
           "model": "mock",
           "upstream_id": "",
           "reasoning": "8Y4EHSF7J8xUmAEye MLJFUUS9042yaD CwQ8DxVmAJkC4fOClpoyxWR4TFQqt6EZgHQ6UeIZCxxYolm7yzCLqIbme6KmMiwMdraia68EDNetv0G9jUGKlISC2vrrwPTG8EsL RU3toDhcMRcDHu uH6RkMHxKpsMJF4t0kVjOxtC4QFPYjG4KzzXCRREms0PQE9wxNOVBhxgA8HW5EpLPoDm1DDjsfadI0RlhLeghyTQOSxBPK7uTrI2HgYB4MwfQkc804FoxQjcXEePJDTkWIiOpoIWfbYYuuGyaE5KNODoqkUCtEjJaLYQcN1KXL6Jh6kTxBUYCL7kdKeY9CZtmaFCiZKzJP29bmJDUn0U24yEeq9icPONrbreVJpOCCgxfj8l9W2TF9Td2cV5sRTTpdVyKmDnKDkMXT VvleOMewjoVGLiQsjk7TvYXdDdud1J5hZ 5pBe8O9b9xofD XRZ",
@@ -54,7 +56,7 @@
   ],
   "votes": [
     {
-      "agent": "4b6Q8wMySsDjDv3NoTMx8o",
+      "agent": "4b6Q8wMySsDjDv3NoTMx8o-72lzjFM3TRb1wVg5T",
       "swarm_index": 0,
       "flat_swarm_index": 0,
       "prompt_id": "6oT5oXvIAWe3BIUM5ZXWBC",

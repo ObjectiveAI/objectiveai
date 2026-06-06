@@ -1,12 +1,14 @@
 {
   "id": "",
+  "agent_instance_hierarchy": "",
+  "agent_id": "425mMcWqssOpPRrsDrjB0B",
+  "agent_full_id": "425mMcWqssOpPRrsDrjB0B",
   "created": 0,
   "messages": [
     {
       "role": "assistant",
       "index": 0,
       "created": 0,
-      "agent": "425mMcWqssOpPRrsDrjB0B",
       "model": "mock",
       "upstream_id": "",
       "reasoning": "Y1q0dEcANz3m44eGgmOdaKrlwqIzS6n7qgZT7a3YxKH5rQ3LcU2nbN146GYY77pSv9uxHNxarPfxX2jMqzy5gEEsMYh55h64WcIjezSRrvEM8eQyvHEKUwQHDAN7HTbaIqulZplVYE7PqNo5kjNwNkBWokqX8NSGJpJC22JijEMrADu7vF4RJMNIzHkJNUb8eppIseVxrmxqpV2P9K5SHcyIgQguN7iVCUNFqA1o2CwQiJw2Z15WgKBZMN 1UD9REpY70ZqVoy1cTcscugX5tDzLbjWfFRZk3Mbhxs6iKtzsY8JRR0KGQ1 xP8nTvXiBYytL 1m 3 2U1CkoAgfnfm5l46k4kNtMvsB6R93qkuzNBo6NvyE4hZnXICpT6DwNh77uu9aFWHYfBhnj24NZcTYR AH27tQ6fwfQ2cexSTEhTDHda0YCgDPJeEFqeBYs4hHYdcSg2avPVIPq4Pd7Ukx1v8xsaJsuDtgwQHrp",
