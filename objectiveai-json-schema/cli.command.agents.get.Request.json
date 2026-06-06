@@ -1,0 +1,22 @@
+{
+  "title": "cli.command.agents.get.Request",
+  "type": "object",
+  "properties": {
+    "jq": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "path": {
+      "$ref": "cli.command.RemotePathCommitOptionalOrFavorite"
+    },
+    "path_type": {
+      "$ref": "cli.command.agents.get.Path"
+    }
+  }
+}

@@ -39,6 +39,9 @@ pub(super) async fn resolve_function(
                 fav.path.clone(),
             ))
         }
+        FunctionSpec::File(path) => read_json_file(&path),
+        FunctionSpec::PythonInline(code) => crate::python::exec_code(&code),
+        FunctionSpec::PythonFile(path) => crate::python::exec_file(&path),
     }
 }
 
@@ -59,7 +62,14 @@ pub(super) async fn resolve_profile(
                 .ok_or_else(|| Error::FavoriteNotFound(name.clone()))?;
             Ok(InlineProfileOrRemoteCommitOptional::Remote(fav.path.clone()))
         }
+        ProfileSpec::File(path) => read_json_file(&path),
+        ProfileSpec::PythonInline(code) => crate::python::exec_code(&code),
+        ProfileSpec::PythonFile(path) => crate::python::exec_file(&path),
     }
+}
+
+pub(super) fn resolve_input_file(path: PathBuf) -> Result<InputValue, Error> {
+    read_json_file(&path)
 }
 
 pub(super) fn resolve_input_python_inline(code: String) -> Result<InputValue, Error> {
@@ -68,6 +78,17 @@ pub(super) fn resolve_input_python_inline(code: String) -> Result<InputValue, Er
 
 pub(super) fn resolve_input_python_file(path: PathBuf) -> Result<InputValue, Error> {
     crate::python::exec_file(&path)
+}
+
+/// Read a JSON file and deserialize as `T`. Used by every `*-file`
+/// resolution arm above. `serde_path_to_error` preserves the
+/// in-document location of the failure so error messages point at
+/// the offending field.
+fn read_json_file<T: serde::de::DeserializeOwned>(path: &std::path::Path) -> Result<T, Error> {
+    let bytes = std::fs::read(path)
+        .map_err(|e| Error::JsonFileRead(path.to_path_buf(), e))?;
+    let mut de = serde_json::Deserializer::from_slice(&bytes);
+    serde_path_to_error::deserialize(&mut de).map_err(Error::InlineDeserialize)
 }
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;

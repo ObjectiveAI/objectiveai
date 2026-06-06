@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 
 use objectiveai_sdk::RemotePathCommitOptional;
 use objectiveai_sdk::cli::command::functions::executions::create::standard::{
-    Request, RequestInput, ResponseItem,
+    Request, RequestDangerousAdvanced, RequestInput, ResponseItem,
 };
 use objectiveai_sdk::cli::command::functions::executions::create::{
     FunctionSpec, ProfileSpec,
@@ -76,16 +76,17 @@ async fn run_and_aggregate(request: Request) -> FunctionExecution {
     agg.into()
 }
 
-/// Assert the executed function's `.output` matches the snapshot's
-/// `output.output`. Mirrors the legacy helper that used
-/// `cli_result["output"]`.
+/// Assert the executed function's `.output.output` matches the
+/// snapshot's `output.output`. Both `FunctionExecution` and the
+/// committed snapshot wrap the output value in an outer `output`
+/// object, so we drill two levels on each side.
 fn assert_output_matches(snapshot_name: &str, execution: &FunctionExecution) {
     let snapshot = cli_test_util::load_snapshot(&snapshots_dir(), snapshot_name);
     let expected_output = cli_test_util::rounded(&snapshot_output(&snapshot));
     let has_errors = snapshot_has_errors(&snapshot);
 
     let execution_json = serde_json::to_value(execution).expect("FunctionExecution serializes");
-    let actual_output = cli_test_util::rounded(&execution_json["output"]);
+    let actual_output = cli_test_util::rounded(&execution_json["output"]["output"]);
     assert_eq!(
         actual_output, expected_output,
         "output mismatch for {snapshot_name}",
@@ -122,6 +123,7 @@ macro_rules! snapshot_test {
                 return;
             }
             let request = Request {
+                path_type: objectiveai_sdk::cli::command::functions::executions::create::standard::Path::FunctionsExecutionsCreateStandard,
                 function: mock_function_spec($function),
                 profile: mock_profile_spec($profile),
                 input: RequestInput::Inline(
@@ -133,7 +135,10 @@ macro_rules! snapshot_test {
                 seed: Some($seed),
                 split: false,
                 invert: false,
-                dangerous_advanced: None,
+                // Stream so collect_stream's `ResponseItem::Chunk(_)`
+                // loop has chunks to consume; without it the cli
+                // emits only a bare `Id` and the aggregator is empty.
+                dangerous_advanced: Some(RequestDangerousAdvanced { stream: Some(true) }),
                 jq: None,
             };
             let execution = run_and_aggregate(request).await;
@@ -197,6 +202,7 @@ async fn split_tweet_scorer_10_tweets_seed_42() {
     });
 
     let request = Request {
+        path_type: objectiveai_sdk::cli::command::functions::executions::create::standard::Path::FunctionsExecutionsCreateStandard,
         function: mock_function_spec("tweet-scorer"),
         profile: inline_profile_spec(profile_json),
         input: RequestInput::Inline(
@@ -208,7 +214,10 @@ async fn split_tweet_scorer_10_tweets_seed_42() {
         seed: Some(42),
         split: true,
         invert: false,
-        dangerous_advanced: None,
+        // Stream so collect_stream's `ResponseItem::Chunk(_)` loop has
+        // chunks to consume; without it the cli emits only a bare `Id`
+        // and the aggregator is empty.
+        dangerous_advanced: Some(RequestDangerousAdvanced { stream: Some(true) }),
         jq: None,
     };
 

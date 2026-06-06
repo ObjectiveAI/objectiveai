@@ -40,6 +40,10 @@ fn test_text_only_content() {
         0,
         false,
         Decimal::from(1),
+        String::new(),
+        String::new(),
+        String::new(),
+        None,
     );
 
     let expected = objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
@@ -99,6 +103,10 @@ fn test_empty_delta() {
         0,
         false,
         Decimal::from(1),
+        String::new(),
+        String::new(),
+        String::new(),
+        None,
     );
 
     let expected = objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
@@ -168,6 +176,10 @@ fn test_images_only() {
         0,
         false,
         Decimal::from(1),
+        String::new(),
+        String::new(),
+        String::new(),
+        None,
     );
 
     let expected = objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
@@ -246,6 +258,10 @@ fn test_text_and_images_merged() {
         0,
         false,
         Decimal::from(1),
+        String::new(),
+        String::new(),
+        String::new(),
+        None,
     );
 
     let expected = objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
@@ -338,6 +354,10 @@ fn test_usage_with_cost_multiplier() {
         0,
         false,
         multiplier,
+        String::new(),
+        String::new(),
+        String::new(),
+        None,
     );
 
     let expected = objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
@@ -428,6 +448,10 @@ fn test_reasoning_and_tool_calls() {
         0,
         false,
         Decimal::from(1),
+        String::new(),
+        String::new(),
+        String::new(),
+        None,
     );
 
     let expected = objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
@@ -521,6 +545,10 @@ fn test_byok_cost_splitting() {
         0,
         true,
         multiplier,
+        String::new(),
+        String::new(),
+        String::new(),
+        None,
     );
 
     // upstream_total = 0.01 + 0.008 = 0.018

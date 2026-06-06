@@ -1,0 +1,24 @@
+{
+  "title": "cli.command.tools.get.ResponseManifest",
+  "type": "object",
+  "properties": {
+    "description": {
+      "type": "string"
+    },
+    "exec": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    }
+  }
+}

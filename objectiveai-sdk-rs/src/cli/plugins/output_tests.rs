@@ -1,4 +1,6 @@
 use super::*;
+use crate::cli::command::plugins::run::{Mcp, McpType};
+use crate::cli::{Error, ErrorType, Level};
 use serde_json::json;
 
 fn roundtrip(out: &Output) -> serde_json::Value {
@@ -9,12 +11,12 @@ fn roundtrip(out: &Output) -> serde_json::Value {
 
 #[test]
 fn error_wire_shape() {
-    let out = Output::Typed(TypedOutput::Error(Error {
+    let out = Output::Error(Error {
         r#type: ErrorType::Error,
         level: Some(Level::Error),
         fatal: Some(true),
         message: "plugin blew up".into(),
-    }));
+    });
     let v = roundtrip(&out);
     assert_eq!(v["type"], "error");
     assert_eq!(v["level"], "error");
@@ -34,7 +36,8 @@ fn notification_wire_shape() {
 
 #[test]
 fn command_wire_shape() {
-    let out = Output::Typed(TypedOutput::Command {
+    let out = Output::Command(Command {
+        r#type: CommandType::Command,
         id: "cmd-1".to_string(),
         command: "ping".to_string(),
     });
@@ -46,12 +49,11 @@ fn command_wire_shape() {
 
 #[test]
 fn mcp_wire_shape() {
-    let out = Output::Typed(TypedOutput::Mcp(Mcp {
+    let out = Output::Mcp(Mcp {
+        r#type: McpType::Mcp,
         url: "https://example.com/mcp".into(),
-        headers: None,
-    }));
+    });
     let v = roundtrip(&out);
     assert_eq!(v["type"], "mcp");
     assert_eq!(v["url"], "https://example.com/mcp");
-    assert!(v.get("headers").is_none());
 }

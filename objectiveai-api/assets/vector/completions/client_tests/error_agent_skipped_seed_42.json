@@ -4,6 +4,9 @@
     {
       "index": 0,
       "id": "",
+      "agent_instance_hierarchy": "",
+      "agent_id": "",
+      "agent_full_id": "",
       "created": 0,
       "messages": [],
       "object": "agent.completion",

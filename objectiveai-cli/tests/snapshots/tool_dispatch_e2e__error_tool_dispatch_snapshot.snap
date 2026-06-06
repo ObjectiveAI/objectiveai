@@ -1,5 +1,6 @@
 ---
 source: objectiveai-cli/tests/tool_dispatch_e2e.rs
+assertion_line: 144
 expression: summary
 ---
 {
@@ -8,6 +9,7 @@ expression: summary
     "wrote to stdout"
   ],
   "stderr": [
-    "wrote to stderr"
+    "wrote to stderr",
+    "tool exited with non-zero status: 7"
   ]
 }

@@ -28,21 +28,38 @@ pub enum Command {
     },
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
+#[schemars(rename = "cli.command.config.Request")]
 pub enum Request {
+    #[schemars(title = "Agents")]
     Agents(agents::Request),
+    #[schemars(title = "Functions")]
     Functions(functions::Request),
+    #[schemars(title = "Mcp")]
     Mcp(mcp::Request),
+    #[schemars(title = "Swarms")]
     Swarms(swarms::Request),
+    #[schemars(title = "Viewer")]
     Viewer(viewer::Request),
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+// Exempt from json-schema coverage: tier aggregate (see the root
+// `ResponseItem` in command.rs - TS7056).
+#[objectiveai_sdk_macros::json_schema_ignore]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.config.ResponseItem")]
+#[serde(untagged)]
 pub enum ResponseItem {
+    #[schemars(title = "Agents")]
     Agents(agents::ResponseItem),
+    #[schemars(title = "Functions")]
     Functions(functions::ResponseItem),
+    #[schemars(title = "Mcp")]
     Mcp(mcp::Response),
+    #[schemars(title = "Swarms")]
     Swarms(swarms::ResponseItem),
+    #[schemars(title = "Viewer")]
     Viewer(viewer::Response),
 }
 
@@ -93,7 +110,9 @@ impl crate::cli::command::CommandRequest for Request {
 pub async fn execute<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     request: Request,
-) -> Result<
+
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>>,
     E::Error,
 > {
@@ -101,23 +120,23 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>> =
         match request {
             Request::Agents(req) => {
-                let inner = agents::execute(executor, req).await?;
+                let inner = agents::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Agents)))
             }
             Request::Functions(req) => {
-                let inner = functions::execute(executor, req).await?;
+                let inner = functions::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Functions)))
             }
             Request::Mcp(req) => {
-                let inner = mcp::execute(executor, req).await?;
+                let inner = mcp::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Mcp)))
             }
             Request::Swarms(req) => {
-                let inner = swarms::execute(executor, req).await?;
+                let inner = swarms::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Swarms)))
             }
             Request::Viewer(req) => {
-                let inner = viewer::execute(executor, req).await?;
+                let inner = viewer::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Viewer)))
             }
         };
@@ -129,30 +148,32 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     request: Request,
     jq: String,
-) -> Result<
+
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>>,
     E::Error,
 > {
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
         match request {
             Request::Agents(req) => {
-                let inner = agents::execute_jq(executor, req, jq).await?;
+                let inner = agents::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Functions(req) => {
-                let inner = functions::execute_jq(executor, req, jq).await?;
+                let inner = functions::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Mcp(req) => {
-                let inner = mcp::execute_jq(executor, req, jq).await?;
+                let inner = mcp::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Swarms(req) => {
-                let inner = swarms::execute_jq(executor, req, jq).await?;
+                let inner = swarms::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Viewer(req) => {
-                let inner = viewer::execute_jq(executor, req, jq).await?;
+                let inner = viewer::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
         };

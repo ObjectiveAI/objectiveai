@@ -1,0 +1,20 @@
+{
+  "type": "alpha.vector.leaf.function",
+  "description": "Single-task vector function that hardcodes the prompt and iterates over input['items'] for the response options, mirroring the item-ranker shape. Used by the CLI vector-completion snapshot test to exercise swarm count expansion + content-hash inclusion of `client_objectiveai_mcp.tools` at scale with single-pass JsonSchema vote extraction. Paired with the `twenty-agents-json-schema-10x-tools-profile` Auto profile.",
+  "input_schema": {
+    "items": {
+      "type": "string"
+    }
+  },
+  "tasks": [
+    {
+      "type": "vector.completion",
+      "messages": {
+        "$starlark": "[{'role':'user','content':[{'type':'text','text':'choose A or B'}]}]"
+      },
+      "responses": {
+        "$starlark": "[[{'type':'text','text':item}] for item in input['items']]"
+      }
+    }
+  ]
+}

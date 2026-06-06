@@ -33,7 +33,7 @@ use objectiveai_sdk::cli::command::agents::read::all::{
 };
 use objectiveai_sdk::cli::command::agents::read::id::Request as ReadIdRequest;
 use objectiveai_sdk::cli::command::agents::spawn::{
-    AgentSpec, Request as SpawnRequest, RequestPrompt,
+    AgentSpec, Request as SpawnRequest, RequestDangerousAdvanced, RequestPrompt,
     ResponseItem as SpawnResponseItem,
 };
 use objectiveai_sdk::cli::command::CommandExecutor;
@@ -78,25 +78,25 @@ async fn poll_until<F: Fn() -> bool>(timeout: Duration, pred: F) -> Result<(), (
     Err(())
 }
 
-/// The test runs against the shared `objectiveai-mcp` server spawned
-/// by `test-spawn-mcp-server.sh`, which has already registered
-/// `testorg/tool{0..9}/1.0.0` manifests pointing at the `echo-arglen`
-/// binary. We **commandeer** that binary by overwriting it with our
-/// `count-tool` build — `count-tool` falls back to the `_default`
-/// session id when `MCP_SESSION_ID` is unset, so any test that
-/// happens to dispatch one of these tools without setting the env
-/// still gets a valid (just session-less) output.
+/// The test runs against the shared `_mcp_session/tools/` fixture
+/// registry seeded by `test-seed-tool-fixtures.sh`, which has
+/// already laid down `testorg/tool{0..9}/1.0.0` manifests pointing
+/// at the `echo-arglen` binary. We **commandeer** that binary by
+/// overwriting it with our `count-tool` build — `count-tool` falls
+/// back to the `_default` session id when `MCP_SESSION_ID` is unset,
+/// so any test that happens to dispatch one of these tools without
+/// setting the env still gets a valid (just session-less) output.
 fn install_count_tool_over_echo_arglen() {
     let exec_name = if cfg!(windows) {
         "echo-arglen.exe"
     } else {
         "echo-arglen"
     };
-    let dest = cli_test_util::tests_dir().join("tools").join(exec_name);
+    let dest = cli_test_util::mcp_session_shared_dir().join("tools").join(exec_name);
     assert!(
         dest.exists(),
-        "expected the test mcp server's echo-arglen at {} — \
-         did `test-spawn-mcp-server.sh` run?",
+        "expected the fixture echo-arglen at {} — \
+         did `test-seed-tool-fixtures.sh` run?",
         dest.display(),
     );
     let bin = count_tool_binary();
@@ -124,10 +124,28 @@ fn agent_spec() -> AgentSpec {
             })
         })
         .collect();
+    // Deterministic `calls` override: each of the three turns
+    // (spawn + 2 messages) invokes `tool0` exactly once, then the
+    // assistant emits a per-turn "done" content message that ends
+    // the turn. The mock's `next_unmatched_call_index` advances
+    // through this list in order across the cumulative continuation,
+    // so the three turns get the three tool calls deterministically.
+    // Without this override we rely on the per-turn RNG dice roll
+    // which can land entirely on "respond_as_is" and produce zero
+    // tool calls — exactly the regression this test was hitting.
+    let calls = json!([
+        {"tool_calls": [{"name": "oai_tool0", "arguments": "{\"args\":[]}"}], "content": ""},
+        {"tool_calls": [], "content": "done1"},
+        {"tool_calls": [{"name": "oai_tool0", "arguments": "{\"args\":[]}"}], "content": ""},
+        {"tool_calls": [], "content": "done2"},
+        {"tool_calls": [{"name": "oai_tool0", "arguments": "{\"args\":[]}"}], "content": ""},
+        {"tool_calls": [], "content": "done3"},
+    ]);
     let agent_json = json!({
         "upstream": "mock",
         "output_mode": "instruction",
         "client_objectiveai_mcp": {"tools": tools},
+        "calls": calls,
     });
     AgentSpec::Resolved(
         serde_json::from_value::<InlineAgentBaseWithFallbacksOrRemoteCommitOptional>(
@@ -137,54 +155,83 @@ fn agent_spec() -> AgentSpec {
     )
 }
 
-/// Spawn an agent and return its sub-id (the chunk's
-/// `agent_instance_hierarchy`).
+/// Spawn an agent and return its FULL cli-side lineage —
+/// `format!("cli/{leaf}")` — where `leaf` is `chunk.id`, the
+/// per-agent response_id leaf. The cli's on-disk filesystem keys on
+/// this `cli/<leaf>` shape (NOT on `chunk.agent_instance_hierarchy`,
+/// which is the api-side slot id `cli/{agent_full_id}-{leaf}` —
+/// useful for the api's internal routing, not for finding cli logs).
 async fn spawn_agent(executor: &BinaryExecutor, seed: i64) -> String {
-    let request = SpawnRequest {
+    let request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
         prompt: RequestPrompt::Simple("go".to_string()),
         agent: agent_spec(),
         seed: Some(seed),
-        dangerous_advanced: None,
+        // Stream so the cli stays attached to the instance subprocess
+        // through `LogStreamReady` + every chunk; we need at least one
+        // chunk to read `chunk.id` (the leaf), and we need the cli to
+        // not detach early so `wait_for_completion` polling against
+        // disk state isn't racing against an orphaned writer.
+        dangerous_advanced: Some(RequestDangerousAdvanced { stream: Some(true) }),
         jq: None,
     };
     let items: Vec<SpawnResponseItem> =
         cli_test_util::collect_stream(executor, request).await;
-    items
+    let leaf = items
         .iter()
         .find_map(|item| match item {
             SpawnResponseItem::Chunk(chunk) => {
-                if chunk.agent_instance_hierarchy.is_empty() {
+                if chunk.id.is_empty() {
                     None
                 } else {
-                    Some(chunk.agent_instance_hierarchy.clone())
+                    Some(chunk.id.clone())
                 }
             }
             SpawnResponseItem::Id(_) => None,
         })
-        .expect("agents spawn must emit a Chunk with agent_instance_hierarchy")
+        .expect("agents spawn must emit a Chunk with non-empty id");
+    format!("cli/{leaf}")
 }
 
 /// Wait for the cli-stream child to have flushed an agent's response
-/// continuation and unlinked its socket — same pattern the prior e2e
-/// uses.
-async fn wait_for_completion(base_dir: &Path, spawn_id: &str) {
+/// continuation and unlinked its socket.
+///
+/// On-disk conventions:
+///   continuation token (raw text): `logs/agents/completions/response/continuation/<leaf>.txt`
+///     — stems on the LEAF response id alone
+///   per-agent socket:              `pipes/<full_lineage>/socket`
+///     — stems on the FULL lineage (which already starts with `cli/`,
+///     so the path is `pipes/cli/<leaf>/socket`; do NOT prepend `cli/`
+///     a second time)
+async fn wait_for_completion(base_dir: &Path, full_lineage: &str) {
+    let leaf = full_lineage
+        .rsplit_once('/')
+        .map(|(_, leaf)| leaf)
+        .unwrap_or(full_lineage);
     let response_cont_path = base_dir
         .join("logs/agents/completions/response/continuation")
-        .join(format!("{spawn_id}.json"));
-    let socket_path = base_dir.join("pipes/cli").join(spawn_id).join("socket");
+        .join(format!("{leaf}.txt"));
+    let socket_path = base_dir.join("pipes").join(full_lineage).join("socket");
     poll_until(Duration::from_secs(720), || {
         response_cont_path.exists() && !socket_path.exists()
     })
     .await
     .unwrap_or_else(|()| {
-        panic!("cli-stream did not flush continuation + tear down socket for {spawn_id} in 720s",)
+        panic!("cli-stream did not flush continuation + tear down socket for {full_lineage} (leaf {leaf}) in 720s",)
     });
 }
 
 /// Run one continuation turn against a spawned agent.
 async fn continue_agent(executor: &BinaryExecutor, spawn_id: &str, seed: i64) {
+    // Split the full lineage into (parent, instance) for the
+    // two-field `MessageRequest` shape.
+    let (parent, instance) = spawn_id
+        .rsplit_once('/')
+        .map(|(p, i)| (Some(p.to_string()), i.to_string()))
+        .unwrap_or_else(|| (None, spawn_id.to_string()));
     let request = MessageRequest {
-        agent_instance_hierarchy: spawn_id.to_string(),
+        path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
+        parent_agent_instance_hierarchy: parent,
+        agent_instance: instance,
         message: RequestMessage::Simple("more".to_string()),
         seed: Some(seed),
         jq: None,
@@ -193,16 +240,24 @@ async fn continue_agent(executor: &BinaryExecutor, spawn_id: &str, seed: i64) {
     // only that the cli emitted something without erroring. The real
     // verification is the post-turn `wait_for_completion`.
     let _ = executor
-        .execute_one::<_, objectiveai_sdk::cli::command::agents::message::Response>(request)
+        .execute_one::<_, objectiveai_sdk::cli::command::agents::message::Response>(request, None)
         .await
         .expect("agents message executor call");
 }
 
 /// Collect every `tool_response` queue item's sql row id for `sub_id`
-/// via the public `agents read all` cli surface.
+/// via the public `agents read all` cli surface. `sub_id` is the
+/// full cli-side lineage (e.g. `cli/<leaf>`); the cli's read::all
+/// rebuilds the full hierarchy as `{caller}/{sub}` so we pass just
+/// the leaf (the part after the rsplit on '/'), avoiding the
+/// `cli/cli/<leaf>` double-prefix that would shadow the queue rows.
 async fn read_tool_response_ids(executor: &BinaryExecutor, sub_id: &str) -> Vec<i64> {
-    let request = ReadAllRequest {
-        agent_instance_hierarchies: vec![sub_id.to_string()],
+    let leaf = sub_id
+        .rsplit_once('/')
+        .map(|(_, leaf)| leaf)
+        .unwrap_or(sub_id);
+    let request = ReadAllRequest { path_type: objectiveai_sdk::cli::command::agents::read::all::Path::AgentsReadAll,
+        agent_instance_hierarchies: vec![leaf.to_string()],
         jq: None,
     };
     let items: Vec<ReadAllItem> =
@@ -228,9 +283,9 @@ async fn read_tool_response_ids(executor: &BinaryExecutor, sub_id: &str) -> Vec<
 /// back to JSON and scans recursively for the first integer-shaped
 /// string or number.
 async fn read_count_for_id(executor: &BinaryExecutor, id: i64) -> Option<u64> {
-    let request = ReadIdRequest { id, jq: None };
+    let request = ReadIdRequest { path_type: objectiveai_sdk::cli::command::agents::read::id::Path::AgentsReadId, id, jq: None };
     let response: objectiveai_sdk::cli::command::agents::read::id::Response = executor
-        .execute_one(request)
+        .execute_one(request, None)
         .await
         .expect("agents read id executor call");
     let value = serde_json::to_value(&response).expect("Response serializes");
@@ -256,15 +311,16 @@ async fn two_agents_continuations_count_persists_per_session() {
         return;
     }
 
-    // Use the SHARED test scratch dir so the MCP server (which is
-    // pinned to `objectiveai-cli/tests/.objectiveai` by
-    // `test-spawn-mcp-server.sh`) and the cli-stream we spawn here
-    // agree on `CONFIG_BASE_DIR` — the response continuation files
-    // and the per-agent socket both have to land where we expect to
-    // poll for them.
-    let base_dir = cli_test_util::tests_dir();
-    // Wipe agent state from prior runs but keep the tools/ subtree
-    // (the MCP server's manifest registry).
+    // Use the shared MCP-session scratch dir — the same path
+    // `test-seed-tool-fixtures.sh` lays the `tools/` fixtures into
+    // and that every cli child stamps as its `CONFIG_BASE_DIR`, so
+    // the in-process objectiveai-mcp server inside each cli sees
+    // the registry. This dir sits OUTSIDE the per-binary run-start
+    // wipe (it's at `.objectiveai-tests/_mcp_session/`, not under
+    // a `<binary>/` subfolder), so we still hand-wipe `logs`/
+    // `pipes` here to clear prior-run state without nuking the
+    // fixture `tools/`.
+    let base_dir = cli_test_util::mcp_session_shared_dir();
     for sub in &["logs", "pipes"] {
         let p = base_dir.join(sub);
         if p.exists() {

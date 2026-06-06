@@ -2,8 +2,8 @@ use axum::Json;
 use axum::http::StatusCode;
 use axum::middleware;
 use envconfig::Envconfig;
-use objectiveai_sdk::filesystem::Client as FsClient;
-use objectiveai_sdk::filesystem::plugins::ManifestWithNameAndSource;
+use objectiveai_sdk::cli::command::binary::BinaryExecutor;
+use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::Emitter;
 use tokio::sync::{Notify, mpsc};
@@ -25,6 +25,8 @@ struct EnvConfigBuilder {
     port: Option<u16>,
     #[envconfig(from = "VIEWER_SECRET")]
     secret: Option<String>,
+    #[envconfig(from = "SUPPRESS_OUTPUT")]
+    suppress_output: Option<String>,
     #[envconfig(from = "CONFIG_BASE_DIR")]
     config_base_dir: Option<String>,
 }
@@ -34,7 +36,9 @@ impl EnvConfigBuilder {
         ConfigBuilder {
             address: self.address,
             port: self.port,
-            suppress_output: None,
+            suppress_output: self
+                .suppress_output
+                .map(|v| matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on")),
             secret: self.secret,
             config_base_dir: self.config_base_dir,
         }
@@ -85,7 +89,16 @@ pub struct Config {
     pub config_base_dir: Option<String>,
 }
 
-pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, axum::Router, objectiveai_sdk::viewer::EventSender, EventReceiver, FsClient)> {
+pub async fn setup(
+    config: Config,
+) -> std::io::Result<(
+    tokio::net::TcpListener,
+    axum::Router,
+    objectiveai_sdk::viewer::EventSender,
+    EventReceiver,
+    BinaryExecutor,
+    PathBuf,
+)> {
     let (tx, rx) = mpsc::unbounded_channel::<Event>();
     let secret = config.secret.map(Arc::new);
 
@@ -130,19 +143,26 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
         app = app.route(path, route);
     }
 
-    let fs_client = FsClient::new(
-        config.config_base_dir.as_deref(),
-        None::<String>,
-        None::<String>,
-    );
+    // One executor for everything the viewer runs through the cli
+    // binary: plugin discovery here at startup, `cli_run` dispatches
+    // from plugin iframes, and `list_plugins_with_viewer` from the
+    // shell. CONFIG_BASE_DIR is stamped onto every spawned child so
+    // the cli resolves the same install root the viewer serves
+    // `plugin://` assets from, even when the viewer's own config came
+    // from a programmatic `ConfigBuilder` rather than the env.
+    let mut executor = BinaryExecutor::new(config.config_base_dir.clone());
+    if let Some(base) = &config.config_base_dir {
+        executor = executor.env("CONFIG_BASE_DIR", base.clone());
+    }
+    let plugins_dir = crate::plugins::plugins_dir(config.config_base_dir.as_deref());
 
     // Scan installed plugins and register any viewer routes they
     // declare. Listing is once-at-startup; the user opts in to
     // refresh by restarting the viewer.
-    let plugins: Vec<ManifestWithNameAndSource> = fs_client.list_plugins(0, usize::MAX).await;
+    let plugins = crate::plugins::list_all_plugins(&executor).await;
     for plugin in plugins {
         let plugin_name = plugin.name.clone();
-        for route in plugin.manifest.viewer_routes {
+        for route in plugin.viewer_routes {
             if !route.path.starts_with('/') {
                 eprintln!(
                     "skipping plugin {plugin_name:?} route with non-`/`-prefixed path: {:?}",
@@ -160,7 +180,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
     // managed on the Tauri Builder; lets in-process embedders inject
     // synthetic events too).
     let events_tx = tx.clone();
-    Ok((listener, app, events_tx, rx, fs_client))
+    Ok((listener, app, events_tx, rx, executor, plugins_dir))
 }
 
 /// A function that exits the viewer's event loop with the given exit code.
@@ -179,7 +199,8 @@ pub fn serve(
     app: axum::Router,
     events_tx: objectiveai_sdk::viewer::EventSender,
     mut rx: EventReceiver,
-    fs_client: FsClient,
+    executor: BinaryExecutor,
+    plugins_dir: PathBuf,
     exiter_tx: Option<tokio::sync::oneshot::Sender<Exiter>>,
 ) -> i32 {
     tokio::spawn(async move {
@@ -189,24 +210,18 @@ pub fn serve(
     let ready = Arc::new(Notify::new());
     let ready_for_task = ready.clone();
 
-    let plugins_dir_for_protocol = fs_client.plugins_dir();
+    let plugins_dir_for_protocol = plugins_dir;
     let builder = tauri::Builder::default()
         .manage(ready)
-        .manage(fs_client)
+        .manage(executor)
         .manage(events_tx)
         .register_uri_scheme_protocol("plugin", move |_app, request| {
             serve_plugin_asset(&plugins_dir_for_protocol, request)
         });
-    #[cfg(feature = "cli")]
     let builder = builder.invoke_handler(tauri::generate_handler![
         viewer_ready,
         crate::plugins::list_plugins_with_viewer,
-        crate::cli_command::cli_run,
-    ]);
-    #[cfg(not(feature = "cli"))]
-    let builder = builder.invoke_handler(tauri::generate_handler![
-        viewer_ready,
-        crate::plugins::list_plugins_with_viewer,
+        crate::cli_command::cli_execute,
     ]);
     builder
         .setup(move |tauri_app| {
@@ -250,10 +265,10 @@ pub fn serve(
 /// The caller should use `std::process::exit(code)` with the returned value.
 pub async fn run(config: Config) -> std::io::Result<i32> {
     let suppress_output = config.suppress_output;
-    let (listener, app, events_tx, rx, fs_client) = setup(config).await?;
+    let (listener, app, events_tx, rx, executor, plugins_dir) = setup(config).await?;
     if !suppress_output {
         let addr = listener.local_addr()?;
         eprintln!("listening on {addr}");
     }
-    Ok(serve(listener, app, events_tx, rx, fs_client, None))
+    Ok(serve(listener, app, events_tx, rx, executor, plugins_dir, None))
 }

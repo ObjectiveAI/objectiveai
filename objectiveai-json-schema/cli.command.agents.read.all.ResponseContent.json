@@ -1,0 +1,20 @@
+{
+  "title": "cli.command.agents.read.all.ResponseContent",
+  "anyOf": [
+    {
+      "title": "One",
+      "type": "integer",
+      "minimum": -9223372036854775808,
+      "maximum": 9223372036854775807
+    },
+    {
+      "title": "Many",
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": -9223372036854775808,
+        "maximum": 9223372036854775807
+      }
+    }
+  ]
+}

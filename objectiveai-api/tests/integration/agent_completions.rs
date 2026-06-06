@@ -601,7 +601,6 @@ fn encoded_mock_continuation(messages: Vec<Message>) -> String {
         agent_instance_hierarchy: String::new(),
         messages,
         mcp_sessions: indexmap::IndexMap::new(),
-        ws_session_id: None,
     });
     cont.to_string()
 }

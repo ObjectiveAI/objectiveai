@@ -30,8 +30,15 @@ fn inline_generic_refs(
                 .and_then(|name| generic_defs.get(name).cloned());
 
             if let Some(mut def) = should_inline {
-                // Preserve description sibling to $ref, merging with def's description
+                // Preserve description + title siblings to $ref. The
+                // sibling title is the consumer's name for the
+                // variant (e.g. "Initialize" on a Payload variant
+                // wrapping a generic enum), strictly more specific
+                // than the inlined generic's own title; the sibling
+                // wins. Description merges (sibling first, then
+                // inlined) since both carry useful copy.
                 let sibling_desc = map.get("description").and_then(|v| v.as_str()).map(String::from);
+                let sibling_title = map.get("title").and_then(|v| v.as_str()).map(String::from);
                 if let Some(serde_json::Value::Object(inlined)) = Some(&mut def).filter(|v| v.is_object()) {
                     let def_desc = inlined.get("description").and_then(|v| v.as_str()).map(String::from);
                     let merged = match (sibling_desc, def_desc) {
@@ -42,6 +49,9 @@ fn inline_generic_refs(
                     };
                     if let Some(desc) = merged {
                         inlined.insert("description".to_string(), serde_json::Value::String(desc));
+                    }
+                    if let Some(title) = sibling_title {
+                        inlined.insert("title".to_string(), serde_json::Value::String(title));
                     }
                 }
                 *value = def;

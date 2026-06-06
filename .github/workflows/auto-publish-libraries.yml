@@ -7,7 +7,8 @@ name: Auto-publish libraries
 # rolls out every library to its registry.
 #
 # Wave map (matches publish.sh):
-#   1. sdk-rs-macros (crates), sdk-go (git tag)
+#   1. sdk-rs-macros (crates), sdk-go (git tag — versioned independently
+#      by objectiveai-sdk-go/version.txt, not the canonical version)
 #   2. sdk-rs (crates)             — needs macros
 #   3. mcp-proxy, mcp-filesystem (crates) +
 #      sdk-py (PyPI) + sdk-js (npm)               — need sdk-rs
@@ -72,17 +73,24 @@ jobs:
     secrets: inherit
 
   publish-sdk-go:
+    # The Go SDK versions independently via objectiveai-sdk-go/version.txt
+    # — NOT the canonical lockstep version. This job runs on every push
+    # (no should-publish gate): the tag-exists guard makes it a no-op
+    # until version.txt is bumped, and a Rust-only lockstep bump no
+    # longer drags a Go release along.
     needs: check-version
-    if: needs.check-version.outputs.should-publish == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Push tag objectiveai-sdk-go/v<version>
-        env:
-          VERSION: ${{ needs.check-version.outputs.version }}
+      - name: Push tag objectiveai-sdk-go/v<version.txt>
         run: |
+          VERSION="$(tr -d ' \r\n' < objectiveai-sdk-go/version.txt)"
+          if [ -z "$VERSION" ]; then
+            echo "objectiveai-sdk-go/version.txt is missing or empty" >&2
+            exit 1
+          fi
           TAG="objectiveai-sdk-go/v$VERSION"
           if git ls-remote --tags origin "refs/tags/$TAG" | grep -q "$TAG"; then
             echo "Tag $TAG already exists on origin — skip"

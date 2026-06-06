@@ -1,0 +1,32 @@
+{
+  "title": "cli.command.logs.agents.completions.request.messages.image.get.Request",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "jq": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "media_index": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "message_index": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "path_type": {
+      "$ref": "cli.command.logs.agents.completions.request.messages.image.get.Path"
+    }
+  }
+}

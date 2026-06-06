@@ -19,14 +19,16 @@ use crate::instance::streaming;
 type EmissionStream = Pin<Box<dyn Stream<Item = Result<InstanceEmission, Error>> + Send>>;
 
 pub async fn execute(
+    ctx: crate::context::Context,
     http: HttpConfig,
     pipes: PipeConfig,
+    mcp_server: crate::instance::mcp_server::McpServerHandle,
     params: FunctionExecutionCreateParams,
 ) -> Result<EmissionStream, Error> {
-    let config_base_dir = pipes.config_base_dir().to_path_buf();
     let pipes_root = pipes.pipes_root();
     let client = http.build_http_client().map_err(Error::Instance)?;
-    let conduit = pipes.build_conduit();
+    let fs_client = ctx.filesystem.clone();
+    let conduit = pipes.build_conduit(ctx, mcp_server);
 
     let (tx, rx) = mpsc::channel::<Result<InstanceEmission, Error>>(16);
     let registry = crate::instance::pipes::PipeRegistry::new(tx.clone());
@@ -36,11 +38,6 @@ pub async fn execute(
         .await
         .map_err(Error::Instance)?;
 
-    let fs_client = crate::filesystem::Client::new(
-        Some(config_base_dir),
-        None::<String>,
-        None::<String>,
-    );
     let caller_agent_instance_hierarchy = Some(http.objectiveai_agent_instance_hierarchy.clone());
     let log_writer = fs_client
         .write_function_execution(&params)
@@ -62,7 +59,6 @@ pub async fn execute(
     conduit.install_notifier(notifier.clone());
 
     let stream = Box::pin(stream);
-    let conduit_for_drop = conduit.clone();
 
     tokio::spawn(async move {
         let result = streaming::run_chunk_loop::<_, FunctionExecutionChunk, _, _>(
@@ -73,9 +69,6 @@ pub async fn execute(
             log_writer,
             tx.clone(),
             |agg: &mut FunctionExecutionChunk, chunk: &FunctionExecutionChunk| agg.push(chunk),
-            Some(Box::new(move |seen: &std::collections::HashSet<String>| {
-                conduit_for_drop.select_response_ids(seen);
-            })),
             registry,
         )
         .await;

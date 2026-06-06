@@ -17,12 +17,14 @@ use serde::{Deserialize, Serialize};
 /// `Error` first, and the constant `type:"error"` tag is what
 /// rejects every non-error wire shape.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[schemars(rename = "cli.output.Error")]
+#[schemars(rename = "cli.Error")]
 pub struct Error {
     pub r#type: ErrorType,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
     pub level: Option<Level>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
     pub fatal: Option<bool>,
     pub message: serde_json::Value,
 }
@@ -40,7 +42,7 @@ pub struct Error {
     JsonSchema,
 )]
 #[serde(rename_all = "snake_case")]
-#[schemars(rename = "cli.output.ErrorType")]
+#[schemars(rename = "cli.ErrorType")]
 pub enum ErrorType {
     Error,
 }
@@ -51,7 +53,7 @@ pub enum ErrorType {
     Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema,
 )]
 #[serde(rename_all = "lowercase")]
-#[schemars(rename = "cli.output.Level")]
+#[schemars(rename = "cli.Level")]
 pub enum Level {
     Trace,
     Debug,
@@ -66,3 +68,18 @@ impl crate::cli::command::CommandResponse for Error {
         crate::cli::command::McpResponseItem::JSONL(serde_json::to_value(self).unwrap())
     }
 }
+
+impl std::fmt::Display for Error {
+    /// Render `message` as a plain string when it's a JSON string,
+    /// otherwise as compact JSON. `level` and `fatal` are dropped —
+    /// `Display` is the human-readable message; the metadata lives
+    /// on the struct itself for callers that want it.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.message {
+            serde_json::Value::String(s) => f.write_str(s),
+            other => write!(f, "{other}"),
+        }
+    }
+}
+
+impl std::error::Error for Error {}

@@ -1,5 +1,7 @@
-export * from "./apiCallBridge";
 export * from "./generatedIndex";
+export * from "./cliStream";
+export * from "./invoke";
+export * from "./command/index";
 
 /**
  * @objectiveai/sdk/viewer
@@ -14,15 +16,18 @@ export * from "./generatedIndex";
  *   - `window.parent` is the host viewer's React app.
  *   - `listen(sub_type, handler)` registers a callback for incoming
  *     `inbound` events forwarded by the host bridge.
- *   - `invokeCli(args)` posts a `cli-invoke` message to the host;
- *     the host runs `objectiveai_cli::run()` and streams each output
- *     line back as a `cli_command` event. The returned AsyncIterable
- *     yields each line and terminates on `{"type":"end"}`.
+ *   - `invokeCliRequest(request)` posts a `cli-execute` message with
+ *     a typed `cli::command::Request` (serde JSON) to the host; the
+ *     host lowers it to argv via `into_command()` and spawns the
+ *     objectiveai cli binary, streaming each output line back as a
+ *     `cli_command` event. The returned AsyncIterable yields each
+ *     line and terminates on the host's synthetic `{"type":"end"}`
+ *     marker. There is deliberately no raw-argv entry point.
  *
  * Dev context (plugin author runs their own Tauri shell standalone):
  *   - `window.parent === window` (no host).
  *   - `listen()` falls through to `@tauri-apps/api`'s `listen`.
- *   - `invokeCli()` warns and yields nothing.
+ *   - `invokeCliRequest()` warns and yields nothing.
  *
  * The plugin author writes the same code in both contexts.
  */
@@ -128,101 +133,6 @@ export function listen<T = unknown>(
     if (!s) return;
     s.delete(fn);
     if (s.size === 0) inboundListeners.delete(sub_type);
-  };
-}
-
-/**
- * Invoke `objectiveai-cli` in-process on the host with `args`.
- * Returns an `AsyncIterable<unknown>` over the JSONL output lines
- * the cli emits. Each yielded value is the parsed cli output
- * envelope: either `{"type":"error",…}` or
- * `{"type":"notification","value":{"kind":"<variant>",…}}`. The
- * inner `kind` discriminator selects a `NotificationValue` variant
- * (see the schemas under `cli.output.notification.*`).
- *
- * The plugin author never specifies `destination` — the host bridge
- * derives it from the iframe's identity. To run multiple cli
- * invocations sequentially, `await` each iterator to completion
- * before starting the next; concurrent invocations from the same
- * iframe produce interleaved streams that this shim cannot demux
- * (no per-invocation sub_type on `cli_command` events).
- *
- * Requires the host viewer to be built with the `cli` Cargo feature.
- * Without it, the host's `cli_run` Tauri command isn't registered
- * and the invocation falls through to a Tauri "command not found"
- * error (silently ignored here — the iterator just yields nothing).
- */
-export function invokeCli(args: string[]): AsyncIterable<unknown> {
-  return {
-    [Symbol.asyncIterator]() {
-      const queue: unknown[] = [];
-      let resolveNext: (() => void) | null = null;
-      let done = false;
-      let cleaned = false;
-
-      const onMessage = (event: MessageEvent) => {
-        const msg = event.data as CliCommandMessage | null;
-        if (!msg || typeof msg !== "object") return;
-        if (msg.kind !== "plugin-event" || msg.type !== "cli_command") return;
-        queue.push(msg.value);
-        // End-of-stream signal: cli emits {"type":"end"} as its last line.
-        if (
-          typeof msg.value === "object" &&
-          msg.value !== null &&
-          (msg.value as { type?: string }).type === "end"
-        ) {
-          done = true;
-        }
-        if (resolveNext) {
-          const r = resolveNext;
-          resolveNext = null;
-          r();
-        }
-      };
-
-      const cleanup = () => {
-        if (cleaned) return;
-        cleaned = true;
-        if (typeof window !== "undefined") {
-          window.removeEventListener("message", onMessage);
-        }
-      };
-
-      if (typeof window === "undefined" || window.parent === window) {
-        // Standalone dev mode: no host to invoke the cli. Warn and
-        // produce an empty iterator.
-        // eslint-disable-next-line no-console
-        console.warn(
-          "@objectiveai/sdk/viewer: invokeCli() called outside an iframe; " +
-            "no host present, the iterator will yield nothing.",
-        );
-        done = true;
-      } else {
-        window.addEventListener("message", onMessage);
-        // Fire the request. The bridge derives `destination` from
-        // event.source — caller never sets it.
-        window.parent.postMessage({ kind: "cli-invoke", args }, "*");
-      }
-
-      return {
-        async next(): Promise<IteratorResult<unknown>> {
-          while (queue.length === 0 && !done) {
-            await new Promise<void>((r) => {
-              resolveNext = r;
-            });
-          }
-          if (queue.length > 0) {
-            return { value: queue.shift(), done: false };
-          }
-          cleanup();
-          return { value: undefined, done: true };
-        },
-        async return(): Promise<IteratorResult<unknown>> {
-          cleanup();
-          return { value: undefined, done: true };
-        },
-      };
-    },
   };
 }
 

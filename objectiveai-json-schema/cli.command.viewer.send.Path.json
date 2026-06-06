@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.viewer.send.Path",
+  "type": "string",
+  "enum": [
+    "viewer/send"
+  ]
+}

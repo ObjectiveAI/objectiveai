@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.mcp.spawn.Path",
+  "type": "string",
+  "enum": [
+    "mcp/spawn"
+  ]
+}

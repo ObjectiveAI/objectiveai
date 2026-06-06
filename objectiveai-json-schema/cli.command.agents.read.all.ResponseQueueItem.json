@@ -1,0 +1,155 @@
+{
+  "title": "cli.command.agents.read.all.ResponseQueueItem",
+  "anyOf": [
+    {
+      "title": "AssistantResponse",
+      "type": "object",
+      "properties": {
+        "content": {
+          "anyOf": [
+            {
+              "$ref": "cli.command.agents.read.all.ResponseContent"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "reasoning": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": -9223372036854775808,
+              "maximum": 9223372036854775807
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "refusal": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": -9223372036854775808,
+              "maximum": 9223372036854775807
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "tool_calls": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": -9223372036854775808,
+                "maximum": 9223372036854775807
+              }
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "assistant_response"
+          ]
+        }
+      }
+    },
+    {
+      "title": "ToolResponse",
+      "type": "object",
+      "properties": {
+        "content": {
+          "$ref": "cli.command.agents.read.all.ResponseContent"
+        },
+        "tool_call_id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "tool_response"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Notification",
+      "type": "object",
+      "properties": {
+        "content": {
+          "$ref": "cli.command.agents.read.all.ResponseContent"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "notification"
+          ]
+        }
+      }
+    },
+    {
+      "title": "AgentCompletionRequest",
+      "type": "object",
+      "properties": {
+        "messages": {
+          "type": "array",
+          "items": {
+            "$ref": "cli.command.agents.read.all.ResponseQueueMessage"
+          }
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "agent_completion_request"
+          ]
+        }
+      }
+    },
+    {
+      "title": "FunctionExecutionRequest",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "function_execution_request"
+          ]
+        }
+      }
+    },
+    {
+      "title": "FunctionInventionRecursiveRequest",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "function_invention_recursive_request"
+          ]
+        }
+      }
+    }
+  ]
+}

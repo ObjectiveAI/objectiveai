@@ -1,0 +1,17 @@
+{
+  "title": "cli.command.functions.inventions.recursive.create.alpha_scalar.RequestDangerousAdvanced",
+  "type": "object",
+  "properties": {
+    "stream": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

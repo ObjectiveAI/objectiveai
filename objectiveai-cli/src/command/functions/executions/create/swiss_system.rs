@@ -26,6 +26,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     )?;
     let input = match request.input {
         RequestInput::Inline(v) => v,
+        RequestInput::File(path) => super::resolve_input_file(path)?,
         RequestInput::PythonInline(code) => super::resolve_input_python_inline(code)?,
         RequestInput::PythonFile(path) => super::resolve_input_python_file(path)?,
     };
@@ -81,7 +82,7 @@ pub mod request_schema {
     use crate::error::Error;
 
     pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-        Ok(schemars::schema_for!(sdk::Request))
+        Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Request)))
     }
 }
 
@@ -93,6 +94,6 @@ pub mod response_schema {
     use crate::error::Error;
 
     pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-        Ok(schemars::schema_for!(sdk::Response))
+        Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Response)))
     }
 }

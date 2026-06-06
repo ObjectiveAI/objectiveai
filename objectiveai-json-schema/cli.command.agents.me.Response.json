@@ -1,0 +1,9 @@
+{
+  "title": "cli.command.agents.me.Response",
+  "type": "object",
+  "properties": {
+    "agent_instance_hierarchy": {
+      "type": "string"
+    }
+  }
+}

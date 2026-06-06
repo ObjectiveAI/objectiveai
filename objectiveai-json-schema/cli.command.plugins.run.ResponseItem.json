@@ -1,0 +1,16 @@
+{
+  "title": "cli.command.plugins.run.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Mcp",
+      "$ref": "cli.command.plugins.run.Mcp"
+    },
+    {
+      "title": "Error",
+      "$ref": "cli.Error"
+    },
+    {
+      "title": "Notification"
+    }
+  ]
+}

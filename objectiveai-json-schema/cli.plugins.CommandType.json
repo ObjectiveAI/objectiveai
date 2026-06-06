@@ -1,0 +1,8 @@
+{
+  "title": "cli.plugins.CommandType",
+  "description": "Single-variant discriminator for [`Command`]'s `type` field.\nAlways `\"command\"` on the wire.",
+  "type": "string",
+  "enum": [
+    "command"
+  ]
+}

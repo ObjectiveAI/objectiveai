@@ -1,0 +1,9 @@
+{
+  "title": "cli.command.functions.profiles.publish.Response",
+  "type": "object",
+  "properties": {
+    "sha": {
+      "type": "string"
+    }
+  }
+}

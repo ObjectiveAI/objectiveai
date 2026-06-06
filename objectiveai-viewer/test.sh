@@ -31,8 +31,18 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# --features cli: integration tests drive the cli/api_call command
-# impls that only exist when the `cli` feature is enabled.
+# The cli_command integration test spawns a real cli binary through
+# the SDK's BinaryExecutor. Build one and hand its path to the test
+# via OBJECTIVEAI_CLI_BINARY; without it (or OBJECTIVEAI_TEST_PORT)
+# the test prints a "skipping" line and passes.
+if ! cargo build -p objectiveai-cli > "$LOG_FILE" 2>&1; then
+  echo "$MODULE: FAIL"
+  exit 1
+fi
+CLI_BIN="$REPO_ROOT/target/debug/objectiveai-cli"
+if [ -f "$CLI_BIN.exe" ]; then CLI_BIN="$CLI_BIN.exe"; fi
+export OBJECTIVEAI_CLI_BINARY="$CLI_BIN"
+
 # --lib --tests: skip the bin target. Tauri's deps (tauri, windows,
 # encoding_rs, objectiveai_mcp_proxy) can't be linked under cargo test's
 # bin-target compile pass — cargo can't satisfy the bin's cdylib-flavoured
@@ -40,7 +50,7 @@ done
 # integration tests need to run; main.rs is a thin shim with no
 # `#[cfg(test)]` coverage worth keeping. Release builds use cargo build /
 # tauri build and are unaffected.
-if cargo test -p objectiveai-viewer --features cli --lib --tests "${CARGO_ARGS[@]}" > "$LOG_FILE" 2>&1; then
+if cargo test -p objectiveai-viewer --lib --tests "${CARGO_ARGS[@]}" > "$LOG_FILE" 2>&1; then
   PASSED=$(sed -n 's/.* \([0-9][0-9]*\) passed.*/\1/p' "$LOG_FILE" | awk '{s+=$1} END {print s+0}')
   FAILED=$(sed -n 's/.* \([0-9][0-9]*\) failed.*/\1/p' "$LOG_FILE" | awk '{s+=$1} END {print s+0}')
   TOTAL=$((PASSED + FAILED))

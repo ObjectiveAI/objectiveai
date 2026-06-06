@@ -120,6 +120,7 @@ async fn test_no_tools_empty_params() {
         top_a: None,
         top_k: None,
         verbosity: None,
+        plugins: None,
         logprobs: None,
         top_logprobs: None,
         response_format: None,
@@ -195,6 +196,7 @@ async fn test_top_logprobs_zero_omits_logprobs() {
             top_a: None,
             top_k: None,
             verbosity: None,
+            plugins: None,
             logprobs: None,
             top_logprobs: None,
             response_format: None,
@@ -342,6 +344,7 @@ async fn test_multiple_invention_tools_no_conflicts() {
         top_a: None,
         top_k: None,
         verbosity: None,
+        plugins: None,
         logprobs: None,
         top_logprobs: None,
         response_format: None,
@@ -454,6 +457,7 @@ async fn test_toolcall_not_required_uses_auto_choice() {
         top_a: None,
         top_k: None,
         verbosity: None,
+        plugins: None,
         logprobs: None,
         top_logprobs: None,
         response_format: None,
@@ -588,6 +592,7 @@ async fn test_invention_tool_parameters_preserved() {
         top_a: None,
         top_k: None,
         verbosity: None,
+        plugins: None,
         logprobs: None,
         top_logprobs: None,
         response_format: None,
@@ -701,6 +706,7 @@ async fn test_agent_base_fields_passthrough() {
             top_a: Some(0.1),
             top_k: Some(50),
             verbosity: Some(objectiveai_sdk::agent::openrouter::Verbosity::High),
+            plugins: None,
             logprobs: Some(true),
             top_logprobs: Some(5),
             response_format: None,
@@ -814,6 +820,7 @@ async fn test_provider_merging_both_sides() {
         top_a: None,
         top_k: None,
         verbosity: None,
+        plugins: None,
         logprobs: None,
         top_logprobs: None,
         response_format: None,
@@ -897,6 +904,7 @@ async fn test_per_agent_response_format_miss() {
             top_a: None,
             top_k: None,
             verbosity: None,
+            plugins: None,
             logprobs: None,
             top_logprobs: None,
             response_format: None,
@@ -1017,6 +1025,7 @@ async fn test_json_schema_response_format_extracts_title() {
             top_a: None,
             top_k: None,
             verbosity: None,
+            plugins: None,
             logprobs: None,
             top_logprobs: None,
             response_format: Some(super::response_format::ResponseFormat::JsonSchema {
@@ -1140,6 +1149,7 @@ async fn test_seed_passthrough() {
             top_a: None,
             top_k: None,
             verbosity: None,
+            plugins: None,
             logprobs: None,
             top_logprobs: None,
             response_format: None,
@@ -1235,6 +1245,7 @@ async fn test_toolcall_required_forces_function_choice() {
         top_a: None,
         top_k: None,
         verbosity: None,
+        plugins: None,
         logprobs: None,
         top_logprobs: None,
         response_format: None,
@@ -1645,6 +1656,7 @@ async fn test_three_mcp_servers_fifteen_tools_all_unique() {
         top_a: None,
         top_k: None,
         verbosity: None,
+        plugins: None,
         logprobs: None,
         top_logprobs: None,
         response_format: None,
@@ -1953,6 +1965,7 @@ async fn test_continuation_assistant_message_appended() {
         top_a: None,
         top_k: None,
         verbosity: None,
+        plugins: None,
         logprobs: None,
         top_logprobs: None,
         response_format: None,
@@ -2117,6 +2130,7 @@ async fn test_continuation_mixed_items() {
         top_a: None,
         top_k: None,
         verbosity: None,
+        plugins: None,
         logprobs: None,
         top_logprobs: None,
         response_format: None,
@@ -2275,7 +2289,6 @@ async fn test_request_continuation_messages_come_first() {
             }),
         ],
         mcp_sessions: indexmap::IndexMap::new(),
-        ws_session_id: None,
     };
 
     let result = ChatCompletionCreateParams::new(
@@ -2297,4 +2310,83 @@ async fn test_request_continuation_messages_come_first() {
     assert!(
         serde_json::to_string(&result.messages[2]).unwrap().contains("Current turn"),
     );
+}
+
+#[tokio::test]
+async fn test_context_compression_middle_out_emits_plugins_entry() {
+    let _permit = crate::test_clients::acquire_test_permit().await;
+    let agent = objectiveai_sdk::agent::openrouter::Agent::try_from(
+        objectiveai_sdk::agent::openrouter::AgentBase {
+            model: "test-model".into(),
+            context_compression: Some(
+                objectiveai_sdk::agent::openrouter::ContextCompression::MiddleOut,
+            ),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    let params = objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams {
+        messages: vec![],
+        agent: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+            objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+                inner: objectiveai_sdk::agent::InlineAgentBase::Mock(objectiveai_sdk::agent::mock::AgentBase::default()),
+                fallbacks: None,
+            },
+        ),
+        provider: None,
+        response_format: None,
+        seed: None,
+        stream: None,
+        continuation: None,
+    };
+
+    let result = build_params(&agent, &params, &[], None, None).await;
+
+    assert_eq!(
+        result.plugins,
+        Some(vec![Plugin {
+            id: "context-compression".to_string(),
+            engine: Some("middle-out".to_string()),
+        }]),
+    );
+    // Wire-shape spot-check: the field appears verbatim in the JSON
+    // body OpenRouter will see.
+    let json = serde_json::to_string(&result).unwrap();
+    assert!(
+        json.contains(r#""plugins":[{"id":"context-compression","engine":"middle-out"}]"#),
+        "expected plugins entry in serialized body, got: {json}",
+    );
+}
+
+#[tokio::test]
+async fn test_context_compression_none_omits_plugins_field() {
+    let _permit = crate::test_clients::acquire_test_permit().await;
+    let agent = objectiveai_sdk::agent::openrouter::Agent::try_from(
+        objectiveai_sdk::agent::openrouter::AgentBase {
+            model: "test-model".into(),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    let params = objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams {
+        messages: vec![],
+        agent: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+            objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
+                inner: objectiveai_sdk::agent::InlineAgentBase::Mock(objectiveai_sdk::agent::mock::AgentBase::default()),
+                fallbacks: None,
+            },
+        ),
+        provider: None,
+        response_format: None,
+        seed: None,
+        stream: None,
+        continuation: None,
+    };
+
+    let result = build_params(&agent, &params, &[], None, None).await;
+    assert_eq!(result.plugins, None);
+    let json = serde_json::to_string(&result).unwrap();
+    assert!(!json.contains("\"plugins\""), "plugins field should be omitted when None, got: {json}");
 }

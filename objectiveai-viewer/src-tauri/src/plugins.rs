@@ -2,13 +2,65 @@
 //! React shell calls to discover installed plugins, and the custom
 //! `plugin://` URI scheme handler that serves plugin UI bundles out
 //! of `<plugins_dir>/<name>/viewer/`.
+//!
+//! Plugin discovery goes through the cli binary: [`list_all_plugins`]
+//! drives the SDK's typed `plugins list` leaf over a
+//! [`BinaryExecutor`], the same executor `cli_run` uses.
 
 use axum::Json;
 use axum::http::StatusCode;
-use objectiveai_sdk::filesystem::Client as FsClient;
-use objectiveai_sdk::filesystem::plugins::{HttpMethod, ViewerRoute};
+use futures::StreamExt;
+use objectiveai_sdk::cli::command::binary::BinaryExecutor;
+use objectiveai_sdk::cli::command::plugins::list as plugins_list;
+use objectiveai_sdk::cli::command::plugins::list::{
+    ResponseHttpMethod, ResponseItem as PluginManifest, ResponseViewerRoute,
+};
 
 use objectiveai_sdk::viewer::{Event, EventSender};
+
+/// `<config_base_dir|~/.objectiveai>/plugins` — the root the
+/// `plugin://` URI scheme serves assets from. Mirrors
+/// [`BinaryExecutor::new`]'s base-dir resolution so the assets and the
+/// spawned cli always agree on the install root.
+pub(crate) fn plugins_dir(config_base_dir: Option<&str>) -> std::path::PathBuf {
+    let base = match config_base_dir {
+        Some(d) => std::path::PathBuf::from(d),
+        None => dirs::home_dir()
+            .expect("no home directory and no CONFIG_BASE_DIR")
+            .join(".objectiveai"),
+    };
+    base.join("plugins")
+}
+
+/// List every installed plugin manifest by spawning
+/// `objectiveai plugins list` through the executor. Resilient on
+/// purpose: a missing binary or a malformed line is logged to stderr
+/// and yields an empty/partial list rather than failing viewer
+/// startup — a viewer with zero plugin tabs is still a working viewer.
+pub(crate) async fn list_all_plugins(executor: &BinaryExecutor) -> Vec<PluginManifest> {
+    let request = plugins_list::Request {
+        path: plugins_list::Path::PluginsList,
+        offset: None,
+        limit: None,
+        jq: None,
+    };
+    let agent_arguments = crate::cli_command::viewer_agent_arguments();
+    let mut stream = match plugins_list::execute(executor, request, Some(&agent_arguments)).await {
+        Ok(stream) => stream,
+        Err(e) => {
+            eprintln!("plugins list failed to spawn the cli: {e:?}");
+            return Vec::new();
+        }
+    };
+    let mut plugins = Vec::new();
+    while let Some(item) = stream.next().await {
+        match item {
+            Ok(manifest) => plugins.push(manifest),
+            Err(e) => eprintln!("plugins list emitted an error item: {e:?}"),
+        }
+    }
+    plugins
+}
 
 /// Register one plugin viewer route on the given axum router. The
 /// route lands at `/plugin/<plugin>/<route.path>`; a hit emits an
@@ -19,7 +71,7 @@ pub(crate) fn register_plugin_route(
     app: axum::Router,
     tx: EventSender,
     plugin: String,
-    route: ViewerRoute,
+    route: ResponseViewerRoute,
 ) -> axum::Router {
     let full_path = format!("/plugin/{plugin}{}", route.path);
     let r#type = route.r#type.clone();
@@ -42,11 +94,11 @@ pub(crate) fn register_plugin_route(
     };
 
     let method_router = match method {
-        HttpMethod::Get => axum::routing::get(handler),
-        HttpMethod::Post => axum::routing::post(handler),
-        HttpMethod::Put => axum::routing::put(handler),
-        HttpMethod::Patch => axum::routing::patch(handler),
-        HttpMethod::Delete => axum::routing::delete(handler),
+        ResponseHttpMethod::Get => axum::routing::get(handler),
+        ResponseHttpMethod::Post => axum::routing::post(handler),
+        ResponseHttpMethod::Put => axum::routing::put(handler),
+        ResponseHttpMethod::Patch => axum::routing::patch(handler),
+        ResponseHttpMethod::Delete => axum::routing::delete(handler),
     };
     app.route(&full_path, method_router)
 }
@@ -95,14 +147,14 @@ pub(crate) struct ViewerPluginInfo {
 /// but don't get a tab.
 #[tauri::command]
 pub(crate) async fn list_plugins_with_viewer(
-    state: tauri::State<'_, FsClient>,
+    state: tauri::State<'_, BinaryExecutor>,
 ) -> Result<Vec<ViewerPluginInfo>, String> {
-    let plugins = state.inner().list_plugins(0, usize::MAX).await;
+    let plugins = list_all_plugins(state.inner()).await;
     Ok(plugins
         .into_iter()
-        .filter(|p| p.manifest.has_viewer())
+        .filter(|p| p.viewer_zip.is_some() || p.viewer_url.is_some())
         .map(|p| {
-            let iframe_src = match p.manifest.viewer_url.as_deref() {
+            let iframe_src = match p.viewer_url.as_deref() {
                 Some(url) => url.to_string(),
                 None => format!(
                     "plugin://localhost/{}/index.html",
@@ -112,7 +164,7 @@ pub(crate) async fn list_plugins_with_viewer(
             ViewerPluginInfo {
                 name: p.name,
                 iframe_src,
-                mobile_ready: p.manifest.mobile_ready,
+                mobile_ready: p.mobile_ready,
             }
         })
         .collect())

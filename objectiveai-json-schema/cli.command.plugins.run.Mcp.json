@@ -1,0 +1,13 @@
+{
+  "title": "cli.command.plugins.run.Mcp",
+  "description": "Plugin announces a running MCP server URL. The host routes this\nthrough the standard plugin-notification pipeline and dials the\nURL the same way it would for an entry in the plugin's manifest\n`mcp_servers` — runtime announcements are functionally identical\nto manifest-time declarations.\n\nThe constant `type:\"mcp\"` discriminator disambiguates this\nvariant from the rest of the untagged [`ResponseItem`] /\n[`crate::cli::plugins::Output`] catch-all, mirroring the\n`type:\"error\"` discriminator on [`crate::cli::Error`].",
+  "type": "object",
+  "properties": {
+    "type": {
+      "$ref": "cli.command.plugins.run.McpType"
+    },
+    "url": {
+      "type": "string"
+    }
+  }
+}

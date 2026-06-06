@@ -1,0 +1,88 @@
+{
+  "title": "functions.inventions.recursive.request.FunctionInventionRecursiveCreateParamsLog",
+  "type": "object",
+  "properties": {
+    "agent": {
+      "$ref": "agent.InlineAgentBaseWithFallbacksOrRemoteCommitOptional"
+    },
+    "continuation": {
+      "anyOf": [
+        {
+          "$ref": "LogReference"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "max_step_retries": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "overwrite": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "prompt": {
+      "$ref": "functions.inventions.prompts.InlinePromptOrRemoteCommitOptional"
+    },
+    "provider": {
+      "anyOf": [
+        {
+          "$ref": "agent.completions.request.Provider"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "remote": {
+      "$ref": "Remote"
+    },
+    "seed": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "state": {
+      "$ref": "LogReference"
+    },
+    "stream": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

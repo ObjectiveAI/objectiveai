@@ -1,0 +1,11 @@
+{
+  "title": "cli.command.plugins.get.ResponseHttpMethod",
+  "type": "string",
+  "enum": [
+    "GET",
+    "POST",
+    "PUT",
+    "PATCH",
+    "DELETE"
+  ]
+}

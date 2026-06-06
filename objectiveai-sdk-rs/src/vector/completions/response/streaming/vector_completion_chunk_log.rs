@@ -21,8 +21,10 @@ pub struct VectorCompletionChunkLog {
     pub id: String,
     pub completions: Vec<IndexedLogReference>,
     pub votes: Vec<response::Vote>,
+    #[serde(deserialize_with = "crate::serde_util::vec_decimal")]
     #[schemars(with = "Vec<f64>")]
     pub scores: Vec<rust_decimal::Decimal>,
+    #[serde(deserialize_with = "crate::serde_util::vec_decimal")]
     #[schemars(with = "Vec<f64>")]
     pub weights: Vec<rust_decimal::Decimal>,
     pub created: u64,

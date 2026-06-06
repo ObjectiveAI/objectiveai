@@ -1,0 +1,21 @@
+---
+source: objectiveai-cli/tests/plugin_mcp_dispatch_e2e.rs
+assertion_line: 344
+expression: projection
+---
+{
+  "tool_calls": [
+    "test-mcp-plugin_tool0",
+    "test-mcp-plugin_tool1",
+    "test-mcp-plugin_tool3",
+    "test-mcp-plugin_tool4",
+    "test-mcp-plugin_tool7"
+  ],
+  "tool_results": [
+    "tool0:uK1nqERjtSGnI97ttKv35Ujk",
+    "tool1:7heWaMZupPFwWC7gZIZ",
+    "tool3:oLoixUhyfaU2z4SabJ",
+    "tool4:lMYgB0z0euaBW8x9mbU",
+    "tool7:j5A2uOGvjfAjSV5o"
+  ]
+}

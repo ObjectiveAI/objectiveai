@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.mcp.kill.request_schema.Path",
+  "type": "string",
+  "enum": [
+    "mcp/kill/request_schema"
+  ]
+}

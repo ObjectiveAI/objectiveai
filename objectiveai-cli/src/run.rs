@@ -8,6 +8,45 @@ use crate::context::Context;
 use crate::error::Error;
 use crate::instance::InstanceEmission;
 
+/// Windows-only: clear `HANDLE_FLAG_INHERIT` on this process's
+/// stdin/stdout/stderr handles. Called at the top of the instance
+/// subprocess fast-path so plugin spawns (and any other later
+/// `Stdio::piped()` spawn that triggers `bInheritHandles=TRUE`)
+/// don't leak this process's stdio write ends to those children.
+///
+/// Without this, on Windows a plugin spawned by the instance
+/// subprocess inherits the instance's stdout/stderr write ends.
+/// The plugin keeps those handles open for its whole lifetime
+/// (e.g. an `axum::serve` that runs forever). When the instance
+/// exits, the cli outer's reads of the instance's stdout/stderr
+/// don't see EOF — the plugin is still holding the write ends —
+/// and the cli outer hangs forever waiting for an EOF that never
+/// arrives.
+#[cfg(windows)]
+fn clear_stdio_inheritance() {
+    use windows_sys::Win32::Foundation::{HANDLE_FLAG_INHERIT, SetHandleInformation};
+    use windows_sys::Win32::System::Console::{
+        GetStdHandle, STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
+    };
+    // SAFETY: GetStdHandle is sound to call from any thread; the
+    // returned HANDLE is process-global and survives. SetHandleInformation
+    // mutates only the flags on the HANDLE, never the underlying
+    // file/pipe. Failure is best-effort (e.g. handle was already
+    // INVALID_HANDLE_VALUE) and silently ignored — clearing the
+    // inheritance flag is an optimization for child spawns, not a
+    // correctness requirement for our own stdio reads/writes.
+    unsafe {
+        for std_id in [STD_INPUT_HANDLE, STD_OUTPUT_HANDLE, STD_ERROR_HANDLE] {
+            let h = GetStdHandle(std_id);
+            // GetStdHandle returns INVALID_HANDLE_VALUE on error and
+            // 0 / NULL when the stream isn't attached; skip both.
+            if !h.is_null() && h as isize != -1 {
+                let _ = SetHandleInformation(h, HANDLE_FLAG_INHERIT, 0);
+            }
+        }
+    }
+}
+
 #[derive(Envconfig)]
 struct EnvConfigBuilder {
     #[envconfig(from = "CONFIG_SET_FORBIDDEN")]
@@ -24,6 +63,14 @@ struct EnvConfigBuilder {
     agent_instance_hierarchy: Option<String>,
     #[envconfig(from = "OBJECTIVEAI_AGENT_ID")]
     agent_id: Option<String>,
+    #[envconfig(from = "OBJECTIVEAI_AGENT_FULL_ID")]
+    agent_full_id: Option<String>,
+    #[envconfig(from = "OBJECTIVEAI_AGENT_REMOTE")]
+    agent_remote: Option<String>,
+    #[envconfig(from = "OBJECTIVEAI_RESPONSE_ID")]
+    response_id: Option<String>,
+    #[envconfig(from = "OBJECTIVEAI_RESPONSE_IDS")]
+    response_ids: Option<String>,
     #[envconfig(from = "MCP_SESSION_ID")]
     mcp_session_id: Option<String>,
 }
@@ -42,6 +89,10 @@ impl EnvConfigBuilder {
             github_authorization: self.github_authorization,
             agent_instance_hierarchy: self.agent_instance_hierarchy,
             agent_id: self.agent_id,
+            agent_full_id: self.agent_full_id,
+            agent_remote: self.agent_remote,
+            response_id: self.response_id,
+            response_ids: self.response_ids,
             mcp_session_id: self.mcp_session_id,
         }
     }
@@ -56,6 +107,10 @@ pub struct ConfigBuilder {
     pub github_authorization: Option<String>,
     pub agent_instance_hierarchy: Option<String>,
     pub agent_id: Option<String>,
+    pub agent_full_id: Option<String>,
+    pub agent_remote: Option<String>,
+    pub response_id: Option<String>,
+    pub response_ids: Option<String>,
     pub mcp_session_id: Option<String>,
 }
 
@@ -88,6 +143,10 @@ impl ConfigBuilder {
                 .agent_instance_hierarchy
                 .unwrap_or_else(|| "cli".to_string()),
             agent_id: self.agent_id,
+            agent_full_id: self.agent_full_id,
+            agent_remote: self.agent_remote,
+            response_id: self.response_id,
+            response_ids: self.response_ids,
             mcp_session_id: self.mcp_session_id,
         }
     }
@@ -102,6 +161,24 @@ pub struct Config {
     pub github_authorization: Option<String>,
     pub agent_instance_hierarchy: String,
     pub agent_id: Option<String>,
+    /// WF-level agent identity from `OBJECTIVEAI_AGENT_FULL_ID` / the
+    /// `X-OBJECTIVEAI-AGENT-FULL-ID` reverse-attach header. Propagated
+    /// onto spawned plugin subprocesses by the conduit so plugin-side
+    /// code can stamp it on outbound calls.
+    pub agent_full_id: Option<String>,
+    /// JSON-encoded `RemotePath` from `OBJECTIVEAI_AGENT_REMOTE` /
+    /// the `X-OBJECTIVEAI-AGENT-REMOTE` reverse-attach header. Empty
+    /// when the WF was inline. Propagated onto spawned plugins.
+    pub agent_remote: Option<String>,
+    /// Current response id from `OBJECTIVEAI_RESPONSE_ID` / the
+    /// `X-OBJECTIVEAI-RESPONSE-ID` reverse-attach header. Propagated
+    /// onto spawned plugins so plugin-side code can stamp it on
+    /// outbound calls.
+    pub response_id: Option<String>,
+    /// Comma-separated response id chain from
+    /// `OBJECTIVEAI_RESPONSE_IDS` / `X-OBJECTIVEAI-RESPONSE-IDS`.
+    /// Propagated onto spawned plugins.
+    pub response_ids: Option<String>,
     pub mcp_session_id: Option<String>,
 }
 
@@ -114,6 +191,23 @@ pub struct Config {
 pub enum RunItem {
     Command(ResponseItem),
     Instance(InstanceEmission),
+}
+
+#[cfg(feature = "mcp")]
+impl objectiveai_sdk::cli::command::CommandResponse for RunItem {
+    fn into_mcp(
+        self,
+    ) -> objectiveai_sdk::cli::command::McpResponseItem {
+        match self {
+            RunItem::Command(item) => item.into_mcp(),
+            RunItem::Instance(emission) => {
+                objectiveai_sdk::cli::command::McpResponseItem::JSONL(
+                    serde_json::to_value(emission)
+                        .unwrap_or(serde_json::Value::Null),
+                )
+            }
+        }
+    }
 }
 
 pub type RunStream = Pin<Box<dyn Stream<Item = Result<RunItem, Error>> + Send>>;
@@ -156,20 +250,44 @@ pub async fn run(
     args: Vec<String>,
     ctx: Option<Context>,
 ) -> Result<RunStream, Error> {
-    if args.get(1).map(String::as_str) == Some("instance") {
-        let inst = crate::instance::run().await?;
-        return Ok(Box::pin(inst.map(|r| r.map(RunItem::Instance))));
-    }
-
-    let request = parse_request(&args).map_err(|e| match e {
-        objectiveai_sdk::cli::command::ParseError::Clap(e) => Error::ClapParse(e),
-        objectiveai_sdk::cli::command::ParseError::FromArgs(e) => Error::FromArgs(e),
-    })?;
-
     let ctx = match ctx {
         Some(c) => c,
         None => Context::new(load_config()).await?,
     };
+
+    if args.get(1).map(String::as_str) == Some("instance") {
+        // Windows: clear the inheritance flag on this process's
+        // stdin/stdout/stderr handles. They were marked inheritable
+        // by the parent cli when it spawned us via `Stdio::piped()` —
+        // necessary so we inherit them at all — but if we leave the
+        // flag set, every grandchild process we spawn with `Stdio::piped()`
+        // (which sets `bInheritHandles=TRUE`) inherits OUR stdio
+        // handles in addition to its own new pipes. That grandchild
+        // (e.g. a plugin RMCP server living for the whole agent
+        // completion) then holds our stdio write ends open even after
+        // we exit, leaving the cli outer's reads of our stdout/stderr
+        // hanging forever instead of EOF'ing.
+        //
+        // Clearing the flag is a no-op for our own use of std{in,out,err}
+        // — we keep using them normally. It only affects what gets
+        // propagated on subsequent `CreateProcessW` calls.
+        #[cfg(windows)]
+        clear_stdio_inheritance();
+        let inst = crate::instance::run(ctx).await?;
+        return Ok(Box::pin(inst.map(|r| r.map(RunItem::Instance))));
+    }
+
+    // `args[0]` is the program name however the binary was invoked —
+    // bare name from PATH, full path from a test harness or a
+    // `current_exe()` self-respawn — never part of the command.
+    // Strip it unconditionally; `parse_request` prepends its own
+    // canonical bin name. (Matching on the literal `"objectiveai"`
+    // inside `parse_request` is NOT enough: a full-path argv[0] like
+    // `C:\...\objectiveai-cli.exe` would be parsed as a subcommand.)
+    let request = parse_request(args.get(1..).unwrap_or_default()).map_err(|e| match e {
+        objectiveai_sdk::cli::command::ParseError::Clap(e) => Error::ClapParse(e),
+        objectiveai_sdk::cli::command::ParseError::FromArgs(e) => Error::FromArgs(e),
+    })?;
 
     // TODO(jq): if the resolved request carries a `jq` filter, extract
     // it here and apply to the returned stream before wrapping.

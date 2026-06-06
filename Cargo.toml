@@ -18,6 +18,8 @@ members = [
     "objectiveai-cli/test-fixtures/echo-arglen",
     "objectiveai-cli/test-fixtures/count-tool",
     "objectiveai-cli/test-fixtures/test-mcp-plugin",
+    "objectiveai-cli/test-fixtures/test-mcp-plugin-foo-headers",
+    "objectiveai-cli/test-fixtures/test-mcp-plugin-named",
     "objectiveai-viewer/src-tauri",
     "objectiveai-tests",
 ]

@@ -1,0 +1,41 @@
+{
+  "title": "cli.command.swarms.Request",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.swarms.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.swarms.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.swarms.get.response_schema.Request"
+    },
+    {
+      "title": "List",
+      "$ref": "cli.command.swarms.list.Request"
+    },
+    {
+      "title": "ListRequestSchema",
+      "$ref": "cli.command.swarms.list.request_schema.Request"
+    },
+    {
+      "title": "ListResponseSchema",
+      "$ref": "cli.command.swarms.list.response_schema.Request"
+    },
+    {
+      "title": "Publish",
+      "$ref": "cli.command.swarms.publish.Request"
+    },
+    {
+      "title": "PublishRequestSchema",
+      "$ref": "cli.command.swarms.publish.request_schema.Request"
+    },
+    {
+      "title": "PublishResponseSchema",
+      "$ref": "cli.command.swarms.publish.response_schema.Request"
+    }
+  ]
+}

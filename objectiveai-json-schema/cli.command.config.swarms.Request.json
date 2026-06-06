@@ -1,0 +1,21 @@
+{
+  "title": "cli.command.config.swarms.Request",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.config.swarms.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.config.swarms.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.config.swarms.get.response_schema.Request"
+    },
+    {
+      "title": "Favorites",
+      "$ref": "cli.command.config.swarms.favorites.Request"
+    }
+  ]
+}

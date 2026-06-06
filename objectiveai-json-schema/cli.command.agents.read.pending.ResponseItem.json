@@ -1,0 +1,15 @@
+{
+  "title": "cli.command.agents.read.pending.ResponseItem",
+  "type": "object",
+  "properties": {
+    "agent_id": {
+      "type": "string"
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "$ref": "cli.command.agents.read.all.ResponseQueueItem"
+      }
+    }
+  }
+}

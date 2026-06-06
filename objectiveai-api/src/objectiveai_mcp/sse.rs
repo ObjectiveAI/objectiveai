@@ -1,17 +1,18 @@
-//! GET `/objectiveai-mcp` — Streamable HTTP MCP notifications stream.
+//! GET on a per-MCP route — Streamable HTTP MCP notifications stream.
 //!
-//! Subscribes to the per-`(ws_session_id, mcp_session_id)` broadcast
-//! and emits standard MCP `notifications/<kind>/list_changed`
-//! JSON-RPC envelopes whenever the CLI pushes one up over its
+//! Subscribes to the per-`(response_id, McpKind)` broadcast and
+//! emits standard MCP `notifications/<kind>/list_changed` JSON-RPC
+//! envelopes whenever the CLI pushes one up over its
 //! `client_request::Payload::McpListChanged`.
 
 use super::listeners::McpListenerRegistry;
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::HeaderMap;
 use axum::response::{
     IntoResponse, Response,
     sse::{Event, KeepAlive, Sse},
 };
 use futures::stream::StreamExt;
+use objectiveai_sdk::client_objectiveai_mcp::McpKind;
 use objectiveai_sdk::client_objectiveai_mcp::client_request::McpListChangedKind;
 use std::convert::Infallible;
 use std::time::Duration;
@@ -20,11 +21,11 @@ use tokio_stream::wrappers::BroadcastStream;
 /// SSE keepalive cadence for the GET notifications stream.
 const SSE_KEEP_ALIVE: Duration = Duration::from_secs(15);
 
-/// GET `/objectiveai-mcp`: open the per-MCP-session SSE notifications
-/// stream the proxy subscribes to for
-/// `notifications/{tools,resources}/list_changed`. Requires an
-/// `Mcp-Session-Id` request header to identify which upstream MCP
-/// connection's events to forward; without one we 400.
+/// GET on a per-MCP route: open the SSE notifications stream the
+/// proxy subscribes to for `notifications/{tools,resources}/list_changed`
+/// on the upstream identified by [`McpKind`]. Routing inside the
+/// API already happened (response_id → reverse channel; path →
+/// `McpKind`) before this handler runs.
 ///
 /// The stream emits standard MCP-spec JSON-RPC envelopes as `data:`
 /// frames:
@@ -37,25 +38,12 @@ const SSE_KEEP_ALIVE: Duration = Duration::from_secs(15);
 /// during quiet periods. When the last receiver hangs up the
 /// stream's drop guard calls [`McpListenerRegistry::gc`].
 pub async fn handle_get_sse(
-    session_id: String,
+    response_id: String,
+    mcp_kind: McpKind,
     listeners: McpListenerRegistry,
-    headers: HeaderMap,
+    _headers: HeaderMap,
 ) -> Response {
-    let mcp_session_id = match headers
-        .get("Mcp-Session-Id")
-        .and_then(|v| v.to_str().ok())
-    {
-        Some(s) => s.to_string(),
-        None => {
-            return (
-                StatusCode::BAD_REQUEST,
-                "Mcp-Session-Id header is required on GET /objectiveai-mcp",
-            )
-                .into_response();
-        }
-    };
-
-    let rx = listeners.subscribe(&session_id, &mcp_session_id);
+    let rx = listeners.subscribe(&response_id, &mcp_kind);
 
     // Wrap in a drop-guard so the registry GC fires when the
     // subscriber hangs up. `BroadcastStream` itself drops the
@@ -63,18 +51,18 @@ pub async fn handle_get_sse(
     // registry — we do the call here.
     struct GcGuard {
         listeners: McpListenerRegistry,
-        ws_session_id: String,
-        mcp_session_id: String,
+        response_id: String,
+        mcp_kind: McpKind,
     }
     impl Drop for GcGuard {
         fn drop(&mut self) {
-            self.listeners.gc(&self.ws_session_id, &self.mcp_session_id);
+            self.listeners.gc(&self.response_id, &self.mcp_kind);
         }
     }
     let gc = GcGuard {
         listeners,
-        ws_session_id: session_id,
-        mcp_session_id,
+        response_id,
+        mcp_kind,
     };
 
     let stream = BroadcastStream::new(rx).filter_map(move |item: Result<

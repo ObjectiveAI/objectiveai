@@ -4,24 +4,13 @@ import { ObjectiveAIFetchError, isResponseError } from "./error";
  * A readable stream wrapper for Server-Sent Events (SSE).
  * Provides async iteration over parsed SSE data events.
  * Throws ObjectiveAIFetchError if the API returns an error in the stream.
- *
- * Two backing sources are supported:
- *
- * 1. `new Stream(response, controller?)` — wraps an SSE-emitting
- *    HTTP response; this is the path used by `fetch`-mode clients.
- *
- * 2. `Stream.fromAsyncIterable(iter, controller?)` — wraps a
- *    pre-parsed AsyncIterable of chunks; used by `viewer: true`
- *    clients so the consumer-facing `Stream<T>` type stays identical
- *    across both fetch and Tauri-postMessage backends.
  */
 export class Stream<T> implements AsyncIterable<T> {
-  private reader: ReadableStreamDefaultReader<Uint8Array> | null;
+  private reader: ReadableStreamDefaultReader<Uint8Array>;
   private decoder: TextDecoder;
   private buffer: string = "";
   private done: boolean = false;
   private controller: AbortController | null;
-  private asyncIterableSource: AsyncIterable<T> | null;
 
   constructor(response: Response, controller?: AbortController | null) {
     if (!response.body) {
@@ -30,26 +19,6 @@ export class Stream<T> implements AsyncIterable<T> {
     this.reader = response.body.getReader();
     this.decoder = new TextDecoder();
     this.controller = controller ?? null;
-    this.asyncIterableSource = null;
-  }
-
-  /**
-   * Wrap an `AsyncIterable<T>` (e.g. the viewer-mode api-call
-   * iterator) as a `Stream<T>`. Skips the SSE parsing path entirely;
-   * the iterator yields chunks pre-parsed by its source.
-   */
-  static fromAsyncIterable<T>(
-    source: AsyncIterable<T>,
-    controller?: AbortController | null,
-  ): Stream<T> {
-    const stream = Object.create(Stream.prototype) as Stream<T>;
-    stream.reader = null;
-    stream.decoder = new TextDecoder();
-    stream.buffer = "";
-    stream.done = false;
-    stream.controller = controller ?? null;
-    stream.asyncIterableSource = source;
-    return stream;
   }
 
   /**
@@ -60,20 +29,9 @@ export class Stream<T> implements AsyncIterable<T> {
   }
 
   async *[Symbol.asyncIterator](): AsyncIterator<T> {
-    if (this.asyncIterableSource) {
-      for await (const chunk of this.asyncIterableSource) {
-        yield chunk;
-      }
-      return;
-    }
-
-    if (!this.reader) {
-      throw new Error("Stream has no backing source");
-    }
-    const reader = this.reader;
     try {
       while (!this.done) {
-        const { value, done } = await reader.read();
+        const { value, done } = await this.reader.read();
 
         if (done) {
           this.done = true;
@@ -108,7 +66,7 @@ export class Stream<T> implements AsyncIterable<T> {
         }
       }
     } finally {
-      reader.releaseLock();
+      this.reader.releaseLock();
     }
   }
 

@@ -1,0 +1,13 @@
+{
+  "title": "cli.command.functions.inventions.Request",
+  "anyOf": [
+    {
+      "title": "Recursive",
+      "$ref": "cli.command.functions.inventions.recursive.create.Request"
+    },
+    {
+      "title": "State",
+      "$ref": "cli.command.functions.inventions.state.Request"
+    }
+  ]
+}

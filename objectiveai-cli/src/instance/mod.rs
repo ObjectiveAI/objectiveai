@@ -18,6 +18,7 @@ mod agents;
 pub(crate) mod api;
 mod functions;
 pub mod handshake;
+pub(crate) mod mcp_server;
 mod pipes;
 pub mod request;
 mod streaming;
@@ -46,6 +47,18 @@ pub enum InstanceEmission {
     Chunk(serde_json::Value),
     /// A non-fatal runtime warning (e.g. degraded pipe bind).
     Warning { message: String },
+    /// A fatal runtime error from the subprocess. The instance binary
+    /// uses `objectiveai_sdk::cli::Error` for its own stdout error
+    /// lines (via `main.rs::write_error_line`); flatten that shape
+    /// here so the parent can capture and propagate the error rather
+    /// than panicking on an unknown variant.
+    Error {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        level: Option<objectiveai_sdk::cli::Level>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        fatal: Option<bool>,
+        message: serde_json::Value,
+    },
 }
 
 type EmissionStream = Pin<Box<dyn Stream<Item = Result<InstanceEmission, Error>> + Send>>;
@@ -54,19 +67,21 @@ type EmissionStream = Pin<Box<dyn Stream<Item = Result<InstanceEmission, Error>>
 /// request blob, then dispatches to one of the typed endpoint
 /// functions. Each handler returns a typed stream of
 /// [`InstanceEmission`]s.
-pub async fn run() -> Result<EmissionStream, Error> {
+pub async fn run(ctx: crate::context::Context) -> Result<EmissionStream, Error> {
     let request = handshake::read_request().map_err(Error::Instance)?;
+    let mcp_server = mcp_server::spawn(ctx.clone());
     let http = request.http;
     let pipes = request.pipes;
     let stream: EmissionStream = match request.endpoint {
         InstanceEndpoint::AgentsSpawn(params) => {
-            agents::spawn::execute(http, pipes, params).await?
+            agents::spawn::execute(ctx, http, pipes, mcp_server, params).await?
         }
         InstanceEndpoint::FunctionsExecutionsCreate(params) => {
-            functions::executions::create::execute(http, pipes, params).await?
+            functions::executions::create::execute(ctx, http, pipes, mcp_server, params).await?
         }
         InstanceEndpoint::FunctionsInventionsRecursiveCreate(params) => {
-            functions::inventions::recursive::create::execute(http, pipes, params).await?
+            functions::inventions::recursive::create::execute(ctx, http, pipes, mcp_server, params)
+                .await?
         }
     };
     Ok(stream)

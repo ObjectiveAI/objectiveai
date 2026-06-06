@@ -44,18 +44,49 @@ impl McpHandler for RejectHandler {
         &self,
         request: server_request::Request,
     ) -> server_response::Response {
+        // Reply with a typed `JsonRpcResult::Err` in the variant
+        // that pairs with the inbound payload — the API's
+        // `variant_mismatch` check is satisfied AND the error
+        // surfaces as a method-not-found on the proxy side.
+        use server_response::{JsonRpcResult, Payload};
+        const CODE: i64 = -32601;
+        const MESSAGE: &str = "this client does not host objectiveai-mcp";
+        let payload = match request.payload {
+            server_request::Payload::Initialize(_) => Payload::Initialize(JsonRpcResult::Err {
+                code: CODE,
+                message: MESSAGE.into(),
+                data: None,
+            }),
+            server_request::Payload::ToolsList(_) => Payload::ToolsList(JsonRpcResult::Err {
+                code: CODE,
+                message: MESSAGE.into(),
+                data: None,
+            }),
+            server_request::Payload::ToolsCall(_) => Payload::ToolsCall(JsonRpcResult::Err {
+                code: CODE,
+                message: MESSAGE.into(),
+                data: None,
+            }),
+            server_request::Payload::ResourcesList(_) => Payload::ResourcesList(JsonRpcResult::Err {
+                code: CODE,
+                message: MESSAGE.into(),
+                data: None,
+            }),
+            server_request::Payload::ResourcesRead(_) => Payload::ResourcesRead(JsonRpcResult::Err {
+                code: CODE,
+                message: MESSAGE.into(),
+                data: None,
+            }),
+            server_request::Payload::SessionTerminate => Payload::SessionTerminate(JsonRpcResult::Err {
+                code: CODE,
+                message: MESSAGE.into(),
+                data: None,
+            }),
+        };
         server_response::Response {
             id: request.id,
-            status: 501,
-            headers: indexmap::IndexMap::new(),
-            body: Some(serde_json::json!({
-                "jsonrpc": "2.0",
-                "id": serde_json::Value::Null,
-                "error": {
-                    "code": -32601,
-                    "message": "this client does not host objectiveai-mcp",
-                },
-            })),
+            mcp_kind: request.mcp_kind,
+            payload,
         }
     }
 }

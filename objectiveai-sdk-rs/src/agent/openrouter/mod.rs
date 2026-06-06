@@ -1,4 +1,5 @@
 mod agent;
+mod context_compression;
 mod continuation;
 mod output_mode;
 mod provider;
@@ -8,6 +9,7 @@ pub mod upstream;
 mod verbosity;
 
 pub use agent::*;
+pub use context_compression::*;
 pub use continuation::*;
 pub use output_mode::*;
 pub use provider::*;

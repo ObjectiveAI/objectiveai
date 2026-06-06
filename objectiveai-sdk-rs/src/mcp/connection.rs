@@ -145,27 +145,15 @@ impl Connection {
             let _ = guard.take();
         }
 
-        // 3. Mock connections never opened an HTTP session, so the
-        //    DELETE call would 404. Short-circuit to success.
-        if self.inner.mock {
-            return Ok(());
-        }
-
-        // 4. Build + send HTTP DELETE. Mirrors `Client::connect_once`'s
+        // 3. Build + send HTTP DELETE. Mirrors `Client::connect_once`'s
         //    request-stamp shape: header loop first, explicit
         //    `Mcp-Session-Id` always wins.
-        let mut request = self
+        let request = self
             .inner
             .http_client
             .delete(&self.inner.url)
             .timeout(self.inner.call_timeout)
-            .header("Mcp-Session-Id", &self.inner.session_id);
-        for (name, value) in &self.inner.headers {
-            if name.eq_ignore_ascii_case("Mcp-Session-Id") {
-                continue;
-            }
-            request = request.header(name, value);
-        }
+            .headers(self.inner.build_request_headers(None, None).await);
         let response = request.send().await.map_err(|source| {
             super::Error::Request {
                 url: self.inner.url.clone(),
@@ -173,7 +161,7 @@ impl Connection {
             }
         })?;
 
-        // 5. 404 / 401 / 403 → success; other non-2xx → real error.
+        // 4. 404 / 401 / 403 → success; other non-2xx → real error.
         let status = response.status();
         if matches!(
             status,
@@ -230,16 +218,25 @@ impl Connection {
         Self { inner }
     }
 
-    pub(super) fn new_mock(url: String) -> Self {
-        Self {
-            inner: ConnectionInner::new_mock(url),
-        }
-    }
-
     #[cfg(test)]
     pub(crate) fn new_for_test(name: String, url: String) -> Self {
         Self {
             inner: ConnectionInner::new_for_test(name, url),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn new_for_test_with_caps(
+        name: String,
+        url: String,
+        capabilities: super::initialize_result::ServerCapabilities,
+    ) -> Self {
+        Self {
+            inner: ConnectionInner::new_for_test_with_caps(
+                name,
+                url,
+                capabilities,
+            ),
         }
     }
 
@@ -417,6 +414,25 @@ impl Connection {
     {
         self.inner.on_resources_list_changed.set(Arc::new(callback));
     }
+
+    /// Atomically replace the connection's [`ConnectionInner::extra_headers`]
+    /// bag. Every subsequent outbound HTTP request from this connection
+    /// stamps the new map AFTER `headers`, with `HeaderMap::insert`
+    /// REPLACE semantics — keys in `extras` override the same key in
+    /// the per-URL `headers` bag set at `Client::connect`. Caller
+    /// supplies the FULL replacement map; missing keys are dropped
+    /// (no merge).
+    ///
+    /// Used by the proxy to inject session-global headers
+    /// (`X-OBJECTIVEAI-RESPONSE-ID`, `X-OBJECTIVEAI-RESPONSE-IDS`)
+    /// that re-set on every inbound `initialize`, without re-dialing
+    /// the upstream.
+    pub async fn set_extra_headers(
+        &self,
+        extras: IndexMap<String, String>,
+    ) {
+        *self.inner.extra_headers.write().await = extras;
+    }
 }
 
 /// The actual connection state. Behind an `Arc` inside [`Connection`].
@@ -435,6 +451,15 @@ pub struct ConnectionInner {
     /// `Content-Type`, and `Accept` are still set by the request
     /// builders and override anything in `headers`.
     pub headers: IndexMap<String, String>,
+    /// Mutable per-request override layer stamped AFTER `headers` on
+    /// every outbound HTTP request. The request-builder uses
+    /// `reqwest::header::HeaderMap::insert` semantics so any key
+    /// present in `extra_headers` REPLACES the same key in `headers`.
+    /// Used by the proxy to inject session-global headers
+    /// (`X-OBJECTIVEAI-RESPONSE-ID` etc.) that override per-URL
+    /// values without re-dialing. Empty by default; set via
+    /// [`Connection::set_extra_headers`].
+    pub extra_headers: RwLock<IndexMap<String, String>>,
 
     pub backoff_current_interval: Duration,
     pub backoff_initial_interval: Duration,
@@ -446,9 +471,6 @@ pub struct ConnectionInner {
 
     /// The server's capabilities and info from the initialize response.
     pub initialize_result: super::initialize_result::InitializeResult,
-
-    /// If true, all RPC/notify calls are no-ops. Used for mock orchestrator URLs.
-    mock: bool,
 
     /// `true` iff this connection was opened by resuming an existing
     /// upstream session — i.e. [`Client::connect`](super::Client::connect)
@@ -542,68 +564,51 @@ pub struct ConnectionInner {
 }
 
 impl ConnectionInner {
-    /// Creates a mock connection that never makes network requests.
-    /// All RPC calls return empty/default results.
-    fn new_mock(url: String) -> Arc<Self> {
-        Arc::new(Self {
-            http_client: reqwest::Client::new(),
-            url,
-            session_id: String::new(),
-            headers: IndexMap::new(),
-            backoff_current_interval: Duration::ZERO,
-            backoff_initial_interval: Duration::ZERO,
-            backoff_randomization_factor: 0.0,
-            backoff_multiplier: 1.0,
-            backoff_max_interval: Duration::ZERO,
-            backoff_max_elapsed_time: Duration::ZERO,
-            call_timeout: Duration::ZERO,
-            initialize_result: super::initialize_result::InitializeResult {
-                protocol_version: "2025-03-26".into(),
-                capabilities: super::initialize_result::ServerCapabilities {
-                    experimental: None,
-                    logging: None,
-                    completions: None,
-                    prompts: None,
-                    resources: None,
-                    tools: None,
-                    tasks: None,
-                },
-                server_info: super::initialize_result::Implementation {
-                    name: "mock".into(),
-                    title: None,
-                    version: "0.0.0".into(),
-                    website_url: None,
-                    description: None,
-                    icons: None,
-                },
-                instructions: None,
-                _meta: None,
-            },
-            mock: true,
-            is_reconnect: false,
-            any_calls: AtomicBool::new(false),
-            next_id: AtomicU64::new(2),
-            // Mock has no listener and never refreshes; seed with an
-            // empty Ok so `list_tools` returns immediately instead of
-            // trying to paginate over a non-existent upstream.
-            tools: RwLock::new(Some(Ok(Arc::new(Vec::new())))),
-            resources: RwLock::new(Some(Ok(Arc::new(Vec::new())))),
-            _listener_cancel_guard: std::sync::Mutex::new(None),
-            on_tools_list_changed: CallbackSlot::new(),
-            on_resources_list_changed: CallbackSlot::new(),
-            tools_changed: Notify::new(),
-            resources_changed: Notify::new(),
-        })
-    }
-
-    /// Creates a minimal connection for unit testing.
+    /// Creates a minimal connection for unit testing. Declares both
+    /// `tools` and `resources` capabilities with `list_changed:
+    /// Some(true)` so callers exercise the present-cap +
+    /// list_changed-enabled paths in `list_*`, `refresh_*`, and
+    /// `subscribe_*`. For other capability shapes use
+    /// `new_for_test_with_caps`.
     #[cfg(test)]
     fn new_for_test(name: String, url: String) -> Arc<Self> {
+        Self::new_for_test_with_caps(
+            name,
+            url,
+            super::initialize_result::ServerCapabilities {
+                experimental: None,
+                logging: None,
+                completions: None,
+                prompts: None,
+                resources: Some(
+                    super::initialize_result::ResourcesCapability {
+                        subscribe: None,
+                        list_changed: Some(true),
+                    },
+                ),
+                tools: Some(super::initialize_result::ToolsCapability {
+                    list_changed: Some(true),
+                }),
+                tasks: None,
+            },
+        )
+    }
+
+    /// Creates a minimal connection for unit testing with an explicit
+    /// `ServerCapabilities`. Used by the capability-gating tests to
+    /// drive each gate's absent-cap branch.
+    #[cfg(test)]
+    fn new_for_test_with_caps(
+        name: String,
+        url: String,
+        capabilities: super::initialize_result::ServerCapabilities,
+    ) -> Arc<Self> {
         Arc::new(Self {
             http_client: reqwest::Client::new(),
             url,
             session_id: String::new(),
             headers: IndexMap::new(),
+            extra_headers: RwLock::new(IndexMap::new()),
             backoff_current_interval: Duration::from_millis(500),
             backoff_initial_interval: Duration::from_millis(500),
             backoff_randomization_factor: 0.5,
@@ -613,15 +618,7 @@ impl ConnectionInner {
             call_timeout: Duration::from_secs(30),
             initialize_result: super::initialize_result::InitializeResult {
                 protocol_version: "2025-03-26".into(),
-                capabilities: super::initialize_result::ServerCapabilities {
-                    experimental: None,
-                    logging: None,
-                    completions: None,
-                    prompts: None,
-                    resources: None,
-                    tools: None,
-                    tasks: None,
-                },
+                capabilities,
                 server_info: super::initialize_result::Implementation {
                     name,
                     title: None,
@@ -633,7 +630,6 @@ impl ConnectionInner {
                 instructions: None,
                 _meta: None,
             },
-            mock: false,
             is_reconnect: false,
             any_calls: AtomicBool::new(false),
             next_id: AtomicU64::new(2),
@@ -688,6 +684,7 @@ impl ConnectionInner {
             url,
             session_id,
             headers,
+            extra_headers: RwLock::new(IndexMap::new()),
             backoff_current_interval,
             backoff_initial_interval,
             backoff_randomization_factor,
@@ -696,7 +693,6 @@ impl ConnectionInner {
             backoff_max_elapsed_time,
             call_timeout,
             initialize_result,
-            mock: false,
             is_reconnect,
             any_calls: AtomicBool::new(false),
             next_id: AtomicU64::new(2),
@@ -778,6 +774,50 @@ impl ConnectionInner {
         conn
     }
 
+    /// Server declared a `tools` capability in its `InitializeResult`.
+    /// Gates `list_tools`, `call_tool`, `refresh_tools`. When `false` the
+    /// upstream cannot service `tools/*` RPCs at all and any attempt would
+    /// either hang in idempotent backoff (`tools/list`) or fail with
+    /// `SessionExpired` (`tools/call`).
+    fn has_tools_cap(&self) -> bool {
+        self.initialize_result.capabilities.tools.is_some()
+    }
+
+    /// Server declared a `resources` capability in its `InitializeResult`.
+    /// Gates `list_resources`, `read_resource`, `refresh_resources`, and
+    /// the post-`call_tool` ResourceLink resolution. Same hang-or-fail
+    /// shape as `has_tools_cap` when absent.
+    fn has_resources_cap(&self) -> bool {
+        self.initialize_result.capabilities.resources.is_some()
+    }
+
+    /// Server declared `tools.list_changed: true`. Gates
+    /// `subscribe_tools`'s wait-for-notify branch: when `false` the
+    /// upstream will never push `notifications/tools/list_changed`, so
+    /// awaiting the notify is unreachable and `subscribe_tools` returns
+    /// the current cache immediately.
+    fn has_tools_list_changed(&self) -> bool {
+        matches!(
+            self.initialize_result.capabilities.tools,
+            Some(super::initialize_result::ToolsCapability {
+                list_changed: Some(true),
+            })
+        )
+    }
+
+    /// Server declared `resources.list_changed: true`. Symmetric to
+    /// `has_tools_list_changed`; gates `subscribe_resources`'s
+    /// wait-for-notify branch.
+    fn has_resources_list_changed(&self) -> bool {
+        matches!(
+            self.initialize_result.capabilities.resources,
+            Some(super::initialize_result::ResourcesCapability {
+                list_changed: Some(true),
+                ..
+            })
+        )
+    }
+
     /// Creates an exponential backoff configuration from the connection's fields.
     fn backoff(&self) -> backoff::ExponentialBackoff {
         backoff::ExponentialBackoff {
@@ -793,21 +833,70 @@ impl ConnectionInner {
     }
 
     /// Builds a POST request with all required headers and the call timeout.
-    fn post(&self) -> reqwest::RequestBuilder {
-        let mut request = self
-            .http_client
+    async fn post(&self) -> reqwest::RequestBuilder {
+        self.http_client
             .post(&self.url)
             .timeout(self.call_timeout)
-            .header("Content-Type", "application/json")
-            .header("Accept", "application/json, text/event-stream");
-        for (name, value) in &self.headers {
-            request = request.header(name, value);
+            .headers(
+                self.build_request_headers(
+                    Some("application/json"),
+                    Some("application/json, text/event-stream"),
+                )
+                .await,
+            )
+    }
+
+    /// Build the `HeaderMap` stamped on every outbound request. Order
+    /// of insertion drives override semantics — `HeaderMap::insert`
+    /// REPLACES existing values for the same key:
+    ///
+    /// 1. Content-Type / Accept (when supplied by the caller).
+    /// 2. `self.headers` (the per-URL bag set at `Client::connect`).
+    /// 3. `self.extra_headers` (the mutable, session-global overrides
+    ///    — proxies use this for `X-OBJECTIVEAI-RESPONSE-ID` etc).
+    /// 4. `Mcp-Session-Id` (the connection's own session id, always
+    ///    last so it can never be shadowed).
+    async fn build_request_headers(
+        &self,
+        content_type: Option<&str>,
+        accept: Option<&str>,
+    ) -> reqwest::header::HeaderMap {
+        use reqwest::header::{
+            ACCEPT, CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue,
+        };
+        let mut hmap = HeaderMap::new();
+        if let Some(ct) = content_type {
+            if let Ok(hv) = HeaderValue::from_str(ct) {
+                hmap.insert(CONTENT_TYPE, hv);
+            }
         }
-        // Mcp-Session-Id is applied last so a same-named entry in
-        // `headers` (e.g. the proxy's encoded session id) can never
-        // override the connection's own session id.
-        request = request.header("Mcp-Session-Id", &self.session_id);
-        request
+        if let Some(a) = accept {
+            if let Ok(hv) = HeaderValue::from_str(a) {
+                hmap.insert(ACCEPT, hv);
+            }
+        }
+        for (k, v) in &self.headers {
+            if let (Ok(hn), Ok(hv)) = (
+                HeaderName::try_from(k.as_str()),
+                HeaderValue::from_str(v),
+            ) {
+                hmap.insert(hn, hv);
+            }
+        }
+        let extras = self.extra_headers.read().await;
+        for (k, v) in extras.iter() {
+            if let (Ok(hn), Ok(hv)) = (
+                HeaderName::try_from(k.as_str()),
+                HeaderValue::from_str(v),
+            ) {
+                hmap.insert(hn, hv);
+            }
+        }
+        drop(extras);
+        if let Ok(hv) = HeaderValue::from_str(&self.session_id) {
+            hmap.insert(HeaderName::from_static("mcp-session-id"), hv);
+        }
+        hmap
     }
 
     /// Sends a JSON-RPC request, retrying transient errors when
@@ -845,7 +934,7 @@ impl ConnectionInner {
         let attempt_one = || async {
             let url = self.url.clone();
             let response =
-                self.post().json(&body).send().await.map_err(|source| {
+                self.post().await.json(&body).send().await.map_err(|source| {
                     backoff::Error::transient(super::Error::Request {
                         url: url.clone(),
                         source,
@@ -906,9 +995,6 @@ impl ConnectionInner {
         method: &str,
         params: &P,
     ) -> Result<(), super::Error> {
-        if self.mock {
-            return Ok(());
-        }
         let body = serde_json::json!({
             "jsonrpc": "2.0",
             "method": method,
@@ -918,7 +1004,7 @@ impl ConnectionInner {
         backoff::future::retry(self.backoff(), || async {
             let url = self.url.clone();
             let response =
-                self.post().json(&body).send().await.map_err(|source| {
+                self.post().await.json(&body).send().await.map_err(|source| {
                     backoff::Error::transient(super::Error::Request {
                         url: url.clone(),
                         source,
@@ -961,23 +1047,15 @@ impl ConnectionInner {
     async fn drain_notifications(
         &self,
     ) -> Result<Vec<super::tool::ContentBlock>, super::Error> {
-        if self.mock {
-            return Ok(Vec::new());
-        }
-
         let url = format!("{}/notify", self.url.trim_end_matches('/'));
-        let mut request = self
+        let request = self
             .http_client
             .get(&url)
             .timeout(self.call_timeout)
-            .header("Accept", "application/json");
-        for (name, value) in &self.headers {
-            request = request.header(name, value);
-        }
-        // Mcp-Session-Id applied last so a same-named entry in `headers`
-        // can never override the connection's own session id — matches
-        // the invariant in `Self::post`.
-        request = request.header("Mcp-Session-Id", &self.session_id);
+            .headers(
+                self.build_request_headers(None, Some("application/json"))
+                    .await,
+            );
 
         let response =
             request
@@ -1013,25 +1091,19 @@ impl ConnectionInner {
         &self,
         blocks: &[super::tool::ContentBlock],
     ) -> Result<(), super::Error> {
-        if self.mock {
-            return Ok(());
-        }
-
         let url = format!("{}/notify", self.url.trim_end_matches('/'));
-        let mut request = self
+        let request = self
             .http_client
             .post(&url)
             .timeout(self.call_timeout)
-            .header("Content-Type", "application/json")
-            .header("Accept", "application/json")
+            .headers(
+                self.build_request_headers(
+                    Some("application/json"),
+                    Some("application/json"),
+                )
+                .await,
+            )
             .json(blocks);
-        for (name, value) in &self.headers {
-            request = request.header(name, value);
-        }
-        // Mcp-Session-Id applied last so a same-named entry in `headers`
-        // can never override the connection's own session id — matches
-        // the invariant in `Self::drain_notifications`.
-        request = request.header("Mcp-Session-Id", &self.session_id);
 
         let response =
             request
@@ -1060,23 +1132,15 @@ impl ConnectionInner {
     /// A 404 (session unknown) is mapped to `Ok(false)` to match the
     /// drain path's soft-fallback contract.
     async fn has_pending_notifications(&self) -> Result<bool, super::Error> {
-        if self.mock {
-            return Ok(false);
-        }
-
         let url = format!("{}/notify/queued", self.url.trim_end_matches('/'));
-        let mut request = self
+        let request = self
             .http_client
             .get(&url)
             .timeout(self.call_timeout)
-            .header("Accept", "application/json");
-        for (name, value) in &self.headers {
-            request = request.header(name, value);
-        }
-        // Mcp-Session-Id applied last so a same-named entry in `headers`
-        // can never override the connection's own session id — matches
-        // the invariant in `Self::drain_notifications`.
-        request = request.header("Mcp-Session-Id", &self.session_id);
+            .headers(
+                self.build_request_headers(None, Some("application/json"))
+                    .await,
+            );
 
         let response =
             request
@@ -1139,6 +1203,9 @@ impl ConnectionInner {
     async fn list_tools(
         &self,
     ) -> Result<Arc<Vec<super::tool::Tool>>, Arc<super::Error>> {
+        if !self.has_tools_cap() {
+            return Ok(Arc::new(Vec::new()));
+        }
         if let Some(cached) = self.tools.read().await.as_ref() {
             return cached.clone();
         }
@@ -1173,25 +1240,16 @@ impl ConnectionInner {
         &self,
         params: &super::tool::CallToolRequestParams,
     ) -> Result<super::tool::CallToolResult, super::Error> {
+        if !self.has_tools_cap() {
+            return Err(super::Error::UnsupportedCapability {
+                capability: "tools",
+            });
+        }
         // Mark the connection as deliberately used. Flipped at the top
         // of the method (not after success) because even a failed
         // `tools/call` may have mutated upstream state — we don't want
         // the drop-time orphan-DELETE second-guessing that.
         self.any_calls.store(true, Ordering::Relaxed);
-        if self.mock {
-            return Ok(super::tool::CallToolResult {
-                content: vec![super::tool::ContentBlock::Text(
-                    super::tool::TextContent {
-                        text: "mock".to_string(),
-                        annotations: None,
-                        _meta: None,
-                    },
-                )],
-                structured_content: None,
-                is_error: None,
-                _meta: None,
-            });
-        }
         let mut result: super::tool::CallToolResult =
             self.rpc("tools/call", params, false).await?;
 
@@ -1318,6 +1376,9 @@ impl ConnectionInner {
     async fn list_resources(
         &self,
     ) -> Result<Arc<Vec<super::resource::Resource>>, Arc<super::Error>> {
+        if !self.has_resources_cap() {
+            return Ok(Arc::new(Vec::new()));
+        }
         if let Some(cached) = self.resources.read().await.as_ref() {
             return cached.clone();
         }
@@ -1346,6 +1407,14 @@ impl ConnectionInner {
         current: &[super::tool::Tool],
         timeout: Duration,
     ) -> Result<Arc<Vec<super::tool::Tool>>, Arc<super::Error>> {
+        if !self.has_tools_list_changed() {
+            // Server can't push `notifications/tools/list_changed` —
+            // awaiting the notify is unreachable. Return whatever's
+            // there right now (`Ok(empty)` on a tools-cap-absent
+            // server via `list_tools`'s own gate; the real cache
+            // otherwise).
+            return self.list_tools().await;
+        }
         // Arm BEFORE reading. `enable()` registers the future in the
         // wait queue without polling, so a `notify_waiters` racing
         // between our read and our await still wakes us.
@@ -1374,6 +1443,10 @@ impl ConnectionInner {
         current: &[super::resource::Resource],
         timeout: Duration,
     ) -> Result<Arc<Vec<super::resource::Resource>>, Arc<super::Error>> {
+        if !self.has_resources_list_changed() {
+            // Symmetric to `subscribe_tools` — see that gate.
+            return self.list_resources().await;
+        }
         let notified = self.resources_changed.notified();
         tokio::pin!(notified);
         notified.as_mut().enable();
@@ -1394,6 +1467,11 @@ impl ConnectionInner {
         &self,
         uri: &str,
     ) -> Result<super::resource::ReadResourceResult, super::Error> {
+        if !self.has_resources_cap() {
+            return Err(super::Error::UnsupportedCapability {
+                capability: "resources",
+            });
+        }
         // Mark the connection as deliberately used (same reasoning as
         // `call_tool` — see the drop-time orphan-DELETE gate).
         self.any_calls.store(true, Ordering::Relaxed);
@@ -1416,6 +1494,16 @@ impl ConnectionInner {
     /// re-emit `notifications/tools/list_changed` to its downstream client
     /// at the moment the staleness window opens.
     async fn refresh_tools(&self, on_change: Option<ListChangedCallback>) {
+        if !self.has_tools_cap() {
+            // No tools capability — install an empty Vec so the cache
+            // contract holds (`list_tools`'s `.expect("refresh_tools
+            // installs Some")` etc.) and return without paginating or
+            // signalling. No `notify_waiters` and no `on_change` —
+            // nothing real changed.
+            let mut guard = self.tools.write().await;
+            *guard = Some(Ok(Arc::new(Vec::new())));
+            return;
+        }
         // Listener-driven refresh. Visibility contract: any caller
         // that issues `list_tools()` after a `tools/list_changed`
         // notification has been observed must see the post-swap
@@ -1472,6 +1560,12 @@ impl ConnectionInner {
     /// "writer is in possession of the cache" before returning. Used by
     /// `ConnectionInner::new` to prevent a fast reader from acquiring
     /// the read lock before this writer has even started.
+    ///
+    /// **Caller invariant:** the spawn site in `ConnectionInner::new`
+    /// must gate this call on `capabilities.tools.is_some()`. This
+    /// method assumes the tools capability is present and issues
+    /// `tools/list` RPCs unconditionally — running it against a
+    /// no-tools server triggers the 15-min idempotent-backoff storm.
     async fn refresh_tools_signaling(
         &self,
         lock_held: tokio::sync::oneshot::Sender<()>,
@@ -1509,6 +1603,12 @@ impl ConnectionInner {
     /// See [`ConnectionInner::refresh_tools`] for the callback timing
     /// contract.
     async fn refresh_resources(&self, on_change: Option<ListChangedCallback>) {
+        if !self.has_resources_cap() {
+            // Symmetric to `refresh_tools` — see that gate.
+            let mut guard = self.resources.write().await;
+            *guard = Some(Ok(Arc::new(Vec::new())));
+            return;
+        }
         // Same paginate-while-acquiring-the-write-lock pattern as
         // `refresh_tools` — see that comment for the visibility +
         // performance rationale.
@@ -1540,7 +1640,9 @@ impl ConnectionInner {
         }
     }
 
-    /// Resource counterpart of [`Self::refresh_tools_signaling`].
+    /// Resource counterpart of [`Self::refresh_tools_signaling`]. The
+    /// same spawn-site-gate invariant applies: the caller must gate
+    /// the spawn on `capabilities.resources.is_some()`.
     async fn refresh_resources_signaling(
         &self,
         lock_held: tokio::sync::oneshot::Sender<()>,
@@ -1574,17 +1676,13 @@ impl ConnectionInner {
 
     /// Builds a GET request to the MCP endpoint for receiving server
     /// notifications via SSE.
-    fn get(&self) -> reqwest::RequestBuilder {
-        let mut request = self
-            .http_client
+    async fn get(&self) -> reqwest::RequestBuilder {
+        self.http_client
             .get(&self.url)
-            .header("Accept", "text/event-stream");
-        for (name, value) in &self.headers {
-            request = request.header(name, value);
-        }
-        // Mcp-Session-Id last so it always wins over `headers`.
-        request = request.header("Mcp-Session-Id", &self.session_id);
-        request
+            .headers(
+                self.build_request_headers(None, Some("text/event-stream"))
+                    .await,
+            )
     }
 
     /// Listens for `notifications/tools/list_changed` and
@@ -1662,7 +1760,9 @@ impl ConnectionInner {
                     // burst of 401 retries against a now-dead session
                     // under heavy churn).
                     let send_outcome = tokio::select! {
-                        out = this.get().send() => out,
+                        out = async {
+                            this.get().await.send().await
+                        } => out,
                         _ = cancel.cancelled() => {
                             drop(this);
                             return;
@@ -1807,9 +1907,6 @@ impl Drop for ConnectionInner {
     /// time the orphan DELETE goes out the listener task has already
     /// been told to cancel — no SSE/GET race with the upstream DELETE.
     fn drop(&mut self) {
-        if self.mock {
-            return;
-        }
         if self.is_reconnect {
             return;
         }
@@ -1873,6 +1970,252 @@ async fn orphan_delete(
     // guard has already fired (it runs as part of the regular
     // `_listener_cancel_guard` drop inside the same `drop` call).
     let _ = request.send().await;
+}
+
+#[cfg(test)]
+mod capability_gate_tests {
+    use super::*;
+    use crate::mcp::initialize_result::{
+        ResourcesCapability, ServerCapabilities, ToolsCapability,
+    };
+    use crate::mcp::tool::{
+        CallToolRequestParams, Tool, ToolSchemaObject, ToolSchemaType,
+    };
+
+    /// Builds a `ServerCapabilities` with the given `tools` / `resources`
+    /// shapes and every other capability set to `None`. Each gate test
+    /// passes its own combination to exercise a specific cap-absent
+    /// branch.
+    fn caps(
+        tools: Option<ToolsCapability>,
+        resources: Option<ResourcesCapability>,
+    ) -> ServerCapabilities {
+        ServerCapabilities {
+            experimental: None,
+            logging: None,
+            completions: None,
+            prompts: None,
+            resources,
+            tools,
+            tasks: None,
+        }
+    }
+
+    fn tool(name: &str) -> Tool {
+        Tool {
+            name: name.to_string(),
+            title: None,
+            description: None,
+            icons: None,
+            input_schema: ToolSchemaObject {
+                r#type: ToolSchemaType::Object,
+                properties: None,
+                required: None,
+                extra: IndexMap::new(),
+            },
+            output_schema: None,
+            annotations: None,
+            execution: None,
+            _meta: None,
+        }
+    }
+
+    /// 3.1 — `list_tools` short-circuits to `Ok(empty)` when the server
+    /// declared no `tools` capability, *before* the cache is consulted.
+    /// We poison the cache with `Err` to prove the gate fires first.
+    #[tokio::test]
+    async fn list_tools_returns_empty_when_tools_cap_absent() {
+        let conn = Connection::new_for_test_with_caps(
+            "t".into(),
+            "http://x".into(),
+            caps(None, None),
+        );
+        let err = super::super::Error::NoSessionId {
+            url: "http://x".into(),
+            body: String::new(),
+        };
+        *conn.inner.tools.write().await = Some(Err(Arc::new(err)));
+
+        let got = conn.list_tools().await.unwrap();
+        assert!(got.is_empty());
+    }
+
+    /// 3.2 — symmetric to 3.1 for `list_resources`.
+    #[tokio::test]
+    async fn list_resources_returns_empty_when_resources_cap_absent() {
+        let conn = Connection::new_for_test_with_caps(
+            "t".into(),
+            "http://x".into(),
+            caps(None, None),
+        );
+        let err = super::super::Error::NoSessionId {
+            url: "http://x".into(),
+            body: String::new(),
+        };
+        *conn.inner.resources.write().await = Some(Err(Arc::new(err)));
+
+        let got = conn.list_resources().await.unwrap();
+        assert!(got.is_empty());
+    }
+
+    /// 3.3 — `read_resource` errors with `UnsupportedCapability` when
+    /// the server declared no `resources` capability, without hitting
+    /// the network.
+    #[tokio::test]
+    async fn read_resource_errors_when_resources_cap_absent() {
+        let conn = Connection::new_for_test_with_caps(
+            "t".into(),
+            "http://x".into(),
+            caps(None, None),
+        );
+        let got = conn.read_resource("file://nope").await;
+        assert!(matches!(
+            got,
+            Err(super::super::Error::UnsupportedCapability {
+                capability: "resources"
+            })
+        ));
+    }
+
+    /// 3.4 — `call_tool` errors with `UnsupportedCapability` when the
+    /// server declared no `tools` capability.
+    #[tokio::test]
+    async fn call_tool_errors_when_tools_cap_absent() {
+        let conn = Connection::new_for_test_with_caps(
+            "t".into(),
+            "http://x".into(),
+            caps(None, None),
+        );
+        let params = CallToolRequestParams {
+            name: "any".into(),
+            arguments: None,
+            _meta: None,
+            task: None,
+        };
+        let got = conn.call_tool(&params).await;
+        assert!(matches!(
+            got,
+            Err(super::super::Error::UnsupportedCapability {
+                capability: "tools"
+            })
+        ));
+    }
+
+    /// 3.5 — `refresh_tools` installs `Some(Ok(empty))` and returns
+    /// without paginating when the server declared no `tools`
+    /// capability. Clearing the cache first proves the install ran.
+    #[tokio::test]
+    async fn refresh_tools_installs_empty_when_tools_cap_absent() {
+        let conn = Connection::new_for_test_with_caps(
+            "t".into(),
+            "http://x".into(),
+            caps(None, None),
+        );
+        *conn.inner.tools.write().await = None;
+
+        conn.inner.refresh_tools(None).await;
+
+        let guard = conn.inner.tools.read().await;
+        let v = guard
+            .as_ref()
+            .expect("refresh installed Some")
+            .as_ref()
+            .expect("refresh installed Ok");
+        assert!(v.is_empty());
+    }
+
+    /// 3.6 — symmetric to 3.5 for `refresh_resources`.
+    #[tokio::test]
+    async fn refresh_resources_installs_empty_when_resources_cap_absent() {
+        let conn = Connection::new_for_test_with_caps(
+            "t".into(),
+            "http://x".into(),
+            caps(None, None),
+        );
+        *conn.inner.resources.write().await = None;
+
+        conn.inner.refresh_resources(None).await;
+
+        let guard = conn.inner.resources.read().await;
+        let v = guard
+            .as_ref()
+            .expect("refresh installed Some")
+            .as_ref()
+            .expect("refresh installed Ok");
+        assert!(v.is_empty());
+    }
+
+    /// 3.7 — `subscribe_tools` returns immediately (no wait-for-notify)
+    /// when the server declared `tools` but not
+    /// `tools.list_changed: Some(true)`. We populate the cache with a
+    /// non-empty list, pass a long timeout, and expect a fast return
+    /// with the cache contents.
+    #[tokio::test]
+    async fn subscribe_tools_short_circuits_when_list_changed_absent() {
+        let conn = Connection::new_for_test_with_caps(
+            "t".into(),
+            "http://x".into(),
+            caps(
+                Some(ToolsCapability { list_changed: None }),
+                None,
+            ),
+        );
+        *conn.inner.tools.write().await =
+            Some(Ok(Arc::new(vec![tool("a")])));
+
+        let start = std::time::Instant::now();
+        let got = conn
+            .subscribe_tools(&[tool("a")], Duration::from_secs(5))
+            .await
+            .unwrap();
+        assert!(
+            start.elapsed() < Duration::from_millis(100),
+            "elapsed: {:?}",
+            start.elapsed()
+        );
+        assert_eq!(got.as_slice(), &[tool("a")]);
+    }
+
+    /// 3.8 — symmetric to 3.7 for `subscribe_resources`.
+    #[tokio::test]
+    async fn subscribe_resources_short_circuits_when_list_changed_absent() {
+        use crate::mcp::resource::Resource;
+        let conn = Connection::new_for_test_with_caps(
+            "t".into(),
+            "http://x".into(),
+            caps(
+                None,
+                Some(ResourcesCapability {
+                    subscribe: None,
+                    list_changed: None,
+                }),
+            ),
+        );
+        let res = Resource {
+            uri: "file://a".into(),
+            name: "a".into(),
+            title: None,
+            description: None,
+            mime_type: None,
+            annotations: None,
+            icons: None,
+            _meta: None,
+        };
+        *conn.inner.resources.write().await =
+            Some(Ok(Arc::new(vec![res.clone()])));
+
+        let start = std::time::Instant::now();
+        let got = conn
+            .subscribe_resources(&[res.clone()], Duration::from_secs(5))
+            .await
+            .unwrap();
+        assert!(
+            start.elapsed() < Duration::from_millis(100),
+            "elapsed: {:?}",
+            start.elapsed()
+        );
+        assert_eq!(got.as_slice(), &[res]);
+    }
 }
 
 #[cfg(test)]
@@ -2118,13 +2461,6 @@ mod drain_notifications_tests {
         }
     }
 
-    /// Mock connections never hit the network and always return empty.
-    #[tokio::test]
-    async fn drain_notifications_mock_returns_empty() {
-        let conn = Connection::new_mock("http://does-not-matter".into());
-        let blocks = conn.drain_notifications().await.expect("mock ok");
-        assert!(blocks.is_empty());
-    }
 }
 
 #[cfg(test)]
@@ -2211,11 +2547,4 @@ mod has_pending_notifications_tests {
         }
     }
 
-    /// Mock connections never hit the network and always return false.
-    #[tokio::test]
-    async fn has_pending_notifications_mock_returns_false() {
-        let conn = Connection::new_mock("http://does-not-matter".into());
-        let got = conn.has_pending_notifications().await.expect("mock ok");
-        assert!(!got);
-    }
 }

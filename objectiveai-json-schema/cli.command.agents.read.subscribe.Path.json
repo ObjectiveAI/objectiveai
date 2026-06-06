@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.agents.read.subscribe.Path",
+  "type": "string",
+  "enum": [
+    "agents/read/subscribe"
+  ]
+}

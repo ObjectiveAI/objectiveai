@@ -272,6 +272,101 @@ pub struct ClientObjectiveaiMcp {
     pub tools: Vec<ClientObjectiveaiMcpEntry>,
 }
 
+impl ClientObjectiveaiMcp {
+    /// Snapshot of the three `X-OBJECTIVEAI-MCP-*` request headers a
+    /// caller stamps on the initial dial of the objectiveai-mcp
+    /// proxy upstream. Per-field rules:
+    ///
+    /// - `root`: `self.objectiveai.unwrap_or(false)`. `None`
+    ///   ("unspecified") is conservatively treated as "do not expose".
+    /// - `tools`: copy of `self.tools`, sorted by
+    ///   `(owner, name, version)` (the derived
+    ///   [`ClientObjectiveaiMcpEntry`] `Ord`).
+    /// - `plugins`: `self.plugins` filtered to `executable: true`,
+    ///   projected onto `(owner, name, version)` (dropping
+    ///   `executable` and `mcp_servers`), then sorted the same way.
+    pub fn mcp_headers(&self) -> ClientObjectiveaiMcpHeaders {
+        let mut tools = self.tools.clone();
+        tools.sort();
+
+        let mut plugins: Vec<ClientObjectiveaiMcpEntry> = self
+            .plugins
+            .iter()
+            .filter(|p| p.executable)
+            .map(|p| ClientObjectiveaiMcpEntry {
+                owner: p.owner.clone(),
+                name: p.name.clone(),
+                version: p.version.clone(),
+            })
+            .collect();
+        plugins.sort();
+
+        ClientObjectiveaiMcpHeaders {
+            root: self.objectiveai.unwrap_or(false),
+            tools,
+            plugins,
+        }
+    }
+}
+
+/// Snapshot of the three transient `X-OBJECTIVEAI-MCP-*` request
+/// headers an HTTP caller stamps on its initial dial of the
+/// objectiveai-mcp proxy upstream.
+///
+/// Produced by [`ClientObjectiveaiMcp::mcp_headers`] — see that
+/// method's doc for the per-field source rules and sort order.
+#[derive(
+    Debug,
+    Clone,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+)]
+#[schemars(rename = "agent.ClientObjectiveaiMcpHeaders")]
+pub struct ClientObjectiveaiMcpHeaders {
+    /// Becomes the `X-OBJECTIVEAI-MCP-ROOT` header value verbatim
+    /// (`"true"` / `"false"`).
+    pub root: bool,
+    /// Tools the agent expects the client to expose, sorted by
+    /// `(owner, name, version)`. Becomes the
+    /// `X-OBJECTIVEAI-MCP-TOOLS` header's JSON payload.
+    pub tools: Vec<ClientObjectiveaiMcpEntry>,
+    /// Plugins the agent expects the client to expose, filtered to
+    /// `executable: true` entries only, projected onto the
+    /// `(owner, name, version)` shape, and sorted by
+    /// `(owner, name, version)`. Becomes the
+    /// `X-OBJECTIVEAI-MCP-PLUGINS` header's JSON payload.
+    pub plugins: Vec<ClientObjectiveaiMcpEntry>,
+}
+
+impl ClientObjectiveaiMcpHeaders {
+    /// Project the three fields onto the canonical
+    /// `(header-name, header-value)` pairs an HTTP caller can stamp
+    /// directly. Headers are emitted in the order
+    /// `ROOT → TOOLS → PLUGINS`; callers that need a map can collect
+    /// the returned vec themselves.
+    pub fn to_headers(&self) -> Vec<(String, String)> {
+        vec![
+            (
+                "X-OBJECTIVEAI-MCP-ROOT".to_string(),
+                if self.root { "true" } else { "false" }.to_string(),
+            ),
+            (
+                "X-OBJECTIVEAI-MCP-TOOLS".to_string(),
+                serde_json::to_string(&self.tools)
+                    .expect("ClientObjectiveaiMcpEntry always serializes"),
+            ),
+            (
+                "X-OBJECTIVEAI-MCP-PLUGINS".to_string(),
+                serde_json::to_string(&self.plugins)
+                    .expect("ClientObjectiveaiMcpEntry always serializes"),
+            ),
+        ]
+    }
+}
+
 /// Validates the configuration. Each entry's fields must be
 /// non-empty, and the `plugins` / `tools` lists each contain no
 /// `(owner, name, version)` duplicates. Free-function counterpart to
@@ -513,5 +608,127 @@ mod tests {
         let prepared = prepare(with_empty).expect("non-empty after prepare");
         let arg = &prepared.plugins[0].mcp_servers.as_ref().unwrap()[0].arguments;
         assert!(arg.is_none(), "empty arguments map must canonicalize to None");
+    }
+
+    // -------------------------------------------------------------
+    // mcp_headers / to_headers
+    // -------------------------------------------------------------
+
+    fn entry_triple(owner: &str, name: &str, version: &str) -> ClientObjectiveaiMcpEntry {
+        ClientObjectiveaiMcpEntry {
+            owner: owner.into(),
+            name: name.into(),
+            version: version.into(),
+        }
+    }
+
+    fn plugin_triple(
+        owner: &str,
+        name: &str,
+        version: &str,
+        executable: bool,
+    ) -> ClientObjectiveaiMcpPluginEntry {
+        ClientObjectiveaiMcpPluginEntry {
+            owner: owner.into(),
+            name: name.into(),
+            version: version.into(),
+            executable,
+            mcp_servers: None,
+        }
+    }
+
+    #[test]
+    fn mcp_headers_root_unwraps_unspecified_to_false() {
+        let m = ClientObjectiveaiMcp {
+            objectiveai: None,
+            plugins: vec![],
+            tools: vec![],
+        };
+        assert!(!m.mcp_headers().root);
+    }
+
+    #[test]
+    fn mcp_headers_root_unwraps_explicit_true() {
+        let m = ClientObjectiveaiMcp {
+            objectiveai: Some(true),
+            plugins: vec![],
+            tools: vec![],
+        };
+        assert!(m.mcp_headers().root);
+    }
+
+    #[test]
+    fn mcp_headers_plugins_drop_non_executable() {
+        let m = ClientObjectiveaiMcp {
+            objectiveai: None,
+            plugins: vec![
+                plugin_triple("o", "yes", "v", true),
+                plugin_triple("o", "no", "v", false),
+            ],
+            tools: vec![],
+        };
+        let h = m.mcp_headers();
+        assert_eq!(h.plugins, vec![entry_triple("o", "yes", "v")]);
+    }
+
+    #[test]
+    fn mcp_headers_sorts_owner_then_name_then_version() {
+        let m = ClientObjectiveaiMcp {
+            objectiveai: None,
+            plugins: vec![
+                plugin_triple("b", "x", "1", true),
+                plugin_triple("a", "y", "2", true),
+                plugin_triple("a", "x", "2", true),
+                plugin_triple("a", "x", "1", true),
+            ],
+            tools: vec![
+                entry_triple("b", "x", "1"),
+                entry_triple("a", "y", "2"),
+                entry_triple("a", "x", "2"),
+                entry_triple("a", "x", "1"),
+            ],
+        };
+        let h = m.mcp_headers();
+        assert_eq!(
+            h.tools,
+            vec![
+                entry_triple("a", "x", "1"),
+                entry_triple("a", "x", "2"),
+                entry_triple("a", "y", "2"),
+                entry_triple("b", "x", "1"),
+            ],
+        );
+        assert_eq!(
+            h.plugins,
+            vec![
+                entry_triple("a", "x", "1"),
+                entry_triple("a", "x", "2"),
+                entry_triple("a", "y", "2"),
+                entry_triple("b", "x", "1"),
+            ],
+        );
+    }
+
+    #[test]
+    fn to_headers_emits_canonical_triple() {
+        let h = ClientObjectiveaiMcpHeaders {
+            root: true,
+            tools: vec![entry_triple("a", "b", "c")],
+            plugins: vec![],
+        };
+        assert_eq!(
+            h.to_headers(),
+            vec![
+                ("X-OBJECTIVEAI-MCP-ROOT".to_string(), "true".to_string()),
+                (
+                    "X-OBJECTIVEAI-MCP-TOOLS".to_string(),
+                    r#"[{"owner":"a","name":"b","version":"c"}]"#.to_string(),
+                ),
+                (
+                    "X-OBJECTIVEAI-MCP-PLUGINS".to_string(),
+                    "[]".to_string(),
+                ),
+            ],
+        );
     }
 }

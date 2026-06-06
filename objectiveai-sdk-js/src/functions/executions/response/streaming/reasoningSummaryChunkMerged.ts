@@ -43,6 +43,10 @@ export function functionsExecutionsResponseStreamingReasoningSummaryChunkMerged(
   if (!changed) return [a, false];
   return [{
     id: a.id,
+    agent_full_id: a.agent_full_id,
+    agent_id: a.agent_id,
+    agent_instance_hierarchy: a.agent_instance_hierarchy,
+    ...(a.agent_remote != null ? { agent_remote: a.agent_remote } : {}),
     created: a.created,
     messages,
     object: a.object,

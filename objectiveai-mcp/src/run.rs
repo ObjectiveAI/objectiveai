@@ -11,14 +11,13 @@ use std::sync::Arc;
 use envconfig::Envconfig;
 use futures::StreamExt;
 use objectiveai_sdk::cli::command::CommandExecutor;
-use objectiveai_sdk::cli::command::binary;
 use objectiveai_sdk::cli::command::plugins;
 use objectiveai_sdk::cli::command::tools;
-use rmcp::transport::streamable_http_server::{
-    StreamableHttpServerConfig, StreamableHttpService, session::local::LocalSessionManager,
-};
+use rmcp::transport::streamable_http_server::{StreamableHttpServerConfig, StreamableHttpService};
 use tokio_util::sync::CancellationToken;
 
+use crate::agent_args_registry::AgentArgumentsRegistry;
+use crate::header_session_manager::HeaderSessionManager;
 use crate::objectiveai::ObjectiveAiMcpCli;
 
 #[derive(Envconfig)]
@@ -98,7 +97,8 @@ pub async fn setup<E>(
     executor: E,
 ) -> std::io::Result<(tokio::net::TcpListener, axum::Router)>
 where
-    E: CommandExecutor<Error = binary::Error> + Send + Sync + 'static,
+    E: CommandExecutor + Send + Sync + 'static,
+    E::Error: std::fmt::Display + Send + 'static,
 {
     let Config {
         address,
@@ -111,17 +111,42 @@ where
 
     // Discover registered plugins + tools concurrently — both are
     // independent SDK calls that each spawn one cli subprocess.
+    // The lists are shared (via Arc) between `with_plugins_and_tools`
+    // (which registers one dynamic tool per entry) and
+    // `HeaderSessionManager::new` (which validates the optional
+    // `X-OBJECTIVEAI-MCP-{TOOLS,PLUGINS}` filter sets against the
+    // same installed manifest at connect time).
     let (plugins_list, tools_list) =
-        tokio::join!(list_plugins(&executor), list_tools(&executor));
+        tokio::join!(list_plugins(&*executor), list_tools(&*executor));
+    let plugins_list = Arc::new(plugins_list);
+    let tools_list = Arc::new(tools_list);
 
-    let server =
-        ObjectiveAiMcpCli::with_plugins_and_tools(executor.clone(), plugins_list, tools_list);
+    // Shared per-rmcp-session bag of SessionState (wraps the
+    // legacy AgentArguments identity bag alongside the three
+    // optional X-OBJECTIVEAI-MCP-* filter values). Populated by
+    // the HeaderSessionManager on every initialize (fresh + lazy
+    // reconnect); consumed by every tool dispatcher and the
+    // hand-written `list_tools` handler.
+    let registry = Arc::new(AgentArgumentsRegistry::new());
+
+    let server = ObjectiveAiMcpCli::with_plugins_and_tools(
+        executor.clone(),
+        (*plugins_list).clone(),
+        (*tools_list).clone(),
+        registry.clone(),
+    );
+    let session_manager = Arc::new(HeaderSessionManager::new(
+        registry.clone(),
+        server.clone(),
+        tools_list.clone(),
+        plugins_list.clone(),
+    ));
     let ct = CancellationToken::new();
 
-    let service: StreamableHttpService<ObjectiveAiMcpCli<E>, LocalSessionManager> =
+    let service: StreamableHttpService<ObjectiveAiMcpCli<E>, HeaderSessionManager<E>> =
         StreamableHttpService::new(
             move || Ok(server.clone()),
-            Default::default(),
+            session_manager,
             StreamableHttpServerConfig {
                 stateful_mode: true,
                 sse_keep_alive: None,
@@ -144,7 +169,8 @@ pub async fn serve(
 
 pub async fn run<E>(config: Config, executor: E) -> std::io::Result<()>
 where
-    E: CommandExecutor<Error = binary::Error> + Send + Sync + 'static,
+    E: CommandExecutor + Send + Sync + 'static,
+    E::Error: std::fmt::Display + Send + 'static,
 {
     let suppress_output = config.suppress_output;
     let (listener, app) = setup(config, executor).await?;
@@ -160,14 +186,16 @@ where
 /// empty list so the server still starts.
 async fn list_plugins<E>(executor: &E) -> Vec<plugins::list::ResponseItem>
 where
-    E: CommandExecutor<Error = binary::Error> + Send + Sync + 'static,
+    E: CommandExecutor + Send + Sync + 'static,
+    E::Error: std::fmt::Display + Send + 'static,
 {
     let request = plugins::list::Request {
+        path_type: plugins::list::Path::PluginsList,
         offset: None,
         limit: None,
         jq: None,
     };
-    match plugins::list::execute(executor, request).await {
+    match plugins::list::execute(executor, request, None).await {
         Ok(stream) => stream.filter_map(|r| async move { r.ok() }).collect().await,
         Err(_) => Vec::new(),
     }
@@ -176,14 +204,16 @@ where
 /// Best-effort tool discovery; same shape as `list_plugins`.
 async fn list_tools<E>(executor: &E) -> Vec<tools::list::ResponseItem>
 where
-    E: CommandExecutor<Error = binary::Error> + Send + Sync + 'static,
+    E: CommandExecutor + Send + Sync + 'static,
+    E::Error: std::fmt::Display + Send + 'static,
 {
     let request = tools::list::Request {
+        path_type: tools::list::Path::ToolsList,
         offset: None,
         limit: None,
         jq: None,
     };
-    match tools::list::execute(executor, request).await {
+    match tools::list::execute(executor, request, None).await {
         Ok(stream) => stream.filter_map(|r| async move { r.ok() }).collect().await,
         Err(_) => Vec::new(),
     }

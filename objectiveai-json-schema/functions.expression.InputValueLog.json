@@ -1,0 +1,23 @@
+{
+  "title": "functions.expression.InputValueLog",
+  "anyOf": [
+    {
+      "title": "Reference",
+      "$ref": "LogReference"
+    },
+    {
+      "title": "Object",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "LogReference"
+      }
+    },
+    {
+      "title": "Array",
+      "type": "array",
+      "items": {
+        "$ref": "LogReference"
+      }
+    }
+  ]
+}

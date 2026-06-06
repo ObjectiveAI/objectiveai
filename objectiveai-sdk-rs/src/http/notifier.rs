@@ -72,8 +72,9 @@ impl Notifier {
     /// Forward a `notifications/{tools,resources}/list_changed`
     /// observation from an upstream `mcp::Connection` up to the API,
     /// which will fan it out as an SSE event on every matching
-    /// `/objectiveai-mcp/{ws_session_id}` GET stream subscribed to
-    /// the same `mcp_session_id`.
+    /// per-MCP GET stream — `/objectiveai` or
+    /// `/{owner}/{name}/{ver}/{mcp}`, subscribed under the
+    /// per-agent `response_id` + matching `McpKind`.
     ///
     /// Same ack semantics as [`Self::notify`].
     pub async fn notify_list_changed(

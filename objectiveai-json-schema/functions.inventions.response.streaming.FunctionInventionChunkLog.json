@@ -1,0 +1,78 @@
+{
+  "title": "functions.inventions.response.streaming.FunctionInventionChunkLog",
+  "type": "object",
+  "properties": {
+    "completions": {
+      "type": "array",
+      "items": {
+        "$ref": "IndexedLogReference"
+      }
+    },
+    "created": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "error": {
+      "anyOf": [
+        {
+          "$ref": "error.ResponseError"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "function": {
+      "anyOf": [
+        {
+          "$ref": "functions.FullRemoteFunction"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "id": {
+      "type": "string"
+    },
+    "object": {
+      "$ref": "functions.inventions.response.streaming.Object"
+    },
+    "path": {
+      "anyOf": [
+        {
+          "$ref": "RemotePath"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "state": {
+      "anyOf": [
+        {
+          "$ref": "functions.inventions.state.State"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "usage": {
+      "anyOf": [
+        {
+          "$ref": "agent.completions.response.Usage"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

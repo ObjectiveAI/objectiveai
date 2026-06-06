@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { listen, invokeCli, __resetForTests } from "./index";
+import { listen, invokeCliRequest, __resetForTests } from "./index";
 
 /**
  * Simulate the iframe context by mocking `window.parent` to be a
@@ -61,7 +61,7 @@ describe("listen in iframe context", () => {
     expect(calls).toEqual([]);
   });
 
-  it("ignores cli_command events (they go through invokeCli, not listen)", () => {
+  it("ignores cli_command events (they go through invokeCliRequest, not listen)", () => {
     const calls: unknown[] = [];
     listen("my_event", (v) => calls.push(v));
     ctx.deliver({
@@ -92,24 +92,23 @@ describe("listen in iframe context", () => {
   });
 });
 
-describe("invokeCli in iframe context", () => {
+describe("invokeCliRequest in iframe context", () => {
   let ctx: ReturnType<typeof setupIframeContext>;
   beforeEach(() => {
     ctx = setupIframeContext();
   });
   afterEach(teardownIframeContext);
 
-  it("posts a cli-invoke message to window.parent with the args", () => {
-    const iter = invokeCli(["agents", "spawn"])[Symbol.asyncIterator]();
+  it("posts a cli-execute message to window.parent with the typed request", () => {
+    const request = { path: "agents", command: { path: "spawn" } };
+    const iter = invokeCliRequest(request)[Symbol.asyncIterator]();
     // Trigger the postMessage path by entering the iterator.
     void iter.next();
-    expect(ctx.parentMessages).toEqual([
-      { kind: "cli-invoke", args: ["agents", "spawn"] },
-    ]);
+    expect(ctx.parentMessages).toEqual([{ kind: "cli-execute", request }]);
   });
 
   it("yields each cli_command line and terminates on `{type: end}`", async () => {
-    const iterable = invokeCli(["test"]);
+    const iterable = invokeCliRequest({ path: "test" });
     const collected: unknown[] = [];
 
     const run = (async () => {
@@ -147,7 +146,7 @@ describe("invokeCli in iframe context", () => {
   });
 
   it("ignores inbound events while collecting cli output", async () => {
-    const iterable = invokeCli(["test"]);
+    const iterable = invokeCliRequest({ path: "test" });
     const collected: unknown[] = [];
 
     const run = (async () => {

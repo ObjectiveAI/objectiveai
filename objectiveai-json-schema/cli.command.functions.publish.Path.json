@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.functions.publish.Path",
+  "type": "string",
+  "enum": [
+    "functions/publish"
+  ]
+}

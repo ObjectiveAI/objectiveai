@@ -1,0 +1,64 @@
+{
+  "title": "agent.completions.message.AssistantMessageLog",
+  "type": "object",
+  "properties": {
+    "content": {
+      "anyOf": [
+        {
+          "$ref": "agent.completions.message.RichContentLog"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "reasoning": {
+      "anyOf": [
+        {
+          "$ref": "LogReference"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "refusal": {
+      "anyOf": [
+        {
+          "$ref": "LogReference"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "tool_calls": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "LogReference"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

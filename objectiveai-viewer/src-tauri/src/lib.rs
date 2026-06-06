@@ -1,4 +1,3 @@
-#[cfg(feature = "cli")]
 mod cli_command;
 mod plugins;
 #[cfg(test)]
@@ -13,7 +12,6 @@ pub use run::*;
 /// normal public API — integration tests call these to drive the
 /// bridge without constructing a `tauri::State`. `#[doc(hidden)]`
 /// on the inner items keeps them out of rustdoc.
-#[cfg(feature = "cli")]
 #[doc(hidden)]
 pub mod test_internals {
     pub use crate::cli_command::cli_run_impl;

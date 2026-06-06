@@ -15,6 +15,18 @@
       ],
       "omitempty": true
     },
+    "context_compression": {
+      "description": "Context compression engine for long contexts. When set, the\nupstream client emits the matching `plugins` entry on the\noutgoing OpenRouter chat-completions request.",
+      "anyOf": [
+        {
+          "$ref": "agent.openrouter.ContextCompression"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "frequency_penalty": {
       "description": "Penalizes tokens based on their frequency in the output so far (-2.0 to 2.0).",
       "anyOf": [

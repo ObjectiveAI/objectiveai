@@ -1,0 +1,99 @@
+{
+  "title": "cli.command.update.ResponseItem",
+  "description": "Per-stage update event. Update is a streaming leaf — one\n`ResponseItem` per (asset, stage) pair as the update progresses\nthrough the four shipped binaries (cli, api, viewer, mcp).",
+  "anyOf": [
+    {
+      "title": "Checking",
+      "type": "object",
+      "properties": {
+        "asset_name": {
+          "type": "string"
+        },
+        "current_version": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "checking"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Found",
+      "type": "object",
+      "properties": {
+        "asset_name": {
+          "type": "string"
+        },
+        "current_version": {
+          "type": "string"
+        },
+        "remote_version": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "found"
+          ]
+        },
+        "url": {
+          "type": "string"
+        }
+      }
+    },
+    {
+      "title": "Installed",
+      "type": "object",
+      "properties": {
+        "current_version": {
+          "type": "string"
+        },
+        "remote_version": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "installed"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Skipped",
+      "type": "object",
+      "properties": {
+        "reason": {
+          "$ref": "cli.command.update.ResponseSkipReason"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "skipped"
+          ]
+        }
+      }
+    },
+    {
+      "title": "UpToDate",
+      "type": "object",
+      "properties": {
+        "current_version": {
+          "type": "string"
+        },
+        "remote_version": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "up_to_date"
+          ]
+        }
+      }
+    }
+  ]
+}

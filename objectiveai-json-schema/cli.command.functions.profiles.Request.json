@@ -1,0 +1,41 @@
+{
+  "title": "cli.command.functions.profiles.Request",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.functions.profiles.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.functions.profiles.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.functions.profiles.get.response_schema.Request"
+    },
+    {
+      "title": "List",
+      "$ref": "cli.command.functions.profiles.list.Request"
+    },
+    {
+      "title": "ListRequestSchema",
+      "$ref": "cli.command.functions.profiles.list.request_schema.Request"
+    },
+    {
+      "title": "ListResponseSchema",
+      "$ref": "cli.command.functions.profiles.list.response_schema.Request"
+    },
+    {
+      "title": "Publish",
+      "$ref": "cli.command.functions.profiles.publish.Request"
+    },
+    {
+      "title": "PublishRequestSchema",
+      "$ref": "cli.command.functions.profiles.publish.request_schema.Request"
+    },
+    {
+      "title": "PublishResponseSchema",
+      "$ref": "cli.command.functions.profiles.publish.response_schema.Request"
+    }
+  ]
+}

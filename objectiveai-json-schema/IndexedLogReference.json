@@ -1,0 +1,19 @@
+{
+  "title": "IndexedLogReference",
+  "description": "`LogReference` for log files keyed by an `index` — used by\nper-agent / per-invention completion wrappers that need to preserve\ntheir position within a parent collection (a vector completion's\nswarm-index, an invention's per-invention index, etc.).",
+  "type": "object",
+  "properties": {
+    "index": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "path": {
+      "type": "string",
+      "omitempty": true
+    },
+    "type": {
+      "$ref": "LogReferenceTag"
+    }
+  }
+}

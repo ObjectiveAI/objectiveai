@@ -1,0 +1,9 @@
+{
+  "title": "cli.command.swarms.publish.Response",
+  "type": "object",
+  "properties": {
+    "sha": {
+      "type": "string"
+    }
+  }
+}

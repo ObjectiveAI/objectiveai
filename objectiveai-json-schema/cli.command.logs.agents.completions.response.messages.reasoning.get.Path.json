@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.logs.agents.completions.response.messages.reasoning.get.Path",
+  "type": "string",
+  "enum": [
+    "logs/agents/completions/response/messages/reasoning/get"
+  ]
+}

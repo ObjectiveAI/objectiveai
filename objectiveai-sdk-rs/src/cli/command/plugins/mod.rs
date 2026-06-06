@@ -14,31 +14,58 @@ pub enum Command {
     Run(run::Command),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
+#[schemars(rename = "cli.command.plugins.Request")]
 pub enum Request {
+    #[schemars(title = "Get")]
     Get(get::Request),
+    #[schemars(title = "GetRequestSchema")]
     GetRequestSchema(get::request_schema::Request),
+    #[schemars(title = "GetResponseSchema")]
     GetResponseSchema(get::response_schema::Request),
+    #[schemars(title = "Install")]
     Install(install::Request),
+    #[schemars(title = "List")]
     List(list::Request),
+    #[schemars(title = "ListRequestSchema")]
     ListRequestSchema(list::request_schema::Request),
+    #[schemars(title = "ListResponseSchema")]
     ListResponseSchema(list::response_schema::Request),
+    #[schemars(title = "Run")]
     Run(run::Request),
+    #[schemars(title = "RunRequestSchema")]
     RunRequestSchema(run::request_schema::Request),
+    #[schemars(title = "RunResponseSchema")]
     RunResponseSchema(run::response_schema::Request),
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+// Exempt from json-schema coverage: tier aggregate (see the root
+// `ResponseItem` in command.rs - TS7056).
+#[objectiveai_sdk_macros::json_schema_ignore]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.plugins.ResponseItem")]
+#[serde(untagged)]
 pub enum ResponseItem {
+    #[schemars(title = "Get")]
     Get(get::Response),
+    #[schemars(title = "GetRequestSchema")]
     GetRequestSchema(get::request_schema::Response),
+    #[schemars(title = "GetResponseSchema")]
     GetResponseSchema(get::response_schema::Response),
+    #[schemars(title = "Install")]
     Install(install::Response),
+    #[schemars(title = "List")]
     List(list::ResponseItem),
+    #[schemars(title = "ListRequestSchema")]
     ListRequestSchema(list::request_schema::Response),
+    #[schemars(title = "ListResponseSchema")]
     ListResponseSchema(list::response_schema::Response),
+    #[schemars(title = "Run")]
     Run(run::ResponseItem),
+    #[schemars(title = "RunRequestSchema")]
     RunRequestSchema(run::request_schema::Response),
+    #[schemars(title = "RunResponseSchema")]
     RunResponseSchema(run::response_schema::Response),
 }
 
@@ -112,7 +139,9 @@ impl crate::cli::command::CommandRequest for Request {
 pub async fn execute<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     request: Request,
-) -> Result<
+
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>>,
     E::Error,
 > {
@@ -120,55 +149,55 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>> =
         match request {
             Request::Get(req) => {
-                let value = get::execute(executor, req).await?;
+                let value = get::execute(executor, req, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::Get(value),
                 )))
             }
             Request::GetRequestSchema(req) => {
-                let value = get::request_schema::execute(executor, req).await?;
+                let value = get::request_schema::execute(executor, req, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::GetRequestSchema(value),
                 )))
             }
             Request::GetResponseSchema(req) => {
-                let value = get::response_schema::execute(executor, req).await?;
+                let value = get::response_schema::execute(executor, req, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::GetResponseSchema(value),
                 )))
             }
             Request::Install(req) => {
-                let inner = install::execute(executor, req).await?;
+                let inner = install::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Install)))
             }
             Request::List(req) => {
-                let inner = list::execute(executor, req).await?;
+                let inner = list::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::List)))
             }
             Request::ListRequestSchema(req) => {
-                let value = list::request_schema::execute(executor, req).await?;
+                let value = list::request_schema::execute(executor, req, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::ListRequestSchema(value),
                 )))
             }
             Request::ListResponseSchema(req) => {
-                let value = list::response_schema::execute(executor, req).await?;
+                let value = list::response_schema::execute(executor, req, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::ListResponseSchema(value),
                 )))
             }
             Request::Run(req) => {
-                let inner = run::execute(executor, req).await?;
+                let inner = run::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Run)))
             }
             Request::RunRequestSchema(req) => {
-                let value = run::request_schema::execute(executor, req).await?;
+                let value = run::request_schema::execute(executor, req, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::RunRequestSchema(value),
                 )))
             }
             Request::RunResponseSchema(req) => {
-                let value = run::response_schema::execute(executor, req).await?;
+                let value = run::response_schema::execute(executor, req, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::RunResponseSchema(value),
                 )))
@@ -182,50 +211,52 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     request: Request,
     jq: String,
-) -> Result<
+
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>>,
     E::Error,
 > {
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
         match request {
             Request::Get(req) => {
-                let value = get::execute_jq(executor, req, jq).await?;
+                let value = get::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::GetRequestSchema(req) => {
-                let value = get::request_schema::execute_jq(executor, req, jq).await?;
+                let value = get::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::GetResponseSchema(req) => {
-                let value = get::response_schema::execute_jq(executor, req, jq).await?;
+                let value = get::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::Install(req) => {
-                let inner = install::execute_jq(executor, req, jq).await?;
+                let inner = install::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::List(req) => {
-                let inner = list::execute_jq(executor, req, jq).await?;
+                let inner = list::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::ListRequestSchema(req) => {
-                let value = list::request_schema::execute_jq(executor, req, jq).await?;
+                let value = list::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::ListResponseSchema(req) => {
-                let value = list::response_schema::execute_jq(executor, req, jq).await?;
+                let value = list::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::Run(req) => {
-                let inner = run::execute_jq(executor, req, jq).await?;
+                let inner = run::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::RunRequestSchema(req) => {
-                let value = run::request_schema::execute_jq(executor, req, jq).await?;
+                let value = run::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::RunResponseSchema(req) => {
-                let value = run::response_schema::execute_jq(executor, req, jq).await?;
+                let value = run::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
         };

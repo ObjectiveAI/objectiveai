@@ -1,0 +1,22 @@
+{
+  "title": "cli.command.swarms.get.Request",
+  "type": "object",
+  "properties": {
+    "jq": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "path": {
+      "$ref": "cli.command.RemotePathCommitOptionalOrFavorite"
+    },
+    "path_type": {
+      "$ref": "cli.command.swarms.get.Path"
+    }
+  }
+}

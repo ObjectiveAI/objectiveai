@@ -21,7 +21,7 @@
     },
     {
       "title": "McpListChanged",
-      "description": "The CLI's upstream `mcp::Connection` for `mcp_session_id`\nfired `notifications/<kind>/list_changed`. The API\ndispatches this onto its per-`(ws_session_id, mcp_session_id)`\nbroadcast so every matching MCP GET-SSE listener sees a\nstandard MCP notification frame.",
+      "description": "The CLI's upstream `mcp::Connection` for `mcp_kind` fired\n`notifications/<kind>/list_changed`. The API dispatches this\nonto its per-`(response_id, McpKind)` broadcast so the\nmatching MCP GET-SSE listener sees a standard MCP\nnotification frame.",
       "type": "object",
       "$ref": "client_objectiveai_mcp.client_request.McpListChanged",
       "properties": {

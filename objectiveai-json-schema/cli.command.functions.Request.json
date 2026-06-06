@@ -1,0 +1,53 @@
+{
+  "title": "cli.command.functions.Request",
+  "anyOf": [
+    {
+      "title": "Executions",
+      "$ref": "cli.command.functions.executions.create.Request"
+    },
+    {
+      "title": "Get",
+      "$ref": "cli.command.functions.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.functions.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.functions.get.response_schema.Request"
+    },
+    {
+      "title": "Inventions",
+      "$ref": "cli.command.functions.inventions.Request"
+    },
+    {
+      "title": "List",
+      "$ref": "cli.command.functions.list.Request"
+    },
+    {
+      "title": "ListRequestSchema",
+      "$ref": "cli.command.functions.list.request_schema.Request"
+    },
+    {
+      "title": "ListResponseSchema",
+      "$ref": "cli.command.functions.list.response_schema.Request"
+    },
+    {
+      "title": "Profiles",
+      "$ref": "cli.command.functions.profiles.Request"
+    },
+    {
+      "title": "Publish",
+      "$ref": "cli.command.functions.publish.Request"
+    },
+    {
+      "title": "PublishRequestSchema",
+      "$ref": "cli.command.functions.publish.request_schema.Request"
+    },
+    {
+      "title": "PublishResponseSchema",
+      "$ref": "cli.command.functions.publish.response_schema.Request"
+    }
+  ]
+}

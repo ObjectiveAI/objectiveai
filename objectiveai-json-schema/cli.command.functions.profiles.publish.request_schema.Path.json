@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.functions.profiles.publish.request_schema.Path",
+  "type": "string",
+  "enum": [
+    "functions/profiles/publish/request_schema"
+  ]
+}

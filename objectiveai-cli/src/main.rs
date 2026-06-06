@@ -27,7 +27,7 @@ async fn run(args: Vec<String>) -> i32 {
                         if let objectiveai_cli::error::Error::ToolExit(code) = &e {
                             last_tool_exit = Some(*code);
                         }
-                        write_error_line(&mut stdout, &e).await;
+                        write_error_line(&mut stdout, &e, None).await;
                     }
                 }
             }
@@ -43,7 +43,7 @@ async fn run(args: Vec<String>) -> i32 {
                     return 0;
                 }
             }
-            write_error_line(&mut stdout, &e).await;
+            write_error_line(&mut stdout, &e, Some(true)).await;
             match e {
                 objectiveai_cli::error::Error::ToolExit(code) => code,
                 _ => 1,
@@ -70,11 +70,12 @@ async fn write_line<T: serde::Serialize>(
 async fn write_error_line(
     stdout: &mut tokio::io::Stdout,
     e: &objectiveai_cli::error::Error,
+    fatal: Option<bool>,
 ) {
     let payload = objectiveai_sdk::cli::Error {
         r#type: objectiveai_sdk::cli::ErrorType::Error,
         level: Some(objectiveai_sdk::cli::Level::Error),
-        fatal: Some(true),
+        fatal,
         message: e.output_message(),
     };
     write_line(stdout, &payload).await;

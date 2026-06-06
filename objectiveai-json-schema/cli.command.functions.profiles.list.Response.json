@@ -1,0 +1,12 @@
+{
+  "title": "cli.command.functions.profiles.list.Response",
+  "type": "object",
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "$ref": "cli.command.functions.profiles.list.ResponseItem"
+      }
+    }
+  }
+}

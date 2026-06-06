@@ -1,0 +1,53 @@
+{
+  "title": "cli.command.logs.vector.completions.response.Request",
+  "anyOf": [
+    {
+      "title": "Clear",
+      "$ref": "cli.command.logs.vector.completions.response.clear.Request"
+    },
+    {
+      "title": "ClearRequestSchema",
+      "$ref": "cli.command.logs.vector.completions.response.clear.request_schema.Request"
+    },
+    {
+      "title": "ClearResponseSchema",
+      "$ref": "cli.command.logs.vector.completions.response.clear.response_schema.Request"
+    },
+    {
+      "title": "Get",
+      "$ref": "cli.command.logs.vector.completions.response.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.logs.vector.completions.response.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.logs.vector.completions.response.get.response_schema.Request"
+    },
+    {
+      "title": "List",
+      "$ref": "cli.command.logs.vector.completions.response.list.Request"
+    },
+    {
+      "title": "ListRequestSchema",
+      "$ref": "cli.command.logs.vector.completions.response.list.request_schema.Request"
+    },
+    {
+      "title": "ListResponseSchema",
+      "$ref": "cli.command.logs.vector.completions.response.list.response_schema.Request"
+    },
+    {
+      "title": "Subscribe",
+      "$ref": "cli.command.logs.vector.completions.response.subscribe.Request"
+    },
+    {
+      "title": "SubscribeRequestSchema",
+      "$ref": "cli.command.logs.vector.completions.response.subscribe.request_schema.Request"
+    },
+    {
+      "title": "SubscribeResponseSchema",
+      "$ref": "cli.command.logs.vector.completions.response.subscribe.response_schema.Request"
+    }
+  ]
+}

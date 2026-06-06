@@ -13,9 +13,10 @@
  *     The iframe's `listen(sub_type, handler)` matches on the
  *     `sub_type` discriminator.
  *
- *   - `cli_command` — one line of stdout from an in-process
- *     `objectiveai_cli::run()` invocation that this iframe started
- *     via `invokeCli`. No sub_type.
+ *   - `cli_command` — one stdout JSONL line from an objectiveai cli
+ *     binary the host spawned for an `invokeCliRequest` this iframe
+ *     started, terminated by a synthetic `{"type":"end"}` line. No
+ *     sub_type.
  *
  *   - `api_call` — one envelope (begin / chunk / error / end) from a
  *     viewer-mode `ObjectiveAI` client call that this iframe started
@@ -23,19 +24,25 @@
  *     `"<METHOD>_<PATH>"` rename of the targeted endpoint, so the
  *     iframe can demux concurrent calls to *different* endpoints.
  *
- * The reverse direction (iframe -> host) carries `cli-invoke` and
- * `api-call-invoke` postMessages; this module catches them, resolves
- * the originating iframe via `MessageEvent.source`, and dispatches
- * the matching Tauri command (`cli_run` / `api_call_run`) with the
- * originator's plugin name as `origin`. Messages from unknown
- * sources are dropped (security: don't let a random iframe drive
- * the host without identity).
+ * The reverse direction (iframe -> host) carries `cli-execute` (a
+ * typed `cli::command::Request` as serde JSON — there is no raw-argv
+ * path) and `api-call-invoke` postMessages; this module catches
+ * them, resolves the originating iframe via `MessageEvent.source`,
+ * and dispatches the matching Tauri command (`cli_execute` /
+ * `api_call_run`) with the originator's plugin name as `origin`.
+ * Messages from unknown sources are dropped (security: don't let a
+ * random iframe drive the host without identity).
  */
 import { tauriListen as safeListen, tauriInvoke } from "./lib/tauri";
 
 type IframeHandle = {
   pluginName: string;
   iframe: HTMLIFrameElement;
+  /**
+   * Target origin for host -> iframe postMessage calls. Derived once
+   * at register time — always `"*"` under the current sandbox; see
+   * `deriveTargetOrigin` for why nothing stricter can deliver.
+   */
   targetOrigin: string;
 };
 
@@ -64,12 +71,27 @@ type EventPayload = InboundPayload | CliCommandPayload | ApiCallPayload;
 const iframes = new Map<string, IframeHandle>();
 const tauriUnlisteners = new Map<string, () => void>();
 
-function deriveTargetOrigin(src: string): string {
-  try {
-    return new URL(src).origin;
-  } catch {
-    return "*";
-  }
+/**
+ * Target origin for host -> iframe postMessage calls: always `"*"`.
+ *
+ * `PluginPane.tsx` sandboxes every plugin iframe with
+ * `allow-scripts allow-forms` and no `allow-same-origin`, which gives
+ * the iframe an opaque origin (`null`). An opaque origin never matches
+ * a concrete targetOrigin, so posting to `"plugin://localhost"` or
+ * `"https://plugin.example.com"` is silently dropped by the browser —
+ * `invokeCli()` responses never arrive and the iterator hangs
+ * (issue #203). `"*"` is the only value the browser will deliver.
+ *
+ * This is not a broadcast: every message is posted directly to
+ * `handle.iframe.contentWindow`, so the window reference itself is
+ * the delivery constraint, and the reverse direction keeps its
+ * `findPluginByWindow` identity gate. If `allow-same-origin` is ever
+ * added to the sandbox, derived-origin tightening
+ * (`new URL(src).origin`) can be restored here for http(s)
+ * `viewer_url` plugins — which is why the `src` plumbing stays.
+ */
+function deriveTargetOrigin(_src: string): string {
+  return "*";
 }
 
 /** Register a plugin iframe so the bridge can forward events to it. */
@@ -144,19 +166,25 @@ function ensureReverseListener(): void {
 
 function onIframeMessage(event: MessageEvent): void {
   const msg = event.data as
-    | { kind?: string; args?: unknown; subType?: unknown; body?: unknown }
+    | {
+        kind?: string;
+        request?: unknown;
+        subType?: unknown;
+        body?: unknown;
+      }
     | null;
   if (!msg || typeof msg !== "object") return;
 
-  if (msg.kind === "cli-invoke") {
-    if (!Array.isArray(msg.args)) return;
+  if (msg.kind === "cli-execute") {
+    // Typed request: serde JSON of the SDK's `cli::command::Request`.
+    // The Rust side deserializes it and lowers it to argv via
+    // `into_command()`, then streams cli_command events back via the
+    // events bus — fire-and-forget. There is deliberately no raw-argv
+    // invocation path.
+    if (msg.request === undefined || msg.request === null) return;
     const origin = findPluginByWindow(event.source);
     if (!origin) return;
-    const args = msg.args.filter((a): a is string => typeof a === "string");
-    // Fire-and-forget. The host streams cli_command events back via
-    // the events bus; the iframe consumes them through its async
-    // iterator.
-    void tauriInvoke("cli_run", { args, origin });
+    void tauriInvoke("cli_execute", { request: msg.request, origin });
     return;
   }
 

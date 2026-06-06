@@ -1,0 +1,11 @@
+{
+  "title": "cli.command.logs.agents.completions.response.messages.file.clear.Response",
+  "type": "object",
+  "properties": {
+    "count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    }
+  }
+}

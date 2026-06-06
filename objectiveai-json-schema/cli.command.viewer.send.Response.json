@@ -1,0 +1,12 @@
+{
+  "title": "cli.command.viewer.send.Response",
+  "type": "object",
+  "properties": {
+    "body": {},
+    "status": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 65535
+    }
+  }
+}

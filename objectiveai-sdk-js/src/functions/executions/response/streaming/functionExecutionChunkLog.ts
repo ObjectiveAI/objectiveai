@@ -3,11 +3,11 @@
 import { z } from "zod";
 import { AgentCompletionsResponseUsageSchema } from "../../../../agent/completions/response/usage";
 import { ErrorResponseErrorSchema } from "../../../../error/responseError";
-import { FilesystemLogsLogReferenceSchema } from "../../../../filesystem/logs/logReference";
 import { FunctionsExecutionsResponseOutputSchema } from "../output";
 import { FunctionsExecutionsResponseStreamingObjectSchema } from "./object";
 import { FunctionsExecutionsResponseStreamingReasoningSummaryLogReferenceLogReferenceSchema } from "./reasoning_summary_log_reference/logReference";
 import { FunctionsExecutionsResponseStreamingTaskLogReferenceLogReferenceSchema } from "./task_log_reference/logReference";
+import { LogReferenceSchema } from "../../../../logReference";
 import { RemotePathSchema } from "../../../../remotePath";
 
 export const FunctionsExecutionsResponseStreamingFunctionExecutionChunkLogSchema = z.object({
@@ -19,7 +19,7 @@ export const FunctionsExecutionsResponseStreamingFunctionExecutionChunkLogSchema
   output: FunctionsExecutionsResponseOutputSchema.nullable().meta({ omitempty: true }).optional(),
   profile: RemotePathSchema.nullable().optional(),
   reasoning: FunctionsExecutionsResponseStreamingReasoningSummaryLogReferenceLogReferenceSchema.nullable().describe("Appended at the end to match the legacy on-disk order: the\nold code inserted `reasoning` via `Map::insert` AFTER all\nthe shell fields, putting it at the tail of the object.").meta({ omitempty: true }).optional(),
-  retry_token: FilesystemLogsLogReferenceSchema.nullable().meta({ omitempty: true }).optional(),
+  retry_token: LogReferenceSchema.nullable().meta({ omitempty: true }).optional(),
   tasks: z.array(FunctionsExecutionsResponseStreamingTaskLogReferenceLogReferenceSchema),
   tasks_errors: z.boolean().nullable().meta({ omitempty: true }).optional(),
   usage: AgentCompletionsResponseUsageSchema.nullable().meta({ omitempty: true }).optional(),

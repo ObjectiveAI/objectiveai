@@ -4,9 +4,11 @@
 //! spawn the server in-process; the binary at `main.rs` is a thin wrapper
 //! that reads `Config` from the environment and calls [`run`].
 
+pub mod agent_args_registry;
 mod bridge;
 mod format;
-mod objectiveai;
+mod header_session_manager;
+pub mod objectiveai;
 mod run;
 
 #[cfg(test)]

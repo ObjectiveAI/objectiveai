@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.config.viewer.signature.set.Path",
+  "type": "string",
+  "enum": [
+    "config/viewer/signature/set"
+  ]
+}

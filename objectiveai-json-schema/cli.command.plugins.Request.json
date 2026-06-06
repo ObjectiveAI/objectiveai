@@ -1,0 +1,45 @@
+{
+  "title": "cli.command.plugins.Request",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.plugins.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.plugins.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.plugins.get.response_schema.Request"
+    },
+    {
+      "title": "Install",
+      "$ref": "cli.command.plugins.install.Request"
+    },
+    {
+      "title": "List",
+      "$ref": "cli.command.plugins.list.Request"
+    },
+    {
+      "title": "ListRequestSchema",
+      "$ref": "cli.command.plugins.list.request_schema.Request"
+    },
+    {
+      "title": "ListResponseSchema",
+      "$ref": "cli.command.plugins.list.response_schema.Request"
+    },
+    {
+      "title": "Run",
+      "$ref": "cli.command.plugins.run.Request"
+    },
+    {
+      "title": "RunRequestSchema",
+      "$ref": "cli.command.plugins.run.request_schema.Request"
+    },
+    {
+      "title": "RunResponseSchema",
+      "$ref": "cli.command.plugins.run.response_schema.Request"
+    }
+  ]
+}

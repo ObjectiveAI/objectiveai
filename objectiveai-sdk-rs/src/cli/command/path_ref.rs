@@ -125,6 +125,7 @@ impl FromStr for crate::RemotePathCommitOptional {
 /// object form or a bare string).
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
+#[schemars(rename = "cli.command.RemotePathCommitOptionalOrFavorite")]
 pub enum RemotePathCommitOptionalOrFavorite {
     #[schemars(title = "Resolved")]
     Resolved(crate::RemotePathCommitOptional),

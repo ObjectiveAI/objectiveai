@@ -3,6 +3,7 @@
 /// deserializes through serde as the static string. Used as `Response`
 /// on every cli leaf whose only success signal is "it worked."
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.Ok")]
 pub enum Ok {
     Ok,
 }

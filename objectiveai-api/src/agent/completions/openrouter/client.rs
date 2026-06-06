@@ -438,7 +438,6 @@ impl UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::
             agent_instance_hierarchy: agent_instance_hierarchy.to_string(),
             messages: all_messages,
             mcp_sessions,
-            ws_session_id: None,
         }
     }
 }

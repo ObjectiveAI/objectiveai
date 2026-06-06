@@ -749,13 +749,6 @@ impl HttpClient {
                     serde_json::from_str::<ServerRequest>(&text)
                 {
                     let id = request.id.clone();
-                    let method = request
-                        .body
-                        .as_ref()
-                        .and_then(|v| v.get("method"))
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("")
-                        .to_string();
                     let handler = handler.clone();
                     let demux_sink = demux_sink.clone();
                     tokio::spawn(async move {

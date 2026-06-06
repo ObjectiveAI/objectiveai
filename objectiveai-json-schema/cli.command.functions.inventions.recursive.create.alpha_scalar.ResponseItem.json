@@ -1,0 +1,13 @@
+{
+  "title": "cli.command.functions.inventions.recursive.create.alpha_scalar.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Chunk",
+      "$ref": "functions.inventions.recursive.response.streaming.FunctionInventionRecursiveChunk"
+    },
+    {
+      "title": "Id",
+      "type": "string"
+    }
+  ]
+}

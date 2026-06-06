@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.logs.agents.completions.request.notifications.file.get.request_schema.Path",
+  "type": "string",
+  "enum": [
+    "logs/agents/completions/request/notifications/file/get/request_schema"
+  ]
+}

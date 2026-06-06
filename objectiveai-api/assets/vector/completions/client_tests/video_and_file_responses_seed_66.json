@@ -4,13 +4,15 @@
     {
       "index": 0,
       "id": "",
+      "agent_instance_hierarchy": "",
+      "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
+      "agent_full_id": "4wXv5UufT9xfKYKsCLpBXT",
       "created": 0,
       "messages": [
         {
           "role": "assistant",
           "index": 0,
           "created": 0,
-          "agent": "4wXv5UufT9xfKYKsCLpBXT",
           "model": "mock",
           "upstream_id": "",
           "tool_calls": null,
@@ -44,7 +46,7 @@
   ],
   "votes": [
     {
-      "agent": "4wXv5UufT9xfKYKsCLpBXT",
+      "agent": "4wXv5UufT9xfKYKsCLpBXT-Kwr5Hgk2Hv71wVg5U",
       "swarm_index": 0,
       "flat_swarm_index": 0,
       "prompt_id": "3abSehQ6CAvSYExUxs4sFx",

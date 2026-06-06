@@ -1,0 +1,8 @@
+{
+  "title": "agent.openrouter.ContextCompression",
+  "description": "Middle-out compression — drops content from the middle of the\nconversation when the request would otherwise exceed the\nmodel's context window. The only engine documented today.\n\nIntentionally no `#[schemars(title)]` here: the builder's\nsingle-variant-anyOf flatten merges the variant's title onto\nthe parent schema, clobbering the enum's `agent.openrouter\n.ContextCompression` rename. Add a per-variant title only\nonce a second variant lands.",
+  "type": "string",
+  "enum": [
+    "middle-out"
+  ]
+}

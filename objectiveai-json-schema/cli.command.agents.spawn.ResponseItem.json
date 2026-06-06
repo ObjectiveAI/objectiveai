@@ -1,0 +1,13 @@
+{
+  "title": "cli.command.agents.spawn.ResponseItem",
+  "anyOf": [
+    {
+      "title": "Chunk",
+      "$ref": "agent.completions.response.streaming.AgentCompletionChunk"
+    },
+    {
+      "title": "Id",
+      "type": "string"
+    }
+  ]
+}

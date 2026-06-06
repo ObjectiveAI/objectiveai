@@ -1,0 +1,25 @@
+{
+  "title": "cli.command.functions.inventions.recursive.create.remote.RequestState",
+  "anyOf": [
+    {
+      "title": "Inline",
+      "type": "object",
+      "properties": {
+        "Inline": {
+          "$ref": "functions.inventions.state.ParamsState"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Ref",
+      "type": "object",
+      "properties": {
+        "Ref": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

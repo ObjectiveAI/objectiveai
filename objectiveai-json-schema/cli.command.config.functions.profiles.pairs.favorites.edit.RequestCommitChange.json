@@ -1,0 +1,22 @@
+{
+  "title": "cli.command.config.functions.profiles.pairs.favorites.edit.RequestCommitChange",
+  "anyOf": [
+    {
+      "title": "Set",
+      "type": "object",
+      "properties": {
+        "Set": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Remove",
+      "type": "string",
+      "enum": [
+        "Remove"
+      ]
+    }
+  ]
+}

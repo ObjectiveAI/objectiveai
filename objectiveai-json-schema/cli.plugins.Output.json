@@ -1,14 +1,22 @@
 {
   "title": "cli.plugins.Output",
-  "description": "One line of plugin output. Untagged outer enum: deserialization\ntries the three explicit [`TypedOutput`] variants first\n(`type:\"command\" | \"mcp\" | \"error\"`), and falls through to\n[`Output::Notification`] as a catch-all carrying the raw JSON value.",
+  "description": "One line of plugin output. Untagged outer enum — deserialization\ntries each typed variant by its constant `type:\"…\"` discriminator\nin source order and falls through to [`Output::Notification`] as\na catch-all carrying the raw JSON value.\n\n[`Mcp`] is imported from\n[`crate::cli::command::plugins::run`] — this module does NOT\nre-export it; importers reach it by its canonical path.",
   "anyOf": [
     {
-      "title": "Typed",
-      "$ref": "cli.plugins.TypedOutput"
+      "title": "Command",
+      "$ref": "cli.plugins.Command"
+    },
+    {
+      "title": "Mcp",
+      "$ref": "cli.command.plugins.run.Mcp"
+    },
+    {
+      "title": "Error",
+      "$ref": "cli.Error"
     },
     {
       "title": "Notification",
-      "description": "Final fallback — anything that didn't match a `Typed` variant\nlands here as an opaque JSON value. Hosts treat this as a\nnotification payload to forward upstream."
+      "description": "Final fallback — anything that didn't match a typed variant\nlands here as an opaque JSON value. Hosts treat this as a\nnotification payload to forward upstream."
     }
   ]
 }

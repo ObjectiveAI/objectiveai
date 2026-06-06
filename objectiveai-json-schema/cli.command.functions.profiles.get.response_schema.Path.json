@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.functions.profiles.get.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "functions/profiles/get/response_schema"
+  ]
+}

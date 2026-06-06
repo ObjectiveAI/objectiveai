@@ -1,0 +1,14 @@
+{
+  "title": "cli.command.functions.executions.create.ProfileSpec",
+  "description": "CLI-surface form for the `--profile-inline` argument: either a fully\nresolved inline-or-remote spec, or a bare favorite name that the CLI\nresolves to one of those at handler time. Untagged: an inline profile\nobject or remote-path object lands on `Resolved`; a bare JSON string\nlands on `Favorite`.",
+  "anyOf": [
+    {
+      "title": "Resolved",
+      "$ref": "functions.InlineProfileOrRemoteCommitOptional"
+    },
+    {
+      "title": "Favorite",
+      "type": "string"
+    }
+  ]
+}

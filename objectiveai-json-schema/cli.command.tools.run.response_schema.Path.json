@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.tools.run.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "tools/run/response_schema"
+  ]
+}

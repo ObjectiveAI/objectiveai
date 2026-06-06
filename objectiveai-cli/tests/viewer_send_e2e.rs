@@ -8,7 +8,8 @@
 //! header — matching the same header format the viewer's signature
 //! middleware accepts.
 
-use std::path::PathBuf;
+mod cli_test_util;
+
 use std::process::Command;
 
 use serde_json::Value;
@@ -19,15 +20,9 @@ use wiremock::{
 
 const SIGNATURE: &str = "sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
-fn temp_base() -> PathBuf {
-    let d = std::env::temp_dir().join(format!("oai-viewer-send-{}", uuid::Uuid::new_v4()));
-    std::fs::create_dir_all(&d).unwrap();
-    d
-}
-
 #[tokio::test]
 async fn viewer_send_remote_mode_posts_to_configured_address() {
-    let base = temp_base();
+    let base = cli_test_util::test_base_dir();
 
     let mock_server = MockServer::start().await;
 
@@ -56,7 +51,7 @@ async fn viewer_send_remote_mode_posts_to_configured_address() {
         .await
         .expect("write_config failed");
 
-    let cli = env!("CARGO_BIN_EXE_objectiveai-cli");
+    let cli = cli_test_util::cli_binary();
     let body_arg = serde_json::to_string(&request_body).unwrap();
     let output = Command::new(cli)
         .env("CONFIG_BASE_DIR", &base)
@@ -72,15 +67,20 @@ async fn viewer_send_remote_mode_posts_to_configured_address() {
         output.status,
     );
 
-    // Each JSON line is a `RunItem::Command(ResponseItem::Viewer(viewer::Response::Send(send::Response)))`
-    // — externally tagged at root + tier, so the wire shape is
-    // `{"Viewer":{"Send":{"status":200,"body":...}}}`.
+    // Each JSON line is the leaf `send::Response { status, body }`
+    // serialized at the wire — every `cli/command` aggregator
+    // `Response`/`ResponseItem` is `#[serde(untagged)]` (sdk commit
+    // 39c3320e7), so the root `RunItem::Command(_)` + tier
+    // `ResponseItem::Viewer(_)` + `viewer::Response::Send(_)` all
+    // collapse and the wire shape is just
+    // `{"status":200,"body":...}` — JSON pointers are `/status` and
+    // `/body`.
     let lines: Vec<&str> = stdout.lines().collect();
     let matching = lines
         .iter()
         .filter_map(|line| serde_json::from_str::<Value>(line).ok())
-        .filter(|v| v.pointer("/Viewer/Send/status") == Some(&Value::Number(200.into())))
-        .filter(|v| v.pointer("/Viewer/Send/body") == Some(&response_body))
+        .filter(|v| v.pointer("/status") == Some(&Value::Number(200.into())))
+        .filter(|v| v.pointer("/body") == Some(&response_body))
         .count();
     assert_eq!(
         matching, 1,
@@ -88,6 +88,4 @@ async fn viewer_send_remote_mode_posts_to_configured_address() {
     );
 
     mock_server.verify().await;
-
-    let _ = std::fs::remove_dir_all(&base);
 }

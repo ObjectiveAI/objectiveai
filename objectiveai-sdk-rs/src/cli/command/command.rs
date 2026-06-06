@@ -44,35 +44,69 @@ pub enum Command {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
+#[schemars(rename = "cli.command.Request")]
 pub enum Request {
+    #[schemars(title = "Agents")]
     Agents(super::agents::Request),
+    #[schemars(title = "Config")]
     Config(super::config::Request),
+    #[schemars(title = "Functions")]
     Functions(super::functions::Request),
+    #[schemars(title = "Logs")]
     Logs(super::logs::Request),
+    #[schemars(title = "Mcp")]
     Mcp(super::mcp::Request),
+    #[schemars(title = "Plugins")]
     Plugins(super::plugins::Request),
+    #[schemars(title = "Swarms")]
     Swarms(super::swarms::Request),
+    #[schemars(title = "Tools")]
     Tools(super::tools::Request),
+    #[schemars(title = "Update")]
     Update(super::update::Request),
+    #[schemars(title = "UpdateRequestSchema")]
     UpdateRequestSchema(super::update::request_schema::Request),
+    #[schemars(title = "UpdateResponseSchema")]
     UpdateResponseSchema(super::update::response_schema::Request),
+    #[schemars(title = "Viewer")]
     Viewer(super::viewer::Request),
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+// Exempt from json-schema coverage: the aggregate's transitive
+// expansion spans the whole command tree, which downstream
+// generated TypeScript cannot emit declarations for (TS7056), and
+// no consumer uses the aggregate schema — leaf schemas cover the
+// wire.
+#[objectiveai_sdk_macros::json_schema_ignore]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.ResponseItem")]
+#[serde(untagged)]
 pub enum ResponseItem {
+    #[schemars(title = "Agents")]
     Agents(super::agents::ResponseItem),
+    #[schemars(title = "Config")]
     Config(super::config::ResponseItem),
+    #[schemars(title = "Functions")]
     Functions(super::functions::ResponseItem),
+    #[schemars(title = "Logs")]
     Logs(super::logs::ResponseItem),
+    #[schemars(title = "Mcp")]
     Mcp(super::mcp::Response),
+    #[schemars(title = "Plugins")]
     Plugins(super::plugins::ResponseItem),
+    #[schemars(title = "Swarms")]
     Swarms(super::swarms::ResponseItem),
+    #[schemars(title = "Tools")]
     Tools(super::tools::ResponseItem),
+    #[schemars(title = "Update")]
     Update(super::update::ResponseItem),
+    #[schemars(title = "UpdateRequestSchema")]
     UpdateRequestSchema(super::update::request_schema::Response),
+    #[schemars(title = "UpdateResponseSchema")]
     UpdateResponseSchema(super::update::response_schema::Response),
+    #[schemars(title = "Viewer")]
     Viewer(super::viewer::Response),
 }
 
@@ -152,7 +186,9 @@ impl super::CommandRequest for Request {
 pub async fn execute<E: super::CommandExecutor>(
     executor: &E,
     request: Request,
-) -> Result<
+
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>>,
     E::Error,
 > {
@@ -160,51 +196,51 @@ pub async fn execute<E: super::CommandExecutor>(
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>> =
         match request {
             Request::Agents(req) => {
-                let inner = super::agents::execute(executor, req).await?;
+                let inner = super::agents::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Agents)))
             }
             Request::Config(req) => {
-                let inner = super::config::execute(executor, req).await?;
+                let inner = super::config::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Config)))
             }
             Request::Functions(req) => {
-                let inner = super::functions::execute(executor, req).await?;
+                let inner = super::functions::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Functions)))
             }
             Request::Logs(req) => {
-                let inner = super::logs::execute(executor, req).await?;
+                let inner = super::logs::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Logs)))
             }
             Request::Mcp(req) => {
-                let inner = super::mcp::execute(executor, req).await?;
+                let inner = super::mcp::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Mcp)))
             }
             Request::Plugins(req) => {
-                let inner = super::plugins::execute(executor, req).await?;
+                let inner = super::plugins::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Plugins)))
             }
             Request::Swarms(req) => {
-                let inner = super::swarms::execute(executor, req).await?;
+                let inner = super::swarms::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Swarms)))
             }
             Request::Tools(req) => {
-                let inner = super::tools::execute(executor, req).await?;
+                let inner = super::tools::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Tools)))
             }
             Request::Update(req) => {
-                let inner = super::update::execute(executor, req).await?;
+                let inner = super::update::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Update)))
             }
             Request::UpdateRequestSchema(req) => {
-                let value = super::update::request_schema::execute(executor, req).await?;
+                let value = super::update::request_schema::execute(executor, req, agent_arguments).await?;
                 Box::pin(super::StreamOnce::new(Ok(ResponseItem::UpdateRequestSchema(value))))
             }
             Request::UpdateResponseSchema(req) => {
-                let value = super::update::response_schema::execute(executor, req).await?;
+                let value = super::update::response_schema::execute(executor, req, agent_arguments).await?;
                 Box::pin(super::StreamOnce::new(Ok(ResponseItem::UpdateResponseSchema(value))))
             }
             Request::Viewer(req) => {
-                let inner = super::viewer::execute(executor, req).await?;
+                let inner = super::viewer::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Viewer)))
             }
         };
@@ -216,58 +252,60 @@ pub async fn execute_jq<E: super::CommandExecutor>(
     executor: &E,
     request: Request,
     jq: String,
-) -> Result<
+
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>>,
     E::Error,
 > {
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
         match request {
             Request::Agents(req) => {
-                let inner = super::agents::execute_jq(executor, req, jq).await?;
+                let inner = super::agents::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Config(req) => {
-                let inner = super::config::execute_jq(executor, req, jq).await?;
+                let inner = super::config::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Functions(req) => {
-                let inner = super::functions::execute_jq(executor, req, jq).await?;
+                let inner = super::functions::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Logs(req) => {
-                let inner = super::logs::execute_jq(executor, req, jq).await?;
+                let inner = super::logs::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Mcp(req) => {
-                let inner = super::mcp::execute_jq(executor, req, jq).await?;
+                let inner = super::mcp::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Plugins(req) => {
-                let inner = super::plugins::execute_jq(executor, req, jq).await?;
+                let inner = super::plugins::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Swarms(req) => {
-                let inner = super::swarms::execute_jq(executor, req, jq).await?;
+                let inner = super::swarms::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Tools(req) => {
-                let inner = super::tools::execute_jq(executor, req, jq).await?;
+                let inner = super::tools::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Update(req) => {
-                let inner = super::update::execute_jq(executor, req, jq).await?;
+                let inner = super::update::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::UpdateRequestSchema(req) => {
-                let value = super::update::request_schema::execute_jq(executor, req, jq).await?;
+                let value = super::update::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(super::StreamOnce::new(Ok(value)))
             }
             Request::UpdateResponseSchema(req) => {
-                let value = super::update::response_schema::execute_jq(executor, req, jq).await?;
+                let value = super::update::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(super::StreamOnce::new(Ok(value)))
             }
             Request::Viewer(req) => {
-                let inner = super::viewer::execute_jq(executor, req, jq).await?;
+                let inner = super::viewer::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
         };

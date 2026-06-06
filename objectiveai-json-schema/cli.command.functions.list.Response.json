@@ -1,0 +1,12 @@
+{
+  "title": "cli.command.functions.list.Response",
+  "type": "object",
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "$ref": "cli.command.functions.list.ResponseItem"
+      }
+    }
+  }
+}

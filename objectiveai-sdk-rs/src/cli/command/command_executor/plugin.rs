@@ -7,12 +7,15 @@ use futures::{Stream, StreamExt};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::{Mutex, mpsc};
 
-use crate::cli::command::{CommandExecutor, CommandRequest, CommandResponse};
-use crate::cli::plugins::{Output, TypedOutput};
+use crate::cli::command::{
+    AgentArguments, CommandExecutor, CommandRequest,
+    CommandResponse as CommandResponseTrait,
+};
+use crate::cli::plugins::{Command, CommandType, Output};
 
 /// Demultiplex many in-flight `CommandRequest` calls over a plugin's
 /// stdin/stdout. Each `execute` mints a fresh id, emits a
-/// `TypedOutput::Command { id, command }` line on the plugin's stdout,
+/// `Output::Command(Command { id, command })` line on the plugin's stdout,
 /// and returns a stream that yields whatever the overlord writes back
 /// to the plugin's stdin under the same id.
 ///
@@ -94,7 +97,7 @@ impl PluginExecutor {
 }
 
 /// One line the overlord writes to a plugin's stdin in response to a
-/// previously-emitted `TypedOutput::Command`.
+/// previously-emitted `Output::Command`.
 ///
 /// Wire shape:
 /// - Value: `{"id":"42","value":<JSON>}`
@@ -118,15 +121,20 @@ enum CommandResponse {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
     /// Stdin closed (clean EOF or read error). The listener task has
     /// exited and no new requests can be served.
+    #[error("plugin executor stdin closed")]
     Closed,
+    #[error("plugin executor io: {0}")]
     Io(std::io::Error),
+    #[error("plugin executor decode line: {0}")]
     Json(serde_json::Error),
+    #[error("{0}")]
     Cli(crate::cli::Error),
     /// `execute_one` was called but the stream produced no items.
+    #[error("plugin executor stream produced no items")]
     Empty,
 }
 
@@ -156,10 +164,17 @@ impl CommandExecutor for PluginExecutor {
     where
         T: Send + 'static;
 
-    async fn execute<R, T>(&self, request: R) -> Result<Self::Stream<T>, Error>
+    async fn execute<R, T>(
+        &self,
+        request: R,
+        // Plugin runs in-process — no subprocess to stamp env on. The
+        // bag is accepted for trait-signature symmetry with the
+        // binary executor and intentionally ignored.
+        _agent_arguments: Option<&AgentArguments>,
+    ) -> Result<Self::Stream<T>, Error>
     where
         R: CommandRequest + Send,
-        T: CommandResponse + serde::de::DeserializeOwned + Send + 'static,
+        T: CommandResponseTrait + serde::de::DeserializeOwned + Send + 'static,
     {
         let id = self.counter.fetch_add(1, Ordering::Relaxed).to_string();
         let (tx, rx) = mpsc::unbounded_channel::<serde_json::Value>();
@@ -181,7 +196,8 @@ impl CommandExecutor for PluginExecutor {
         }
 
         let argv = request.into_command();
-        let envelope = Output::Typed(TypedOutput::Command {
+        let envelope = Output::Command(Command {
+            r#type: CommandType::Command,
             id: id.clone(),
             command: argv.join(" "),
         });
@@ -226,12 +242,16 @@ impl CommandExecutor for PluginExecutor {
         Ok(Box::pin(stream))
     }
 
-    async fn execute_one<R, T>(&self, request: R) -> Result<T, Error>
+    async fn execute_one<R, T>(
+        &self,
+        request: R,
+        agent_arguments: Option<&AgentArguments>,
+    ) -> Result<T, Error>
     where
         R: CommandRequest + Send,
-        T: CommandResponse + serde::de::DeserializeOwned + Send + 'static,
+        T: CommandResponseTrait + serde::de::DeserializeOwned + Send + 'static,
     {
-        let mut stream = self.execute::<R, T>(request).await?;
+        let mut stream = self.execute::<R, T>(request, agent_arguments).await?;
         stream.next().await.ok_or(Error::Empty)?
     }
 }

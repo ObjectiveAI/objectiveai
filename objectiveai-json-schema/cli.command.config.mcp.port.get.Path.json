@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.config.mcp.port.get.Path",
+  "type": "string",
+  "enum": [
+    "config/mcp/port/get"
+  ]
+}

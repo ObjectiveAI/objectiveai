@@ -56,9 +56,6 @@ pub async fn run_chunk_loop<S, Chunk, E, F>(
     log_writer: LogWriter<Chunk>,
     emissions_tx: EmissionsTx,
     push: F,
-    mut on_chunk_response_ids: Option<
-        Box<dyn FnMut(&std::collections::HashSet<String>) + Send>,
-    >,
     registry: PipeRegistry,
 ) -> Result<Consumed<Chunk>, String>
 where
@@ -97,10 +94,7 @@ where
 
                 // 2. Ensure a pipe is bound for every agent id this
                 //    chunk references.
-                let mut response_ids_this_chunk: std::collections::HashSet<String> =
-                    std::collections::HashSet::new();
                 for raw in chunk.agent_completion_ids() {
-                    response_ids_this_chunk.insert(raw.to_string());
                     let lineage_id = match &caller_agent_instance_hierarchy {
                         Some(c) => format!("{c}/{raw}"),
                         None => raw.to_string(),
@@ -126,12 +120,6 @@ where
                     registry
                         .ensure_outbound_pipe(&lineage_id, &pipes_root)
                         .await;
-                }
-
-                if !response_ids_this_chunk.is_empty() {
-                    if let Some(cb) = on_chunk_response_ids.as_mut() {
-                        cb(&response_ids_this_chunk);
-                    }
                 }
 
                 // 3. Hand a clone to the writer task.

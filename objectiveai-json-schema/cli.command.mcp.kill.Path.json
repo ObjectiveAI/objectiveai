@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.mcp.kill.Path",
+  "type": "string",
+  "enum": [
+    "mcp/kill"
+  ]
+}

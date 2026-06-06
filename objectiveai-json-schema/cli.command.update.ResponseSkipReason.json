@@ -1,0 +1,9 @@
+{
+  "title": "cli.command.update.ResponseSkipReason",
+  "type": "string",
+  "enum": [
+    "dev_tree",
+    "unsupported_platform",
+    "incomplete_release"
+  ]
+}

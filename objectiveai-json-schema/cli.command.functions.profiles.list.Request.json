@@ -1,0 +1,22 @@
+{
+  "title": "cli.command.functions.profiles.list.Request",
+  "type": "object",
+  "properties": {
+    "jq": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "path_type": {
+      "$ref": "cli.command.functions.profiles.list.Path"
+    },
+    "source": {
+      "$ref": "cli.command.functions.profiles.list.RequestSource"
+    }
+  }
+}

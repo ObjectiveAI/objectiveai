@@ -3,6 +3,21 @@
   "description": "A validated Mock Agent with its computed content-addressed ID.",
   "type": "object",
   "properties": {
+    "calls": {
+      "description": "Deterministic-script override. When `Some`, the mock agent\nemits each [`super::Call`] as its own assistant turn —\n`tool_calls` first, then `content` — in array order. Each\nsubsequent turn inspects the continuation to count how many\n`Call`s have already been satisfied (assistant message with\nexactly that `Call`'s `tool_calls` (by name+arguments) and\n`content`); the next un-matched `Call` is what that turn\nemits. Once every `Call` has been satisfied in the\ncontinuation, the mock falls through to its normal mode-driven\ndispatcher. Pure addition — agents without `calls` are\nunaffected.",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "agent.mock.Call"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "client_objectiveai_mcp": {
       "description": "Client-side ObjectiveAI MCP surface the calling client is\nexpected to expose locally back to the API (objectiveai\nbuilt-in, plus specific plugins / tools by owner+name+version).",
       "anyOf": [

@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-sdk"
-version = "2.0.11"
+version = "2.1.0"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
 description = "ObjectiveAI SDK, definitions, and utilities"
@@ -26,11 +26,11 @@ http = ["dep:reqwest", "dep:reqwest-eventsource", "dep:eventsource-stream", "dep
 env = []
 mcp = ["dep:reqwest", "dep:backoff", "dep:futures-util", "dep:tokio", "dep:tokio-util"]
 cli = ["dep:clap"]
-cli-executor = ["cli", "dep:tokio", "dep:futures", "dep:dashmap", "dep:dirs"]
+cli-executor = ["cli", "mcp", "dep:tokio", "dep:futures", "dep:dashmap", "dep:dirs"]
 viewer = ["dep:tokio"]
 
 [dependencies]
-objectiveai-sdk-macros = { version = "2.0.11", path = "../objectiveai-sdk-rs-macros" }
+objectiveai-sdk-macros = { version = "2.1.0", path = "../objectiveai-sdk-rs-macros" }
 base62 = { version = "2.2.4" }
 serde = { version = "1.0.228", features = ["derive"] }
 indexmap = { version = "2.13.0", features = ["serde"] }
@@ -61,7 +61,7 @@ schemars = { version = "1.2.1", features = ["indexmap2", "chrono04", "uuid1"] }
 arbitrary = { version = "1.4.2", features = ["derive"] }
 clap = { version = "4.6.0", features = ["derive"], optional = true }
 mime2ext = { version = "0.1.54" }
-tokio = { version = "1.51.1", features = ["fs", "time", "sync", "rt", "io-util", "macros", "process"], optional = true }
+tokio = { version = "1.51.1", features = ["fs", "time", "sync", "rt", "io-util", "io-std", "macros", "process"], optional = true }
 
 [dev-dependencies]
 proc-macro2 = { version = "1.0.106", features = ["span-locations"] }

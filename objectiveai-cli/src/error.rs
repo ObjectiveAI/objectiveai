@@ -20,6 +20,8 @@ pub enum Error {
     PythonFileRead(std::path::PathBuf, std::io::Error),
     #[error("failed to read prompt file {0}: {1}")]
     PromptFileRead(std::path::PathBuf, std::io::Error),
+    #[error("failed to read JSON file {0}: {1}")]
+    JsonFileRead(std::path::PathBuf, std::io::Error),
     #[error("python exception:\n{0}")]
     PythonException(String),
     #[error("python output deserialization failed: {0}")]

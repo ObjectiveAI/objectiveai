@@ -1,0 +1,100 @@
+{
+  "title": "cli.command.functions.executions.create.swiss_system.Request",
+  "type": "object",
+  "properties": {
+    "continuation": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "dangerous_advanced": {
+      "anyOf": [
+        {
+          "$ref": "cli.command.functions.executions.create.swiss_system.RequestDangerousAdvanced"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "function": {
+      "$ref": "cli.command.functions.executions.create.FunctionSpec"
+    },
+    "input": {
+      "$ref": "cli.command.functions.executions.create.swiss_system.RequestInput"
+    },
+    "invert": {
+      "type": "boolean"
+    },
+    "jq": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "path_type": {
+      "$ref": "cli.command.functions.executions.create.swiss_system.Path"
+    },
+    "pool": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "profile": {
+      "$ref": "cli.command.functions.executions.create.ProfileSpec"
+    },
+    "retry_token": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "rounds": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "seed": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "split": {
+      "type": "boolean"
+    }
+  }
+}

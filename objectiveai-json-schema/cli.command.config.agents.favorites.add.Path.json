@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.config.agents.favorites.add.Path",
+  "type": "string",
+  "enum": [
+    "config/agents/favorites/add"
+  ]
+}

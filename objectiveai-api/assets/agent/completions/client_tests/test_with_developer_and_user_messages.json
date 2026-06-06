@@ -1,12 +1,14 @@
 {
   "id": "",
+  "agent_instance_hierarchy": "",
+  "agent_id": "425mMcWqssOpPRrsDrjB0B",
+  "agent_full_id": "425mMcWqssOpPRrsDrjB0B",
   "created": 0,
   "messages": [
     {
       "role": "assistant",
       "index": 0,
       "created": 0,
-      "agent": "425mMcWqssOpPRrsDrjB0B",
       "model": "mock",
       "upstream_id": "",
       "tool_calls": null,

@@ -1,11 +1,6 @@
 import z from "zod";
 import { Stream } from "./stream";
 import { ObjectiveAIFetchError } from "./error";
-import {
-  viewerApiCallStream,
-  viewerApiCallUnary,
-  viewerApiCallUnaryNoResponse,
-} from "./viewer/apiCallBridge";
 
 /**
  * Read an environment variable, supporting both Node.js and Deno.
@@ -18,18 +13,6 @@ function readEnv(env: string): string | undefined {
     return (globalThis as any).Deno.env?.get?.(env)?.trim();
   }
   return undefined;
-}
-
-/**
- * Truthy-ish env-var parser. Treats `"1"`, `"true"`, `"yes"`, `"on"`
- * (case-insensitive) as `true`. Anything else — including `undefined`
- * — is `false`. Matches the convention `OBJECTIVEAI_VIEWER=1` users
- * are likely to write.
- */
-function isTruthyEnv(value: string | undefined): boolean {
-  if (!value) return false;
-  const v = value.toLowerCase();
-  return v === "1" || v === "true" || v === "yes" || v === "on";
 }
 
 /**
@@ -93,17 +76,6 @@ export const ObjectiveAIOptionsSchema = z
       .describe(
         "X-OBJECTIVEAI-AGENT-ID header. Falls back to OBJECTIVEAI_AGENT_ID env var.",
       ),
-    viewer: z
-      .boolean()
-      .nullish()
-      .describe(
-        "Route every HTTP request through the host viewer's `cli_run` " +
-          "Tauri command (via the `cli-invoke` postMessage) instead of " +
-          "`fetch()`. Requires running inside an objectiveai-viewer " +
-          "plugin iframe; the host spawns `objectiveai api …` and streams " +
-          "its JSONL output back. Falls back to OBJECTIVEAI_VIEWER env var " +
-          "(any truthy value enables it).",
-      ),
   })
   .describe("Options for the ObjectiveAI client.");
 export type ObjectiveAIOptions = z.infer<typeof ObjectiveAIOptionsSchema>;
@@ -146,7 +118,6 @@ export class ObjectiveAI {
   readonly xCommitAuthorName: string | undefined;
   readonly xCommitAuthorEmail: string | undefined;
   readonly agentId: string | undefined;
-  readonly viewer: boolean;
 
   constructor(options?: ObjectiveAIOptions | null) {
     this.address =
@@ -184,7 +155,6 @@ export class ObjectiveAI {
       options?.xCommitAuthorEmail ?? readEnv("COMMIT_AUTHOR_EMAIL") ?? undefined;
     this.agentId =
       options?.agentId ?? readEnv("OBJECTIVEAI_AGENT_ID") ?? undefined;
-    this.viewer = options?.viewer ?? isTruthyEnv(readEnv("OBJECTIVEAI_VIEWER"));
   }
 
   /**
@@ -286,9 +256,6 @@ export class ObjectiveAI {
     path: string,
     options?: RequestOptions | null,
   ): Promise<T> {
-    if (this.viewer) {
-      return viewerApiCallUnary<T>("GET", path, undefined);
-    }
     const response = await fetch(this.buildUrl(path), {
       method: "GET",
       headers: this.buildHeaders(options),
@@ -310,9 +277,6 @@ export class ObjectiveAI {
     body?: unknown,
     options?: RequestOptions | null,
   ): Promise<T> {
-    if (this.viewer) {
-      return viewerApiCallUnary<T>("POST", path, body);
-    }
     const response = await fetch(this.buildUrl(path), {
       method: "POST",
       headers: this.buildHeaders(options),
@@ -336,9 +300,6 @@ export class ObjectiveAI {
     body?: unknown,
     options?: RequestOptions | null,
   ): Promise<void> {
-    if (this.viewer) {
-      return viewerApiCallUnaryNoResponse("POST", path, body);
-    }
     const response = await fetch(this.buildUrl(path), {
       method: "POST",
       headers: this.buildHeaders(options),
@@ -359,9 +320,6 @@ export class ObjectiveAI {
     body?: unknown,
     options?: RequestOptions | null,
   ): Promise<T> {
-    if (this.viewer) {
-      return viewerApiCallUnary<T>("DELETE", path, body);
-    }
     const response = await fetch(this.buildUrl(path), {
       method: "DELETE",
       headers: this.buildHeaders(options),
@@ -383,9 +341,6 @@ export class ObjectiveAI {
     path: string,
     options?: RequestOptions | null,
   ): Promise<Stream<T>> {
-    if (this.viewer) {
-      return viewerApiCallStream<T>("GET", path, undefined);
-    }
     const headers = this.buildHeaders(options);
     headers.set("Accept", "text/event-stream");
     // The API defaults to WS for streaming endpoints; opt into SSE.
@@ -420,9 +375,6 @@ export class ObjectiveAI {
     body?: unknown,
     options?: RequestOptions | null,
   ): Promise<Stream<T>> {
-    if (this.viewer) {
-      return viewerApiCallStream<T>("POST", path, body);
-    }
     const headers = this.buildHeaders(options);
     headers.set("Accept", "text/event-stream");
     // The API defaults to WS for streaming endpoints; opt into SSE.
@@ -458,9 +410,6 @@ export class ObjectiveAI {
     body?: unknown,
     options?: RequestOptions | null,
   ): Promise<Stream<T>> {
-    if (this.viewer) {
-      return viewerApiCallStream<T>("DELETE", path, body);
-    }
     const headers = this.buildHeaders(options);
     headers.set("Accept", "text/event-stream");
     // The API defaults to WS for streaming endpoints; opt into SSE.

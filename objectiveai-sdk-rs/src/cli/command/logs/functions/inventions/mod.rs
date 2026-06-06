@@ -18,17 +18,30 @@ pub enum Command {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
+#[schemars(rename = "cli.command.logs.functions.inventions.Request")]
 pub enum Request {
+    #[schemars(title = "Recursive")]
     Recursive(recursive::Request),
+    #[schemars(title = "Request")]
     Request(request::Request),
+    #[schemars(title = "Response")]
     Response(response::Request),
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+// Exempt from json-schema coverage: tier aggregate (see the root
+// `ResponseItem` in command.rs - TS7056).
+#[objectiveai_sdk_macros::json_schema_ignore]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.logs.functions.inventions.ResponseItem")]
+#[serde(untagged)]
 pub enum ResponseItem {
+    #[schemars(title = "Recursive")]
     Recursive(recursive::ResponseItem),
+    #[schemars(title = "Request")]
     Request(request::Response),
+    #[schemars(title = "Response")]
     Response(response::ResponseItem),
 }
 
@@ -71,7 +84,9 @@ impl crate::cli::command::CommandRequest for Request {
 pub async fn execute<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     request: Request,
-) -> Result<
+
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>>,
     E::Error,
 > {
@@ -79,15 +94,15 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>> =
         match request {
             Request::Recursive(req) => {
-                let inner = recursive::execute(executor, req).await?;
+                let inner = recursive::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Recursive)))
             }
             Request::Request(req) => {
-                let inner = request::execute(executor, req).await?;
+                let inner = request::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Request)))
             }
             Request::Response(req) => {
-                let inner = response::execute(executor, req).await?;
+                let inner = response::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Response)))
             }
         };
@@ -99,22 +114,24 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     request: Request,
     jq: String,
-) -> Result<
+
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>>,
     E::Error,
 > {
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
         match request {
             Request::Recursive(req) => {
-                let inner = recursive::execute_jq(executor, req, jq).await?;
+                let inner = recursive::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Request(req) => {
-                let inner = request::execute_jq(executor, req, jq).await?;
+                let inner = request::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Response(req) => {
-                let inner = response::execute_jq(executor, req, jq).await?;
+                let inner = response::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
         };

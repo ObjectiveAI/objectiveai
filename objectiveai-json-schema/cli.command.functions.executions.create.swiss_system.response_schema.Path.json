@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.functions.executions.create.swiss_system.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "functions/executions/create/swiss_system/response_schema"
+  ]
+}

@@ -15,16 +15,16 @@ use std::process::Stdio;
 use std::sync::Arc;
 
 use futures::Stream;
-use objectiveai_sdk::cli::command::plugins::run::{
-    Request, ResponseItem, ResponseTyped,
-};
-use objectiveai_sdk::cli::plugins::{Output as PluginOutput, TypedOutput as TypedPluginOutput};
+use objectiveai_sdk::cli::command::plugins::run::{Request, ResponseItem};
+use objectiveai_sdk::cli::plugins::Output as PluginOutput;
+use objectiveai_sdk::cli::{Error as CliError, ErrorType as CliErrorType};
 use serde::Serialize;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{ChildStdin, Command};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
+use crate::child_io::{PipeEvent, spawn_pipe_reader};
 use crate::context::Context;
 use crate::error::Error;
 
@@ -50,67 +50,66 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     let stdin = child.stdin.take().expect("stdin was piped");
     let plugin_stdin: Arc<Mutex<ChildStdin>> = Arc::new(Mutex::new(stdin));
 
-    // Stderr → host's stderr, best-effort, no backpressure into the stream.
-    let stderr_task = tokio::spawn(forward_stderr(stderr));
-
+    let mut events = spawn_pipe_reader(stdout, stderr);
     let cli_config = ctx.config.clone();
 
     let stream = async_stream::stream! {
         let mut command_tasks: Vec<(Option<String>, JoinHandle<i32>)> = Vec::new();
-        let mut reader = BufReader::new(stdout);
-        let mut line = String::new();
-        loop {
-            line.clear();
-            let n = match reader.read_line(&mut line).await {
-                Ok(n) => n,
-                Err(e) => {
-                    yield Err(Error::PluginRead(e));
-                    return;
-                }
-            };
-            if n == 0 {
-                break;
-            }
-            let trimmed = line.trim_end_matches(['\r', '\n']);
-            match serde_json::from_str::<PluginOutput>(trimmed) {
-                Ok(PluginOutput::Typed(TypedPluginOutput::Error(e))) => {
-                    yield Ok(ResponseItem::Error(e));
-                }
-                Ok(PluginOutput::Typed(TypedPluginOutput::Mcp(mcp))) => {
-                    // `ResponseTyped::Mcp` only carries `url`; headers
-                    // are dropped on the bare-naked wire. Separate SDK
-                    // widening if a plugin needs them.
-                    yield Ok(ResponseItem::Typed(ResponseTyped::Mcp { url: mcp.url }));
-                }
-                Ok(PluginOutput::Typed(TypedPluginOutput::Command { id, command })) => {
-                    // Yield the request for observability, then spawn
-                    // the writer task that drives the bidirectional
-                    // protocol back to the plugin's stdin.
-                    let observe_id = id.clone();
-                    let observe_cmd = command.clone();
-                    let task_id = Some(id);
-                    let task = spawn_nested_command(
-                        command,
-                        cli_config.clone(),
-                        plugin_stdin.clone(),
-                        task_id.clone(),
-                    );
-                    command_tasks.push((task_id, task));
-                    yield Ok(ResponseItem::Typed(ResponseTyped::Command {
-                        id: Some(observe_id),
-                        command: observe_cmd,
+        while let Some(event) = events.recv().await {
+            match event {
+                PipeEvent::Stderr(_) => {
+                    // Bare anonymous error — no level, no fatal, no
+                    // message. Stops at "something went wrong on
+                    // stderr" by deliberate host policy.
+                    yield Ok(ResponseItem::Error(CliError {
+                        r#type: CliErrorType::Error,
+                        level: None,
+                        fatal: None,
+                        message: serde_json::Value::Null,
                     }));
                 }
-                Ok(PluginOutput::Notification(value)) => {
-                    yield Ok(ResponseItem::Notification(value));
+                PipeEvent::Stdout(trimmed) => {
+                    match serde_json::from_str::<PluginOutput>(&trimmed) {
+                        Ok(PluginOutput::Error(e)) => {
+                            yield Ok(ResponseItem::Error(e));
+                        }
+                        Ok(PluginOutput::Mcp(mcp)) => {
+                            yield Ok(ResponseItem::Mcp(mcp));
+                        }
+                        Ok(PluginOutput::Command(c)) => {
+                            // Command requests are host-internal —
+                            // the CLI intercepts them to drive the
+                            // bidirectional protocol back into the
+                            // plugin's stdin and does NOT surface
+                            // them on the user-visible `ResponseItem`
+                            // stream.
+                            let task_id = Some(c.id);
+                            let task = spawn_nested_command(
+                                c.command,
+                                cli_config.clone(),
+                                plugin_stdin.clone(),
+                                task_id.clone(),
+                            );
+                            command_tasks.push((task_id, task));
+                        }
+                        Ok(PluginOutput::Notification(value)) => {
+                            yield Ok(ResponseItem::Notification(value));
+                        }
+                        Err(_) => {
+                            // Legacy fallback: surface the raw line
+                            // as a notification so unparseable plugin
+                            // output is at least observable rather
+                            // than silently dropped.
+                            yield Ok(ResponseItem::Notification(
+                                serde_json::Value::String(trimmed),
+                            ));
+                        }
+                    }
                 }
-                Err(_) => {
-                    // Legacy fallback: surface the raw line as a
-                    // notification so unparseable plugin output is at
-                    // least observable rather than silently dropped.
-                    yield Ok(ResponseItem::Notification(
-                        serde_json::Value::String(trimmed.to_string()),
-                    ));
+                PipeEvent::StdoutEof | PipeEvent::StderrEof => {}
+                PipeEvent::StdoutErr(e) | PipeEvent::StderrErr(e) => {
+                    yield Err(Error::PluginRead(e));
+                    return;
                 }
             }
         }
@@ -135,7 +134,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         // Drop our reference to plugin stdin so the kernel pipe closes
         // and a polite plugin sees EOF on its stdin read.
         drop(plugin_stdin);
-        let _ = stderr_task.await;
 
         match child.wait().await {
             Ok(status) if status.success() => {}
@@ -220,24 +218,6 @@ async fn write_envelope<T: Serialize>(
     Ok(())
 }
 
-async fn forward_stderr<R>(stream: R)
-where
-    R: tokio::io::AsyncRead + Unpin,
-{
-    let mut reader = BufReader::new(stream);
-    let mut line = String::new();
-    loop {
-        line.clear();
-        match reader.read_line(&mut line).await {
-            Ok(0) | Err(_) => return,
-            Ok(_) => {
-                let trimmed = line.trim_end_matches(['\r', '\n']);
-                eprintln!("{trimmed}");
-            }
-        }
-    }
-}
-
 /// Wire envelope for nested-command output streamed back to plugin
 /// stdin. Matches `cli.plugins.PluginCommandResponse.json`. Defined
 /// locally rather than in the SDK because the SDK's `cli/output`
@@ -266,7 +246,7 @@ pub mod request_schema {
     use crate::error::Error;
 
     pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-        Ok(schemars::schema_for!(sdk::Request))
+        Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Request)))
     }
 }
 
@@ -278,6 +258,6 @@ pub mod response_schema {
     use crate::error::Error;
 
     pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-        Ok(schemars::schema_for!(sdk::ResponseItem))
+        Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::ResponseItem)))
     }
 }

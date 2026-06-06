@@ -1,0 +1,18 @@
+{
+  "title": "cli.command.config.functions.profiles.pairs.favorites.get.ResponseItem",
+  "type": "object",
+  "properties": {
+    "function": {
+      "$ref": "RemotePathCommitOptional"
+    },
+    "name": {
+      "type": "string"
+    },
+    "note": {
+      "type": "string"
+    },
+    "profile": {
+      "$ref": "RemotePathCommitOptional"
+    }
+  }
+}

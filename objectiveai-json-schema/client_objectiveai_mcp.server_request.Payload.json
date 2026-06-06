@@ -1,0 +1,89 @@
+{
+  "title": "client_objectiveai_mcp.server_request.Payload",
+  "description": "Tagged union of every JSON-RPC request the API forwards to the\nclient over the reverse-attach WS. Variant names follow the same\nsnake_case convention `client_request::Payload` uses; the\n`serde(tag = \"type\")` discriminator pairs with\n[`super::super::server_response::Payload`] by name.\n\nWhich CLI-hosted MCP server the request targets rides on the\nenclosing [`super::Request`] envelope's `mcp_kind` field, not\ninside the variant — every variant maps 1:1 to a JSON-RPC method\nregardless of which MCP is on the receiving end.",
+  "anyOf": [
+    {
+      "title": "Initialize",
+      "description": "POST `initialize`. The proxy's `protocolVersion` doesn't ride\nacross this hop — the API discards it on the way in and\nsubstitutes its own `canonical_initialize_result` on the way\nout. The variant carries the plugin arguments the CLI needs at\ndial time (parsed by the API off the URL query string).",
+      "type": "object",
+      "$ref": "client_objectiveai_mcp.server_request.InitializeRequest",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "initialize"
+          ]
+        }
+      }
+    },
+    {
+      "title": "ToolsList",
+      "description": "POST `tools/list`.",
+      "type": "object",
+      "$ref": "mcp.tool.ListToolsRequest",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "tools_list"
+          ]
+        }
+      }
+    },
+    {
+      "title": "ToolsCall",
+      "description": "POST `tools/call`.",
+      "type": "object",
+      "$ref": "mcp.tool.CallToolRequestParams",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "tools_call"
+          ]
+        }
+      }
+    },
+    {
+      "title": "ResourcesList",
+      "description": "POST `resources/list`.",
+      "type": "object",
+      "$ref": "mcp.resource.ListResourcesRequest",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "resources_list"
+          ]
+        }
+      }
+    },
+    {
+      "title": "ResourcesRead",
+      "description": "POST `resources/read`.",
+      "type": "object",
+      "$ref": "mcp.resource.ReadResourceRequestParams",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "resources_read"
+          ]
+        }
+      }
+    },
+    {
+      "title": "SessionTerminate",
+      "description": "`DELETE` on the routed MCP URL — the proxy closing the\nsession. No body.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "session_terminate"
+          ]
+        }
+      }
+    }
+  ]
+}

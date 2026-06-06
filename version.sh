@@ -208,6 +208,15 @@ ensure_py_module_version() {
   fi
 }
 
+# Overwrite a single-line version file (the Go SDK's independent
+# version source — see objectiveai-sdk-go/publish.sh). The lockstep
+# bump moves it along with everything else by default; edit the file
+# alone to release (or hold back) the Go SDK independently.
+set_version_txt() {
+  local file="$1"
+  printf '%s\n' "$NEW_VERSION" > "$file"
+}
+
 # ---------------------------------------------------------------------------
 # File lists
 # ---------------------------------------------------------------------------
@@ -269,6 +278,13 @@ TS_VERSION_STRING_FILES=(
   objectiveai-mcp-proxy/tests-ts/src/rig.ts
 )
 
+# Single-line version files for packages that version independently of
+# the manifests above (currently: the Go SDK, whose releases are git
+# tags derived from this file).
+VERSION_TXTS=(
+  objectiveai-sdk-go/version.txt
+)
+
 # ---------------------------------------------------------------------------
 # Apply
 # ---------------------------------------------------------------------------
@@ -312,6 +328,9 @@ update() {
     ts)
       set_ts_version_string "$file"
       ;;
+    vertxt)
+      set_version_txt "$file"
+      ;;
   esac
 }
 
@@ -325,6 +344,7 @@ for rel in "${PY_RUNNER_MAINS[@]}";        do update pyrun  "$rel"; done
 for rel in "${REQUIREMENTS_TXTS[@]}";       do update reqs   "$rel"; done
 for rel in "${MARKDOWN_FILES[@]}";          do update md     "$rel"; done
 for rel in "${TS_VERSION_STRING_FILES[@]}"; do update ts     "$rel"; done
+for rel in "${VERSION_TXTS[@]}";            do update vertxt "$rel"; done
 
 # Sync Cargo.lock to the new workspace versions. If we leave Cargo.lock
 # with the old versions, every cargo invocation in CI rewrites the

@@ -1,0 +1,10 @@
+{
+  "description": "Auto profile that applies the 20-agent `json-schema-10x-tools` swarm (equal weights) to every vector-completion task in its companion function. Used by the CLI vector-completion snapshot test that exercises swarm count expansion + content-hash inclusion of `client_objectiveai_mcp.tools` at scale with single-pass JsonSchema vote extraction.",
+  "agents": [
+    {
+      "remote": "mock",
+      "name": "json-schema-10x-tools",
+      "count": 20
+    }
+  ]
+}

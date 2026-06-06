@@ -19,6 +19,8 @@ systempython = []
 
 [dependencies]
 objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.0.11" }
+objectiveai-mcp = { path = "../objectiveai-mcp", version = "2.0.11" }
+axum = "0.8.8"
 clap = { version = "4.6.0", features = ["derive"] }
 schemars = { version = "1.2.1" }
 rand = "0.9.2"
@@ -56,7 +58,11 @@ indexmap = "2.13"
 sysinfo = { version = "0.38.4", default-features = false, features = ["system"] }
 dashmap = "6.1.0"
 
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_Console"] }
+
 [dev-dependencies]
 wiremock = "0.6"
 tempfile = "3.10"
 insta = { version = "1.40", features = ["json"] }
+axum = "0.8.8"

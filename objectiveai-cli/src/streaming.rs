@@ -122,7 +122,7 @@ async fn run_subprocess(
     // CLI uses. Owned values, since the parent process drops them as
     // soon as the JSON blob has been written.
     let http = build_http_config(cli_config, &fs).await?;
-    let pipes = build_pipe_config(cli_config, &fs, bind_agent_instance_hierarchy).await?;
+    let pipes = build_pipe_config(cli_config, bind_agent_instance_hierarchy)?;
 
     let request = InstanceRequest {
         http,
@@ -232,9 +232,19 @@ async fn run_subprocess(
         if trimmed.is_empty() {
             continue;
         }
-        let emission: InstanceEmission = serde_json::from_str(trimmed).unwrap_or_else(|e| {
-            panic!("instance-runner stdout produced a non-InstanceEmission line: {trimmed}; parse error: {e}")
-        });
+        let emission: InstanceEmission = match serde_json::from_str(trimmed) {
+            Ok(e) => e,
+            Err(e) => {
+                // Unknown stdout shape. Surface as an Instance error
+                // to the consumer instead of panicking — the
+                // subprocess may be a different version, or a panic
+                // from inside it may have leaked a non-JSON line.
+                let _ = tx.send(Err(Error::Instance(format!(
+                    "stdout produced a non-InstanceEmission line: {trimmed}; parse error: {e}"
+                )))).await;
+                break;
+            }
+        };
         match handle_emission(emission, stream, &tx).await {
             HandleOutcome::DetachReturn => {
                 // `stream == false` path: yielded the Id, the
@@ -306,7 +316,25 @@ fn inheritable_raw(reader: &os_pipe::PipeReader) -> String {
 #[cfg(windows)]
 fn inheritable_raw(reader: &os_pipe::PipeReader) -> String {
     use std::os::windows::io::AsRawHandle;
-    (reader.as_raw_handle() as isize).to_string()
+    use windows_sys::Win32::Foundation::{
+        HANDLE_FLAG_INHERIT, SetHandleInformation,
+    };
+    let handle = reader.as_raw_handle();
+    // `os_pipe::pipe()` on Windows calls `CreatePipe` with NULL
+    // security attributes — the resulting handles are NOT marked
+    // inheritable. `std::process::Command::spawn` does set
+    // `bInheritHandles=TRUE` on `CreateProcess` (since we pipe
+    // stdout/stderr), but unflagged handles still won't transfer.
+    // Flip the flag explicitly so the spawn carries this handle
+    // into the child.
+    unsafe {
+        let _ = SetHandleInformation(
+            handle as _,
+            HANDLE_FLAG_INHERIT,
+            HANDLE_FLAG_INHERIT,
+        );
+    }
+    (handle as isize).to_string()
 }
 
 enum HandleOutcome {
@@ -352,6 +380,21 @@ async fn handle_emission(
             // Warnings are non-fatal informational lines from the
             // instance runtime. Drop at this boundary — leaves don't
             // expose a warning channel on their typed stream today.
+            HandleOutcome::Continue
+        }
+        InstanceEmission::Error { level: _, fatal: _, message } => {
+            // Surface the error to the consumer via the existing
+            // `Instance(String)` variant — the cli's local Error
+            // enum doesn't currently carry a structured cli::Error
+            // payload, so we flatten to its string form. Same
+            // ConsumerGone semantics as the other arms on tx failure.
+            let text = match &message {
+                serde_json::Value::String(s) => s.clone(),
+                other => other.to_string(),
+            };
+            if tx.send(Err(Error::Instance(text))).await.is_err() {
+                return HandleOutcome::ConsumerGone;
+            }
             HandleOutcome::Continue
         }
     }
@@ -443,9 +486,8 @@ async fn build_http_config(
     })
 }
 
-async fn build_pipe_config(
+fn build_pipe_config(
     cli_config: &crate::run::Config,
-    fs: &crate::filesystem::Client,
     bind_agent_instance_hierarchy: Option<String>,
 ) -> Result<PipeConfig, Error> {
     let config_base_dir = cli_config
@@ -453,24 +495,8 @@ async fn build_pipe_config(
         .clone()
         .map(std::path::PathBuf::from)
         .unwrap_or_else(default_config_base_dir);
-
-    // Primary objectiveai-mcp URL: `OBJECTIVEAI_MCP_ADDRESS` env first,
-    // then on-disk `mcp.address` / `mcp.port`, then None. `None` makes
-    // the instance conduit 501 inbound primary-MCP `server_request`s
-    // (per `ConduitMcpHandler::new` doc); plugin-MCP routing is
-    // unaffected either way.
-    let mcp_address = match std::env::var("OBJECTIVEAI_MCP_ADDRESS").ok() {
-        Some(v) => Some(v),
-        None => {
-            let mut config = fs.read_config().await.map_err(Error::Filesystem)?;
-            let mcp = config.mcp();
-            crate::context::compose_url(mcp.get_address(), mcp.get_port())
-        }
-    };
-
     Ok(PipeConfig {
         config_base_dir,
-        mcp_address,
         bind_agent_instance_hierarchy,
     })
 }

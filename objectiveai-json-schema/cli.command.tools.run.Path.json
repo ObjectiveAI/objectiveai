@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.tools.run.Path",
+  "type": "string",
+  "enum": [
+    "tools/run"
+  ]
+}

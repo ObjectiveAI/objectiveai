@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.functions.list.Path",
+  "type": "string",
+  "enum": [
+    "functions/list"
+  ]
+}

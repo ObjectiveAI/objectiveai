@@ -1,0 +1,29 @@
+{
+  "title": "cli.command.config.mcp.port.Request",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.config.mcp.port.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.config.mcp.port.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.config.mcp.port.get.response_schema.Request"
+    },
+    {
+      "title": "Set",
+      "$ref": "cli.command.config.mcp.port.set.Request"
+    },
+    {
+      "title": "SetRequestSchema",
+      "$ref": "cli.command.config.mcp.port.set.request_schema.Request"
+    },
+    {
+      "title": "SetResponseSchema",
+      "$ref": "cli.command.config.mcp.port.set.response_schema.Request"
+    }
+  ]
+}

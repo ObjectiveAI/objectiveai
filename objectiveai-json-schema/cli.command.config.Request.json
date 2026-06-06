@@ -1,0 +1,25 @@
+{
+  "title": "cli.command.config.Request",
+  "anyOf": [
+    {
+      "title": "Agents",
+      "$ref": "cli.command.config.agents.Request"
+    },
+    {
+      "title": "Functions",
+      "$ref": "cli.command.config.functions.Request"
+    },
+    {
+      "title": "Mcp",
+      "$ref": "cli.command.config.mcp.Request"
+    },
+    {
+      "title": "Swarms",
+      "$ref": "cli.command.config.swarms.Request"
+    },
+    {
+      "title": "Viewer",
+      "$ref": "cli.command.config.viewer.Request"
+    }
+  ]
+}

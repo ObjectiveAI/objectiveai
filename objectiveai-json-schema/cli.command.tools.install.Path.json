@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.tools.install.Path",
+  "type": "string",
+  "enum": [
+    "tools/install"
+  ]
+}

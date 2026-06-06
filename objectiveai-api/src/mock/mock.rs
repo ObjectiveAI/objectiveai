@@ -140,6 +140,7 @@ fn get_function_json(repository: &str) -> Option<&'static str> {
         "tweet-3YQMcu20" => Some(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/mock/functions/tweet-3YQMcu20.json"))),
         "tweet-3YQMcu21" => Some(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/mock/functions/tweet-3YQMcu21.json"))),
         "tweet-3YQMcu22" => Some(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/mock/functions/tweet-3YQMcu22.json"))),
+        "twenty-agents-json-schema-10x-tools-vector" => Some(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/mock/functions/twenty-agents-json-schema-10x-tools-vector.json"))),
         _ => None,
     }
 }
@@ -199,6 +200,7 @@ const FUNCTION_REPOSITORIES: &[&str] = &[
     "tweet-3cffCh20", "tweet-3cffCh21", "tweet-3cffCh22",
     "tweet-ranker",
     "tweet-3YQMcu20", "tweet-3YQMcu21", "tweet-3YQMcu22",
+    "twenty-agents-json-schema-10x-tools-vector",
 ];
 
 /// Lists all mock Functions.
@@ -254,6 +256,7 @@ fn get_profile_json(repository: &str) -> Option<&'static str> {
         "error-weight-count-mismatch" => Some(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/mock/profiles/error-weight-count-mismatch.json"))),
         "dangling-and-valid-tasks" => Some(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/mock/profiles/dangling-and-valid-tasks.json"))),
         "error-all-agents-fail" => Some(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/mock/profiles/error-all-agents-fail.json"))),
+        "twenty-agents-json-schema-10x-tools-profile" => Some(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/mock/profiles/twenty-agents-json-schema-10x-tools-profile.json"))),
         _ => None,
     }
 }
@@ -274,6 +277,7 @@ const PROFILE_REPOSITORIES: &[&str] = &[
     "placeholder-and-remote-tasks", "error-dangling-swarm-ref",
     "error-weight-count-mismatch", "dangling-and-valid-tasks",
     "error-all-agents-fail",
+    "twenty-agents-json-schema-10x-tools-profile",
 ];
 
 /// Lists all mock Profiles.

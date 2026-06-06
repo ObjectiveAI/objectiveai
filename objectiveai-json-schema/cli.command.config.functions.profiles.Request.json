@@ -1,0 +1,25 @@
+{
+  "title": "cli.command.config.functions.profiles.Request",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.config.functions.profiles.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.config.functions.profiles.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.config.functions.profiles.get.response_schema.Request"
+    },
+    {
+      "title": "Favorites",
+      "$ref": "cli.command.config.functions.profiles.favorites.Request"
+    },
+    {
+      "title": "Pairs",
+      "$ref": "cli.command.config.functions.profiles.pairs.Request"
+    }
+  ]
+}
