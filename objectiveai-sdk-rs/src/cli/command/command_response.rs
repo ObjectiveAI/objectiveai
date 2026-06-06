@@ -62,6 +62,28 @@ impl CommandResponse for crate::agent::completions::message::File {
     }
 }
 
+// `RichContentPart` is a sum over the four media types above plus
+// `Text(String)`. Used directly as the `agents queue read id` leaf's
+// `Response` type so the queue-content reader's wire shape is bit-
+// identical to a rich-content part. Each arm delegates to the inner
+// type's impl: media variants pick up
+// `McpResponseItem::Media(ContentBlock::…)`, `Text` picks up
+// `Value::String` via the `String` impl below.
+#[cfg(feature = "mcp")]
+impl CommandResponse for crate::agent::completions::message::RichContentPart {
+    fn into_mcp(self) -> McpResponseItem {
+        use crate::agent::completions::message::RichContentPart;
+        match self {
+            RichContentPart::Text { text } => text.into_mcp(),
+            RichContentPart::ImageUrl { image_url } => image_url.into_mcp(),
+            RichContentPart::InputAudio { input_audio } => input_audio.into_mcp(),
+            RichContentPart::InputVideo { video_url } => video_url.into_mcp(),
+            RichContentPart::VideoUrl { video_url } => video_url.into_mcp(),
+            RichContentPart::File { file } => file.into_mcp(),
+        }
+    }
+}
+
 // JSONL passthrough — `serde_json::to_value(self)` is the body for
 // every alias target whose leaf simply emits its serde-shaped value
 // as one JSONL line. Special-cased shortcuts: `String` constructs

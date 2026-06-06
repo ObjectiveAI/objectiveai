@@ -71,7 +71,12 @@ pub enum RequestMessage {
 }
 
 impl RequestMessage {
-    fn push_flags(&self, out: &mut Vec<String>) {
+    /// Append the flag pair (`--simple <s>` / `--inline <json>` /
+    /// `--file <path>` / `--python-inline <code>` /
+    /// `--python-file <path>`) for this variant to `out`. Used by
+    /// both this leaf's [`CommandRequest::into_command`] and by
+    /// `agents queue add`'s — same wire shape, same five flags.
+    pub fn push_flags(&self, out: &mut Vec<String>) {
         match self {
             RequestMessage::Inline(rich) => {
                 out.push("--inline".to_string());

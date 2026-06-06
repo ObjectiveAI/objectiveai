@@ -55,14 +55,15 @@ impl CommandRequest for Request {
 /// carry the literal tag name and flatten the joined 2-state
 /// status onto the same JSON object — yielding e.g.
 /// `{"by":"tag","id":42,"agent_tag":"foo","state":"bound","agent_instance_hierarchy":"…",
-/// "prompt":[{"type":"user","content":17}]}`
-/// rather than nesting the state under its own object.
+/// "content":17}` (single-part) or `…"content":[17,18,19]"` (multi-
+/// part) rather than nesting the state under its own object.
 ///
-/// Both variants carry the resolved prompt body as
-/// `Vec<ResponseQueueMessage>` — the same role-keyed shape
-/// `agents read all` already uses, with `ResponseContent::One(i64)`
-/// / `ResponseContent::Many(Vec<i64>)` references into
-/// `prompt_files`. Each id can be fetched via `agents queue read id`.
+/// Both variants carry the resolved content body as a
+/// [`super::super::read::all::ResponseContent`] — `One(i64)` for a
+/// single-part `RichContent::Text` (or single-element
+/// `RichContent::Parts`), `Many(Vec<i64>)` for multi-part payloads.
+/// Each id is a `prompt_contents.id` resolvable via
+/// `agents queue read id`.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(tag = "by", rename_all = "snake_case")]
 #[schemars(rename = "cli.command.agents.queue.list.ResponseItem")]
@@ -71,7 +72,7 @@ pub enum ResponseItem {
     AgentInstance {
         id: i64,
         agent_instance: String,
-        prompt: Vec<super::super::read::all::ResponseQueueMessage>,
+        content: super::super::read::all::ResponseContent,
     },
     #[schemars(title = "Tag")]
     Tag {
@@ -79,7 +80,7 @@ pub enum ResponseItem {
         agent_tag: String,
         #[serde(flatten)]
         state: LookupState,
-        prompt: Vec<super::super::read::all::ResponseQueueMessage>,
+        content: super::super::read::all::ResponseContent,
     },
 }
 

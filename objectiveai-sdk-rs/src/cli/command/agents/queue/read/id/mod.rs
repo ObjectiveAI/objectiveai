@@ -1,11 +1,14 @@
 //! `agents queue read id` — fetch one piece of queued content by
 //! its `prompt_contents.id`.
 //!
-//! `agents queue list` emits role-keyed `ResponseQueueMessage`s
-//! whose content fields are `i64` references into the per-kind
-//! content tables (`prompt_texts`, `prompt_images`, …). This leaf
-//! takes one such id and returns the row's typed payload, tagged
-//! by `type` so callers can dispatch without sniffing fields.
+//! `agents queue list` emits a `content: ResponseContent` field on
+//! each item (`One(i64)` or `Many(Vec<i64>)`) — the same shape
+//! `RichContent` decomposes to. This leaf takes one such id and
+//! returns the typed payload directly as a
+//! [`crate::agent::completions::message::RichContentPart`], so the
+//! wire form for queue content is bit-identical to a rich-content
+//! part of the same kind. No fork between queue media and message
+//! media at the type level.
 
 use crate::cli::command::CommandRequest;
 
@@ -41,36 +44,18 @@ impl CommandRequest for Request {
     }
 }
 
-/// One typed content row. Variants map 1:1 to `prompt_contents.kind`.
-/// Tagged by `type` (mirroring `RichContentPart`'s shape) — the wire
-/// form for an image is e.g.
-/// `{"type":"image","image_url":{"url":"data:image/png;base64,…"}}`.
+/// The typed payload of one `prompt_contents.id`. Aliased directly
+/// to the SDK [`RichContentPart`] so the wire shape matches
+/// rich-content parts exactly — tagged by `type` with `text`,
+/// `image_url`, `input_audio`, `input_video`, `video_url`, or
+/// `file`. Queue content production today never emits the
+/// `input_video` variant (the walker stores both `InputVideo` and
+/// `VideoUrl` parts as `prompt_videos` rows reading back as
+/// `video_url`), but the type stays unconstrained for forward
+/// compatibility.
 ///
-/// `reasoning` and `refusal` carry plain strings because the SDK
-/// `AssistantMessage` defines both as `Option<String>` — there's no
-/// envelope to preserve. `tool_call` is the structured
-/// [`crate::agent::completions::message::AssistantToolCall`].
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(tag = "type", rename_all = "snake_case")]
-#[schemars(rename = "cli.command.agents.queue.read.id.Response")]
-pub enum Response {
-    #[schemars(title = "Text")]
-    Text { text: String },
-    #[schemars(title = "Image")]
-    Image { image_url: crate::agent::completions::message::ImageUrl },
-    #[schemars(title = "Audio")]
-    Audio { input_audio: crate::agent::completions::message::InputAudio },
-    #[schemars(title = "Video")]
-    Video { video_url: crate::agent::completions::message::VideoUrl },
-    #[schemars(title = "File")]
-    File { file: crate::agent::completions::message::File },
-    #[schemars(title = "Reasoning")]
-    Reasoning { reasoning: String },
-    #[schemars(title = "Refusal")]
-    Refusal { refusal: String },
-    #[schemars(title = "ToolCall")]
-    ToolCall { tool_call: crate::agent::completions::message::AssistantToolCall },
-}
+/// [`RichContentPart`]: crate::agent::completions::message::RichContentPart
+pub type Response = crate::agent::completions::message::RichContentPart;
 
 #[derive(clap::Args)]
 pub struct Args {
@@ -130,29 +115,9 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
     executor.execute_one(request, agent_arguments).await
 }
 
-#[cfg(feature = "mcp")]
-impl crate::cli::command::CommandResponse for Response {
-    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
-        // Delegate to the inner type's `CommandResponse` impl when
-        // there is one — media types pick up `Media(ContentBlock::…)`,
-        // `String` picks up `Value::String`. `Reasoning` / `Refusal`
-        // unwrap to their bare strings (also pick up `Value::String`).
-        // `ToolCall` falls back to JSONL of the full struct since
-        // there's no media analogue for tool calls.
-        match self {
-            Response::Text { text } => text.into_mcp(),
-            Response::Image { image_url } => image_url.into_mcp(),
-            Response::Audio { input_audio } => input_audio.into_mcp(),
-            Response::Video { video_url } => video_url.into_mcp(),
-            Response::File { file } => file.into_mcp(),
-            Response::Reasoning { reasoning } => reasoning.into_mcp(),
-            Response::Refusal { refusal } => refusal.into_mcp(),
-            Response::ToolCall { tool_call } => crate::cli::command::McpResponseItem::JSONL(
-                serde_json::to_value(&tool_call).unwrap(),
-            ),
-        }
-    }
-}
+// `RichContentPart` already implements `CommandResponse` via the
+// canonical impl in `cli::command::command_response.rs` — no leaf-
+// local impl needed (and adding one would conflict).
 
 pub mod request_schema;
 

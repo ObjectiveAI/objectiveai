@@ -1,15 +1,21 @@
-//! `agents queue add` — defer a prompt to a target agent.
+//! `agents queue add` — defer a single user-message-equivalent
+//! `RichContent` to a target agent.
 //!
-//! Stores the prompt in `prompt_queue.sqlite` against either a
+//! Stores the content in `tags.sqlite` (the `prompts` table + the
+//! per-kind `prompt_<kind>` content tables) against either a
 //! resolved `agent_instance_hierarchy` (Direct mode) or a literal
 //! `agent_tag` (Tag mode — no resolution at enqueue time; the
-//! future reader will resolve at dequeue time). The two target
-//! modes are mutually exclusive at the clap layer and at the enum
-//! variant layer.
+//! future reader resolves at dequeue time).
 //!
-//! This is the write-only first slice of #211. No dequeue/flush
-//! exists yet — rows are persisted until a future reader picks
-//! them up.
+//! The CLI flag surface mirrors `agents message` —
+//! `--simple` / `--inline` / `--file` / `--python-inline` /
+//! `--python-file` — and reuses the SDK
+//! [`super::super::message::RequestMessage`] /
+//! [`super::super::message::MessageArgs`] types verbatim so the two
+//! leaves' producer plumbing stays in lock-step.
+//!
+//! This is the write-only slice of #211. No dequeue / flush leaf
+//! exists yet — rows persist until a future reader picks them up.
 
 use crate::cli::command::CommandRequest;
 
@@ -18,7 +24,7 @@ use crate::cli::command::CommandRequest;
 pub struct Request {
     pub path_type: Path,
     pub target: Target,
-    pub prompt: super::super::spawn::RequestPrompt,
+    pub message: super::super::message::RequestMessage,
     pub jq: Option<String>,
 }
 
@@ -75,7 +81,7 @@ impl CommandRequest for Request {
                 argv.push(agent_tag.clone());
             }
         }
-        self.prompt.push_flags(&mut argv);
+        self.message.push_flags(&mut argv);
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
             argv.push(jq.clone());
@@ -84,10 +90,10 @@ impl CommandRequest for Request {
     }
 }
 
-/// `id` is the row id from `prompt_queue.sqlite`. Exactly one of
-/// `agent_instance_hierarchy` / `agent_tag` is set, matching the
-/// chosen [`Target`] variant — `agent_instance_hierarchy`
-/// is the **resolved** `{parent}/{instance}` for Direct mode.
+/// `id` is the row id from `tags.sqlite`'s `prompts` table. Exactly
+/// one of `agent_instance_hierarchy` / `agent_tag` is set, matching
+/// the chosen [`Target`] variant — `agent_instance_hierarchy` is
+/// the **resolved** `{parent}/{instance}` for Direct mode.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.queue.add.Response")]
 pub struct Response {
@@ -122,10 +128,10 @@ pub struct Args {
     /// `agent_instance` and `--parent-agent-instance-hierarchy`.
     #[arg(long = "agent-tag")]
     pub agent_tag: Option<String>,
-    /// Prompt input (one of `--simple` / `--inline` / `--file` /
-    /// `--python-inline` / `--python-file`). Required.
+    /// Message content input (one of `--simple` / `--inline` /
+    /// `--file` / `--python-inline` / `--python-file`). Required.
     #[command(flatten)]
-    pub prompt: super::super::spawn::PromptArgs,
+    pub message: super::super::message::MessageArgs,
     /// jq filter applied to the JSON output.
     #[arg(long)]
     pub jq: Option<String>,
@@ -151,12 +157,12 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        // Same branching as `agents spawn`'s TryFrom — normalise the
-        // five mutually-exclusive PromptArgs fields into one
-        // RequestPrompt variant.
-        let prompt = if let Some(s) = args.prompt.simple {
-            super::super::spawn::RequestPrompt::Simple(s)
-        } else if let Some(s) = args.prompt.inline {
+        // Same five-arm dispatch `agents message`'s TryFrom uses to
+        // normalise the mutually-exclusive MessageArgs fields into
+        // one RequestMessage variant.
+        let message = if let Some(s) = args.message.simple {
+            super::super::message::RequestMessage::Simple(s)
+        } else if let Some(s) = args.message.inline {
             let mut de = serde_json::Deserializer::from_str(&s);
             let v = serde_path_to_error::deserialize(&mut de).map_err(|source| {
                 crate::cli::command::FromArgsError {
@@ -164,13 +170,13 @@ impl TryFrom<Args> for Request {
                     source: source.into(),
                 }
             })?;
-            super::super::spawn::RequestPrompt::Inline(v)
-        } else if let Some(p) = args.prompt.file {
-            super::super::spawn::RequestPrompt::File(p)
-        } else if let Some(s) = args.prompt.python_inline {
-            super::super::spawn::RequestPrompt::PythonInline(s)
+            super::super::message::RequestMessage::Inline(v)
+        } else if let Some(p) = args.message.file {
+            super::super::message::RequestMessage::File(p)
+        } else if let Some(s) = args.message.python_inline {
+            super::super::message::RequestMessage::PythonInline(s)
         } else {
-            super::super::spawn::RequestPrompt::PythonFile(args.prompt.python_file.unwrap())
+            super::super::message::RequestMessage::PythonFile(args.message.python_file.unwrap())
         };
         let target = match (args.agent_instance, args.agent_tag) {
             (Some(agent_instance), None) => Target::Direct {
@@ -185,7 +191,7 @@ impl TryFrom<Args> for Request {
         Ok(Self {
             path_type: Path::AgentsQueueAdd,
             target,
-            prompt,
+            message,
             jq: args.jq,
         })
     }

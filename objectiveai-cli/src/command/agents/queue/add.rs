@@ -1,7 +1,7 @@
-//! `agents queue add` — bare-naked handler. Persists a prompt into
-//! the `prompts` table in `tags.sqlite` against either the resolved
-//! `{parent}/{instance}` hierarchy (Direct mode) or the literal tag
-//! name (Tag mode — no resolution).
+//! `agents queue add` — bare-naked handler. Persists one
+//! `RichContent` into the `prompts` table in `tags.sqlite` against
+//! either the resolved `{parent}/{instance}` hierarchy (Direct
+//! mode) or the literal tag name (Tag mode — no resolution).
 
 use objectiveai_sdk::cli::command::agents::queue::add::{Request, Response, Target};
 
@@ -10,21 +10,18 @@ use crate::error::Error;
 use crate::filesystem::db;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    // Resolve the prompt up-front via spawn's existing helper —
-    // turns all five RequestPrompt variants into one Vec<Message>.
-    // File / Python sources are read NOW so they don't need to
-    // survive until the future dequeue.
-    let messages = crate::command::agents::spawn::resolve_prompt(request.prompt)?;
+    // Resolve the message up-front via `agents message`'s existing
+    // helper — turns all five RequestMessage variants into one
+    // RichContent. File / Python sources are read NOW so they
+    // don't need to survive until the future dequeue.
+    let content = crate::command::agents::message::resolve_message(request.message)?;
 
     // Normalise the target to (Option<full_hierarchy>, Option<tag>).
     // Exactly one is Some; the table's CHECK enforces this at the
     // DB layer too. Direct mode additionally validates that the
     // resolved hierarchy has at least one `agent_completion_request`
-    // row logged — same semantic as `agents message`'s
-    // `LatestContinuationOutcome::NoRequests` rejection, but a
-    // single `SELECT EXISTS` instead of the continuation-file walk.
-    // Tag mode is intentionally exempt — tags can be enqueued
-    // against agents that don't exist yet.
+    // row logged. Tag mode is intentionally exempt — tags can be
+    // enqueued against agents that don't exist yet.
     let (agent_instance_hierarchy, agent_tag) = match request.target {
         Target::Direct {
             parent_agent_instance_hierarchy,
@@ -48,7 +45,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         ctx.filesystem.clone(),
         agent_instance_hierarchy.clone(),
         agent_tag.clone(),
-        messages,
+        content,
     )
     .await?;
 

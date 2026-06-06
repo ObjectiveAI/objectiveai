@@ -99,8 +99,7 @@ fn init_tables(conn: &Connection) -> Result<(), Error> {
             id        INTEGER PRIMARY KEY AUTOINCREMENT, \
             prompt_id INTEGER NOT NULL, \
             kind      TEXT NOT NULL \
-                CHECK (kind IN ('text','image','audio','video','file',\
-                                'reasoning','refusal','tool_call')), \
+                CHECK (kind IN ('text','image','audio','video','file')), \
             FOREIGN KEY (prompt_id) REFERENCES prompts(id) ON DELETE CASCADE\
         );\
         CREATE INDEX IF NOT EXISTS prompt_contents_prompt_idx \
@@ -135,26 +134,7 @@ fn init_tables(conn: &Connection) -> Result<(), Error> {
             file_url  TEXT, \
             FOREIGN KEY (id) REFERENCES prompt_contents(id) ON DELETE CASCADE\
         );\
-        /* reasoning + refusal are plain SDK strings (no envelope), \
-           so the columns store them raw — no JSON encode/decode. */ \
-        CREATE TABLE IF NOT EXISTS prompt_reasonings (\
-            id        INTEGER PRIMARY KEY, \
-            reasoning TEXT NOT NULL, \
-            FOREIGN KEY (id) REFERENCES prompt_contents(id) ON DELETE CASCADE\
-        );\
-        CREATE TABLE IF NOT EXISTS prompt_refusals (\
-            id      INTEGER PRIMARY KEY, \
-            refusal TEXT NOT NULL, \
-            FOREIGN KEY (id) REFERENCES prompt_contents(id) ON DELETE CASCADE\
-        );\
-        /* tool_call is the structured `AssistantToolCall` SDK type, \
-           so the column stores its JSON serialization and the reader \
-           deserializes back to the proper type. */ \
-        CREATE TABLE IF NOT EXISTS prompt_tool_calls (\
-            id        INTEGER PRIMARY KEY, \
-            tool_call TEXT NOT NULL, \
-            FOREIGN KEY (id) REFERENCES prompt_contents(id) ON DELETE CASCADE\
-        );",
+        ",
     )?;
     Ok(())
 }

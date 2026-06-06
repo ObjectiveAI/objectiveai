@@ -1,4 +1,4 @@
-//! Deferred-prompt storage for `agents queue {add, list, read_id}`.
+//! Deferred-prompt storage for `agents queue {add, list, read id}`.
 //!
 //! Co-located in `tags.sqlite` with the `tags` table so the
 //! queue-list leaf can JOIN prompts ⨝ tags in a single SELECT (to
@@ -8,31 +8,28 @@
 //!
 //! ## Schema
 //!
-//! `prompts` — one row per queued prompt, targeting either an
-//! `agent_instance_hierarchy` OR an `agent_tag` (never both — `CHECK`
-//! enforces it). The `prompt` column holds a JSON serialization of
-//! `Vec<ResponseQueueMessage>` (the same role-keyed shape `agents
-//! read all` uses), with `ResponseContent::One(i64)` /
-//! `ResponseContent::Many(Vec<i64>)` references into the per-kind
-//! content tables below.
+//! `prompts` — one row per queued prompt (which is a single
+//! user-message-equivalent `RichContent`), targeting either an
+//! `agent_instance_hierarchy` OR an `agent_tag` (never both —
+//! `CHECK` enforces it). The `prompt` column holds the JSON
+//! serialization of one [`ResponseContent`] — either `One(i64)`
+//! for single-part content or `Many(Vec<i64>)` for multi-part —
+//! referencing rows in the per-kind content tables below.
 //!
 //! `prompt_contents` — master content registry, FK-anchored at
 //! `prompt_id` so a single `DELETE FROM prompts WHERE id = ?`
 //! cascades the entire prompt out. Per-kind tables (`prompt_texts`,
-//! `prompt_images`, …) share the master's row id 1:1 and cascade
+//! `prompt_images`, `prompt_audios`, `prompt_videos`,
+//! `prompt_files`) share the master's row id 1:1 and cascade
 //! again on the per-kind FK.
 
 use objectiveai_sdk::agent::completions::message::{
-    AssistantMessage, AssistantToolCall, DeveloperMessage, File, ImageUrl,
-    InputAudio, Message, RichContent, RichContentPart, SimpleContent,
-    SimpleContentPart, SystemMessage, ToolMessage, UserMessage, VideoUrl,
+    File, ImageUrl, InputAudio, RichContent, RichContentPart, VideoUrl,
 };
 use objectiveai_sdk::cli::command::agents::queue::list::{
     LookupState, ResponseItem,
 };
-use objectiveai_sdk::cli::command::agents::read::all::{
-    ResponseContent, ResponseQueueMessage,
-};
+use objectiveai_sdk::cli::command::agents::read::all::ResponseContent;
 use rusqlite::{Connection, OptionalExtension as _, params};
 
 use super::super::{Client, Error};
@@ -94,11 +91,13 @@ pub async fn insert_async(
 /// One content row — typed payload of a single `prompt_contents.id`.
 /// Returned by [`read_content`] / [`read_content_async`].
 ///
-/// Variants map one-to-one to `prompt_contents.kind`. `Reasoning`
-/// and `Refusal` are stored as plain text (`prompt_reasonings.reasoning`,
-/// `prompt_refusals.refusal`) since the SDK uses bare `Option<String>`
-/// for both. `ToolCall` is the structured [`AssistantToolCall`] SDK
-/// type, JSON-encoded in `prompt_tool_calls.tool_call`.
+/// Variants map one-to-one to `prompt_contents.kind`. The
+/// `CHECK (kind IN ('text','image','audio','video','file'))`
+/// constraint on the master table guarantees the five variants here
+/// are exhaustive — no assistant-side kinds (reasoning, refusal,
+/// tool_call) exist for queue content because the queue stores one
+/// user-message-equivalent `RichContent` per row, not arbitrary
+/// conversation history.
 #[derive(Debug, Clone)]
 pub enum ContentRow {
     Text(String),
@@ -106,9 +105,6 @@ pub enum ContentRow {
     Audio(InputAudio),
     Video(VideoUrl),
     File(File),
-    Reasoning(String),
-    Refusal(String),
-    ToolCall(AssistantToolCall),
 }
 
 /// Look up a single content row by `prompt_contents.id`. Returns
@@ -186,32 +182,6 @@ pub fn read_content(client: &Client, id: i64) -> Result<Option<ContentRow>, Erro
                 file_url,
             })
         }
-        "reasoning" => {
-            let reasoning: String = conn.query_row(
-                "SELECT reasoning FROM prompt_reasonings WHERE id = ?1",
-                [id],
-                |r| r.get(0),
-            )?;
-            ContentRow::Reasoning(reasoning)
-        }
-        "refusal" => {
-            let refusal: String = conn.query_row(
-                "SELECT refusal FROM prompt_refusals WHERE id = ?1",
-                [id],
-                |r| r.get(0),
-            )?;
-            ContentRow::Refusal(refusal)
-        }
-        "tool_call" => {
-            let tool_call: String = conn.query_row(
-                "SELECT tool_call FROM prompt_tool_calls WHERE id = ?1",
-                [id],
-                |r| r.get(0),
-            )?;
-            ContentRow::ToolCall(
-                serde_json::from_str(&tool_call).map_err(Error::Json)?,
-            )
-        }
         // CHECK constraint guards against unknown kind values at
         // insert time; a miss here is DB corruption.
         other => {
@@ -238,10 +208,11 @@ pub async fn read_content_async(
 // Transactional walker — Vec<Message> → (prompt_id, Vec<ResponseQueueMessage>)
 // ---------------------------------------------------------------------------
 
-/// Atomic enqueue: inserts the `prompts` row, walks `messages` and
-/// extracts every content piece into a per-kind table referenced by
-/// id, then UPDATEs the `prompts.prompt` column with the assembled
-/// `Vec<ResponseQueueMessage>` JSON. Returns the new `prompts.id`.
+/// Atomic enqueue: inserts the `prompts` row, walks `content` and
+/// extracts every part into a per-kind table referenced by id, then
+/// UPDATEs the `prompts.prompt` column with the assembled
+/// [`ResponseContent`] JSON (`One(i64)` for single-part,
+/// `Many(Vec<i64>)` for multi-part). Returns the new `prompts.id`.
 ///
 /// Everything runs inside one rusqlite transaction on the shared
 /// `tags.sqlite` connection — any failure rolls the prompt and all
@@ -250,14 +221,14 @@ pub async fn enqueue_with_content_async(
     client: Client,
     agent_instance_hierarchy: Option<String>,
     agent_tag: Option<String>,
-    messages: Vec<Message>,
+    content: RichContent,
 ) -> Result<i64, Error> {
     tokio::task::spawn_blocking(move || {
         enqueue_with_content(
             &client,
             agent_instance_hierarchy.as_deref(),
             agent_tag.as_deref(),
-            messages,
+            content,
         )
     })
     .await
@@ -268,7 +239,7 @@ fn enqueue_with_content(
     client: &Client,
     agent_instance_hierarchy: Option<&str>,
     agent_tag: Option<&str>,
-    messages: Vec<Message>,
+    content: RichContent,
 ) -> Result<i64, Error> {
     let conn = super::tags::connection(client)?;
     let conn = conn
@@ -285,109 +256,14 @@ fn enqueue_with_content(
         params![agent_instance_hierarchy, agent_tag, now_seconds()],
         |r| r.get(0),
     )?;
-    let queue_messages = walk_messages(&tx, prompt_id, messages)?;
-    let json = serde_json::to_string(&queue_messages).map_err(Error::Json)?;
+    let response_content = walk_rich(&tx, prompt_id, content)?;
+    let json = serde_json::to_string(&response_content).map_err(Error::Json)?;
     tx.execute(
         "UPDATE prompts SET prompt = ?1 WHERE id = ?2",
         params![json, prompt_id],
     )?;
     tx.commit()?;
     Ok(prompt_id)
-}
-
-fn walk_messages(
-    tx: &rusqlite::Transaction<'_>,
-    prompt_id: i64,
-    messages: Vec<Message>,
-) -> Result<Vec<ResponseQueueMessage>, Error> {
-    let mut out = Vec::with_capacity(messages.len());
-    for message in messages {
-        out.push(match message {
-            Message::Developer(DeveloperMessage { content, name }) => {
-                let content = walk_simple(tx, prompt_id, content)?;
-                ResponseQueueMessage::Developer { content, name }
-            }
-            Message::System(SystemMessage { content, name }) => {
-                let content = walk_simple(tx, prompt_id, content)?;
-                ResponseQueueMessage::System { content, name }
-            }
-            Message::User(UserMessage { content, name }) => {
-                let content = walk_rich(tx, prompt_id, content)?;
-                ResponseQueueMessage::User { content, name }
-            }
-            Message::Assistant(AssistantMessage {
-                content,
-                name,
-                refusal,
-                tool_calls,
-                reasoning,
-            }) => {
-                let content = match content {
-                    Some(c) => Some(walk_rich(tx, prompt_id, c)?),
-                    None => None,
-                };
-                let reasoning = match reasoning {
-                    Some(r) => Some(insert_content_reasoning(tx, prompt_id, &r)?),
-                    None => None,
-                };
-                let refusal = match refusal {
-                    Some(r) => Some(insert_content_refusal(tx, prompt_id, &r)?),
-                    None => None,
-                };
-                let tool_calls = match tool_calls {
-                    Some(calls) => {
-                        let mut ids = Vec::with_capacity(calls.len());
-                        for call in calls {
-                            ids.push(insert_content_tool_call(tx, prompt_id, &call)?);
-                        }
-                        Some(ids)
-                    }
-                    None => None,
-                };
-                ResponseQueueMessage::Assistant {
-                    content,
-                    name,
-                    reasoning,
-                    tool_calls,
-                    refusal,
-                }
-            }
-            Message::Tool(ToolMessage {
-                content,
-                tool_call_id,
-                metadata: _,
-            }) => {
-                let content = walk_rich(tx, prompt_id, content)?;
-                ResponseQueueMessage::Tool { content, tool_call_id }
-            }
-        });
-    }
-    Ok(out)
-}
-
-fn walk_simple(
-    tx: &rusqlite::Transaction<'_>,
-    prompt_id: i64,
-    content: SimpleContent,
-) -> Result<ResponseContent, Error> {
-    match content {
-        SimpleContent::Text(text) => {
-            let id = insert_content_text(tx, prompt_id, &text)?;
-            Ok(ResponseContent::One(id))
-        }
-        SimpleContent::Parts(parts) => {
-            let mut ids = Vec::with_capacity(parts.len());
-            for part in parts {
-                let SimpleContentPart::Text { text } = part;
-                ids.push(insert_content_text(tx, prompt_id, &text)?);
-            }
-            if ids.len() == 1 {
-                Ok(ResponseContent::One(ids.remove(0)))
-            } else {
-                Ok(ResponseContent::Many(ids))
-            }
-        }
-    }
 }
 
 fn walk_rich(
@@ -527,46 +403,6 @@ fn insert_content_file(
     Ok(id)
 }
 
-fn insert_content_reasoning(
-    conn: &Connection,
-    prompt_id: i64,
-    reasoning: &str,
-) -> Result<i64, Error> {
-    let id = mint_content_id(conn, prompt_id, "reasoning")?;
-    conn.execute(
-        "INSERT INTO prompt_reasonings (id, reasoning) VALUES (?1, ?2)",
-        params![id, reasoning],
-    )?;
-    Ok(id)
-}
-
-fn insert_content_refusal(
-    conn: &Connection,
-    prompt_id: i64,
-    refusal: &str,
-) -> Result<i64, Error> {
-    let id = mint_content_id(conn, prompt_id, "refusal")?;
-    conn.execute(
-        "INSERT INTO prompt_refusals (id, refusal) VALUES (?1, ?2)",
-        params![id, refusal],
-    )?;
-    Ok(id)
-}
-
-fn insert_content_tool_call(
-    conn: &Connection,
-    prompt_id: i64,
-    call: &AssistantToolCall,
-) -> Result<i64, Error> {
-    let id = mint_content_id(conn, prompt_id, "tool_call")?;
-    let tool_call = serde_json::to_string(call).map_err(Error::Json)?;
-    conn.execute(
-        "INSERT INTO prompt_tool_calls (id, tool_call) VALUES (?1, ?2)",
-        params![id, tool_call],
-    )?;
-    Ok(id)
-}
-
 // ---------------------------------------------------------------------------
 // List
 // ---------------------------------------------------------------------------
@@ -586,9 +422,10 @@ fn insert_content_tool_call(
 ///   no parent info available.
 ///
 /// Each returned item embeds the prompt body as a
-/// `Vec<ResponseQueueMessage>` (decoded directly from the
-/// `prompts.prompt` JSON column) so callers don't have to look up
-/// content rows separately to inspect the queued prompt's shape.
+/// [`ResponseContent`] (`One(i64)` or `Many(Vec<i64>)`, decoded
+/// directly from the `prompts.prompt` JSON column) so callers can
+/// fan out to `agents queue read id` per piece without re-fetching
+/// the prompt.
 ///
 /// Returned items are ordered by `prompts.id` (FIFO of enqueue).
 pub fn list(client: &Client, parent: &str) -> Result<Vec<ResponseItem>, Error> {
@@ -652,8 +489,13 @@ pub fn list(client: &Client, parent: &str) -> Result<Vec<ResponseItem>, Error> {
         tag_pending_full_id,
     ) in rows
     {
-        let prompt: Vec<ResponseQueueMessage> = if prompt_json.is_empty() {
-            Vec::new()
+        // The placeholder empty string can briefly exist mid-
+        // transaction, but a committed row always carries the final
+        // ResponseContent JSON. Treat empty defensively as One(0) →
+        // really a corrupted row; we surface it as Many([]) which
+        // serialises cleanly and is harmless downstream.
+        let content: ResponseContent = if prompt_json.is_empty() {
+            ResponseContent::Many(Vec::new())
         } else {
             serde_json::from_str(&prompt_json).map_err(Error::Json)?
         };
@@ -665,7 +507,7 @@ pub fn list(client: &Client, parent: &str) -> Result<Vec<ResponseItem>, Error> {
             out.push(ResponseItem::AgentInstance {
                 id,
                 agent_instance,
-                prompt,
+                content,
             });
         } else if let Some(tag) = agent_tag {
             let Some(state) = (match (tag_bound_hierarchy, tag_pending_parent, tag_pending_full_id)
@@ -687,7 +529,7 @@ pub fn list(client: &Client, parent: &str) -> Result<Vec<ResponseItem>, Error> {
                 id,
                 agent_tag: tag,
                 state,
-                prompt,
+                content,
             });
         } else {
             // CHECK guarantees unreachable; silently skip malformed.

@@ -1,6 +1,8 @@
 //! `agents queue read id` — resolve a `prompt_contents.id` to its
-//! typed payload via the per-kind content tables.
+//! typed payload via the per-kind content tables, returning a
+//! `RichContentPart` directly.
 
+use objectiveai_sdk::agent::completions::message::RichContentPart;
 use objectiveai_sdk::cli::command::agents::queue::read::id::{Request, Response};
 
 use crate::context::Context;
@@ -16,15 +18,16 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                 request.id
             )))
         })?;
+    // `Response` is a type alias for `RichContentPart`. The walker
+    // stored both `InputVideo` and `VideoUrl` parts as the same
+    // `prompt_videos` row shape (just a URL), so reading them back
+    // collapses to `VideoUrl` — the lossless choice for a bare URL.
     Ok(match row {
-        ContentRow::Text(text) => Response::Text { text },
-        ContentRow::Image(image_url) => Response::Image { image_url },
-        ContentRow::Audio(input_audio) => Response::Audio { input_audio },
-        ContentRow::Video(video_url) => Response::Video { video_url },
-        ContentRow::File(file) => Response::File { file },
-        ContentRow::Reasoning(reasoning) => Response::Reasoning { reasoning },
-        ContentRow::Refusal(refusal) => Response::Refusal { refusal },
-        ContentRow::ToolCall(tool_call) => Response::ToolCall { tool_call },
+        ContentRow::Text(text) => RichContentPart::Text { text },
+        ContentRow::Image(image_url) => RichContentPart::ImageUrl { image_url },
+        ContentRow::Audio(input_audio) => RichContentPart::InputAudio { input_audio },
+        ContentRow::Video(video_url) => RichContentPart::VideoUrl { video_url },
+        ContentRow::File(file) => RichContentPart::File { file },
     })
 }
 

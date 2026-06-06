@@ -362,7 +362,7 @@ async fn start_continuation_stream(
     }
 }
 
-fn resolve_message(message: RequestMessage) -> Result<RichContent, Error> {
+pub fn resolve_message(message: RequestMessage) -> Result<RichContent, Error> {
     let (simple, inline, file, python_inline, python_file) = match message {
         RequestMessage::Inline(rich) => return Ok(rich),
         RequestMessage::Simple(s) => (Some(s), None, None, None, None),
