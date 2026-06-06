@@ -175,12 +175,17 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::RemotePathCommitOptionalOrFavorite),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::ResponseItem),
+        // cli::command::ResponseItem is the root tier aggregate
+        // (json_schema_ignore). Its transitive expansion includes the
+        // problematic plugins/tools nullable Get variants, so it isn't
+        // registered. Tier-aggregate ResponseItems are not consumed by
+        // anything that refs them at this level.
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::ResponseItem),
+        // agents::ResponseItem is json_schema_ignore; it refs the
+        // (now unregistered) agents::tasks::ResponseItem. Cascade.
+        // schemars::schema_for!(crate::cli::command::agents::ResponseItem),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::get::Path),
         #[cfg(feature = "cli")]
@@ -490,7 +495,9 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::tasks::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::tasks::ResponseItem),
+        // agents::tasks::ResponseItem is json_schema_ignore; it refs the
+        // (now unregistered) agents::tasks::run::ResponseItem. Cascade.
+        // schemars::schema_for!(crate::cli::command::agents::tasks::ResponseItem),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::tasks::list::Path),
         #[cfg(feature = "cli")]
@@ -510,7 +517,10 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::tasks::run::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::tasks::run::ResponseItem),
+        // agents::tasks::run::ResponseItem is json_schema_ignore; it
+        // refs cli::command::ResponseItem (the unregistered root
+        // aggregate). Not registered.
+        // schemars::schema_for!(crate::cli::command::agents::tasks::run::ResponseItem),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::tasks::run::request_schema::Path),
         #[cfg(feature = "cli")]
@@ -2800,8 +2810,9 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::mcp::spawn::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::plugins::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::ResponseItem),
+        // plugins::ResponseItem is a tier aggregate (json_schema_ignore) and
+        // its Get(Option<ResponseManifest>) variant produces a nested null
+        // anyOf that violates schema rules. Not registered.
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::plugins::get::Path),
         #[cfg(feature = "cli")]
@@ -2942,8 +2953,8 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::swarms::publish::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::tools::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::ResponseItem),
+        // tools::ResponseItem is a tier aggregate (json_schema_ignore) with
+        // a nullable Get variant. Not registered.
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::tools::get::Path),
         #[cfg(feature = "cli")]
