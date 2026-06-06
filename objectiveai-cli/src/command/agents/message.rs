@@ -312,13 +312,29 @@ async fn start_continuation_stream(
         stream_flag,
     );
 
-    // Peek the first item: it must be the runner's `LogStreamReady`
-    // `Id`. Any error here (including `CliStreamSlotTaken`) propagates
-    // to the caller so the outer retry loop can re-run.
-    let new_response_id = match sub.next().await {
-        Some(Ok(InstanceItem::Id(id))) => id,
-        Some(Ok(InstanceItem::Chunk(_))) => {
-            unreachable!("instance runner emits Id before any Chunk")
+    // Peek the first item to extract the new turn's `response_id`.
+    //
+    // The instance runner's emission order is racy by design: the
+    // chunk-loop emits each `InstanceEmission::Chunk` immediately on
+    // arrival from the WS, while `InstanceEmission::LogStreamReady`
+    // fires from a separate writer task only after the first chunk
+    // has been persisted. So the very first item on `sub` may be
+    // either `InstanceItem::Id(...)` (LogStreamReady — uncommon
+    // single-agent races) or `InstanceItem::Chunk(...)` (common —
+    // chunk arrived before the writer flushed). Both carry the same
+    // root response id, so we accept either: from `Id` we use the
+    // string directly, from `Chunk` we deserialize and read
+    // `chunk.id` (the leaf response id, equal to LogStreamReady's
+    // id for single-agent message continuations).
+    //
+    // Any error here (including `CliStreamSlotTaken`) propagates to
+    // the caller so the outer retry loop can re-run.
+    let (new_response_id, first_chunk) = match sub.next().await {
+        Some(Ok(InstanceItem::Id(id))) => (id, None),
+        Some(Ok(InstanceItem::Chunk(value))) => {
+            let chunk: AgentCompletionChunk =
+                serde_json::from_value(value).map_err(Error::InlineJson)?;
+            (chunk.id.clone(), Some(chunk))
         }
         Some(Err(e)) => return Err(e),
         None => {
@@ -337,21 +353,35 @@ async fn start_continuation_stream(
 
     if stream_flag {
         // Chain every subsequent `InstanceItem::Chunk` as
-        // `ResponseItem::Chunk`. The inner stream ends when the
-        // instance runner's stdout EOFs — i.e. after the cli has
-        // `child.wait()`ed it. Returning from `collect_stream` on the
-        // caller side therefore implies the runner exited.
-        let tail = sub.map(|item| match item? {
-            InstanceItem::Id(_) => {
-                unreachable!("only one Id per instance subprocess stream")
+        // `ResponseItem::Chunk`. If we already consumed a first chunk
+        // above (the common case when chunks beat LogStreamReady),
+        // re-emit it before chaining the rest. The inner stream ends
+        // when the instance runner's stdout EOFs — i.e. after the cli
+        // has `child.wait()`ed it. Returning from `collect_stream` on
+        // the caller side therefore implies the runner exited.
+        let first_chunk_stream = futures::stream::iter(
+            first_chunk
+                .into_iter()
+                .map(|c| Ok::<_, Error>(ResponseItem::Chunk(c))),
+        );
+        let tail = sub.filter_map(|item| async move {
+            match item {
+                Ok(InstanceItem::Id(_)) => {
+                    // Subsequent Ids (a re-emission of LogStreamReady
+                    // after we already took our response_id from the
+                    // first chunk) are silently dropped — they carry
+                    // the same data the Queued item already exposed.
+                    None
+                }
+                Ok(InstanceItem::Chunk(value)) => Some(
+                    serde_json::from_value::<AgentCompletionChunk>(value)
+                        .map(ResponseItem::Chunk)
+                        .map_err(Error::InlineJson),
+                ),
+                Err(e) => Some(Err(e)),
             }
-            InstanceItem::Chunk(value) => serde_json::from_value::<
-                AgentCompletionChunk,
-            >(value)
-            .map(ResponseItem::Chunk)
-            .map_err(Error::InlineJson),
         });
-        Ok(Box::pin(head.chain(tail)))
+        Ok(Box::pin(head.chain(first_chunk_stream).chain(tail)))
     } else {
         // Detach the rest. `instance_subprocess_stream` opened with
         // `stream = false` already left the instance runner orphaned;

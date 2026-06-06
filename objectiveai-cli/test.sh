@@ -19,18 +19,23 @@ RUNTIME_DIR="$SCRIPT_DIR/.objectiveai-tests"
 mkdir -p "$LOG_DIR"
 : > "$LOG_FILE"
 
-# Tear-down: wipe the runtime staging dir + the api-spawn port file.
-# Runs on every exit path (success, failure, interrupt). We don't
-# kill child processes here — anything we spawned (prepare-step
-# cargo, api server, test child processes) is expected to either
-# return cleanly or self-terminate. A leaked process at script exit
-# is a harness bug; surface it, don't paper over it.
+# Tear-down: clean up the api-spawn port file only.
+#
+# We deliberately do NOT wipe $RUNTIME_DIR on exit: keeping the
+# staged tree around after a failed test makes post-mortem
+# inspection possible (debug logs, per-test CONFIG_BASE_DIR
+# contents, slotted binaries). The pre-test `rm -rf` below is
+# the one and only place anything in this repo should wipe
+# .objectiveai-tests/ — nothing in prepare.sh, the test code,
+# or any other script should touch it.
+#
+# We also don't kill child processes here — leaked processes at
+# script exit are a harness bug to fix, not papered over.
 PORT_FILE=""
 cleanup() {
   if [ -n "$PORT_FILE" ]; then
     rm -f "$PORT_FILE"
   fi
-  rm -rf "$RUNTIME_DIR"
 }
 trap cleanup EXIT INT TERM
 

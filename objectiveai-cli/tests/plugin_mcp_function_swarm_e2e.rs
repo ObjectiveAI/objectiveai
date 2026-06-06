@@ -139,10 +139,19 @@ async fn function_swarm_writes_per_agent_files() {
         "function executor must emit at least one chunk"
     );
 
-    // Both agents called `invoke` once during turn 1 of their script.
-    // The plugin's `Mcp-Session-Id` assert ensures each call landed
-    // on the matching plugin process; finding the file at all is
-    // what proves the per-agent argv arrived correctly.
+    // Both agents called `invoke` once during turn 1 of their
+    // scripted `calls` override. After the script is exhausted, the
+    // vector-completion client sends a continuation; the mock then
+    // falls through to its RNG-driven dispatcher (~75% tool call,
+    // ~25% respond-as-is per `resolve_mock_response`). With test
+    // seed=42 and these specific per-agent continuation prompts, the
+    // mock's RNG deterministically rolls:
+    //   - agent A's continuation → respond-as-is (no extra invoke)
+    //   - agent B's continuation → invoke (+1 extra invoke)
+    // so `A.txt` ends up with one line and `B.txt` with two. The
+    // plugin's `Mcp-Session-Id` assert ensures each call landed on
+    // the matching plugin process; finding the file at all proves the
+    // per-agent argv arrived correctly.
     let a_path = base.join("A.txt");
     let b_path = base.join("B.txt");
     let a = std::fs::read_to_string(&a_path)
@@ -150,5 +159,5 @@ async fn function_swarm_writes_per_agent_files() {
     let b = std::fs::read_to_string(&b_path)
         .unwrap_or_else(|e| panic!("missing {}: {e}", b_path.display()));
     assert_eq!(a, "A - A\n");
-    assert_eq!(b, "B - B\n");
+    assert_eq!(b, "B - B\nB - B\n");
 }

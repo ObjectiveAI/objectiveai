@@ -41,7 +41,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     cmd.args(&request.args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+        .stderr(Stdio::piped())
+        .kill_on_drop(true);
     crate::spawn::apply_config_env(&mut cmd, &ctx.config);
 
     let mut child = cmd.spawn().map_err(Error::PluginSpawn)?;
