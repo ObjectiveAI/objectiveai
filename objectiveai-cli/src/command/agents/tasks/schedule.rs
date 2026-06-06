@@ -28,6 +28,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     let id = db::tasks::insert_schedule_async(
         ctx.filesystem.clone(),
         request.command,
+        request.description,
+        ctx.config.agent_instance_hierarchy.clone(),
         request.interval_seconds,
         agent_arguments,
     )

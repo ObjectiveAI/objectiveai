@@ -51,14 +51,22 @@ fn init_tables(conn: &Connection) -> Result<(), Error> {
     // schedules use it for the `now - last_ran_at >=
     // interval_seconds` predicate; oneshots ignore it (they fire
     // once and get deleted).
+    //
+    // `agent_instance_hierarchy` is denormalised from
+    // `agent_arguments` so `agents tasks list` can WHERE on it
+    // cheaply with depth-counted slash arithmetic. `description`
+    // is the human-readable label every `schedule` invocation
+    // must supply.
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS schedules (\
-            id               INTEGER PRIMARY KEY AUTOINCREMENT, \
-            command          TEXT NOT NULL, \
-            interval_seconds INTEGER CHECK (interval_seconds IS NULL OR interval_seconds >= 0), \
-            agent_arguments  TEXT NOT NULL, \
-            created_at       INTEGER NOT NULL, \
-            last_ran_at      INTEGER \
+            id                       INTEGER PRIMARY KEY AUTOINCREMENT, \
+            command                  TEXT NOT NULL, \
+            description              TEXT NOT NULL, \
+            agent_instance_hierarchy TEXT NOT NULL, \
+            interval_seconds         INTEGER CHECK (interval_seconds IS NULL OR interval_seconds >= 0), \
+            agent_arguments          TEXT NOT NULL, \
+            created_at               INTEGER NOT NULL, \
+            last_ran_at              INTEGER \
         );",
     )?;
     Ok(())
@@ -81,6 +89,8 @@ fn now_seconds() -> i64 {
 pub fn insert_schedule(
     client: &Client,
     command: &[String],
+    description: &str,
+    agent_instance_hierarchy: &str,
     interval_seconds: Option<u64>,
     agent_arguments: &AgentArguments,
 ) -> Result<i64, Error> {
@@ -92,14 +102,17 @@ pub fn insert_schedule(
         .lock()
         .expect("filesystem tasks db connection mutex poisoned");
     let mut stmt = conn.prepare_cached(
-        "INSERT INTO schedules (command, interval_seconds, agent_arguments, created_at) \
-         VALUES (?1, ?2, ?3, ?4) \
+        "INSERT INTO schedules \
+         (command, description, agent_instance_hierarchy, interval_seconds, agent_arguments, created_at) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6) \
          RETURNING id",
     )?;
     let interval_param: Option<i64> = interval_seconds.map(|s| s as i64);
     let id = stmt.query_row(
         params![
             command_json,
+            description,
+            agent_instance_hierarchy,
             interval_param,
             agent_arguments_json,
             now_seconds()
@@ -113,14 +126,196 @@ pub fn insert_schedule(
 pub async fn insert_schedule_async(
     client: Client,
     command: Vec<String>,
+    description: String,
+    agent_instance_hierarchy: String,
     interval_seconds: Option<u64>,
     agent_arguments: AgentArguments,
 ) -> Result<i64, Error> {
     tokio::task::spawn_blocking(move || {
-        insert_schedule(&client, &command, interval_seconds, &agent_arguments)
+        insert_schedule(
+            &client,
+            &command,
+            &description,
+            &agent_instance_hierarchy,
+            interval_seconds,
+            &agent_arguments,
+        )
     })
     .await
     .map_err(spawn_blocking_join_err)?
+}
+
+/// One row from `schedules` as surfaced by `agents tasks list`.
+/// `command` is decoded from its JSON-string column.
+#[derive(Debug, Clone)]
+pub struct ListedSchedule {
+    pub id: i64,
+    pub agent_instance_hierarchy: String,
+    pub command: Vec<String>,
+    pub description: String,
+    pub created_at: i64,
+    pub last_ran_at: Option<i64>,
+    pub interval_seconds: Option<u64>,
+}
+
+/// List `schedules` matching the supplied filters. Every filter
+/// is optional and composes additively — the SQL is one statement
+/// that gates each predicate on whether the corresponding bind is
+/// active (0 = inactive bool flag, `NULL` = unset depth/count).
+///
+/// * `parent` + `max_depth`: hierarchy scope. `parent` is
+///   inclusive (matches itself plus descendants). `max_depth`
+///   counts slashes of descent from `parent` — `Some(0)` =
+///   `parent` only, `Some(1)` = parent + direct children, `None`
+///   = unlimited recursion.
+/// * `oneshot_only` / `interval_only`: kind filter (mutually
+///   exclusive at the CLI layer; both `false` = no kind filter).
+/// * `pending_only` / `exhausted_only`: readiness filter (same).
+/// * `offset` / `count`: pagination. `count = None` binds `-1`
+///   to LIMIT for unlimited.
+pub async fn list_schedules_async(
+    client: Client,
+    parent: String,
+    max_depth: Option<u64>,
+    oneshot_only: bool,
+    interval_only: bool,
+    pending_only: bool,
+    exhausted_only: bool,
+    offset: u64,
+    count: Option<u64>,
+) -> Result<Vec<ListedSchedule>, Error> {
+    tokio::task::spawn_blocking(move || {
+        list_schedules(
+            &client,
+            &parent,
+            max_depth,
+            oneshot_only,
+            interval_only,
+            pending_only,
+            exhausted_only,
+            offset,
+            count,
+        )
+    })
+    .await
+    .map_err(spawn_blocking_join_err)?
+}
+
+fn list_schedules(
+    client: &Client,
+    parent: &str,
+    max_depth: Option<u64>,
+    oneshot_only: bool,
+    interval_only: bool,
+    pending_only: bool,
+    exhausted_only: bool,
+    offset: u64,
+    count: Option<u64>,
+) -> Result<Vec<ListedSchedule>, Error> {
+    use rusqlite::named_params;
+
+    let conn = connection(client)?;
+    let conn = conn
+        .lock()
+        .expect("filesystem tasks db connection mutex poisoned");
+
+    let max_depth_param: Option<i64> = max_depth.map(|d| d as i64);
+    let count_param: i64 = count.map(|c| c as i64).unwrap_or(-1);
+    let offset_param: i64 = offset as i64;
+
+    let mut stmt = conn.prepare_cached(
+        "SELECT id, \
+                agent_instance_hierarchy, \
+                command, \
+                description, \
+                created_at, \
+                last_ran_at, \
+                interval_seconds \
+         FROM schedules \
+         WHERE \
+             /* Hierarchy + depth filter. Inclusive of the parent itself. */ \
+             ( \
+                 agent_instance_hierarchy = :parent \
+                 OR ( \
+                     agent_instance_hierarchy LIKE (:parent || '/%') \
+                     AND ( \
+                         :max_depth IS NULL \
+                         OR \
+                         ( \
+                             (length(agent_instance_hierarchy) \
+                              - length(replace(agent_instance_hierarchy, '/', ''))) \
+                             - (length(:parent) \
+                                - length(replace(:parent, '/', ''))) \
+                         ) <= :max_depth \
+                     ) \
+                 ) \
+             ) \
+             /* Oneshot / interval filter. */ \
+             AND (:oneshot_only = 0 OR interval_seconds IS NULL) \
+             AND (:interval_only = 0 OR interval_seconds IS NOT NULL) \
+             /* Pending / exhausted filter. */ \
+             AND (:pending_only = 0 OR ( \
+                 (interval_seconds IS NULL AND last_ran_at IS NULL) \
+                 OR \
+                 (interval_seconds IS NOT NULL \
+                  AND (last_ran_at IS NULL \
+                       OR (:now - last_ran_at) >= interval_seconds)) \
+             )) \
+             AND (:exhausted_only = 0 OR ( \
+                 (interval_seconds IS NULL AND last_ran_at IS NOT NULL) \
+                 OR \
+                 (interval_seconds IS NOT NULL \
+                  AND last_ran_at IS NOT NULL \
+                  AND (:now - last_ran_at) < interval_seconds) \
+             )) \
+         ORDER BY id ASC \
+         LIMIT :count OFFSET :offset",
+    )?;
+
+    let rows = stmt
+        .query_map(
+            named_params! {
+                ":parent": parent,
+                ":max_depth": max_depth_param,
+                ":oneshot_only": oneshot_only as i64,
+                ":interval_only": interval_only as i64,
+                ":pending_only": pending_only as i64,
+                ":exhausted_only": exhausted_only as i64,
+                ":now": now_seconds(),
+                ":count": count_param,
+                ":offset": offset_param,
+            },
+            |r| {
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2)?,
+                    r.get::<_, String>(3)?,
+                    r.get::<_, i64>(4)?,
+                    r.get::<_, Option<i64>>(5)?,
+                    r.get::<_, Option<i64>>(6)?,
+                ))
+            },
+        )?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+
+    let mut out = Vec::with_capacity(rows.len());
+    for (id, hierarchy, command_json, description, created_at, last_ran_at, interval_seconds)
+        in rows
+    {
+        let command: Vec<String> =
+            serde_json::from_str(&command_json).map_err(Error::Json)?;
+        out.push(ListedSchedule {
+            id,
+            agent_instance_hierarchy: hierarchy,
+            command,
+            description,
+            created_at,
+            last_ran_at,
+            interval_seconds: interval_seconds.map(|s| s as u64),
+        });
+    }
+    Ok(out)
 }
 
 fn spawn_blocking_join_err(e: tokio::task::JoinError) -> Error {

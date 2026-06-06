@@ -21,6 +21,10 @@ pub struct Request {
     pub path_type: Path,
     /// argv to invoke on each scheduled poll.
     pub command: Vec<String>,
+    /// Human-readable label. Required — surfaces on every
+    /// `agents tasks list` row, and the runner uses it in
+    /// observability output.
+    pub description: String,
     /// Floor on wall-clock seconds between invocations. `None`
     /// marks a **oneshot** schedule — the runner fires it once on
     /// the next poll and deletes the row. `Some(n)` is a recurring
@@ -46,6 +50,8 @@ impl CommandRequest for Request {
             "tasks".to_string(),
             "schedule".to_string(),
         ];
+        argv.push("--description".to_string());
+        argv.push(self.description.clone());
         match self.interval_seconds {
             Some(secs) => {
                 argv.push("--interval".to_string());
@@ -92,6 +98,10 @@ pub struct Args {
     /// `--oneshot`.
     #[arg(long)]
     pub interval: Option<String>,
+    /// Human-readable label for this schedule. Required —
+    /// surfaces on every `agents tasks list` row.
+    #[arg(long)]
+    pub description: String,
     /// Fire the command once on the next harness poll, then
     /// delete the row. Mutually exclusive with `--interval`.
     #[arg(long)]
@@ -156,6 +166,7 @@ impl TryFrom<Args> for Request {
         Ok(Self {
             path_type: Path::AgentsTasksSchedule,
             command: args.command,
+            description: args.description,
             interval_seconds,
             jq: args.jq,
         })

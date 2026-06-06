@@ -1,17 +1,23 @@
 //! `agents tasks` — task store + (eventual) runner.
 //!
-//! One leaf today: `schedule` — register a command + interval in
-//! `tasks.sqlite` (#213-style write-only first slice). The runner
-//! that fires schedules is follow-up work (#216).
+//! Two leaves today:
+//! - `schedule` — register a command + interval in `tasks.sqlite`.
+//! - `list` — inspect rows with filters on kind / readiness /
+//!   hierarchy + depth + pagination.
+//!
+//! The runner that fires schedules is follow-up work (#216).
 
 use crate::cli::command::CommandRequest;
 
+pub mod list;
 pub mod schedule;
 
 #[derive(clap::Subcommand)]
 pub enum Command {
     /// Register a command + interval in `tasks.sqlite`.
     Schedule(schedule::Command),
+    /// Inspect rows in `tasks.sqlite` with optional filters.
+    List(list::Command),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -24,6 +30,12 @@ pub enum Request {
     ScheduleRequestSchema(schedule::request_schema::Request),
     #[schemars(title = "ScheduleResponseSchema")]
     ScheduleResponseSchema(schedule::response_schema::Request),
+    #[schemars(title = "List")]
+    List(list::Request),
+    #[schemars(title = "ListRequestSchema")]
+    ListRequestSchema(list::request_schema::Request),
+    #[schemars(title = "ListResponseSchema")]
+    ListResponseSchema(list::response_schema::Request),
 }
 
 // Exempt from json-schema coverage: tier aggregate (see the root
@@ -39,6 +51,12 @@ pub enum ResponseItem {
     ScheduleRequestSchema(schedule::request_schema::Response),
     #[schemars(title = "ScheduleResponseSchema")]
     ScheduleResponseSchema(schedule::response_schema::Response),
+    #[schemars(title = "List")]
+    List(list::ResponseItem),
+    #[schemars(title = "ListRequestSchema")]
+    ListRequestSchema(list::request_schema::Response),
+    #[schemars(title = "ListResponseSchema")]
+    ListResponseSchema(list::response_schema::Response),
 }
 
 #[cfg(feature = "mcp")]
@@ -48,6 +66,9 @@ impl crate::cli::command::CommandResponse for ResponseItem {
             ResponseItem::Schedule(v) => v.into_mcp(),
             ResponseItem::ScheduleRequestSchema(v) => v.into_mcp(),
             ResponseItem::ScheduleResponseSchema(v) => v.into_mcp(),
+            ResponseItem::List(v) => v.into_mcp(),
+            ResponseItem::ListRequestSchema(v) => v.into_mcp(),
+            ResponseItem::ListResponseSchema(v) => v.into_mcp(),
         }
     }
 }
@@ -65,6 +86,15 @@ impl TryFrom<Command> for Request {
                     Request::ScheduleResponseSchema(schedule::response_schema::Request::try_from(args)?),
                 ),
             },
+            Command::List(cmd) => match cmd.schema {
+                None => Ok(Request::List(list::Request::try_from(cmd.args)?)),
+                Some(list::Schema::RequestSchema(args)) => Ok(
+                    Request::ListRequestSchema(list::request_schema::Request::try_from(args)?),
+                ),
+                Some(list::Schema::ResponseSchema(args)) => Ok(
+                    Request::ListResponseSchema(list::response_schema::Request::try_from(args)?),
+                ),
+            },
         }
     }
 }
@@ -75,6 +105,9 @@ impl CommandRequest for Request {
             Request::Schedule(inner) => inner.into_command(),
             Request::ScheduleRequestSchema(inner) => inner.into_command(),
             Request::ScheduleResponseSchema(inner) => inner.into_command(),
+            Request::List(inner) => inner.into_command(),
+            Request::ListRequestSchema(inner) => inner.into_command(),
+            Request::ListResponseSchema(inner) => inner.into_command(),
         }
     }
 }
@@ -109,6 +142,25 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
                 ResponseItem::ScheduleResponseSchema(value),
             )))
         }
+        Request::List(req) => {
+            use futures::StreamExt;
+            let inner = list::execute(executor, req, agent_arguments).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::List)))
+        }
+        Request::ListRequestSchema(req) => {
+            let value =
+                list::request_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::ListRequestSchema(value),
+            )))
+        }
+        Request::ListResponseSchema(req) => {
+            let value =
+                list::response_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::ListResponseSchema(value),
+            )))
+        }
     };
     Ok(stream)
 }
@@ -138,6 +190,20 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
         Request::ScheduleResponseSchema(req) => {
             let value =
                 schedule::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::List(req) => {
+            let inner = list::execute_jq(executor, req, jq, agent_arguments).await?;
+            Box::pin(inner)
+        }
+        Request::ListRequestSchema(req) => {
+            let value =
+                list::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::ListResponseSchema(req) => {
+            let value =
+                list::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
     };
