@@ -218,8 +218,13 @@ async fn watchdog_task<T>(
                     .await;
                 return;
             }
-            // Cli emitted an item. Forward it and keep going. If the
-            // consumer dropped its receiver, also stop.
+            // Cli emitted an item. Forward it, reset the inactivity
+            // timer (a yielded item counts as activity just like a FS
+            // event would — otherwise a cli that streams chunks
+            // straight through stdout without touching the on-disk
+            // logs gets watchdog'd despite being fully alive), and
+            // keep going. If the consumer dropped its receiver, also
+            // stop.
             next = inner_stream.next() => {
                 match next {
                     Some(item) => {
@@ -227,6 +232,9 @@ async fn watchdog_task<T>(
                         if out_tx.send(mapped).await.is_err() {
                             return;
                         }
+                        sleeper
+                            .as_mut()
+                            .reset(Instant::now() + HANG_TIMEOUT);
                     }
                     None => return,
                 }
