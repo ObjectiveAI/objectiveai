@@ -14,7 +14,7 @@ use futures::Stream;
 use interprocess::local_socket::traits::tokio::Stream as _;
 use interprocess::local_socket::{GenericFilePath, ToFsName};
 use objectiveai_sdk::cli::command::agents::read::subscribe::{
-    Request, RequestMessageKind, ResponseItem,
+    Request, RequestMessageKind, ResponseItem, SubscribeTarget,
 };
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::sync::mpsc;
@@ -28,21 +28,23 @@ type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     let kind_filter = request.kind;
-    // Mirror the `agents message` parent-fallback pattern: an
-    // explicit `--parent-agent-instance-hierarchy` overrides the
-    // cli's own position; otherwise the cli substitutes its own
-    // `Config.agent_instance_hierarchy`. The resolved `parent`
-    // becomes the `caller` argument to `subscribe_recursive` — the
-    // downstream `fs.read_new_from_queue(&caller, &spawned)` calls
-    // expect the parent of the spawned agent as that argument.
-    let parent = request
-        .parent_agent_instance_hierarchy
-        .as_deref()
-        .unwrap_or(&ctx.config.agent_instance_hierarchy)
-        .to_string();
-    let spawned = format!("{parent}/{}", request.agent_instance);
-    let sub_id = request.agent_instance;
     let fs = ctx.filesystem.clone();
+    // Resolve the target to `(parent, spawned, sub_id)`. Direct mode
+    // mirrors the `agents message` parent-fallback pattern; tag mode
+    // looks the tag up in `tags.sqlite` and errors out on PENDING /
+    // ABSENT with structured diagnostics.
+    let (parent, spawned, sub_id) = match request.target {
+        SubscribeTarget::Direct {
+            parent_agent_instance_hierarchy,
+            agent_instance,
+        } => {
+            let parent = parent_agent_instance_hierarchy
+                .unwrap_or_else(|| ctx.config.agent_instance_hierarchy.clone());
+            let spawned = format!("{parent}/{agent_instance}");
+            (parent, spawned, agent_instance)
+        }
+        SubscribeTarget::Tag { agent_tag } => resolve_tag(&fs, agent_tag).await?,
+    };
     let pipes_dir = fs.pipes_dir();
 
     let (tx, rx) = mpsc::channel::<Result<ResponseItem, Error>>(16);
@@ -54,6 +56,34 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         }
     });
     Ok(Box::pin(tokio_stream::wrappers::ReceiverStream::new(rx)))
+}
+
+/// Resolve a `--agent-tag` to the `(parent, spawned, leaf)` triple
+/// the rest of the handler expects. BOUND tags split into parent +
+/// leaf via [`crate::filesystem::db::tags::parent_of`] /
+/// [`leaf_of`]; PENDING and ABSENT both raise structured errors so
+/// the caller sees why the lookup failed.
+async fn resolve_tag(
+    fs: &crate::filesystem::Client,
+    agent_tag: String,
+) -> Result<(String, String, String), Error> {
+    use crate::filesystem::db::tags;
+    match tags::lookup_async(fs.clone(), agent_tag.clone()).await? {
+        tags::LookupState::Bound { agent_instance_hierarchy } => {
+            let parent = tags::parent_of(&agent_instance_hierarchy).to_string();
+            let leaf = tags::leaf_of(&agent_instance_hierarchy).to_string();
+            Ok((parent, agent_instance_hierarchy, leaf))
+        }
+        tags::LookupState::Pending {
+            parent_agent_instance_hierarchy,
+            agent_full_id,
+        } => Err(Error::TagPending {
+            tag: agent_tag,
+            parent_agent_instance_hierarchy,
+            agent_full_id,
+        }),
+        tags::LookupState::Absent => Err(Error::TagNotFound(agent_tag)),
+    }
 }
 
 fn subscribe_recursive(

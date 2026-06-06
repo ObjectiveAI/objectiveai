@@ -128,25 +128,28 @@ pub fn upsert_bound(
     Ok(())
 }
 
-/// Tag bound to a given hierarchy, if any. PENDING tags never match.
-pub fn tag_for_hierarchy(
+/// All tags currently bound to the given hierarchy, newest-bound
+/// first. A hierarchy can carry multiple tag names (the schema's PK
+/// is the `name`, not the hierarchy) — every BOUND row whose
+/// `agent_instance_hierarchy` matches is returned. PENDING rows
+/// never match.
+pub fn tags_for_hierarchy(
     client: &Client,
     agent_instance_hierarchy: &str,
-) -> Result<Option<String>, Error> {
+) -> Result<Vec<String>, Error> {
     let conn = connection(client)?;
     let conn = conn
         .lock()
         .expect("filesystem tags db connection mutex poisoned");
-    use rusqlite::OptionalExtension as _;
     let mut stmt = conn.prepare_cached(
         "SELECT name FROM tags \
          WHERE agent_instance_hierarchy = ?1 \
-         ORDER BY updated_at DESC \
-         LIMIT 1",
+         ORDER BY updated_at DESC",
     )?;
-    Ok(stmt
-        .query_row([agent_instance_hierarchy], |r| r.get::<_, String>(0))
-        .optional()?)
+    let rows = stmt
+        .query_map([agent_instance_hierarchy], |r| r.get::<_, String>(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(rows)
 }
 
 /// Hierarchy bound to a given tag. Returns `None` when the row is
@@ -169,13 +172,83 @@ pub fn hierarchy_for_tag(
     Ok(row.flatten())
 }
 
+/// Three-state result for a tag-name lookup. `Bound` is the only
+/// state callers can act on directly; `Pending` carries enough
+/// information for the read handlers to surface a "tag exists but
+/// hasn't been spawned yet" diagnostic; `Absent` means the tag was
+/// never registered.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LookupState {
+    Bound {
+        agent_instance_hierarchy: String,
+    },
+    Pending {
+        parent_agent_instance_hierarchy: String,
+        agent_full_id: String,
+    },
+    Absent,
+}
+
+/// Look up a tag and report its precise state. One SELECT returns all
+/// three nullable columns; the table's CHECK constraint guarantees
+/// every row matches exactly one of the BOUND or PENDING patterns,
+/// so the row tuple decoding is exhaustive.
+pub fn lookup(client: &Client, name: &str) -> Result<LookupState, Error> {
+    let conn = connection(client)?;
+    let conn = conn
+        .lock()
+        .expect("filesystem tags db connection mutex poisoned");
+    use rusqlite::OptionalExtension as _;
+    let mut stmt = conn.prepare_cached(
+        "SELECT agent_instance_hierarchy, \
+                parent_agent_instance_hierarchy, \
+                agent_full_id \
+         FROM tags WHERE name = ?1",
+    )?;
+    let row: Option<(Option<String>, Option<String>, Option<String>)> = stmt
+        .query_row([name], |r| {
+            Ok((
+                r.get::<_, Option<String>>(0)?,
+                r.get::<_, Option<String>>(1)?,
+                r.get::<_, Option<String>>(2)?,
+            ))
+        })
+        .optional()?;
+    match row {
+        Some((Some(h), None, None)) => Ok(LookupState::Bound {
+            agent_instance_hierarchy: h,
+        }),
+        Some((None, Some(p), Some(f))) => Ok(LookupState::Pending {
+            parent_agent_instance_hierarchy: p,
+            agent_full_id: f,
+        }),
+        Some(other) => Err(Error::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!(
+                "tags row for {name:?} violates state invariant: {other:?}"
+            ),
+        ))),
+        None => Ok(LookupState::Absent),
+    }
+}
+
 /// Parent scope of an `agent_instance_hierarchy`: the substring up
 /// to (but not including) the last `/`. When the input has no `/`,
 /// the parent is the empty string — the hierarchy is at the root.
-fn parent_of(agent_instance_hierarchy: &str) -> &str {
+pub(crate) fn parent_of(agent_instance_hierarchy: &str) -> &str {
     match agent_instance_hierarchy.rfind('/') {
         Some(i) => &agent_instance_hierarchy[..i],
         None => "",
+    }
+}
+
+/// Leaf segment of an `agent_instance_hierarchy`: everything after
+/// the last `/`. When the input has no `/`, the leaf is the whole
+/// string.
+pub(crate) fn leaf_of(agent_instance_hierarchy: &str) -> &str {
+    match agent_instance_hierarchy.rfind('/') {
+        Some(i) => &agent_instance_hierarchy[i + 1..],
+        None => agent_instance_hierarchy,
     }
 }
 
@@ -256,12 +329,12 @@ pub async fn upsert_bound_async(
 }
 
 /// Async wrapper.
-pub async fn tag_for_hierarchy_async(
+pub async fn tags_for_hierarchy_async(
     client: Client,
     agent_instance_hierarchy: String,
-) -> Result<Option<String>, Error> {
+) -> Result<Vec<String>, Error> {
     tokio::task::spawn_blocking(move || {
-        tag_for_hierarchy(&client, &agent_instance_hierarchy)
+        tags_for_hierarchy(&client, &agent_instance_hierarchy)
     })
     .await
     .map_err(spawn_blocking_join_err)?
@@ -273,6 +346,16 @@ pub async fn hierarchy_for_tag_async(
     name: String,
 ) -> Result<Option<String>, Error> {
     tokio::task::spawn_blocking(move || hierarchy_for_tag(&client, &name))
+        .await
+        .map_err(spawn_blocking_join_err)?
+}
+
+/// Async wrapper for [`lookup`].
+pub async fn lookup_async(
+    client: Client,
+    name: String,
+) -> Result<LookupState, Error> {
+    tokio::task::spawn_blocking(move || lookup(&client, &name))
         .await
         .map_err(spawn_blocking_join_err)?
 }
@@ -319,8 +402,8 @@ mod tests {
             Some("root/A/inst-1".to_string())
         );
         assert_eq!(
-            tag_for_hierarchy(&c, "root/A/inst-1").unwrap(),
-            Some("foo".to_string())
+            tags_for_hierarchy(&c, "root/A/inst-1").unwrap(),
+            vec!["foo".to_string()]
         );
     }
 
@@ -376,7 +459,7 @@ mod tests {
             Some("root/A/h2".to_string())
         );
         // h1 no longer carries t.
-        assert_eq!(tag_for_hierarchy(&c, "root/A/h1").unwrap(), None);
+        assert!(tags_for_hierarchy(&c, "root/A/h1").unwrap().is_empty());
     }
 
     #[test]
@@ -387,7 +470,7 @@ mod tests {
         // hierarchy_for_tag treats PENDING as no binding.
         assert_eq!(hierarchy_for_tag(&c, "t").unwrap(), None);
         // h1 is detached.
-        assert_eq!(tag_for_hierarchy(&c, "root/A/h1").unwrap(), None);
+        assert!(tags_for_hierarchy(&c, "root/A/h1").unwrap().is_empty());
         // upgrade can now bind it.
         let promoted = upgrade(&c, "F", "root/A/h2").unwrap();
         assert_eq!(promoted, vec!["t".to_string()]);
@@ -406,9 +489,22 @@ mod tests {
     }
 
     #[test]
-    fn tag_for_hierarchy_returns_none_for_unmatched() {
+    fn tags_for_hierarchy_returns_all_matches_newest_first() {
+        let (c, _tmp) = fresh_client();
+        // Two distinct tag names bound to the same hierarchy.
+        upsert_bound(&c, "older", "root/A/h1").unwrap();
+        // Ensure the second insert has a strictly-later `updated_at`
+        // so the newest-first ordering is deterministic.
+        std::thread::sleep(std::time::Duration::from_secs(1));
+        upsert_bound(&c, "newer", "root/A/h1").unwrap();
+        let tags = tags_for_hierarchy(&c, "root/A/h1").unwrap();
+        assert_eq!(tags, vec!["newer".to_string(), "older".to_string()]);
+    }
+
+    #[test]
+    fn tags_for_hierarchy_returns_empty_for_unmatched() {
         let (c, _tmp) = fresh_client();
         upsert_bound(&c, "t", "root/A/h1").unwrap();
-        assert_eq!(tag_for_hierarchy(&c, "root/A/other").unwrap(), None);
+        assert!(tags_for_hierarchy(&c, "root/A/other").unwrap().is_empty());
     }
 }

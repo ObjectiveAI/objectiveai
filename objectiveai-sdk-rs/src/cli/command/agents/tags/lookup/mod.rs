@@ -18,7 +18,15 @@ pub enum Request {
     #[schemars(title = "AgentInstanceHierarchy")]
     AgentInstanceHierarchy {
         path_type: Path,
-        agent_instance_hierarchy: String,
+        /// Lineage prefix to prepend to [`Self::agent_instance`].
+        /// When `None`, the CLI substitutes its own
+        /// `Config.agent_instance_hierarchy`. Full hierarchy is
+        /// `"{parent}/{instance}"`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        parent_agent_instance_hierarchy: Option<String>,
+        /// Leaf id of the target agent.
+        agent_instance: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[schemars(extend("omitempty" = true))]
         jq: Option<String>,
@@ -46,18 +54,31 @@ impl Request {
 #[schemars(rename = "cli.command.agents.tags.lookup.Response")]
 #[serde(tag = "by", rename_all = "snake_case")]
 pub enum Response {
+    /// A hierarchy can carry multiple tags (the schema's PK is the
+    /// `name`, not the hierarchy). All matching BOUND tags are
+    /// returned, newest-bound first.
     #[schemars(title = "AgentInstanceHierarchy")]
-    AgentInstanceHierarchy {
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[schemars(extend("omitempty" = true))]
-        tag: Option<String>,
-    },
+    AgentInstanceHierarchy { tags: Vec<String> },
     #[schemars(title = "Tag")]
-    Tag {
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[schemars(extend("omitempty" = true))]
-        agent_instance_hierarchy: Option<String>,
+    Tag { state: LookupState },
+}
+
+/// Three-state result for a tag-name lookup. PENDING surfaces the
+/// pre-spawn `(parent, agent_full_id)` pair so callers can see why
+/// the tag exists without a hierarchy yet.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.tags.lookup.LookupState")]
+#[serde(tag = "state", rename_all = "snake_case")]
+pub enum LookupState {
+    #[schemars(title = "Bound")]
+    Bound { agent_instance_hierarchy: String },
+    #[schemars(title = "Pending")]
+    Pending {
+        parent_agent_instance_hierarchy: String,
+        agent_full_id: String,
     },
+    #[schemars(title = "Absent")]
+    Absent,
 }
 
 impl CommandRequest for Request {
@@ -65,12 +86,16 @@ impl CommandRequest for Request {
         let mut argv = vec!["agents".to_string(), "tags".to_string(), "lookup".to_string()];
         match self {
             Request::AgentInstanceHierarchy {
-                agent_instance_hierarchy,
+                parent_agent_instance_hierarchy,
+                agent_instance,
                 jq,
                 ..
             } => {
-                argv.push("--agent-instance-hierarchy".to_string());
-                argv.push(agent_instance_hierarchy.clone());
+                argv.push(agent_instance.clone());
+                if let Some(parent) = parent_agent_instance_hierarchy {
+                    argv.push("--parent-agent-instance-hierarchy".to_string());
+                    argv.push(parent.clone());
+                }
                 if let Some(jq) = jq {
                     argv.push("--jq".to_string());
                     argv.push(jq.clone());
@@ -90,23 +115,30 @@ impl CommandRequest for Request {
 }
 
 #[derive(clap::Args)]
+#[command(group(
+    clap::ArgGroup::new("lookup_by")
+        .required(true)
+        .multiple(false)
+        .args(["agent_instance", "tag"])
+))]
 pub struct Args {
-    #[command(flatten)]
-    pub by: ByArgs,
+    /// Leaf id of the target agent. Combined with `--parent` (or
+    /// the cli's own `Config.agent_instance_hierarchy` when omitted)
+    /// to form the full lineage. Mutually exclusive with `--tag`.
+    pub agent_instance: Option<String>,
+    /// Optional lineage prefix to prepend to `agent_instance`.
+    /// When omitted, the cli substitutes its own
+    /// `Config.agent_instance_hierarchy`. Only valid alongside
+    /// `agent_instance`.
+    #[arg(long = "parent-agent-instance-hierarchy", requires = "agent_instance")]
+    pub parent_agent_instance_hierarchy: Option<String>,
+    /// Tag name to look up. Mutually exclusive with `agent_instance`
+    /// and `--parent-agent-instance-hierarchy`.
+    #[arg(long)]
+    pub tag: Option<String>,
     /// jq filter applied to the JSON output.
     #[arg(long)]
     pub jq: Option<String>,
-}
-
-#[derive(clap::Args)]
-#[group(required = true, multiple = false)]
-pub struct ByArgs {
-    /// Full agent instance hierarchy to look up.
-    #[arg(long)]
-    pub agent_instance_hierarchy: Option<String>,
-    /// Tag name to look up.
-    #[arg(long)]
-    pub tag: Option<String>,
 }
 
 #[derive(clap::Args)]
@@ -129,18 +161,21 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        if let Some(h) = args.by.agent_instance_hierarchy {
-            Ok(Request::AgentInstanceHierarchy {
+        match (args.agent_instance, args.tag) {
+            (Some(agent_instance), None) => Ok(Request::AgentInstanceHierarchy {
                 path_type: Path::AgentsTagsLookup,
-                agent_instance_hierarchy: h,
+                parent_agent_instance_hierarchy: args.parent_agent_instance_hierarchy,
+                agent_instance,
                 jq: args.jq,
-            })
-        } else {
-            Ok(Request::Tag {
+            }),
+            (None, Some(tag)) => Ok(Request::Tag {
                 path_type: Path::AgentsTagsLookup,
-                tag: args.by.tag.expect("clap group ensures one of agent-instance-hierarchy or tag is set"),
+                tag,
                 jq: args.jq,
-            })
+            }),
+            _ => unreachable!(
+                "clap group `lookup_by` ensures exactly one of agent_instance | tag"
+            ),
         }
     }
 }

@@ -5,10 +5,11 @@ use std::pin::Pin;
 use futures::Stream;
 use futures::StreamExt;
 use futures::stream::FuturesUnordered;
-use objectiveai_sdk::cli::command::agents::read::pending::{Request, ResponseItem};
+use objectiveai_sdk::cli::command::agents::read::pending::{Request, ResponseItem, Target};
 
 use crate::context::Context;
 use crate::error::Error;
+use crate::filesystem::db::tags;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
@@ -19,14 +20,9 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         let mut inflight = FuturesUnordered::new();
         for target in request.targets {
             let fs = fs.clone();
-            // Per-target parent fallback: explicit `parent=` overrides
-            // the cli's own position; otherwise fall back to ctx.
-            let parent = target
-                .parent_agent_instance_hierarchy
-                .unwrap_or_else(|| default_parent.clone());
-            let leaf = target.agent_instance;
+            let default_parent = default_parent.clone();
             inflight.push(async move {
-                let spawned = format!("{parent}/{leaf}");
+                let (parent, spawned, leaf) = resolve_target(&fs, target, &default_parent).await?;
                 let items = fs.read_new_from_queue(&parent, &spawned).await?;
                 Ok::<_, Error>(ResponseItem { agent_id: leaf, items })
             });
@@ -36,6 +32,43 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         }
     };
     Ok(Box::pin(stream))
+}
+
+/// Same as `agents read all`'s resolver — direct mode uses the
+/// explicit `parent=` or ctx, tag mode looks the tag up in
+/// `tags.sqlite` and errors on PENDING / ABSENT.
+async fn resolve_target(
+    fs: &crate::filesystem::Client,
+    target: Target,
+    default_parent: &str,
+) -> Result<(String, String, String), Error> {
+    match target {
+        Target::Direct {
+            parent_agent_instance_hierarchy,
+            agent_instance,
+        } => {
+            let parent =
+                parent_agent_instance_hierarchy.unwrap_or_else(|| default_parent.to_string());
+            let spawned = format!("{parent}/{agent_instance}");
+            Ok((parent, spawned, agent_instance))
+        }
+        Target::Tag { agent_tag } => match tags::lookup_async(fs.clone(), agent_tag.clone()).await? {
+            tags::LookupState::Bound { agent_instance_hierarchy } => {
+                let parent = tags::parent_of(&agent_instance_hierarchy).to_string();
+                let leaf = tags::leaf_of(&agent_instance_hierarchy).to_string();
+                Ok((parent, agent_instance_hierarchy, leaf))
+            }
+            tags::LookupState::Pending {
+                parent_agent_instance_hierarchy,
+                agent_full_id,
+            } => Err(Error::TagPending {
+                tag: agent_tag,
+                parent_agent_instance_hierarchy,
+                agent_full_id,
+            }),
+            tags::LookupState::Absent => Err(Error::TagNotFound(agent_tag)),
+        },
+    }
 }
 
 pub mod request_schema {
