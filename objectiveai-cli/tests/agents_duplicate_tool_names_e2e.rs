@@ -22,17 +22,18 @@
 
 mod cli_test_util;
 
-use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::sync::Once;
+use std::path::Path;
 use std::time::{Duration, Instant};
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use objectiveai_sdk::cli::command::agents::message::{
-    Request as MessageRequest, RequestMessage,
+    MessageTarget, Request as MessageRequest,
+    RequestDangerousAdvanced as MessageDangerousAdvanced, RequestMessage,
+    ResponseItem as MessageResponseItem,
 };
 use objectiveai_sdk::cli::command::agents::read::all::{
     Request as ReadAllRequest, ResponseItem as ReadAllItem, ResponseQueueItem,
+    Target as ReadAllTarget,
 };
 use objectiveai_sdk::cli::command::agents::read::id::{
     Request as ReadIdRequest, Response as ReadIdResponse,
@@ -54,65 +55,6 @@ const PLUGIN_NAMES: [&str; 5] = [
 /// names + seed; if this value ever stops yielding ≥2 unique calls
 /// across three turns, try another small integer.
 const SEED: i64 = 7;
-
-static BUILD_PLUGIN_ONCE: Once = Once::new();
-
-fn plugin_binary() -> PathBuf {
-    let target = cli_test_util::test_target_dir();
-    let mut path = target.join("debug/test-mcp-plugin-named");
-    if cfg!(windows) {
-        path.set_extension("exe");
-    }
-    BUILD_PLUGIN_ONCE.call_once(|| {
-        let status = Command::new("cargo")
-            .args([
-                "build",
-                "-p",
-                "test-mcp-plugin-named",
-                "--target-dir",
-                target.to_str().unwrap(),
-            ])
-            .status()
-            .expect("spawn cargo build test-mcp-plugin-named");
-        assert!(status.success(), "test-mcp-plugin-named build failed");
-    });
-    path
-}
-
-/// Stage all five plugin installs at `<base>/plugins/<name>` with
-/// manifests at `<base>/plugins/<name>.json`. The same binary backs
-/// every install — uniqueness comes from the install name (which the
-/// agent's `client_objectiveai_mcp.plugins[].name` references) plus
-/// the `--name` argv we feed each one (which becomes its upstream
-/// `serverInfo.name`).
-fn stage_plugins(base: &Path) {
-    let plugins = base.join("plugins");
-    let bin = plugin_binary();
-    for name in PLUGIN_NAMES {
-        let install = plugins.join(name);
-        std::fs::create_dir_all(&install).unwrap();
-        let manifest = json!({
-            "description": format!("{name} fixture"),
-            "version": "1.0.0",
-            "owner": "testorg",
-            "mcp_servers": [
-                { "name": "demo", "url": "http://127.0.0.1:0", "authorization": false }
-            ]
-        });
-        std::fs::write(
-            plugins.join(format!("{name}.json")),
-            serde_json::to_vec_pretty(&manifest).unwrap(),
-        )
-        .unwrap();
-        let installed = install.join(if cfg!(windows) { "plugin.exe" } else { "plugin" });
-        std::fs::copy(&bin, &installed).expect("copy fixture binary");
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&installed, std::fs::Permissions::from_mode(0o755)).unwrap();
-        }
-    }
-}
 
 /// Bare-bones plain mock agent. No `calls` override, no fallbacks,
 /// no fancy modes. The plugin surface lists every staged plugin's
@@ -180,12 +122,7 @@ async fn duplicate_tool_names_routed_across_turns() {
         );
         return;
     }
-    let _ = cli_test_util::cli_binary();
-    let _ = plugin_binary();
-
     let base = cli_test_util::test_base_dir();
-
-    stage_plugins(&base);
 
     let agent = AgentSpec::Resolved(
         serde_json::from_value::<InlineAgentBaseWithFallbacksOrRemoteCommitOptional>(mock_agent())
@@ -197,6 +134,7 @@ async fn duplicate_tool_names_routed_across_turns() {
     let spawn = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
         prompt: RequestPrompt::Simple("use a tool".to_string()),
         agent,
+        agent_tag: None,
         seed: Some(SEED),
         // Stream so we get `Chunk(_)` items (needed for `chunk.id`)
         // and so the cli stays attached to the instance subprocess
@@ -237,18 +175,25 @@ async fn duplicate_tool_names_routed_across_turns() {
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
     // Turn 2: agents message — first continuation ─────────────────
+    // `dangerous_advanced.stream = Some(true)` keeps the parent cli
+    // attached to its spawned instance runner so `collect_stream`
+    // returning implies the runner exited (no leak).
     let msg1 = MessageRequest {
         path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
-        parent_agent_instance_hierarchy: parent.clone(),
-        agent_instance: instance.clone(),
+        target: MessageTarget::Direct {
+            parent_agent_instance_hierarchy: parent.clone(),
+            agent_instance: instance.clone(),
+            agent_tag: None,
+        },
         message: RequestMessage::Simple("again".to_string()),
         seed: Some(SEED),
+        dangerous_advanced: Some(MessageDangerousAdvanced {
+            stream: Some(true),
+        }),
         jq: None,
     };
-    let _ = executor
-        .execute_one::<_, objectiveai_sdk::cli::command::agents::message::Response>(msg1, None)
-        .await
-        .expect("agents message turn 2 executor call");
+    let _items: Vec<MessageResponseItem> =
+        cli_test_util::collect_stream(&executor, msg1).await;
     wait_for_completion(&base, &spawn_id).await;
 
     // Same settle delay as before turn 2 (see comment there).
@@ -257,24 +202,37 @@ async fn duplicate_tool_names_routed_across_turns() {
     // Turn 3: agents message — second continuation ───────────────
     let msg2 = MessageRequest {
         path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
-        parent_agent_instance_hierarchy: parent.clone(),
-        agent_instance: instance.clone(),
+        target: MessageTarget::Direct {
+            parent_agent_instance_hierarchy: parent.clone(),
+            agent_instance: instance.clone(),
+            agent_tag: None,
+        },
         message: RequestMessage::Simple("one more".to_string()),
         seed: Some(SEED),
+        dangerous_advanced: Some(MessageDangerousAdvanced {
+            stream: Some(true),
+        }),
         jq: None,
     };
-    let _ = executor
-        .execute_one::<_, objectiveai_sdk::cli::command::agents::message::Response>(msg2, None)
-        .await
-        .expect("agents message turn 3 executor call");
+    let _items: Vec<MessageResponseItem> =
+        cli_test_util::collect_stream(&executor, msg2).await;
     wait_for_completion(&base, &spawn_id).await;
 
     // Collect every assistant turn's tool_call rows via `agents read
     // all`, then resolve each row id through `agents read id` to pull
     // the typed `AssistantToolCallDelta` whose `function.name` carries
     // the prefixed tool name.
+    // Split `spawn_id` (`cli/<leaf>`) into (parent, leaf) for the
+    // direct-target shape.
+    let (read_parent, read_instance) = spawn_id
+        .rsplit_once('/')
+        .map(|(p, i)| (Some(p.to_string()), i.to_string()))
+        .unwrap_or_else(|| (None, spawn_id.clone()));
     let read_all = ReadAllRequest { path_type: objectiveai_sdk::cli::command::agents::read::all::Path::AgentsReadAll,
-        agent_instance_hierarchies: vec![spawn_id.clone()],
+        targets: vec![ReadAllTarget::Direct {
+            parent_agent_instance_hierarchy: read_parent,
+            agent_instance: read_instance,
+        }],
         jq: None,
     };
     let read_items: Vec<ReadAllItem> = cli_test_util::collect_stream(&executor, read_all).await;
@@ -305,15 +263,15 @@ async fn duplicate_tool_names_routed_across_turns() {
             .await
             .unwrap_or_else(|e| panic!("agents read id {id} failed: {e:?}"));
         // Tool-call rows always come back as
-        // `AgentsCompletionsResponseMessagesToolCalls(AssistantToolCallDelta)`.
+        // `AgentsCompletionsResponseMessagesAssistantToolCalls(AssistantToolCallDelta)`.
         // Other variants would mean the queue cross-referenced a
         // non-tool-call row id — surface that as a panic so we notice.
         let name = match resp {
-            ReadIdResponse::AgentsCompletionsResponseMessagesToolCalls(delta) => {
+            ReadIdResponse::AgentsCompletionsResponseMessagesAssistantToolCalls(delta) => {
                 delta.function.and_then(|f| f.name)
             }
             other => panic!(
-                "expected AgentsCompletionsResponseMessagesToolCalls for tool-call row id {id}, got {other:?}"
+                "expected AgentsCompletionsResponseMessagesAssistantToolCalls for tool-call row id {id}, got {other:?}"
             ),
         };
         if let Some(n) = name {

@@ -473,8 +473,18 @@ static FILESYSTEM_CLIENT: LazyLock<Arc<crate::filesystem::Client>> = LazyLock::n
 // Values match `objectiveai-api/src/run.rs::ConfigBuilder::build`'s
 // production defaults — i.e. the "no env vars set" steady state — so
 // tests exercise the same retry policy operators see by default.
+//
+// EXCEPTION: `MCP_CALL_TIMEOUT_MS` is doubled (60s vs the 30s
+// production default). Under the full concurrent integration suite,
+// single test slots have been observed to lose ~40s+ of wall time to
+// scheduler pressure mid-`list_tools`, which surfaces as a flaky
+// "operation timed out" failure on whichever seed gets unlucky. The
+// production budget is the right shape; doubling it under test
+// avoids the load-induced flake without papering over a real
+// performance regression (a >60s `list_tools` against the local
+// mock would still surface).
 const MCP_CONNECT_TIMEOUT_MS: u64 = 30_000;
-const MCP_CALL_TIMEOUT_MS: u64 = 30_000;
+const MCP_CALL_TIMEOUT_MS: u64 = 60_000;
 const MCP_BACKOFF_CURRENT_INTERVAL_MS: u64 = 100;
 const MCP_BACKOFF_INITIAL_INTERVAL_MS: u64 = 100;
 const MCP_BACKOFF_RANDOMIZATION_FACTOR: f64 = 0.5;

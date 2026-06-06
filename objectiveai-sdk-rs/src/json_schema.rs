@@ -123,6 +123,8 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::agent::completions::response::streaming::AssistantResponseChunk),
         schemars::schema_for!(crate::agent::completions::response::streaming::AssistantResponseChunkLog),
         schemars::schema_for!(crate::agent::completions::response::streaming::MessageChunk),
+        schemars::schema_for!(crate::agent::completions::response::streaming::message_log_reference::LogReference),
+        schemars::schema_for!(crate::agent::completions::response::streaming::message_log_reference::Role),
         schemars::schema_for!(crate::agent::completions::response::streaming::Object),
         schemars::schema_for!(crate::agent::completions::response::unary::AgentCompletion),
         schemars::schema_for!(crate::agent::completions::response::unary::AssistantResponse),
@@ -1534,299 +1536,339 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::audio::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::audio::clear::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::audio::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::audio::clear::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::audio::clear::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::audio::clear::Response),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::audio::clear::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::audio::clear::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::audio::clear::Response),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::audio::clear::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::audio::clear::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::audio::clear::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::audio::clear::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::audio::clear::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::audio::clear::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::audio::get::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::audio::clear::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::audio::get::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::audio::get::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::audio::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::audio::get::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::audio::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::audio::get::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::audio::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::audio::get::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::audio::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::audio::get::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::audio::subscribe::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::audio::get::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::audio::subscribe::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::audio::subscribe::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::audio::subscribe::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::audio::subscribe::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::audio::subscribe::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::audio::subscribe::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::audio::subscribe::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::audio::subscribe::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::audio::subscribe::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::audio::subscribe::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::clear::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::audio::subscribe::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::clear::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::clear::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::clear::Response),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::clear::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::clear::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::clear::Response),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::clear::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::clear::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::clear::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::clear::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::clear::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::clear::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::file::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::clear::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::file::clear::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::file::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::file::clear::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::file::clear::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::file::clear::Response),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::file::clear::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::file::clear::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::file::clear::Response),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::file::clear::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::file::clear::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::file::clear::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::file::clear::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::file::clear::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::file::clear::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::file::get::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::file::clear::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::file::get::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::file::get::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::file::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::file::get::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::file::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::file::get::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::file::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::file::get::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::file::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::file::get::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::file::subscribe::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::file::get::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::file::subscribe::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::file::subscribe::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::file::subscribe::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::file::subscribe::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::file::subscribe::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::file::subscribe::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::file::subscribe::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::file::subscribe::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::file::subscribe::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::file::subscribe::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::get::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::file::subscribe::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::get::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::get::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::get::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::get::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::get::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::get::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::image::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::get::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::image::clear::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::image::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::image::clear::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::image::clear::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::image::clear::Response),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::image::clear::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::image::clear::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::image::clear::Response),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::image::clear::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::image::clear::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::image::clear::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::image::clear::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::image::clear::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::image::clear::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::image::get::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::image::clear::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::image::get::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::image::get::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::image::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::image::get::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::image::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::image::get::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::image::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::image::get::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::image::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::image::get::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::image::subscribe::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::image::get::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::image::subscribe::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::image::subscribe::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::image::subscribe::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::image::subscribe::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::image::subscribe::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::image::subscribe::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::image::subscribe::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::image::subscribe::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::image::subscribe::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::image::subscribe::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::logprobs::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::image::subscribe::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::logprobs::clear::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::logprobs::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::logprobs::clear::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::logprobs::clear::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::logprobs::clear::Response),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::logprobs::clear::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::logprobs::clear::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::logprobs::clear::Response),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::logprobs::clear::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::logprobs::clear::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::logprobs::clear::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::logprobs::clear::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::logprobs::clear::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::logprobs::clear::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::logprobs::get::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::logprobs::clear::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::logprobs::get::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::logprobs::get::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::logprobs::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::logprobs::get::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::logprobs::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::logprobs::get::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::logprobs::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::logprobs::get::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::logprobs::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::logprobs::get::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::logprobs::subscribe::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::logprobs::get::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::logprobs::subscribe::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::logprobs::subscribe::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::logprobs::subscribe::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::logprobs::subscribe::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::logprobs::subscribe::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::logprobs::subscribe::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::logprobs::subscribe::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::logprobs::subscribe::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::logprobs::subscribe::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::logprobs::subscribe::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::reasoning::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::logprobs::subscribe::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::reasoning::clear::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::reasoning::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::reasoning::clear::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::reasoning::clear::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::reasoning::clear::Response),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::reasoning::clear::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::reasoning::clear::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::reasoning::clear::Response),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::reasoning::clear::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::reasoning::clear::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::reasoning::clear::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::reasoning::clear::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::reasoning::clear::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::reasoning::clear::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::reasoning::get::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::reasoning::clear::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::reasoning::get::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::reasoning::get::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::reasoning::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::reasoning::get::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::reasoning::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::reasoning::get::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::reasoning::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::reasoning::get::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::reasoning::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::reasoning::get::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::reasoning::subscribe::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::reasoning::get::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::reasoning::subscribe::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::reasoning::subscribe::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::reasoning::subscribe::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::reasoning::subscribe::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::reasoning::subscribe::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::reasoning::subscribe::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::reasoning::subscribe::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::reasoning::subscribe::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::reasoning::subscribe::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::reasoning::subscribe::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::refusal::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::reasoning::subscribe::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::refusal::clear::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::refusal::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::refusal::clear::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::refusal::clear::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::refusal::clear::Response),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::refusal::clear::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::refusal::clear::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::refusal::clear::Response),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::refusal::clear::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::refusal::clear::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::refusal::clear::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::refusal::clear::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::refusal::clear::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::refusal::clear::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::refusal::get::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::refusal::clear::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::refusal::get::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::refusal::get::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::refusal::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::refusal::get::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::refusal::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::refusal::get::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::refusal::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::refusal::get::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::refusal::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::refusal::get::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::refusal::subscribe::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::refusal::get::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::refusal::subscribe::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::refusal::subscribe::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::refusal::subscribe::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::refusal::subscribe::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::refusal::subscribe::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::refusal::subscribe::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::refusal::subscribe::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::refusal::subscribe::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::refusal::subscribe::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::refusal::subscribe::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::subscribe::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::refusal::subscribe::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::subscribe::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::subscribe::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::subscribe::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::subscribe::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::subscribe::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::subscribe::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::subscribe::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::subscribe::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::subscribe::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::subscribe::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::text::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::subscribe::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::text::get::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::text::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::text::get::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::text::get::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::text::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::text::get::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::text::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::text::get::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::text::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::text::get::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::text::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::text::get::response_schema::Path),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::text::get::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::Request),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::clear::Path),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::clear::Request),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::clear::Response),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::clear::request_schema::Path),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::clear::request_schema::Request),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::clear::response_schema::Path),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::clear::response_schema::Request),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::get::Path),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::get::Request),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::get::request_schema::Path),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::get::request_schema::Request),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::get::response_schema::Path),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::get::response_schema::Request),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::subscribe::Path),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::subscribe::Request),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::subscribe::request_schema::Path),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::subscribe::request_schema::Request),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::subscribe::response_schema::Path),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::subscribe::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::audio::Request),
         #[cfg(feature = "cli")]
@@ -1898,85 +1940,85 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool::video::get::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool_calls::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::tool_calls::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool_calls::clear::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::tool_calls::clear::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool_calls::clear::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::tool_calls::clear::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool_calls::clear::Response),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::tool_calls::clear::Response),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool_calls::clear::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::tool_calls::clear::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool_calls::clear::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::tool_calls::clear::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool_calls::clear::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::tool_calls::clear::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool_calls::clear::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::tool_calls::clear::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool_calls::get::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::tool_calls::get::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool_calls::get::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::tool_calls::get::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool_calls::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::tool_calls::get::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool_calls::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::tool_calls::get::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool_calls::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::tool_calls::get::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool_calls::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::tool_calls::get::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool_calls::subscribe::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::tool_calls::subscribe::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool_calls::subscribe::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::tool_calls::subscribe::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool_calls::subscribe::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::tool_calls::subscribe::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool_calls::subscribe::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::tool_calls::subscribe::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool_calls::subscribe::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::tool_calls::subscribe::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::tool_calls::subscribe::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::tool_calls::subscribe::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::video::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::video::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::video::clear::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::video::clear::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::video::clear::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::video::clear::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::video::clear::Response),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::video::clear::Response),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::video::clear::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::video::clear::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::video::clear::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::video::clear::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::video::clear::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::video::clear::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::video::clear::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::video::clear::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::video::get::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::video::get::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::video::get::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::video::get::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::video::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::video::get::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::video::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::video::get::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::video::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::video::get::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::video::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::video::get::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::video::subscribe::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::video::subscribe::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::video::subscribe::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::video::subscribe::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::video::subscribe::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::video::subscribe::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::video::subscribe::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::video::subscribe::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::video::subscribe::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::video::subscribe::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::video::subscribe::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::logs::agents::completions::response::messages::assistant::video::subscribe::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::agents::completions::response::subscribe::Path),
         #[cfg(feature = "cli")]

@@ -82,6 +82,7 @@ pub fn instance_subprocess_stream(
     ctx: &Context,
     endpoint: InstanceEndpoint,
     bind_agent_instance_hierarchy: Option<String>,
+    agent_tag: Option<String>,
     stream: bool,
 ) -> Pin<Box<dyn Stream<Item = Result<InstanceItem, Error>> + Send>> {
     let cli_config = ctx.config.clone();
@@ -95,6 +96,7 @@ pub fn instance_subprocess_stream(
             fs,
             endpoint,
             bind_agent_instance_hierarchy,
+            agent_tag,
             stream,
             tx.clone(),
         )
@@ -114,9 +116,13 @@ async fn run_subprocess(
     fs: crate::filesystem::Client,
     endpoint: InstanceEndpoint,
     bind_agent_instance_hierarchy: Option<String>,
+    agent_tag: Option<String>,
     stream: bool,
     tx: tokio::sync::mpsc::Sender<Result<InstanceItem, Error>>,
 ) -> Result<(), Error> {
+    // Only agent-completion runs participate in tag binding. Function
+    // executions / invention recursive runs skip the hook entirely.
+    let is_agent_completion = matches!(endpoint, InstanceEndpoint::AgentsSpawn(_));
     // Resolve every forwarded header / address / auth token using the
     // same env → on-disk-config → SDK-default precedence the regular
     // CLI uses. Owned values, since the parent process drops them as
@@ -217,6 +223,7 @@ async fn run_subprocess(
 
     let mut stdout_lines = BufReader::new(stdout).lines();
     let mut handshake_seen = false;
+    let mut first_chunk_pending = true;
     loop {
         let line = match stdout_lines.next_line().await {
             Ok(Some(l)) => l,
@@ -245,6 +252,17 @@ async fn run_subprocess(
                 break;
             }
         };
+        // First-chunk hook: agent-completion endpoints only. Peeks the
+        // chunk's `agent_full_id` + `agent_instance_hierarchy` to bind
+        // the explicit `--agent-tag` (if any) AND/OR promote any
+        // PENDING row matching `(agent_full_id, parent)`. Best-effort
+        // — any failure is logged and the stream is unaffected.
+        if is_agent_completion && first_chunk_pending {
+            if let InstanceEmission::Chunk(value) = &emission {
+                first_chunk_pending = false;
+                apply_first_chunk_tag_hook(&fs, value, agent_tag.as_deref()).await;
+            }
+        }
         match handle_emission(emission, stream, &tx).await {
             HandleOutcome::DetachReturn => {
                 // `stream == false` path: yielded the Id, the
@@ -396,6 +414,60 @@ async fn handle_emission(
                 return HandleOutcome::ConsumerGone;
             }
             HandleOutcome::Continue
+        }
+    }
+}
+
+/// Best-effort first-chunk hook. Reads `agent_full_id` and
+/// `agent_instance_hierarchy` straight off the chunk JSON and feeds
+/// them to the tags database as two independent notifications:
+///
+/// 1. If `agent_tag` is set: directly bind that name to the chunk's
+///    hierarchy via `upsert_bound`.
+/// 2. Unconditionally: call `upgrade(agent_full_id, hierarchy)` so
+///    the tags database can promote any PENDING row whose stored
+///    `(agent_full_id, parent_agent_instance_hierarchy)` matches.
+///    The parent split is done entirely inside `upgrade` — the
+///    streaming layer doesn't compute or pass it.
+///
+/// Failures are logged and never propagate — the chunk still reaches
+/// the consumer unchanged via the usual `handle_emission` path.
+async fn apply_first_chunk_tag_hook(
+    fs: &crate::filesystem::Client,
+    chunk: &serde_json::Value,
+    agent_tag: Option<&str>,
+) {
+    let agent_full_id = chunk
+        .get("agent_full_id")
+        .and_then(|v| v.as_str())
+        .map(str::to_string);
+    let agent_instance_hierarchy = chunk
+        .get("agent_instance_hierarchy")
+        .and_then(|v| v.as_str())
+        .map(str::to_string);
+
+    let Some(hierarchy) = agent_instance_hierarchy else {
+        return;
+    };
+
+    if let Some(tag) = agent_tag {
+        if let Err(e) = crate::filesystem::db::tags::upsert_bound_async(
+            fs.clone(),
+            tag.to_string(),
+            hierarchy.clone(),
+        )
+        .await
+        {
+            eprintln!("agent-tag bind failed: {e}");
+        }
+    }
+
+    if let Some(full_id) = agent_full_id {
+        if let Err(e) =
+            crate::filesystem::db::tags::upgrade_async(fs.clone(), full_id, hierarchy)
+                .await
+        {
+            eprintln!("agent-tag pending sweep failed: {e}");
         }
     }
 }

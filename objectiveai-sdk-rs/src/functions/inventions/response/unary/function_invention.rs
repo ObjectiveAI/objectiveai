@@ -22,6 +22,10 @@ impl FunctionInvention {
     pub fn normalize_for_tests(&mut self) {
         self.id = String::new();
         self.created = 0;
+        // `path` reflects where the invention was committed (mock vs
+        // filesystem-backed remote) and carries a commit hash — both
+        // are call-site implementation detail, not invention content.
+        self.path = None;
         for completion in &mut self.completions {
             completion.inner.normalize_for_tests();
         }

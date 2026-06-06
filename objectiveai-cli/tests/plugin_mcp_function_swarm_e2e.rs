@@ -18,10 +18,6 @@
 
 mod cli_test_util;
 
-use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::sync::Once;
-
 use objectiveai_sdk::cli::command::functions::executions::create::standard::{
     Request, RequestDangerousAdvanced, RequestInput, ResponseItem,
 };
@@ -31,70 +27,6 @@ use objectiveai_sdk::cli::command::functions::executions::create::{
 use objectiveai_sdk::functions::FullInlineFunctionOrRemoteCommitOptional;
 use objectiveai_sdk::functions::InlineProfileOrRemoteCommitOptional;
 use serde_json::json;
-
-static BUILD_PLUGIN_ONCE: Once = Once::new();
-
-fn plugin_binary() -> PathBuf {
-    let target_dir = cli_test_util::test_target_dir();
-    let mut path = target_dir.join("debug/test-mcp-plugin-foo-headers");
-    if cfg!(windows) {
-        path.set_extension("exe");
-    }
-    BUILD_PLUGIN_ONCE.call_once(|| {
-        let status = Command::new("cargo")
-            .args([
-                "build",
-                "-p",
-                "test-mcp-plugin-foo-headers",
-                "--target-dir",
-                target_dir.to_str().unwrap(),
-            ])
-            .status()
-            .expect("spawn cargo build test-mcp-plugin-foo-headers");
-        assert!(status.success(), "test-mcp-plugin-foo-headers build failed");
-    });
-    path
-}
-
-/// Stage the fixture at the same layout
-/// `objectiveai_cli::filesystem::Client::resolve_plugin` expects:
-/// manifest at `<base>/plugins/<name>.json`, binary at
-/// `<base>/plugins/<name>/plugin[.exe]`. Identical to the
-/// `plugin_mcp_dispatch_e2e::stage_plugin` helper.
-fn stage_plugin(base: &Path) {
-    let plugins_dir = base.join("plugins");
-    let install_dir = plugins_dir.join("test-mcp-plugin-foo-headers");
-    std::fs::create_dir_all(&install_dir).unwrap();
-
-    // Manifest. `url` is required by `Manifest::validate` but is not
-    // read at runtime — `dial_plugin_upstream` always reads the live
-    // URL off the plugin's stdout. A placeholder satisfies validation.
-    let manifest = json!({
-        "description": "foo-headers fixture",
-        "version": "1.0.0",
-        "owner": "testorg",
-        "mcp_servers": [
-            { "name": "demo", "url": "http://127.0.0.1:0", "authorization": false }
-        ]
-    });
-    std::fs::write(
-        plugins_dir.join("test-mcp-plugin-foo-headers.json"),
-        serde_json::to_vec_pretty(&manifest).unwrap(),
-    )
-    .unwrap();
-
-    let installed = install_dir.join(if cfg!(windows) {
-        "plugin.exe"
-    } else {
-        "plugin"
-    });
-    std::fs::copy(plugin_binary(), &installed).expect("copy fixture binary");
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&installed, std::fs::Permissions::from_mode(0o755)).unwrap();
-    }
-}
 
 /// Inline mock-agent JSON: drives the deterministic `calls` script
 /// (turn 1: `invoke`, turn 2: content) and points the agent at the
@@ -146,17 +78,7 @@ async fn function_swarm_writes_per_agent_files() {
         return;
     }
 
-    let _ = cli_test_util::cli_binary();
-    let _ = plugin_binary();
-
-    // Per-test base dir under `.objectiveai-tests/<binary>/<test>/`.
-    // The plugin inherits `CONFIG_BASE_DIR` from the cli child, the
-    // cli inherits it from the executor's `.env()`, and the per-
-    // binary run-start clear handles wiping stale state — no manual
-    // sub-cleanup needed.
     let base = cli_test_util::test_base_dir();
-
-    stage_plugin(&base);
 
     // One-task vector function. `output: {"$special":"output"}`
     // passes the task result through unchanged — the test asserts on
@@ -217,10 +139,19 @@ async fn function_swarm_writes_per_agent_files() {
         "function executor must emit at least one chunk"
     );
 
-    // Both agents called `invoke` once during turn 1 of their script.
-    // The plugin's `Mcp-Session-Id` assert ensures each call landed
-    // on the matching plugin process; finding the file at all is
-    // what proves the per-agent argv arrived correctly.
+    // Both agents called `invoke` once during turn 1 of their
+    // scripted `calls` override. After the script is exhausted, the
+    // vector-completion client sends a continuation; the mock then
+    // falls through to its RNG-driven dispatcher (~75% tool call,
+    // ~25% respond-as-is per `resolve_mock_response`). With test
+    // seed=42 and these specific per-agent continuation prompts, the
+    // mock's RNG deterministically rolls:
+    //   - agent A's continuation → respond-as-is (no extra invoke)
+    //   - agent B's continuation → invoke (+1 extra invoke)
+    // so `A.txt` ends up with one line and `B.txt` with two. The
+    // plugin's `Mcp-Session-Id` assert ensures each call landed on
+    // the matching plugin process; finding the file at all proves the
+    // per-agent argv arrived correctly.
     let a_path = base.join("A.txt");
     let b_path = base.join("B.txt");
     let a = std::fs::read_to_string(&a_path)
@@ -228,5 +159,5 @@ async fn function_swarm_writes_per_agent_files() {
     let b = std::fs::read_to_string(&b_path)
         .unwrap_or_else(|e| panic!("missing {}: {e}", b_path.display()));
     assert_eq!(a, "A - A\n");
-    assert_eq!(b, "B - B\n");
+    assert_eq!(b, "B - B\nB - B\n");
 }

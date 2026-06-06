@@ -33,23 +33,39 @@ impl CommandRequest for Request {
     }
 }
 
+// Adjacently tagged on purpose — this union carries several
+// all-`Option` payload shapes (`Logprobs`, `File`) that deserialize
+// from ANY JSON object, so an untagged walk misclassifies whichever
+// payload comes after them (a tool-call delta re-materialized as an
+// empty `Logprobs`). The `type` value is the variant's schemars
+// title in snake_case; the payload rides under `value`.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(untagged)]
+#[serde(tag = "type", content = "value", rename_all = "snake_case")]
 #[schemars(rename = "cli.command.agents.read.id.Response")]
 pub enum Response {
     // Typed log envelopes — each variant name is the PascalCase form
-    // of its full leaf path under `logs/`, and the payload aliases the
-    // matching `… ::get::Response` so the type stays in one place.
+    // of its full on-disk path under `logs/`. Payloads alias the
+    // matching `… ::get::Response` where a command leaf exists;
+    // role-subdir shapes with no leaf carry the SDK log type the
+    // writer serialized, verbatim.
     #[schemars(title = "AgentsCompletionsResponse")]
     AgentsCompletionsResponse(crate::cli::command::logs::agents::completions::response::get::Response),
     #[schemars(title = "AgentsCompletionsRequest")]
     AgentsCompletionsRequest(crate::cli::command::logs::agents::completions::request::get::Response),
-    #[schemars(title = "AgentsCompletionsResponseMessages")]
-    AgentsCompletionsResponseMessages(crate::cli::command::logs::agents::completions::response::messages::get::Response),
-    #[schemars(title = "AgentsCompletionsResponseMessagesLogprobs")]
-    AgentsCompletionsResponseMessagesLogprobs(crate::cli::command::logs::agents::completions::response::messages::logprobs::get::Response),
-    #[schemars(title = "AgentsCompletionsResponseMessagesToolCalls")]
-    AgentsCompletionsResponseMessagesToolCalls(crate::cli::command::logs::agents::completions::response::messages::tool_calls::get::Response),
+    #[schemars(title = "AgentsCompletionsResponseMessagesAssistant")]
+    AgentsCompletionsResponseMessagesAssistant(crate::cli::command::logs::agents::completions::response::messages::assistant::get::Response),
+    #[schemars(title = "AgentsCompletionsResponseMessagesTool")]
+    AgentsCompletionsResponseMessagesTool(crate::cli::command::logs::agents::completions::response::messages::tool::get::Response),
+    #[schemars(title = "AgentsCompletionsRequestMessages")]
+    AgentsCompletionsRequestMessages(crate::agent::completions::message::MessageLog),
+    #[schemars(title = "AgentsCompletionsResponseMessagesAssistantLogprobs")]
+    AgentsCompletionsResponseMessagesAssistantLogprobs(crate::cli::command::logs::agents::completions::response::messages::assistant::logprobs::get::Response),
+    #[schemars(title = "AgentsCompletionsResponseMessagesAssistantToolCalls")]
+    AgentsCompletionsResponseMessagesAssistantToolCalls(crate::cli::command::logs::agents::completions::response::messages::assistant::tool_calls::get::Response),
+    // Request-side tool calls are written as full `AssistantToolCall`s
+    // (no `index`), unlike the response side's streaming deltas.
+    #[schemars(title = "AgentsCompletionsRequestMessagesAssistantToolCalls")]
+    AgentsCompletionsRequestMessagesAssistantToolCalls(crate::agent::completions::message::AssistantToolCall),
 
     #[schemars(title = "VectorCompletionsResponse")]
     VectorCompletionsResponse(crate::cli::command::logs::vector::completions::response::get::Response),
@@ -72,7 +88,7 @@ pub enum Response {
     FunctionsInventionsRecursiveRequest(crate::cli::command::logs::functions::inventions::recursive::request::get::Response),
 
     // Collapsed text/media — one variant per content kind, regardless
-    // of where the file lives. Untagged tuple variants, no wrapper keys.
+    // of where the file lives.
     #[schemars(title = "Text")]
     Text(String),
     #[schemars(title = "Image")]
@@ -132,9 +148,12 @@ impl crate::cli::command::CommandResponse for Response {
         match self {
             Response::AgentsCompletionsResponse(v) => v.into_mcp(),
             Response::AgentsCompletionsRequest(v) => v.into_mcp(),
-            Response::AgentsCompletionsResponseMessages(v) => v.into_mcp(),
-            Response::AgentsCompletionsResponseMessagesLogprobs(v) => v.into_mcp(),
-            Response::AgentsCompletionsResponseMessagesToolCalls(v) => v.into_mcp(),
+            Response::AgentsCompletionsResponseMessagesAssistant(v) => v.into_mcp(),
+            Response::AgentsCompletionsResponseMessagesTool(v) => v.into_mcp(),
+            Response::AgentsCompletionsRequestMessages(v) => v.into_mcp(),
+            Response::AgentsCompletionsResponseMessagesAssistantLogprobs(v) => v.into_mcp(),
+            Response::AgentsCompletionsResponseMessagesAssistantToolCalls(v) => v.into_mcp(),
+            Response::AgentsCompletionsRequestMessagesAssistantToolCalls(v) => v.into_mcp(),
             Response::VectorCompletionsResponse(v) => v.into_mcp(),
             Response::VectorCompletionsRequest(v) => v.into_mcp(),
             Response::FunctionsExecutionsResponse(v) => v.into_mcp(),

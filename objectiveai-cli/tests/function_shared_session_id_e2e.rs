@@ -39,7 +39,9 @@ use axum::{
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use objectiveai_sdk::cli::command::CommandExecutor;
 use objectiveai_sdk::cli::command::agents::message::{
-    Request as MessageRequest, RequestMessage, Response as MessageResponse,
+    MessageTarget, Request as MessageRequest,
+    RequestDangerousAdvanced as MessageDangerousAdvanced, RequestMessage,
+    ResponseItem as MessageResponseItem,
 };
 use objectiveai_sdk::cli::command::agents::spawn::{
     AgentSpec, Request as SpawnRequest, RequestDangerousAdvanced as SpawnDangerousAdvanced,
@@ -205,8 +207,6 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
         );
         return;
     }
-    let _ = cli_test_util::cli_binary();
-
     let base = cli_test_util::test_base_dir();
 
     let output_path = Arc::new(base.join("response-ids.txt"));
@@ -268,6 +268,7 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
                 .expect("inline mock agent must deserialize"),
             );
             let request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
+                agent_tag: None,
                 prompt: RequestPrompt::Simple("go".to_string()),
                 agent,
                 seed: Some(seed),
@@ -313,24 +314,32 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
     let instances = leaves;
 
     // ── Send `agents message` to all 5 in parallel ─────────────
+    // `dangerous_advanced.stream = Some(true)` keeps the parent cli
+    // attached to its spawned instance runner so `collect_stream`
+    // returning implies the runner exited — avoids the leak nextest
+    // would otherwise flag.
     let send_futures = instances.iter().map(|instance| {
         let executor = &executor;
         let request = MessageRequest {
             path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
-            parent_agent_instance_hierarchy: None,
-            agent_instance: instance.clone(),
+            target: MessageTarget::Direct {
+                parent_agent_instance_hierarchy: None,
+                agent_instance: instance.clone(),
+                agent_tag: None,
+            },
             message: RequestMessage::Simple("again".to_string()),
             seed: None,
+            dangerous_advanced: Some(MessageDangerousAdvanced {
+                stream: Some(true),
+            }),
             jq: None,
         };
         async move {
-            executor
-                .execute_one::<_, MessageResponse>(request, None)
-                .await
-                .expect("agents message executor call")
+            let _items: Vec<MessageResponseItem> =
+                cli_test_util::collect_stream(executor, request).await;
         }
     });
-    let _send_results: Vec<MessageResponse> = futures::future::join_all(send_futures).await;
+    futures::future::join_all(send_futures).await;
 
     // ── Wait for each cli-stream to finish — parallel poll ─────
     let wait_futures = full_ids.iter().map(|id| {

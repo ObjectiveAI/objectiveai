@@ -18,18 +18,19 @@
 
 mod cli_test_util;
 
-use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::sync::{Arc, Once};
+use std::path::Path;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use objectiveai_sdk::cli::command::agents::message::{
-    Request as MessageRequest, RequestMessage,
+    MessageTarget, Request as MessageRequest,
+    RequestDangerousAdvanced as MessageDangerousAdvanced, RequestMessage,
+    ResponseItem as MessageResponseItem,
 };
 use objectiveai_sdk::cli::command::agents::read::all::{
     Request as ReadAllRequest, ResponseContent, ResponseItem as ReadAllItem,
-    ResponseQueueItem,
+    ResponseQueueItem, Target as ReadAllTarget,
 };
 use objectiveai_sdk::cli::command::agents::read::id::Request as ReadIdRequest;
 use objectiveai_sdk::cli::command::agents::spawn::{
@@ -37,35 +38,8 @@ use objectiveai_sdk::cli::command::agents::spawn::{
     ResponseItem as SpawnResponseItem,
 };
 use objectiveai_sdk::cli::command::CommandExecutor;
-use objectiveai_sdk::cli::command::binary::BinaryExecutor;
+use cli_test_util::HangPreventingBinaryCommandExecutor;
 use serde_json::{Value, json};
-
-static BUILD_COUNT_TOOL_ONCE: Once = Once::new();
-
-/// Build the `count-tool` fixture binary into the shared per-test
-/// target dir, then return its path. Reads `CARGO_TARGET_DIR` only
-/// once via the same `BUILD_ONCE` cadence as the cli binary itself.
-fn count_tool_binary() -> PathBuf {
-    let target_dir = cli_test_util::test_target_dir();
-    let mut path = target_dir.join("debug/count-tool");
-    if cfg!(windows) {
-        path.set_extension("exe");
-    }
-    BUILD_COUNT_TOOL_ONCE.call_once(|| {
-        let status = Command::new("cargo")
-            .args([
-                "build",
-                "-p",
-                "count-tool",
-                "--target-dir",
-                target_dir.to_str().unwrap(),
-            ])
-            .status()
-            .expect("spawn cargo build count-tool");
-        assert!(status.success(), "count-tool build failed");
-    });
-    path
-}
 
 async fn poll_until<F: Fn() -> bool>(timeout: Duration, pred: F) -> Result<(), ()> {
     let start = Instant::now();
@@ -76,37 +50,6 @@ async fn poll_until<F: Fn() -> bool>(timeout: Duration, pred: F) -> Result<(), (
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
     Err(())
-}
-
-/// The test runs against the shared `_mcp_session/tools/` fixture
-/// registry seeded by `test-seed-tool-fixtures.sh`, which has
-/// already laid down `testorg/tool{0..9}/1.0.0` manifests pointing
-/// at the `echo-arglen` binary. We **commandeer** that binary by
-/// overwriting it with our `count-tool` build — `count-tool` falls
-/// back to the `_default` session id when `MCP_SESSION_ID` is unset,
-/// so any test that happens to dispatch one of these tools without
-/// setting the env still gets a valid (just session-less) output.
-fn install_count_tool_over_echo_arglen() {
-    let exec_name = if cfg!(windows) {
-        "echo-arglen.exe"
-    } else {
-        "echo-arglen"
-    };
-    let dest = cli_test_util::mcp_session_shared_dir().join("tools").join(exec_name);
-    assert!(
-        dest.exists(),
-        "expected the fixture echo-arglen at {} — \
-         did `test-seed-tool-fixtures.sh` run?",
-        dest.display(),
-    );
-    let bin = count_tool_binary();
-    std::fs::copy(&bin, &dest).unwrap_or_else(|e| panic!("overwrite {}: {e}", dest.display()));
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&dest, std::fs::Permissions::from_mode(0o755))
-            .expect("chmod count-tool");
-    }
 }
 
 /// Inline mock-agent spec wired to the 10 `testorg/tool{0..9}/1.0.0`
@@ -161,10 +104,11 @@ fn agent_spec() -> AgentSpec {
 /// this `cli/<leaf>` shape (NOT on `chunk.agent_instance_hierarchy`,
 /// which is the api-side slot id `cli/{agent_full_id}-{leaf}` —
 /// useful for the api's internal routing, not for finding cli logs).
-async fn spawn_agent(executor: &BinaryExecutor, seed: i64) -> String {
+async fn spawn_agent(executor: &HangPreventingBinaryCommandExecutor, seed: i64) -> String {
     let request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
         prompt: RequestPrompt::Simple("go".to_string()),
         agent: agent_spec(),
+        agent_tag: None,
         seed: Some(seed),
         // Stream so the cli stays attached to the instance subprocess
         // through `LogStreamReady` + every chunk; we need at least one
@@ -221,7 +165,14 @@ async fn wait_for_completion(base_dir: &Path, full_lineage: &str) {
 }
 
 /// Run one continuation turn against a spawned agent.
-async fn continue_agent(executor: &BinaryExecutor, spawn_id: &str, seed: i64) {
+///
+/// `dangerous_advanced.stream = Some(true)` keeps the parent cli
+/// attached to the spawned instance runner: `collect_stream`
+/// returning implies the runner exited (its stdout EOFs only after
+/// the cli has `child.wait()`ed it). Without this, the cli detaches
+/// after emitting the bare `Queued` item and the runner outlives the
+/// test fn — which nextest flags as `LEAK`.
+async fn continue_agent(executor: &HangPreventingBinaryCommandExecutor, spawn_id: &str, seed: i64) {
     // Split the full lineage into (parent, instance) for the
     // two-field `MessageRequest` shape.
     let (parent, instance) = spawn_id
@@ -230,19 +181,24 @@ async fn continue_agent(executor: &BinaryExecutor, spawn_id: &str, seed: i64) {
         .unwrap_or_else(|| (None, spawn_id.to_string()));
     let request = MessageRequest {
         path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
-        parent_agent_instance_hierarchy: parent,
-        agent_instance: instance,
+        target: MessageTarget::Direct {
+            parent_agent_instance_hierarchy: parent,
+            agent_instance: instance,
+            agent_tag: None,
+        },
         message: RequestMessage::Simple("more".to_string()),
         seed: Some(seed),
+        dangerous_advanced: Some(MessageDangerousAdvanced {
+            stream: Some(true),
+        }),
         jq: None,
     };
-    // Returns either Queued or Delivered — we don't care which here,
-    // only that the cli emitted something without erroring. The real
-    // verification is the post-turn `wait_for_completion`.
-    let _ = executor
-        .execute_one::<_, objectiveai_sdk::cli::command::agents::message::Response>(request, None)
-        .await
-        .expect("agents message executor call");
+    // Drain the whole stream — first item is `Queued` (or
+    // `Delivered`), the rest are `Chunk`s. We don't inspect them; the
+    // act of waiting for the stream to close is the synchronisation
+    // primitive we care about.
+    let _items: Vec<MessageResponseItem> =
+        cli_test_util::collect_stream(executor, request).await;
 }
 
 /// Collect every `tool_response` queue item's sql row id for `sub_id`
@@ -251,13 +207,16 @@ async fn continue_agent(executor: &BinaryExecutor, spawn_id: &str, seed: i64) {
 /// rebuilds the full hierarchy as `{caller}/{sub}` so we pass just
 /// the leaf (the part after the rsplit on '/'), avoiding the
 /// `cli/cli/<leaf>` double-prefix that would shadow the queue rows.
-async fn read_tool_response_ids(executor: &BinaryExecutor, sub_id: &str) -> Vec<i64> {
+async fn read_tool_response_ids(executor: &HangPreventingBinaryCommandExecutor, sub_id: &str) -> Vec<i64> {
     let leaf = sub_id
         .rsplit_once('/')
         .map(|(_, leaf)| leaf)
         .unwrap_or(sub_id);
     let request = ReadAllRequest { path_type: objectiveai_sdk::cli::command::agents::read::all::Path::AgentsReadAll,
-        agent_instance_hierarchies: vec![leaf.to_string()],
+        targets: vec![ReadAllTarget::Direct {
+            parent_agent_instance_hierarchy: None,
+            agent_instance: leaf.to_string(),
+        }],
         jq: None,
     };
     let items: Vec<ReadAllItem> =
@@ -282,7 +241,7 @@ async fn read_tool_response_ids(executor: &BinaryExecutor, sub_id: &str) -> Vec<
 /// holds that number). Permissive — serializes the typed Response
 /// back to JSON and scans recursively for the first integer-shaped
 /// string or number.
-async fn read_count_for_id(executor: &BinaryExecutor, id: i64) -> Option<u64> {
+async fn read_count_for_id(executor: &HangPreventingBinaryCommandExecutor, id: i64) -> Option<u64> {
     let request = ReadIdRequest { path_type: objectiveai_sdk::cli::command::agents::read::id::Path::AgentsReadId, id, jq: None };
     let response: objectiveai_sdk::cli::command::agents::read::id::Response = executor
         .execute_one(request, None)
@@ -311,31 +270,13 @@ async fn two_agents_continuations_count_persists_per_session() {
         return;
     }
 
-    // Use the shared MCP-session scratch dir — the same path
-    // `test-seed-tool-fixtures.sh` lays the `tools/` fixtures into
-    // and that every cli child stamps as its `CONFIG_BASE_DIR`, so
-    // the in-process objectiveai-mcp server inside each cli sees
-    // the registry. This dir sits OUTSIDE the per-binary run-start
-    // wipe (it's at `.objectiveai-tests/_mcp_session/`, not under
-    // a `<binary>/` subfolder), so we still hand-wipe `logs`/
-    // `pipes` here to clear prior-run state without nuking the
-    // fixture `tools/`.
-    let base_dir = cli_test_util::mcp_session_shared_dir();
-    for sub in &["logs", "pipes"] {
-        let p = base_dir.join(sub);
-        if p.exists() {
-            let _ = std::fs::remove_dir_all(&p);
-        }
-    }
-
-    install_count_tool_over_echo_arglen();
-
-    // Reset the count-tool state so the assertion sees only this
-    // test's tool calls.
-    let tool_data_dir = base_dir.join("tools").join("data");
-    if tool_data_dir.exists() {
-        let _ = std::fs::remove_dir_all(&tool_data_dir);
-    }
+    // Per-test base dir staged by `objectiveai-tests/prepare.sh`:
+    // the ten `testorg/tool{0..9}/1.0.0` manifests + the `count-tool`
+    // binary are already in place under `<base>/tools/`. The cli
+    // writes its `logs/`/`pipes/` runtime artefacts here over the
+    // test run; `test.sh` wipes `.objectiveai-tests/` on its way in
+    // so no stale state leaks across runs.
+    let base_dir = cli_test_util::test_base_dir();
 
     // One shared executor — all cli invocations point at the same
     // `CONFIG_BASE_DIR`.

@@ -20,10 +20,14 @@ use crate::cli::plugins::{Command, CommandType, Output};
 /// to the plugin's stdin under the same id.
 ///
 /// Only one instance per process — the constructor consumes the global
-/// `tokio::io::stdin()` / `stdout()` handles.
+/// `tokio::io::stdin()` / `stdout()` handles. The struct is [`Clone`]
+/// so callers that need a second handle can share without an outer
+/// `Arc`: every field is already behind `Arc`, including `counter`, so
+/// clones share the id sequence and pending map.
+#[derive(Clone)]
 pub struct PluginExecutor {
     stdout: Arc<Mutex<tokio::io::Stdout>>,
-    counter: AtomicU64,
+    counter: Arc<AtomicU64>,
     pending: Arc<DashMap<String, mpsc::UnboundedSender<serde_json::Value>>>,
     /// `true` while the listener task is still reading stdin. Flipped
     /// to `false` immediately before the listener drops its pending
@@ -52,7 +56,7 @@ impl PluginExecutor {
         );
         Self {
             stdout: Arc::new(Mutex::new(tokio::io::stdout())),
-            counter: AtomicU64::new(0),
+            counter: Arc::new(AtomicU64::new(0)),
             pending,
             listener_alive,
         }

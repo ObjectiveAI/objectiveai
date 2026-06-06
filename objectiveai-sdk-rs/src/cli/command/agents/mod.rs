@@ -3,14 +3,17 @@ pub mod list;
 pub mod me;
 pub mod message;
 pub mod publish;
+pub mod message_queue;
 pub mod read;
 pub mod spawn;
+pub mod tags;
+pub mod tasks;
 
 #[derive(clap::Subcommand)]
 pub enum Command {
     /// Get an agent by remote path or favorite name.
     Get(get::Command),
-    /// List agents — `active` (direct children of the calling agent) or
+    /// List agents ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â `active` (direct children of the calling agent) or
     /// `available` (remote agents by source).
     List {
         #[command(subcommand)]
@@ -23,6 +26,11 @@ pub enum Command {
     Message(message::Command),
     /// Publish an agent to the local filesystem.
     Publish(publish::Command),
+    /// Deferred-prompt queue ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â `add` (more leaves to follow).
+    MessageQueue {
+        #[command(subcommand)]
+        command: message_queue::Command,
+    },
     /// Read queue items.
     Read {
         #[command(subcommand)]
@@ -30,6 +38,17 @@ pub enum Command {
     },
     /// Spawn an agent completion (open a streaming run as a child of this caller).
     Spawn(spawn::Command),
+    /// Client-side agent tags ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â lookup / add.
+    Tags {
+        #[command(subcommand)]
+        command: tags::Command,
+    },
+    /// Task store + (eventual) runner. Today: `tasks schedule`
+    /// registers a command + interval in `tasks.sqlite`.
+    Tasks {
+        #[command(subcommand)]
+        command: tasks::Command,
+    },
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -62,6 +81,8 @@ pub enum Request {
     PublishRequestSchema(publish::request_schema::Request),
     #[schemars(title = "PublishResponseSchema")]
     PublishResponseSchema(publish::response_schema::Request),
+    #[schemars(title = "MessageQueue")]
+    MessageQueue(message_queue::Request),
     #[schemars(title = "Read")]
     Read(read::Request),
     #[schemars(title = "Spawn")]
@@ -70,6 +91,10 @@ pub enum Request {
     SpawnRequestSchema(spawn::request_schema::Request),
     #[schemars(title = "SpawnResponseSchema")]
     SpawnResponseSchema(spawn::response_schema::Request),
+    #[schemars(title = "Tags")]
+    Tags(tags::Request),
+    #[schemars(title = "Tasks")]
+    Tasks(tasks::Request),
 }
 
 // Exempt from json-schema coverage: tier aggregate (see the root
@@ -94,7 +119,7 @@ pub enum ResponseItem {
     #[schemars(title = "MeResponseSchema")]
     MeResponseSchema(me::response_schema::Response),
     #[schemars(title = "Message")]
-    Message(message::Response),
+    Message(message::ResponseItem),
     #[schemars(title = "MessageRequestSchema")]
     MessageRequestSchema(message::request_schema::Response),
     #[schemars(title = "MessageResponseSchema")]
@@ -105,6 +130,8 @@ pub enum ResponseItem {
     PublishRequestSchema(publish::request_schema::Response),
     #[schemars(title = "PublishResponseSchema")]
     PublishResponseSchema(publish::response_schema::Response),
+    #[schemars(title = "MessageQueue")]
+    MessageQueue(message_queue::ResponseItem),
     #[schemars(title = "Read")]
     Read(read::ResponseItem),
     #[schemars(title = "Spawn")]
@@ -113,6 +140,10 @@ pub enum ResponseItem {
     SpawnRequestSchema(spawn::request_schema::Response),
     #[schemars(title = "SpawnResponseSchema")]
     SpawnResponseSchema(spawn::response_schema::Response),
+    #[schemars(title = "Tags")]
+    Tags(tags::ResponseItem),
+    #[schemars(title = "Tasks")]
+    Tasks(tasks::ResponseItem),
 }
 
 #[cfg(feature = "mcp")]
@@ -132,10 +163,13 @@ impl crate::cli::command::CommandResponse for ResponseItem {
             ResponseItem::Publish(v) => v.into_mcp(),
             ResponseItem::PublishRequestSchema(v) => v.into_mcp(),
             ResponseItem::PublishResponseSchema(v) => v.into_mcp(),
+            ResponseItem::MessageQueue(v) => v.into_mcp(),
             ResponseItem::Read(v) => v.into_mcp(),
             ResponseItem::Spawn(v) => v.into_mcp(),
             ResponseItem::SpawnRequestSchema(v) => v.into_mcp(),
             ResponseItem::SpawnResponseSchema(v) => v.into_mcp(),
+            ResponseItem::Tags(v) => v.into_mcp(),
+            ResponseItem::Tasks(v) => v.into_mcp(),
         }
     }
 }
@@ -174,6 +208,8 @@ impl TryFrom<Command> for Request {
                 Some(publish::Schema::ResponseSchema(args)) =>
                     Ok(Request::PublishResponseSchema(publish::response_schema::Request::try_from(args)?)),
             },
+            Command::MessageQueue { command } =>
+                Ok(Request::MessageQueue(message_queue::Request::try_from(command)?)),
             Command::Read { command } =>
                 Ok(Request::Read(read::Request::try_from(command)?)),
             Command::Spawn(cmd) => match cmd.schema {
@@ -183,6 +219,10 @@ impl TryFrom<Command> for Request {
                 Some(spawn::Schema::ResponseSchema(args)) =>
                     Ok(Request::SpawnResponseSchema(spawn::response_schema::Request::try_from(args)?)),
             },
+            Command::Tags { command } =>
+                Ok(Request::Tags(tags::Request::try_from(command)?)),
+            Command::Tasks { command } =>
+                Ok(Request::Tasks(tasks::Request::try_from(command)?)),
         }
     }
 }
@@ -203,10 +243,13 @@ impl crate::cli::command::CommandRequest for Request {
             Request::Publish(inner) => inner.into_command(),
             Request::PublishRequestSchema(inner) => inner.into_command(),
             Request::PublishResponseSchema(inner) => inner.into_command(),
+            Request::MessageQueue(inner) => inner.into_command(),
             Request::Read(inner) => inner.into_command(),
             Request::Spawn(inner) => inner.into_command(),
             Request::SpawnRequestSchema(inner) => inner.into_command(),
             Request::SpawnResponseSchema(inner) => inner.into_command(),
+            Request::Tags(inner) => inner.into_command(),
+            Request::Tasks(inner) => inner.into_command(),
         }
     }
 }
@@ -265,10 +308,20 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
                 )))
             }
             Request::Message(req) => {
-                let value = message::execute(executor, req, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::Message(value),
-                )))
+                let want_streaming = req
+                    .dangerous_advanced
+                    .as_ref()
+                    .and_then(|a| a.stream)
+                    .unwrap_or(false);
+                if want_streaming {
+                    let inner = message::execute_streaming(executor, req, agent_arguments).await?;
+                    Box::pin(inner.map(|r| r.map(ResponseItem::Message)))
+                } else {
+                    let value = message::execute(executor, req, agent_arguments).await?;
+                    Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                        ResponseItem::Message(value.into()),
+                    )))
+                }
             }
             Request::MessageRequestSchema(req) => {
                 let value = message::request_schema::execute(executor, req, agent_arguments).await?;
@@ -299,6 +352,10 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::PublishResponseSchema(value),
                 )))
+            }
+            Request::MessageQueue(req) => {
+                let inner = message_queue::execute(executor, req, agent_arguments).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::MessageQueue)))
             }
             Request::Read(req) => {
                 let inner = read::execute(executor, req, agent_arguments).await?;
@@ -331,6 +388,14 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::SpawnResponseSchema(value),
                 )))
+            }
+            Request::Tags(req) => {
+                let inner = tags::execute(executor, req, agent_arguments).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Tags)))
+            }
+            Request::Tasks(req) => {
+                let inner = tasks::execute(executor, req, agent_arguments).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Tasks)))
             }
         };
     Ok(stream)
@@ -378,8 +443,18 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::Message(req) => {
-                let value = message::execute_jq(executor, req, jq, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+                let want_streaming = req
+                    .dangerous_advanced
+                    .as_ref()
+                    .and_then(|a| a.stream)
+                    .unwrap_or(false);
+                if want_streaming {
+                    let inner = message::execute_streaming_jq(executor, req, jq, agent_arguments).await?;
+                    Box::pin(inner)
+                } else {
+                    let value = message::execute_jq(executor, req, jq, agent_arguments).await?;
+                    Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+                }
             }
             Request::MessageRequestSchema(req) => {
                 let value = message::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
@@ -400,6 +475,10 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
             Request::PublishResponseSchema(req) => {
                 let value = publish::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::MessageQueue(req) => {
+                let inner = message_queue::execute_jq(executor, req, jq, agent_arguments).await?;
+                Box::pin(inner)
             }
             Request::Read(req) => {
                 let inner = read::execute_jq(executor, req, jq, agent_arguments).await?;
@@ -426,6 +505,14 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
             Request::SpawnResponseSchema(req) => {
                 let value = spawn::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::Tags(req) => {
+                let inner = tags::execute_jq(executor, req, jq, agent_arguments).await?;
+                Box::pin(inner)
+            }
+            Request::Tasks(req) => {
+                let inner = tasks::execute_jq(executor, req, jq, agent_arguments).await?;
+                Box::pin(inner)
             }
         };
     Ok(stream)

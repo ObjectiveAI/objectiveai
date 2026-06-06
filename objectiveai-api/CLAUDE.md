@@ -119,7 +119,6 @@ Several test suites use snapshot files. Set the corresponding env var to `1` to 
 | `UPDATE_FUNCTIONS_EXECUTIONS_CLIENT_TESTS_SNAPSHOTS` | `functions::executions::client_tests` | `assets/functions/executions/client_tests/` |
 | `UPDATE_FUNCTIONS_INVENTIONS_CLIENT_TESTS_SNAPSHOTS` | `functions::inventions::client_tests` | `assets/functions/inventions/client_tests/` |
 | `UPDATE_FUNCTIONS_INVENTIONS_RECURSIVE_CLIENT_TESTS_SNAPSHOTS` | `functions::inventions::recursive::client_tests` | `assets/functions/inventions/recursive/client_tests/` |
-| `UPDATE_LABORATORIES_EXECUTIONS_LOCAL_CLIENT_TESTS_SNAPSHOTS` | `laboratories_executions` | `assets/laboratories/executions/local/client_tests/` |
 
 Example — regenerate all invention snapshots (regular + recursive) in one command:
 
@@ -137,6 +136,5 @@ UPDATE_VECTOR_COMPLETIONS_CLIENT_TESTS_SNAPSHOTS=1 \
 UPDATE_FUNCTIONS_EXECUTIONS_CLIENT_TESTS_SNAPSHOTS=1 \
 UPDATE_FUNCTIONS_INVENTIONS_CLIENT_TESTS_SNAPSHOTS=1 \
 UPDATE_FUNCTIONS_INVENTIONS_RECURSIVE_CLIENT_TESTS_SNAPSHOTS=1 \
-UPDATE_LABORATORIES_EXECUTIONS_LOCAL_CLIENT_TESTS_SNAPSHOTS=1 \
 cargo test -p objectiveai-api
 ```

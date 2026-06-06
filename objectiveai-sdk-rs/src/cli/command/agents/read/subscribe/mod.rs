@@ -22,9 +22,32 @@ pub enum RequestMessageKind {
 #[schemars(rename = "cli.command.agents.read.subscribe.Request")]
 pub struct Request {
     pub path_type: Path,
-    pub agent_instance_hierarchy: String,
+    pub target: SubscribeTarget,
     pub kind: Option<RequestMessageKind>,
     pub jq: Option<String>,
+}
+
+/// Mutually-exclusive target selector: either direct `(parent,
+/// instance)` addressing (with the parent defaulting to the cli's
+/// own `Config.agent_instance_hierarchy` when omitted) OR a tag name
+/// the cli resolves at handler time.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(tag = "by", rename_all = "snake_case")]
+#[schemars(rename = "cli.command.agents.read.subscribe.SubscribeTarget")]
+pub enum SubscribeTarget {
+    #[schemars(title = "Direct")]
+    Direct {
+        /// Lineage prefix to prepend to `agent_instance`. When
+        /// `None`, the CLI substitutes its own
+        /// `Config.agent_instance_hierarchy`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        parent_agent_instance_hierarchy: Option<String>,
+        /// Leaf id of the target agent.
+        agent_instance: String,
+    },
+    #[schemars(title = "Tag")]
+    Tag { agent_tag: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -40,8 +63,23 @@ impl CommandRequest for Request {
             "agents".to_string(),
             "read".to_string(),
             "subscribe".to_string(),
-            self.agent_instance_hierarchy.clone(),
         ];
+        match &self.target {
+            SubscribeTarget::Direct {
+                parent_agent_instance_hierarchy,
+                agent_instance,
+            } => {
+                argv.push(agent_instance.clone());
+                if let Some(parent) = parent_agent_instance_hierarchy {
+                    argv.push("--parent-agent-instance-hierarchy".to_string());
+                    argv.push(parent.clone());
+                }
+            }
+            SubscribeTarget::Tag { agent_tag } => {
+                argv.push("--agent-tag".to_string());
+                argv.push(agent_tag.clone());
+            }
+        }
         if let Some(kind) = &self.kind {
             argv.push("--kind".to_string());
             argv.push(message_kind_flag(kind).to_string());
@@ -89,9 +127,30 @@ pub enum ResponseItem {
 }
 
 #[derive(clap::Args)]
+#[command(group(
+    clap::ArgGroup::new("subscribe_target")
+        .required(true)
+        .multiple(false)
+        .args(["agent_instance", "agent_tag"])
+))]
 pub struct Args {
-    /// Lineage path of the agent to subscribe to.
-    pub agent_instance_hierarchy: String,
+    /// Leaf id of the target agent. Combined with `--parent` (or
+    /// the cli's own `Config.agent_instance_hierarchy` when
+    /// `--parent` is omitted) to form the full lineage. Mutually
+    /// exclusive with `--agent-tag`.
+    pub agent_instance: Option<String>,
+    /// Optional lineage prefix to prepend to `agent_instance`.
+    /// When omitted, the cli substitutes its own
+    /// `Config.agent_instance_hierarchy`. Only valid alongside a
+    /// positional `agent_instance` (mutually exclusive with
+    /// `--agent-tag`).
+    #[arg(long = "parent-agent-instance-hierarchy", requires = "agent_instance")]
+    pub parent_agent_instance_hierarchy: Option<String>,
+    /// Resolve the target via a previously-bound tag. Mutually
+    /// exclusive with `agent_instance` and
+    /// `--parent-agent-instance-hierarchy`.
+    #[arg(long = "agent-tag")]
+    pub agent_tag: Option<String>,
     /// Filter the stream to messages of this kind only.
     #[arg(long, value_enum)]
     pub kind: Option<RequestMessageKind>,
@@ -120,8 +179,19 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path_type: Path::AgentsReadSubscribe,
-            agent_instance_hierarchy: args.agent_instance_hierarchy,
+        let target = match (args.agent_instance, args.agent_tag) {
+            (Some(agent_instance), None) => SubscribeTarget::Direct {
+                parent_agent_instance_hierarchy: args.parent_agent_instance_hierarchy,
+                agent_instance,
+            },
+            (None, Some(agent_tag)) => SubscribeTarget::Tag { agent_tag },
+            _ => unreachable!(
+                "clap group `subscribe_target` ensures exactly one of agent_instance | agent_tag"
+            ),
+        };
+        Ok(Self {
+            path_type: Path::AgentsReadSubscribe,
+            target,
             kind: args.kind,
             jq: args.jq,
         })

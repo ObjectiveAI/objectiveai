@@ -25,7 +25,6 @@ mod cli_test_util;
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::Once;
 use std::time::{Duration, Instant};
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
@@ -35,76 +34,9 @@ use objectiveai_sdk::cli::command::agents::spawn::{
 };
 use serde_json::{Value, json};
 
-static BUILD_TEST_MCP_PLUGIN_ONCE: Once = Once::new();
-
-fn test_mcp_plugin_binary() -> PathBuf {
-    let target_dir = cli_test_util::test_target_dir();
-    let mut path = target_dir.join("debug/test-mcp-plugin");
-    if cfg!(windows) {
-        path.set_extension("exe");
-    }
-    BUILD_TEST_MCP_PLUGIN_ONCE.call_once(|| {
-        let status = Command::new("cargo")
-            .args([
-                "build",
-                "-p",
-                "test-mcp-plugin",
-                "--target-dir",
-                target_dir.to_str().unwrap(),
-            ])
-            .status()
-            .expect("spawn cargo build test-mcp-plugin");
-        assert!(status.success(), "test-mcp-plugin build failed");
-    });
-    path
-}
-
-/// Stage the plugin: write its manifest to
-/// `<base>/plugins/test-mcp-plugin.json` and copy the fixture binary
-/// to `<base>/plugins/test-mcp-plugin/plugin[.exe]` — the layout
-/// `objectiveai_sdk::filesystem::Client::resolve_plugin` expects.
-fn stage_plugin(base: &Path) {
-    let plugins_dir = base.join("plugins");
-    let plugin_install_dir = plugins_dir.join("test-mcp-plugin");
-    std::fs::create_dir_all(&plugin_install_dir).unwrap();
-
-    // The `url` field is required by `Manifest::validate` but the
-    // CLI's `dial_plugin_upstream` reads the actual URL from the
-    // plugin's stdout — manifest URL is unused at runtime. A
-    // placeholder keeps validate happy.
-    let manifest = json!({
-        "description": "test fixture",
-        "version": "1.0.0",
-        "owner": "testorg",
-        "mcp_servers": [
-            { "name": "demo", "url": "http://127.0.0.1:0", "authorization": false }
-        ]
-    });
-    std::fs::write(
-        plugins_dir.join("test-mcp-plugin.json"),
-        serde_json::to_vec_pretty(&manifest).unwrap(),
-    )
-    .unwrap();
-
-    let fixture = test_mcp_plugin_binary();
-    let installed = plugin_install_dir.join(if cfg!(windows) {
-        "plugin.exe"
-    } else {
-        "plugin"
-    });
-    std::fs::copy(&fixture, &installed).expect("copy fixture binary");
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&installed, std::fs::Permissions::from_mode(0o755)).unwrap();
-    }
-}
-
 /// RAII kill of the plugin process (PID read from
 /// `OAI_TEST_MCP_PID_FILE`) on test drop — success AND panic — so
-/// the plugin RMCP server never leaks past the test boundary. The
-/// scratch dir is NOT removed here; the per-binary run-start clear
-/// in `cli_test_util::test_base_dir` handles that.
+/// the plugin RMCP server never leaks past the test boundary.
 struct PluginGuard {
     pid_file: PathBuf,
 }
@@ -241,10 +173,6 @@ async fn plugin_mcp_dispatch_round_trip() {
         return;
     }
 
-    // Build CLI + cli-stream + the plugin fixture once.
-    let _ = cli_test_util::cli_binary();
-    let _ = test_mcp_plugin_binary();
-
     let base = cli_test_util::test_base_dir();
     let pid_file = base.join("plugin-pid");
 
@@ -253,8 +181,6 @@ async fn plugin_mcp_dispatch_round_trip() {
     let _guard = PluginGuard {
         pid_file: pid_file.clone(),
     };
-
-    stage_plugin(&base);
 
     // Inline mock agent. ONLY `plugins[].mcp_servers` populated —
     // `tools`, `objectiveai`, and the plugin's own `executable`
@@ -300,6 +226,7 @@ async fn plugin_mcp_dispatch_round_trip() {
     // streaming the parent cli detaches on `LogStreamReady` and emits
     // only a bare `Id(leaf)`.
     let spawn_request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
+        agent_tag: None,
         prompt: RequestPrompt::Simple("use a tool".to_string()),
         agent,
         seed: Some(1),

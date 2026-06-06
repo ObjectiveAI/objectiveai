@@ -1,46 +1,57 @@
 //! Recursive-invention snapshot suite driven through the SDK
-//! `BinaryExecutor` rather than hand-rolled argv. Each test builds a
-//! typed `functions::inventions::recursive::create::remote::Request`,
-//! streams `ResponseItem` chunks back via the executor, and asserts
-//! the resulting invention list against the api-side fixture under
+//! `BinaryExecutor`. Each test builds a typed
+//! `functions::inventions::recursive::create::remote::Request`,
+//! streams `ResponseItem` chunks, accumulates them into a
+//! `FunctionInventionRecursive`, normalises it via the Rust SDK's
+//! `normalize_for_tests`, and structurally compares the **whole**
+//! rounded result against the canonical api-side snapshot at
 //! `objectiveai-api/assets/functions/inventions/recursive_client_tests/`.
+//!
+//! Mirrors the canonical 3-SDK pattern in
+//! `objectiveai-sdk-py/tests/http_test_util.py`,
+//! `objectiveai-sdk-js/src/httpTestUtil.ts`, and
+//! `objectiveai-sdk-go/tests/http_test_util_test.go`. The cli stays
+//! streaming-only by transport-level necessity; every other piece of
+//! the canonical pattern carries over verbatim.
 
 mod cli_test_util;
 
 use std::path::{Path, PathBuf};
 
-use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
-use objectiveai_sdk::RemotePathCommitOptional;
+use objectiveai_sdk::agent::{
+    InlineAgentBase, InlineAgentBaseWithFallbacks,
+    InlineAgentBaseWithFallbacksOrRemoteCommitOptional, mock,
+};
 use objectiveai_sdk::cli::command::agents::spawn::AgentSpec;
 use objectiveai_sdk::cli::command::functions::inventions::recursive::create::remote::{
     Request, RequestDangerousAdvanced, RequestState, ResponseItem,
 };
 use objectiveai_sdk::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk;
 use objectiveai_sdk::functions::inventions::recursive::response::unary::FunctionInventionRecursive;
+use objectiveai_sdk::functions::inventions::state::ParamsState;
+use serde_json::json;
 
 fn snapshots_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../objectiveai-api/assets/functions/inventions/recursive_client_tests")
 }
 
-/// Extract expected invention names from a snapshot's inventions array.
-fn snapshot_invention_names(snapshot: &serde_json::Value) -> Vec<String> {
-    snapshot["inventions"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .filter_map(|inv| {
-            inv.get("state")
-                .and_then(|s| s.get("name"))
-                .and_then(|n| n.as_str())
-                .map(String::from)
-        })
-        .collect()
-}
-
-/// Extract whether any inventions have errors in the snapshot.
-fn snapshot_has_errors(snapshot: &serde_json::Value) -> bool {
-    snapshot["inventions_errors"].as_bool().unwrap_or(false)
+/// Mock invention agent — exactly what `objectiveai-sdk-py` and
+/// `objectiveai-sdk-go` send for these snapshot tests. Mirrors
+/// `MOCK_INVENTION_AGENT` in
+/// `objectiveai-sdk-py/tests/functions/inventions/recursive/test_http.py`.
+fn mock_invention_agent() -> InlineAgentBaseWithFallbacksOrRemoteCommitOptional {
+    InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
+        InlineAgentBaseWithFallbacks {
+            inner: InlineAgentBase::Mock(mock::AgentBase {
+                upstream: mock::Upstream::Mock,
+                output_mode: mock::OutputMode::Instruction,
+                mode: Some(mock::Mode::Invention),
+                ..Default::default()
+            }),
+            fallbacks: None,
+        },
+    )
 }
 
 /// Run a recursive-invention create through the executor, aggregate
@@ -50,16 +61,10 @@ fn snapshot_has_errors(snapshot: &serde_json::Value) -> bool {
 /// progressive updates to the same inventions, so counting chunks is
 /// not the same as counting inventions — we have to push them through
 /// the aggregator first.
-async fn run_remote(state_name: &str, seed: i64) -> FunctionInventionRecursive {
+async fn run_remote(state: ParamsState, seed: i64) -> FunctionInventionRecursive {
     let request = Request { path_type: objectiveai_sdk::cli::command::functions::inventions::recursive::create::remote::Path::FunctionsInventionsRecursiveCreateRemote,
-        state: RequestState::Ref(format!("remote=mock,name={state_name}")),
-        agent: AgentSpec::Resolved(
-            InlineAgentBaseWithFallbacksOrRemoteCommitOptional::Remote(
-                RemotePathCommitOptional::Mock {
-                    name: "invention".to_string(),
-                },
-            ),
-        ),
+        state: RequestState::Inline(state),
+        agent: AgentSpec::Resolved(mock_invention_agent()),
         continuation: None,
         seed: Some(seed),
         // Stream so collect_stream's `ResponseItem::Chunk(_)` loop
@@ -83,47 +88,12 @@ async fn run_remote(state_name: &str, seed: i64) -> FunctionInventionRecursive {
     unary
 }
 
-/// Assert CLI invention output matches snapshot expectations.
-fn assert_invention_snapshot(snapshot_name: &str, result: &FunctionInventionRecursive) {
-    let snapshot = cli_test_util::load_snapshot(&snapshots_dir(), snapshot_name);
-    let expected_names = snapshot_invention_names(&snapshot);
-    let has_errors = snapshot_has_errors(&snapshot);
+fn state_from_json(value: serde_json::Value) -> ParamsState {
+    serde_json::from_value(value).expect("inline state deserializes")
+}
 
-    let result_json = serde_json::to_value(result).expect("FunctionInventionRecursive serializes");
-    let inventions = result_json["inventions"].as_array().expect("inventions array");
-
-    assert_eq!(
-        inventions.len(),
-        expected_names.len(),
-        "invention count mismatch for {}: got {} expected {}",
-        snapshot_name,
-        inventions.len(),
-        expected_names.len()
-    );
-
-    let actual_names: Vec<String> = inventions
-        .iter()
-        .map(|inv| {
-            inv.get("state")
-                .and_then(|s| s.get("name"))
-                .and_then(|n| n.as_str())
-                .unwrap_or("")
-                .to_string()
-        })
-        .collect();
-    assert_eq!(
-        actual_names, expected_names,
-        "invention names mismatch for {}",
-        snapshot_name
-    );
-
-    if has_errors {
-        assert!(
-            result.inventions_errors,
-            "expected inventions_errors=true for {} but got false",
-            snapshot_name
-        );
-    }
+fn snapshot_path(name: &str) -> PathBuf {
+    snapshots_dir().join(format!("{name}.json"))
 }
 
 // ---------------------------------------------------------------------------
@@ -138,8 +108,41 @@ async fn valid_schema_valid_tasks_scalar_leaf() {
         eprintln!("OBJECTIVEAI_TEST_PORT not set — skipping valid_schema_valid_tasks_scalar_leaf");
         return;
     }
-    let result = run_remote("inv-good-sl", 5300).await;
-    assert_invention_snapshot("valid_schema_valid_tasks_scalar_leaf", &result);
+    let state = state_from_json(json!({
+        "type": "alpha.scalar.leaf.function",
+        "depth": 0, "min_branch_width": 1, "max_branch_width": 1,
+        "min_leaf_width": 2, "max_leaf_width": 4,
+        "name": "inv-good-sl",
+        "spec": "Test function spec for mock invention.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "sentiment": {"type": "string", "enum": ["positive", "negative"]},
+            },
+            "required": ["sentiment"],
+        },
+        "essay_tasks": "Good tasks incoming.",
+        "tasks": [
+            {
+                "type": "vector.completion",
+                "messages": {"$starlark": "[{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": str(input)}]}]"},
+                "responses": [[{"type": "text", "text": "yes"}], [{"type": "text", "text": "no"}]],
+            },
+            {
+                "type": "vector.completion",
+                "messages": {"$starlark": "[{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": str(input)}]}]"},
+                "responses": [[{"type": "text", "text": "yes"}], [{"type": "text", "text": "no"}]],
+            },
+        ],
+        "tasks_length": 2,
+        "description": "A valid scalar function.",
+    }));
+    let result = run_remote(state, 5300).await;
+    cli_test_util::assert_normalized_snapshot(
+        &snapshot_path("valid_schema_valid_tasks_scalar_leaf"),
+        "valid_schema_valid_tasks_scalar_leaf",
+        &result,
+    );
 }
 
 /// Vector leaf with valid input schema and tasks.
@@ -150,8 +153,36 @@ async fn valid_vector_schema_valid_tasks() {
         eprintln!("OBJECTIVEAI_TEST_PORT not set — skipping valid_vector_schema_valid_tasks");
         return;
     }
-    let result = run_remote("inv-good-vl", 5400).await;
-    assert_invention_snapshot("valid_vector_schema_valid_tasks", &result);
+    let state = state_from_json(json!({
+        "type": "alpha.vector.leaf.function",
+        "depth": 0, "min_branch_width": 1, "max_branch_width": 1,
+        "min_leaf_width": 2, "max_leaf_width": 4,
+        "name": "inv-good-vl",
+        "spec": "Test function spec for mock invention.",
+        "essay": "Ranking things.",
+        "input_schema": {
+            "items": {"type": "string", "enum": ["apple", "banana"]},
+        },
+        "tasks": [
+            {
+                "type": "vector.completion",
+                "messages": {"$starlark": "[{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"rank these\"}]}]"},
+                "responses": {"$starlark": "[[{\"type\": \"text\", \"text\": str(item)}] for item in input['items']]"},
+            },
+            {
+                "type": "vector.completion",
+                "messages": {"$starlark": "[{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"rank these\"}]}]"},
+                "responses": {"$starlark": "[[{\"type\": \"text\", \"text\": str(item)}] for item in input['items']]"},
+            },
+        ],
+        "tasks_length": 2,
+    }));
+    let result = run_remote(state, 5400).await;
+    cli_test_util::assert_normalized_snapshot(
+        &snapshot_path("valid_vector_schema_valid_tasks"),
+        "valid_vector_schema_valid_tasks",
+        &result,
+    );
 }
 
 /// Scalar leaf with valid input schema and essay but no tasks.
@@ -162,6 +193,25 @@ async fn valid_schema_no_tasks_with_essay() {
         eprintln!("OBJECTIVEAI_TEST_PORT not set — skipping valid_schema_no_tasks_with_essay");
         return;
     }
-    let result = run_remote("inv-schema-only", 5900).await;
-    assert_invention_snapshot("valid_schema_no_tasks_with_essay", &result);
+    let state = state_from_json(json!({
+        "type": "alpha.scalar.leaf.function",
+        "depth": 0, "min_branch_width": 1, "max_branch_width": 1,
+        "min_leaf_width": 2, "max_leaf_width": 4,
+        "name": "inv-schema-only",
+        "spec": "Test function spec for mock invention.",
+        "essay": "A great essay about things.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "sentiment": {"type": "string", "enum": ["positive", "negative"]},
+            },
+            "required": ["sentiment"],
+        },
+    }));
+    let result = run_remote(state, 5900).await;
+    cli_test_util::assert_normalized_snapshot(
+        &snapshot_path("valid_schema_no_tasks_with_essay"),
+        "valid_schema_no_tasks_with_essay",
+        &result,
+    );
 }

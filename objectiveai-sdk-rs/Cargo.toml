@@ -25,7 +25,7 @@ default = ["http", "env", "mcp", "cli", "cli-executor", "viewer"]
 http = ["dep:reqwest", "dep:reqwest-eventsource", "dep:eventsource-stream", "dep:futures", "dep:tokio", "dep:backoff", "dep:tokio-tungstenite", "dep:dashmap"]
 env = []
 mcp = ["dep:reqwest", "dep:backoff", "dep:futures-util", "dep:tokio", "dep:tokio-util"]
-cli = ["dep:clap"]
+cli = ["dep:clap", "dep:humantime"]
 cli-executor = ["cli", "mcp", "dep:tokio", "dep:futures", "dep:dashmap", "dep:dirs"]
 viewer = ["dep:tokio"]
 
@@ -60,6 +60,7 @@ rand = { version = "0.9.2" }
 schemars = { version = "1.2.1", features = ["indexmap2", "chrono04", "uuid1"] }
 arbitrary = { version = "1.4.2", features = ["derive"] }
 clap = { version = "4.6.0", features = ["derive"], optional = true }
+humantime = { version = "2", optional = true }
 mime2ext = { version = "0.1.54" }
 tokio = { version = "1.51.1", features = ["fs", "time", "sync", "rt", "io-util", "io-std", "macros", "process"], optional = true }
 

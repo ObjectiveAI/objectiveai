@@ -16,12 +16,22 @@ use crate::filesystem::logs::LogFile;
 pub fn produce_files(
     c: &FunctionInventionChunk,
 ) -> (IndexedLogReference, Vec<LogFile>) {
-    let (path, files) =
-        match crate::logs::functions::inventions::response::streaming::function_invention_chunk::produce_files(&c.inner) {
-            Some((inner_ref, files)) => (inner_ref.path, files),
-            None => (String::new(), Vec::new()),
+    if c.inner.id.is_empty() {
+        let reference = match &c.inner.error {
+            Some(error) => IndexedLogReference::with_error(c.index, error.clone()),
+            None => IndexedLogReference {
+                r#type: objectiveai_sdk::logs::LogReferenceTag::Reference,
+                path: None,
+                index: c.index,
+                error: None,
+            },
         };
-    (IndexedLogReference::new(path, c.index), files)
+        return (reference, Vec::new());
+    }
+    let (inner_ref, files) =
+        crate::logs::functions::inventions::response::streaming::function_invention_chunk::produce_files(&c.inner)
+            .expect("inner produce_files returns Some when id is non-empty");
+    (IndexedLogReference::new(inner_ref.path, c.index), files)
 }
 
 /// Delegates to the inner non-recursive invention.

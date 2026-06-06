@@ -2,6 +2,18 @@
 pub enum Error {
     #[error("{0}")]
     Filesystem(#[from] crate::filesystem::Error),
+    /// The spawn / message call failed AND the follow-up
+    /// `re_enqueue_async` (which tries to restore the drained queue
+    /// rows so they can be retried) also failed. Both errors are
+    /// surfaced so the caller can see what went wrong with delivery
+    /// *and* see that the queued content is gone.
+    #[error(
+        "queued content lost: the call failed AND restoring the drained queue items also failed.\n  call error: {original}\n  re-enqueue error: {re_enqueue}"
+    )]
+    DrainLost {
+        original: Box<Error>,
+        re_enqueue: Box<Error>,
+    },
     #[error("{}", format_http_error(.0))]
     Http(#[from] objectiveai_sdk::HttpError),
     #[error("{0}")]
@@ -83,6 +95,8 @@ pub enum Error {
     Updater(String),
     #[error("instance runner: {0}")]
     Instance(String),
+    #[error("invalid agent definition: {0}")]
+    AgentConvert(String),
     #[error("{0}")]
     ClapParse(#[from] clap::Error),
     #[error("argument parse error at `{}`: {}", .0.field, .0.source)]
@@ -110,6 +124,16 @@ pub enum Error {
         agent_instance_hierarchy: String,
         request_count: usize,
     },
+    #[error(
+        "tag {tag:?} exists but the agent has not been spawned yet (waiting on agent_full_id={agent_full_id:?} under parent_agent_instance_hierarchy={parent_agent_instance_hierarchy:?})"
+    )]
+    TagPending {
+        tag: String,
+        parent_agent_instance_hierarchy: String,
+        agent_full_id: String,
+    },
+    #[error("tag {0:?} is not registered")]
+    TagNotFound(String),
 }
 
 impl Error {

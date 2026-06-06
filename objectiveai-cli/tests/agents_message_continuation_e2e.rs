@@ -20,7 +20,9 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 use objectiveai_sdk::cli::command::agents::message::{
-    Request as MessageRequest, RequestMessage, Response as MessageResponse,
+    MessageTarget, Request as MessageRequest,
+    RequestDangerousAdvanced as MessageDangerousAdvanced, RequestMessage,
+    ResponseItem as MessageResponseItem,
 };
 use objectiveai_sdk::cli::command::agents::spawn::{
     AgentSpec, Request as SpawnRequest, RequestDangerousAdvanced, RequestPrompt,
@@ -65,6 +67,7 @@ async fn spawn_then_message_propagates_response_continuation() {
     // the parent cli detaches on `LogStreamReady` and emits only a
     // bare `Id(leaf)` — no Chunk, no `agent_instance_hierarchy`.
     let spawn_request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
+        agent_tag: None,
         prompt: RequestPrompt::Simple("first turn".to_string()),
         agent: AgentSpec::Resolved(
             serde_json::from_value::<InlineAgentBaseWithFallbacksOrRemoteCommitOptional>(
@@ -155,22 +158,38 @@ async fn spawn_then_message_propagates_response_continuation() {
         .rsplit_once('/')
         .map(|(p, i)| (Some(p.to_string()), i.to_string()))
         .unwrap_or_else(|| (None, spawn_instance_hierarchy.clone()));
+    // `dangerous_advanced.stream = Some(true)` keeps the parent cli
+    // attached to the spawned instance runner — `collect_stream`
+    // returning implies the runner exited, avoiding the leak nextest
+    // would otherwise flag.
     let message_request = MessageRequest {
         path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
-        parent_agent_instance_hierarchy: parent,
-        agent_instance: instance,
+        target: MessageTarget::Direct {
+            parent_agent_instance_hierarchy: parent,
+            agent_instance: instance,
+            agent_tag: None,
+        },
         message: RequestMessage::Simple("follow up".to_string()),
         seed: Some(42),
+        dangerous_advanced: Some(MessageDangerousAdvanced {
+            stream: Some(true),
+        }),
         jq: None,
     };
-    let response: MessageResponse =
-        cli_test_util::execute_one(&executor, message_request).await;
-    let new_response_id = match response {
-        MessageResponse::Queued { response_id, .. } => response_id,
-        MessageResponse::Delivered { .. } => panic!(
+    let items: Vec<MessageResponseItem> =
+        cli_test_util::collect_stream(&executor, message_request).await;
+    // Item 0 carries the Queued envelope (or Delivered, which would
+    // mean the cli stream from turn 1 never tore down).
+    let new_response_id = match items.first() {
+        Some(MessageResponseItem::Queued { response_id, .. }) => response_id.clone(),
+        Some(MessageResponseItem::Delivered { .. }) => panic!(
             "agents message must take the fallback path (Queued), got Delivered — the cli \
              stream from the spawn turn never tore down cleanly"
         ),
+        Some(MessageResponseItem::Chunk(_)) => panic!(
+            "first stream item must be Queued/Delivered, got Chunk"
+        ),
+        None => panic!("agents message yielded no items"),
     };
     // Continuations from the api server reuse the original chunk.id
     // as the new turn's response_id (the agent's stable lineage id
