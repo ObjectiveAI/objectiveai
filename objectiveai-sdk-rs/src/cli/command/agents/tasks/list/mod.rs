@@ -130,11 +130,14 @@ pub struct ResponseItem {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub last_ran_at: Option<i64>,
-    /// `None` for a oneshot; `Some(n)` for an interval schedule
-    /// with `n` seconds as the floor between invocations.
+    /// `None` for a oneshot; `Some("30s" / "1h" / "1d12h" / …)`
+    /// for a recurring schedule, formatted as humantime so the
+    /// list output reads naturally without a unit-conversion
+    /// step at the consumer. The CLI parser accepts the same
+    /// shape on `agents tasks schedule --interval`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub interval_seconds: Option<u64>,
+    pub interval: Option<String>,
 }
 
 #[derive(clap::Args)]

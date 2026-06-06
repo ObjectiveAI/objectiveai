@@ -65,7 +65,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Vec<ResponseItem
             description: r.description,
             created_at: r.created_at,
             last_ran_at: r.last_ran_at,
-            interval_seconds: r.interval_seconds,
+            interval: r.interval_seconds.map(|secs| {
+                humantime::format_duration(std::time::Duration::from_secs(secs))
+                    .to_string()
+            }),
         })
         .collect())
 }
