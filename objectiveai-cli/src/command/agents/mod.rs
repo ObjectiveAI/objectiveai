@@ -20,6 +20,7 @@ pub mod message;
 pub mod publish;
 pub mod read;
 pub mod spawn;
+pub mod tags;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
@@ -98,6 +99,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::SpawnResponseSchema(req) => {
             let value = spawn::response_schema::execute(ctx, req).await?;
             once(Ok(ResponseItem::SpawnResponseSchema(value)))
+        }
+        Request::Tags(req) => {
+            let inner = tags::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Tags)))
         }
     };
     Ok(stream)

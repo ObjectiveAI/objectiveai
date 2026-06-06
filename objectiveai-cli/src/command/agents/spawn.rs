@@ -60,6 +60,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         ctx,
         crate::instance::request::InstanceEndpoint::AgentsSpawn(params),
         None,
+        request.agent_tag,
         stream,
     );
     Ok(Box::pin(raw.map(map_item)))

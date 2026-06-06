@@ -73,7 +73,7 @@ impl Remote {
 /// Tokenize a `key=value,key=value` string into a `Vec<(key, value)>`,
 /// trimming whitespace around each token. Returns an error if any
 /// pair lacks an `=`.
-fn tokenize(s: &str) -> Result<Vec<(&str, &str)>, String> {
+pub(crate) fn tokenize(s: &str) -> Result<Vec<(&str, &str)>, String> {
     s.split(',')
         .map(|pair| {
             pair.split_once('=')

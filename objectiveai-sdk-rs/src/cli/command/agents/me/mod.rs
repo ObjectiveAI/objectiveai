@@ -30,6 +30,20 @@ impl CommandRequest for Request {
 #[schemars(rename = "cli.command.agents.me.Response")]
 pub struct Response {
     pub agent_instance_hierarchy: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub agent_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub agent_full_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub agent_remote: Option<String>,
+    /// Every tag currently BOUND to `agent_instance_hierarchy`,
+    /// newest-bound first. Empty `[]` when the cli's hierarchy
+    /// carries no tags. Always emitted so callers can rely on the
+    /// field being present.
+    pub agent_tags: Vec<String>,
 }
 
 #[derive(clap::Args)]

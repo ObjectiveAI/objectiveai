@@ -12,6 +12,12 @@ pub struct Request {
     pub agent: AgentSpec,
     pub seed: Option<i64>,
     pub dangerous_advanced: Option<RequestDangerousAdvanced>,
+    /// Optional tag name to bind to the spawned agent's
+    /// `agent_instance_hierarchy` on first chunk. See
+    /// `agents tags` for the storage model.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub agent_tag: Option<String>,
     pub jq: Option<String>,
 }
 
@@ -107,6 +113,10 @@ impl CommandRequest for Request {
                     .expect("RequestDangerousAdvanced serializes"),
             );
         }
+        if let Some(tag) = &self.agent_tag {
+            argv.push("--agent-tag".to_string());
+            argv.push(tag.clone());
+        }
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
             argv.push(jq.clone());
@@ -150,6 +160,10 @@ pub struct Args {
     /// Raw JSON for `RequestDangerousAdvanced` (e.g. `{"stream":true}`).
     #[arg(long)]
     pub dangerous_advanced: Option<String>,
+    /// Optional tag name to bind on first chunk. The bound
+    /// hierarchy is the spawn's resolved `agent_instance_hierarchy`.
+    #[arg(long = "agent-tag")]
+    pub agent_tag: Option<String>,
     /// jq filter applied to the JSON output.
     #[arg(long)]
     pub jq: Option<String>,
@@ -252,6 +266,7 @@ impl TryFrom<Args> for Request {
             agent,
             seed: args.seed,
             dangerous_advanced,
+            agent_tag: args.agent_tag,
             jq: args.jq,
         })
     }

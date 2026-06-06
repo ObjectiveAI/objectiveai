@@ -1,11 +1,13 @@
 //! `agents message` — bare-naked chunk-or-id streaming handler.
 //!
 //! Deliver a rich-content message to a running spawned agent. If the
-//! per-agent socket (`${config_base_dir}/pipes/<full_id>/socket`) is
-//! bound and acks the line, yield a single [`ResponseItem::Delivered`]
-//! item and end. If the socket is unreachable or refuses to ack, fall
-//! back to continuing the agent's most recent completion via its
-//! stored continuation token. The streamed item shape then depends on
+//! per-agent socket
+//! (`${config_base_dir}/pipes/<agent_instance_hierarchy>/socket`) is
+//! bound and acks the line, yield a single
+//! [`ResponseItem::Delivered`] item and end. If the socket is
+//! unreachable or refuses to ack, fall back to continuing the
+//! agent's most recent completion via its stored continuation token.
+//! The streamed item shape then depends on
 //! `dangerous_advanced.stream`:
 //!
 //! - **`None | Some(false)` (default)** — yield a single
@@ -43,7 +45,7 @@ use objectiveai_sdk::agent::completions::message::{
 use objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams;
 use objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk;
 use objectiveai_sdk::cli::command::agents::message::{
-    Request, RequestMessage, ResponseItem,
+    MessageTarget, Request, RequestMessage, ResponseItem,
 };
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
@@ -61,18 +63,53 @@ const ACK_TIMEOUT: Duration = Duration::from_millis(5000);
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
-    // Compose the full lineage. `parent` from the request when set,
-    // otherwise the cli's own `Config.agent_instance_hierarchy` (the
-    // cli's "caller" position). Matches what
-    // `LogWriter::with_caller_agent_instance_hierarchy` stores in
-    // `messages.agent_instance_hierarchy` and what
-    // `instance/streaming` binds the per-agent socket at
-    // (`pipes/<parent>/<instance>/socket`).
-    let parent = request
-        .parent_agent_instance_hierarchy
-        .as_deref()
-        .unwrap_or(&ctx.config.agent_instance_hierarchy);
-    let full_id = format!("{parent}/{}", request.agent_instance);
+    // Resolve `target` into the full delivery hierarchy. Direct mode
+    // composes `{parent}/{agent_instance}` (parent defaults to the
+    // cli's own position) and, if `agent_tag` is set, binds the tag
+    // to the resolved hierarchy as a side effect. Tag mode looks the
+    // name up in `tags.sqlite`; BOUND resolves to the target,
+    // PENDING / ABSENT raise structured errors.
+    let agent_instance_hierarchy = match request.target {
+        MessageTarget::Direct {
+            parent_agent_instance_hierarchy,
+            agent_instance,
+            agent_tag,
+        } => {
+            let parent = parent_agent_instance_hierarchy
+                .as_deref()
+                .unwrap_or(&ctx.config.agent_instance_hierarchy);
+            let full_id = format!("{parent}/{agent_instance}");
+            if let Some(tag) = agent_tag {
+                // Bind once, before the delivery loop, so a SLOT_TAKEN
+                // retry doesn't repeat the write.
+                crate::filesystem::db::tags::upsert_bound_async(
+                    ctx.filesystem.clone(),
+                    tag,
+                    full_id.clone(),
+                )
+                .await?;
+            }
+            full_id
+        }
+        MessageTarget::Tag { agent_tag } => {
+            use crate::filesystem::db::tags;
+            match tags::lookup_async(ctx.filesystem.clone(), agent_tag.clone()).await? {
+                tags::LookupState::Bound { agent_instance_hierarchy } => agent_instance_hierarchy,
+                tags::LookupState::Pending {
+                    parent_agent_instance_hierarchy,
+                    agent_full_id,
+                } => {
+                    return Err(Error::TagPending {
+                        tag: agent_tag,
+                        parent_agent_instance_hierarchy,
+                        agent_full_id,
+                    });
+                }
+                tags::LookupState::Absent => return Err(Error::TagNotFound(agent_tag)),
+            }
+        }
+    };
+
     let content = resolve_message(request.message)?;
     let stream_flag = request
         .dangerous_advanced
@@ -89,16 +126,19 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         // Try live delivery first. Any failure here falls through to
         // the continuation fallback — pipe errors are never surfaced
         // as fatal.
-        if try_pipe_delivery(ctx, &full_id, &content).await.is_ok() {
+        if try_pipe_delivery(ctx, &agent_instance_hierarchy, &content)
+            .await
+            .is_ok()
+        {
             let item = ResponseItem::Delivered {
-                agent_instance_hierarchy: full_id.clone(),
+                agent_instance_hierarchy: agent_instance_hierarchy.clone(),
             };
             return Ok(Box::pin(futures::stream::once(async move { Ok(item) })));
         }
 
         match start_continuation_stream(
             ctx,
-            full_id.clone(),
+            agent_instance_hierarchy.clone(),
             content.clone(),
             seed,
             stream_flag,
@@ -112,13 +152,13 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     }
 }
 
-/// Connect to `${config_base_dir}/pipes/<full_id>/socket`, write one
+/// Connect to `${config_base_dir}/pipes/<agent_instance_hierarchy>/socket`, write one
 /// NDJSON `RichContent` line, and read back one `PipeAck` line.
 /// Returns `Ok(())` only on `PipeAck::Ok`; any IO failure, timeout,
 /// parse error, or `PipeAck::Error` is reported as `Err`.
 async fn try_pipe_delivery(
     ctx: &Context,
-    full_id: &str,
+    agent_instance_hierarchy: &str,
     content: &RichContent,
 ) -> Result<(), PipeError> {
     let base_dir = ctx
@@ -126,7 +166,7 @@ async fn try_pipe_delivery(
         .config_base_dir
         .as_deref()
         .ok_or(PipeError::NoBaseDir)?;
-    let socket_path = Path::new(base_dir).join("pipes").join(full_id).join("socket");
+    let socket_path = Path::new(base_dir).join("pipes").join(agent_instance_hierarchy).join("socket");
     let name = socket_path
         .clone()
         .to_fs_name::<GenericFilePath>()
@@ -217,7 +257,7 @@ impl std::fmt::Display for PipeError {
 /// `collect_stream` returning genuinely implies process exit.
 async fn start_continuation_stream(
     ctx: &Context,
-    full_id: String,
+    agent_instance_hierarchy: String,
     content: RichContent,
     cli_seed: Option<i64>,
     stream_flag: bool,
@@ -226,16 +266,20 @@ async fn start_continuation_stream(
     // Walk-back is in the filesystem helper — it tries each request
     // newest-first and returns the most recent one whose continuation
     // file exists, only erroring if NONE have one.
-    let latest = match ctx.filesystem.read_latest_continuation(&full_id).await? {
+    let latest = match ctx
+        .filesystem
+        .read_latest_continuation(&agent_instance_hierarchy)
+        .await?
+    {
         LatestContinuationOutcome::Found(l) => l,
         LatestContinuationOutcome::NoRequests => {
             return Err(Error::AgentNoPriorRequest {
-                agent_instance_hierarchy: full_id,
+                agent_instance_hierarchy,
             });
         }
         LatestContinuationOutcome::NoContinuationsFound { request_count } => {
             return Err(Error::AgentNoContinuation {
-                agent_instance_hierarchy: full_id,
+                agent_instance_hierarchy,
                 request_count,
             });
         }
@@ -263,7 +307,8 @@ async fn start_continuation_stream(
     let mut sub = instance_subprocess_stream(
         ctx,
         crate::instance::request::InstanceEndpoint::AgentsSpawn(params),
-        Some(full_id.clone()),
+        Some(agent_instance_hierarchy.clone()),
+        None,
         stream_flag,
     );
 
@@ -285,7 +330,7 @@ async fn start_continuation_stream(
     };
 
     let queued = ResponseItem::Queued {
-        agent_instance_hierarchy: full_id,
+        agent_instance_hierarchy,
         response_id: new_response_id,
     };
     let head = futures::stream::once(async move { Ok(queued) });
