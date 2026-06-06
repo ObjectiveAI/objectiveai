@@ -33,14 +33,23 @@ while [[ $# -gt 0 ]]; do
 done
 
 # The cli_command integration test spawns a real cli binary through
-# the SDK's BinaryExecutor. Build one and hand its path to the test
-# via OBJECTIVEAI_CLI_BINARY; without it (or OBJECTIVEAI_TEST_PORT)
-# the test prints a "skipping" line and passes.
-if ! cargo build -p objectiveai-cli > "$LOG_FILE" 2>&1; then
+# the SDK's BinaryExecutor. Reuse the same artifact the cli suite's
+# `prepare.sh` builds — `--no-default-features --features rustpython`
+# into `target/objectiveai-tests/` — so a parallel `test.sh` run
+# builds the cli exactly once and both suites share it. `systempython`
+# is an empty marker feature, so the rustpython-only build is
+# functionally identical to the default. Cargo's per-target-dir build
+# lock serializes any concurrent invocations safely.
+CLI_TARGET_DIR="$REPO_ROOT/target/objectiveai-tests"
+if ! cargo build \
+    -p objectiveai-cli \
+    --no-default-features --features rustpython \
+    --target-dir "$CLI_TARGET_DIR" \
+    > "$LOG_FILE" 2>&1; then
   echo "$MODULE: FAIL"
   exit 1
 fi
-CLI_BIN="$REPO_ROOT/target/debug/objectiveai-cli"
+CLI_BIN="$CLI_TARGET_DIR/debug/objectiveai-cli"
 if [ -f "$CLI_BIN.exe" ]; then CLI_BIN="$CLI_BIN.exe"; fi
 export OBJECTIVEAI_CLI_BINARY="$CLI_BIN"
 
