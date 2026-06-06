@@ -75,7 +75,7 @@ fn map_item(item: Result<InstanceItem, Error>) -> Result<ResponseItem, Error> {
     }
 }
 
-fn resolve_prompt(prompt: RequestPrompt) -> Result<Vec<Message>, Error> {
+pub(crate) fn resolve_prompt(prompt: RequestPrompt) -> Result<Vec<Message>, Error> {
     match prompt {
         RequestPrompt::Inline(msgs) => Ok(msgs),
         RequestPrompt::Simple(text) => Ok(vec![Message::User(UserMessage {
@@ -88,7 +88,7 @@ fn resolve_prompt(prompt: RequestPrompt) -> Result<Vec<Message>, Error> {
     }
 }
 
-fn read_messages_file(path: PathBuf) -> Result<Vec<Message>, Error> {
+pub(crate) fn read_messages_file(path: PathBuf) -> Result<Vec<Message>, Error> {
     let bytes = std::fs::read(&path)
         .map_err(|e| Error::PromptFileRead(path.clone(), e))?;
     let mut de = serde_json::Deserializer::from_slice(&bytes);

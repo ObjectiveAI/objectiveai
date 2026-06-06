@@ -18,6 +18,7 @@ pub mod list;
 pub mod me;
 pub mod message;
 pub mod publish;
+pub mod queue;
 pub mod read;
 pub mod spawn;
 pub mod tags;
@@ -83,6 +84,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::PublishResponseSchema(req) => {
             let value = publish::response_schema::execute(ctx, req).await?;
             once(Ok(ResponseItem::PublishResponseSchema(value)))
+        }
+        Request::Queue(req) => {
+            let inner = queue::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Queue)))
         }
         Request::Read(req) => {
             let inner = read::execute(ctx, req).await?;

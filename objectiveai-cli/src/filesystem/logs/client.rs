@@ -2330,6 +2330,23 @@ impl Client {
             })
             .collect())
     }
+
+    /// Whether the cli has ever logged an `agent_completion_request`
+    /// row against `agent_instance_hierarchy`. Same predicate that
+    /// `read_latest_continuation` uses to distinguish `NoRequests`
+    /// from `NoContinuationsFound` / `Found`, but evaluated as a
+    /// single `SELECT EXISTS` without walking continuation files.
+    pub async fn agent_exists(
+        &self,
+        agent_instance_hierarchy: &str,
+    ) -> Result<bool, Error> {
+        let conn = super::super::db::connection::connection(self)?;
+        super::super::db::schema::agent_exists_async(
+            conn,
+            agent_instance_hierarchy.to_string(),
+        )
+        .await
+    }
 }
 
 // -- Pure helpers (no &Client) ---------------------------------------------
