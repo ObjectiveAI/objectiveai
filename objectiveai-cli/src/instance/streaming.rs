@@ -70,8 +70,20 @@ where
     let (tx, rx) = mpsc::unbounded_channel::<Chunk>();
     let (notif_tx, notif_rx) =
         mpsc::unbounded_channel::<(String, String, RichContent)>();
+    // One-shot carrying the primary log id from `writer_loop` back
+    // here. `writer_loop` populates it once `log_writer.write(...)`
+    // exposes a `primary_id`; this loop picks it up before its very
+    // first `send_chunk` and emits `LogStreamReady` itself.
+    //
+    // The single-producer-to-`emissions_tx` invariant matters: with
+    // only this loop ever touching `emissions_tx`, "LogStreamReady
+    // is the first emission consumers see" is enforced structurally
+    // by sequential execution rather than synchronised between two
+    // parallel producers. `writer_loop` owns logs and nothing else.
+    let (log_ready_id_tx, log_ready_id_rx) =
+        tokio::sync::oneshot::channel::<String>();
+    let mut log_ready_id_rx = Some(log_ready_id_rx);
     let writer_push = push.clone();
-    let writer_emissions_tx = emissions_tx.clone();
     let writer_registry = registry.clone();
     let writer_task = tokio::spawn(async move {
         writer_loop(
@@ -79,8 +91,8 @@ where
             notif_rx,
             log_writer,
             writer_push,
-            writer_emissions_tx,
             writer_registry,
+            log_ready_id_tx,
         )
         .await
     });
@@ -89,10 +101,33 @@ where
     while let Some(item) = stream.next().await {
         match item {
             Ok(chunk) => {
-                // 1. Send the chunk as a typed emission.
+                // 1. Hand the chunk to the writer task FIRST so it
+                //    can flush a log entry and expose a primary id.
+                //    Without this hand-off the oneshot below is
+                //    never satisfied.
+                let _ = tx.send(chunk.clone());
+
+                // 2. On the very first iteration, pick up the
+                //    primary id from the writer and emit
+                //    `LogStreamReady` ourselves. Subsequent
+                //    iterations skip this (the rx is taken). A
+                //    writer error before the first write drops
+                //    `log_ready_id_tx`, surfacing as `Err(Canceled)`
+                //    here — we skip the LogStreamReady emit; the
+                //    next `tx.send(chunk.clone())` will fail too
+                //    because the writer's rx is gone, propagating
+                //    the underlying failure through `writer_task`.
+                if let Some(rx) = log_ready_id_rx.take() {
+                    if let Ok(id) = rx.await {
+                        send_log_stream_ready(&emissions_tx, &id).await;
+                    }
+                }
+
+                // 3. Emit the chunk. By construction LogStreamReady
+                //    is now ahead of every Chunk on `emissions_tx`.
                 send_chunk(&emissions_tx, &chunk).await;
 
-                // 2. Ensure a pipe is bound for every agent id this
+                // 4. Ensure a pipe is bound for every agent id this
                 //    chunk references.
                 for raw in chunk.agent_completion_ids() {
                     let lineage_id = match &caller_agent_instance_hierarchy {
@@ -122,10 +157,7 @@ where
                         .await;
                 }
 
-                // 3. Hand a clone to the writer task.
-                let _ = tx.send(chunk.clone());
-
-                // 4. Accumulate main-side.
+                // 5. Accumulate main-side.
                 match aggregate.as_mut() {
                     Some(acc) => push(acc, &chunk),
                     None => aggregate = Some(chunk),
@@ -166,8 +198,8 @@ async fn writer_loop<Chunk, F>(
     mut notif_rx: mpsc::UnboundedReceiver<(String, String, RichContent)>,
     mut log_writer: LogWriter<Chunk>,
     push: F,
-    emissions_tx: EmissionsTx,
     registry: PipeRegistry,
+    log_ready_id_tx: tokio::sync::oneshot::Sender<String>,
 ) -> Result<(), crate::filesystem::Error>
 where
     F: Fn(&mut Chunk, &Chunk),
@@ -175,7 +207,12 @@ where
 {
     let mut agg: Option<Chunk> = None;
     let mut pending: Vec<PendingNotification> = Vec::new();
-    let mut logged_id = false;
+    // Held until we publish the first `primary_id` back to
+    // `run_chunk_loop`; then `take()`d so subsequent iterations don't
+    // try to re-send. Dropping it (writer error before any write)
+    // wakes the matching await with `Err(Canceled)`, which
+    // `run_chunk_loop` treats as "skip LogStreamReady".
+    let mut log_ready_id_tx = Some(log_ready_id_tx);
     let mut chunk_channel_open = true;
     let mut notif_channel_open = true;
 
@@ -204,10 +241,14 @@ where
                             let inserted = log_writer.write(a, &mut pending).await?;
                             broadcast_rows(&registry, &inserted);
                         }
-                        if !logged_id {
+                        if let Some(tx) = log_ready_id_tx.take() {
                             if let Some(id) = log_writer.primary_id() {
-                                send_log_stream_ready(&emissions_tx, id).await;
-                                logged_id = true;
+                                let _ = tx.send(id.to_string());
+                            } else {
+                                // No id yet — put the sender back
+                                // so a later iteration can publish
+                                // it once the writer settles.
+                                log_ready_id_tx = Some(tx);
                             }
                         }
                     }
