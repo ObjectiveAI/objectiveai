@@ -299,7 +299,8 @@
               ],
               "votes": [
                 {
-                  "agent": "0Lp0y7y2LyM1VsV2TScyKZ-Byw7JszYTiw1wVfrw",
+                  "agent_full_id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                  "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
                   "swarm_index": 0,
                   "flat_swarm_index": 0,
                   "prompt_id": "3eioAlZRQdiJDMn3gsQOBC",
@@ -314,7 +315,8 @@
                   "weight": 0.4
                 },
                 {
-                  "agent": "6l2dDV2SOJXgP5REPXndtU-1lfWf6eAEA71wVfrw",
+                  "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
+                  "agent_id": "6l2dDV2SOJXgP5REPXndtU",
                   "swarm_index": 1,
                   "flat_swarm_index": 1,
                   "prompt_id": "3eioAlZRQdiJDMn3gsQOBC",
@@ -3797,7 +3799,8 @@
               ],
               "votes": [
                 {
-                  "agent": "0Lp0y7y2LyM1VsV2TScyKZ-9tpInbEb3p21wVfrw",
+                  "agent_full_id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                  "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
                   "swarm_index": 0,
                   "flat_swarm_index": 0,
                   "prompt_id": "4tCLIuxvxSmgp6bImf5qE4",
@@ -3812,7 +3815,8 @@
                   "weight": 0.4
                 },
                 {
-                  "agent": "6l2dDV2SOJXgP5REPXndtU-3w2mWTSQufR1wVfrw",
+                  "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
+                  "agent_id": "6l2dDV2SOJXgP5REPXndtU",
                   "swarm_index": 1,
                   "flat_swarm_index": 1,
                   "prompt_id": "4tCLIuxvxSmgp6bImf5qE4",
@@ -6239,7 +6243,8 @@
               ],
               "votes": [
                 {
-                  "agent": "0Lp0y7y2LyM1VsV2TScyKZ-7tQvX312RJL1wVfrw",
+                  "agent_full_id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                  "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
                   "swarm_index": 0,
                   "flat_swarm_index": 0,
                   "prompt_id": "2sOv10XIsnuAQ3k7dDDwNH",
@@ -6254,7 +6259,8 @@
                   "weight": 0.4
                 },
                 {
-                  "agent": "6l2dDV2SOJXgP5REPXndtU-7PE3BulqkAd1wVfrw",
+                  "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
+                  "agent_id": "6l2dDV2SOJXgP5REPXndtU",
                   "swarm_index": 1,
                   "flat_swarm_index": 1,
                   "prompt_id": "2sOv10XIsnuAQ3k7dDDwNH",
@@ -9257,7 +9263,8 @@
       ],
       "votes": [
         {
-          "agent": "0Lp0y7y2LyM1VsV2TScyKZ-AxPoQCboXoe1wVfrw",
+          "agent_full_id": "0Lp0y7y2LyM1VsV2TScyKZ",
+          "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
           "swarm_index": 0,
           "flat_swarm_index": 0,
           "prompt_id": "3iK42yE3L4RTZxJJalgGi3",
@@ -9272,7 +9279,8 @@
           "weight": 0.4
         },
         {
-          "agent": "6l2dDV2SOJXgP5REPXndtU-ALY963IxIZM1wVfrw",
+          "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
+          "agent_id": "6l2dDV2SOJXgP5REPXndtU",
           "swarm_index": 1,
           "flat_swarm_index": 1,
           "prompt_id": "3iK42yE3L4RTZxJJalgGi3",
@@ -9561,7 +9569,8 @@
       ],
       "votes": [
         {
-          "agent": "0Lp0y7y2LyM1VsV2TScyKZ-5v4w2bUt1n91wVfrw",
+          "agent_full_id": "0Lp0y7y2LyM1VsV2TScyKZ",
+          "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
           "swarm_index": 0,
           "flat_swarm_index": 0,
           "prompt_id": "1Wp7utVJD5lrsjTA60rW3r",
@@ -9576,7 +9585,8 @@
           "weight": 0.4
         },
         {
-          "agent": "6l2dDV2SOJXgP5REPXndtU-CCGPOcCvo0R1wVfrw",
+          "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
+          "agent_id": "6l2dDV2SOJXgP5REPXndtU",
           "swarm_index": 1,
           "flat_swarm_index": 1,
           "prompt_id": "1Wp7utVJD5lrsjTA60rW3r",
@@ -9844,7 +9854,8 @@
       ],
       "votes": [
         {
-          "agent": "0Lp0y7y2LyM1VsV2TScyKZ-1gGOlXeIiTp1wVfrw",
+          "agent_full_id": "0Lp0y7y2LyM1VsV2TScyKZ",
+          "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
           "swarm_index": 0,
           "flat_swarm_index": 0,
           "prompt_id": "3CBFTTDsYswnTM2H4zsKgI",
@@ -9859,7 +9870,8 @@
           "weight": 0.4
         },
         {
-          "agent": "6l2dDV2SOJXgP5REPXndtU-A9x7hilHs4e1wVfrw",
+          "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
+          "agent_id": "6l2dDV2SOJXgP5REPXndtU",
           "swarm_index": 1,
           "flat_swarm_index": 1,
           "prompt_id": "3CBFTTDsYswnTM2H4zsKgI",

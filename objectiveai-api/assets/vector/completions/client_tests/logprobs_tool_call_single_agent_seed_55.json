@@ -56,7 +56,8 @@
   ],
   "votes": [
     {
-      "agent": "4b6Q8wMySsDjDv3NoTMx8o-72lzjFM3TRb1wVg5T",
+      "agent_full_id": "4b6Q8wMySsDjDv3NoTMx8o",
+      "agent_id": "4b6Q8wMySsDjDv3NoTMx8o",
       "swarm_index": 0,
       "flat_swarm_index": 0,
       "prompt_id": "6oT5oXvIAWe3BIUM5ZXWBC",
