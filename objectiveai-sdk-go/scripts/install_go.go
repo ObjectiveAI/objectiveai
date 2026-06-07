@@ -733,6 +733,13 @@ func buildStructTags(jsonTag string, propSchema Schema, selfTitle string, allTit
 		tags = append(tags, fmt.Sprintf("default:%q", formatTagDefault(def)))
 	}
 
+	// Mark fields whose source schema was `{"type": "null"}` so the
+	// roundtrip harness can re-emit `"type": "null"` (the Go type is
+	// `JsonValue`, which would otherwise reconstruct to `{}`).
+	if isSimpleNull(cs) {
+		tags = append(tags, `nullType:"true"`)
+	}
+
 	if len(tags) == 0 {
 		return ""
 	}

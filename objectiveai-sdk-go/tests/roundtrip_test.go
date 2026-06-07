@@ -309,11 +309,23 @@ func reconstructFieldSchema(
 	validateTag := getTagValue(f.tags, "validate")
 	patternTag := getTagValue(f.tags, "pattern")
 	defaultTag := getTagValue(f.tags, "default")
+	nullType := getTagValue(f.tags, "nullType") == "true"
 
 	typeName := f.typeName
 	isPointer := strings.HasPrefix(typeName, "*")
 	if isPointer {
 		typeName = strings.TrimPrefix(typeName, "*")
+	}
+
+	// If the source schema was `{"type": "null"}`, the Go type is
+	// `JsonValue` (the "any" sentinel), so reconstruction would
+	// produce `{}`. Restore the original null shape.
+	if nullType {
+		result := map[string]any{"type": "null"}
+		if isOmitempty {
+			result["omitempty"] = true
+		}
+		return result
 	}
 
 	inner := buildFieldTypeSchema(typeName, types, titleMap)
