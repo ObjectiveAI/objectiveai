@@ -42,10 +42,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             let inner = super::functions::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Functions)))
         }
-        Request::Logs(req) => {
-            let inner = super::logs::execute(ctx, req).await?;
-            Box::pin(inner.map(|r| r.map(ResponseItem::Logs)))
-        }
         Request::Mcp(req) => {
             let inner = super::mcp::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Mcp)))

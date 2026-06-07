@@ -13,7 +13,7 @@ use super::{
     UserMessageLog,
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "role")]
 #[schemars(rename = "agent.completions.message.MessageLog")]
 pub enum MessageLog {

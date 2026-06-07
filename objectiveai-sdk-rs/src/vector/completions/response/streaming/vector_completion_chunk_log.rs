@@ -1,25 +1,27 @@
-//! On-disk shape of a `VectorCompletionChunk` log file.
+//! `VectorCompletionChunkLog` — postgres-log shape of
+//! [`super::VectorCompletionChunk`].
 //!
-//! Mirrors [`super::VectorCompletionChunk`] field-for-field. The
-//! one type swap is `completions: Vec<AgentCompletionChunk>` →
-//! `Vec<IndexedLogReference>` (each per-agent completion
-//! is extracted to its own file under `agents/completions/`, with
-//! `index` preserved at the reference level).
+//! Mirrors the wire chunk with one swap: `completions:
+//! Vec<AgentCompletionChunk>` → `Vec<`[`super::AgentCompletionLogRef`]`>`
+//! — each per-agent slot becomes a typed ref into
+//! `logs.agent_completion_responses`, carrying the wire-side `index`
+//! and any wrapper-level error.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::agent;
-use crate::logs::IndexedLogReference;
 use crate::vector::completions::response;
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+use super::AgentCompletionLogRef;
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[schemars(
     rename = "vector.completions.response.streaming.VectorCompletionChunkLog"
 )]
 pub struct VectorCompletionChunkLog {
     pub id: String,
-    pub completions: Vec<IndexedLogReference>,
+    pub completions: Vec<AgentCompletionLogRef>,
     pub votes: Vec<response::Vote>,
     #[serde(deserialize_with = "crate::serde_util::vec_decimal")]
     #[schemars(with = "Vec<f64>")]

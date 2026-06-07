@@ -14,7 +14,6 @@ pub mod command;
 pub mod config;
 pub mod functions;
 pub mod list_helpers;
-pub mod logs;
 pub mod mcp;
 pub mod plugins;
 pub mod message_queue_drain;

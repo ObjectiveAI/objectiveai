@@ -32,9 +32,9 @@ pub async fn execute(
 
     let (tx, rx) = mpsc::channel::<Result<InstanceEmission, Error>>(16);
 
+    let _ = fs_client;
     let caller_agent_instance_hierarchy = Some(http.objectiveai_agent_instance_hierarchy.clone());
-    let log_writer = fs_client
-        .write_agent_completion(&db, &params)
+    let log_writer = crate::db::logs::write_agent_completion(&db, &params)
         .map_err(|e| Error::Instance(format!(
             "failed to build agent-completion log writer: {e}"
         )))?

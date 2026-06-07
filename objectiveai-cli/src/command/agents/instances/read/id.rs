@@ -9,8 +9,11 @@ use objectiveai_sdk::cli::command::agents::instances::read::id::{Request, Respon
 use crate::context::Context;
 use crate::error::Error;
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    Ok(ctx.filesystem.read_file_by_id(&ctx.db, request.id).await?)
+pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    // The reader will materialize a typed Response variant once the
+    // postgres-backed `logs.*` reader lands. Today every call returns
+    // the NotImplemented sentinel so callers see a structured signal.
+    Ok(Response::NotImplemented)
 }
 
 pub mod request_schema {

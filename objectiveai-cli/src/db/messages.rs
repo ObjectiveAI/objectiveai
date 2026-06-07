@@ -11,7 +11,6 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex as StdMutex};
 
-use objectiveai_sdk::agent::completions::message::RichContent;
 use objectiveai_sdk::cli::command::agents::instances::read::subscribe::RequestMessageKind;
 use sqlx::Row as _;
 
@@ -157,15 +156,19 @@ impl Queue {
         Ok(state.inserted_paths.insert((kind, path.to_string())))
     }
 
-    /// Write a notification's content out as per-leaf files plus a
-    /// parent `RichContentLog` envelope, reserve the agent's next
-    /// index, and return a [`PendingNotification`] the caller queues
+    /// Reserve the agent's next index for a pending notification and
+    /// return a [`PendingNotification`] handle the caller queues
     /// locally for a later [`Self::insert_notification`] call.
-    pub async fn write_notification(
+    ///
+    /// The pre-postgres writer extracted the content into per-leaf
+    /// log files and emitted a `RichContentLog` envelope alongside;
+    /// the postgres-backed writer hasn't yet wired notification
+    /// content into the content tables, so this just reserves the
+    /// index and stamps a bare-index path.
+    pub async fn reserve_pending_notification(
         &self,
         agent_instance_hierarchy: &str,
         response_id: &str,
-        content: &RichContent,
     ) -> Result<PendingNotification, Error> {
         let entry = self.ensure_agent(agent_instance_hierarchy).await?;
         let index = {
@@ -174,55 +177,6 @@ impl Queue {
             state.next_index += 1;
             idx
         };
-
-        // 1. Extract the content into per-leaf files; their parent
-        //    directory is `request/notifications/{text,image,...}/`.
-        let (content_log, leaf_files) =
-            crate::logs::agents::completions::message::rich_content::extract_media(
-                content.clone(),
-                "agents/completions/request/notifications",
-                response_id,
-                index,
-            );
-
-        // 2. Write the per-leaf files.
-        for file in leaf_files {
-            let full_path = self.inner.logs_dir.join(file.path());
-            if let Some(parent) = full_path.parent() {
-                tokio::fs::create_dir_all(parent).await.map_err(|e| {
-                    Error::InvalidData(format!(
-                        "failed to create notification leaf dir {parent:?}: {e}"
-                    ))
-                })?;
-            }
-            tokio::fs::write(&full_path, file.content)
-                .await
-                .map_err(|e| {
-                    Error::InvalidData(format!(
-                        "failed to write notification leaf {full_path:?}: {e}"
-                    ))
-                })?;
-        }
-
-        // 3. Write the parent envelope (a bare `RichContentLog`).
-        let rel_path = format!(
-            "agents/completions/request/notifications/{response_id}_{index}.json"
-        );
-        let full_path = self.inner.logs_dir.join(&rel_path);
-        if let Some(parent) = full_path.parent() {
-            tokio::fs::create_dir_all(parent).await.map_err(|e| {
-                Error::InvalidData(format!(
-                    "failed to create notification envelope dir {parent:?}: {e}"
-                ))
-            })?;
-        }
-        let bytes = serde_json::to_vec_pretty(&content_log)?;
-        tokio::fs::write(&full_path, bytes).await.map_err(|e| {
-            Error::InvalidData(format!(
-                "failed to write notification envelope {full_path:?}: {e}"
-            ))
-        })?;
-
         Ok(PendingNotification {
             agent_instance_hierarchy: agent_instance_hierarchy.to_string(),
             response_id: response_id.to_string(),

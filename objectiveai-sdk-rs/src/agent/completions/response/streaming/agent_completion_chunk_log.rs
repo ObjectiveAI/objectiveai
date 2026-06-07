@@ -1,27 +1,25 @@
-//! On-disk shape of an `AgentCompletionChunk` log file.
+//! `AgentCompletionChunkLog` — postgres-log shape of
+//! [`super::AgentCompletionChunk`].
 //!
-//! Mirrors [`super::AgentCompletionChunk`] field-for-field, with
-//! two type swaps:
+//! Field-for-field mirror with two swaps:
 //!
-//! - `messages: Vec<MessageChunk>` →
-//!   `Vec<message_log_reference::LogReference>` since each message is
-//!   extracted to its own role-subdir file; the reference carries the
-//!   message's `index` and `role` so consumers know which
-//!   role-specific command reads it without parsing the path.
-//! - `continuation: Option<String>` → `Option<LogReference>` since
-//!   the continuation token is extracted to its own file.
-//!
-//! Field declaration order matches the wire chunk so today's
-//! `serde_json::to_value(&shell)` byte-shape is preserved.
+//! - `messages: Vec<MessageChunk>` → `Vec<MessageChunkLog>` — each
+//!   per-role message chunk is stripped (assistant deltas via
+//!   `AssistantResponseChunkLog`; tool responses via `ToolResponseLog`).
+//!   Inlined, not a cross-table ref, since these chunks belong to this
+//!   agent-completion response row and never recur elsewhere.
+//! - `continuation: Option<String>` → `Option<LogRef>` (→ text).
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::agent;
 use crate::agent::completions::response;
-use crate::logs::LogReference;
+use crate::logs::LogRef;
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+use super::AssistantResponseChunkLog;
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[schemars(
     rename = "agent.completions.response.streaming.AgentCompletionChunkLog"
 )]
@@ -34,7 +32,7 @@ pub struct AgentCompletionChunkLog {
     #[schemars(extend("omitempty" = true))]
     pub agent_remote: Option<crate::RemotePath>,
     pub created: u64,
-    pub messages: Vec<super::message_log_reference::LogReference>,
+    pub messages: Vec<MessageChunkLog>,
     pub object: response::streaming::Object,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
@@ -45,8 +43,23 @@ pub struct AgentCompletionChunkLog {
     pub error: Option<crate::error::ResponseError>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub continuation: Option<LogReference>,
+    pub continuation: Option<LogRef>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub messages_queued: Option<bool>,
+}
+
+/// Stripped per-role message chunk variant — mirrors the wire-side
+/// [`super::MessageChunk`] enum. Untagged on the wire: each inner
+/// payload carries its own discriminating `role` field.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(untagged)]
+#[schemars(
+    rename = "agent.completions.response.streaming.MessageChunkLog"
+)]
+pub enum MessageChunkLog {
+    #[schemars(title = "Assistant")]
+    Assistant(AssistantResponseChunkLog),
+    #[schemars(title = "Tool")]
+    Tool(crate::agent::completions::response::ToolResponseLog),
 }

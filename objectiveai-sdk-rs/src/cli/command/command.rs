@@ -17,10 +17,6 @@ pub enum Command {
         #[command(subcommand)]
         command: super::functions::Command,
     },
-    Logs {
-        #[command(subcommand)]
-        command: super::logs::Command,
-    },
     Mcp {
         #[command(subcommand)]
         command: super::mcp::Command,
@@ -54,8 +50,6 @@ pub enum Request {
     Config(super::config::Request),
     #[schemars(title = "Functions")]
     Functions(super::functions::Request),
-    #[schemars(title = "Logs")]
-    Logs(super::logs::Request),
     #[schemars(title = "Mcp")]
     Mcp(super::mcp::Request),
     #[schemars(title = "Plugins")]
@@ -90,8 +84,6 @@ pub enum ResponseItem {
     Config(super::config::ResponseItem),
     #[schemars(title = "Functions")]
     Functions(super::functions::ResponseItem),
-    #[schemars(title = "Logs")]
-    Logs(super::logs::ResponseItem),
     #[schemars(title = "Mcp")]
     Mcp(super::mcp::Response),
     #[schemars(title = "Plugins")]
@@ -117,7 +109,6 @@ impl super::CommandResponse for ResponseItem {
             ResponseItem::Agents(v) => v.into_mcp(),
             ResponseItem::Config(v) => v.into_mcp(),
             ResponseItem::Functions(v) => v.into_mcp(),
-            ResponseItem::Logs(v) => v.into_mcp(),
             ResponseItem::Mcp(v) => v.into_mcp(),
             ResponseItem::Plugins(v) => v.into_mcp(),
             ResponseItem::Swarms(v) => v.into_mcp(),
@@ -140,8 +131,6 @@ impl TryFrom<Command> for Request {
                 Ok(Request::Config(super::config::Request::try_from(command)?)),
             Command::Functions { command } =>
                 Ok(Request::Functions(super::functions::Request::try_from(command)?)),
-            Command::Logs { command } =>
-                Ok(Request::Logs(super::logs::Request::try_from(command)?)),
             Command::Mcp { command } =>
                 Ok(Request::Mcp(super::mcp::Request::try_from(command)?)),
             Command::Plugins { command } =>
@@ -169,7 +158,6 @@ impl super::CommandRequest for Request {
             Request::Agents(inner) => inner.into_command(),
             Request::Config(inner) => inner.into_command(),
             Request::Functions(inner) => inner.into_command(),
-            Request::Logs(inner) => inner.into_command(),
             Request::Mcp(inner) => inner.into_command(),
             Request::Plugins(inner) => inner.into_command(),
             Request::Swarms(inner) => inner.into_command(),
@@ -206,10 +194,6 @@ pub async fn execute<E: super::CommandExecutor>(
             Request::Functions(req) => {
                 let inner = super::functions::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Functions)))
-            }
-            Request::Logs(req) => {
-                let inner = super::logs::execute(executor, req, agent_arguments).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Logs)))
             }
             Request::Mcp(req) => {
                 let inner = super::mcp::execute(executor, req, agent_arguments).await?;
@@ -270,10 +254,6 @@ pub async fn execute_jq<E: super::CommandExecutor>(
             }
             Request::Functions(req) => {
                 let inner = super::functions::execute_jq(executor, req, jq, agent_arguments).await?;
-                Box::pin(inner)
-            }
-            Request::Logs(req) => {
-                let inner = super::logs::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Mcp(req) => {

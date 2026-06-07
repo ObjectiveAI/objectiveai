@@ -40,7 +40,6 @@ pub use response_schema::*;
 pub mod agents;
 pub mod config;
 pub mod functions;
-pub mod logs;
 pub mod mcp;
 pub mod plugins;
 pub mod swarms;

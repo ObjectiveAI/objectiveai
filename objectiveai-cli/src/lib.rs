@@ -8,7 +8,6 @@ pub mod executor;
 pub mod favorite_ref;
 pub mod filesystem;
 pub mod instance;
-mod logs;
 pub mod path_ref;
 mod postgres;
 mod python;

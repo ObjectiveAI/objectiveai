@@ -138,6 +138,11 @@ pub enum Error {
     PostgresBootstrap(String),
     #[error("db: {0}")]
     Db(#[from] crate::db::Error),
+    /// Endpoint exists in the command tree but the underlying
+    /// implementation hasn't landed yet — typically because it depends
+    /// on the postgres-backed `logs.*` reader that's still in flight.
+    #[error("not implemented: {0}")]
+    NotImplemented(&'static str),
 }
 
 impl Error {

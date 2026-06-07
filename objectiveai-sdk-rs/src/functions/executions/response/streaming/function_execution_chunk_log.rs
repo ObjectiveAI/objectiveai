@@ -1,40 +1,35 @@
-//! On-disk shape of a `FunctionExecutionChunk` log file.
+//! `FunctionExecutionChunkLog` — postgres-log shape of
+//! [`super::FunctionExecutionChunk`].
 //!
-//! Mirrors [`super::FunctionExecutionChunk`]'s field-by-field shape
-//! with three type swaps and one order tweak:
+//! Mirrors the wire chunk with three swaps:
 //!
-//! - `tasks: Vec<TaskChunk>` → `Vec<task_log_reference::LogReference>`
-//!   (untagged enum dispatching to function-execution or vector-completion
-//!   task references; each task in its own file)
-//! - `retry_token: Option<String>` →
-//!   `Option<LogReference>` (plain — token extracted to its own file)
+//! - `tasks: Vec<TaskChunk>` →
+//!   `Vec<`[`super::TaskLogRef`]`>` — each task slot becomes a typed
+//!   ref into either `logs.function_execution_responses` or
+//!   `logs.vector_completion_responses`.
 //! - `reasoning: Option<ReasoningSummaryChunk>` →
-//!   `Option<reasoning_summary_log_reference::LogReference>` (reasoning
-//!   extracted to its own file)
-//!
-//! Field order matches what the legacy `to_value(&shell) +
-//! Map::insert` chain produced on disk — specifically, `reasoning`
-//! lands at the END of the object (appended via Map::insert),
-//! NOT in the middle where the wire chunk's struct declaration puts
-//! it. Mirroring that order keeps the snapshot tests byte-identical.
+//!   `Option<`[`super::ReasoningSummaryLogRef`]`>` — the embedded
+//!   agent completion moves into `logs.agent_completion_responses`,
+//!   referenced here by id.
+//! - `retry_token: Option<String>` → `Option<LogRef>` (→ text).
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::agent;
 use crate::error;
-use crate::logs::LogReference;
 use crate::functions::executions::response;
+use crate::logs::LogRef;
 
-use super::{reasoning_summary_log_reference, task_log_reference};
+use super::{ReasoningSummaryLogRef, TaskLogRef};
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[schemars(
     rename = "functions.executions.response.streaming.FunctionExecutionChunkLog"
 )]
 pub struct FunctionExecutionChunkLog {
     pub id: String,
-    pub tasks: Vec<task_log_reference::LogReference>,
+    pub tasks: Vec<TaskLogRef>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub tasks_errors: Option<bool>,
@@ -46,7 +41,7 @@ pub struct FunctionExecutionChunkLog {
     pub error: Option<error::ResponseError>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub retry_token: Option<LogReference>,
+    pub retry_token: Option<LogRef>,
     pub created: u64,
     pub function: Option<crate::RemotePath>,
     pub profile: Option<crate::RemotePath>,
@@ -54,10 +49,7 @@ pub struct FunctionExecutionChunkLog {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub usage: Option<agent::completions::response::Usage>,
-    /// Appended at the end to match the legacy on-disk order: the
-    /// old code inserted `reasoning` via `Map::insert` AFTER all
-    /// the shell fields, putting it at the tail of the object.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub reasoning: Option<reasoning_summary_log_reference::LogReference>,
+    pub reasoning: Option<ReasoningSummaryLogRef>,
 }

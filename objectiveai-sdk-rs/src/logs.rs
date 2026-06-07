@@ -1,109 +1,105 @@
 //! SDK-side `logs` module.
 //!
-//! Hosts the structural types that every `*Log` data type needs to
-//! express its on-disk shape — primarily [`LogReference`] (`{type,
-//! path}`), the indexed variant [`IndexedLogReference`], and the
-//! constant `"reference"` discriminator [`LogReferenceTag`].
+//! Hosts the shared ref shapes every `*Log` struct uses to point at a
+//! row in another postgres table:
 //!
-//! These are pure data shapes. They live here in the SDK because the
-//! `*Log` types embed them as fields; the filesystem behavior that
-//! constructs the values (path joining, file writes, etc.) lives in
-//! `objectiveai-cli` per `feedback_extract_methods_relocate_to_cli`.
-//!
-//! On disk:
-//!
-//! ```json
-//! { "type": "reference", "path": "agents/completions/response/messages/assistant/acc-1_0.json" }
-//! ```
-//!
-//! For references that carry additional per-context metadata (an
-//! `index`, a `task_path`, an inline `error` or `output`, etc.), each
-//! chunk that needs them defines its own `LogReference` struct in a
-//! sibling `*_log_reference.rs` file — same name (`LogReference`),
-//! different module path.
+//! - [`LogRef`] — `{ table, id }`. Single ref into the named table.
+//! - [`RichContentLogRef`] — untagged enum of `Solo(LogRef)` or
+//!   `Many(Vec<LogRef>)`. Used for content slots that may carry either
+//!   a single content row or an ordered list of mixed media rows.
+//! - [`LogTable`] — closed enum of every postgres table a ref can
+//!   point into: five content-addressed leaf tables (`text`, `image`,
+//!   `audio`, `video`, `file`) plus six request/response tables.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// Plain on-disk pointer (`type` + `path` only).
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "LogReference")]
-pub struct LogReference {
-    #[serde(rename = "type")]
-    pub r#type: LogReferenceTag,
-    /// Relative on-disk path of the referenced file (under
-    /// `${config_base_dir}/logs/`). Skipped when empty — the no-data
-    /// sentinel case used by some wrappers when the inner chunk has
-    /// no content to log.
-    #[serde(skip_serializing_if = "String::is_empty")]
-    #[schemars(extend("omitempty" = true))]
-    pub path: String,
+/// `{ table, id }` ref. Every `*Log` content slot whose underlying
+/// value is a plain string (refusal, tool-call arguments, continuation
+/// tokens, function input JSON) — and every cross-completion ref
+/// (per-agent vector slot, per-task function slot, reasoning summary)
+/// — is shaped this way.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "LogRef")]
+pub struct LogRef {
+    pub table: LogTable,
+    pub id: i64,
 }
 
-impl LogReference {
-    pub fn new(path: String) -> Self {
-        Self {
-            r#type: LogReferenceTag::Reference,
-            path,
-        }
+impl LogRef {
+    pub fn new(table: LogTable, id: i64) -> Self {
+        Self { table, id }
     }
 }
 
-/// Constant `"reference"` discriminator — the `"type"` field on every
-/// `LogReference` variant.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "lowercase")]
-#[schemars(rename = "LogReferenceTag")]
-pub enum LogReferenceTag {
-    Reference,
-}
-
-/// `LogReference` for log files keyed by an `index` — used by
-/// per-agent / per-invention completion wrappers that need to preserve
-/// their position within a parent collection (a vector completion's
-/// swarm-index, an invention's per-invention index, etc.).
+/// Ref shape for any content slot whose wire form is a `RichContent`
+/// (i.e. content fields on user / system / developer / assistant /
+/// tool messages, and tool-response content).
 ///
-/// Carries an optional `error` so that wrappers around inner streams
-/// which errored before producing an ID-bearing chunk still surface
-/// what went wrong at that index. Exactly one of `path` (the resolved
-/// log file) or `error` (the upstream failure) will be populated in
-/// practice — both `None` would mean the wrapper has nothing to say.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "IndexedLogReference")]
-pub struct IndexedLogReference {
-    #[serde(rename = "type")]
-    pub r#type: LogReferenceTag,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub path: Option<String>,
-    pub index: u64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub error: Option<crate::error::ResponseError>,
+/// Wire form is untagged — the writer emits `Solo` when the source was
+/// a plain string (lowered to one `LogRef` into the `text` table) and
+/// `Many` when the source was a real rich-content list (one `LogRef`
+/// per part, table-tagged by media kind).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(untagged)]
+#[schemars(rename = "RichContentLogRef")]
+pub enum RichContentLogRef {
+    #[schemars(title = "Solo")]
+    Solo(LogRef),
+    #[schemars(title = "Many")]
+    Many(Vec<LogRef>),
 }
 
-impl IndexedLogReference {
-    pub fn new(path: String, index: u64) -> Self {
-        Self {
-            r#type: LogReferenceTag::Reference,
-            path: Some(path),
-            index,
-            error: None,
-        }
-    }
+/// Closed enum of every postgres table a [`LogRef`] can point into.
+///
+/// Content-addressed leaf tables (deduplicated payloads — same body
+/// inserted twice maps to the same row id):
+/// - `text` — plain string content (refusal, reasoning, tool-call
+///   arguments, continuation/retry tokens, any RichContent::Text
+///   part).
+/// - `image`, `audio`, `video`, `file` — JSONB bodies of the matching
+///   media struct (`ImageUrl`, `InputAudio`, `VideoUrl`, `File`).
+/// - `input` — JSONB body for function-execution inputs (structured
+///   data, kept as its own table since it isn't string-shaped).
+///
+/// Six request/response tables hold the stripped log envelopes
+/// themselves.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+#[schemars(rename = "LogTable")]
+pub enum LogTable {
+    Text,
+    Image,
+    Audio,
+    Video,
+    File,
+    Input,
+    AgentCompletionRequest,
+    AgentCompletionResponse,
+    VectorCompletionRequest,
+    VectorCompletionResponse,
+    FunctionExecutionRequest,
+    FunctionExecutionResponse,
+}
 
-    /// Like [`Self::new`] but stamps an upstream error onto the ref —
-    /// used by wrappers when the inner stream failed before producing
-    /// an ID-bearing chunk we could write a log file for.
-    pub fn with_error(
-        index: u64,
-        error: crate::error::ResponseError,
-    ) -> Self {
-        Self {
-            r#type: LogReferenceTag::Reference,
-            path: None,
-            index,
-            error: Some(error),
+impl LogTable {
+    /// Fully-qualified table name in postgres, including the `logs.`
+    /// schema prefix. Used by the CLI writer when constructing
+    /// `INSERT INTO …` statements.
+    pub fn fq_name(self) -> &'static str {
+        match self {
+            LogTable::Text => "logs.text",
+            LogTable::Image => "logs.image",
+            LogTable::Audio => "logs.audio",
+            LogTable::Video => "logs.video",
+            LogTable::File => "logs.file",
+            LogTable::Input => "logs.input",
+            LogTable::AgentCompletionRequest => "logs.agent_completion_requests",
+            LogTable::AgentCompletionResponse => "logs.agent_completion_responses",
+            LogTable::VectorCompletionRequest => "logs.vector_completion_requests",
+            LogTable::VectorCompletionResponse => "logs.vector_completion_responses",
+            LogTable::FunctionExecutionRequest => "logs.function_execution_requests",
+            LogTable::FunctionExecutionResponse => "logs.function_execution_responses",
         }
     }
 }

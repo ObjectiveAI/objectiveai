@@ -1,16 +1,17 @@
-//! `UserMessageLog` — on-disk shape of [`super::UserMessage`].
-//! `content` is replaced by [`super::RichContentLog`] (extracted-to-files);
-//! all other fields stay inline.
+//! `UserMessageLog` — postgres-log shape of [`super::UserMessage`].
+//!
+//! `content` is a [`RichContentLogRef`] — solo text ref or rich-media
+//! list. Everything else stays inline.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use super::RichContentLog;
+use crate::logs::RichContentLogRef;
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "agent.completions.message.UserMessageLog")]
 pub struct UserMessageLog {
-    pub content: RichContentLog,
+    pub content: RichContentLogRef,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub name: Option<String>,

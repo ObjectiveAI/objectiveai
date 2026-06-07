@@ -15,7 +15,7 @@ use tokio::sync::mpsc;
 
 use crate::db::pending::PendingNotification;
 use crate::error::Error;
-use crate::filesystem::logs::LogWriter;
+use crate::db::logs::LogWriter;
 use crate::instance::InstanceEmission;
 
 pub type EmissionsTx = mpsc::Sender<Result<InstanceEmission, Error>>;

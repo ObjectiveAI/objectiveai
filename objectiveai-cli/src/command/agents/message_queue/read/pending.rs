@@ -12,24 +12,14 @@ use crate::error::Error;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
-    let parent = request
-        .parent_agent_instance_hierarchy
-        .clone()
-        .unwrap_or_else(|| ctx.config.agent_instance_hierarchy.clone());
-    let fs = ctx.filesystem.clone();
-    let db = ctx.db.clone();
+pub async fn execute(_ctx: &Context, _request: Request) -> Result<ItemStream, Error> {
+    // The queue-walk used to scan a filesystem index alongside the
+    // `prompts` table; the postgres-backed reader hasn't landed yet,
+    // so the leaf returns the structured NotImplemented signal.
     let stream = async_stream::stream! {
-        let rows = match fs.queue_list(&db, &parent).await {
-            Ok(v) => v,
-            Err(e) => {
-                yield Err(e);
-                return;
-            }
-        };
-        for item in rows {
-            yield Ok(item);
-        }
+        yield Err(Error::NotImplemented(
+            "agents message-queue read pending (postgres reader pending)",
+        ));
     };
     Ok(Box::pin(stream))
 }

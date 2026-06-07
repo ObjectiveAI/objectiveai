@@ -5,12 +5,14 @@
 //! - [`Object`] - Type marker (`"vector.completion.chunk"`)
 
 mod agent_completion_chunk;
+mod agent_completion_log_ref;
 mod inner_error;
 mod object;
 mod vector_completion_chunk;
 mod vector_completion_chunk_log;
 
 pub use agent_completion_chunk::*;
+pub use agent_completion_log_ref::*;
 pub use inner_error::*;
 pub use object::*;
 pub use vector_completion_chunk::*;

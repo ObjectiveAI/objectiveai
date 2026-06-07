@@ -1,36 +1,34 @@
-//! `AgentCompletionCreateParamsLog` — on-disk shape of
+//! `AgentCompletionCreateParamsLog` — postgres-log shape of
 //! [`super::AgentCompletionCreateParams`].
 //!
-//! Three fields get extracted to per-leaf files via
-//! [`LogReference`]s; everything else stays inline:
+//! Field-for-field mirror with these swaps:
 //!
-//! - `messages` → `Vec<LogReference>` (each ref points at a
-//!   per-message file under `<route_base>/messages/<id>-<idx>.json`
-//!   holding a [`super::super::message::MessageLog`]).
-//! - `response_format` → `Option<LogReference>` (own
-//!   `.json` file under `<route_base>/response_format/`).
-//! - `continuation` → `Option<LogReference>` (own `.txt` file
-//!   under `<route_base>/continuation/`).
+//! - `messages: Vec<Message>` → `Vec<MessageLog>` (each message's
+//!   content lowered to refs into the content tables).
+//! - `response_format: Option<ResponseFormatParam>` — stays inline
+//!   (structured small config, no content to extract).
+//! - `continuation: Option<String>` → `Option<LogRef>` (→ text).
 //!
-//! `provider`, `agent`, `seed`, `stream` stay inline — they're
-//! small + structurally important for log-readability.
+//! Other small-scalar fields (`provider`, `agent`, `seed`, `stream`)
+//! stay inline.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::logs::LogReference;
+use crate::agent::completions::message::MessageLog;
+use crate::logs::LogRef;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "agent.completions.request.AgentCompletionCreateParamsLog")]
 pub struct AgentCompletionCreateParamsLog {
-    pub messages: Vec<LogReference>,
+    pub messages: Vec<MessageLog>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub provider: Option<super::Provider>,
     pub agent: crate::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub response_format: Option<LogReference>,
+    pub response_format: Option<super::ResponseFormatParam>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub seed: Option<i64>,
@@ -39,5 +37,5 @@ pub struct AgentCompletionCreateParamsLog {
     pub stream: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub continuation: Option<LogReference>,
+    pub continuation: Option<LogRef>,
 }

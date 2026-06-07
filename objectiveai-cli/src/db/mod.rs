@@ -14,6 +14,7 @@ pub use pool::*;
 mod init;
 pub use init::*;
 
+pub mod logs;
 pub mod pending;
 pub mod schema;
 pub mod tags;

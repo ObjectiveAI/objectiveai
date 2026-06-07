@@ -1,23 +1,22 @@
-//! `FunctionExecutionCreateParamsLog` — on-disk shape of
+//! `FunctionExecutionCreateParamsLog` — postgres-log shape of
 //! [`super::FunctionExecutionCreateParams`].
 //!
-//! Two fields get extracted to per-leaf files:
+//! Three fields are extracted to dedicated tables:
 //!
-//! - `input` → [`crate::functions::expression::InputValueLog`]
-//!   (recursive tree of [`LogReference`]s per the input shape; see
-//!   `InputValue::extract_to_files`).
-//! - `continuation` → `Option<LogReference>` (own `.txt` file under
-//!   `<route_base>/continuation/`).
+//! - `input` → [`LogRef`] into `logs.input` (structured JSON stored
+//!   inline as JSONB in that table; content-addressed for dedup).
+//! - `retry_token` → `Option<LogRef>` (→ text).
+//! - `continuation` → `Option<LogRef>` (→ text).
 //!
 //! Everything else (function / profile / reasoning / strategy /
 //! provider / flags / seed) stays inline — small, structurally
-//! important for log readability.
+//! important.
 
 use crate::{agent, functions};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::logs::LogReference;
+use crate::logs::LogRef;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(
@@ -28,7 +27,7 @@ pub struct FunctionExecutionCreateParamsLog {
     pub profile: functions::InlineProfileOrRemoteCommitOptional,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub retry_token: Option<String>,
+    pub retry_token: Option<LogRef>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub from_cache: Option<bool>,
@@ -38,7 +37,7 @@ pub struct FunctionExecutionCreateParamsLog {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub strategy: Option<super::Strategy>,
-    pub input: functions::expression::InputValueLog,
+    pub input: LogRef,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub split: Option<bool>,
@@ -56,5 +55,5 @@ pub struct FunctionExecutionCreateParamsLog {
     pub stream: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub continuation: Option<LogReference>,
+    pub continuation: Option<LogRef>,
 }
