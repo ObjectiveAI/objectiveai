@@ -27,6 +27,13 @@ pub enum Error {
         error: objectiveai_sdk::mcp::Error,
     },
 
+    /// `read_message_queue` server-request to the CLI failed — either
+    /// the WS reverse-attach is down (no live channel, timeout, drop),
+    /// or the CLI returned a JSON-RPC error envelope. `clear` failures
+    /// are fire-and-forget so don't surface here.
+    #[error("read_message_queue via WS reverse-attach failed: {0}")]
+    MessageQueueRead(String),
+
     #[error("MCP has_pending_notifications error ({url}): {error}")]
     McpQueuedNotifications {
         url: String,
@@ -106,6 +113,7 @@ impl objectiveai_sdk::error::StatusError for Error {
             Self::McpConnection(_) | Self::McpConnectionArc(_) => 502,
             Self::McpListTools { .. } => 502,
             Self::McpDrainNotifications { .. } => 502,
+            Self::MessageQueueRead(_) => 502,
             Self::McpQueuedNotifications { .. } => 502,
             Self::McpEnqueueNotifications { .. } => 502,
             Self::NotifyResponseIdNotFound(_) => 404,

@@ -94,11 +94,13 @@ fn payload_variant_name(p: &server_response::Payload) -> &'static str {
     use server_response::Payload as P;
     match p {
         P::Initialize { .. } => "initialize",
-        P::ToolsList(_) => "tools_list",
-        P::ToolsCall(_) => "tools_call",
-        P::ResourcesList(_) => "resources_list",
-        P::ResourcesRead(_) => "resources_read",
-        P::SessionTerminate(_) => "session_terminate",
+        P::ToolsList { .. } => "tools_list",
+        P::ToolsCall { .. } => "tools_call",
+        P::ResourcesList { .. } => "resources_list",
+        P::ResourcesRead { .. } => "resources_read",
+        P::SessionTerminate { .. } => "session_terminate",
+        P::ReadMessageQueue(_) => "read_message_queue",
+        P::ClearMessageQueue(_) => "clear_message_queue",
     }
 }
 
@@ -125,13 +127,15 @@ pub async fn handle_initialize(
 ) -> Result<(InitializeResult, String), McpError> {
     let response = forward(
         &ctx,
-        mcp_kind,
-        server_request::Payload::Initialize(InitializeRequest { args }),
+        server_request::Payload::Initialize {
+            mcp_kind,
+            params: InitializeRequest { args },
+        },
     )
     .await?;
     match response.payload {
-        server_response::Payload::Initialize(r) => {
-            let reply = unwrap_rpc(r)?;
+        server_response::Payload::Initialize { result, .. } => {
+            let reply = unwrap_rpc(result)?;
             Ok((reply.result, reply.mcp_session_id))
         }
         other => Err(McpError::variant_mismatch("initialize", &other)),
@@ -150,9 +154,13 @@ pub async fn handle_tools_list(
     mcp_kind: McpKind,
     params: ListToolsRequest,
 ) -> Result<ListToolsResult, McpError> {
-    let response = forward(&ctx, mcp_kind, server_request::Payload::ToolsList(params)).await?;
+    let response = forward(
+        &ctx,
+        server_request::Payload::ToolsList { mcp_kind, params },
+    )
+    .await?;
     match response.payload {
-        server_response::Payload::ToolsList(r) => unwrap_rpc(r),
+        server_response::Payload::ToolsList { result, .. } => unwrap_rpc(result),
         other => Err(McpError::variant_mismatch("tools_list", &other)),
     }
 }
@@ -162,9 +170,13 @@ pub async fn handle_tools_call(
     mcp_kind: McpKind,
     params: CallToolRequestParams,
 ) -> Result<CallToolResult, McpError> {
-    let response = forward(&ctx, mcp_kind, server_request::Payload::ToolsCall(params)).await?;
+    let response = forward(
+        &ctx,
+        server_request::Payload::ToolsCall { mcp_kind, params },
+    )
+    .await?;
     match response.payload {
-        server_response::Payload::ToolsCall(r) => unwrap_rpc(r),
+        server_response::Payload::ToolsCall { result, .. } => unwrap_rpc(result),
         other => Err(McpError::variant_mismatch("tools_call", &other)),
     }
 }
@@ -176,12 +188,11 @@ pub async fn handle_resources_list(
 ) -> Result<ListResourcesResult, McpError> {
     let response = forward(
         &ctx,
-        mcp_kind,
-        server_request::Payload::ResourcesList(params),
+        server_request::Payload::ResourcesList { mcp_kind, params },
     )
     .await?;
     match response.payload {
-        server_response::Payload::ResourcesList(r) => unwrap_rpc(r),
+        server_response::Payload::ResourcesList { result, .. } => unwrap_rpc(result),
         other => Err(McpError::variant_mismatch("resources_list", &other)),
     }
 }
@@ -193,12 +204,11 @@ pub async fn handle_resources_read(
 ) -> Result<ReadResourceResult, McpError> {
     let response = forward(
         &ctx,
-        mcp_kind,
-        server_request::Payload::ResourcesRead(params),
+        server_request::Payload::ResourcesRead { mcp_kind, params },
     )
     .await?;
     match response.payload {
-        server_response::Payload::ResourcesRead(r) => unwrap_rpc(r),
+        server_response::Payload::ResourcesRead { result, .. } => unwrap_rpc(result),
         other => Err(McpError::variant_mismatch("resources_read", &other)),
     }
 }
@@ -211,9 +221,13 @@ pub async fn handle_session_terminate(
     ctx: McpRequestContext,
     mcp_kind: McpKind,
 ) -> Result<(), McpError> {
-    let response = forward(&ctx, mcp_kind, server_request::Payload::SessionTerminate).await?;
+    let response = forward(
+        &ctx,
+        server_request::Payload::SessionTerminate { mcp_kind },
+    )
+    .await?;
     match response.payload {
-        server_response::Payload::SessionTerminate(r) => unwrap_rpc(r),
+        server_response::Payload::SessionTerminate { result, .. } => unwrap_rpc(result),
         other => Err(McpError::variant_mismatch("session_terminate", &other)),
     }
 }
@@ -227,7 +241,6 @@ pub async fn handle_session_terminate(
 
 async fn forward(
     ctx: &McpRequestContext,
-    mcp_kind: McpKind,
     payload: server_request::Payload,
 ) -> Result<server_response::Response, McpError> {
     let rc = ctx
@@ -239,7 +252,6 @@ async fn forward(
     let request_id = uuid::Uuid::new_v4().to_string();
     let request = server_request::Request {
         id: request_id,
-        mcp_kind,
         headers: forward_headers(&ctx.headers),
         payload,
     };

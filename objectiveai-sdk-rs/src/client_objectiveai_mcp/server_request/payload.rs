@@ -8,10 +8,12 @@ use serde::{Deserialize, Serialize};
 /// `serde(tag = "type")` discriminator pairs with
 /// [`super::super::server_response::Payload`] by name.
 ///
-/// Which CLI-hosted MCP server the request targets rides on the
-/// enclosing [`super::Request`] envelope's `mcp_kind` field, not
-/// inside the variant — every variant maps 1:1 to a JSON-RPC method
-/// regardless of which MCP is on the receiving end.
+/// MCP-routed variants carry `mcp_kind` directly on the variant
+/// (alongside the typed params via `#[serde(flatten)]`). Non-MCP
+/// variants (`ReadMessageQueue` / `ClearMessageQueue`) don't carry
+/// `mcp_kind` at all — they hit the CLI's own local state and never
+/// route to an upstream MCP server. Use [`Payload::mcp_kind`] to
+/// retrieve it generically.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.server_request.Payload")]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -22,56 +24,119 @@ pub enum Payload {
     /// out. The variant carries the plugin arguments the CLI needs at
     /// dial time (parsed by the API off the URL query string).
     #[schemars(title = "Initialize")]
-    Initialize(InitializeRequest),
+    Initialize {
+        mcp_kind: super::super::McpKind,
+        #[serde(flatten)]
+        params: InitializeRequest,
+    },
 
     /// POST `tools/list`.
     #[schemars(title = "ToolsList")]
-    ToolsList(crate::mcp::tool::ListToolsRequest),
+    ToolsList {
+        mcp_kind: super::super::McpKind,
+        #[serde(flatten)]
+        params: crate::mcp::tool::ListToolsRequest,
+    },
 
     /// POST `tools/call`.
     #[schemars(title = "ToolsCall")]
-    ToolsCall(crate::mcp::tool::CallToolRequestParams),
+    ToolsCall {
+        mcp_kind: super::super::McpKind,
+        #[serde(flatten)]
+        params: crate::mcp::tool::CallToolRequestParams,
+    },
 
     /// POST `resources/list`.
     #[schemars(title = "ResourcesList")]
-    ResourcesList(crate::mcp::resource::ListResourcesRequest),
+    ResourcesList {
+        mcp_kind: super::super::McpKind,
+        #[serde(flatten)]
+        params: crate::mcp::resource::ListResourcesRequest,
+    },
 
     /// POST `resources/read`.
     #[schemars(title = "ResourcesRead")]
-    ResourcesRead(crate::mcp::resource::ReadResourceRequestParams),
+    ResourcesRead {
+        mcp_kind: super::super::McpKind,
+        #[serde(flatten)]
+        params: crate::mcp::resource::ReadResourceRequestParams,
+    },
 
     /// `DELETE` on the routed MCP URL — the proxy closing the
-    /// session. No body.
+    /// session. No body beyond `mcp_kind`.
     #[schemars(title = "SessionTerminate")]
-    SessionTerminate,
+    SessionTerminate { mcp_kind: super::super::McpKind },
 
     /// Read the CLI's local message queue (`prompts.sqlite`) for a
-    /// given agent hierarchy. Non-destructive — paired with
-    /// [`Payload::ClearMessageQueue`] to release rows after the
-    /// caller has consumed them.
+    /// given agent hierarchy. Non-MCP — no `mcp_kind`. Non-destructive;
+    /// pair with [`Payload::ClearMessageQueue`] to release rows
+    /// after the caller has consumed them.
     #[schemars(title = "ReadMessageQueue")]
     ReadMessageQueue(ReadMessageQueueRequest),
 
-    /// Delete a set of message-queue rows by id. Unknown ids are
-    /// silently ignored.
+    /// Delete a set of message-queue rows by id. Non-MCP — no
+    /// `mcp_kind`. Unknown ids are silently ignored.
     #[schemars(title = "ClearMessageQueue")]
     ClearMessageQueue(ClearMessageQueueRequest),
 }
 
+impl Payload {
+    /// Which CLI-hosted MCP server this payload targets. `Some` for
+    /// the MCP-routed variants; `None` for `ReadMessageQueue` and
+    /// `ClearMessageQueue` which hit the CLI's own local state.
+    pub fn mcp_kind(&self) -> Option<super::super::McpKind> {
+        match self {
+            Payload::Initialize { mcp_kind, .. }
+            | Payload::ToolsList { mcp_kind, .. }
+            | Payload::ToolsCall { mcp_kind, .. }
+            | Payload::ResourcesList { mcp_kind, .. }
+            | Payload::ResourcesRead { mcp_kind, .. }
+            | Payload::SessionTerminate { mcp_kind } => Some(mcp_kind.clone()),
+            Payload::ReadMessageQueue(_) | Payload::ClearMessageQueue(_) => None,
+        }
+    }
+}
+
 /// Parameters for [`Payload::ReadMessageQueue`].
 ///
-/// Matches queue rows the same way `agents instances message`'s
-/// in-process drain does — direct hits on `agent_instance_hierarchy`
-/// plus rows tagged with any tag BOUND to the given hierarchy — but
-/// without deleting them. Pair with [`ClearMessageQueueRequest`]
-/// after processing to release the rows.
+/// Three-rule predicate (matches `drain_for_message` +
+/// `drain_for_spawn` combined):
+/// 1. Direct hit — `prompts.agent_instance_hierarchy =
+///    agent_instance_hierarchy`.
+/// 2. BOUND-tag hit — `prompts.agent_tag` resolves to a tag whose
+///    `tags.agent_instance_hierarchy = agent_instance_hierarchy`.
+/// 3. PENDING-tag hit — `prompts.agent_tag` resolves to a tag in
+///    PENDING state whose
+///    `(parent_agent_instance_hierarchy, agent_full_id)` matches the
+///    fields below. Lets the API drain rows that were enqueued
+///    against a tag whose spawn this agent is.
+///
+/// Returns rows oldest-first (`prompts.id ASC`, which also matches
+/// `prompts.enqueued_at` ascending due to AUTOINCREMENT). Pair with
+/// [`ClearMessageQueueRequest`] (same scope fields) after processing
+/// to release the rows; rows left behind remain visible to the next
+/// read.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.server_request.ReadMessageQueueRequest")]
 pub struct ReadMessageQueueRequest {
     pub agent_instance_hierarchy: String,
+    /// Lineage prefix used by rule 3 to find PENDING tags. `None`
+    /// for rootless agents — the tag's
+    /// `parent_agent_instance_hierarchy` is stored as `""` for those
+    /// (see `tags::upgrade`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub parent_agent_instance_hierarchy: Option<String>,
+    /// Agent full id used by rule 3 to find PENDING tags.
+    pub agent_full_id: String,
 }
 
 /// Parameters for [`Payload::ClearMessageQueue`].
+///
+/// Scope fields mirror [`ReadMessageQueueRequest`] — the same
+/// three-rule predicate gates which ids may be cleared. Ids outside
+/// the scope are silently absorbed; this protects against an API
+/// caller mis-addressing a row that belongs to a different agent.
 ///
 /// `ON DELETE CASCADE` on `prompt_contents.prompt_id` sweeps the
 /// per-kind content rows. Empty `ids` is a no-op. Unknown ids are
@@ -79,6 +144,13 @@ pub struct ReadMessageQueueRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.server_request.ClearMessageQueueRequest")]
 pub struct ClearMessageQueueRequest {
+    pub agent_instance_hierarchy: String,
+    /// Lineage prefix; see [`ReadMessageQueueRequest`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub parent_agent_instance_hierarchy: Option<String>,
+    /// Agent full id; see [`ReadMessageQueueRequest`].
+    pub agent_full_id: String,
     pub ids: Vec<i64>,
 }
 

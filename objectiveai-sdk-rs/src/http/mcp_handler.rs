@@ -39,6 +39,20 @@ pub trait McpHandler: Send + Sync + 'static {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct RejectHandler;
 
+/// JSON-RPC error code for the reject-handler's stock reply. -32601 is
+/// "method not found"; pairs cleanly with the proxy seeing the API
+/// fall through to a fallback agent.
+const REJECT_CODE: i64 = -32601;
+const REJECT_MESSAGE: &str = "this client does not host objectiveai-mcp";
+
+fn reject_err<R>() -> server_response::JsonRpcResult<R> {
+    server_response::JsonRpcResult::Err {
+        code: REJECT_CODE,
+        message: REJECT_MESSAGE.into(),
+        data: None,
+    }
+}
+
 impl McpHandler for RejectHandler {
     async fn handle(
         &self,
@@ -48,54 +62,35 @@ impl McpHandler for RejectHandler {
         // that pairs with the inbound payload — the API's
         // `variant_mismatch` check is satisfied AND the error
         // surfaces as a method-not-found on the proxy side.
-        use server_response::{JsonRpcResult, Payload};
-        const CODE: i64 = -32601;
-        const MESSAGE: &str = "this client does not host objectiveai-mcp";
+        use server_response::Payload;
         let payload = match request.payload {
-            server_request::Payload::Initialize(_) => Payload::Initialize(JsonRpcResult::Err {
-                code: CODE,
-                message: MESSAGE.into(),
-                data: None,
-            }),
-            server_request::Payload::ToolsList(_) => Payload::ToolsList(JsonRpcResult::Err {
-                code: CODE,
-                message: MESSAGE.into(),
-                data: None,
-            }),
-            server_request::Payload::ToolsCall(_) => Payload::ToolsCall(JsonRpcResult::Err {
-                code: CODE,
-                message: MESSAGE.into(),
-                data: None,
-            }),
-            server_request::Payload::ResourcesList(_) => Payload::ResourcesList(JsonRpcResult::Err {
-                code: CODE,
-                message: MESSAGE.into(),
-                data: None,
-            }),
-            server_request::Payload::ResourcesRead(_) => Payload::ResourcesRead(JsonRpcResult::Err {
-                code: CODE,
-                message: MESSAGE.into(),
-                data: None,
-            }),
-            server_request::Payload::SessionTerminate => Payload::SessionTerminate(JsonRpcResult::Err {
-                code: CODE,
-                message: MESSAGE.into(),
-                data: None,
-            }),
-            server_request::Payload::ReadMessageQueue(_) => Payload::ReadMessageQueue(JsonRpcResult::Err {
-                code: CODE,
-                message: MESSAGE.into(),
-                data: None,
-            }),
-            server_request::Payload::ClearMessageQueue(_) => Payload::ClearMessageQueue(JsonRpcResult::Err {
-                code: CODE,
-                message: MESSAGE.into(),
-                data: None,
-            }),
+            server_request::Payload::Initialize { mcp_kind, .. } => {
+                Payload::Initialize { mcp_kind, result: reject_err() }
+            }
+            server_request::Payload::ToolsList { mcp_kind, .. } => {
+                Payload::ToolsList { mcp_kind, result: reject_err() }
+            }
+            server_request::Payload::ToolsCall { mcp_kind, .. } => {
+                Payload::ToolsCall { mcp_kind, result: reject_err() }
+            }
+            server_request::Payload::ResourcesList { mcp_kind, .. } => {
+                Payload::ResourcesList { mcp_kind, result: reject_err() }
+            }
+            server_request::Payload::ResourcesRead { mcp_kind, .. } => {
+                Payload::ResourcesRead { mcp_kind, result: reject_err() }
+            }
+            server_request::Payload::SessionTerminate { mcp_kind } => {
+                Payload::SessionTerminate { mcp_kind, result: reject_err() }
+            }
+            server_request::Payload::ReadMessageQueue(_) => {
+                Payload::ReadMessageQueue(reject_err())
+            }
+            server_request::Payload::ClearMessageQueue(_) => {
+                Payload::ClearMessageQueue(reject_err())
+            }
         };
         server_response::Response {
             id: request.id,
-            mcp_kind: request.mcp_kind,
             payload,
         }
     }

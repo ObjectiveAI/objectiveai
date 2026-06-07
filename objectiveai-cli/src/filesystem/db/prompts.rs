@@ -990,33 +990,54 @@ fn delete_by_id(client: &Client, id: i64) -> Result<Option<DrainedPrompt>, Error
 // rule — the API addresses by hierarchy only.
 // ---------------------------------------------------------------------------
 
-/// Non-destructive read of every queue row matching `target_hierarchy`
-/// in oldest-first order. Returns `(prompts.id, RichContent)` pairs.
-/// The caller is responsible for issuing a follow-up
-/// [`clear_by_ids_async`] with the ids it wants released — rows left
-/// behind remain visible to the next read.
+/// Non-destructive read of every queue row in scope for an agent,
+/// oldest-first (by `prompts.id ASC`, which is equivalent to
+/// `enqueued_at` ascending under AUTOINCREMENT). Three-rule
+/// predicate:
+///
+/// 1. Direct: `prompts.agent_instance_hierarchy = target_hierarchy`
+/// 2. BOUND tag: `prompts.agent_tag` resolves to a tag with
+///    `agent_instance_hierarchy = target_hierarchy`
+/// 3. PENDING tag: `prompts.agent_tag` resolves to a tag with
+///    `(parent_agent_instance_hierarchy, agent_full_id)` matching
+///    the supplied scope — picks up rows enqueued against a tag
+///    whose spawn this agent is.
+///
+/// Returns `(prompts.id, RichContent)` pairs. The caller is
+/// responsible for issuing a follow-up [`clear_by_ids_async`] with
+/// the ids it wants released; rows left behind remain visible to
+/// the next read. `parent_hierarchy` is `""` for rootless agents
+/// (matches how `tags::upgrade` stores the parent of a rootless
+/// PENDING).
 pub async fn read_for_message_async(
     client: Client,
     target_hierarchy: String,
+    parent_hierarchy: String,
+    agent_full_id: String,
 ) -> Result<Vec<(i64, RichContent)>, Error> {
-    tokio::task::spawn_blocking(move || read_for_message(&client, &target_hierarchy))
-        .await
-        .map_err(spawn_blocking_join_err)?
+    tokio::task::spawn_blocking(move || {
+        read_for_message(
+            &client,
+            &target_hierarchy,
+            &parent_hierarchy,
+            &agent_full_id,
+        )
+    })
+    .await
+    .map_err(spawn_blocking_join_err)?
 }
 
 fn read_for_message(
     client: &Client,
     target_hierarchy: &str,
+    parent_hierarchy: &str,
+    agent_full_id: &str,
 ) -> Result<Vec<(i64, RichContent)>, Error> {
     let conn = super::tags::connection(client)?;
     let conn = conn
         .lock()
         .expect("filesystem prompts db connection mutex poisoned");
     let tx = conn.unchecked_transaction()?;
-    // Two-rule predicate (drain's first two — direct + BOUND-tag).
-    // No `target_tag` parameter: the MCP-driven path addresses by
-    // hierarchy only; the explicit-tag rule belonged to inline
-    // `agents instances message --agent-tag …` which was removed.
     let rows = collect_matching_prompts(
         &tx,
         "p.agent_instance_hierarchy = ?1 \
@@ -1027,8 +1048,17 @@ fn read_for_message(
                  WHERE t.name = p.agent_tag \
                    AND t.agent_instance_hierarchy = ?1 \
              ) \
+         ) \
+         OR ( \
+             p.agent_tag IS NOT NULL \
+             AND EXISTS ( \
+                 SELECT 1 FROM tags t \
+                 WHERE t.name = p.agent_tag \
+                   AND t.parent_agent_instance_hierarchy = ?2 \
+                   AND t.agent_full_id = ?3 \
+             ) \
          )",
-        params![target_hierarchy],
+        params![target_hierarchy, parent_hierarchy, agent_full_id],
     )?;
     let mut out = Vec::with_capacity(rows.len());
     for row in rows {
@@ -1045,21 +1075,46 @@ fn read_for_message(
     Ok(out)
 }
 
-/// Bulk-delete prompt rows by id. Unknown ids are silently ignored
-/// (a `DELETE WHERE id = ?` with no match returns 0 rows affected
-/// without erroring). Empty `ids` short-circuits without touching
-/// the connection. `ON DELETE CASCADE` on `prompt_contents.prompt_id`
-/// sweeps the per-kind content rows.
-pub async fn clear_by_ids_async(client: Client, ids: Vec<i64>) -> Result<(), Error> {
+/// Bulk-delete prompt rows by id, scoped to the same three-rule
+/// predicate [`read_for_message_async`] uses. Ids outside the scope
+/// are silently absorbed (a `DELETE WHERE id = ?` with no match
+/// returns 0 rows affected without erroring), which protects against
+/// an API caller mis-addressing a row from a different agent's
+/// queue.
+///
+/// Unknown ids are also silently ignored. Empty `ids` short-circuits
+/// without touching the connection. `ON DELETE CASCADE` on
+/// `prompt_contents.prompt_id` sweeps the per-kind content rows.
+pub async fn clear_by_ids_async(
+    client: Client,
+    agent_instance_hierarchy: String,
+    parent_hierarchy: String,
+    agent_full_id: String,
+    ids: Vec<i64>,
+) -> Result<(), Error> {
     if ids.is_empty() {
         return Ok(());
     }
-    tokio::task::spawn_blocking(move || clear_by_ids(&client, &ids))
-        .await
-        .map_err(spawn_blocking_join_err)?
+    tokio::task::spawn_blocking(move || {
+        clear_by_ids(
+            &client,
+            &agent_instance_hierarchy,
+            &parent_hierarchy,
+            &agent_full_id,
+            &ids,
+        )
+    })
+    .await
+    .map_err(spawn_blocking_join_err)?
 }
 
-fn clear_by_ids(client: &Client, ids: &[i64]) -> Result<(), Error> {
+fn clear_by_ids(
+    client: &Client,
+    agent_instance_hierarchy: &str,
+    parent_hierarchy: &str,
+    agent_full_id: &str,
+    ids: &[i64],
+) -> Result<(), Error> {
     let conn = super::tags::connection(client)?;
     let conn = conn
         .lock()
@@ -1067,11 +1122,41 @@ fn clear_by_ids(client: &Client, ids: &[i64]) -> Result<(), Error> {
     let tx = conn.unchecked_transaction()?;
     // rusqlite doesn't bind `IN (?)` lists from a slice — loop a
     // prepared single-id DELETE inside one transaction so the whole
-    // batch is atomic.
+    // batch is atomic. The scope predicate matches
+    // `read_for_message`'s three rules so the API can't accidentally
+    // clear rows from a different agent's queue.
     {
-        let mut stmt = tx.prepare("DELETE FROM prompts WHERE id = ?1")?;
+        let mut stmt = tx.prepare(
+            "DELETE FROM prompts \
+             WHERE id = ?1 \
+               AND ( \
+                 agent_instance_hierarchy = ?2 \
+                 OR ( \
+                     agent_tag IS NOT NULL \
+                     AND EXISTS ( \
+                         SELECT 1 FROM tags t \
+                         WHERE t.name = agent_tag \
+                           AND t.agent_instance_hierarchy = ?2 \
+                     ) \
+                 ) \
+                 OR ( \
+                     agent_tag IS NOT NULL \
+                     AND EXISTS ( \
+                         SELECT 1 FROM tags t \
+                         WHERE t.name = agent_tag \
+                           AND t.parent_agent_instance_hierarchy = ?3 \
+                           AND t.agent_full_id = ?4 \
+                     ) \
+                 ) \
+               )",
+        )?;
         for id in ids {
-            stmt.execute(params![*id])?;
+            stmt.execute(params![
+                *id,
+                agent_instance_hierarchy,
+                parent_hierarchy,
+                agent_full_id,
+            ])?;
         }
     }
     tx.commit()?;

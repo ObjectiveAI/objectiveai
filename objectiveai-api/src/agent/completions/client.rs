@@ -1168,6 +1168,7 @@ where
                             };
                             match self.run_agent_loop(
                                 self.openrouter.clone(), or_agent, rc, &params, mcp_connection.clone(),
+                                ctx.reverse_attach().cloned(),
                                 &mut cont_items_or, &attempt.id, created,
                                 *byok_attempt, ctx.cost_multiplier,
                                 {
@@ -1219,6 +1220,7 @@ where
                             };
                             match self.run_agent_loop(
                                 self.claude_agent_sdk.clone(), cas_agent, rc, &params, mcp_connection.clone(),
+                                ctx.reverse_attach().cloned(),
                                 &mut cont_items_cas, &attempt.id, created,
                                 *byok_attempt, ctx.cost_multiplier,
                                 {
@@ -1270,6 +1272,7 @@ where
                             };
                             match self.run_agent_loop(
                                 self.codex_sdk.clone(), cdx_agent, rc, &params, mcp_connection.clone(),
+                                ctx.reverse_attach().cloned(),
                                 &mut cont_items_cdx, &attempt.id, created,
                                 *byok_attempt, ctx.cost_multiplier,
                                 {
@@ -1321,6 +1324,7 @@ where
                             };
                             match self.run_agent_loop(
                                 self.mock.clone(), mock_agent, rc, &params, mcp_connection.clone(),
+                                ctx.reverse_attach().cloned(),
                                 &mut cont_items_mock, &attempt.id, created,
                                 *byok_attempt, ctx.cost_multiplier,
                                 {
@@ -1404,6 +1408,7 @@ where
         request_continuation: Option<&RC>,
         params: &objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams,
         mcp_connection: Option<objectiveai_sdk::mcp::Connection>,
+        reverse_attach: Option<Arc<crate::objectiveai_mcp::registry::ReverseAttachHandle>>,
         cont_items: &mut Vec<super::ContinuationItem<U::State>>,
         id: &str,
         created: u64,
@@ -1465,19 +1470,88 @@ where
             agent_base.merged_messages(params.messages.clone())
         };
 
-        if let Some(conn) = &mcp_connection {
-            let blocks = conn.drain_notifications().await.map_err(|error| {
-                super::Error::McpDrainNotifications {
-                    url: conn.url.clone(),
-                    error,
+        // Drain the CLI's local prompt queue via the WS reverse-
+        // attach. Replaces the previous `conn.drain_notifications()`
+        // call on the MCP proxy connection: the queue lives in the
+        // CLI's `prompts.sqlite`, the API asks for its current
+        // contents via `read_message_queue`, joins every entry into a
+        // single new user turn, and saves the entry ids so a
+        // follow-up `clear_message_queue` (fired after the first OK
+        // chunk yields downstream — see the stream body below) can
+        // release them. This way the queue stays populated through a
+        // failed turn and the next attempt re-reads it.
+        // Lineage prefix for rule 3 (PENDING tags) — `rsplit_once('/')`
+        // returns `Some((parent, leaf))` for nested agents and `None`
+        // for root agents whose hierarchy has no `/`. The CLI side
+        // stores rootless tag parents as `""`, so we mirror that by
+        // sending `None` and letting `unwrap_or_default()` produce
+        // `""` at dispatch.
+        let parent_agent_instance_hierarchy: Option<String> = agent_instance_hierarchy_header
+            .rsplit_once('/')
+            .map(|(p, _)| p.to_string());
+        let mut queue_ids_to_clear: Vec<i64> = Vec::new();
+        if let Some(handle) = &reverse_attach {
+            let entries = read_message_queue_via_ws(
+                handle,
+                agent_instance_hierarchy_header,
+                parent_agent_instance_hierarchy.clone(),
+                agent_full_id,
+            )
+            .await?;
+            if !entries.is_empty() {
+                use objectiveai_sdk::agent::completions::message::{
+                    Message, RichContent, RichContentPart, UserMessage,
+                };
+                // Flatten every entry's RichContent into one
+                // RichContentPart list, separating consecutive entries
+                // with a `Text("\n\n")` part. Collapse to
+                // `RichContent::Text` if the result is a single text
+                // part (matches how the queue itself stores single-
+                // part rows).
+                let mut parts: Vec<RichContentPart> = Vec::new();
+                for (i, entry) in entries.into_iter().enumerate() {
+                    queue_ids_to_clear.push(entry.id);
+                    if i > 0 {
+                        parts.push(RichContentPart::Text {
+                            text: "\n\n".to_string(),
+                        });
+                    }
+                    match entry.content {
+                        RichContent::Text(t) => {
+                            parts.push(RichContentPart::Text { text: t });
+                        }
+                        RichContent::Parts(ps) => parts.extend(ps),
+                    }
                 }
-            })?;
-            if !blocks.is_empty() {
+                let combined = if parts.len() == 1
+                    && matches!(parts.first(), Some(RichContentPart::Text { .. }))
+                {
+                    let Some(RichContentPart::Text { text }) = parts.into_iter().next()
+                    else {
+                        unreachable!("matched single Text part above")
+                    };
+                    RichContent::Text(text)
+                } else {
+                    RichContent::Parts(parts)
+                };
+                // Insert AFTER the leading system/developer chain so
+                // the agent sees its personality prefix first, then
+                // the queued content arrives as one user turn, then
+                // any caller-supplied content follows. On resumption
+                // `messages` is empty so `insert_idx == 0` and the
+                // queued message simply leads the new turn.
+                let insert_idx = messages
+                    .iter()
+                    .position(|m| {
+                        !matches!(m, Message::System(_) | Message::Developer(_))
+                    })
+                    .unwrap_or(messages.len());
                 messages.insert(
-                    0,
-                    objectiveai_sdk::agent::completions::message::Message::User(
-                        build_drain_user_message(blocks),
-                    ),
+                    insert_idx,
+                    Message::User(UserMessage {
+                        content: combined,
+                        name: None,
+                    }),
                 );
             }
         }
@@ -1579,6 +1653,28 @@ where
             let mut final_error: Option<objectiveai_sdk::error::ResponseError> = None;
             let mut stream: Pin<Box<dyn futures::Stream<Item = super::StreamItem<U::State>> + Send>> =
                 Box::pin(initial_stream);
+            // Fire-and-forget `clear_message_queue` once the first OK
+            // chunk yields downstream — the queued content has now
+            // reached the consumer, so the CLI side can safely
+            // release the rows. Failures here are silently absorbed:
+            // a stale queue row gets re-read (and re-cleared) on the
+            // next turn, which is the same recovery the read path
+            // already tolerates.
+            let mut queue_clear_pending = !queue_ids_to_clear.is_empty();
+            let mut maybe_fire_clear = |chunk_is_ok: bool| {
+                if !queue_clear_pending || !chunk_is_ok {
+                    return;
+                }
+                queue_clear_pending = false;
+                let Some(handle) = reverse_attach.clone() else { return; };
+                let ids = std::mem::take(&mut queue_ids_to_clear);
+                let hierarchy = agent_instance_hierarchy_header.clone();
+                let parent = parent_agent_instance_hierarchy.clone();
+                let full_id = agent_full_id.clone();
+                tokio::spawn(clear_message_queue_via_ws(
+                    handle, hierarchy, parent, full_id, ids,
+                ));
+            };
             loop {
                 let mut current_state: Option<U::State> = None;
                 let mut had_error = false;
@@ -1620,7 +1716,9 @@ where
                             // Yield the previous pending chunk (without usage),
                             // buffer the current one.
                             if let Some(prev) = pending_chunk.replace(chunk) {
+                                let was_ok = prev.error.is_none();
                                 yield super::StreamItem::Chunk(prev);
+                                maybe_fire_clear(was_ok);
                             }
                         }
                         Ok(Some(super::StreamItem::State(state))) => {
@@ -1637,7 +1735,9 @@ where
 
                 // Yield the last buffered chunk.
                 if let Some(last) = pending_chunk.take() {
+                    let was_ok = last.error.is_none();
                     yield super::StreamItem::Chunk(last);
+                    maybe_fire_clear(was_ok);
                 }
 
                 // Push the upstream state (carries SDK session_id) onto the
@@ -1981,6 +2081,116 @@ fn build_drain_user_message(
         content: blocks.into(),
         name: None,
     }
+}
+
+/// Time budget for one `read_message_queue` / `clear_message_queue`
+/// round-trip over the WS reverse-attach. Matches
+/// [`crate::objectiveai_mcp::handlers::FORWARD_TIMEOUT`]'s shape: long
+/// enough that a healthy CLI always answers in time, short enough
+/// that a wedged WS doesn't stall the agent loop indefinitely.
+const MESSAGE_QUEUE_WS_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
+/// Issue a `ReadMessageQueue` server-request over the WS reverse-
+/// attach and return the typed `ReadMessageQueueEntry` list.
+///
+/// The CLI side dispatches this directly against `prompts.sqlite` —
+/// no upstream MCP session involved — so the envelope carries no
+/// `mcp_kind` and the headers map is empty. Failures (channel
+/// closed, dropped, timed out, or CLI-side JSON-RPC error) collapse
+/// to [`super::Error::MessageQueueRead`].
+async fn read_message_queue_via_ws(
+    handle: &std::sync::Arc<crate::objectiveai_mcp::registry::ReverseAttachHandle>,
+    agent_instance_hierarchy: &str,
+    parent_agent_instance_hierarchy: Option<String>,
+    agent_full_id: &str,
+) -> Result<Vec<objectiveai_sdk::client_objectiveai_mcp::server_response::ReadMessageQueueEntry>, super::Error> {
+    use objectiveai_sdk::client_objectiveai_mcp::{server_request, server_response};
+    let rc = handle.channel();
+    let request = server_request::Request {
+        id: uuid::Uuid::new_v4().to_string(),
+        headers: indexmap::IndexMap::new(),
+        payload: server_request::Payload::ReadMessageQueue(
+            server_request::ReadMessageQueueRequest {
+                agent_instance_hierarchy: agent_instance_hierarchy.to_string(),
+                parent_agent_instance_hierarchy,
+                agent_full_id: agent_full_id.to_string(),
+            },
+        ),
+    };
+    let rx = crate::objectiveai_mcp::send::send_server_request(&rc.sink, &rc.pending, request)
+        .await
+        .map_err(|()| super::Error::MessageQueueRead("reverse channel closed".to_string()))?;
+    let response = match tokio::time::timeout(MESSAGE_QUEUE_WS_TIMEOUT, rx).await {
+        Ok(Ok(response)) => response,
+        Ok(Err(_)) => {
+            return Err(super::Error::MessageQueueRead(
+                "reverse channel dropped before reply".to_string(),
+            ));
+        }
+        Err(_) => {
+            return Err(super::Error::MessageQueueRead(
+                "reverse channel timed out".to_string(),
+            ));
+        }
+    };
+    match response.payload {
+        server_response::Payload::ReadMessageQueue(server_response::JsonRpcResult::Ok {
+            result,
+        }) => Ok(result.entries),
+        server_response::Payload::ReadMessageQueue(server_response::JsonRpcResult::Err {
+            code,
+            message,
+            ..
+        }) => Err(super::Error::MessageQueueRead(format!(
+            "CLI returned JSON-RPC error {code}: {message}"
+        ))),
+        other => Err(super::Error::MessageQueueRead(format!(
+            "CLI returned wrong variant: {other:?}"
+        ))),
+    }
+}
+
+/// Fire `ClearMessageQueue` over the WS reverse-attach. Returns
+/// nothing — the typical caller spawns this off the chunk-yield hot
+/// path and lets it complete in the background. The CLI side scopes
+/// the DELETE to the same three-rule predicate the read uses, so a
+/// stale or wrongly-addressed id list is silently absorbed (see
+/// `ClearMessageQueueRequest`'s doc).
+async fn clear_message_queue_via_ws(
+    handle: std::sync::Arc<crate::objectiveai_mcp::registry::ReverseAttachHandle>,
+    agent_instance_hierarchy: String,
+    parent_agent_instance_hierarchy: Option<String>,
+    agent_full_id: String,
+    ids: Vec<i64>,
+) {
+    use objectiveai_sdk::client_objectiveai_mcp::server_request;
+    if ids.is_empty() {
+        return;
+    }
+    let rc = handle.channel();
+    let request = server_request::Request {
+        id: uuid::Uuid::new_v4().to_string(),
+        headers: indexmap::IndexMap::new(),
+        payload: server_request::Payload::ClearMessageQueue(
+            server_request::ClearMessageQueueRequest {
+                agent_instance_hierarchy,
+                parent_agent_instance_hierarchy,
+                agent_full_id,
+                ids,
+            },
+        ),
+    };
+    let rx = match crate::objectiveai_mcp::send::send_server_request(
+        &rc.sink, &rc.pending, request,
+    )
+    .await
+    {
+        Ok(rx) => rx,
+        Err(()) => return,
+    };
+    // Best-effort: ignore the response. Timeout matches the read
+    // path so a wedged WS doesn't leak this background task forever.
+    let _ = tokio::time::timeout(MESSAGE_QUEUE_WS_TIMEOUT, rx).await;
 }
 
 /// Builds an `AgentCompletionChunk` containing a single tool-response message.

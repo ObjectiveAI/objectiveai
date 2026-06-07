@@ -138,34 +138,33 @@ impl ConduitMcpHandler {
 impl McpHandler for ConduitMcpHandler {
     async fn handle(&self, request: server_request::Request) -> server_response::Response {
         let id = request.id.clone();
-        let mcp_kind = request.mcp_kind.clone();
 
         let payload = match request.payload {
-            server_request::Payload::Initialize(init) => {
-                dispatch_initialize(&self.inner, mcp_kind.clone(), init, &request.headers).await
+            server_request::Payload::Initialize { mcp_kind, params } => {
+                dispatch_initialize(&self.inner, mcp_kind, params, &request.headers).await
             }
-            server_request::Payload::SessionTerminate => {
-                dispatch_session_terminate(&self.inner, &request.headers).await
+            server_request::Payload::SessionTerminate { mcp_kind } => {
+                dispatch_session_terminate(&self.inner, mcp_kind, &request.headers).await
             }
-            server_request::Payload::ToolsList(params) => {
+            server_request::Payload::ToolsList { mcp_kind, params } => {
                 match resolve_connection(self, &mcp_kind, &request.headers).await {
                     Ok(state) => dispatch_tools_list(&state, &request.headers, params).await,
                     Err(payload) => payload,
                 }
             }
-            server_request::Payload::ToolsCall(params) => {
+            server_request::Payload::ToolsCall { mcp_kind, params } => {
                 match resolve_connection(self, &mcp_kind, &request.headers).await {
                     Ok(state) => dispatch_tools_call(&state, &request.headers, params).await,
                     Err(payload) => payload,
                 }
             }
-            server_request::Payload::ResourcesList(params) => {
+            server_request::Payload::ResourcesList { mcp_kind, params } => {
                 match resolve_connection(self, &mcp_kind, &request.headers).await {
                     Ok(state) => dispatch_resources_list(&state, &request.headers, params).await,
                     Err(payload) => payload,
                 }
             }
-            server_request::Payload::ResourcesRead(params) => {
+            server_request::Payload::ResourcesRead { mcp_kind, params } => {
                 match resolve_connection(self, &mcp_kind, &request.headers).await {
                     Ok(state) => dispatch_resources_read(&state, &request.headers, params).await,
                     Err(payload) => payload,
@@ -179,11 +178,7 @@ impl McpHandler for ConduitMcpHandler {
             }
         };
 
-        server_response::Response {
-            id,
-            mcp_kind,
-            payload,
-        }
+        server_response::Response { id, payload }
     }
 }
 
@@ -276,17 +271,19 @@ async fn objectiveai_mcp_url(inner: &Arc<Inner>) -> Result<String, String> {
 /// already knows which method failed so we discriminate by the
 /// payload that would've been produced on success.
 fn error_for(mcp_kind: &McpKind, code: i64, message: String) -> server_response::Payload {
-    let _ = mcp_kind;
     // Used only from `resolve_connection`'s non-Initialize / non-
     // SessionTerminate paths. The API's `variant_mismatch` check
     // logs a mismatch but still surfaces code/message/data, so any
     // `JsonRpcResult::Err` variant works — picking `ToolsList`
     // arbitrarily.
-    server_response::Payload::ToolsList(JsonRpcResult::Err {
-        code,
-        message,
-        data: None,
-    })
+    server_response::Payload::ToolsList {
+        mcp_kind: mcp_kind.clone(),
+        result: JsonRpcResult::Err {
+            code,
+            message,
+            data: None,
+        },
+    }
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -303,14 +300,18 @@ async fn dispatch_initialize(
     init: server_request::InitializeRequest,
     headers: &IndexMap<String, String>,
 ) -> server_response::Payload {
+    let initialize_err = |code: i64, message: String| server_response::Payload::Initialize {
+        mcp_kind: mcp_kind.clone(),
+        result: JsonRpcResult::Err {
+            code,
+            message,
+            data: None,
+        },
+    };
     let transient = match require_transient(headers) {
         Ok(t) => t,
         Err(message) => {
-            return server_response::Payload::Initialize(JsonRpcResult::Err {
-                code: -32600,
-                message: format!("conduit: {message}"),
-                data: None,
-            });
+            return initialize_err(-32600, format!("conduit: {message}"));
         }
     };
     let stored_session_id = mcp_session_id_from_headers(headers);
@@ -320,11 +321,7 @@ async fn dispatch_initialize(
             let mcp_url = match objectiveai_mcp_url(inner).await {
                 Ok(u) => u,
                 Err(message) => {
-                    return server_response::Payload::Initialize(JsonRpcResult::Err {
-                        code: -32603,
-                        message,
-                        data: None,
-                    });
+                    return initialize_err(-32603, message);
                 }
             };
             let connect_headers = sanitize_connect_headers(headers);
@@ -353,11 +350,7 @@ async fn dispatch_initialize(
     let connection = match dial {
         Ok(c) => c,
         Err(message) => {
-            return server_response::Payload::Initialize(JsonRpcResult::Err {
-                code: -32603,
-                message: format!("conduit: {message}"),
-                data: None,
-            });
+            return initialize_err(-32603, format!("conduit: {message}"));
         }
     };
 
@@ -370,17 +363,20 @@ async fn dispatch_initialize(
         mcp_session_id.clone(),
         Arc::new(ConduitState {
             connection,
-            mcp_kind,
+            mcp_kind: mcp_kind.clone(),
             agent_instance_hierarchy: transient.agent_instance_hierarchy,
         }),
     );
 
-    server_response::Payload::Initialize(JsonRpcResult::Ok {
-        result: InitializeReply {
-            mcp_session_id,
-            result,
+    server_response::Payload::Initialize {
+        mcp_kind,
+        result: JsonRpcResult::Ok {
+            result: InitializeReply {
+                mcp_session_id,
+                result,
+            },
         },
-    })
+    }
 }
 
 /// `SessionTerminate`: forward an explicit HTTP DELETE to the
@@ -392,13 +388,16 @@ async fn dispatch_initialize(
 /// should know about.
 async fn dispatch_session_terminate(
     inner: &Arc<Inner>,
+    mcp_kind: McpKind,
     headers: &IndexMap<String, String>,
 ) -> server_response::Payload {
+    let ok = || server_response::Payload::SessionTerminate {
+        mcp_kind: mcp_kind.clone(),
+        result: JsonRpcResult::Ok { result: () },
+    };
     let Some(session_id) = mcp_session_id_from_headers(headers) else {
         // Nothing to terminate.
-        return server_response::Payload::SessionTerminate(
-            JsonRpcResult::Ok { result: () },
-        );
+        return ok();
     };
     let Some(state) = inner
         .connections
@@ -407,24 +406,21 @@ async fn dispatch_session_terminate(
     else {
         // Not in cache. Idempotent success — the proxy may have
         // already torn down its half.
-        return server_response::Payload::SessionTerminate(
-            JsonRpcResult::Ok { result: () },
-        );
+        return ok();
     };
     match state.connection.delete().await {
         Ok(()) => {
             inner.connections.remove(&session_id);
-            server_response::Payload::SessionTerminate(
-                JsonRpcResult::Ok { result: () },
-            )
+            ok()
         }
-        Err(e) => server_response::Payload::SessionTerminate(
-            JsonRpcResult::Err {
+        Err(e) => server_response::Payload::SessionTerminate {
+            mcp_kind,
+            result: JsonRpcResult::Err {
                 code: -32603,
                 message: format!("conduit: upstream delete: {e}"),
                 data: None,
             },
-        ),
+        },
     }
 }
 
@@ -440,7 +436,10 @@ async fn dispatch_tools_list(
         &params,
     )
     .await;
-    server_response::Payload::ToolsList(into_rpc_result(result))
+    server_response::Payload::ToolsList {
+        mcp_kind: state.mcp_kind.clone(),
+        result: into_rpc_result(result),
+    }
 }
 
 async fn dispatch_tools_call(
@@ -455,7 +454,10 @@ async fn dispatch_tools_call(
         &params,
     )
     .await;
-    server_response::Payload::ToolsCall(into_rpc_result(result))
+    server_response::Payload::ToolsCall {
+        mcp_kind: state.mcp_kind.clone(),
+        result: into_rpc_result(result),
+    }
 }
 
 async fn dispatch_resources_list(
@@ -470,7 +472,10 @@ async fn dispatch_resources_list(
         &params,
     )
     .await;
-    server_response::Payload::ResourcesList(into_rpc_result(result))
+    server_response::Payload::ResourcesList {
+        mcp_kind: state.mcp_kind.clone(),
+        result: into_rpc_result(result),
+    }
 }
 
 async fn dispatch_resources_read(
@@ -485,7 +490,10 @@ async fn dispatch_resources_read(
         &params,
     )
     .await;
-    server_response::Payload::ResourcesRead(into_rpc_result(result))
+    server_response::Payload::ResourcesRead {
+        mcp_kind: state.mcp_kind.clone(),
+        result: into_rpc_result(result),
+    }
 }
 
 /// Non-destructive read of the local `prompts.sqlite` queue. Hits the
@@ -499,6 +507,8 @@ async fn dispatch_read_message_queue(
     match crate::filesystem::db::prompts::read_for_message_async(
         inner.ctx.filesystem.clone(),
         req.agent_instance_hierarchy,
+        req.parent_agent_instance_hierarchy.unwrap_or_default(),
+        req.agent_full_id,
     )
     .await
     {
@@ -528,6 +538,9 @@ async fn dispatch_clear_message_queue(
 ) -> server_response::Payload {
     match crate::filesystem::db::prompts::clear_by_ids_async(
         inner.ctx.filesystem.clone(),
+        req.agent_instance_hierarchy,
+        req.parent_agent_instance_hierarchy.unwrap_or_default(),
+        req.agent_full_id,
         req.ids,
     )
     .await

@@ -32,8 +32,6 @@ pub struct Request {
     /// Server-minted correlation id. Echoed by the matching
     /// [`super::super::server_response::Response`].
     pub id: String,
-    /// Which CLI-hosted MCP server this request targets.
-    pub mcp_kind: super::super::McpKind,
     /// Verbatim copy of the headers the proxy sent on its HTTP
     /// request to the API. The CLI conduit reads several custom
     /// `X-OBJECTIVEAI-*` routing headers + `Mcp-Session-Id` off this
@@ -42,7 +40,21 @@ pub struct Request {
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     #[schemars(extend("omitempty" = true))]
     pub headers: IndexMap<String, String>,
-    /// The typed request variant.
+    /// The typed request variant. The MCP-routed variants carry
+    /// `mcp_kind` inside the variant itself (see [`super::Payload`]);
+    /// non-MCP variants don't.
     #[serde(flatten)]
     pub payload: super::Payload,
+}
+
+impl Request {
+    /// Which CLI-hosted MCP server this request targets. `Some` for
+    /// the MCP-routed variants (`Initialize` / `ToolsList` /
+    /// `ToolsCall` / `ResourcesList` / `ResourcesRead` /
+    /// `SessionTerminate`); `None` for non-MCP variants
+    /// (`ReadMessageQueue` / `ClearMessageQueue`) which hit the CLI's
+    /// own local state. Delegates to [`super::Payload::mcp_kind`].
+    pub fn mcp_kind(&self) -> Option<super::super::McpKind> {
+        self.payload.mcp_kind()
+    }
 }

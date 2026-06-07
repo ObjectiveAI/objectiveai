@@ -26,10 +26,18 @@ pub struct Response {
     /// Matches the `id` of the
     /// [`super::super::server_request::Request`] this response is for.
     pub id: String,
-    /// Echoes the request envelope's `mcp_kind` so the API can
-    /// confirm the CLI dispatched to the right per-MCP handler.
-    pub mcp_kind: super::super::McpKind,
-    /// The typed response variant.
+    /// The typed response variant. The MCP-routed variants echo
+    /// `mcp_kind` inside the variant itself (see [`super::Payload`]);
+    /// non-MCP variants don't.
     #[serde(flatten)]
     pub payload: super::Payload,
+}
+
+impl Response {
+    /// Which CLI-hosted MCP server this response came from. `Some` for
+    /// the MCP-routed variants; `None` for non-MCP variants. Delegates
+    /// to [`super::Payload::mcp_kind`].
+    pub fn mcp_kind(&self) -> Option<super::super::McpKind> {
+        self.payload.mcp_kind()
+    }
 }
