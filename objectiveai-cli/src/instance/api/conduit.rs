@@ -171,6 +171,12 @@ impl McpHandler for ConduitMcpHandler {
                     Err(payload) => payload,
                 }
             }
+            server_request::Payload::ReadMessageQueue(req) => {
+                dispatch_read_message_queue(&self.inner, req).await
+            }
+            server_request::Payload::ClearMessageQueue(req) => {
+                dispatch_clear_message_queue(&self.inner, req).await
+            }
         };
 
         server_response::Response {
@@ -480,6 +486,59 @@ async fn dispatch_resources_read(
     )
     .await;
     server_response::Payload::ResourcesRead(into_rpc_result(result))
+}
+
+/// Non-destructive read of the local `prompts.sqlite` queue. Hits the
+/// CLI's own filesystem — no upstream MCP session involved, no
+/// headers consulted. Pair with [`dispatch_clear_message_queue`] to
+/// release rows once consumed.
+async fn dispatch_read_message_queue(
+    inner: &Arc<Inner>,
+    req: server_request::ReadMessageQueueRequest,
+) -> server_response::Payload {
+    match crate::filesystem::db::prompts::read_for_message_async(
+        inner.ctx.filesystem.clone(),
+        req.agent_instance_hierarchy,
+    )
+    .await
+    {
+        Ok(rows) => {
+            let entries = rows
+                .into_iter()
+                .map(|(id, content)| server_response::ReadMessageQueueEntry { id, content })
+                .collect();
+            server_response::Payload::ReadMessageQueue(JsonRpcResult::Ok {
+                result: server_response::ReadMessageQueueResult { entries },
+            })
+        }
+        Err(e) => server_response::Payload::ReadMessageQueue(JsonRpcResult::Err {
+            code: -32603,
+            message: format!("conduit: read_message_queue: {e}"),
+            data: None,
+        }),
+    }
+}
+
+/// Bulk-delete prompt rows by id from `prompts.sqlite`. Empty `ids`
+/// is a no-op; unknown ids are silently absorbed (`DELETE WHERE id =
+/// ?` with no match returns 0 rows affected without erroring).
+async fn dispatch_clear_message_queue(
+    inner: &Arc<Inner>,
+    req: server_request::ClearMessageQueueRequest,
+) -> server_response::Payload {
+    match crate::filesystem::db::prompts::clear_by_ids_async(
+        inner.ctx.filesystem.clone(),
+        req.ids,
+    )
+    .await
+    {
+        Ok(()) => server_response::Payload::ClearMessageQueue(JsonRpcResult::Ok { result: () }),
+        Err(e) => server_response::Payload::ClearMessageQueue(JsonRpcResult::Err {
+            code: -32603,
+            message: format!("conduit: clear_message_queue: {e}"),
+            data: None,
+        }),
+    }
 }
 
 fn into_rpc_result<R>(

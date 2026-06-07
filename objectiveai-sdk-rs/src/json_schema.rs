@@ -2778,15 +2778,23 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "mcp")]
         schemars::schema_for!(crate::client_objectiveai_mcp::client_response::Response),
         #[cfg(feature = "mcp")]
+        schemars::schema_for!(crate::client_objectiveai_mcp::server_request::ClearMessageQueueRequest),
+        #[cfg(feature = "mcp")]
         schemars::schema_for!(crate::client_objectiveai_mcp::server_request::InitializeRequest),
         #[cfg(feature = "mcp")]
         schemars::schema_for!(crate::client_objectiveai_mcp::server_request::Payload),
+        #[cfg(feature = "mcp")]
+        schemars::schema_for!(crate::client_objectiveai_mcp::server_request::ReadMessageQueueRequest),
         #[cfg(feature = "mcp")]
         schemars::schema_for!(crate::client_objectiveai_mcp::server_request::Request),
         #[cfg(feature = "mcp")]
         schemars::schema_for!(crate::client_objectiveai_mcp::server_response::InitializeReply),
         #[cfg(feature = "mcp")]
         schemars::schema_for!(crate::client_objectiveai_mcp::server_response::Payload),
+        #[cfg(feature = "mcp")]
+        schemars::schema_for!(crate::client_objectiveai_mcp::server_response::ReadMessageQueueEntry),
+        #[cfg(feature = "mcp")]
+        schemars::schema_for!(crate::client_objectiveai_mcp::server_response::ReadMessageQueueResult),
         #[cfg(feature = "mcp")]
         schemars::schema_for!(crate::client_objectiveai_mcp::server_response::Response),
         schemars::schema_for!(crate::error::request::ErrorCreateParams),
@@ -3216,11 +3224,21 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
             #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::client_objectiveai_mcp::server_request::InitializeRequest),
             #[cfg(feature = "mcp")]
+            schemars::schema_for!(crate::client_objectiveai_mcp::server_request::ReadMessageQueueRequest),
+            #[cfg(feature = "mcp")]
+            schemars::schema_for!(crate::client_objectiveai_mcp::server_request::ClearMessageQueueRequest),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::client_objectiveai_mcp::server_response::Response),
             #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::client_objectiveai_mcp::server_response::InitializeReply),
             #[cfg(feature = "mcp")]
+            schemars::schema_for!(crate::client_objectiveai_mcp::server_response::ReadMessageQueueResult),
+            #[cfg(feature = "mcp")]
+            schemars::schema_for!(crate::client_objectiveai_mcp::server_response::ReadMessageQueueEntry),
+            #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::client_objectiveai_mcp::server_response::JsonRpcResult<crate::client_objectiveai_mcp::server_response::InitializeReply>),
+            #[cfg(feature = "mcp")]
+            schemars::schema_for!(crate::client_objectiveai_mcp::server_response::JsonRpcResult<crate::client_objectiveai_mcp::server_response::ReadMessageQueueResult>),
             #[cfg(feature = "mcp")]
             schemars::schema_for!(crate::client_objectiveai_mcp::server_response::JsonRpcResult<crate::mcp::tool::ListToolsResult>),
             #[cfg(feature = "mcp")]

@@ -82,6 +82,16 @@ impl McpHandler for RejectHandler {
                 message: MESSAGE.into(),
                 data: None,
             }),
+            server_request::Payload::ReadMessageQueue(_) => Payload::ReadMessageQueue(JsonRpcResult::Err {
+                code: CODE,
+                message: MESSAGE.into(),
+                data: None,
+            }),
+            server_request::Payload::ClearMessageQueue(_) => Payload::ClearMessageQueue(JsonRpcResult::Err {
+                code: CODE,
+                message: MESSAGE.into(),
+                data: None,
+            }),
         };
         server_response::Response {
             id: request.id,

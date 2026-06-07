@@ -45,6 +45,49 @@ pub enum Payload {
     /// non-2xx and can retry.
     #[schemars(title = "SessionTerminate")]
     SessionTerminate(JsonRpcResult<()>),
+
+    /// Reply to
+    /// [`super::super::server_request::Payload::ReadMessageQueue`].
+    /// On success carries every matching queue row's id + body in
+    /// oldest-first order; on failure surfaces the local storage
+    /// error so the API can decide whether to retry.
+    #[schemars(title = "ReadMessageQueue")]
+    ReadMessageQueue(JsonRpcResult<ReadMessageQueueResult>),
+
+    /// Acknowledges
+    /// [`super::super::server_request::Payload::ClearMessageQueue`].
+    /// Unit on success; storage error on failure. No row-count is
+    /// returned — unknown ids are silently absorbed.
+    #[schemars(title = "ClearMessageQueue")]
+    ClearMessageQueue(JsonRpcResult<()>),
+}
+
+/// Successful payload for
+/// [`Payload::ReadMessageQueue`].
+///
+/// Entries are oldest-first (`prompts.id ASC`) — same ordering the
+/// in-process drain emits. Feed each `id` back into
+/// [`super::super::server_request::ClearMessageQueueRequest::ids`]
+/// once the content has been consumed.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.server_response.ReadMessageQueueResult")]
+pub struct ReadMessageQueueResult {
+    pub entries: Vec<ReadMessageQueueEntry>,
+}
+
+/// One row in a [`ReadMessageQueueResult`].
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.server_response.ReadMessageQueueEntry")]
+pub struct ReadMessageQueueEntry {
+    /// `prompts.id` — opaque integer the caller feeds back into
+    /// [`super::super::server_request::ClearMessageQueueRequest`] to
+    /// drop the row.
+    pub id: i64,
+    /// Reconstructed body. Single-text-part rows collapse to
+    /// [`crate::agent::completions::message::RichContent::Text`];
+    /// multi-part rows stay as
+    /// [`crate::agent::completions::message::RichContent::Parts`].
+    pub content: crate::agent::completions::message::RichContent,
 }
 
 /// The successful `Initialize` payload — the upstream's verbatim

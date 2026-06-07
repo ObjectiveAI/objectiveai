@@ -44,6 +44,42 @@ pub enum Payload {
     /// session. No body.
     #[schemars(title = "SessionTerminate")]
     SessionTerminate,
+
+    /// Read the CLI's local message queue (`prompts.sqlite`) for a
+    /// given agent hierarchy. Non-destructive — paired with
+    /// [`Payload::ClearMessageQueue`] to release rows after the
+    /// caller has consumed them.
+    #[schemars(title = "ReadMessageQueue")]
+    ReadMessageQueue(ReadMessageQueueRequest),
+
+    /// Delete a set of message-queue rows by id. Unknown ids are
+    /// silently ignored.
+    #[schemars(title = "ClearMessageQueue")]
+    ClearMessageQueue(ClearMessageQueueRequest),
+}
+
+/// Parameters for [`Payload::ReadMessageQueue`].
+///
+/// Matches queue rows the same way `agents instances message`'s
+/// in-process drain does — direct hits on `agent_instance_hierarchy`
+/// plus rows tagged with any tag BOUND to the given hierarchy — but
+/// without deleting them. Pair with [`ClearMessageQueueRequest`]
+/// after processing to release the rows.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.server_request.ReadMessageQueueRequest")]
+pub struct ReadMessageQueueRequest {
+    pub agent_instance_hierarchy: String,
+}
+
+/// Parameters for [`Payload::ClearMessageQueue`].
+///
+/// `ON DELETE CASCADE` on `prompt_contents.prompt_id` sweeps the
+/// per-kind content rows. Empty `ids` is a no-op. Unknown ids are
+/// silently ignored — the API may have raced another reader.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.server_request.ClearMessageQueueRequest")]
+pub struct ClearMessageQueueRequest {
+    pub ids: Vec<i64>,
 }
 
 /// Parameters for [`Payload::Initialize`].
