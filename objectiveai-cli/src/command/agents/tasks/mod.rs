@@ -26,8 +26,8 @@ pub(crate) async fn resolve_scope(
     match (agent_instance_hierarchy, tag) {
         (Some(h), None) => Ok(h),
         (None, Some(tag)) => {
-            use crate::filesystem::db::tags;
-            match tags::lookup_async(ctx.filesystem.clone(), tag.clone()).await? {
+            use crate::db::tags;
+            match tags::lookup(&ctx.db, &tag).await? {
                 tags::LookupState::Bound { agent_instance_hierarchy } => {
                     Ok(agent_instance_hierarchy)
                 }

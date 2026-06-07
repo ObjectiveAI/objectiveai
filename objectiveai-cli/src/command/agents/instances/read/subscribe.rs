@@ -29,10 +29,11 @@ type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     let kind_filter = request.kind;
     let fs = ctx.filesystem.clone();
+    let db = ctx.db.clone();
     // Resolve the target to `(parent, spawned, sub_id)`. Direct mode
     // mirrors the `agents message` parent-fallback pattern; tag mode
-    // looks the tag up in `tags.sqlite` and errors out on PENDING /
-    // ABSENT with structured diagnostics.
+    // looks the tag up via the postgres-backed `tags` tier and errors
+    // out on PENDING / ABSENT with structured diagnostics.
     let (parent, spawned, sub_id) = match request.target {
         SubscribeTarget::Direct {
             parent_agent_instance_hierarchy,
@@ -43,14 +44,14 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             let spawned = format!("{parent}/{agent_instance}");
             (parent, spawned, agent_instance)
         }
-        SubscribeTarget::Tag { agent_tag } => resolve_tag(&fs, agent_tag).await?,
+        SubscribeTarget::Tag { agent_tag } => resolve_tag(&db, agent_tag).await?,
     };
     let pipes_dir = fs.pipes_dir();
 
     let (tx, rx) = mpsc::channel::<Result<ResponseItem, Error>>(16);
     tokio::spawn(async move {
         let result =
-            subscribe_recursive(fs, pipes_dir, parent, spawned, sub_id, kind_filter, &tx).await;
+            subscribe_recursive(fs, db, pipes_dir, parent, spawned, sub_id, kind_filter, &tx).await;
         if let Err(e) = result {
             let _ = tx.send(Err(e)).await;
         }
@@ -60,15 +61,15 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
 
 /// Resolve a `--agent-tag` to the `(parent, spawned, leaf)` triple
 /// the rest of the handler expects. BOUND tags split into parent +
-/// leaf via [`crate::filesystem::db::tags::parent_of`] /
-/// [`leaf_of`]; PENDING and ABSENT both raise structured errors so
-/// the caller sees why the lookup failed.
+/// leaf via [`crate::db::tags::parent_of`] / [`leaf_of`]; PENDING and
+/// ABSENT both raise structured errors so the caller sees why the
+/// lookup failed.
 async fn resolve_tag(
-    fs: &crate::filesystem::Client,
+    db: &crate::db::Pool,
     agent_tag: String,
 ) -> Result<(String, String, String), Error> {
-    use crate::filesystem::db::tags;
-    match tags::lookup_async(fs.clone(), agent_tag.clone()).await? {
+    use crate::db::tags;
+    match tags::lookup(db, &agent_tag).await? {
         tags::LookupState::Bound { agent_instance_hierarchy } => {
             let parent = tags::parent_of(&agent_instance_hierarchy).to_string();
             let leaf = tags::leaf_of(&agent_instance_hierarchy).to_string();
@@ -88,6 +89,7 @@ async fn resolve_tag(
 
 fn subscribe_recursive(
     fs: crate::filesystem::Client,
+    db: crate::db::Pool,
     pipes_dir: PathBuf,
     caller: String,
     spawned: String,
@@ -99,7 +101,7 @@ fn subscribe_recursive(
         // INVARIANT 1: open the listener BEFORE the first DB query.
         let listener = try_connect_events(&pipes_dir, &spawned).await;
 
-        let items = fs.read_new_from_queue(&caller, &spawned).await?;
+        let items = fs.read_new_from_queue(&db, &caller, &spawned).await?;
         let mut matched = matches_filter(&items, kind_filter);
         if !items.is_empty() {
             send_items(tx, &sub_id, items).await?;
@@ -115,6 +117,7 @@ fn subscribe_recursive(
                 if (try_connect_events(&pipes_dir, &spawned).await).is_some() {
                     return subscribe_recursive(
                         fs,
+                        db,
                         pipes_dir,
                         caller,
                         spawned,
@@ -133,7 +136,7 @@ fn subscribe_recursive(
             let event = match listener.next_event().await {
                 Some(ev) => ev,
                 None => {
-                    let items = fs.read_new_from_queue(&caller, &spawned).await?;
+                    let items = fs.read_new_from_queue(&db, &caller, &spawned).await?;
                     if !items.is_empty() {
                         send_items(tx, &sub_id, items).await?;
                     }
@@ -142,7 +145,7 @@ fn subscribe_recursive(
             };
             match event {
                 SubscribeEvent::Row { message_kind: _ } => {
-                    let items = fs.read_new_from_queue(&caller, &spawned).await?;
+                    let items = fs.read_new_from_queue(&db, &caller, &spawned).await?;
                     if matches_filter(&items, kind_filter) {
                         matched = true;
                     }
@@ -154,7 +157,7 @@ fn subscribe_recursive(
                     }
                 }
                 SubscribeEvent::StreamEnd => {
-                    let items = fs.read_new_from_queue(&caller, &spawned).await?;
+                    let items = fs.read_new_from_queue(&db, &caller, &spawned).await?;
                     if !items.is_empty() {
                         send_items(tx, &sub_id, items).await?;
                     }

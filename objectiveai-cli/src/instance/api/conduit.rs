@@ -504,11 +504,11 @@ async fn dispatch_read_message_queue(
     inner: &Arc<Inner>,
     req: server_request::ReadMessageQueueRequest,
 ) -> server_response::Payload {
-    match crate::filesystem::db::prompts::read_for_message_async(
-        inner.ctx.filesystem.clone(),
-        req.agent_instance_hierarchy,
-        req.parent_agent_instance_hierarchy.unwrap_or_default(),
-        req.agent_full_id,
+    match crate::db::prompts::read_for_message(
+        &inner.ctx.db,
+        &req.agent_instance_hierarchy,
+        &req.parent_agent_instance_hierarchy.unwrap_or_default(),
+        &req.agent_full_id,
     )
     .await
     {
@@ -536,11 +536,11 @@ async fn dispatch_clear_message_queue(
     inner: &Arc<Inner>,
     req: server_request::ClearMessageQueueRequest,
 ) -> server_response::Payload {
-    match crate::filesystem::db::prompts::clear_by_ids_async(
-        inner.ctx.filesystem.clone(),
-        req.agent_instance_hierarchy,
-        req.parent_agent_instance_hierarchy.unwrap_or_default(),
-        req.agent_full_id,
+    match crate::db::prompts::clear_by_ids(
+        &inner.ctx.db,
+        &req.agent_instance_hierarchy,
+        &req.parent_agent_instance_hierarchy.unwrap_or_default(),
+        &req.agent_full_id,
         req.ids,
     )
     .await

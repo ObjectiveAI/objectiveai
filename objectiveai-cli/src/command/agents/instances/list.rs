@@ -16,11 +16,12 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         .clone()
         .unwrap_or_else(|| ctx.config.agent_instance_hierarchy.clone());
     let fs = ctx.filesystem.clone();
+    let db = ctx.db.clone();
     let stream = async_stream::stream! {
-        let actives = match fs.list_active(&parent).await {
+        let actives = match fs.list_active(&db, &parent).await {
             Ok(v) => v,
             Err(e) => {
-                yield Err(Error::from(e));
+                yield Err(e);
                 return;
             }
         };

@@ -6,8 +6,8 @@
 use objectiveai_sdk::cli::command::agents::message_queue::add::{Request, Response, Target};
 
 use crate::context::Context;
+use crate::db;
 use crate::error::Error;
-use crate::filesystem::db;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
     // Resolve the message up-front via `agents message`'s existing
@@ -31,7 +31,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                 .as_deref()
                 .unwrap_or(&ctx.config.agent_instance_hierarchy);
             let full_id = format!("{parent}/{agent_instance}");
-            if !ctx.filesystem.agent_exists(&full_id).await? {
+            if !ctx.filesystem.agent_exists(&ctx.db, &full_id).await? {
                 return Err(Error::AgentNoPriorRequest {
                     agent_instance_hierarchy: full_id,
                 });
@@ -41,8 +41,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         Target::Tag { agent_tag } => (None, Some(agent_tag)),
     };
 
-    let id = db::prompts::enqueue_with_content_async(
-        ctx.filesystem.clone(),
+    let id = db::prompts::enqueue_with_content(
+        &ctx.db,
         agent_instance_hierarchy.clone(),
         agent_tag.clone(),
         request.key,

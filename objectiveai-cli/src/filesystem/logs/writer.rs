@@ -6,11 +6,11 @@ use futures::stream::{FuturesUnordered, StreamExt};
 use objectiveai_sdk::agent::completions::message::RichContent;
 use objectiveai_sdk::agent::completions::response::streaming::AgentCompletionIds;
 
-use super::super::db::messages::Queue;
-use super::super::db::pending::PendingNotification;
+use crate::db::messages::Queue;
+use crate::db::pending::PendingNotification;
+use crate::db::schema::MessageRow;
 use objectiveai_sdk::cli::command::agents::instances::read::subscribe::RequestMessageKind;
 
-use super::super::db::schema::MessageRow;
 use super::LogFile;
 
 /// Function-pointer signature for `produce_message_rows()` erased
@@ -49,7 +49,7 @@ struct PendingRequest {
 /// unchanged files are not rewritten on every chunk.
 ///
 /// All per-agent SQLite state lives in the shared
-/// [`Queue`](super::super::db::messages::Queue) handle. The writer holds a
+/// [`Queue`](crate::db::messages::Queue) handle. The writer holds a
 /// clone of it and delegates every db operation through it.
 pub struct LogWriter<C> {
     logs_dir: PathBuf,
@@ -150,7 +150,7 @@ impl<C> LogWriter<C> {
         mut self,
         route: impl Into<String>,
         request: &R,
-    ) -> Result<Self, super::super::Error>
+    ) -> Result<Self, crate::error::Error>
     where
         R: crate::logs::ProducesRequestFiles + Clone + Send + 'static,
     {
@@ -206,11 +206,11 @@ impl<C> LogWriter<C> {
         agent_instance_hierarchy: &str,
         response_id: &str,
         content: &RichContent,
-    ) -> Result<PendingNotification, super::super::Error> {
+    ) -> Result<PendingNotification, crate::error::Error> {
         match &self.queue {
-            Some(q) => {
-                q.write_notification(agent_instance_hierarchy, response_id, content).await
-            }
+            Some(q) => Ok(q
+                .write_notification(agent_instance_hierarchy, response_id, content)
+                .await?),
             None => Ok(PendingNotification {
                 agent_instance_hierarchy: agent_instance_hierarchy.to_string(),
                 response_id: response_id.to_string(),
@@ -238,7 +238,7 @@ impl<C> LogWriter<C> {
         &mut self,
         chunk: &C,
         pending: &mut Vec<PendingNotification>,
-    ) -> Result<Vec<(String, RequestMessageKind)>, super::super::Error>
+    ) -> Result<Vec<(String, RequestMessageKind)>, crate::error::Error>
     where
         C: AgentCompletionIds + Clone,
     {
@@ -269,7 +269,7 @@ impl<C> LogWriter<C> {
         &mut self,
         chunk: &C,
         pending: &mut Vec<PendingNotification>,
-    ) -> Result<Vec<(String, RequestMessageKind)>, super::super::Error>
+    ) -> Result<Vec<(String, RequestMessageKind)>, crate::error::Error>
     where
         C: AgentCompletionIds,
     {
@@ -326,7 +326,7 @@ impl<C> LogWriter<C> {
             std::pin::Pin<
                 Box<
                     dyn std::future::Future<
-                            Output = Result<Inserted, super::super::Error>,
+                            Output = Result<Inserted, crate::error::Error>,
                         > + Send,
                 >,
             >,
@@ -339,12 +339,12 @@ impl<C> LogWriter<C> {
                 let full_path = logs_dir.join(file.path());
                 if let Some(parent) = full_path.parent() {
                     tokio::fs::create_dir_all(parent).await.map_err(|e| {
-                        super::super::Error::Write(parent.to_path_buf(), e)
+                        crate::filesystem::Error::Write(parent.to_path_buf(), e)
                     })?;
                 }
                 tokio::fs::write(&full_path, file.content)
                     .await
-                    .map_err(|e| super::super::Error::Write(full_path, e))?;
+                    .map_err(|e| crate::filesystem::Error::Write(full_path, e))?;
                 Ok(None)
             }));
         }
@@ -484,7 +484,7 @@ impl<C> LogWriter<C> {
     pub async fn finalize(
         &mut self,
         pending: &mut Vec<PendingNotification>,
-    ) -> Result<Vec<(String, RequestMessageKind)>, super::super::Error>
+    ) -> Result<Vec<(String, RequestMessageKind)>, crate::error::Error>
     where
         C: AgentCompletionIds,
     {
@@ -507,7 +507,7 @@ impl<C> LogWriter<C> {
             std::pin::Pin<
                 Box<
                     dyn std::future::Future<
-                            Output = Result<Inserted, super::super::Error>,
+                            Output = Result<Inserted, crate::error::Error>,
                         > + Send,
                 >,
             >,

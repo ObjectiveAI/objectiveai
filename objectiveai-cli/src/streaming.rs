@@ -78,6 +78,7 @@ pub fn instance_subprocess_stream(
 ) -> Pin<Box<dyn Stream<Item = Result<InstanceItem, Error>> + Send>> {
     let cli_config = ctx.config.clone();
     let fs = ctx.filesystem.clone();
+    let db = ctx.db.clone();
 
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<InstanceItem, Error>>(16);
 
@@ -85,6 +86,7 @@ pub fn instance_subprocess_stream(
         let result = run_subprocess(
             &cli_config,
             fs,
+            db,
             endpoint,
             agent_tag,
             stream,
@@ -104,6 +106,7 @@ pub fn instance_subprocess_stream(
 async fn run_subprocess(
     cli_config: &crate::run::Config,
     fs: crate::filesystem::Client,
+    db: crate::db::Pool,
     endpoint: InstanceEndpoint,
     agent_tag: Option<String>,
     stream: bool,
@@ -249,7 +252,7 @@ async fn run_subprocess(
         if is_agent_completion && first_chunk_pending {
             if let InstanceEmission::Chunk(value) = &emission {
                 first_chunk_pending = false;
-                apply_first_chunk_tag_hook(&fs, value, agent_tag.as_deref()).await;
+                apply_first_chunk_tag_hook(&db, value, agent_tag.as_deref()).await;
             }
         }
         match handle_emission(emission, stream, &tx).await {
@@ -422,7 +425,7 @@ async fn handle_emission(
 /// Failures are logged and never propagate — the chunk still reaches
 /// the consumer unchanged via the usual `handle_emission` path.
 async fn apply_first_chunk_tag_hook(
-    fs: &crate::filesystem::Client,
+    db: &crate::db::Pool,
     chunk: &serde_json::Value,
     agent_tag: Option<&str>,
 ) {
@@ -440,21 +443,19 @@ async fn apply_first_chunk_tag_hook(
     };
 
     if let Some(tag) = agent_tag {
-        if let Err(e) = crate::filesystem::db::tags::upsert_bound_async(
-            fs.clone(),
-            tag.to_string(),
-            hierarchy.clone(),
-        )
-        .await
+        if let Err(e) =
+            crate::db::tags::upsert_bound(db, tag, &hierarchy).await
         {
+            // Best-effort: tag binding is auxiliary to the chunk
+            // emission path; surface failure to stderr but don't
+            // propagate up.
             eprintln!("agent-tag bind failed: {e}");
         }
     }
 
     if let Some(full_id) = agent_full_id {
         if let Err(e) =
-            crate::filesystem::db::tags::upgrade_async(fs.clone(), full_id, hierarchy)
-                .await
+            crate::db::tags::upgrade(db, &full_id, &hierarchy).await
         {
             eprintln!("agent-tag pending sweep failed: {e}");
         }

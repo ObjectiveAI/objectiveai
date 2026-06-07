@@ -7,7 +7,7 @@ use objectiveai_sdk::functions::inventions::recursive::response::streaming::{
 
 use objectiveai_sdk::logs::{IndexedLogReference, LogReference};
 
-use crate::filesystem::db::schema::MessageRow;
+use crate::db::schema::MessageRow;
 use crate::filesystem::logs::LogFile;
 
 /// Produce the [`LogFile`]s for a recursive function invention chunk.

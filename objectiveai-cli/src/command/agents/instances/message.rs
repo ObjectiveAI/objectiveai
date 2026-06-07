@@ -51,8 +51,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         MessageTarget::Tag { agent_tag } => (None, Some(agent_tag)),
     };
 
-    let id = crate::filesystem::db::prompts::enqueue_with_content_async(
-        ctx.filesystem.clone(),
+    let id = crate::db::prompts::enqueue_with_content(
+        &ctx.db,
         agent_instance_hierarchy.clone(),
         agent_tag.clone(),
         // No `--key` on this leaf — idempotency tokens are exclusive

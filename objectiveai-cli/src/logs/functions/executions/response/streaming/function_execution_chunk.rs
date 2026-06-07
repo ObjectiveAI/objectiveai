@@ -7,7 +7,7 @@ use objectiveai_sdk::functions::executions::response::streaming::{
 
 use objectiveai_sdk::logs::LogReference;
 
-use crate::filesystem::db::schema::MessageRow;
+use crate::db::schema::MessageRow;
 use crate::filesystem::logs::LogFile;
 
 /// Produce the [`LogFile`]s for a function execution chunk. Returns

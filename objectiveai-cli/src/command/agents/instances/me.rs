@@ -3,13 +3,13 @@
 use objectiveai_sdk::cli::command::agents::instances::me::{Request, Response};
 
 use crate::context::Context;
+use crate::db;
 use crate::error::Error;
-use crate::filesystem::db;
 
 pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error> {
-    let agent_tags = db::tags::tags_for_hierarchy_async(
-        ctx.filesystem.clone(),
-        ctx.config.agent_instance_hierarchy.clone(),
+    let agent_tags = db::tags::tags_for_hierarchy(
+        &ctx.db,
+        &ctx.config.agent_instance_hierarchy,
     )
     .await?;
     Ok(Response {

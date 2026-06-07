@@ -426,12 +426,12 @@ impl Client {
 
     pub fn write_agent_completion(
         &self,
+        db: &crate::db::Pool,
         request: &objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams,
-    ) -> Result<super::LogWriter<objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk>, Error>{
+    ) -> Result<super::LogWriter<objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk>, crate::error::Error>{
         use objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk;
-        let conn = super::super::db::connection::connection(self)?;
         let queue =
-            super::super::db::messages::Queue::new(conn, self.logs_dir());
+            crate::db::messages::Queue::new(db.clone(), self.logs_dir());
         Ok(super::LogWriter::new(
             self.logs_dir(),
             |chunk: &AgentCompletionChunk| {
@@ -450,12 +450,12 @@ impl Client {
     }
     pub fn write_vector_completion(
         &self,
+        db: &crate::db::Pool,
         request: &objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams,
-    ) -> Result<super::LogWriter<objectiveai_sdk::vector::completions::response::streaming::VectorCompletionChunk>, Error>{
+    ) -> Result<super::LogWriter<objectiveai_sdk::vector::completions::response::streaming::VectorCompletionChunk>, crate::error::Error>{
         use objectiveai_sdk::vector::completions::response::streaming::VectorCompletionChunk;
-        let conn = super::super::db::connection::connection(self)?;
         let queue =
-            super::super::db::messages::Queue::new(conn, self.logs_dir());
+            crate::db::messages::Queue::new(db.clone(), self.logs_dir());
         Ok(super::LogWriter::new(
             self.logs_dir(),
             |chunk: &VectorCompletionChunk| {
@@ -470,12 +470,12 @@ impl Client {
     }
     pub fn write_function_execution(
         &self,
+        db: &crate::db::Pool,
         request: &objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams,
-    ) -> Result<super::LogWriter<objectiveai_sdk::functions::executions::response::streaming::FunctionExecutionChunk>, Error>{
+    ) -> Result<super::LogWriter<objectiveai_sdk::functions::executions::response::streaming::FunctionExecutionChunk>, crate::error::Error>{
         use objectiveai_sdk::functions::executions::response::streaming::FunctionExecutionChunk;
-        let conn = super::super::db::connection::connection(self)?;
         let queue =
-            super::super::db::messages::Queue::new(conn, self.logs_dir());
+            crate::db::messages::Queue::new(db.clone(), self.logs_dir());
         Ok(super::LogWriter::new(
             self.logs_dir(),
             |chunk: &FunctionExecutionChunk| {
@@ -494,12 +494,12 @@ impl Client {
     }
     pub fn write_function_invention(
         &self,
+        db: &crate::db::Pool,
         request: &objectiveai_sdk::functions::inventions::request::FunctionInventionCreateParams,
-    ) -> Result<super::LogWriter<objectiveai_sdk::functions::inventions::response::streaming::FunctionInventionChunk>, Error>{
+    ) -> Result<super::LogWriter<objectiveai_sdk::functions::inventions::response::streaming::FunctionInventionChunk>, crate::error::Error>{
         use objectiveai_sdk::functions::inventions::response::streaming::FunctionInventionChunk;
-        let conn = super::super::db::connection::connection(self)?;
         let queue =
-            super::super::db::messages::Queue::new(conn, self.logs_dir());
+            crate::db::messages::Queue::new(db.clone(), self.logs_dir());
         Ok(super::LogWriter::new(
             self.logs_dir(),
             |chunk: &FunctionInventionChunk| {
@@ -514,12 +514,12 @@ impl Client {
     }
     pub fn write_function_invention_recursive(
         &self,
+        db: &crate::db::Pool,
         request: &objectiveai_sdk::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams,
-    ) -> Result<super::LogWriter<objectiveai_sdk::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk>, Error>{
+    ) -> Result<super::LogWriter<objectiveai_sdk::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk>, crate::error::Error>{
         use objectiveai_sdk::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk;
-        let conn = super::super::db::connection::connection(self)?;
         let queue =
-            super::super::db::messages::Queue::new(conn, self.logs_dir());
+            crate::db::messages::Queue::new(db.clone(), self.logs_dir());
         Ok(super::LogWriter::new(self.logs_dir(), |chunk: &FunctionInventionRecursiveChunk| crate::logs::functions::inventions::recursive::response::streaming::function_invention_recursive_chunk::produce_files(chunk).map(|(_, files)| files))
             .with_request("functions/inventions/recursive/request", request)?
             .with_queue(
@@ -1802,18 +1802,18 @@ impl Client {
     /// returned.
     pub async fn read_new_from_queue(
         &self,
+        db: &crate::db::Pool,
         caller_agent_instance_hierarchy: &str,
         spawned_agent_instance_hierarchy: &str,
-    ) -> Result<Vec<super::queue::QueueItem>, Error> {
-        let conn = super::super::db::connection::connection(self)?;
+    ) -> Result<Vec<super::queue::QueueItem>, crate::error::Error> {
         let queue =
-            super::super::db::messages::Queue::new(conn, self.logs_dir());
+            crate::db::messages::Queue::new(db.clone(), self.logs_dir());
         let rows = queue
             .read_new_messages(caller_agent_instance_hierarchy, spawned_agent_instance_hierarchy)
             .await?;
         let mut items = Vec::with_capacity(rows.len());
         for row in rows {
-            items.push(self.queue_item_from_row(row).await?);
+            items.push(self.queue_item_from_row(db, row).await?);
         }
         Ok(items)
     }
@@ -1827,34 +1827,35 @@ impl Client {
     /// until new rows land.
     pub async fn read_all_from_queue(
         &self,
+        db: &crate::db::Pool,
         caller_agent_instance_hierarchy: &str,
         spawned_agent_instance_hierarchy: &str,
-    ) -> Result<Vec<super::queue::QueueItem>, Error> {
-        let conn = super::super::db::connection::connection(self)?;
+    ) -> Result<Vec<super::queue::QueueItem>, crate::error::Error> {
         let queue =
-            super::super::db::messages::Queue::new(conn, self.logs_dir());
+            crate::db::messages::Queue::new(db.clone(), self.logs_dir());
         let rows = queue
             .read_all_messages(caller_agent_instance_hierarchy, spawned_agent_instance_hierarchy)
             .await?;
         let mut items = Vec::with_capacity(rows.len());
         for row in rows {
-            items.push(self.queue_item_from_row(row).await?);
+            items.push(self.queue_item_from_row(db, row).await?);
         }
         Ok(items)
     }
 
-    /// Translate one [`crate::filesystem::db::schema::MessageRow`]
-    /// into a typed [`super::queue::QueueItem`] by reading the row's
-    /// log file(s) from disk and converting each `LogReference` to
-    /// a `files`-table SQL row id (inserted on miss).
+    /// Translate one [`crate::db::schema::MessageRow`] into a typed
+    /// [`super::queue::QueueItem`] by reading the row's log file(s)
+    /// from disk and converting each `LogReference` to a `files`-table
+    /// SQL row id (inserted on miss).
     async fn queue_item_from_row(
         &self,
-        row: crate::filesystem::db::schema::MessageRow,
-    ) -> Result<super::queue::QueueItem, Error> {
+        db: &crate::db::Pool,
+        row: crate::db::schema::MessageRow,
+    ) -> Result<super::queue::QueueItem, crate::error::Error> {
         use super::queue::QueueItem;
         use objectiveai_sdk::cli::command::agents::instances::read::subscribe::RequestMessageKind;
 
-        let rel_path = crate::filesystem::db::schema::message_kind_file_path(
+        let rel_path = crate::db::schema::message_kind_file_path(
             row.kind,
             &row.response_id,
             &row.path,
@@ -1863,12 +1864,12 @@ impl Client {
         match row.kind {
             RequestMessageKind::FunctionExecutionRequest => {
                 Ok(QueueItem::FunctionExecutionRequest {
-                    id: self.file_id(&rel_path).await?,
+                    id: self.file_id(db, &rel_path).await?,
                 })
             }
             RequestMessageKind::FunctionInventionRecursiveRequest => {
                 Ok(QueueItem::FunctionInventionRecursiveRequest {
-                    id: self.file_id(&rel_path).await?,
+                    id: self.file_id(db, &rel_path).await?,
                 })
             }
             RequestMessageKind::AgentCompletionRequest => {
@@ -1879,7 +1880,7 @@ impl Client {
                     let msg_log: objectiveai_sdk::agent::completions::message::MessageLog =
                         self.read_log_file(&msg_ref.path).await?;
                     messages.push(
-                        self.message_log_to_queue_message(msg_log).await?,
+                        self.message_log_to_queue_message(db, msg_log).await?,
                     );
                 }
                 Ok(QueueItem::AgentCompletionRequest { messages })
@@ -1888,10 +1889,10 @@ impl Client {
                 let log: objectiveai_sdk::agent::completions::response::streaming::AssistantResponseChunkLog =
                     self.read_log_file(&rel_path).await?;
                 Ok(QueueItem::AssistantResponse {
-                    reasoning: self.maybe_id(log.reasoning).await?,
-                    tool_calls: self.maybe_id_list(log.tool_calls).await?,
-                    content: self.maybe_content(log.content).await?,
-                    refusal: self.maybe_id(log.refusal).await?,
+                    reasoning: self.maybe_id(db, log.reasoning).await?,
+                    tool_calls: self.maybe_id_list(db, log.tool_calls).await?,
+                    content: self.maybe_content(db, log.content).await?,
+                    refusal: self.maybe_id(db, log.refusal).await?,
                 })
             }
             RequestMessageKind::ToolResponse => {
@@ -1899,14 +1900,14 @@ impl Client {
                     self.read_log_file(&rel_path).await?;
                 Ok(QueueItem::ToolResponse {
                     tool_call_id: log.tool_call_id,
-                    content: self.rich_content_to_content(log.content).await?,
+                    content: self.rich_content_to_content(db, log.content).await?,
                 })
             }
             RequestMessageKind::AgentCompletionNotification => {
                 let log: objectiveai_sdk::agent::completions::message::RichContentLog =
                     self.read_log_file(&rel_path).await?;
                 Ok(QueueItem::Notification {
-                    content: self.rich_content_to_content(log).await?,
+                    content: self.rich_content_to_content(db, log).await?,
                 })
             }
         }
@@ -1916,33 +1917,34 @@ impl Client {
     /// into [`super::queue::QueueMessage`].
     async fn message_log_to_queue_message(
         &self,
+        db: &crate::db::Pool,
         log: objectiveai_sdk::agent::completions::message::MessageLog,
-    ) -> Result<super::queue::QueueMessage, Error> {
+    ) -> Result<super::queue::QueueMessage, crate::error::Error> {
         use super::queue::QueueMessage;
         use objectiveai_sdk::agent::completions::message::MessageLog;
 
         Ok(match log {
             MessageLog::Developer(m) => QueueMessage::Developer {
-                content: self.simple_content_to_content(m.content).await?,
+                content: self.simple_content_to_content(db, m.content).await?,
                 name: m.name,
             },
             MessageLog::System(m) => QueueMessage::System {
-                content: self.simple_content_to_content(m.content).await?,
+                content: self.simple_content_to_content(db, m.content).await?,
                 name: m.name,
             },
             MessageLog::User(m) => QueueMessage::User {
-                content: self.rich_content_to_content(m.content).await?,
+                content: self.rich_content_to_content(db, m.content).await?,
                 name: m.name,
             },
             MessageLog::Assistant(m) => QueueMessage::Assistant {
-                content: self.maybe_content(m.content).await?,
+                content: self.maybe_content(db, m.content).await?,
                 name: m.name,
-                reasoning: self.maybe_id(m.reasoning).await?,
-                tool_calls: self.maybe_id_list(m.tool_calls).await?,
-                refusal: self.maybe_id(m.refusal).await?,
+                reasoning: self.maybe_id(db, m.reasoning).await?,
+                tool_calls: self.maybe_id_list(db, m.tool_calls).await?,
+                refusal: self.maybe_id(db, m.refusal).await?,
             },
             MessageLog::Tool(m) => QueueMessage::Tool {
-                content: self.rich_content_to_content(m.content).await?,
+                content: self.rich_content_to_content(db, m.content).await?,
                 tool_call_id: m.tool_call_id,
             },
         })
@@ -1964,22 +1966,22 @@ impl Client {
     /// Resolve a logs-relative path to its (stable) SQL row id in the
     /// `files` table. Inserts on miss; the `UNIQUE(path)` constraint
     /// keeps one id per path forever.
-    async fn file_id(&self, rel_path: &str) -> Result<i64, Error> {
-        let conn = super::super::db::connection::connection(self)?;
-        super::super::db::schema::file_id_for_path_async(
-            conn,
-            rel_path.to_string(),
-        )
-        .await
+    async fn file_id(
+        &self,
+        db: &crate::db::Pool,
+        rel_path: &str,
+    ) -> Result<i64, crate::error::Error> {
+        Ok(crate::db::schema::file_id_for_path(db, rel_path).await?)
     }
 
     /// Resolve an `Option<LogReference>` to an optional file-id.
     async fn maybe_id(
         &self,
+        db: &crate::db::Pool,
         r: Option<objectiveai_sdk::logs::LogReference>,
-    ) -> Result<Option<i64>, Error> {
+    ) -> Result<Option<i64>, crate::error::Error> {
         match r {
-            Some(r) => Ok(Some(self.file_id(&r.path).await?)),
+            Some(r) => Ok(Some(self.file_id(db, &r.path).await?)),
             None => Ok(None),
         }
     }
@@ -1987,11 +1989,12 @@ impl Client {
     /// Resolve a `Vec<LogReference>` to a Vec of file-ids.
     async fn id_list(
         &self,
+        db: &crate::db::Pool,
         rs: Vec<objectiveai_sdk::logs::LogReference>,
-    ) -> Result<Vec<i64>, Error> {
+    ) -> Result<Vec<i64>, crate::error::Error> {
         let mut out = Vec::with_capacity(rs.len());
         for r in rs {
-            out.push(self.file_id(&r.path).await?);
+            out.push(self.file_id(db, &r.path).await?);
         }
         Ok(out)
     }
@@ -1999,10 +2002,11 @@ impl Client {
     /// Resolve an `Option<Vec<LogReference>>` to an optional Vec of file-ids.
     async fn maybe_id_list(
         &self,
+        db: &crate::db::Pool,
         rs: Option<Vec<objectiveai_sdk::logs::LogReference>>,
-    ) -> Result<Option<Vec<i64>>, Error> {
+    ) -> Result<Option<Vec<i64>>, crate::error::Error> {
         match rs {
-            Some(rs) => Ok(Some(self.id_list(rs).await?)),
+            Some(rs) => Ok(Some(self.id_list(db, rs).await?)),
             None => Ok(None),
         }
     }
@@ -2011,15 +2015,16 @@ impl Client {
     /// to [`super::queue::Content`], looking up a file-id for every ref.
     async fn rich_content_to_content(
         &self,
+        db: &crate::db::Pool,
         log: objectiveai_sdk::agent::completions::message::RichContentLog,
-    ) -> Result<super::queue::Content, Error> {
+    ) -> Result<super::queue::Content, crate::error::Error> {
         use super::queue::Content;
         use objectiveai_sdk::agent::completions::message::RichContentLog;
         Ok(match log {
             RichContentLog::Reference(r) => {
-                Content::One(self.file_id(&r.path).await?)
+                Content::One(self.file_id(db, &r.path).await?)
             }
-            RichContentLog::Parts(rs) => Content::Many(self.id_list(rs).await?),
+            RichContentLog::Parts(rs) => Content::Many(self.id_list(db, rs).await?),
         })
     }
 
@@ -2027,16 +2032,17 @@ impl Client {
     /// to [`super::queue::Content`], looking up a file-id for every ref.
     async fn simple_content_to_content(
         &self,
+        db: &crate::db::Pool,
         log: objectiveai_sdk::agent::completions::message::SimpleContentLog,
-    ) -> Result<super::queue::Content, Error> {
+    ) -> Result<super::queue::Content, crate::error::Error> {
         use super::queue::Content;
         use objectiveai_sdk::agent::completions::message::SimpleContentLog;
         Ok(match log {
             SimpleContentLog::Reference(r) => {
-                Content::One(self.file_id(&r.path).await?)
+                Content::One(self.file_id(db, &r.path).await?)
             }
             SimpleContentLog::Parts(rs) => {
-                Content::Many(self.id_list(rs).await?)
+                Content::Many(self.id_list(db, rs).await?)
             }
         })
     }
@@ -2044,10 +2050,11 @@ impl Client {
     /// Resolve `Option<RichContentLog>` to `Option<Content>`.
     async fn maybe_content(
         &self,
+        db: &crate::db::Pool,
         log: Option<objectiveai_sdk::agent::completions::message::RichContentLog>,
-    ) -> Result<Option<super::queue::Content>, Error> {
+    ) -> Result<Option<super::queue::Content>, crate::error::Error> {
         match log {
-            Some(l) => Ok(Some(self.rich_content_to_content(l).await?)),
+            Some(l) => Ok(Some(self.rich_content_to_content(db, l).await?)),
             None => Ok(None),
         }
     }
@@ -2057,10 +2064,10 @@ impl Client {
     /// Client, or the `files` table was wiped).
     pub async fn path_for_file_id(
         &self,
+        db: &crate::db::Pool,
         id: i64,
-    ) -> Result<Option<String>, Error> {
-        let conn = super::super::db::connection::connection(self)?;
-        super::super::db::schema::path_for_file_id_async(conn, id).await
+    ) -> Result<Option<String>, crate::error::Error> {
+        Ok(crate::db::schema::path_for_file_id(db, id).await?)
     }
 
     /// Resolve a queue file-id to its file content. `.json` files are
@@ -2074,11 +2081,12 @@ impl Client {
     /// - [`Error::Parse`] if a `.json` file is malformed.
     pub async fn read_file_by_id(
         &self,
+        db: &crate::db::Pool,
         id: i64,
-    ) -> Result<objectiveai_sdk::cli::command::agents::instances::read::id::Response, Error> {
+    ) -> Result<objectiveai_sdk::cli::command::agents::instances::read::id::Response, crate::error::Error> {
         use objectiveai_sdk::cli::command::agents::instances::read::id::Response as R;
         let rel_path = self
-            .path_for_file_id(id)
+            .path_for_file_id(db, id)
             .await?
             .ok_or_else(|| Error::NotFound(format!("file id {id}")))?;
 
@@ -2096,7 +2104,10 @@ impl Client {
                 ))
             })?;
         use super::LogFileKind as K;
-        match kind {
+        // Inner match returns `filesystem::Error`; the trailing
+        // `Ok(result?)` lifts it through the `From` impl on
+        // `crate::error::Error` once.
+        let result: Result<R, Error> = match kind {
             // -- Top-level envelopes (JSON) ---------------------------------
             K::AgentCompletion { id } => self
                 .read_agent_completion(&id)
@@ -2478,7 +2489,8 @@ impl Client {
                 .await
                 .map(R::File),
 
-        }
+        };
+        Ok(result?)
     }
 
     /// List every direct-child agent of `parent_agent_instance_hierarchy` (one
@@ -2495,16 +2507,16 @@ impl Client {
     /// read pending`).
     pub async fn list_active(
         &self,
+        db: &crate::db::Pool,
         parent_agent_instance_hierarchy: &str,
     ) -> Result<
         Vec<objectiveai_sdk::cli::command::agents::instances::list::ResponseItem>,
-        Error,
+        crate::error::Error,
     > {
         use objectiveai_sdk::cli::command::agents::instances::list::ResponseItem;
-        let conn = super::super::db::connection::connection(self)?;
-        let rows = super::super::db::schema::list_direct_active_children_async(
-            conn,
-            parent_agent_instance_hierarchy.to_string(),
+        let rows = crate::db::schema::list_direct_active_children(
+            db,
+            parent_agent_instance_hierarchy,
         )
         .await?;
         let prefix = format!("{parent_agent_instance_hierarchy}/");
@@ -2527,14 +2539,14 @@ impl Client {
     /// single `SELECT EXISTS` without walking continuation files.
     pub async fn agent_exists(
         &self,
+        db: &crate::db::Pool,
         agent_instance_hierarchy: &str,
-    ) -> Result<bool, Error> {
-        let conn = super::super::db::connection::connection(self)?;
-        super::super::db::schema::agent_exists_async(
-            conn,
-            agent_instance_hierarchy.to_string(),
+    ) -> Result<bool, crate::error::Error> {
+        Ok(crate::db::schema::agent_exists(
+            db,
+            agent_instance_hierarchy,
         )
-        .await
+        .await?)
     }
 
     /// Stream every queued prompt visible under `parent`. Direct
@@ -2544,12 +2556,13 @@ impl Client {
     /// returns.
     pub async fn queue_list(
         &self,
+        db: &crate::db::Pool,
         parent: &str,
     ) -> Result<
         Vec<objectiveai_sdk::cli::command::agents::message_queue::read::pending::ResponseItem>,
-        Error,
+        crate::error::Error,
     > {
-        super::super::db::prompts::list_async(self.clone(), parent.to_string()).await
+        Ok(crate::db::prompts::list(db, parent).await?)
     }
 }
 

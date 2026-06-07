@@ -10,7 +10,7 @@ use objectiveai_sdk::logs::LogReference;
 
 use objectiveai_sdk::cli::command::agents::instances::read::subscribe::RequestMessageKind;
 
-use crate::filesystem::db::schema::MessageRow;
+use crate::db::schema::MessageRow;
 use crate::filesystem::logs::LogFile;
 
 /// Produce the [`LogFile`]s for the log file structure. Returns `None`

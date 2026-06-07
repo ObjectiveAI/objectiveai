@@ -5,11 +5,11 @@
 use objectiveai_sdk::cli::command::agents::message_queue::read::id::{Request, Response};
 
 use crate::context::Context;
+use crate::db;
 use crate::error::Error;
-use crate::filesystem::db;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    let row = db::prompts::read_content_async(ctx.filesystem.clone(), request.id)
+    let row = db::prompts::read_content(&ctx.db, request.id)
         .await?
         .ok_or_else(|| {
             Error::Filesystem(crate::filesystem::Error::NotFound(format!(

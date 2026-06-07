@@ -5,7 +5,7 @@ use objectiveai_sdk::functions::executions::response::streaming::{
     FunctionExecutionTaskChunk, function_execution_task_log_reference,
 };
 
-use crate::filesystem::db::schema::MessageRow;
+use crate::db::schema::MessageRow;
 use crate::filesystem::logs::LogFile;
 
 /// Produce log files for a nested function execution task. Returns

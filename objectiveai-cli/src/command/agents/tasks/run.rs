@@ -34,17 +34,17 @@ use objectiveai_sdk::cli::command::agents::tasks::run::{Request, ResponseItem};
 use objectiveai_sdk::cli::command::parse_request;
 
 use crate::context::Context;
+use crate::db;
 use crate::error::Error;
-use crate::filesystem::db;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     let parent = super::resolve_scope(ctx, request.agent_instance_hierarchy, request.tag).await?;
 
-    let rows = db::tasks::collect_and_mark_pending_async(
-        ctx.filesystem.clone(),
-        parent,
+    let rows = db::tasks::collect_and_mark_pending(
+        &ctx.db,
+        &parent,
         request.depth,
     )
     .await?;

@@ -20,7 +20,7 @@ use serde::Serialize;
 use tokio::sync::mpsc;
 
 use crate::error::Error;
-use crate::filesystem::db::pending::PendingNotification;
+use crate::db::pending::PendingNotification;
 use crate::filesystem::logs::{LogWriter, SubscribeEvent};
 use crate::instance::InstanceEmission;
 use crate::instance::pipes::PipeRegistry;
@@ -213,7 +213,7 @@ async fn writer_loop<Chunk, F>(
     push: F,
     registry: PipeRegistry,
     log_ready_id_tx: tokio::sync::oneshot::Sender<String>,
-) -> Result<(), crate::filesystem::Error>
+) -> Result<(), crate::error::Error>
 where
     F: Fn(&mut Chunk, &Chunk),
     Chunk: AgentCompletionIds + Clone,

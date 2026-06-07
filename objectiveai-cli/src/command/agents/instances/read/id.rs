@@ -10,7 +10,7 @@ use crate::context::Context;
 use crate::error::Error;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    Ok(ctx.filesystem.read_file_by_id(request.id).await?)
+    Ok(ctx.filesystem.read_file_by_id(&ctx.db, request.id).await?)
 }
 
 pub mod request_schema {

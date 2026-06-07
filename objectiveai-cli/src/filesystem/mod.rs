@@ -1,6 +1,5 @@
 mod client;
 pub mod config;
-pub mod db;
 mod error;
 mod jq;
 pub mod logs;

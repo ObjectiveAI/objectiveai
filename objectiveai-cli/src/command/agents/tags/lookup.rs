@@ -3,8 +3,8 @@
 use objectiveai_sdk::cli::command::agents::tags::lookup::{LookupState, Request, Response};
 
 use crate::context::Context;
+use crate::db;
 use crate::error::Error;
-use crate::filesystem::db;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
     match request {
@@ -18,15 +18,15 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
             let parent = parent_agent_instance_hierarchy
                 .unwrap_or_else(|| ctx.config.agent_instance_hierarchy.clone());
             let agent_instance_hierarchy = format!("{parent}/{agent_instance}");
-            let tags = db::tags::tags_for_hierarchy_async(
-                ctx.filesystem.clone(),
-                agent_instance_hierarchy,
+            let tags = db::tags::tags_for_hierarchy(
+                &ctx.db,
+                &agent_instance_hierarchy,
             )
             .await?;
             Ok(Response::AgentInstanceHierarchy { tags })
         }
         Request::Tag { tag, .. } => {
-            let state = db::tags::lookup_async(ctx.filesystem.clone(), tag).await?;
+            let state = db::tags::lookup(&ctx.db, &tag).await?;
             Ok(match state {
                 db::tags::LookupState::Bound { agent_instance_hierarchy } => Response::Tag {
                     state: LookupState::Bound { agent_instance_hierarchy },

@@ -136,6 +136,8 @@ pub enum Error {
     TagNotFound(String),
     #[error("embedded postgres bootstrap failed: {0}")]
     PostgresBootstrap(String),
+    #[error("db: {0}")]
+    Db(#[from] crate::db::Error),
 }
 
 impl Error {

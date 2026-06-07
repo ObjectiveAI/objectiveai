@@ -12,16 +12,16 @@
 use objectiveai_sdk::cli::command::agents::tasks::list::{Request, ResponseItem};
 
 use crate::context::Context;
+use crate::db;
 use crate::error::Error;
-use crate::filesystem::db;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Vec<ResponseItem>, Error> {
     let parent =
         super::resolve_scope(ctx, request.agent_instance_hierarchy, request.tag).await?;
 
-    let rows = db::tasks::list_schedules_async(
-        ctx.filesystem.clone(),
-        parent,
+    let rows = db::tasks::list_schedules(
+        &ctx.db,
+        &parent,
         request.depth,
         request.oneshot,
         request.interval,

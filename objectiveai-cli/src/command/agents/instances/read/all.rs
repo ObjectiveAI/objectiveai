@@ -8,22 +8,24 @@ use futures::stream::FuturesUnordered;
 use objectiveai_sdk::cli::command::agents::instances::read::all::{Request, ResponseItem, Target};
 
 use crate::context::Context;
+use crate::db::tags;
 use crate::error::Error;
-use crate::filesystem::db::tags;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     let default_parent = ctx.config.agent_instance_hierarchy.clone();
     let fs = ctx.filesystem.clone();
+    let db = ctx.db.clone();
     let stream = async_stream::stream! {
         let mut inflight = FuturesUnordered::new();
         for target in request.targets {
             let fs = fs.clone();
+            let db = db.clone();
             let default_parent = default_parent.clone();
             inflight.push(async move {
-                let (parent, spawned, leaf) = resolve_target(&fs, target, &default_parent).await?;
-                let items = fs.read_all_from_queue(&parent, &spawned).await?;
+                let (parent, spawned, leaf) = resolve_target(&db, target, &default_parent).await?;
+                let items = fs.read_all_from_queue(&db, &parent, &spawned).await?;
                 Ok::<_, Error>(ResponseItem { agent_id: leaf, items })
             });
         }
@@ -36,10 +38,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
 
 /// Resolve one `Target` to a `(parent, spawned, leaf)` triple. Direct
 /// mode uses the explicit `parent=` if any, otherwise the cli's own
-/// `Config.agent_instance_hierarchy`. Tag mode looks the tag up in
-/// `tags.sqlite` and errors out on PENDING / ABSENT.
+/// `Config.agent_instance_hierarchy`. Tag mode looks the tag up via
+/// the postgres-backed `tags` tier and errors out on PENDING / ABSENT.
 async fn resolve_target(
-    fs: &crate::filesystem::Client,
+    db: &crate::db::Pool,
     target: Target,
     default_parent: &str,
 ) -> Result<(String, String, String), Error> {
@@ -53,7 +55,7 @@ async fn resolve_target(
             let spawned = format!("{parent}/{agent_instance}");
             Ok((parent, spawned, agent_instance))
         }
-        Target::Tag { agent_tag } => match tags::lookup_async(fs.clone(), agent_tag.clone()).await? {
+        Target::Tag { agent_tag } => match tags::lookup(db, &agent_tag).await? {
             tags::LookupState::Bound { agent_instance_hierarchy } => {
                 let parent = tags::parent_of(&agent_instance_hierarchy).to_string();
                 let leaf = tags::leaf_of(&agent_instance_hierarchy).to_string();

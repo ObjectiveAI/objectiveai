@@ -23,17 +23,17 @@ use objectiveai_sdk::cli::command::agents::tags::apply::{
 };
 
 use crate::context::Context;
+use crate::db;
 use crate::error::Error;
-use crate::filesystem::db;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
     match request.target {
         Target::Me => {
             let hierarchy = ctx.config.agent_instance_hierarchy.clone();
-            db::tags::upsert_bound_async(
-                ctx.filesystem.clone(),
-                request.name.clone(),
-                hierarchy.clone(),
+            db::tags::upsert_bound(
+                &ctx.db,
+                &request.name,
+                &hierarchy,
             )
             .await?;
             Ok(Response::Me {
@@ -47,11 +47,11 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         } => {
             let parent = parent_agent_instance_hierarchy
                 .unwrap_or_else(|| ctx.config.agent_instance_hierarchy.clone());
-            db::tags::upsert_pending_async(
-                ctx.filesystem.clone(),
-                request.name.clone(),
-                agent_full_id.clone(),
-                parent.clone(),
+            db::tags::upsert_pending(
+                &ctx.db,
+                &request.name,
+                &agent_full_id,
+                &parent,
             )
             .await?;
             Ok(Response::AgentFullId {
@@ -74,10 +74,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
             } else {
                 format!("{parent}/{agent_instance}")
             };
-            db::tags::upsert_bound_async(
-                ctx.filesystem.clone(),
-                request.name.clone(),
-                hierarchy.clone(),
+            db::tags::upsert_bound(
+                &ctx.db,
+                &request.name,
+                &hierarchy,
             )
             .await?;
             Ok(Response::AgentInstance {
@@ -96,17 +96,13 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
             // PENDING aliases auto-promote on the next matching spawn
             // because `tags::upgrade` matches by (agent_full_id,
             // parent) and writes every matching row.
-            let state = db::tags::lookup_async(
-                ctx.filesystem.clone(),
-                agent_tag.clone(),
-            )
-            .await?;
+            let state = db::tags::lookup(&ctx.db, &agent_tag).await?;
             let resolved = match state {
                 db::tags::LookupState::Bound { agent_instance_hierarchy } => {
-                    db::tags::upsert_bound_async(
-                        ctx.filesystem.clone(),
-                        request.name.clone(),
-                        agent_instance_hierarchy.clone(),
+                    db::tags::upsert_bound(
+                        &ctx.db,
+                        &request.name,
+                        &agent_instance_hierarchy,
                     )
                     .await?;
                     AgentTagResolution::Bound { agent_instance_hierarchy }
@@ -115,11 +111,11 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                     parent_agent_instance_hierarchy,
                     agent_full_id,
                 } => {
-                    db::tags::upsert_pending_async(
-                        ctx.filesystem.clone(),
-                        request.name.clone(),
-                        agent_full_id.clone(),
-                        parent_agent_instance_hierarchy.clone(),
+                    db::tags::upsert_pending(
+                        &ctx.db,
+                        &request.name,
+                        &agent_full_id,
+                        &parent_agent_instance_hierarchy,
                     )
                     .await?;
                     AgentTagResolution::Pending {

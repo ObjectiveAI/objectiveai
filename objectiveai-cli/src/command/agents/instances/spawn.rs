@@ -31,8 +31,8 @@ use objectiveai_sdk::cli::command::agents::instances::spawn::{
 };
 
 use crate::context::Context;
+use crate::db;
 use crate::error::Error;
-use crate::filesystem::db;
 use crate::streaming::{InstanceItem, instance_subprocess_stream};
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
@@ -50,11 +50,11 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     // separators and prepended as a fresh User message at the head
     // of `messages`.
     let agent_full_id = resolve_agent_full_id(ctx, &request.agent).await?;
-    let drained = db::prompts::drain_for_spawn_async(
-        ctx.filesystem.clone(),
-        ctx.config.agent_instance_hierarchy.clone(),
-        agent_full_id,
-        request.agent_tag.clone(),
+    let drained = db::prompts::drain_for_spawn(
+        &ctx.db,
+        &ctx.config.agent_instance_hierarchy,
+        &agent_full_id,
+        request.agent_tag.as_deref(),
     )
     .await?;
     if !drained.is_empty() {
@@ -108,11 +108,11 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             objectiveai_sdk::cli::command::StreamOnce::new(Ok(first)).chain(tail),
         )),
         Some(Err(e)) => {
-            let r = db::prompts::re_enqueue_async(ctx.filesystem.clone(), drained).await;
+            let r = db::prompts::re_enqueue(&ctx.db, drained).await;
             Err(crate::command::message_queue_drain::combine_drain_failure(e, r))
         }
         None => {
-            let r = db::prompts::re_enqueue_async(ctx.filesystem.clone(), drained).await;
+            let r = db::prompts::re_enqueue(&ctx.db, drained).await;
             Err(crate::command::message_queue_drain::combine_drain_failure(
                 Error::EmptyStream,
                 r,

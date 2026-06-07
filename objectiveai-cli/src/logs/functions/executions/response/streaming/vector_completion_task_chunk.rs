@@ -5,7 +5,7 @@ use objectiveai_sdk::functions::executions::response::streaming::{
     VectorCompletionTaskChunk, vector_completion_task_log_reference,
 };
 
-use crate::filesystem::db::schema::MessageRow;
+use crate::db::schema::MessageRow;
 use crate::filesystem::logs::LogFile;
 
 /// Produce log files for a vector completion task. Returns

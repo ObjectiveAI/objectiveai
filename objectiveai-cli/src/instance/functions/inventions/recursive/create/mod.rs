@@ -29,6 +29,7 @@ pub async fn execute(
     let pipes_root = pipes.pipes_root();
     let client = http.build_http_client().map_err(Error::Instance)?;
     let fs_client = ctx.filesystem.clone();
+    let db = ctx.db.clone();
     let conduit = pipes.build_conduit(ctx, mcp_server);
 
     let (tx, rx) = mpsc::channel::<Result<InstanceEmission, Error>>(16);
@@ -36,7 +37,7 @@ pub async fn execute(
 
     let caller_agent_instance_hierarchy = Some(http.objectiveai_agent_instance_hierarchy.clone());
     let log_writer = fs_client
-        .write_function_invention_recursive(&params)
+        .write_function_invention_recursive(&db, &params)
         .map_err(|e| Error::Instance(format!(
             "failed to build function-invention-recursive log writer: {e}"
         )))?

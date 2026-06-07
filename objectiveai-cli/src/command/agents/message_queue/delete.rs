@@ -7,11 +7,11 @@
 use objectiveai_sdk::cli::command::agents::message_queue::delete::{Request, Response};
 
 use crate::context::Context;
+use crate::db;
 use crate::error::Error;
-use crate::filesystem::db;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    let item = db::prompts::delete_by_id_async(ctx.filesystem.clone(), request.id)
+    let item = db::prompts::delete_by_id(&ctx.db, request.id)
         .await?
         .ok_or_else(|| {
             Error::Filesystem(crate::filesystem::Error::NotFound(format!(

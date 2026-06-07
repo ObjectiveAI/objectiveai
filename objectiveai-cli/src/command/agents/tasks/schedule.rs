@@ -6,8 +6,8 @@ use objectiveai_sdk::cli::command::AgentArguments;
 use objectiveai_sdk::cli::command::agents::tasks::schedule::{Request, Response};
 
 use crate::context::Context;
+use crate::db;
 use crate::error::Error;
-use crate::filesystem::db;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
     // Snapshot the caller's identity from `ctx.config` — the CLI
@@ -26,14 +26,14 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     };
 
     let name = request.name.clone();
-    let db_id = db::tasks::insert_schedule_async(
-        ctx.filesystem.clone(),
-        request.name,
-        request.command,
-        request.description,
-        ctx.config.agent_instance_hierarchy.clone(),
+    let db_id = db::tasks::insert_schedule(
+        &ctx.db,
+        &request.name,
+        &request.command,
+        &request.description,
+        &ctx.config.agent_instance_hierarchy,
         request.interval_seconds,
-        agent_arguments,
+        &agent_arguments,
     )
     .await?;
 

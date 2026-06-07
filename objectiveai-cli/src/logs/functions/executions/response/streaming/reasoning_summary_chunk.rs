@@ -5,7 +5,7 @@ use objectiveai_sdk::functions::executions::response::streaming::{
     ReasoningSummaryChunk, reasoning_summary_log_reference,
 };
 
-use crate::filesystem::db::schema::MessageRow;
+use crate::db::schema::MessageRow;
 use crate::filesystem::logs::LogFile;
 
 /// Produce log files for a reasoning summary. Returns

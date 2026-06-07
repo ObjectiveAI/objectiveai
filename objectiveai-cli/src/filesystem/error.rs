@@ -51,8 +51,6 @@ pub enum Error {
     Io(#[from] std::io::Error),
     #[error("git error: {0}")]
     Git(#[from] git2::Error),
-    #[error("db error: {0}")]
-    Db(#[from] rusqlite::Error),
     #[error("plugin install error: {0}")]
     Install(#[from] crate::filesystem::plugins::InstallError),
 }

@@ -223,6 +223,17 @@ async fn spawn_and_forget(data_dir: &Path, install_dir: &Path) -> Result<(), Err
     pg.setup()
         .await
         .map_err(|e| Error::PostgresBootstrap(format!("setup: {e}")))?;
+
+    // `postgresql_embedded::Settings::new()` mints a fresh random
+    // password per call, but the cluster is initdb'd with the first
+    // password — subsequent invocations can't auth without it. Rewrite
+    // `pg_hba.conf` to set `trust` for every entry so any local
+    // process can connect without a password. Idempotent: repeated
+    // bootstraps see it already `trust` and don't rewrite. The
+    // postmaster picks up the change at start; once it's already
+    // running, the file is stable.
+    rewrite_pg_hba_to_trust(data_dir).await?;
+
     pg.start()
         .await
         .map_err(|e| Error::PostgresBootstrap(format!("start: {e}")))?;
@@ -234,4 +245,79 @@ async fn spawn_and_forget(data_dir: &Path, install_dir: &Path) -> Result<(), Err
     // CLI invocation skips the spawn and reuses the live socket.
     std::mem::forget(pg);
     Ok(())
+}
+
+/// List of authentication-method tokens we rewrite to `trust` inside
+/// `pg_hba.conf` on first bootstrap. Mirrors the canonical postgres
+/// hba(5) auth-method names plus the obvious aliases. Comments + blank
+/// lines are preserved verbatim.
+const HBA_AUTH_METHODS: &[&str] = &[
+    "reject",
+    "md5",
+    "password",
+    "scram-sha-256",
+    "peer",
+    "ident",
+    "gss",
+    "sspi",
+    "ldap",
+    "radius",
+    "cert",
+    "pam",
+];
+
+/// Rewrite `<data_dir>/pg_hba.conf` so every non-comment row's auth
+/// method becomes `trust`. The embedded-postgres crate doesn't touch
+/// pg_hba.conf after the initial initdb, so a one-shot rewrite is
+/// stable across subsequent bootstraps (the file already contains
+/// `trust` everywhere — no diff, no write). Missing file is a no-op:
+/// if initdb hasn't laid one down yet (shouldn't happen after
+/// `setup()`) we let `start()` surface the underlying error.
+async fn rewrite_pg_hba_to_trust(data_dir: &Path) -> Result<(), Error> {
+    let hba_path = data_dir.join("pg_hba.conf");
+    if !tokio::fs::try_exists(&hba_path).await.unwrap_or(false) {
+        return Ok(());
+    }
+    let content = tokio::fs::read_to_string(&hba_path)
+        .await
+        .map_err(|e| Error::PostgresBootstrap(format!("read pg_hba.conf: {e}")))?;
+    let mut out = String::with_capacity(content.len());
+    let mut changed = false;
+    for line in content.lines() {
+        let trimmed = line.trim_start();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            out.push_str(line);
+            out.push('\n');
+            continue;
+        }
+        let new_line = replace_auth_methods(line);
+        if new_line != line {
+            changed = true;
+        }
+        out.push_str(&new_line);
+        out.push('\n');
+    }
+    if changed {
+        tokio::fs::write(&hba_path, out)
+            .await
+            .map_err(|e| Error::PostgresBootstrap(format!("write pg_hba.conf: {e}")))?;
+    }
+    Ok(())
+}
+
+/// Whole-word replacement of every known hba auth-method token with
+/// `trust`. Whitespace alignment is lost (we split on ASCII whitespace
+/// and rejoin with single spaces) but postgres parses any whitespace
+/// run as a column separator so the resulting file is valid.
+fn replace_auth_methods(line: &str) -> String {
+    line.split_ascii_whitespace()
+        .map(|tok| {
+            if HBA_AUTH_METHODS.iter().any(|m| *m == tok) {
+                "trust"
+            } else {
+                tok
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
 }

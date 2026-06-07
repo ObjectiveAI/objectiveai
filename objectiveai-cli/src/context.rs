@@ -14,6 +14,7 @@
 
 use objectiveai_sdk::HttpClient;
 
+use crate::db;
 use crate::filesystem;
 use crate::run::Config;
 
@@ -21,6 +22,7 @@ use crate::run::Config;
 pub struct Context {
     pub config: Config,
     pub filesystem: filesystem::Client,
+    pub db: db::Pool,
     pub http: HttpClient,
 }
 
@@ -31,10 +33,16 @@ impl Context {
             config.commit_author_name.clone(),
             config.commit_author_email.clone(),
         );
+        // Ensure the embedded postmaster is alive before opening the
+        // application pool. `bootstrap` is fast on the warm path (the
+        // socket already exists) and only spawns on first run.
+        crate::postgres::bootstrap(filesystem.base_dir()).await?;
+        let db = db::init(filesystem.base_dir()).await?;
         let http = build_http_client(&config, &filesystem).await?;
         Ok(Self {
             config,
             filesystem,
+            db,
             http,
         })
     }

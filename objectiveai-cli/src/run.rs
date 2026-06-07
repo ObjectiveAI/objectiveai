@@ -278,18 +278,14 @@ pub async fn run(
     #[cfg(windows)]
     clear_stdio_inheritance();
 
+    // `Context::new` now drives `crate::postgres::bootstrap` +
+    // `crate::db::init` internally so the instance subprocess fast-
+    // path (which also routes through `Context::new`) picks up the
+    // pool. No explicit bootstrap call needed here.
     let ctx = match ctx {
         Some(c) => c,
         None => Context::new(load_config()).await?,
     };
-
-    // Ensure the embedded postgres postmaster is alive at
-    // `<base_dir>/db/.s.PGSQL.1` before any command dispatches.
-    // Fast-paths (instance subprocess re-entry, second CLI process)
-    // hit the live socket and return immediately; the first one
-    // wins the single-flight lock and spawns + detaches the
-    // postmaster.
-    crate::postgres::bootstrap(ctx.filesystem.base_dir()).await?;
 
     if args.get(1).map(String::as_str) == Some("instance") {
         let inst = crate::instance::run(ctx).await?;

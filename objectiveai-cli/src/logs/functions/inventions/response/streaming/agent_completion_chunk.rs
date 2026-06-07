@@ -7,7 +7,7 @@ use objectiveai_sdk::functions::inventions::response::streaming::AgentCompletion
 
 use objectiveai_sdk::logs::IndexedLogReference;
 
-use crate::filesystem::db::schema::MessageRow;
+use crate::db::schema::MessageRow;
 use crate::filesystem::logs::LogFile;
 
 /// Produce log files for an agent completion within a function
