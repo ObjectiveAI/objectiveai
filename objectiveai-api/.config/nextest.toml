@@ -1,12 +1,7 @@
-# Limit parallelism for the api suite. Each test process spawns its own
-# api server (LazyLock in tests/common/server.rs); the burst of N
-# parallel server processes during the agent_completions group races
-# for ephemeral ports / overruns Windows OS resource limits, surfacing
-# as ConnectionRefused panics in slots 194–201. Verified by running the
-# offending tests with `--test-threads 1` (all pass) vs `num-cpus / 2`
-# (some still fail under contention from the parallel `test.sh` suites).
-# Retries papers over the residual flake when the resource pressure is
-# transient.
+# Each api test process spawns its own api server (LazyLock in
+# tests/common/server.rs); a burst of parallel server processes
+# occasionally surfaces transient ConnectionRefused panics on Windows
+# under heavy load. `retries` papers over the residual flake.
 [profile.default]
-test-threads = "num-cpus / 2"
+test-threads = "num-cpus"
 retries = { backoff = "exponential", count = 3, delay = "2s", max-delay = "10s" }

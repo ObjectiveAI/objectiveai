@@ -75,6 +75,3 @@ percent-encoding = { version = "2.3.2" }
 dunce = "1.0.5"
 regex = "1.12.3"
 walkdir = "2.5.0"
-
-[target.'cfg(windows)'.dev-dependencies]
-windows-sys = { version = "0.59", features = ["Win32_System_JobObjects", "Win32_System_Threading", "Win32_Foundation", "Win32_Security"] }

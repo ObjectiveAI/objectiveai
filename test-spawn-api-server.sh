@@ -29,7 +29,52 @@ if [ -f "$BINARY.exe" ]; then BINARY="$BINARY.exe"; fi
 TMPDIR="$(mktemp -d)"
 TMPBIN="$TMPDIR/$(basename "$BINARY")"
 cp "$BINARY" "$TMPBIN"
-ADDRESS=127.0.0.1 PORT="$PORT" MOCK_DELAY_MS=0 "$TMPBIN" &
+# Env-var rationale (mirrors what the api integration tests used to
+# set per-binary in tests/common/server.rs before we hoisted server
+# spawn into this script):
+#
+# - CLAUDE_AGENT_SDK_ENABLED / CODEX_SDK_ENABLED=false: disable the
+#   subprocess upstreams. Tests only ever drive the mock upstream,
+#   and those SDK clients try to find a `node` binary at startup
+#   when enabled.
+# - MOCK_DELAY_MS=0 / MOCK_MAX_TOOL_CALLS=1000: speed up mock paths.
+# - MCP_*_TIMEOUT=1800000 (30 min): generous so slow CI doesn't time
+#   out spuriously.
+# - MCP_BACKOFF_*=0 / MCP_BACKOFF_MULTIPLIER=1: kill all retry/backoff
+#   so a real first-try MCP failure surfaces instead of being masked
+#   by silent retry storms.
+# - AGENT_COMPLETIONS_FIRST/OTHER_CHUNK_TIMEOUT=1800000 + the matching
+#   BACKOFF_*=0: same idea for the agent_completions path.
+# - FUNCTIONS_INVENTIONS_SUBSCRIBE_TOOLS_TIMEOUT=300000 (5 min): bump
+#   from the 30s default so contention-induced flakes during heavy
+#   parallel `test.sh` loads don't trip the retry loop in
+#   objectiveai-api/src/functions/inventions/client.rs:1346 (which
+#   would append an extra `completion` block to the stream and
+#   diverge from the snapshot).
+ADDRESS=127.0.0.1 \
+PORT="$PORT" \
+CLAUDE_AGENT_SDK_ENABLED=false \
+CODEX_SDK_ENABLED=false \
+MOCK_DELAY_MS=0 \
+MOCK_MAX_TOOL_CALLS=1000 \
+MCP_CONNECT_TIMEOUT=1800000 \
+MCP_CALL_TIMEOUT=1800000 \
+MCP_BACKOFF_CURRENT_INTERVAL=0 \
+MCP_BACKOFF_INITIAL_INTERVAL=0 \
+MCP_BACKOFF_RANDOMIZATION_FACTOR=0 \
+MCP_BACKOFF_MULTIPLIER=1 \
+MCP_BACKOFF_MAX_INTERVAL=0 \
+MCP_BACKOFF_MAX_ELAPSED_TIME=0 \
+AGENT_COMPLETIONS_FIRST_CHUNK_TIMEOUT=1800000 \
+AGENT_COMPLETIONS_OTHER_CHUNK_TIMEOUT=1800000 \
+AGENT_COMPLETIONS_BACKOFF_CURRENT_INTERVAL=0 \
+AGENT_COMPLETIONS_BACKOFF_INITIAL_INTERVAL=0 \
+AGENT_COMPLETIONS_BACKOFF_RANDOMIZATION_FACTOR=0 \
+AGENT_COMPLETIONS_BACKOFF_MULTIPLIER=1 \
+AGENT_COMPLETIONS_BACKOFF_MAX_INTERVAL=0 \
+AGENT_COMPLETIONS_BACKOFF_MAX_ELAPSED_TIME=0 \
+FUNCTIONS_INVENTIONS_SUBSCRIBE_TOOLS_TIMEOUT=300000 \
+"$TMPBIN" &
 SERVER_PID=$!
 
 # Wait for the server to accept connections (up to 120s)
