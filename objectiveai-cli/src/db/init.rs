@@ -170,150 +170,13 @@ CREATE TABLE IF NOT EXISTS schedules (
     last_ran_at              BIGINT
 );
 
--- `logs` schema: holds every postgres-backed log row. Six tables for
--- the request/response tiers (one row per chunk, JSONB body shaped
--- by the matching SDK `*Log` struct), six content-addressed leaf
--- tables (`text`, `image`, `audio`, `video`, `file`, `input`) whose
--- ids are referenced from `LogRef { table, id }` slots inside the
--- request/response bodies. Content tables dedup on
--- `content_hash` (SHA-256, 32 bytes) so identical payloads written
--- across many chunks collapse to one row.
-CREATE SCHEMA IF NOT EXISTS logs;
-
-CREATE TABLE IF NOT EXISTS logs.text (
-    id           BIGSERIAL PRIMARY KEY,
-    content      TEXT      NOT NULL,
-    content_hash BYTEA     NOT NULL UNIQUE,
-    inserted_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS logs.image (
-    id           BIGSERIAL PRIMARY KEY,
-    body         JSONB     NOT NULL,
-    content_hash BYTEA     NOT NULL UNIQUE,
-    inserted_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS logs_image_body_gin ON logs.image USING GIN (body);
-
-CREATE TABLE IF NOT EXISTS logs.audio (
-    id           BIGSERIAL PRIMARY KEY,
-    body         JSONB     NOT NULL,
-    content_hash BYTEA     NOT NULL UNIQUE,
-    inserted_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS logs_audio_body_gin ON logs.audio USING GIN (body);
-
-CREATE TABLE IF NOT EXISTS logs.video (
-    id           BIGSERIAL PRIMARY KEY,
-    body         JSONB     NOT NULL,
-    content_hash BYTEA     NOT NULL UNIQUE,
-    inserted_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS logs_video_body_gin ON logs.video USING GIN (body);
-
-CREATE TABLE IF NOT EXISTS logs.file (
-    id           BIGSERIAL PRIMARY KEY,
-    body         JSONB     NOT NULL,
-    content_hash BYTEA     NOT NULL UNIQUE,
-    inserted_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS logs_file_body_gin ON logs.file USING GIN (body);
-
-CREATE TABLE IF NOT EXISTS logs.input (
-    id           BIGSERIAL PRIMARY KEY,
-    body         JSONB     NOT NULL,
-    content_hash BYTEA     NOT NULL UNIQUE,
-    inserted_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS logs_input_body_gin ON logs.input USING GIN (body);
-
--- Six request/response tier tables. `response_id` is the chunk's
--- `id` field (TEXT). Requests are written once per stream; responses
--- get diff-deduped by the writer (shadow map keyed by `response_id`)
--- so an unchanged stripped body skips the INSERT.
-CREATE TABLE IF NOT EXISTS logs.agent_completion_requests (
-    id                       BIGSERIAL PRIMARY KEY,
-    response_id              TEXT      NOT NULL,
-    agent_instance_hierarchy TEXT      NOT NULL,
-    body                     JSONB     NOT NULL,
-    created_at               BIGINT    NOT NULL,
-    inserted_at              TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS logs_acr_response_id ON logs.agent_completion_requests(response_id);
-CREATE INDEX IF NOT EXISTS logs_acr_agent_instance_hierarchy
-    ON logs.agent_completion_requests(agent_instance_hierarchy);
-CREATE INDEX IF NOT EXISTS logs_acr_body_gin ON logs.agent_completion_requests USING GIN (body);
-
-CREATE TABLE IF NOT EXISTS logs.agent_completion_responses (
-    id                       BIGSERIAL PRIMARY KEY,
-    response_id              TEXT      NOT NULL,
-    agent_instance_hierarchy TEXT      NOT NULL,
-    body                     JSONB     NOT NULL,
-    created_at               BIGINT    NOT NULL,
-    inserted_at              TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS logs_acresp_response_id ON logs.agent_completion_responses(response_id);
-CREATE INDEX IF NOT EXISTS logs_acresp_agent_instance_hierarchy
-    ON logs.agent_completion_responses(agent_instance_hierarchy);
-CREATE INDEX IF NOT EXISTS logs_acresp_body_gin ON logs.agent_completion_responses USING GIN (body);
-
-CREATE TABLE IF NOT EXISTS logs.vector_completion_requests (
-    id          BIGSERIAL PRIMARY KEY,
-    response_id TEXT      NOT NULL,
-    body        JSONB     NOT NULL,
-    created_at  BIGINT    NOT NULL,
-    inserted_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS logs_vcr_response_id ON logs.vector_completion_requests(response_id);
-CREATE INDEX IF NOT EXISTS logs_vcr_body_gin ON logs.vector_completion_requests USING GIN (body);
-
-CREATE TABLE IF NOT EXISTS logs.vector_completion_responses (
-    id          BIGSERIAL PRIMARY KEY,
-    response_id TEXT      NOT NULL,
-    body        JSONB     NOT NULL,
-    created_at  BIGINT    NOT NULL,
-    inserted_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS logs_vcresp_response_id ON logs.vector_completion_responses(response_id);
-CREATE INDEX IF NOT EXISTS logs_vcresp_body_gin ON logs.vector_completion_responses USING GIN (body);
-
-CREATE TABLE IF NOT EXISTS logs.function_execution_requests (
-    id          BIGSERIAL PRIMARY KEY,
-    response_id TEXT      NOT NULL,
-    body        JSONB     NOT NULL,
-    created_at  BIGINT    NOT NULL,
-    inserted_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS logs_fer_response_id ON logs.function_execution_requests(response_id);
-CREATE INDEX IF NOT EXISTS logs_fer_body_gin ON logs.function_execution_requests USING GIN (body);
-
-CREATE TABLE IF NOT EXISTS logs.function_execution_responses (
-    id          BIGSERIAL PRIMARY KEY,
-    response_id TEXT      NOT NULL,
-    body        JSONB     NOT NULL,
-    created_at  BIGINT    NOT NULL,
-    inserted_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS logs_feresp_response_id ON logs.function_execution_responses(response_id);
-CREATE INDEX IF NOT EXISTS logs_feresp_body_gin ON logs.function_execution_responses USING GIN (body);
-
--- Read-only role for the future LLM SQL endpoint. `NOLOGIN` for now —
--- the endpoint will `SET ROLE log_reader` after authenticating as the
--- application user. `search_path = logs` ensures unqualified table
--- names resolve only against this schema, and the GRANTs / REVOKEs
--- restrict the role's surface to `SELECT` on the log tables.
-DO $logs_role_bootstrap$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'log_reader') THEN
-        CREATE ROLE log_reader NOLOGIN;
-    END IF;
-END $logs_role_bootstrap$;
-REVOKE ALL ON SCHEMA logs FROM PUBLIC;
-REVOKE ALL ON ALL TABLES IN SCHEMA logs FROM PUBLIC;
-GRANT USAGE ON SCHEMA logs TO log_reader;
-GRANT SELECT ON ALL TABLES IN SCHEMA logs TO log_reader;
-ALTER DEFAULT PRIVILEGES IN SCHEMA logs GRANT SELECT ON TABLES TO log_reader;
-ALTER ROLE log_reader SET search_path = logs;
 "#;
+
+/// `logs.*` schema. Pulled from `src/db/logs/schema.sql` so the
+/// canonical definitions live in a real .sql file (readable by
+/// tooling, syntax-highlighted by editors) instead of as a string
+/// constant baked into Rust source.
+const LOGS_SCHEMA: &str = include_str!("logs/schema.sql");
 
 /// Open the admin pool to the `postgres` system database, ensure
 /// `objectiveai` exists, then open the application pool and apply the
@@ -357,6 +220,7 @@ pub async fn init(config_base_dir: &Path) -> Result<Pool, Error> {
     {
         let mut tx = pool.begin().await?;
         tx.execute(SCHEMA).await?;
+        tx.execute(LOGS_SCHEMA).await?;
         tx.commit().await?;
     }
 
