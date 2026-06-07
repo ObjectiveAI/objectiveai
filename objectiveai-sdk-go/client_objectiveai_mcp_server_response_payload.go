@@ -588,7 +588,7 @@ func (ClientObjectiveaiMcpServerResponsePayloadResourcesRead) SchemaVariantTitle
 // Method returned a typed result.
 type ClientObjectiveaiMcpServerResponsePayloadSessionTerminateOk struct {
 	Kind string `json:"kind" validate:"oneof=ok"`
-	Result JsonValue `json:"result" nullType:"true"`
+	Result JsonValue `json:"result"`
 }
 
 func (v *ClientObjectiveaiMcpServerResponsePayloadSessionTerminateOk) UnmarshalJSON(data []byte) error {

@@ -654,7 +654,7 @@ type ClientObjectiveaiMcpServerResponseResponseSessionTerminateOk struct {
 	// Echoes the request envelope's `mcp_kind` so the API can
 	// confirm the CLI dispatched to the right per-MCP handler.
 	MCPKind ClientObjectiveaiMcpMcpKind `json:"mcp_kind"`
-	Result JsonValue `json:"result" nullType:"true"`
+	Result JsonValue `json:"result"`
 }
 
 func (v *ClientObjectiveaiMcpServerResponseResponseSessionTerminateOk) UnmarshalJSON(data []byte) error {
