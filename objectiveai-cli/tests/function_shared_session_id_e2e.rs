@@ -1,7 +1,7 @@
 //! Five identical mock agents in one vector.completion task all dial
 //! the SAME in-process axum MCP server. The test runs the function
 //! execution once (5 agents → 5 tool calls in turn 1, "done" in
-//! turn 2), then asks the cli `agents list active` for the five
+//! turn 2), then asks the cli `agents instances list` for the five
 //! resulting agent slots, then sends a fresh user message to each
 //! one in parallel — the cli handles continuation transparently per
 //! agent.
@@ -38,12 +38,12 @@ use axum::{
 };
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use objectiveai_sdk::cli::command::CommandExecutor;
-use objectiveai_sdk::cli::command::agents::message::{
+use objectiveai_sdk::cli::command::agents::instances::message::{
     MessageTarget, Request as MessageRequest,
     RequestDangerousAdvanced as MessageDangerousAdvanced, RequestMessage,
     ResponseItem as MessageResponseItem,
 };
-use objectiveai_sdk::cli::command::agents::spawn::{
+use objectiveai_sdk::cli::command::agents::instances::spawn::{
     AgentSpec, Request as SpawnRequest, RequestDangerousAdvanced as SpawnDangerousAdvanced,
     RequestPrompt, ResponseItem as SpawnResponseItem,
 };
@@ -56,9 +56,10 @@ const TOOL_NAME: &str = "ping";
 /// `ConfigBuilder::build` (`objectiveai-cli/src/run.rs:103-105`) when
 /// `OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY` is not set. The
 /// `executor_with_base_dir` helper does NOT set that env var, so the
-/// cli child uses this value as the parent for `agents list active`
+/// cli child uses this value as the parent for `agents instances list`
 /// and we have to re-prepend it to each returned `agent_id` before
-/// passing it to `agents message` (which expects the FULL hierarchy).
+/// passing it to `agents instances message` (which expects the FULL
+/// hierarchy).
 const CLI_HIERARCHY_ROOT: &str = "cli";
 
 /// Server state. `is_new_by_session` keyed by the server-minted
@@ -230,12 +231,13 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
 
     // Inline mock agent body — same JSON for all 5 agents. The
     // `calls` override scripts FOUR mock-emissions across TWO turns:
-    //   turn 1 (agents spawn):   emit Call[0] (tool call) → MCP gets a
-    //                            fresh session → "true-<sid>" line on
-    //                            the axum server; then emit Call[1]
-    //                            ("done") to end the turn.
-    //   turn 2 (agents message): emit Call[2] (tool call) → same MCP
-    //                            session is REUSED → "false-<sid>"
+    //   turn 1 (agents instances spawn):   emit Call[0] (tool call) →
+    //                            MCP gets a fresh session →
+    //                            "true-<sid>" line on the axum server;
+    //                            then emit Call[1] ("done") to end
+    //                            the turn.
+    //   turn 2 (agents instances message): emit Call[2] (tool call) →
+    //                            same MCP session is REUSED → "false-<sid>"
     //                            line; then Call[3] ("done2") ends.
     //
     // Each agent runs independently with its own MCP proxy
@@ -267,7 +269,7 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
                 )
                 .expect("inline mock agent must deserialize"),
             );
-            let request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
+            let request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::instances::spawn::Path::AgentsInstancesSpawn,
                 agent_tag: None,
                 prompt: RequestPrompt::Simple("go".to_string()),
                 agent,
@@ -289,7 +291,7 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
                     }
                     SpawnResponseItem::Id(_) => None,
                 })
-                .expect("agents spawn must emit a Chunk with non-empty id")
+                .expect("agents instances spawn must emit a Chunk with non-empty id")
         }
     };
 
@@ -313,7 +315,7 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
         .collect();
     let instances = leaves;
 
-    // ── Send `agents message` to all 5 in parallel ─────────────
+    // ── Send `agents instances message` to all 5 in parallel ──────
     // `dangerous_advanced.stream = Some(true)` keeps the parent cli
     // attached to its spawned instance runner so `collect_stream`
     // returning implies the runner exited — avoids the leak nextest
@@ -321,7 +323,7 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
     let send_futures = instances.iter().map(|instance| {
         let executor = &executor;
         let request = MessageRequest {
-            path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
+            path_type: objectiveai_sdk::cli::command::agents::instances::message::Path::AgentsInstancesMessage,
             target: MessageTarget::Direct {
                 parent_agent_instance_hierarchy: None,
                 agent_instance: instance.clone(),

@@ -6,10 +6,11 @@
 //! that all share an inner `invoke`.
 //!
 //! A bare-bones plain mock agent then runs three CLI turns against the
-//! same `agent_instance_hierarchy`: one `agents spawn`, two `agents
-//! message`. After every turn the cli writes its tool-call rows to the
-//! agent's queue; we read them back with `agents read all` + `agents
-//! read id` and dedupe the function names.
+//! same `agent_instance_hierarchy`: one `agents instances spawn`, two
+//! `agents instances message`. After every turn the cli writes its
+//! tool-call rows to the agent's queue; we read them back with
+//! `agents instances read all` + `agents instances read id` and dedupe
+//! the function names.
 //!
 //! The assertion: across all three turns, the deduplicated set of
 //! tool-call names contains **at least 2 unique entries**. That proves
@@ -26,19 +27,19 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
-use objectiveai_sdk::cli::command::agents::message::{
+use objectiveai_sdk::cli::command::agents::instances::message::{
     MessageTarget, Request as MessageRequest,
     RequestDangerousAdvanced as MessageDangerousAdvanced, RequestMessage,
     ResponseItem as MessageResponseItem,
 };
-use objectiveai_sdk::cli::command::agents::read::all::{
+use objectiveai_sdk::cli::command::agents::instances::read::all::{
     Request as ReadAllRequest, ResponseItem as ReadAllItem, ResponseQueueItem,
     Target as ReadAllTarget,
 };
-use objectiveai_sdk::cli::command::agents::read::id::{
+use objectiveai_sdk::cli::command::agents::instances::read::id::{
     Request as ReadIdRequest, Response as ReadIdResponse,
 };
-use objectiveai_sdk::cli::command::agents::spawn::{
+use objectiveai_sdk::cli::command::agents::instances::spawn::{
     AgentSpec, Request as SpawnRequest, RequestDangerousAdvanced, RequestPrompt,
     ResponseItem as SpawnResponseItem,
 };
@@ -130,8 +131,8 @@ async fn duplicate_tool_names_routed_across_turns() {
     );
     let executor = cli_test_util::executor_with_base_dir(&base);
 
-    // Turn 1: agents spawn ────────────────────────────────────────
-    let spawn = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
+    // Turn 1: agents instances spawn ──────────────────────────────
+    let spawn = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::instances::spawn::Path::AgentsInstancesSpawn,
         prompt: RequestPrompt::Simple("use a tool".to_string()),
         agent,
         agent_tag: None,
@@ -154,7 +155,7 @@ async fn duplicate_tool_names_routed_across_turns() {
             SpawnResponseItem::Chunk(c) if !c.id.is_empty() => Some(c.id.clone()),
             _ => None,
         })
-        .expect("agents spawn must emit a Chunk with non-empty id");
+        .expect("agents instances spawn must emit a Chunk with non-empty id");
     let spawn_id = format!("cli/{leaf}");
     wait_for_completion(&base, &spawn_id).await;
 
@@ -174,12 +175,12 @@ async fn duplicate_tool_names_routed_across_turns() {
     // post-tear-down listener already gone.
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
-    // Turn 2: agents message — first continuation ─────────────────
+    // Turn 2: agents instances message — first continuation ──────
     // `dangerous_advanced.stream = Some(true)` keeps the parent cli
     // attached to its spawned instance runner so `collect_stream`
     // returning implies the runner exited (no leak).
     let msg1 = MessageRequest {
-        path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
+        path_type: objectiveai_sdk::cli::command::agents::instances::message::Path::AgentsInstancesMessage,
         target: MessageTarget::Direct {
             parent_agent_instance_hierarchy: parent.clone(),
             agent_instance: instance.clone(),
@@ -199,9 +200,9 @@ async fn duplicate_tool_names_routed_across_turns() {
     // Same settle delay as before turn 2 (see comment there).
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
-    // Turn 3: agents message — second continuation ───────────────
+    // Turn 3: agents instances message — second continuation ─────
     let msg2 = MessageRequest {
-        path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
+        path_type: objectiveai_sdk::cli::command::agents::instances::message::Path::AgentsInstancesMessage,
         target: MessageTarget::Direct {
             parent_agent_instance_hierarchy: parent.clone(),
             agent_instance: instance.clone(),
@@ -218,8 +219,9 @@ async fn duplicate_tool_names_routed_across_turns() {
         cli_test_util::collect_stream(&executor, msg2).await;
     wait_for_completion(&base, &spawn_id).await;
 
-    // Collect every assistant turn's tool_call rows via `agents read
-    // all`, then resolve each row id through `agents read id` to pull
+    // Collect every assistant turn's tool_call rows via `agents
+    // instances read all`, then resolve each row id through `agents
+    // instances read id` to pull
     // the typed `AssistantToolCallDelta` whose `function.name` carries
     // the prefixed tool name.
     // Split `spawn_id` (`cli/<leaf>`) into (parent, leaf) for the
@@ -228,7 +230,7 @@ async fn duplicate_tool_names_routed_across_turns() {
         .rsplit_once('/')
         .map(|(p, i)| (Some(p.to_string()), i.to_string()))
         .unwrap_or_else(|| (None, spawn_id.clone()));
-    let read_all = ReadAllRequest { path_type: objectiveai_sdk::cli::command::agents::read::all::Path::AgentsReadAll,
+    let read_all = ReadAllRequest { path_type: objectiveai_sdk::cli::command::agents::instances::read::all::Path::AgentsInstancesReadAll,
         targets: vec![ReadAllTarget::Direct {
             parent_agent_instance_hierarchy: read_parent,
             agent_instance: read_instance,
@@ -259,9 +261,9 @@ async fn duplicate_tool_names_routed_across_turns() {
     let mut unique: std::collections::HashSet<String> = std::collections::HashSet::new();
     for id in tool_call_ids {
         let resp: ReadIdResponse = executor
-            .execute_one(ReadIdRequest { path_type: objectiveai_sdk::cli::command::agents::read::id::Path::AgentsReadId, id, jq: None }, None)
+            .execute_one(ReadIdRequest { path_type: objectiveai_sdk::cli::command::agents::instances::read::id::Path::AgentsInstancesReadId, id, jq: None }, None)
             .await
-            .unwrap_or_else(|e| panic!("agents read id {id} failed: {e:?}"));
+            .unwrap_or_else(|e| panic!("agents instances read id {id} failed: {e:?}"));
         // Tool-call rows always come back as
         // `AgentsCompletionsResponseMessagesAssistantToolCalls(AssistantToolCallDelta)`.
         // Other variants would mean the queue cross-referenced a

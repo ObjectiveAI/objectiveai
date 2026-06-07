@@ -22,7 +22,7 @@ use objectiveai_sdk::agent::{
     InlineAgentBase, InlineAgentBaseWithFallbacks,
     InlineAgentBaseWithFallbacksOrRemoteCommitOptional, mock,
 };
-use objectiveai_sdk::cli::command::agents::spawn::AgentSpec;
+use objectiveai_sdk::cli::command::agents::instances::spawn::AgentSpec;
 use objectiveai_sdk::cli::command::functions::inventions::recursive::create::remote::{
     Request, RequestDangerousAdvanced, RequestState, ResponseItem,
 };

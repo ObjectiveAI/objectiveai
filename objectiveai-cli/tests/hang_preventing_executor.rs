@@ -11,7 +11,7 @@
 //!
 //! ## Timeout shape
 //!
-//! Conceptually mirrors `objectiveai-cli/src/command/agents/read/subscribe.rs` —
+//! Conceptually mirrors `objectiveai-cli/src/command/agents/instances/read/subscribe.rs` —
 //! a long-lived task races a [`tokio::time::sleep`] against an event
 //! stream. Every event resets the sleep clock; a fired sleep aborts
 //! the work. We replace the per-agent unix-socket event stream with a

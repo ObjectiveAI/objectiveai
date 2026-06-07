@@ -1,4 +1,4 @@
-//! End-to-end snapshot: `agents spawn` against an inline mock agent
+//! End-to-end snapshot: `agents instances spawn` against an inline mock agent
 //! whose only MCP surface is a plugin-served RMCP upstream with 10
 //! tools (`demo_tool0`..`demo_tool9`).
 //!
@@ -28,7 +28,7 @@ use std::process::Command;
 use std::time::{Duration, Instant};
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
-use objectiveai_sdk::cli::command::agents::spawn::{
+use objectiveai_sdk::cli::command::agents::instances::spawn::{
     AgentSpec, Request as SpawnRequest, RequestDangerousAdvanced, RequestPrompt,
     ResponseItem as SpawnResponseItem,
 };
@@ -225,7 +225,7 @@ async fn plugin_mcp_dispatch_round_trip() {
     // id, which is what every on-disk log stem keys on). Without
     // streaming the parent cli detaches on `LogStreamReady` and emits
     // only a bare `Id(leaf)`.
-    let spawn_request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
+    let spawn_request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::instances::spawn::Path::AgentsInstancesSpawn,
         agent_tag: None,
         prompt: RequestPrompt::Simple("use a tool".to_string()),
         agent,
@@ -255,7 +255,7 @@ async fn plugin_mcp_dispatch_round_trip() {
             }
             SpawnResponseItem::Id(_) => None,
         })
-        .expect("agents spawn must emit a Chunk with non-empty id");
+        .expect("agents instances spawn must emit a Chunk with non-empty id");
     let full_lineage = format!("cli/{leaf}");
 
     wait_for_completion(&base, &leaf, &full_lineage).await;
