@@ -186,12 +186,22 @@ async fn wait_for_alive(data_dir: &Path) -> Result<(), Error> {
     ))
 }
 
+/// Hard-coded password the cluster is initdb'd with. We never actually
+/// use it — `pg_hba.conf` is rewritten to `trust` below before the
+/// postmaster starts, so every connection is authentic-by-source. The
+/// password matters only inside the `postgresql_embedded` setup phase,
+/// and pinning it to a stable string sidesteps the crate's
+/// per-`Settings::default()` random mint (whose only consumer is the
+/// initdb password file we never read back).
+const PG_INITDB_PASSWORD: &str = "objectiveai";
+
 async fn spawn_and_forget(data_dir: &Path, install_dir: &Path) -> Result<(), Error> {
     let mut settings = postgresql_embedded::Settings::default();
     settings.data_dir = PathBuf::from(data_dir);
     settings.installation_dir = PathBuf::from(install_dir);
     settings.port = PG_PORT;
     settings.temporary = false;
+    settings.password = PG_INITDB_PASSWORD.to_string();
 
     #[cfg(unix)]
     {
@@ -224,14 +234,14 @@ async fn spawn_and_forget(data_dir: &Path, install_dir: &Path) -> Result<(), Err
         .await
         .map_err(|e| Error::PostgresBootstrap(format!("setup: {e}")))?;
 
-    // `postgresql_embedded::Settings::new()` mints a fresh random
-    // password per call, but the cluster is initdb'd with the first
-    // password — subsequent invocations can't auth without it. Rewrite
-    // `pg_hba.conf` to set `trust` for every entry so any local
-    // process can connect without a password. Idempotent: repeated
-    // bootstraps see it already `trust` and don't rewrite. The
-    // postmaster picks up the change at start; once it's already
-    // running, the file is stable.
+    // Rewrite `pg_hba.conf` to `trust` for every non-comment row so
+    // any local process can connect without a password. Combined with
+    // the fixed `PG_INITDB_PASSWORD` above, the auth path is fully
+    // deterministic — the password never matters at connect time, but
+    // a stable initdb password keeps the data-dir layout stable too.
+    // Idempotent: repeated bootstraps see the file already `trust` and
+    // don't rewrite. The postmaster picks up the change at start;
+    // once it's already running, the file is stable.
     rewrite_pg_hba_to_trust(data_dir).await?;
 
     pg.start()
