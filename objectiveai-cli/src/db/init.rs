@@ -5,13 +5,16 @@
 //! second invocation against an already-populated database is a no-op.
 //!
 //! Connection URL strategy (postmaster is spun up by
-//! [`crate::postgres::bootstrap`], with `pg_hba.conf` rewritten to
-//! `trust` so we never need a password):
+//! [`crate::postgres::bootstrap`], with the cluster's default
+//! `pg_hba.conf` left intact; we authenticate with the fixed
+//! [`crate::postgres::PG_INITDB_PASSWORD`] that the cluster was
+//! initdb'd against):
 //!
-//! - **Unix**: `postgres:///<db>?host=<data_dir>&user=postgres` — talks
-//!   to the Unix socket at `<data_dir>/.s.PGSQL.1`; the URL percent-
-//!   encodes the data-dir path so non-alphanumeric bytes survive.
-//! - **Windows**: `postgres://postgres@127.0.0.1:5432/<db>` — TCP
+//! - **Unix**: `postgres:///<db>?host=<data_dir>&user=postgres&password=<pw>`
+//!   — talks to the Unix socket at `<data_dir>/.s.PGSQL.1`; the URL
+//!   percent-encodes both the data-dir path and the password so non-
+//!   alphanumeric bytes survive.
+//! - **Windows**: `postgres://postgres:<pw>@127.0.0.1:5432/<db>` — TCP
 //!   loopback to the postmaster listening at the canonical port.
 //!
 //! We open two pools sequentially: a small admin pool against the
@@ -219,19 +222,25 @@ pub async fn init(config_base_dir: &Path) -> Result<Pool, Error> {
 /// Compose the libpq connection URL for `db` against the postmaster
 /// rooted at `data_dir`. On Unix the host is the data-dir path (which
 /// holds the `.s.PGSQL.1` socket); on Windows we go through TCP
-/// loopback at 5432.
+/// loopback at 5432. The password is the fixed
+/// [`crate::postgres::PG_INITDB_PASSWORD`] the cluster was initdb'd
+/// against.
 fn build_url(data_dir: &Path, db: &str) -> String {
+    let password = percent_encoding::utf8_percent_encode(
+        crate::postgres::PG_INITDB_PASSWORD,
+        percent_encoding::NON_ALPHANUMERIC,
+    );
     #[cfg(unix)]
     {
         let host_param = percent_encoding::utf8_percent_encode(
             &data_dir.to_string_lossy(),
             percent_encoding::NON_ALPHANUMERIC,
         );
-        format!("postgres:///{db}?host={host_param}&user=postgres")
+        format!("postgres:///{db}?host={host_param}&user=postgres&password={password}")
     }
     #[cfg(windows)]
     {
         let _ = data_dir;
-        format!("postgres://postgres@127.0.0.1:5432/{db}")
+        format!("postgres://postgres:{password}@127.0.0.1:5432/{db}")
     }
 }
