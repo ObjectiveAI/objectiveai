@@ -75,7 +75,6 @@ impl HttpConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PipeConfig {
     pub config_base_dir: PathBuf,
-    pub bind_agent_instance_hierarchy: Option<String>,
 }
 
 impl PipeConfig {
@@ -93,34 +92,6 @@ impl PipeConfig {
         mcp_server: crate::instance::mcp_server::McpServerHandle,
     ) -> crate::instance::api::conduit::ConduitMcpHandler {
         crate::instance::api::conduit::ConduitMcpHandler::new(mcp_server, ctx)
-    }
-
-    /// Run the eager admission probe against `registry` when
-    /// `bind_agent_instance_hierarchy` is set. On
-    /// [`crate::instance::pipes::BindStatus::Live`] the process exits
-    /// with [`crate::instance::api::SLOT_TAKEN_EXIT_CODE`] — does not
-    /// return. On success the listener is stashed in
-    /// `registry.pending_listeners` and the matching per-chunk
-    /// `ensure_pipe` call inside `run_chunk_loop` consumes it.
-    pub async fn try_eager_acquire(
-        &self,
-        registry: &crate::instance::pipes::PipeRegistry,
-    ) -> Result<(), String> {
-        let Some(bind_agent_instance_hierarchy) = self.bind_agent_instance_hierarchy.as_deref()
-        else {
-            return Ok(());
-        };
-        let pipes_root = self.pipes_root();
-        match registry
-            .try_acquire_pipe(bind_agent_instance_hierarchy, &pipes_root)
-            .await
-        {
-            Ok(()) => Ok(()),
-            Err(crate::instance::pipes::BindStatus::Live) => {
-                std::process::exit(crate::instance::api::SLOT_TAKEN_EXIT_CODE);
-            }
-            Err(crate::instance::pipes::BindStatus::Io) => Ok(()),
-        }
     }
 }
 

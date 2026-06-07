@@ -62,7 +62,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         ctx,
         crate::instance::request::InstanceEndpoint::FunctionsExecutionsCreate(params),
         None,
-        None,
         stream,
     );
     Ok(Box::pin(raw.map(map_item)))

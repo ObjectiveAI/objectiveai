@@ -33,8 +33,9 @@ pub async fn create_agent_completion_unary(
 ///
 /// - The `Stream` yields only `AgentCompletionChunk`s — the same shape
 ///   the previous SSE endpoint emitted.
-/// - The `Notifier` provides `notify(...)` for pushing a user message
-///   into the running completion at any point before the stream ends.
+/// - The `Notifier` provides `notify_list_changed(...)` for
+///   forwarding upstream MCP `notifications/{tools,resources}/list_changed`
+///   observations to the API while the completion is running.
 ///
 /// `handler` is invoked for every inbound objectiveai-mcp
 /// `server_request` (tools/list, tools/call) the API forwards from a

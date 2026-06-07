@@ -33,11 +33,6 @@ pub async fn execute(
     let (tx, rx) = mpsc::channel::<Result<InstanceEmission, Error>>(16);
     let registry = crate::instance::pipes::PipeRegistry::new(tx.clone());
 
-    pipes
-        .try_eager_acquire(&registry)
-        .await
-        .map_err(Error::Instance)?;
-
     let caller_agent_instance_hierarchy = Some(http.objectiveai_agent_instance_hierarchy.clone());
     let log_writer = fs_client
         .write_agent_completion(&params)
@@ -56,14 +51,13 @@ pub async fn execute(
         .map_err(|e| Error::Instance(format!(
             "failed to open agent-completion stream: {e}"
         )))?;
-    conduit.install_notifier(notifier.clone());
+    conduit.install_notifier(notifier);
 
     let stream = Box::pin(stream);
 
     tokio::spawn(async move {
         let result = streaming::run_chunk_loop::<_, AgentCompletionChunk, _, _>(
             stream,
-            notifier,
             pipes_root,
             caller_agent_instance_hierarchy,
             log_writer,

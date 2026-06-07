@@ -199,9 +199,8 @@ impl<C> LogWriter<C> {
     /// Reserve the agent's next db index, write the notification log
     /// file immediately, and return a [`PendingNotification`] handle
     /// the caller queues locally. Delegates to [`Queue::write_notification`].
-    /// `response_id` is the target agent-completion's id (the same
-    /// value `AgentCompletionNotifyParams.response_id` carries on
-    /// the wire); the caller threads it down from the pipe binding.
+    /// `response_id` is the target agent-completion's id; the caller
+    /// threads it down from the pipe binding.
     pub async fn write_notification(
         &mut self,
         agent_instance_hierarchy: &str,

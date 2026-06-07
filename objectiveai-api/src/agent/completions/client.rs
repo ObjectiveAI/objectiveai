@@ -15,21 +15,6 @@ pub fn response_id(created: u64) -> String {
     crate::util::response_id(None, created)
 }
 
-/// Per-response-id target set for `agent/completions/notify`. The
-/// enclosing `Arc<tokio::sync::Mutex<…>>` (see `Client.notify_targets`)
-/// serializes notify-deliverers against the stream's final-chunk
-/// queue check, so the `messages_queued` value in the final chunk
-/// reflects every notify that returned `Ok`.
-#[derive(Debug)]
-pub enum NotifyTargets {
-    /// Completion has zero MCP connections (no tools). Any notify
-    /// against this `response_id` rejects with [`Error::NotifyNoMcp`].
-    NoMcp,
-    /// Completion has at least one live MCP connection. Notify forwards
-    /// `content` to every connection's proxy `/notify` queue.
-    Active(Vec<objectiveai_sdk::mcp::Connection>),
-}
-
 // ---------------------------------------------------------------------------
 
 /// Filters agents by upstream type (if required by the continuation) and
@@ -106,17 +91,6 @@ pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RET
     pub first_chunk_timeout: Duration,
     /// Maximum wait time between subsequent chunks in a streaming response.
     pub other_chunk_timeout: Duration,
-    /// Per-`response_id` notify-target registry. Populated when an
-    /// agent completion stream commits to a successful upstream attempt
-    /// (in `run_agent_loop`), and removed under the per-entry mutex
-    /// immediately before the stream's final chunk is yielded. The
-    /// `notify` endpoint takes the same per-entry mutex before
-    /// delivering, so its delivery is mutually exclusive with the
-    /// stream's `has_pending_notifications` peek — the final chunk's
-    /// `messages_queued` field can't miss an `Ok`-returning notify.
-    pub notify_targets: Arc<
-        dashmap::DashMap<String, Arc<tokio::sync::Mutex<NotifyTargets>>>,
-    >,
     _marker: std::marker::PhantomData<CTXEXT>,
 }
 
@@ -160,80 +134,7 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
             backoff_max_elapsed_time,
             first_chunk_timeout,
             other_chunk_timeout,
-            notify_targets: Arc::new(dashmap::DashMap::new()),
             _marker: std::marker::PhantomData,
-        }
-    }
-
-    /// Forward `content` to the MCP proxy notify queue(s) of the
-    /// agent completion identified by `response_id`. Returns
-    /// [`super::Error::NotifyResponseIdNotFound`] if the completion
-    /// isn't currently streaming (never started, already finished, or
-    /// cancelled), and [`super::Error::NotifyNoMcp`] if the completion
-    /// is streaming but its agent has no MCP connection — in which
-    /// case there's no queue to forward to.
-    ///
-    /// Mutually exclusive with the stream's final-chunk queue peek
-    /// via a per-`response_id` [`tokio::sync::Mutex`]: the stream
-    /// locks, removes the registry entry, then peeks the queue — so
-    /// any notify that returns `Ok` is reflected in the final chunk's
-    /// `messages_queued` field, and any notify that races against
-    /// remove sees the dashmap miss on its post-lock re-check and
-    /// returns `NotifyResponseIdNotFound`.
-    ///
-    /// Note: same-stream scoping (only allow notifies for
-    /// `response_id`s emitted by *this WS connection's* stream) is
-    /// enforced at the WS-handler layer via the per-connection
-    /// `SessionTracker`. This method trusts that the caller has
-    /// already gated the request through that check.
-    pub async fn notify(
-        &self,
-        params: objectiveai_sdk::agent::completions::request::AgentCompletionNotifyParams,
-    ) -> Result<(), super::Error> {
-        // Look up the entry + clone the Arc<Mutex<…>>; release the
-        // dashmap shard lock immediately.
-        let arc = {
-            let entry = self
-                .notify_targets
-                .get(&params.response_id)
-                .ok_or_else(|| {
-                    super::Error::NotifyResponseIdNotFound(params.response_id.clone())
-                })?;
-            entry.value().clone()
-        };
-
-        // Acquire the per-response_id mutex. Mutually exclusive with
-        // the stream's remove + queue-peek.
-        let guard = arc.lock().await;
-
-        // Re-check the dashmap: the stream may have removed the entry
-        // while we were waiting on the mutex, in which case its
-        // `has_pending_notifications` has already been (or is about
-        // to be) computed and delivering now would leave a notify
-        // unreported in the final chunk.
-        if !self.notify_targets.contains_key(&params.response_id) {
-            return Err(super::Error::NotifyResponseIdNotFound(
-                params.response_id,
-            ));
-        }
-
-        match &*guard {
-            super::NotifyTargets::NoMcp => {
-                Err(super::Error::NotifyNoMcp(params.response_id))
-            }
-            super::NotifyTargets::Active(conns) => {
-                let blocks: Vec<objectiveai_sdk::mcp::tool::ContentBlock> =
-                    params.content.into();
-                for conn in conns {
-                    conn.enqueue_notifications(&blocks).await.map_err(
-                        |error| super::Error::McpEnqueueNotifications {
-                            url: conn.url.clone(),
-                            error,
-                        },
-                    )?;
-                }
-                Ok(())
-            }
         }
     }
 }
@@ -261,7 +162,6 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
             backoff_max_elapsed_time: self.backoff_max_elapsed_time,
             first_chunk_timeout: self.first_chunk_timeout,
             other_chunk_timeout: self.other_chunk_timeout,
-            notify_targets: self.notify_targets.clone(),
             _marker: std::marker::PhantomData,
         }
     }
@@ -1011,9 +911,8 @@ where
             /// Per-slot response-id leaf — trailing slash-segment of
             /// `agent_instance_hierarchy`. The value passed into `run_agent_loop`
             /// as the `id` argument, which becomes
-            /// `AgentCompletionChunk.id`, the `notify_targets` key,
-            /// and the value cli-stream's conduit cache + sibling-
-            /// group sweep match on.
+            /// `AgentCompletionChunk.id` and the value cli-stream's
+            /// conduit cache + sibling-group sweep match on.
             id: String,
         }
         let mut attempts: Vec<AgentAttempt> = filtered_agents
@@ -1408,7 +1307,7 @@ where
         request_continuation: Option<&RC>,
         params: &objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams,
         mcp_connection: Option<objectiveai_sdk::mcp::Connection>,
-        reverse_attach: Option<Arc<crate::objectiveai_mcp::registry::ReverseAttachHandle>>,
+        reverse_attach: Option<Arc<crate::objectiveai_mcp::ReverseAttachHandle>>,
         cont_items: &mut Vec<super::ContinuationItem<U::State>>,
         id: &str,
         created: u64,
@@ -1623,23 +1522,6 @@ where
         let agent_full_id = agent_full_id.to_string();
         let agent_remote = agent_remote.cloned();
         let request_continuation = request_continuation.cloned();
-
-        // Register this completion's notify target(s) before the stream
-        // is polled. The entry is removed inside the stream body — under
-        // the per-entry mutex — immediately before the final chunk's
-        // `has_pending_notifications` peek, so a notify that returned
-        // `Ok` is always reflected in the final `messages_queued`.
-        let notify_targets = self.notify_targets.clone();
-        {
-            let state = match &mcp_connection {
-                Some(conn) => super::NotifyTargets::Active(vec![conn.clone()]),
-                None => super::NotifyTargets::NoMcp,
-            };
-            notify_targets.insert(
-                id.clone(),
-                Arc::new(tokio::sync::Mutex::new(state)),
-            );
-        }
 
         Ok(Box::pin(async_stream::stream! {
             use objectiveai_sdk::agent::completions::message::{RichContent, ToolMessage};
@@ -1924,29 +1806,6 @@ where
                 ));
             }
 
-            // Lock the per-response_id notify mutex, remove the
-            // registry entry under the lock, then peek the queue —
-            // also under the lock. This serializes the queue peek
-            // against any in-flight `Client::notify` call: a notify
-            // that delivered before this point is reflected in
-            // `messages_queued`; a notify that races against the
-            // remove (and would land after the peek) sees the
-            // dashmap miss on its post-lock re-check and returns
-            // `NotifyResponseIdNotFound`. The guard is held until
-            // the end of this scope so the lock is released only
-            // after `messages_queued` is materialized below.
-            let notify_lock_arc = notify_targets
-                .get(&id)
-                .map(|entry| entry.value().clone());
-            let _notify_guard = match notify_lock_arc {
-                Some(arc) => {
-                    let g = arc.lock_owned().await;
-                    notify_targets.remove(&id);
-                    Some(g)
-                }
-                None => None,
-            };
-
             // Peek the proxy's pending-notifications queue so the
             // caller can tell whether a follow-up continuation would
             // surface queued blocks. Only meaningful when a
@@ -1956,6 +1815,12 @@ where
             // surfaced via the chunk's `error` field only if no prior
             // error already occupies it (the earlier failure is the
             // more important signal).
+            //
+            // With the CLI→API notify path removed there's nothing to
+            // serialize against here — the read of the proxy queue is
+            // straight, no lock needed. `messages_queued` simply
+            // initializes to `None` and is populated from the peek
+            // below.
             let mut messages_queued: Option<bool> = None;
             if let Some(conn) = &mcp_connection {
                 match conn.has_pending_notifications().await {
@@ -2099,7 +1964,7 @@ const MESSAGE_QUEUE_WS_TIMEOUT: std::time::Duration = std::time::Duration::from_
 /// closed, dropped, timed out, or CLI-side JSON-RPC error) collapse
 /// to [`super::Error::MessageQueueRead`].
 async fn read_message_queue_via_ws(
-    handle: &std::sync::Arc<crate::objectiveai_mcp::registry::ReverseAttachHandle>,
+    handle: &std::sync::Arc<crate::objectiveai_mcp::ReverseAttachHandle>,
     agent_instance_hierarchy: &str,
     parent_agent_instance_hierarchy: Option<String>,
     agent_full_id: &str,
@@ -2117,7 +1982,7 @@ async fn read_message_queue_via_ws(
             },
         ),
     };
-    let rx = crate::objectiveai_mcp::send::send_server_request(&rc.sink, &rc.pending, request)
+    let rx = crate::objectiveai_mcp::send_server_request(&rc.sink, &rc.pending, request)
         .await
         .map_err(|()| super::Error::MessageQueueRead("reverse channel closed".to_string()))?;
     let response = match tokio::time::timeout(MESSAGE_QUEUE_WS_TIMEOUT, rx).await {
@@ -2157,7 +2022,7 @@ async fn read_message_queue_via_ws(
 /// stale or wrongly-addressed id list is silently absorbed (see
 /// `ClearMessageQueueRequest`'s doc).
 async fn clear_message_queue_via_ws(
-    handle: std::sync::Arc<crate::objectiveai_mcp::registry::ReverseAttachHandle>,
+    handle: std::sync::Arc<crate::objectiveai_mcp::ReverseAttachHandle>,
     agent_instance_hierarchy: String,
     parent_agent_instance_hierarchy: Option<String>,
     agent_full_id: String,
@@ -2180,7 +2045,7 @@ async fn clear_message_queue_via_ws(
             },
         ),
     };
-    let rx = match crate::objectiveai_mcp::send::send_server_request(
+    let rx = match crate::objectiveai_mcp::send_server_request(
         &rc.sink, &rc.pending, request,
     )
     .await

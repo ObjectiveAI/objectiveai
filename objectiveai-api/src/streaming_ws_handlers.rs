@@ -36,56 +36,6 @@ use crate::{
 };
 use crate::functions::profiles::computations::Client as _;
 
-/// Build the `notify_fn` closure for `streaming_ws::recv_notify_loop`
-/// from an agent completions client. Captures the Arc once; each call
-/// clones it again for the spawned dispatch future.
-fn notify_fn_for<OR, CAG, CX, MK, RG, RF, RM, AU>(
-    agent_client: Arc<
-        agent::completions::Client<ctx::DefaultContextExt, OR, CAG, CX, MK, RG, RF, RM, AU>,
-    >,
-) -> impl Fn(
-    objectiveai_sdk::agent::completions::request::AgentCompletionNotifyParams,
-) -> std::pin::Pin<
-    Box<dyn std::future::Future<Output = Result<(), agent::completions::Error>> + Send>,
-> + Send
-+ Sync
-+ 'static
-where
-    OR: agent::completions::UpstreamClient<
-            objectiveai_sdk::agent::openrouter::Agent,
-            objectiveai_sdk::agent::openrouter::Continuation,
-        > + Send
-        + Sync
-        + 'static,
-    CAG: agent::completions::UpstreamClient<
-            objectiveai_sdk::agent::claude_agent_sdk::Agent,
-            objectiveai_sdk::agent::claude_agent_sdk::Continuation,
-        > + Send
-        + Sync
-        + 'static,
-    CX: agent::completions::UpstreamClient<
-            objectiveai_sdk::agent::codex_sdk::Agent,
-            objectiveai_sdk::agent::codex_sdk::Continuation,
-        > + Send
-        + Sync
-        + 'static,
-    MK: agent::completions::UpstreamClient<
-            objectiveai_sdk::agent::mock::Agent,
-            objectiveai_sdk::agent::mock::Continuation,
-        > + Send
-        + Sync
-        + 'static,
-    RG: retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
-    RF: retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
-    RM: retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
-    AU: agent::completions::usage_handler::UsageHandler<ctx::DefaultContextExt> + Send + Sync + 'static,
-{
-    move |params| {
-        let c = agent_client.clone();
-        Box::pin(async move { c.notify(params).await })
-    }
-}
-
 pub(crate) async fn create_agent_completion_ws(
     client: Arc<
         agent::completions::Client<
@@ -143,7 +93,6 @@ pub(crate) async fn create_agent_completion_ws(
         let ctx = crate::context(&headers, persistent_cache, suppress_output)
             .with_mcp_port(reverse_attach.mcp_port)
             .with_reverse_attach(_attach_guard.handle());
-        let notify_client = client.clone();
 
         // Stream setup lives INSIDE the `send` branch so the `recv_loop`
         // is polled concurrently with `create_streaming_handle_usage`'s
@@ -192,12 +141,10 @@ pub(crate) async fn create_agent_completion_ws(
 
         let recv = streaming_ws::recv_loop(
             rx,
-            tracker,
             sink,
             pending,
             reverse_attach.mcp_listeners.clone(),
             _attach_guard.handle(),
-            notify_fn_for(notify_client),
         );
 
         tokio::select! {
@@ -219,7 +166,7 @@ pub(crate) async fn create_vector_completion_ws<
             impl vector::completions::usage_handler::UsageHandler<ctx::DefaultContextExt> + Send + Sync + 'static,
         >,
     >,
-    agent_completions_client: Arc<
+    _agent_completions_client: Arc<
         agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>,
     >,
     reverse_attach: streaming_ws::ReverseAttachConfig,
@@ -318,12 +265,10 @@ where
 
         let recv = streaming_ws::recv_loop(
             rx,
-            tracker,
             sink,
             pending,
             reverse_attach.mcp_listeners.clone(),
             _attach_guard.handle(),
-            notify_fn_for(agent_completions_client),
         );
 
         tokio::select! {
@@ -342,7 +287,7 @@ pub(crate) async fn execute_function_ws<
             OR, CAG, CX, MK, AU, CVF, CACHEF, VAU, RG, RF, RM, FAU,
         >,
     >,
-    agent_completions_client: Arc<
+    _agent_completions_client: Arc<
         agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>,
     >,
     reverse_attach: streaming_ws::ReverseAttachConfig,
@@ -441,12 +386,10 @@ where
 
         let recv = streaming_ws::recv_loop(
             rx,
-            tracker,
             sink,
             pending,
             reverse_attach.mcp_listeners.clone(),
             _attach_guard.handle(),
-            notify_fn_for(agent_completions_client),
         );
 
         tokio::select! {
@@ -458,7 +401,7 @@ where
 
 pub(crate) async fn create_profile_computation_ws<NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>(
     client: Arc<functions::profiles::computations::ObjectiveAiClient>,
-    agent_completions_client: Arc<
+    _agent_completions_client: Arc<
         agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>,
     >,
     reverse_attach: streaming_ws::ReverseAttachConfig,
@@ -551,12 +494,10 @@ where
 
         let recv = streaming_ws::recv_loop(
             rx,
-            tracker,
             sink,
             pending,
             reverse_attach.mcp_listeners.clone(),
             _attach_guard.handle(),
-            notify_fn_for(agent_completions_client),
         );
 
         tokio::select! {
@@ -575,7 +516,7 @@ pub(crate) async fn create_function_invention_ws<
             OR, CAG, CX, MK, RG, RF, RM, AU, IAU, IRG, IRF, IRM,
         >,
     >,
-    agent_completions_client: Arc<
+    _agent_completions_client: Arc<
         agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>,
     >,
     reverse_attach: streaming_ws::ReverseAttachConfig,
@@ -673,12 +614,10 @@ where
 
         let recv = streaming_ws::recv_loop(
             rx,
-            tracker,
             sink,
             pending,
             reverse_attach.mcp_listeners.clone(),
             _attach_guard.handle(),
-            notify_fn_for(agent_completions_client),
         );
 
         tokio::select! {
@@ -697,7 +636,7 @@ pub(crate) async fn create_function_invention_recursive_ws<
             OR, CAG, CX, MK, RG, RF, RM, AU, IAU, IRG, IRF, IRM, RAU,
         >,
     >,
-    agent_completions_client: Arc<
+    _agent_completions_client: Arc<
         agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>,
     >,
     reverse_attach: streaming_ws::ReverseAttachConfig,
@@ -796,12 +735,10 @@ where
 
         let recv = streaming_ws::recv_loop(
             rx,
-            tracker,
             sink,
             pending,
             reverse_attach.mcp_listeners.clone(),
             _attach_guard.handle(),
-            notify_fn_for(agent_completions_client),
         );
 
         tokio::select! {
@@ -813,7 +750,7 @@ where
 
 pub(crate) async fn create_error_ws<NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>(
     client: Arc<crate::error::Client>,
-    agent_completions_client: Arc<
+    _agent_completions_client: Arc<
         agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>,
     >,
     reverse_attach: streaming_ws::ReverseAttachConfig,
@@ -850,9 +787,6 @@ where
                     return;
                 }
             };
-        // Error stream doesn't carry agent-completion ids; tracker stays
-        // empty, every incoming notify will validation-fail with 404.
-        let tracker = streaming_ws::SessionTracker::new();
         let pending = streaming_ws::new_pending_requests();
         let (tx, rx) = socket.split();
         let sink: streaming_ws::SharedSink = Arc::new(tokio::sync::Mutex::new(tx));
@@ -901,12 +835,10 @@ where
 
         let recv = streaming_ws::recv_loop(
             rx,
-            tracker,
             sink,
             pending,
             reverse_attach.mcp_listeners.clone(),
             _attach_guard.handle(),
-            notify_fn_for(agent_completions_client),
         );
 
         tokio::select! {
@@ -925,7 +857,7 @@ pub(crate) async fn execute_laboratory_ws<
             OR, CAG, CX, MK, RG, RF, RM, AU, LAU, ORC,
         >,
     >,
-    agent_completions_client: Arc<
+    _agent_completions_client: Arc<
         agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>,
     >,
     reverse_attach: streaming_ws::ReverseAttachConfig,
@@ -1024,12 +956,10 @@ where
 
         let recv = streaming_ws::recv_loop(
             rx,
-            tracker,
             sink,
             pending,
             reverse_attach.mcp_listeners.clone(),
             _attach_guard.handle(),
-            notify_fn_for(agent_completions_client),
         );
 
         tokio::select! {

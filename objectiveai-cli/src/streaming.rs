@@ -68,20 +68,11 @@ pub enum InstanceItem {
 /// stream. The endpoint + params + forwarded config ride as an
 /// [`InstanceRequest`] over the handshake pipe.
 ///
-/// `bind_agent_instance_hierarchy` — when the caller knows the full
-/// agent id ahead of time (e.g. `agents message`'s continuation
-/// fallback), pass it here to tell the instance runner to bind the
-/// per-agent socket *before* opening the API stream. A lost race
-/// surfaces as the `SLOT_TAKEN_EXIT_CODE` exit code, which this helper
-/// maps to [`Error::CliStreamSlotTaken`]. `agents spawn` and the
-/// function-create leaves always pass `None`.
-///
 /// `stream` — see module doc. `true` follows the instance to EOF;
 /// `false` detaches the instance after the `LogStreamReady` handshake.
 pub fn instance_subprocess_stream(
     ctx: &Context,
     endpoint: InstanceEndpoint,
-    bind_agent_instance_hierarchy: Option<String>,
     agent_tag: Option<String>,
     stream: bool,
 ) -> Pin<Box<dyn Stream<Item = Result<InstanceItem, Error>> + Send>> {
@@ -95,7 +86,6 @@ pub fn instance_subprocess_stream(
             &cli_config,
             fs,
             endpoint,
-            bind_agent_instance_hierarchy,
             agent_tag,
             stream,
             tx.clone(),
@@ -115,7 +105,6 @@ async fn run_subprocess(
     cli_config: &crate::run::Config,
     fs: crate::filesystem::Client,
     endpoint: InstanceEndpoint,
-    bind_agent_instance_hierarchy: Option<String>,
     agent_tag: Option<String>,
     stream: bool,
     tx: tokio::sync::mpsc::Sender<Result<InstanceItem, Error>>,
@@ -128,7 +117,7 @@ async fn run_subprocess(
     // CLI uses. Owned values, since the parent process drops them as
     // soon as the JSON blob has been written.
     let http = build_http_config(cli_config, &fs).await?;
-    let pipes = build_pipe_config(cli_config, bind_agent_instance_hierarchy)?;
+    let pipes = build_pipe_config(cli_config)?;
 
     let request = InstanceRequest {
         http,
@@ -560,17 +549,13 @@ async fn build_http_config(
 
 fn build_pipe_config(
     cli_config: &crate::run::Config,
-    bind_agent_instance_hierarchy: Option<String>,
 ) -> Result<PipeConfig, Error> {
     let config_base_dir = cli_config
         .config_base_dir
         .clone()
         .map(std::path::PathBuf::from)
         .unwrap_or_else(default_config_base_dir);
-    Ok(PipeConfig {
-        config_base_dir,
-        bind_agent_instance_hierarchy,
-    })
+    Ok(PipeConfig { config_base_dir })
 }
 
 fn default_config_base_dir() -> std::path::PathBuf {

@@ -98,7 +98,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::agent::completions::message::VideoUrl),
         schemars::schema_for!(crate::agent::completions::request::AgentCompletionCreateParams),
         schemars::schema_for!(crate::agent::completions::request::AgentCompletionCreateParamsLog),
-        schemars::schema_for!(crate::agent::completions::request::AgentCompletionNotifyParams),
         schemars::schema_for!(crate::agent::completions::request::Provider),
         schemars::schema_for!(crate::agent::completions::request::ProviderDataCollection),
         schemars::schema_for!(crate::agent::completions::request::ProviderMaxPrice),

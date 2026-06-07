@@ -1,21 +1,19 @@
-﻿//! Shared chunk-consumption loop every endpoint reuses.
+//! Shared chunk-consumption loop every endpoint reuses.
 //!
 //! Drains the WS chunk stream, sends each chunk as an
 //! [`InstanceEmission::Chunk`] through `emissions_tx`, ensures a
-//! per-agent pipe exists for every `agent_completion_id` the chunk
-//! references, writes each chunk to a [`LogWriter`] on a separate
-//! coalescing task (so log writes don't gate stream consumption),
-//! accumulates chunks into a final aggregate via the caller-supplied
-//! `push` closure, and emits a one-shot
+//! per-agent outbound pipe exists for every `agent_completion_id`
+//! the chunk references, writes each chunk to a [`LogWriter`] on a
+//! separate coalescing task (so log writes don't gate stream
+//! consumption), accumulates chunks into a final aggregate via the
+//! caller-supplied `push` closure, and emits a one-shot
 //! [`InstanceEmission::LogStreamReady`] with the root log id as soon
-//! as the first write completes. On stream end fires every pipe
-//! canceller.
+//! as the first write completes. On stream end fires the outbound
+//! broadcast `StreamEnd` event.
 
 use std::path::PathBuf;
 
 use futures::{Stream, StreamExt};
-use objectiveai_sdk::Notifier;
-use objectiveai_sdk::agent::completions::message::RichContent;
 use objectiveai_sdk::agent::completions::response::streaming::AgentCompletionIds;
 use objectiveai_sdk::cli::command::agents::instances::read::subscribe::RequestMessageKind;
 use serde::Serialize;
@@ -25,7 +23,7 @@ use crate::error::Error;
 use crate::filesystem::db::pending::PendingNotification;
 use crate::filesystem::logs::{LogWriter, SubscribeEvent};
 use crate::instance::InstanceEmission;
-use crate::instance::pipes::{BindStatus, PipeRegistry};
+use crate::instance::pipes::PipeRegistry;
 
 pub type EmissionsTx = mpsc::Sender<Result<InstanceEmission, Error>>;
 
@@ -38,19 +36,13 @@ pub struct Consumed<Chunk> {
 
 /// Drain `stream`, send each chunk as one
 /// [`InstanceEmission::Chunk`] through `emissions_tx`, manage
-/// per-agent pipes, coalesce-write to the log, emit
+/// per-agent outbound pipes, coalesce-write to the log, emit
 /// [`InstanceEmission::LogStreamReady`] once, accumulate. On stream
-/// end (success or first error), tears down every active pipe and
-/// waits for the writer task to flush its final batch.
-///
-/// `registry` is supplied by the caller so the endpoint-level eager
-/// admission probe and the per-chunk `ensure_pipe` calls share one
-/// registry instance. When a per-chunk `ensure_pipe` reports
-/// [`BindStatus::Live`], the loop exits the process with
-/// `SLOT_TAKEN_EXIT_CODE` so the wrapper CLI can recursively retry.
+/// end (success or first error), broadcasts `StreamEnd` to every
+/// outbound subscriber and waits for the writer task to flush its
+/// final batch.
 pub async fn run_chunk_loop<S, Chunk, E, F>(
     mut stream: S,
-    notifier: Notifier,
     pipes_root: PathBuf,
     caller_agent_instance_hierarchy: Option<String>,
     log_writer: LogWriter<Chunk>,
@@ -68,8 +60,6 @@ where
     let mut chunk_count: usize = 0;
 
     let (tx, rx) = mpsc::unbounded_channel::<Chunk>();
-    let (notif_tx, notif_rx) =
-        mpsc::unbounded_channel::<(String, String, RichContent)>();
     // One-shot carrying the primary log id back here from
     // `writer_loop` once `log_writer.primary_id()` has been populated.
     // `writer_loop` owns the sender and fires it the first time
@@ -86,7 +76,6 @@ where
     let writer_task = tokio::spawn(async move {
         writer_loop(
             rx,
-            notif_rx,
             log_writer,
             writer_push,
             writer_registry,
@@ -146,31 +135,13 @@ where
                             buffered.push(chunk.clone());
                         }
 
-                        // 3. Ensure a pipe is bound for every agent id this
-                        //    chunk references.
+                        // 3. Ensure an outbound subscribe pipe is bound
+                        //    for every agent id this chunk references.
                         for raw in chunk.agent_completion_ids() {
                             let lineage_id = match &caller_agent_instance_hierarchy {
                                 Some(c) => format!("{c}/{raw}"),
                                 None => raw.to_string(),
                             };
-                            match registry
-                                .ensure_pipe(
-                                    &lineage_id,
-                                    raw,
-                                    &pipes_root,
-                                    notifier.clone(),
-                                    notif_tx.clone(),
-                                )
-                                .await
-                            {
-                                Ok(()) => {}
-                                Err(BindStatus::Live) => {
-                                    std::process::exit(crate::instance::api::SLOT_TAKEN_EXIT_CODE);
-                                }
-                                Err(BindStatus::Io) => {
-                                    // Degraded path — warning already eprintln'd.
-                                }
-                            }
                             registry
                                 .ensure_outbound_pipe(&lineage_id, &pipes_root)
                                 .await;
@@ -193,14 +164,12 @@ where
         }
     }
 
-    // Stream EOF — close the writer's input channels so its
+    // Stream EOF — close the writer's input channel so its
     // `finalize` runs. `finalize` processes the last chunk still
     // buffered behind `log_writer`'s one-behind write semantics, so
     // for single-chunk completions this is the only point at which
     // `primary_id` becomes available.
     drop(tx);
-    registry.shutdown_inbound();
-    drop(notif_tx);
 
     // If we never saw the log-ready signal mid-stream, await it now
     // — the writer is racing toward `finalize` which fires it once
@@ -240,7 +209,6 @@ where
 
 async fn writer_loop<Chunk, F>(
     mut rx: mpsc::UnboundedReceiver<Chunk>,
-    mut notif_rx: mpsc::UnboundedReceiver<(String, String, RichContent)>,
     mut log_writer: LogWriter<Chunk>,
     push: F,
     registry: PipeRegistry,
@@ -251,7 +219,8 @@ where
     Chunk: AgentCompletionIds + Clone,
 {
     let mut agg: Option<Chunk> = None;
-    let mut pending: Vec<PendingNotification> = Vec::new();
+    let pending: Vec<PendingNotification> = Vec::new();
+    let mut pending = pending;
     // Held until `log_writer.primary_id()` returns Some — could fire
     // mid-loop (multi-chunk completions; `write` flushes the
     // previous chunk on its second-and-later call) or only from
@@ -260,59 +229,26 @@ where
     // Drop without `take` = chunk loop sees `Err(Canceled)` and
     // emits any buffered chunks without LogStreamReady.
     let mut log_ready_id_tx = Some(log_ready_id_tx);
-    let mut chunk_channel_open = true;
-    let mut notif_channel_open = true;
 
-    while chunk_channel_open || notif_channel_open {
-        tokio::select! {
-            biased;
-            chunk = rx.recv(), if chunk_channel_open => {
-                match chunk {
-                    Some(first) => {
-                        match &mut agg {
-                            Some(a) => push(a, &first),
-                            None => agg = Some(first),
-                        }
-                        while let Ok(next) = rx.try_recv() {
-                            if let Some(a) = &mut agg {
-                                push(a, &next);
-                            }
-                        }
-                        while let Ok((aid, response_id, content)) = notif_rx.try_recv() {
-                            let p = log_writer
-                                .write_notification(&aid, &response_id, &content)
-                                .await?;
-                            pending.push(p);
-                        }
-                        if let Some(a) = &agg {
-                            let inserted = log_writer.write(a, &mut pending).await?;
-                            broadcast_rows(&registry, &inserted);
-                        }
-                        if let Some(tx) = log_ready_id_tx.take() {
-                            if let Some(id) = log_writer.primary_id() {
-                                let _ = tx.send(id.to_string());
-                            } else {
-                                log_ready_id_tx = Some(tx);
-                            }
-                        }
-                    }
-                    None => {
-                        chunk_channel_open = false;
-                    }
-                }
+    while let Some(first) = rx.recv().await {
+        match &mut agg {
+            Some(a) => push(a, &first),
+            None => agg = Some(first),
+        }
+        while let Ok(next) = rx.try_recv() {
+            if let Some(a) = &mut agg {
+                push(a, &next);
             }
-            notif = notif_rx.recv(), if notif_channel_open => {
-                match notif {
-                    Some((aid, response_id, content)) => {
-                        let p = log_writer
-                            .write_notification(&aid, &response_id, &content)
-                            .await?;
-                        pending.push(p);
-                    }
-                    None => {
-                        notif_channel_open = false;
-                    }
-                }
+        }
+        if let Some(a) = &agg {
+            let inserted = log_writer.write(a, &mut pending).await?;
+            broadcast_rows(&registry, &inserted);
+        }
+        if let Some(tx) = log_ready_id_tx.take() {
+            if let Some(id) = log_writer.primary_id() {
+                let _ = tx.send(id.to_string());
+            } else {
+                log_ready_id_tx = Some(tx);
             }
         }
     }

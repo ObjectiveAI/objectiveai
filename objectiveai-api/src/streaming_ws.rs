@@ -40,9 +40,6 @@ use futures::{SinkExt, StreamExt};
 use futures::stream::SplitStream;
 use objectiveai_sdk::error::ResponseError;
 use serde::Serialize;
-use tokio::sync::oneshot;
-
-use crate::error::ResponseErrorExt;
 
 // The reverse-attach / session-tracker / pending-request types are
 // now canonical in `crate::objectiveai_mcp`. The `pub use` shims
@@ -216,10 +213,10 @@ pub async fn send_close_split(sink: &SharedSink, code: CloseCode) {
 ///
 /// - Frames that parse as
 ///   [`client_request::Request`](objectiveai_sdk::client_objectiveai_mcp::client_request::Request)
-///   go through the notify pipeline: validate `response_id` against
-///   the session tracker, dispatch to `notify_fn`, write back a
-///   [`client_response::Response`](objectiveai_sdk::client_objectiveai_mcp::client_response::Response)
-///   echoing the request `id`.
+///   are dispatched per payload variant. The only payload today is
+///   `McpListChanged`, which fans out to every per-MCP GET-SSE
+///   subscriber registered under this connection's reverse-attach
+///   handle.
 /// - Frames that parse as
 ///   [`server_response::Response`](objectiveai_sdk::client_objectiveai_mcp::server_response::Response)
 ///   are routed to the pending-request registry: the matching
@@ -227,34 +224,18 @@ pub async fn send_close_split(sink: &SharedSink, code: CloseCode) {
 /// - Frames that match neither shape are logged + dropped.
 ///
 /// Returns when the recv half closes (peer hung up or close frame).
-pub async fn recv_loop<F, Fut>(
+pub async fn recv_loop(
     mut rx: SplitStream<WebSocket>,
-    tracker: Arc<SessionTracker>,
     sink: SharedSink,
     pending: PendingRequests,
     mcp_listeners: crate::objectiveai_mcp::McpListenerRegistry,
     attach_handle: Arc<ReverseAttachHandle>,
-    notify_fn: F,
-) where
-    F: Fn(objectiveai_sdk::agent::completions::request::AgentCompletionNotifyParams) -> Fut
-        + Send
-        + Sync
-        + 'static,
-    Fut: std::future::Future<Output = Result<(), crate::agent::completions::Error>>
-        + Send
-        + 'static,
-{
+) {
     use objectiveai_sdk::client_objectiveai_mcp::{
         client_request::{Payload as ClientPayload, Request as ClientRequest},
         client_response::Response as ClientResponse,
         server_response::Response as ServerResponse,
     };
-
-    // Arc-wrap the notify dispatcher so each spawned dispatch task
-    // can hold its own cheap clone. Required because we spawn notify
-    // handling to keep the recv loop unblocked for server_response
-    // frames the MCP endpoint is timing out on.
-    let notify_fn = Arc::new(notify_fn);
 
     loop {
         let msg = match rx.next().await {
@@ -288,46 +269,6 @@ pub async fn recv_loop<F, Fut>(
         if let Ok(request) = serde_json::from_str::<ClientRequest>(text.as_str()) {
             let ClientRequest { id, payload } = request;
             match payload {
-                ClientPayload::AgentCompletionNotify(params) => {
-                    // Spawn so the recv loop can immediately move on
-                    // to the next frame — notify dispatch can be slow
-                    // (it hits the agent's MCP connection) and we
-                    // don't want it blocking server_response routing.
-                    let tracker = tracker.clone();
-                    let sink = sink.clone();
-                    let notify_fn = notify_fn.clone();
-                    tokio::spawn(async move {
-                        let response: ClientResponse = if !tracker.contains(&params.response_id) {
-                            ClientResponse::Error {
-                                id,
-                                code: 404,
-                                message: serde_json::Value::String(format!(
-                                    "response_id {:?} not from this stream",
-                                    params.response_id
-                                )),
-                            }
-                        } else {
-                            match (notify_fn)(params).await {
-                                Ok(()) => ClientResponse::Ok { id },
-                                Err(e) => {
-                                    let inner = ResponseError::from(&e);
-                                    ClientResponse::Error {
-                                        id,
-                                        code: inner.code,
-                                        message: inner.message,
-                                    }
-                                }
-                            }
-                        };
-                        let frame = match serde_json::to_string(&response) {
-                            Ok(s) => s,
-                            Err(_) => return,
-                        };
-                        let mut guard = sink.lock().await;
-                        let _ = guard.send(Message::Text(frame.into())).await;
-                    });
-                    continue;
-                }
                 // McpListChanged dispatch: fan out to every
                 // (response_id, mcp_kind) keyed under this WS. The
                 // GET-SSE subscriber for whichever agent's

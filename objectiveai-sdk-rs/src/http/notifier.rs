@@ -52,23 +52,6 @@ impl Notifier {
         Self { sink, pending }
     }
 
-    /// Push a user message at a running agent completion identified
-    /// by `params.response_id`. The message surfaces to the model
-    /// on its next natural inspection point.
-    ///
-    /// Returns `Ok(())` if the server accepted the notify. Returns
-    /// the server-supplied `code + message` if the server replied
-    /// with an `Error` variant (e.g. unknown response_id, MCP
-    /// channel down). Returns [`super::HttpError::NotifyChannelClosed`]
-    /// if the WS was torn down before the reply arrived.
-    pub async fn notify(
-        &self,
-        params: crate::agent::completions::request::AgentCompletionNotifyParams,
-    ) -> Result<(), super::HttpError> {
-        self.send(client_request::Payload::AgentCompletionNotify(params))
-            .await
-    }
-
     /// Forward a `notifications/{tools,resources}/list_changed`
     /// observation from an upstream `mcp::Connection` up to the API,
     /// which will fan it out as an SSE event on every matching
@@ -76,7 +59,11 @@ impl Notifier {
     /// `/{owner}/{name}/{ver}/{mcp}`, subscribed under the
     /// per-agent `response_id` + matching `McpKind`.
     ///
-    /// Same ack semantics as [`Self::notify`].
+    /// Returns `Ok(())` if the server accepted the notify. Returns
+    /// the server-supplied `code + message` if the server replied
+    /// with an `Error` variant. Returns
+    /// [`super::HttpError::NotifyChannelClosed`] if the WS was torn
+    /// down before the reply arrived.
     pub async fn notify_list_changed(
         &self,
         change: client_request::McpListChanged,

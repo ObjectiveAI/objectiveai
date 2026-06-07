@@ -91,7 +91,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     let raw = instance_subprocess_stream(
         ctx,
         crate::instance::request::InstanceEndpoint::AgentsSpawn(params),
-        None,
         request.agent_tag,
         stream,
     );

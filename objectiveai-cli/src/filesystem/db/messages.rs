@@ -189,9 +189,8 @@ impl Queue {
     /// holds just `{idx}` (route + `response_id` are reconstructed
     /// from the kind + the new column).
     ///
-    /// `response_id` is the agent completion the notification targets
-    /// — the same value `AgentCompletionNotifyParams.response_id`
-    /// carries on the wire. Stored explicitly; never re-derived from
+    /// `response_id` is the agent completion the notification
+    /// targets. Stored explicitly; never re-derived from
     /// `agent_instance_hierarchy`.
     pub async fn write_notification(
         &self,
