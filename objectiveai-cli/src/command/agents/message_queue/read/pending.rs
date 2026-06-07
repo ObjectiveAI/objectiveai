@@ -1,4 +1,4 @@
-//! `agents message-queue read pending` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â bare-naked streaming handler. Mirrors
+//! `agents message-queue read pending` — bare-naked streaming handler. Mirrors
 //! `agents list active`'s shape: optional positional parent
 //! (defaults to ctx), `--jq`, async-stream over a `Vec`.
 

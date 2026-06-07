@@ -1,4 +1,4 @@
-﻿//! `agents me` â€” bare-naked handler stub.
+﻿//! `agents me` — bare-naked handler stub.
 
 use objectiveai_sdk::cli::command::agents::instances::me::{Request, Response};
 

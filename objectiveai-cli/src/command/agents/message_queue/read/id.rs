@@ -1,4 +1,4 @@
-//! `agents message-queue read id` Ã¢â‚¬â€ resolve a `prompt_contents.id` to its
+//! `agents message-queue read id` — resolve a `prompt_contents.id` to its
 //! typed payload via the per-kind content tables, returning a
 //! `RichContentPart` directly.
 

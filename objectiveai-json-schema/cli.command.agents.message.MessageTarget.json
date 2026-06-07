@@ -1,6 +1,6 @@
 {
   "title": "cli.command.agents.message.MessageTarget",
-  "description": "Mutually-exclusive addressing for an `agents message` call.\n\n`Direct` is the default â€” the CLI composes\n`{parent}/{agent_instance}` (parent defaults to\n`Config.agent_instance_hierarchy` when omitted) and optionally\nbinds `agent_tag` to that hierarchy as a side effect.\n\n`Tag` resolves the named tag to its bound hierarchy via the\ntags DB and addresses that hierarchy directly. PENDING and\nABSENT tags are rejected with structured errors at handler time.",
+  "description": "Mutually-exclusive addressing for an `agents message` call.\n\n`Direct` is the default — the CLI composes\n`{parent}/{agent_instance}` (parent defaults to\n`Config.agent_instance_hierarchy` when omitted) and optionally\nbinds `agent_tag` to that hierarchy as a side effect.\n\n`Tag` resolves the named tag to its bound hierarchy via the\ntags DB and addresses that hierarchy directly. PENDING and\nABSENT tags are rejected with structured errors at handler time.",
   "anyOf": [
     {
       "title": "Direct",

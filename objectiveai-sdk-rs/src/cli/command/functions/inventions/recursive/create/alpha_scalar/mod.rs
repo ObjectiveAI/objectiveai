@@ -1,4 +1,4 @@
-﻿//! `functions inventions recursive create alpha-scalar` â€” async handler stub.
+﻿//! `functions inventions recursive create alpha-scalar` — async handler stub.
 
 use crate::cli::command::CommandRequest;
 use crate::cli::command::agents::instances::spawn::AgentSpec;

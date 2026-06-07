@@ -1,19 +1,19 @@
-﻿//! `agents spawn` Ã¢â‚¬â€ bare-naked chunk-or-id streaming handler.
+﻿//! `agents spawn` — bare-naked chunk-or-id streaming handler.
 //!
 //! Spawns the instance runner as a detached background process. The
 //! streamed item shape depends on `dangerous_advanced.stream`:
 //!
-//! - **`None | Some(false)` (default)** Ã¢â‚¬â€ yields exactly one
+//! - **`None | Some(false)` (default)** — yields exactly one
 //!   `ResponseItem::Id(<agent_instance_hierarchy>)` once the runner's
 //!   `LogStreamReady` handshake fires, then the leaf's stream ends.
 //!   The instance runner child keeps running orphaned and drives the
 //!   completion to completion.
-//! - **`Some(true)`** Ã¢â‚¬â€ yields the same `ResponseItem::Id` first, then
+//! - **`Some(true)`** — yields the same `ResponseItem::Id` first, then
 //!   one `ResponseItem::Chunk` per chunk Notification the runner
 //!   emits, until the runner's stdout EOFs.
 //!
 //! `params.stream` on the wire is always `Some(true)` regardless of the
-//! `dangerous_advanced.stream` field Ã¢â‚¬â€ the latter controls the leaf's
+//! `dangerous_advanced.stream` field — the latter controls the leaf's
 //! output stream behaviour, not the API request.
 
 use std::path::PathBuf;
@@ -44,7 +44,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     // predicate (see `db::prompts::drain_for_spawn_async`):
     //   1. queue items addressed to `request.agent_tag` directly
     //   2. queue items addressed to any PENDING tag whose
-    //      (parent, agent_full_id) matches this spawn Ã¢â‚¬â€ i.e. tags
+    //      (parent, agent_full_id) matches this spawn — i.e. tags
     //      that the first-chunk auto-promotion hook will bind.
     // The drained items get joined oldest-first with `\n\n`
     // separators and prepended as a fresh User message at the head
@@ -100,7 +100,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     // anything), restore the drained queue rows via
     // `db::prompts::re_enqueue_async` and surface the original
     // error. On Ok, hand back a `StreamOnce::new(head).chain(tail)`
-    // Ã¢â‚¬â€ same pattern objectiveai-api's
+    // — same pattern objectiveai-api's
     // `functions/executions/client.rs::create_streaming_handle_usage`
     // uses for peek-then-stream returns.
     let mut tail: ItemStream = Box::pin(raw.map(map_item));
@@ -178,7 +178,7 @@ async fn resolve_agent(
 /// PENDING tags that this spawn will bind on first chunk.
 ///
 /// - `AgentSpec::Resolved(InlineAgentBaseWithFallbacks)`: compute
-///   locally via `.convert().full_id()` Ã¢â‚¬â€ no HTTP.
+///   locally via `.convert().full_id()` — no HTTP.
 /// - `AgentSpec::Resolved(Remote)` and `AgentSpec::Favorite`: fetch
 ///   the remote definition via the same `objectiveai_sdk::agent::
 ///   get_agent` call `agents get` uses, then call `.full_id()` on

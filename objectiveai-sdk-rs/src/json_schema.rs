@@ -3413,7 +3413,7 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
     // other schemas via `$ref` but whose titles only exist after
     // concrete substitution. (`serde_json::Value` is NOT registered:
     // it always inlines as an unconstrained `{}` schema wherever it
-    // appears â€” fields and the cli `ResponseSchema` wrapper alike â€”
+    // appears — fields and the cli `ResponseSchema` wrapper alike —
     // so no standalone "AnyValue" title exists.)
     schemas.extend([
         schemars::schema_for!(

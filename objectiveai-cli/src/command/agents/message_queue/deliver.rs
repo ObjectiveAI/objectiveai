@@ -1,4 +1,4 @@
-﻿//! `agents message-queue deliver` â€” fan out `agents message`
+﻿//! `agents message-queue deliver` — fan out `agents message`
 //! against every BOUND target with pending queue rows under the
 //! caller's hierarchy (inclusive + recursive). Calls run in
 //! parallel; the response streams are interleaved via
@@ -85,7 +85,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
 /// Build an in-process `agents::message::Request` for one delivery
 /// target. Always Direct mode (the resolved hierarchy is already
 /// known); the binding tag, if any, travels along so
-/// `agents/message` rebinds it as a side effect â€” same shape a
+/// `agents/message` rebinds it as a side effect — same shape a
 /// user `agents message <leaf> --agent-tag <tag>` would take.
 fn build_message_request(tgt: &DeliveryTarget) -> MessageRequest {
     let (parent, leaf) = match tgt.agent_instance_hierarchy.rfind('/') {
@@ -94,7 +94,7 @@ fn build_message_request(tgt: &DeliveryTarget) -> MessageRequest {
             tgt.agent_instance_hierarchy[i + 1..].to_string(),
         ),
         // Root-level hierarchy (no '/'). Treat the whole string as the
-        // leaf and use an empty parent â€” `agents/message` will compose
+        // leaf and use an empty parent — `agents/message` will compose
         // `format!("{parent}/{agent_instance}")` which yields
         // `format!("/{leaf}")`. In practice every CLI hierarchy starts
         // with `cli`, so this branch should not fire; defensively
@@ -108,7 +108,7 @@ fn build_message_request(tgt: &DeliveryTarget) -> MessageRequest {
             agent_instance: leaf,
             agent_tag: tgt.agent_tag.clone(),
         },
-        // Empty Inline content â€” `agents/message` handles the
+        // Empty Inline content — `agents/message` handles the
         // drain-only path (skips appending the empty own_content,
         // no-ops if drain is also empty).
         message: RequestMessage::Inline(RichContent::Text(String::new())),

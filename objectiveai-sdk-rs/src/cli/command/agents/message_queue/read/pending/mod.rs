@@ -1,19 +1,19 @@
-﻿//! `agents message-queue read pending` ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â async handler stub.
+﻿//! `agents message-queue read pending` — async handler stub.
 //!
 //! Streams every queued prompt whose target is a direct child of
 //! the given parent. Direct rows match when their
-//! `agent_instance_hierarchy` is one segment under `parent` ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â same
+//! `agent_instance_hierarchy` is one segment under `parent` — same
 //! filter `agents list active` uses. Tag rows resolve their parent
 //! via the joined `tags` table:
 //!
-//! * BOUND tags ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ parent is `parent_of(bound_agent_instance_hierarchy)`.
-//! * PENDING tags ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ parent is the stored
+//! * BOUND tags → parent is `parent_of(bound_agent_instance_hierarchy)`.
+//! * PENDING tags → parent is the stored
 //!   `parent_agent_instance_hierarchy` from the tags row.
 //! * ABSENT tags (the tag was used at enqueue but never registered)
 //!   have no parent and are excluded.
 //!
 //! Each tag-row response item carries the joined 3-state status
-//! (`Bound { hierarchy } | Pending { ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦ }`) for inspection.
+//! (`Bound { hierarchy } | Pending { … }`) for inspection.
 
 use crate::cli::command::CommandRequest;
 
@@ -54,13 +54,13 @@ impl CommandRequest for Request {
 /// One queued prompt. Direct rows carry only the bare
 /// `agent_instance` (= leaf segment of the hierarchy); Tag rows
 /// carry the literal tag name and flatten the joined 2-state
-/// status onto the same JSON object ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â yielding e.g.
-/// `{"by":"tag","id":42,"agent_tag":"foo","state":"bound","agent_instance_hierarchy":"ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦",
-/// "content":17}` (single-part) or `ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦"content":[17,18,19]"` (multi-
+/// status onto the same JSON object — yielding e.g.
+/// `{"by":"tag","id":42,"agent_tag":"foo","state":"bound","agent_instance_hierarchy":"…",
+/// "content":17}` (single-part) or `…"content":[17,18,19]"` (multi-
 /// part) rather than nesting the state under its own object.
 ///
 /// Both variants carry the resolved content body as a
-/// [`super::super::super::instances::read::all::ResponseContent`] ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â `One(i64)` for a
+/// [`super::super::super::instances::read::all::ResponseContent`] — `One(i64)` for a
 /// single-part `RichContent::Text` (or single-element
 /// `RichContent::Parts`), `Many(Vec<i64>)` for multi-part payloads.
 /// Each id is a `prompt_contents.id` resolvable via
@@ -95,7 +95,7 @@ pub enum ResponseItem {
 }
 
 // Reuse the same `LookupState` enum that `agents tags lookup`
-// already exposes ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â same wire shape, same Rust type, no fork.
+// already exposes — same wire shape, same Rust type, no fork.
 pub use super::super::super::tags::lookup::LookupState;
 
 #[derive(clap::Args)]

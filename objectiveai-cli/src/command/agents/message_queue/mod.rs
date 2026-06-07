@@ -1,4 +1,4 @@
-//! `agents message-queue` Ã¢â‚¬â€ CLI-side dispatch for the queue subtree.
+//! `agents message-queue` — CLI-side dispatch for the queue subtree.
 
 use std::pin::Pin;
 

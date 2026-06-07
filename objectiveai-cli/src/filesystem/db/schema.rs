@@ -27,7 +27,7 @@ pub fn message_kind_as_str(kind: RequestMessageKind) -> &'static str {
 /// Parse the TEXT representation produced by [`message_kind_as_str`]
 /// back into a `RequestMessageKind`. Errors with
 /// `Error::InvalidPath(format!("unknown message kind: {}", s))` on an
-/// unrecognised string â€” mainly a guard against out-of-sync rows
+/// unrecognised string — mainly a guard against out-of-sync rows
 /// from a future schema.
 pub fn parse_message_kind(s: &str) -> Result<RequestMessageKind, super::super::Error> {
     match s {
@@ -52,7 +52,7 @@ pub fn parse_message_kind(s: &str) -> Result<RequestMessageKind, super::super::E
 ///
 /// `response_id` is the bare agent-completion chunk id and is passed
 /// in explicitly. We do **not** recover it by parsing
-/// `agent_instance_hierarchy`'s trailing segment â€” `agent_instance_hierarchy`
+/// `agent_instance_hierarchy`'s trailing segment — `agent_instance_hierarchy`
 /// is constructed from `response_id` (by lineage-stamping) and the
 /// reverse direction is unsafe (bare/unstamped agent_instance_hierarchies,
 /// sub-lineages, etc.). For notifications, the on-disk filename is keyed
@@ -138,12 +138,12 @@ pub struct MessageRow {
 /// open of `db.sqlite`.
 ///
 /// Tables:
-/// - `messages` â€” one row per request / response / notification.
-/// - `messages_queue` â€” per-`(caller_agent_instance_hierarchy, spawned_agent_instance_hierarchy)`
+/// - `messages` — one row per request / response / notification.
+/// - `messages_queue` — per-`(caller_agent_instance_hierarchy, spawned_agent_instance_hierarchy)`
 ///   watermark of the highest `messages."index"` the caller has
 ///   already consumed. One row per pair; the composite PRIMARY KEY
 ///   doubles as the lookup index.
-/// - `files` â€” lazy idâ†”path table populated on-demand by
+/// - `files` — lazy idâ†”path table populated on-demand by
 ///   `read_new_from_queue` so callers can hold compact integer
 ///   ids instead of full path strings. `UNIQUE(path)` enforces a
 ///   stable one-to-one mapping forever.
@@ -179,7 +179,7 @@ pub fn init_tables(conn: &Connection) -> Result<(), super::super::Error> {
 /// processes and concurrent callers, because of the `UNIQUE(path)`
 /// constraint.
 ///
-/// Uses `INSERT â€¦ ON CONFLICT(path) DO UPDATE SET path=excluded.path
+/// Uses `INSERT … ON CONFLICT(path) DO UPDATE SET path=excluded.path
 /// RETURNING id`. The no-op `UPDATE` is the canonical SQLite trick
 /// that makes `RETURNING` fire on the existing row when there's a
 /// conflict, so the call always returns the right id in one round-
@@ -296,7 +296,7 @@ pub fn max_index(
 }
 
 /// Whether `agent_instance_hierarchy` has any
-/// `agent_completion_request` row logged in the messages table â€” the
+/// `agent_completion_request` row logged in the messages table — the
 /// same "agent exists" predicate that
 /// [`super::super::logs::LatestContinuationOutcome::NoRequests`] is
 /// the negation of, but without the continuation-file walk. A single
@@ -324,7 +324,7 @@ pub fn agent_exists(
 ///
 /// `agent_instance_hierarchy` is the lineage-stamped composite (`{caller}/{response_id}`
 /// or just `{response_id}` for the unstamped root case). `response_id`
-/// is the *bare* chunk id, passed in explicitly â€” we never recover it
+/// is the *bare* chunk id, passed in explicitly — we never recover it
 /// by parsing `agent_instance_hierarchy`, both because `agent_instance_hierarchy` may be unstamped and
 /// because the trailing-segment trick is a one-way invariant that
 /// callers shouldn't rely on.

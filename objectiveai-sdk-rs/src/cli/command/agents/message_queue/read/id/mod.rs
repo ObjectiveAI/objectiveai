@@ -1,8 +1,8 @@
-//! `agents message-queue read id` Ã¢â‚¬â€ fetch one piece of queued content by
+//! `agents message-queue read id` — fetch one piece of queued content by
 //! its `prompt_contents.id`.
 //!
 //! `agents message-queue list` emits a `content: ResponseContent` field on
-//! each item (`One(i64)` or `Many(Vec<i64>)`) Ã¢â‚¬â€ the same shape
+//! each item (`One(i64)` or `Many(Vec<i64>)`) — the same shape
 //! `RichContent` decomposes to. This leaf takes one such id and
 //! returns the typed payload directly as a
 //! [`crate::agent::completions::message::RichContentPart`], so the
@@ -46,7 +46,7 @@ impl CommandRequest for Request {
 
 /// The typed payload of one `prompt_contents.id`. Aliased directly
 /// to the SDK [`RichContentPart`] so the wire shape matches
-/// rich-content parts exactly Ã¢â‚¬â€ tagged by `type` with `text`,
+/// rich-content parts exactly — tagged by `type` with `text`,
 /// `image_url`, `input_audio`, `input_video`, `video_url`, or
 /// `file`. Queue content production today never emits the
 /// `input_video` variant (the walker stores both `InputVideo` and
@@ -116,7 +116,7 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
 }
 
 // `RichContentPart` already implements `CommandResponse` via the
-// canonical impl in `cli::command::command_response.rs` Ã¢â‚¬â€ no leaf-
+// canonical impl in `cli::command::command_response.rs` — no leaf-
 // local impl needed (and adding one would conflict).
 
 pub mod request_schema;

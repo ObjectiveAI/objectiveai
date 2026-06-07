@@ -1,4 +1,4 @@
-﻿//! `agents read all` â€” bare-naked streaming handler stub.
+﻿//! `agents read all` — bare-naked streaming handler stub.
 
 use std::pin::Pin;
 

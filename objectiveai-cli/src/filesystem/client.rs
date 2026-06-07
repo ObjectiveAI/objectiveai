@@ -8,12 +8,12 @@ pub struct Client {
     pub commit_author_email: String,
     /// Lazily-initialised SQLite connection shared across clones of this
     /// `Client`. Populated on first call to `filesystem::db::connection::connection`.
-    /// Wrapped in `Arc<Mutex<Option<â€¦>>>` so every clone sees the same
+    /// Wrapped in `Arc<Mutex<Option<…>>>` so every clone sees the same
     /// connection once one exists, and so init failures don't poison
-    /// the slot â€” a failed attempt leaves the inner `Option::None`
+    /// the slot — a failed attempt leaves the inner `Option::None`
     /// intact and later calls can retry.
     db_conn: Arc<Mutex<Option<Arc<Mutex<rusqlite::Connection>>>>>,
-    /// Parallel slot for the dedicated `tags.sqlite` connection â€” same
+    /// Parallel slot for the dedicated `tags.sqlite` connection — same
     /// lazy-init semantics as `db_conn` but a separate file so the
     /// agent-tags lifecycle stays isolated from the main message-log
     /// database. Now also hosts the `prompts` table for

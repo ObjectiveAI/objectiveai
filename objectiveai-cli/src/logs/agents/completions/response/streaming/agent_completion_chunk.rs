@@ -101,7 +101,7 @@ pub fn produce_files(
 /// `agent_instance_hierarchy` is this chunk's `id`; `path` points at
 /// the per-message log file under `agents/completions/response/messages/`.
 /// Returns an empty iterator when `id` is empty (the chunk hasn't been
-/// assigned a response id yet â€” same gate `produce_files` uses).
+/// assigned a response id yet — same gate `produce_files` uses).
 pub fn produce_message_rows(
     c: &AgentCompletionChunk,
 ) -> impl Iterator<Item = MessageRow> + Send + '_ {
@@ -119,14 +119,14 @@ pub fn produce_message_rows(
         let idx = m.index();
         Some(MessageRow {
             agent_instance_hierarchy: id.to_string(),
-            // Same value as agent_instance_hierarchy at this stage â€” the writer
+            // Same value as agent_instance_hierarchy at this stage — the writer
             // will lineage-stamp `agent_instance_hierarchy` but `response_id`
             // stays bare so the reader doesn't have to parse it
             // back out of a stamped string.
             response_id: id.to_string(),
             kind,
             index: idx,
-            // Bare id â€” the route is reconstructed from
+            // Bare id — the route is reconstructed from
             // (kind, response_id, path) by `RequestMessageKind::file_path`.
             path: format!("{idx}"),
             timestamp: created,

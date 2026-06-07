@@ -12,14 +12,14 @@ use objectiveai_sdk::agent::completions::message::{
 /// Result of reading a log file. The variant is determined by **which
 /// typed `read_*` method the caller invoked** (or, for
 /// [`Client::read_file_by_id`], by the on-disk folder the path
-/// classified into). Nothing is guessed from the bytes â€” each
+/// classified into). Nothing is guessed from the bytes — each
 /// variant is picked at the call site that already knows the kind.
 ///
 /// Wire form (when wrapped in
 /// `TypedNotificationValue::LogContent`): the outer `type:
 /// "log_content"` envelope from `TypedNotificationValue` plus this
 /// inner `kind` discriminator (`type`/`kind` swap relative to the
-/// historical shape â€” needed to avoid a key collision when the
+/// historical shape — needed to avoid a key collision when the
 /// outer enum flattens through `Notification`):
 ///
 /// ```text
@@ -55,7 +55,7 @@ pub enum LogContent {
 }
 
 impl LogContent {
-    /// `LogContent::json(value)` â€” constructor sugar for the `Json`
+    /// `LogContent::json(value)` — constructor sugar for the `Json`
     /// variant. Useful at `.map(LogContent::json)` call sites that
     /// were `.map(LogContent::Json)` before the struct-variant rename.
     pub fn json(content: serde_json::Value) -> Self {
@@ -89,7 +89,7 @@ impl LogContent {
 /// point for the `LogContent` family.
 ///
 /// `LogContent::Json` projects to a `Text` part carrying the
-/// JSON-encoded body (closest `RichContentPart` representation â€”
+/// JSON-encoded body (closest `RichContentPart` representation —
 /// there's no structured-JSON variant). Every other LogContent
 /// variant maps to the matching typed `RichContentPart`.
 impl From<LogContent> for objectiveai_sdk::agent::completions::message::RichContentPart {
@@ -548,7 +548,7 @@ impl Client {
 
     /// Reads `<dir>/<stem>.json` and deserializes its contents into the
     /// caller-specified `T`. Sits on top of [`Self::read_json`] (no jq
-    /// â€” the typed reads pass `None`) and surfaces a typed-shape
+    /// — the typed reads pass `None`) and surfaces a typed-shape
     /// deserialization failure as [`Error::TypedDeserialize`] with the
     /// originating file path attached. Used by the typed `read_*`
     /// methods that match the SDK's per-leaf `Response` shapes.
@@ -707,7 +707,7 @@ impl Client {
         self.read_text("agents/completions/response/continuation", id)
             .await
     }
-    /// The assistant envelope, exactly as written â€”
+    /// The assistant envelope, exactly as written —
     /// an [`AssistantResponseChunkLog`], not the lossy `MessageLog`
     /// projection.
     ///
@@ -726,7 +726,7 @@ impl Client {
         )
         .await
     }
-    /// The tool envelope, exactly as written â€” a [`ToolResponseLog`].
+    /// The tool envelope, exactly as written — a [`ToolResponseLog`].
     ///
     /// [`ToolResponseLog`]: objectiveai_sdk::agent::completions::response::ToolResponseLog
     pub async fn read_agent_completion_message_tool(
@@ -759,7 +759,7 @@ impl Client {
         id: &str,
         message_index: u64,
     ) -> Result<String, Error> {
-        // Raw text â€” `.txt` on disk, not `.json`. (Writer:
+        // Raw text — `.txt` on disk, not `.json`. (Writer:
         // `assistant_response_chunk.rs::extract_*` puts reasoning
         // there as plain bytes; no JSON quoting.)
         self.read_text(
@@ -773,7 +773,7 @@ impl Client {
         id: &str,
         message_index: u64,
     ) -> Result<String, Error> {
-        // Raw text â€” `.txt` on disk, not `.json`. See reasoning.
+        // Raw text — `.txt` on disk, not `.json`. See reasoning.
         self.read_text(
             "agents/completions/response/messages/assistant/refusal",
             &format!("{id}_{message_index}"),
@@ -1088,7 +1088,7 @@ impl Client {
         id: &str,
         message_index: u64,
     ) -> Result<String, Error> {
-        // A JSON-encoded string â€” the request-side writer
+        // A JSON-encoded string — the request-side writer
         // (`assistant_message.rs::extract`) serializes reasoning with
         // `serde_json::to_vec_pretty`, unlike the response side's
         // raw-bytes `.txt`.
@@ -1103,7 +1103,7 @@ impl Client {
         id: &str,
         message_index: u64,
     ) -> Result<String, Error> {
-        // A JSON-encoded string â€” see reasoning.
+        // A JSON-encoded string — see reasoning.
         self.read_json_typed(
             "agents/completions/request/messages/assistant/refusal",
             &format!("{id}_{message_index}"),
@@ -1112,7 +1112,7 @@ impl Client {
     }
     /// Request-side tool calls are full `AssistantToolCall`s (the
     /// caller supplied them whole), unlike the response side's
-    /// streaming deltas. Returned exactly as written â€” no delta
+    /// streaming deltas. Returned exactly as written — no delta
     /// conversion.
     pub async fn read_agent_completion_request_message_assistant_tool_call(
         &self,
@@ -1254,7 +1254,7 @@ impl Client {
     }
 
     /// Sibling to [`Self::read_json_typed`] but built atop
-    /// [`Self::subscribe_json`] â€” waits for the file to appear (or be
+    /// [`Self::subscribe_json`] — waits for the file to appear (or be
     /// modified, when `require_modification`), then deserializes its
     /// contents into `T`. A timeout becomes
     /// [`Error::LogSubscribeTimedOut`]; a typed-shape deserialize
@@ -1523,7 +1523,7 @@ impl Client {
         timeout: std::time::Duration,
         require_modification: bool,
     ) -> Result<String, Error> {
-        // Raw text â€” `.txt` on disk, not `.json`. See
+        // Raw text — `.txt` on disk, not `.json`. See
         // [`Self::read_agent_completion_message_assistant_reasoning`].
         self.subscribe_text(
             "agents/completions/response/messages/assistant/reasoning",
@@ -1541,7 +1541,7 @@ impl Client {
         timeout: std::time::Duration,
         require_modification: bool,
     ) -> Result<String, Error> {
-        // Raw text â€” `.txt` on disk, not `.json`. See
+        // Raw text — `.txt` on disk, not `.json`. See
         // [`Self::read_agent_completion_message_assistant_refusal`].
         self.subscribe_text(
             "agents/completions/response/messages/assistant/refusal",
@@ -1794,7 +1794,7 @@ impl Client {
     /// from its on-disk log file(s) and translated into a typed
     /// [`super::queue::QueueItem`] following the `WORK.md` schema.
     ///
-    /// Returns the items in ascending DB-`"index"` order â€” the same
+    /// Returns the items in ascending DB-`"index"` order — the same
     /// order they were inserted. First-call semantics inherit from
     /// [`super::super::db::messages::Queue::read_new_messages`]: when
     /// no `messages_queue` row exists yet, the watermark defaults
@@ -1822,7 +1822,7 @@ impl Client {
     /// filter), advancing `caller_agent_instance_hierarchy`'s watermark to the
     /// returned max. Companion to [`Self::read_new_from_queue`]:
     /// `read_all` returns everything; `read_new` returns only past
-    /// the watermark. Both advance the watermark identically â€” a
+    /// the watermark. Both advance the watermark identically — a
     /// subsequent `read_new` after `read_all` always returns empty
     /// until new rows land.
     pub async fn read_all_from_queue(
@@ -2085,7 +2085,7 @@ impl Client {
         // Classify the path via the catalog of writer-side patterns,
         // then dispatch to the matching `read_*` method. The
         // variant-to-method match is the single source of truth for
-        // "what `LogContent` shape this kind of file produces" â€”
+        // "what `LogContent` shape this kind of file produces" —
         // every existing typed reader already knows its own kind,
         // and `read_file_by_id` re-uses that knowledge instead of
         // re-deriving it from a path-extension sniff.
@@ -2488,9 +2488,9 @@ impl Client {
     /// Newest-first.
     ///
     /// The `agent_instance_hierarchy` in each returned [`ActiveAgent`] is the
-    /// sub-portion past the parent â€” i.e. the trailing
+    /// sub-portion past the parent — i.e. the trailing
     /// composite-id segment(s) with the `{parent_agent_instance_hierarchy}/`
-    /// prefix stripped â€” so callers can paste it back into
+    /// prefix stripped — so callers can paste it back into
     /// commands that re-prepend the parent (e.g. `agents
     /// read pending`).
     pub async fn list_active(

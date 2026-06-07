@@ -1,4 +1,4 @@
-﻿//! `agents list active` â€” bare-naked streaming handler stub.
+﻿//! `agents list active` — bare-naked streaming handler stub.
 
 use std::pin::Pin;
 

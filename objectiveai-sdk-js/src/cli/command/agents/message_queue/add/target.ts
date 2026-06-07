@@ -9,5 +9,5 @@ export const CliCommandAgentsMessageQueueAddTargetSchema = z.union([z.object({
 }).meta({"variantTitle":"Direct"}), z.object({
   agent_tag: z.string(),
   by: z.literal("tag"),
-}).meta({"variantTitle":"Tag"})]).describe("Mutually-exclusive target. `Direct` composes\n`{parent}/{agent_instance}` at handler time (parent defaults to\nthe cli's own `Config.agent_instance_hierarchy`). `Tag` stores\nthe tag name verbatim Ã¢â‚¬â€ no `tags.sqlite` lookup at enqueue time.").meta({ title: "cli.command.agents.message_queue.add.Target" });
+}).meta({"variantTitle":"Tag"})]).describe("Mutually-exclusive target. `Direct` composes\n`{parent}/{agent_instance}` at handler time (parent defaults to\nthe cli's own `Config.agent_instance_hierarchy`). `Tag` stores\nthe tag name verbatim — no `tags.sqlite` lookup at enqueue time.").meta({ title: "cli.command.agents.message_queue.add.Target" });
 export type CliCommandAgentsMessageQueueAddTarget = z.infer<typeof CliCommandAgentsMessageQueueAddTargetSchema>;

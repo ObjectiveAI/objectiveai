@@ -56,13 +56,13 @@ class ResponseItem(RootModel):
     """One queued prompt. Direct rows carry only the bare
 `agent_instance` (= leaf segment of the hierarchy); Tag rows
 carry the literal tag name and flatten the joined 2-state
-status onto the same JSON object ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â yielding e.g.
-`{"by":"tag","id":42,"agent_tag":"foo","state":"bound","agent_instance_hierarchy":"ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦",
-"content":17}` (single-part) or `ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦"content":[17,18,19]"` (multi-
+status onto the same JSON object — yielding e.g.
+`{"by":"tag","id":42,"agent_tag":"foo","state":"bound","agent_instance_hierarchy":"…",
+"content":17}` (single-part) or `…"content":[17,18,19]"` (multi-
 part) rather than nesting the state under its own object.
 
 Both variants carry the resolved content body as a
-[`super::super::super::read::all::ResponseContent`] ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â `One(i64)` for a
+[`super::super::super::read::all::ResponseContent`] — `One(i64)` for a
 single-part `RichContent::Text` (or single-element
 `RichContent::Parts`), `Many(Vec<i64>)` for multi-part payloads.
 Each id is a `prompt_contents.id` resolvable via

@@ -1,4 +1,4 @@
-﻿//! `agents message` Ã¢â‚¬â€ async handler stub.
+﻿//! `agents message` — async handler stub.
 
 use crate::agent::completions::message::RichContent;
 use crate::cli::command::CommandRequest;
@@ -16,7 +16,7 @@ pub struct Request {
 
 /// Mutually-exclusive addressing for an `agents message` call.
 ///
-/// `Direct` is the default Ã¢â‚¬â€ the CLI composes
+/// `Direct` is the default — the CLI composes
 /// `{parent}/{agent_instance}` (parent defaults to
 /// `Config.agent_instance_hierarchy` when omitted) and optionally
 /// binds `agent_tag` to that hierarchy as a side effect.
@@ -75,7 +75,7 @@ impl RequestMessage {
     /// `--file <path>` / `--python-inline <code>` /
     /// `--python-file <path>`) for this variant to `out`. Used by
     /// both this leaf's [`CommandRequest::into_command`] and by
-    /// `agents message-queue add`'s Ã¢â‚¬â€ same wire shape, same five flags.
+    /// `agents message-queue add`'s — same wire shape, same five flags.
     pub fn push_flags(&self, out: &mut Vec<String>) {
         match self {
             RequestMessage::Inline(rich) => {
@@ -259,7 +259,7 @@ pub struct Args {
 #[derive(clap::Args)]
 #[group(required = true, multiple = false)]
 pub struct MessageArgs {
-    /// Plain text Ã¢â‚¬â€ becomes one user message.
+    /// Plain text — becomes one user message.
     #[arg(long)]
     pub simple: Option<String>,
     /// Inline JSON `RichContent`.

@@ -1,22 +1,22 @@
 ﻿//! Deferred-prompt storage for `agents message-queue {add, list, read id}`.
 //!
 //! Co-located in `tags.sqlite` with the `tags` table so the
-//! queue-list leaf can JOIN prompts ÃƒÂ¢Ã‚Â¨Ã‚Â tags in a single SELECT (to
+//! queue-list leaf can JOIN prompts ⨝ tags in a single SELECT (to
 //! surface each tag-keyed row's BOUND / PENDING state). The
 //! connection slot is owned by [`super::tags`]; this module
 //! piggybacks on it.
 //!
 //! ## Schema
 //!
-//! `prompts` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â one row per queued prompt (which is a single
+//! `prompts` — one row per queued prompt (which is a single
 //! user-message-equivalent `RichContent`), targeting either an
-//! `agent_instance_hierarchy` OR an `agent_tag` (never both ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â
+//! `agent_instance_hierarchy` OR an `agent_tag` (never both —
 //! `CHECK` enforces it). The `prompt` column holds the JSON
-//! serialization of one [`ResponseContent`] ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â either `One(i64)`
-//! for single-part content or `Many(Vec<i64>)` for multi-part ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â
+//! serialization of one [`ResponseContent`] — either `One(i64)`
+//! for single-part content or `Many(Vec<i64>)` for multi-part —
 //! referencing rows in the per-kind content tables below.
 //!
-//! `prompt_contents` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â master content registry, FK-anchored at
+//! `prompt_contents` — master content registry, FK-anchored at
 //! `prompt_id` so a single `DELETE FROM prompts WHERE id = ?`
 //! cascades the entire prompt out. Per-kind tables (`prompt_texts`,
 //! `prompt_images`, `prompt_audios`, `prompt_videos`,
@@ -88,13 +88,13 @@ pub async fn insert_async(
     .map_err(spawn_blocking_join_err)?
 }
 
-/// One content row ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â typed payload of a single `prompt_contents.id`.
+/// One content row — typed payload of a single `prompt_contents.id`.
 /// Returned by [`read_content`] / [`read_content_async`].
 ///
 /// Variants map one-to-one to `prompt_contents.kind`. The
 /// `CHECK (kind IN ('text','image','audio','video','file'))`
 /// constraint on the master table guarantees the five variants here
-/// are exhaustive ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â no assistant-side kinds (reasoning, refusal,
+/// are exhaustive — no assistant-side kinds (reasoning, refusal,
 /// tool_call) exist for queue content because the queue stores one
 /// user-message-equivalent `RichContent` per row, not arbitrary
 /// conversation history.
@@ -112,7 +112,7 @@ pub enum ContentRow {
 /// fetch) and the drain helpers below (reconstruct a whole prompt).
 /// The walker stored both `InputVideo` and `VideoUrl` parts as
 /// `prompt_videos` (just a URL), so reading back always yields
-/// `VideoUrl` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the lossless choice for a bare URL.
+/// `VideoUrl` — the lossless choice for a bare URL.
 pub fn content_row_to_part(row: ContentRow) -> RichContentPart {
     match row {
         ContentRow::Text(text) => RichContentPart::Text { text },
@@ -124,7 +124,7 @@ pub fn content_row_to_part(row: ContentRow) -> RichContentPart {
 }
 
 /// Look up a single content row by `prompt_contents.id`. Returns
-/// `None` when the id doesn't exist (`prompt_contents` miss) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â a
+/// `None` when the id doesn't exist (`prompt_contents` miss) — a
 /// per-kind miss is a DB corruption and is reported as an `Error`.
 ///
 /// Locking wrapper around [`read_content_with_conn`]; callers that
@@ -236,7 +236,7 @@ pub async fn read_content_async(
 }
 
 // ---------------------------------------------------------------------------
-// Transactional walker ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Vec<Message> ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ (prompt_id, Vec<ResponseQueueMessage>)
+// Transactional walker — Vec<Message> → (prompt_id, Vec<ResponseQueueMessage>)
 // ---------------------------------------------------------------------------
 
 /// Atomic enqueue: inserts the `prompts` row, walks `content` and
@@ -246,7 +246,7 @@ pub async fn read_content_async(
 /// `Many(Vec<i64>)` for multi-part). Returns the new `prompts.id`.
 ///
 /// Everything runs inside one rusqlite transaction on the shared
-/// `tags.sqlite` connection ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â any failure rolls the prompt and all
+/// `tags.sqlite` connection — any failure rolls the prompt and all
 /// its content rows back, leaving no orphans.
 pub async fn enqueue_with_content_async(
     client: Client,
@@ -296,8 +296,8 @@ fn enqueue_with_content(
 /// transaction. Lets `re_enqueue_async` batch multiple inserts
 /// under a single transaction by reusing this body once per item.
 /// `enqueued_at` is parameterised so re-enqueue can preserve the
-/// originally-stored timestamp (and FIFO order across drain ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ fail
-/// ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ re-enqueue cycles).
+/// originally-stored timestamp (and FIFO order across drain → fail
+/// → re-enqueue cycles).
 fn enqueue_with_content_in_tx(
     tx: &rusqlite::Transaction<'_>,
     agent_instance_hierarchy: Option<&str>,
@@ -326,7 +326,7 @@ fn enqueue_with_content_in_tx(
             params![agent_instance_hierarchy, agent_tag, key_value],
         )?;
     }
-    // Empty `prompt` placeholder ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â overwritten by the final UPDATE
+    // Empty `prompt` placeholder — overwritten by the final UPDATE
     // once we know the id-referenced shape. `prompts.prompt` is
     // NOT NULL so we need *some* value here.
     let prompt_id: i64 = tx.query_row(
@@ -391,7 +391,7 @@ fn insert_content_part(
 }
 
 // ---------------------------------------------------------------------------
-// Per-kind insert helpers ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â each mints a `prompt_contents.id` for the
+// Per-kind insert helpers — each mints a `prompt_contents.id` for the
 // caller-supplied `prompt_id`, then inserts the per-kind row sharing
 // that id. All helpers take `&Connection` so they compose inside the
 // `enqueue_with_content` transaction.
@@ -486,18 +486,18 @@ fn insert_content_file(
 // List
 // ---------------------------------------------------------------------------
 
-/// List all queued prompts visible under `parent`. Every row ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â
-/// Direct or Tag ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â must resolve to a parent matching the filter:
+/// List all queued prompts visible under `parent`. Every row —
+/// Direct or Tag — must resolve to a parent matching the filter:
 ///
 /// * **Direct rows:** `agent_instance_hierarchy` is a direct child
 ///   of `parent` (the same `LIKE 'parent/%' AND no_further_slash`
 ///   pattern `list_direct_active_children` uses).
 /// * **BOUND tag rows (LEFT JOIN finds the tag):** the tag's bound
-///   `agent_instance_hierarchy` is a direct child of `parent` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â same
+///   `agent_instance_hierarchy` is a direct child of `parent` — same
 ///   predicate, applied against the joined `t.agent_instance_hierarchy`.
 /// * **PENDING tag rows:** the tag's stored
 ///   `parent_agent_instance_hierarchy` equals `parent` exactly.
-/// * **ABSENT tag rows (LEFT JOIN returns no match):** excluded ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â
+/// * **ABSENT tag rows (LEFT JOIN returns no match):** excluded —
 ///   no parent info available.
 ///
 /// Each returned item embeds the prompt body as a
@@ -573,7 +573,7 @@ pub fn list(client: &Client, parent: &str) -> Result<Vec<ResponseItem>, Error> {
     {
         // The placeholder empty string can briefly exist mid-
         // transaction, but a committed row always carries the final
-        // ResponseContent JSON. Treat empty defensively as One(0) ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢
+        // ResponseContent JSON. Treat empty defensively as One(0) →
         // really a corrupted row; we surface it as Many([]) which
         // serialises cleanly and is harmless downstream.
         let content: ResponseContent = if prompt_json.is_empty() {
@@ -630,7 +630,7 @@ pub async fn list_async(client: Client, parent: String) -> Result<Vec<ResponseIt
 }
 
 // ---------------------------------------------------------------------------
-// Drain ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â atomically pull matching prompts out of the queue and
+// Drain — atomically pull matching prompts out of the queue and
 // reconstruct each one as a `RichContent`. Used by `agents message`
 // and `agents spawn` to prepend queued content to the user's own
 // payload before the API call fires. If the surrounding call fails
@@ -639,7 +639,7 @@ pub async fn list_async(client: Client, parent: String) -> Result<Vec<ResponseIt
 // queue state.
 // ---------------------------------------------------------------------------
 
-/// One drained prompt ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â carries enough metadata to re-INSERT the
+/// One drained prompt — carries enough metadata to re-INSERT the
 /// original row (same target columns, same `enqueued_at`) plus the
 /// reconstructed body for the join-and-prepend path. The caller
 /// joins `content`s into the outgoing message and keeps the
@@ -657,9 +657,9 @@ pub struct DrainedPrompt {
     /// `None` for unkeyed rows.
     pub key: Option<String>,
     /// Original `prompts.enqueued_at`. Preserved through re-enqueue
-    /// so FIFO ordering survives a drain ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ fail ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ re-enqueue cycle.
+    /// so FIFO ordering survives a drain → fail → re-enqueue cycle.
     pub enqueued_at: i64,
-    /// Reconstructed body ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â used by the join-and-prepend path today,
+    /// Reconstructed body — used by the join-and-prepend path today,
     /// and (in identical form) by re-enqueue's walker on failure.
     pub content: RichContent,
 }
@@ -693,9 +693,9 @@ fn drain_for_message(
     let tx = conn.unchecked_transaction()?;
     // Three-rule predicate (see plan):
     //  1. p.agent_instance_hierarchy = ?1
-    //  2. p.agent_tag ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ tag BOUND to ?1
+    //  2. p.agent_tag → tag BOUND to ?1
     //  3. ?2 is some AND p.agent_tag = ?2
-    // ?2 may be NULL ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â rule 3 silently fails the AND in that case.
+    // ?2 may be NULL — rule 3 silently fails the AND in that case.
     let rows = collect_matching_prompts(
         &tx,
         "p.agent_instance_hierarchy = ?1 \
@@ -720,7 +720,7 @@ fn drain_for_message(
 
 /// Drain rows targeting `target_tag` (if some), or any PENDING tag
 /// whose `(parent_agent_instance_hierarchy, agent_full_id)` pair
-/// matches `(parent_hierarchy, agent_full_id)` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â i.e. every tag
+/// matches `(parent_hierarchy, agent_full_id)` — i.e. every tag
 /// that the spawn about to fire will auto-promote on first chunk.
 pub async fn drain_for_spawn_async(
     client: Client,
@@ -752,8 +752,8 @@ fn drain_for_spawn(
         .expect("filesystem prompts db connection mutex poisoned");
     let tx = conn.unchecked_transaction()?;
     // Two-rule predicate (see plan):
-    //  1. ?3 is some AND p.agent_tag = ?3 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the explicit binding tag.
-    //  2. p.agent_tag ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ PENDING tag with (?1, ?2) match.
+    //  1. ?3 is some AND p.agent_tag = ?3 — the explicit binding tag.
+    //  2. p.agent_tag → PENDING tag with (?1, ?2) match.
     // No direct-hierarchy rule: queue/add Direct mode rejects
     // targets without prior completions, so no Direct row can pre-
     // exist for an unspawned agent.
@@ -887,7 +887,7 @@ fn reconstruct_rich_content(
         parts.push(content_row_to_part(row));
     }
     // Collapse single-text-part to RichContent::Text (lossless).
-    // Multi-part ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â even if all-text ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â stays RichContent::Parts so
+    // Multi-part — even if all-text — stays RichContent::Parts so
     // the join helper at the call site can insert separators
     // between distinct queue items without losing structure.
     if parts.len() == 1 {
@@ -899,7 +899,7 @@ fn reconstruct_rich_content(
 }
 
 // ---------------------------------------------------------------------------
-// Re-enqueue ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â undo a drain when the surrounding spawn/message
+// Re-enqueue — undo a drain when the surrounding spawn/message
 // call fails before its first OK stream item. Restores rows with
 // their original `enqueued_at` so FIFO ordering is stable across
 // the round trip.
@@ -908,7 +908,7 @@ fn reconstruct_rich_content(
 /// Re-INSERT every item in `items` as a fresh `prompts` row + its
 /// content rows. Empty `items` short-circuits to `Ok(())` without
 /// touching the connection. Everything runs inside one transaction
-/// ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â any failure rolls every restored row back, leaving no orphans.
+/// — any failure rolls every restored row back, leaving no orphans.
 ///
 /// `prompts.id` is auto-incremented anew (the original id is gone
 /// after the drain DELETE); `enqueued_at` is preserved verbatim
@@ -947,7 +947,7 @@ fn re_enqueue(client: &Client, items: Vec<DrainedPrompt>) -> Result<(), Error> {
 }
 
 // ---------------------------------------------------------------------------
-// Delete-by-id Ã¢â‚¬â€ manually drop a queued prompt without firing
+// Delete-by-id — manually drop a queued prompt without firing
 // `agents spawn` / `agents message`. Powers `agents message-queue
 // delete <id>`.
 // ---------------------------------------------------------------------------
@@ -981,7 +981,7 @@ fn delete_by_id(client: &Client, id: i64) -> Result<Option<DrainedPrompt>, Error
 }
 
 // ---------------------------------------------------------------------------
-// Delivery enumeration â€” list every distinct `(resolved hierarchy,
+// Delivery enumeration — list every distinct `(resolved hierarchy,
 // agent_tag)` pair with pending queue rows under (or at) a parent
 // hierarchy. Powers `agents message-queue deliver`, which fans out
 // one `agents message` call per returned target in parallel.
@@ -991,7 +991,7 @@ fn delete_by_id(client: &Client, id: i64) -> Result<Option<DrainedPrompt>, Error
 /// resolved hierarchy the row would be delivered to (either the
 /// row's own hierarchy for Direct rows, or the BOUND tag's bound
 /// hierarchy for Tag rows). `agent_tag` is `Some` when the row was
-/// originally Tag-addressed â€” the deliver leaf passes it through
+/// originally Tag-addressed — the deliver leaf passes it through
 /// to `agents message` as the binding-tag side effect, and
 /// surfaces it as the response item's attribution.
 #[derive(Debug, Clone)]
@@ -1002,7 +1002,7 @@ pub struct DeliveryTarget {
 
 /// Enumerate every distinct `(resolved hierarchy, agent_tag)` pair
 /// with pending queue rows in the subtree rooted at `parent`
-/// (inclusive â€” `parent` itself is in scope). PENDING / ABSENT tag
+/// (inclusive — `parent` itself is in scope). PENDING / ABSENT tag
 /// rows are filtered out at the SQL level so the caller never sees
 /// addressings that don't resolve to a spawned target.
 pub async fn list_delivery_targets_async(

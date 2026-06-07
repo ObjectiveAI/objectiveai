@@ -1,4 +1,4 @@
-﻿//! `agents read pending` â€” bare-naked streaming handler stub.
+﻿//! `agents read pending` — bare-naked streaming handler stub.
 
 use std::pin::Pin;
 
@@ -34,7 +34,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     Ok(Box::pin(stream))
 }
 
-/// Same as `agents read all`'s resolver â€” direct mode uses the
+/// Same as `agents read all`'s resolver — direct mode uses the
 /// explicit `parent=` or ctx, tag mode looks the tag up in
 /// `tags.sqlite` and errors on PENDING / ABSENT.
 async fn resolve_target(

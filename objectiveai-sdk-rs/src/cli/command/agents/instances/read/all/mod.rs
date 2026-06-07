@@ -1,4 +1,4 @@
-﻿//! `agents read all` â€” async handler stub.
+﻿//! `agents read all` — async handler stub.
 
 use std::str::FromStr;
 

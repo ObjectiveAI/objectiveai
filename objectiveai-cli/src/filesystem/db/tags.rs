@@ -7,9 +7,9 @@
 //! One table, `tags`. Each row is in exactly one of two states (a
 //! `CHECK` constraint enforces mutual exclusion):
 //!
-//! - **BOUND** â€” `agent_instance_hierarchy` set, the other two NULL.
+//! - **BOUND** — `agent_instance_hierarchy` set, the other two NULL.
 //!   The tag points at one specific hierarchy.
-//! - **PENDING** â€” `parent_agent_instance_hierarchy + agent_full_id`
+//! - **PENDING** — `parent_agent_instance_hierarchy + agent_full_id`
 //!   set, `agent_instance_hierarchy` NULL. The tag is waiting for the
 //!   next agent-completion that matches the (full_id, parent) pair to
 //!   spawn under it, at which point its first chunk auto-promotes the
@@ -207,7 +207,7 @@ pub fn upsert_bound(
 
 /// All tags currently bound to the given hierarchy, newest-bound
 /// first. A hierarchy can carry multiple tag names (the schema's PK
-/// is the `name`, not the hierarchy) â€” every BOUND row whose
+/// is the `name`, not the hierarchy) — every BOUND row whose
 /// `agent_instance_hierarchy` matches is returned. PENDING rows
 /// never match.
 pub fn tags_for_hierarchy(
@@ -311,7 +311,7 @@ pub fn lookup(client: &Client, name: &str) -> Result<LookupState, Error> {
 
 /// Parent scope of an `agent_instance_hierarchy`: the substring up
 /// to (but not including) the last `/`. When the input has no `/`,
-/// the parent is the empty string â€” the hierarchy is at the root.
+/// the parent is the empty string — the hierarchy is at the root.
 pub(crate) fn parent_of(agent_instance_hierarchy: &str) -> &str {
     match agent_instance_hierarchy.rfind('/') {
         Some(i) => &agent_instance_hierarchy[..i],
@@ -499,7 +499,7 @@ mod tests {
         let (c, _tmp) = fresh_client();
         // Pending registered against parent `root/A`.
         upsert_pending(&c, "foo", "F", "root/A").unwrap();
-        // Spawn fires with hierarchy `root/A/inst-1` â€” parent is `root/A`.
+        // Spawn fires with hierarchy `root/A/inst-1` — parent is `root/A`.
         let promoted = upgrade(&c, "F", "root/A/inst-1").unwrap();
         assert_eq!(promoted, vec!["foo".to_string()]);
         // Same agent_full_id under a different parent should NOT promote

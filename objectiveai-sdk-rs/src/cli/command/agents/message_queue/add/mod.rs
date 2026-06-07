@@ -1,21 +1,21 @@
-﻿//! `agents message-queue add` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â defer a single user-message-equivalent
+﻿//! `agents message-queue add` — defer a single user-message-equivalent
 //! `RichContent` to a target agent.
 //!
 //! Stores the content in `tags.sqlite` (the `prompts` table + the
 //! per-kind `prompt_<kind>` content tables) against either a
 //! resolved `agent_instance_hierarchy` (Direct mode) or a literal
-//! `agent_tag` (Tag mode ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â no resolution at enqueue time; the
+//! `agent_tag` (Tag mode — no resolution at enqueue time; the
 //! future reader resolves at dequeue time).
 //!
-//! The CLI flag surface mirrors `agents message` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â
+//! The CLI flag surface mirrors `agents message` —
 //! `--simple` / `--inline` / `--file` / `--python-inline` /
-//! `--python-file` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â and reuses the SDK
+//! `--python-file` — and reuses the SDK
 //! [`super::super::instances::message::RequestMessage`] /
 //! [`super::super::instances::message::MessageArgs`] types verbatim so the two
 //! leaves' producer plumbing stays in lock-step.
 //!
 //! This is the write-only slice of #211. No dequeue / flush leaf
-//! exists yet ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â rows persist until a future reader picks them up.
+//! exists yet — rows persist until a future reader picks them up.
 
 use crate::cli::command::CommandRequest;
 
@@ -27,7 +27,7 @@ pub struct Request {
     pub message: super::super::instances::message::RequestMessage,
     /// Optional idempotency token (#213). When `Some`, any prior
     /// queued row for the same `(target, key)` pair is overwritten
-    /// â€” old content cascade-dropped, new content inserted with a
+    /// — old content cascade-dropped, new content inserted with a
     /// fresh `enqueued_at`. Per-target scope: a `key` on a
     /// hierarchy and the same `key` on a tag coexist.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -46,7 +46,7 @@ pub enum Path {
 /// Mutually-exclusive target. `Direct` composes
 /// `{parent}/{agent_instance}` at handler time (parent defaults to
 /// the cli's own `Config.agent_instance_hierarchy`). `Tag` stores
-/// the tag name verbatim ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â no `tags.sqlite` lookup at enqueue time.
+/// the tag name verbatim — no `tags.sqlite` lookup at enqueue time.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(tag = "by", rename_all = "snake_case")]
 #[schemars(rename = "cli.command.agents.message_queue.add.Target")]
@@ -104,7 +104,7 @@ impl CommandRequest for Request {
 
 /// `id` is the row id from `tags.sqlite`'s `prompts` table. Exactly
 /// one of `agent_instance_hierarchy` / `agent_tag` is set, matching
-/// the chosen [`Target`] variant ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â `agent_instance_hierarchy` is
+/// the chosen [`Target`] variant — `agent_instance_hierarchy` is
 /// the **resolved** `{parent}/{instance}` for Direct mode.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.message_queue.add.Response")]
@@ -135,7 +135,7 @@ pub struct Args {
     /// Only valid alongside `agent_instance`.
     #[arg(long = "parent-agent-instance-hierarchy", requires = "agent_instance")]
     pub parent_agent_instance_hierarchy: Option<String>,
-    /// Tag name to enqueue against. Stored verbatim ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the cli does
+    /// Tag name to enqueue against. Stored verbatim — the cli does
     /// NOT resolve the tag at enqueue time. Mutually exclusive with
     /// `agent_instance` and `--parent-agent-instance-hierarchy`.
     #[arg(long = "agent-tag")]
@@ -146,7 +146,7 @@ pub struct Args {
     pub message: super::super::instances::message::MessageArgs,
     /// Optional idempotency token. When set, a second `add` with
     /// the same `(target, key)` overwrites the prior queued row
-    /// instead of stacking a new one. Per-target scope â€” a key on
+    /// instead of stacking a new one. Per-target scope — a key on
     /// a hierarchy and the same key on a tag coexist.
     #[arg(long)]
     pub key: Option<String>,

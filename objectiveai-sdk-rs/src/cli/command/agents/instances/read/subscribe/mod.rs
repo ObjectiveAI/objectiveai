@@ -1,4 +1,4 @@
-﻿//! `agents read subscribe` â€” async handler stub.
+﻿//! `agents read subscribe` — async handler stub.
 
 use crate::cli::command::CommandRequest;
 
@@ -108,7 +108,7 @@ fn message_kind_flag(kind: &RequestMessageKind) -> &'static str {
 }
 
 // Share the queue-item / queue-message / content shapes with
-// `agents read all` â€” same on-disk persistence rows surfaced
+// `agents read all` — same on-disk persistence rows surfaced
 // through different read patterns.
 pub use super::all::{ResponseContent, ResponseQueueItem, ResponseQueueMessage};
 

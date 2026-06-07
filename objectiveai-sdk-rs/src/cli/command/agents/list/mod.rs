@@ -1,4 +1,4 @@
-﻿//! `agents list available` â€” async handler stub.
+﻿//! `agents list available` — async handler stub.
 
 use crate::cli::command::CommandRequest;
 

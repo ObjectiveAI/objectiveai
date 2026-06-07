@@ -1,7 +1,7 @@
-//! `agents message-queue add` Ã¢â‚¬â€ bare-naked handler. Persists one
+//! `agents message-queue add` — bare-naked handler. Persists one
 //! `RichContent` into the `prompts` table in `tags.sqlite` against
 //! either the resolved `{parent}/{instance}` hierarchy (Direct
-//! mode) or the literal tag name (Tag mode Ã¢â‚¬â€ no resolution).
+//! mode) or the literal tag name (Tag mode — no resolution).
 
 use objectiveai_sdk::cli::command::agents::message_queue::add::{Request, Response, Target};
 
@@ -11,7 +11,7 @@ use crate::filesystem::db;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
     // Resolve the message up-front via `agents message`'s existing
-    // helper Ã¢â‚¬â€ turns all five RequestMessage variants into one
+    // helper — turns all five RequestMessage variants into one
     // RichContent. File / Python sources are read NOW so they
     // don't need to survive until the future dequeue.
     let content = crate::command::agents::instances::message::resolve_message(request.message)?;
@@ -20,7 +20,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     // Exactly one is Some; the table's CHECK enforces this at the
     // DB layer too. Direct mode additionally validates that the
     // resolved hierarchy has at least one `agent_completion_request`
-    // row logged. Tag mode is intentionally exempt Ã¢â‚¬â€ tags can be
+    // row logged. Tag mode is intentionally exempt — tags can be
     // enqueued against agents that don't exist yet.
     let (agent_instance_hierarchy, agent_tag) = match request.target {
         Target::Direct {

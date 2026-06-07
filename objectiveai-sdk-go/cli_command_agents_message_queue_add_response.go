@@ -9,7 +9,7 @@ import (
 
 // `id` is the row id from `tags.sqlite`'s `prompts` table. Exactly
 // one of `agent_instance_hierarchy` / `agent_tag` is set, matching
-// the chosen [`Target`] variant Ã¢â‚¬â€ `agent_instance_hierarchy` is
+// the chosen [`Target`] variant — `agent_instance_hierarchy` is
 // the **resolved** `{parent}/{instance}` for Direct mode.
 type CliCommandAgentsMessageQueueAddResponse struct {
 	AgentInstanceHierarchy *string `json:"agent_instance_hierarchy,omitempty"`

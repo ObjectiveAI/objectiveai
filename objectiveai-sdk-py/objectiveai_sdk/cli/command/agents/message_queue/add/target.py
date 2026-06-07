@@ -24,7 +24,7 @@ class Target(RootModel):
     """Mutually-exclusive target. `Direct` composes
 `{parent}/{agent_instance}` at handler time (parent defaults to
 the cli's own `Config.agent_instance_hierarchy`). `Tag` stores
-the tag name verbatim Ã¢â‚¬â€ no `tags.sqlite` lookup at enqueue time."""
+the tag name verbatim — no `tags.sqlite` lookup at enqueue time."""
     model_config = ConfigDict(title='cli.command.agents.message_queue.add.Target')
 
     root: Union[TargetDirect, TargetTag]

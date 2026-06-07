@@ -1,9 +1,9 @@
-﻿//! `agents read subscribe` â€” channel-backed bare-naked port of the
+﻿//! `agents read subscribe` — channel-backed bare-naked port of the
 //! legacy `subscribe_recursive` driver. The async driver runs as a
 //! detached task; `ResponseItem`s flow to the caller through a
 //! tokio mpsc channel wrapped as a stream.
 //!
-//! See `agents/read/subscribe.rs` (legacy) for the algorithm â€” this
+//! See `agents/read/subscribe.rs` (legacy) for the algorithm — this
 //! is a verbatim port modulo the notification/handle plumbing being
 //! swapped for typed channel sends.
 

@@ -67,7 +67,7 @@ func (CliCommandAgentsMessageMessageTargetTag) SchemaVariantTitle() string { ret
 
 // Mutually-exclusive addressing for an `agents message` call.
 //
-// `Direct` is the default â€” the CLI composes
+// `Direct` is the default — the CLI composes
 // `{parent}/{agent_instance}` (parent defaults to
 // `Config.agent_instance_hierarchy` when omitted) and optionally
 // binds `agent_tag` to that hierarchy as a side effect.

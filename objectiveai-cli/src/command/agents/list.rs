@@ -1,10 +1,10 @@
-﻿//! `agents list available <source>` â€” enumerate remote agents from a
+﻿//! `agents list available <source>` — enumerate remote agents from a
 //! given source. Streams one `ResponseItem` per agent. Sources:
 //!
-//! - `Favorites` â€” on-disk agent favorites (no HTTP).
-//! - `Filesystem` / `Objectiveai` / `Mock` â€” delegates to the SDK's
+//! - `Favorites` — on-disk agent favorites (no HTTP).
+//! - `Filesystem` / `Objectiveai` / `Mock` — delegates to the SDK's
 //!   `list_agents` HTTP endpoint with the matching `ListAgentsSource`.
-//! - `All` â€” favorites + filesystem + objectiveai, **de-duplicated**:
+//! - `All` — favorites + filesystem + objectiveai, **de-duplicated**:
 //!   favorites first, filesystem items skipping anything already
 //!   covered by a favorite, then ObjectiveAI items skipping anything
 //!   covered by a favorite or a filesystem item. Filesystem and

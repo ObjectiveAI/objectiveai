@@ -1,7 +1,7 @@
-﻿//! `agents read id <id>` â€” resolve a queue Id (SQL row id in the
+﻿//! `agents read id <id>` — resolve a queue Id (SQL row id in the
 //! `files` table) to its log file's typed content. The filesystem
 //! dispatcher classifies the path, calls the matching typed read,
-//! and wraps the value in the matching `Response` variant â€” the cli
+//! and wraps the value in the matching `Response` variant — the cli
 //! leaf just returns it.
 
 use objectiveai_sdk::cli::command::agents::instances::read::id::{Request, Response};

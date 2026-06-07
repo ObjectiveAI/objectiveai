@@ -1,4 +1,4 @@
-﻿//! `agents spawn` â€” async handler stub.
+﻿//! `agents spawn` — async handler stub.
 
 use crate::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use crate::agent::completions::message::Message;
@@ -96,7 +96,7 @@ impl CommandRequest for Request {
         // resolved to the `Remote` variant) or `--agent-inline <JSON>`
         // (deserialized directly into the SDK type). We always emit the
         // inline form because the Request already holds the resolved
-        // typed value â€” the cli's resolve hits the inline branch and
+        // typed value — the cli's resolve hits the inline branch and
         // round-trips identically for both Inline and Remote variants.
         argv.push("--agent-inline".to_string());
         argv.push(
@@ -172,7 +172,7 @@ pub struct Args {
 #[derive(clap::Args)]
 #[group(required = true, multiple = false)]
 pub struct PromptArgs {
-    /// Plain text â€” becomes one user message.
+    /// Plain text — becomes one user message.
     #[arg(long)]
     pub simple: Option<String>,
     /// Inline JSON messages array.

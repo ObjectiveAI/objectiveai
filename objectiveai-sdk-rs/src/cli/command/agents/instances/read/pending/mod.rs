@@ -1,4 +1,4 @@
-﻿//! `agents read pending` â€” async handler stub.
+﻿//! `agents read pending` — async handler stub.
 
 use crate::cli::command::CommandRequest;
 
@@ -38,7 +38,7 @@ impl CommandRequest for Request {
 }
 
 // Share the queue-item / queue-message / content shapes AND the
-// docker-style `Target` parser with `agents read all` â€” same on-disk
+// docker-style `Target` parser with `agents read all` — same on-disk
 // persistence rows surfaced as either the full or the watermark-
 // delta slice, same per-target input shape.
 pub use super::all::{ResponseContent, ResponseQueueItem, ResponseQueueMessage, Target};

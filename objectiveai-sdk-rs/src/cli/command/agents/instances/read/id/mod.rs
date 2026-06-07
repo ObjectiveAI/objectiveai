@@ -1,4 +1,4 @@
-﻿//! `agents read id` â€” async handler stub.
+﻿//! `agents read id` — async handler stub.
 
 use crate::cli::command::CommandRequest;
 
@@ -34,7 +34,7 @@ impl CommandRequest for Request {
     }
 }
 
-// Adjacently tagged on purpose â€” this union carries several
+// Adjacently tagged on purpose — this union carries several
 // all-`Option` payload shapes (`Logprobs`, `File`) that deserialize
 // from ANY JSON object, so an untagged walk misclassifies whichever
 // payload comes after them (a tool-call delta re-materialized as an
@@ -44,9 +44,9 @@ impl CommandRequest for Request {
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
 #[schemars(rename = "cli.command.agents.instances.read.id.Response")]
 pub enum Response {
-    // Typed log envelopes â€” each variant name is the PascalCase form
+    // Typed log envelopes — each variant name is the PascalCase form
     // of its full on-disk path under `logs/`. Payloads alias the
-    // matching `â€¦ ::get::Response` where a command leaf exists;
+    // matching `… ::get::Response` where a command leaf exists;
     // role-subdir shapes with no leaf carry the SDK log type the
     // writer serialized, verbatim.
     #[schemars(title = "AgentsCompletionsResponse")]
@@ -88,7 +88,7 @@ pub enum Response {
     #[schemars(title = "FunctionsInventionsRecursiveRequest")]
     FunctionsInventionsRecursiveRequest(crate::cli::command::logs::functions::inventions::recursive::request::get::Response),
 
-    // Collapsed text/media â€” one variant per content kind, regardless
+    // Collapsed text/media — one variant per content kind, regardless
     // of where the file lives.
     #[schemars(title = "Text")]
     Text(String),

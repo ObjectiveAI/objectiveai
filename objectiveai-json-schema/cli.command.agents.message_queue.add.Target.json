@@ -1,6 +1,6 @@
 {
   "title": "cli.command.agents.message_queue.add.Target",
-  "description": "Mutually-exclusive target. `Direct` composes\n`{parent}/{agent_instance}` at handler time (parent defaults to\nthe cli's own `Config.agent_instance_hierarchy`). `Tag` stores\nthe tag name verbatim Ã¢â‚¬â€ no `tags.sqlite` lookup at enqueue time.",
+  "description": "Mutually-exclusive target. `Direct` composes\n`{parent}/{agent_instance}` at handler time (parent defaults to\nthe cli's own `Config.agent_instance_hierarchy`). `Tag` stores\nthe tag name verbatim — no `tags.sqlite` lookup at enqueue time.",
   "anyOf": [
     {
       "title": "Direct",

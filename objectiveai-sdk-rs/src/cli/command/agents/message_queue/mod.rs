@@ -1,16 +1,16 @@
-//! `agents message-queue` Ã¢â‚¬â€ deferred prompts queue. Two top-level subcommands:
+//! `agents message-queue` — deferred prompts queue. Two top-level subcommands:
 //!
-//! - `add` Ã¢â‚¬â€ write-only enqueue. Stores a prompt in `tags.sqlite`
+//! - `add` — write-only enqueue. Stores a prompt in `tags.sqlite`
 //!   (the `prompts` table) against either a resolved
 //!   `agent_instance_hierarchy` (Direct mode) or a literal
-//!   `agent_tag` (Tag mode Ã¢â‚¬â€ no resolution at enqueue time).
-//! - `list` Ã¢â‚¬â€ streaming inspection. Both Direct and Tag rows are
+//!   `agent_tag` (Tag mode — no resolution at enqueue time).
+//! - `list` — streaming inspection. Both Direct and Tag rows are
 //!   filtered to direct children of a parent (Tag rows resolve
 //!   their parent via the joined `tags` table). Each tag-row item
 //!   carries the joined 3-state status and the resolved prompt
 //!   body as `Vec<ResponseQueueMessage>` (id-referenced into the
 //!   per-kind content tables).
-//! - `read` (nested) Ã¢â‚¬â€ sub-tier whose only leaf today is `id`,
+//! - `read` (nested) — sub-tier whose only leaf today is `id`,
 //!   which fetches one piece of queued content by its
 //!   `prompt_contents.id`. The wire shape mirrors `RichContentPart`
 //!   (tagged by `type`).
@@ -39,12 +39,12 @@ pub enum Command {
     Read(ReadCommand),
 }
 
-/// Intermediate clap level for the `read` sub-tier Ã¢â‚¬â€ its only
+/// Intermediate clap level for the `read` sub-tier — its only
 /// subcommand today is `id`. Splitting it into its own wrapper
 /// (rather than a fattened `ReadId` variant on [`Command`]) gives
 /// the CLI surface `agents message-queue read id <num>` to match the user's
 /// invocation style and keeps the door open for additional
-/// `read <Ã¢â‚¬Â¦>` leaves later.
+/// `read <…>` leaves later.
 #[derive(clap::Args)]
 pub struct ReadCommand {
     #[command(subcommand)]

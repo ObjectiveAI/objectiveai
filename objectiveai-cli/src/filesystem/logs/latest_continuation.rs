@@ -1,20 +1,20 @@
-﻿//! `read_latest_continuation` â€” walk backwards through an agent's
+﻿//! `read_latest_continuation` — walk backwards through an agent's
 //! request history (newest-first) and return the first turn whose
 //! *response* continuation file exists. The response continuation is
 //! the value the server emits in the final streaming chunk and
 //! persists at
 //! `logs/agents/completions/response/continuation/<response_id>.txt`
-//! (raw UTF-8 bytes â€” no JSON quoting). Reusing it on a fresh
+//! (raw UTF-8 bytes — no JSON quoting). Reusing it on a fresh
 //! `AgentCompletionCreateParams.continuation` picks up the
-//! conversation where that turn left off â€” not where the previous
+//! conversation where that turn left off — not where the previous
 //! turn ended, which is what the request-side continuation would
 //! replay.
 //!
 //! Used by `objectiveai agents message`'s fallback path: if the live
 //! per-agent socket is unreachable, we resume the agent's most recent
 //! **completed** conversation via continuation instead of dropping
-//! the message on the floor. "Most recent completed" â€” not "most
-//! recent attempted" â€” matters because the newest request may still
+//! the message on the floor. "Most recent completed" — not "most
+//! recent attempted" — matters because the newest request may still
 //! be streaming, was cancelled, or never produced a continuation;
 //! we'd rather resume an earlier finished turn than refuse to deliver.
 
@@ -35,13 +35,13 @@ use crate::filesystem::{Client, Error};
 pub struct LatestContinuation {
     /// The response_id of the original (about-to-be-continued)
     /// agent-completion turn. **Not necessarily the newest** request
-    /// for the agent â€” `read_latest_continuation` walks back from
+    /// for the agent — `read_latest_continuation` walks back from
     /// newest to oldest and returns the first one whose continuation
     /// file exists.
     pub response_id: String,
     /// Continuation token to set as `continuation: Some(_)` on the
     /// fresh `AgentCompletionCreateParams`. This is the **response**
-    /// continuation â€” the value the server emitted in the final
+    /// continuation — the value the server emitted in the final
     /// streaming chunk, persisted by
     /// [`objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk::produce_files`]
     /// as raw UTF-8 bytes at
@@ -50,7 +50,7 @@ pub struct LatestContinuation {
     /// previous turn's request-side continuation (which would replay
     /// from the earlier turn's end).
     pub continuation: String,
-    /// The agent definition from the original request log â€” reused
+    /// The agent definition from the original request log — reused
     /// verbatim so the conversation continues against the same agent.
     pub agent: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
     /// Original provider routing preferences, if any.
@@ -69,15 +69,15 @@ pub struct LatestContinuation {
 #[derive(Debug, Clone)]
 pub enum LatestContinuationOutcome {
     /// Found a usable continuation. The `response_id` inside
-    /// identifies the originating turn â€” not necessarily the newest
+    /// identifies the originating turn — not necessarily the newest
     /// one, because the walk-back skips turns whose continuation file
     /// is missing.
     Found(LatestContinuation),
-    /// The agent_instance_hierarchy has no `AgentCompletionRequest` rows at all â€”
+    /// The agent_instance_hierarchy has no `AgentCompletionRequest` rows at all —
     /// nothing has ever been logged against it.
     NoRequests,
     /// The agent_instance_hierarchy has at least one request row but no continuation
-    /// file was found in any of them â€” every prior turn is either
+    /// file was found in any of them — every prior turn is either
     /// still streaming or didn't finish. `request_count` is the total
     /// row count we walked.
     NoContinuationsFound { request_count: usize },
@@ -118,7 +118,7 @@ impl Client {
             let continuation: String = String::from_utf8(bytes)
                 .map_err(|e| Error::Utf8(cont_path.clone(), e))?;
 
-            // Found one â€” pair it with the per-turn request log.
+            // Found one — pair it with the per-turn request log.
             let request = self
                 .read_agent_completion_request(&response_id)
                 .await?;
@@ -149,11 +149,11 @@ impl Client {
     }
 
     /// Every `AgentCompletionRequest` row's response_id for
-    /// `agent_instance_hierarchy`, ordered by `"index"` descending â€” newest first.
+    /// `agent_instance_hierarchy`, ordered by `"index"` descending — newest first.
     ///
     /// The `messages.path` column for AgentCompletionRequest rows
     /// actually holds the full on-disk path of the request log
-    /// (`agents/completions/request/<id>.json`) â€” not the bare
+    /// (`agents/completions/request/<id>.json`) — not the bare
     /// response_id, despite what the schema docs imply. Strip the
     /// well-known prefix + extension here so callers always see the
     /// bare id.
@@ -184,7 +184,7 @@ impl Client {
                 let path = row?;
                 // Strip `agents/completions/request/` prefix + `.json`
                 // suffix to recover the bare response_id. Fallback to
-                // the raw path if the prefix/suffix doesn't match â€”
+                // the raw path if the prefix/suffix doesn't match —
                 // surfacing the discrepancy is more useful than
                 // silently dropping the row.
                 let bare = path
@@ -246,7 +246,7 @@ mod tests {
         for i in 0..count {
             let response_id = format!("resp-{i:03}");
             // DB row. The writer stores the FULL on-disk path in
-            // messages.path (not the bare id) â€” mirror that here so
+            // messages.path (not the bare id) — mirror that here so
             // the test exercises the production code path through
             // `agent_completion_request_ids_newest_first`.
             let stored_path =

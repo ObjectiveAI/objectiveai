@@ -1,4 +1,4 @@
-﻿//! `agents message-queue deliver` â€” fan out `agents message`
+﻿//! `agents message-queue deliver` — fan out `agents message`
 //! against every BOUND target with pending queue rows under the
 //! caller's hierarchy (inclusive + recursive), in parallel.
 //! Streams the inner `agents message` items merged across all
@@ -6,7 +6,7 @@
 //! target's `agent_instance_hierarchy` and (when the row was
 //! Tag-addressed) the `agent_tag`.
 //!
-//! PENDING / ABSENT tag rows are skipped â€” they don't resolve to
+//! PENDING / ABSENT tag rows are skipped — they don't resolve to
 //! a spawned target, so there's nothing to deliver to yet. The
 //! caller can revisit later, once the tag is BOUND, and the
 //! deliver sweep will pick it up.
@@ -53,7 +53,7 @@ impl CommandRequest for Request {
 /// One item from one of the fanned-out `agents message` calls,
 /// augmented with the resolved target that produced it.
 ///
-/// `item` is the inner `agents::message::ResponseItem` â€”
+/// `item` is the inner `agents::message::ResponseItem` —
 /// `Queued` / `Delivered` / `Chunk`. `agent_instance_hierarchy`
 /// is the resolved hierarchy the delivery was addressed to;
 /// `agent_tag` is `Some` only when the underlying queue row was

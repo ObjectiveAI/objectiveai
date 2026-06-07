@@ -6,5 +6,5 @@ export const CliCommandAgentsMessageQueueAddResponseSchema = z.object({
   agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
   agent_tag: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.number().int().min(-9223372036854776000).max(9223372036854776000),
-}).describe("`id` is the row id from `tags.sqlite`'s `prompts` table. Exactly\none of `agent_instance_hierarchy` / `agent_tag` is set, matching\nthe chosen [`Target`] variant Ã¢â‚¬â€ `agent_instance_hierarchy` is\nthe **resolved** `{parent}/{instance}` for Direct mode.").meta({ title: "cli.command.agents.message_queue.add.Response" });
+}).describe("`id` is the row id from `tags.sqlite`'s `prompts` table. Exactly\none of `agent_instance_hierarchy` / `agent_tag` is set, matching\nthe chosen [`Target`] variant — `agent_instance_hierarchy` is\nthe **resolved** `{parent}/{instance}` for Direct mode.").meta({ title: "cli.command.agents.message_queue.add.Response" });
 export type CliCommandAgentsMessageQueueAddResponse = z.infer<typeof CliCommandAgentsMessageQueueAddResponseSchema>;
