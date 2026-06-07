@@ -255,7 +255,8 @@
           ],
           "votes": [
             {
-              "agent": "0xnE9ggm7mtO0KByCTu82r-K8x4nDAlMhu1wVfrw",
+              "agent_full_id": "0xnE9ggm7mtO0KByCTu82r",
+              "agent_id": "0xnE9ggm7mtO0KByCTu82r",
               "swarm_index": 0,
               "flat_swarm_index": 0,
               "prompt_id": "1izH83iXjCToDAcaLbhXJq",
@@ -270,7 +271,8 @@
               "weight": 0.35
             },
             {
-              "agent": "5PjhypRVQsOkbOwJVBReFO-50vfHQkOqH71wVfrw",
+              "agent_full_id": "5PjhypRVQsOkbOwJVBReFO",
+              "agent_id": "5PjhypRVQsOkbOwJVBReFO",
               "swarm_index": 1,
               "flat_swarm_index": 1,
               "prompt_id": "1izH83iXjCToDAcaLbhXJq",
@@ -742,7 +744,8 @@
           ],
           "votes": [
             {
-              "agent": "0xnE9ggm7mtO0KByCTu82r-IoXB8tVBv551wVfrw",
+              "agent_full_id": "0xnE9ggm7mtO0KByCTu82r",
+              "agent_id": "0xnE9ggm7mtO0KByCTu82r",
               "swarm_index": 0,
               "flat_swarm_index": 0,
               "prompt_id": "0bAgwsS0UYNYEqtEIJmqVU",
@@ -757,7 +760,8 @@
               "weight": 0.35
             },
             {
-              "agent": "5PjhypRVQsOkbOwJVBReFO-5r7HXurfzPk1wVfrw",
+              "agent_full_id": "5PjhypRVQsOkbOwJVBReFO",
+              "agent_id": "5PjhypRVQsOkbOwJVBReFO",
               "swarm_index": 1,
               "flat_swarm_index": 1,
               "prompt_id": "0bAgwsS0UYNYEqtEIJmqVU",
@@ -1209,7 +1213,8 @@
           ],
           "votes": [
             {
-              "agent": "0xnE9ggm7mtO0KByCTu82r-4bcsNvPKg7o1wVfrw",
+              "agent_full_id": "0xnE9ggm7mtO0KByCTu82r",
+              "agent_id": "0xnE9ggm7mtO0KByCTu82r",
               "swarm_index": 0,
               "flat_swarm_index": 0,
               "prompt_id": "2nZfMWHvhrhdLpmfqXMLVu",
@@ -1224,7 +1229,8 @@
               "weight": 0.35
             },
             {
-              "agent": "5PjhypRVQsOkbOwJVBReFO-3YhPUGQGpTz1wVfrw",
+              "agent_full_id": "5PjhypRVQsOkbOwJVBReFO",
+              "agent_id": "5PjhypRVQsOkbOwJVBReFO",
               "swarm_index": 1,
               "flat_swarm_index": 1,
               "prompt_id": "2nZfMWHvhrhdLpmfqXMLVu",
@@ -1700,7 +1706,8 @@
           ],
           "votes": [
             {
-              "agent": "0xnE9ggm7mtO0KByCTu82r-7tq6Icb51z61wVfrw",
+              "agent_full_id": "0xnE9ggm7mtO0KByCTu82r",
+              "agent_id": "0xnE9ggm7mtO0KByCTu82r",
               "swarm_index": 0,
               "flat_swarm_index": 0,
               "prompt_id": "4XW1Pm4KW6y0HASJM96YWG",
@@ -1715,7 +1722,8 @@
               "weight": 0.35
             },
             {
-              "agent": "5PjhypRVQsOkbOwJVBReFO-HHANhsVWn4G1wVfrw",
+              "agent_full_id": "5PjhypRVQsOkbOwJVBReFO",
+              "agent_id": "5PjhypRVQsOkbOwJVBReFO",
               "swarm_index": 1,
               "flat_swarm_index": 1,
               "prompt_id": "4XW1Pm4KW6y0HASJM96YWG",
@@ -2024,7 +2032,8 @@
           ],
           "votes": [
             {
-              "agent": "0xnE9ggm7mtO0KByCTu82r-4gj4AVSzsJ31wVfrw",
+              "agent_full_id": "0xnE9ggm7mtO0KByCTu82r",
+              "agent_id": "0xnE9ggm7mtO0KByCTu82r",
               "swarm_index": 0,
               "flat_swarm_index": 0,
               "prompt_id": "37f0ouvzIBIC8tV53JVgtH",
@@ -2039,7 +2048,8 @@
               "weight": 0.35
             },
             {
-              "agent": "5PjhypRVQsOkbOwJVBReFO-0RcHaVhhcBA1wVfrw",
+              "agent_full_id": "5PjhypRVQsOkbOwJVBReFO",
+              "agent_id": "5PjhypRVQsOkbOwJVBReFO",
               "swarm_index": 1,
               "flat_swarm_index": 1,
               "prompt_id": "37f0ouvzIBIC8tV53JVgtH",
@@ -2502,7 +2512,8 @@
           ],
           "votes": [
             {
-              "agent": "0xnE9ggm7mtO0KByCTu82r-8cwpMbEBi5w1wVfrw",
+              "agent_full_id": "0xnE9ggm7mtO0KByCTu82r",
+              "agent_id": "0xnE9ggm7mtO0KByCTu82r",
               "swarm_index": 0,
               "flat_swarm_index": 0,
               "prompt_id": "2YhgnXRbEf1xZn3K6vHZSv",
@@ -2517,7 +2528,8 @@
               "weight": 0.35
             },
             {
-              "agent": "5PjhypRVQsOkbOwJVBReFO-JLO1gxFSLTs1wVfrw",
+              "agent_full_id": "5PjhypRVQsOkbOwJVBReFO",
+              "agent_id": "5PjhypRVQsOkbOwJVBReFO",
               "swarm_index": 1,
               "flat_swarm_index": 1,
               "prompt_id": "2YhgnXRbEf1xZn3K6vHZSv",
@@ -2832,7 +2844,8 @@
           ],
           "votes": [
             {
-              "agent": "0xnE9ggm7mtO0KByCTu82r-G8X6JPosXC11wVfrw",
+              "agent_full_id": "0xnE9ggm7mtO0KByCTu82r",
+              "agent_id": "0xnE9ggm7mtO0KByCTu82r",
               "swarm_index": 0,
               "flat_swarm_index": 0,
               "prompt_id": "1izH83iXjCToDAcaLbhXJq",
@@ -2847,7 +2860,8 @@
               "weight": 0.35
             },
             {
-              "agent": "5PjhypRVQsOkbOwJVBReFO-JIFx3PzeDUx1wVfrw",
+              "agent_full_id": "5PjhypRVQsOkbOwJVBReFO",
+              "agent_id": "5PjhypRVQsOkbOwJVBReFO",
               "swarm_index": 1,
               "flat_swarm_index": 1,
               "prompt_id": "1izH83iXjCToDAcaLbhXJq",

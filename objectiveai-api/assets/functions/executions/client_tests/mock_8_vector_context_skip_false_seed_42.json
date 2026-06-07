@@ -248,7 +248,8 @@
       ],
       "votes": [
         {
-          "agent": "0Lp0y7y2LyM1VsV2TScyKZ-3Pr462R4vOv1wVfrx",
+          "agent_full_id": "0Lp0y7y2LyM1VsV2TScyKZ",
+          "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
           "swarm_index": 0,
           "flat_swarm_index": 0,
           "prompt_id": "5WKzQyX1XtNYHd6JvO8rJ9",
@@ -263,7 +264,8 @@
           "weight": 0.4
         },
         {
-          "agent": "4QSADkWSPB34Fj2Vr3oFwM-6ElfDxLYYbq1wVfrx",
+          "agent_full_id": "4QSADkWSPB34Fj2Vr3oFwM",
+          "agent_id": "4QSADkWSPB34Fj2Vr3oFwM",
           "swarm_index": 1,
           "flat_swarm_index": 1,
           "prompt_id": "5WKzQyX1XtNYHd6JvO8rJ9",
@@ -587,7 +589,8 @@
       ],
       "votes": [
         {
-          "agent": "0Lp0y7y2LyM1VsV2TScyKZ-3ODwbmZAWex1wVfrx",
+          "agent_full_id": "0Lp0y7y2LyM1VsV2TScyKZ",
+          "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
           "swarm_index": 0,
           "flat_swarm_index": 0,
           "prompt_id": "53gupuiD82Ntk6zr03UbCi",
@@ -602,7 +605,8 @@
           "weight": 0.4
         },
         {
-          "agent": "4QSADkWSPB34Fj2Vr3oFwM-DAka5ZCk8Xw1wVfrx",
+          "agent_full_id": "4QSADkWSPB34Fj2Vr3oFwM",
+          "agent_id": "4QSADkWSPB34Fj2Vr3oFwM",
           "swarm_index": 1,
           "flat_swarm_index": 1,
           "prompt_id": "53gupuiD82Ntk6zr03UbCi",
@@ -940,7 +944,8 @@
       ],
       "votes": [
         {
-          "agent": "0Lp0y7y2LyM1VsV2TScyKZ-DRbbcfci4YP1wVfrx",
+          "agent_full_id": "0Lp0y7y2LyM1VsV2TScyKZ",
+          "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
           "swarm_index": 0,
           "flat_swarm_index": 0,
           "prompt_id": "3xWMlQNb9uz58r1qlmGv0c",
@@ -955,7 +960,8 @@
           "weight": 0.4
         },
         {
-          "agent": "4QSADkWSPB34Fj2Vr3oFwM-5TeiGRxr8XJ1wVfrx",
+          "agent_full_id": "4QSADkWSPB34Fj2Vr3oFwM",
+          "agent_id": "4QSADkWSPB34Fj2Vr3oFwM",
           "swarm_index": 1,
           "flat_swarm_index": 1,
           "prompt_id": "3xWMlQNb9uz58r1qlmGv0c",

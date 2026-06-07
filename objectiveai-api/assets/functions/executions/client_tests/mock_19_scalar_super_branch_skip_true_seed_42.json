@@ -206,7 +206,8 @@
               ],
               "votes": [
                 {
-                  "agent": "6l2dDV2SOJXgP5REPXndtU-0kXWCvKpaYW1wVfrw",
+                  "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
+                  "agent_id": "6l2dDV2SOJXgP5REPXndtU",
                   "swarm_index": 0,
                   "flat_swarm_index": 0,
                   "prompt_id": "4e6EOzYFi96HLuZAJBqeR9",
@@ -483,7 +484,8 @@
               ],
               "votes": [
                 {
-                  "agent": "6l2dDV2SOJXgP5REPXndtU-JtGRT4hYoyF1wVfrw",
+                  "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
+                  "agent_id": "6l2dDV2SOJXgP5REPXndtU",
                   "swarm_index": 0,
                   "flat_swarm_index": 0,
                   "prompt_id": "2MLffX8w1QdUQgwkcOdsG5",
@@ -1013,7 +1015,8 @@
               ],
               "votes": [
                 {
-                  "agent": "0Lp0y7y2LyM1VsV2TScyKZ-8je78nxwSNS1wVfrw",
+                  "agent_full_id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                  "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
                   "swarm_index": 0,
                   "flat_swarm_index": 0,
                   "prompt_id": "2RLCl8WULviJO8FH7RThBd",
@@ -1028,7 +1031,8 @@
                   "weight": 0.3
                 },
                 {
-                  "agent": "4QSADkWSPB34Fj2Vr3oFwM-BBQrlIyq4mU1wVfrw",
+                  "agent_full_id": "4QSADkWSPB34Fj2Vr3oFwM",
+                  "agent_id": "4QSADkWSPB34Fj2Vr3oFwM",
                   "swarm_index": 1,
                   "flat_swarm_index": 1,
                   "prompt_id": "2RLCl8WULviJO8FH7RThBd",
@@ -1191,7 +1195,8 @@
               ],
               "votes": [
                 {
-                  "agent": "4b6Q8wMySsDjDv3NoTMx8o-HkdcPZhODki1wVfrw",
+                  "agent_full_id": "4b6Q8wMySsDjDv3NoTMx8o",
+                  "agent_id": "4b6Q8wMySsDjDv3NoTMx8o",
                   "swarm_index": 0,
                   "flat_swarm_index": 0,
                   "prompt_id": "5AWPuQn3Gb7nxuSFoxmODS",
@@ -1399,7 +1404,8 @@
               ],
               "votes": [
                 {
-                  "agent": "4wXv5UufT9xfKYKsCLpBXT-Axiy3W1i0Wn1wVfrw",
+                  "agent_full_id": "4wXv5UufT9xfKYKsCLpBXT",
+                  "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
                   "swarm_index": 1,
                   "flat_swarm_index": 1,
                   "prompt_id": "0933xcABhqZyyqLKsTIIMb",

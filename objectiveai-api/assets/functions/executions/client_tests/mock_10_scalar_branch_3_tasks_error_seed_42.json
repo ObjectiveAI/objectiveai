@@ -271,7 +271,8 @@
           ],
           "votes": [
             {
-              "agent": "0LWQ3vG2qso9vT0XZEIa1X-9eipobmihtm1wVfrw",
+              "agent_full_id": "0LWQ3vG2qso9vT0XZEIa1X",
+              "agent_id": "0LWQ3vG2qso9vT0XZEIa1X",
               "swarm_index": 1,
               "flat_swarm_index": 1,
               "prompt_id": "2evObcfrsqbh0xUVWuGjNo",
@@ -286,7 +287,8 @@
               "weight": 0.3
             },
             {
-              "agent": "4wXv5UufT9xfKYKsCLpBXT-Kivx6ma5noM1wVfrw",
+              "agent_full_id": "4wXv5UufT9xfKYKsCLpBXT",
+              "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
               "swarm_index": 2,
               "flat_swarm_index": 2,
               "prompt_id": "2evObcfrsqbh0xUVWuGjNo",
@@ -652,7 +654,8 @@
           ],
           "votes": [
             {
-              "agent": "0LWQ3vG2qso9vT0XZEIa1X-H0ortlVeVYu1wVfrw",
+              "agent_full_id": "0LWQ3vG2qso9vT0XZEIa1X",
+              "agent_id": "0LWQ3vG2qso9vT0XZEIa1X",
               "swarm_index": 1,
               "flat_swarm_index": 1,
               "prompt_id": "7TbzTWYaGRVmONbPuu31nq",
@@ -673,7 +676,8 @@
               "weight": 0.3
             },
             {
-              "agent": "4wXv5UufT9xfKYKsCLpBXT-4EWFcwOTe3S1wVfrw",
+              "agent_full_id": "4wXv5UufT9xfKYKsCLpBXT",
+              "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
               "swarm_index": 2,
               "flat_swarm_index": 2,
               "prompt_id": "7TbzTWYaGRVmONbPuu31nq",
@@ -1012,7 +1016,8 @@
           ],
           "votes": [
             {
-              "agent": "0LWQ3vG2qso9vT0XZEIa1X-B1Zw9ersBfX1wVfrw",
+              "agent_full_id": "0LWQ3vG2qso9vT0XZEIa1X",
+              "agent_id": "0LWQ3vG2qso9vT0XZEIa1X",
               "swarm_index": 1,
               "flat_swarm_index": 1,
               "prompt_id": "6xf8EfHmf19ikzYuUS35fR",
@@ -1027,7 +1032,8 @@
               "weight": 0.3
             },
             {
-              "agent": "4wXv5UufT9xfKYKsCLpBXT-DUyoQ5x3nay1wVfrw",
+              "agent_full_id": "4wXv5UufT9xfKYKsCLpBXT",
+              "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
               "swarm_index": 2,
               "flat_swarm_index": 2,
               "prompt_id": "6xf8EfHmf19ikzYuUS35fR",

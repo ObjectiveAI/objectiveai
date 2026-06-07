@@ -235,7 +235,8 @@
       ],
       "votes": [
         {
-          "agent": "0Lp0y7y2LyM1VsV2TScyKZ-FTPuLC4t6s51wVfrw",
+          "agent_full_id": "0Lp0y7y2LyM1VsV2TScyKZ",
+          "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
           "swarm_index": 0,
           "flat_swarm_index": 0,
           "prompt_id": "0j8eITr5S7ZSGlNRMMZoIY",
@@ -256,7 +257,8 @@
           "weight": 0.2
         },
         {
-          "agent": "4wXv5UufT9xfKYKsCLpBXT-LEKQTnJVSUm1wVfrw",
+          "agent_full_id": "4wXv5UufT9xfKYKsCLpBXT",
+          "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
           "swarm_index": 2,
           "flat_swarm_index": 2,
           "prompt_id": "0j8eITr5S7ZSGlNRMMZoIY",
