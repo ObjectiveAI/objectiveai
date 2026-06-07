@@ -30,8 +30,17 @@ use starlark::values::{Heap as StarlarkHeap, Value as StarlarkValue};
 #[schemars(rename = "vector.completions.response.Vote")]
 pub struct Vote {
     // --- Identifiers ---
-    /// The agent that produced this vote (content-addressed ID).
-    pub agent: String,
+    /// WF-level id of the agent that produced this vote — concatenation
+    /// of the primary agent's id with all fallback ids (see
+    /// `InlineAgentWithFallbacks::full_id`). Same for every slot in the
+    /// same WF request and deterministic across api processes.
+    pub agent_full_id: String,
+    /// Leaf agent id of the slot that produced this vote (matches the
+    /// `agent_id` on the corresponding
+    /// [`super::super::super::super::agent::completions::response::unary::AgentCompletion`]).
+    /// When fallbacks fired, this is the fallback's id rather than the
+    /// primary's.
+    pub agent_id: String,
     /// Index of the agent configuration within the swarm.
     #[arbitrary(with = crate::arbitrary_util::arbitrary_u64)]
     pub swarm_index: u64,
@@ -82,7 +91,8 @@ impl ToStarlarkValue for Vote {
         heap: &'v StarlarkHeap,
     ) -> StarlarkValue<'v> {
         heap.alloc(StarlarkAllocDict([
-            ("agent", self.agent.to_starlark_value(heap)),
+            ("agent_full_id", self.agent_full_id.to_starlark_value(heap)),
+            ("agent_id", self.agent_id.to_starlark_value(heap)),
             ("swarm_index", self.swarm_index.to_starlark_value(heap)),
             (
                 "flat_swarm_index",
