@@ -3,8 +3,12 @@
   "description": "A single LLM's vote in a vector completion.\n\nEach LLM in the swarm produces a vote indicating which response(s) it\nselected. Votes are weighted according to the profile and combined to\nproduce the final scores.\n\n# Vote Format\n\nThe `vote` field is a vector of decimals corresponding to the responses\nin the request. Typically one element is 1.0 and the rest are 0.0 (discrete\nselection), but when `top_logprobs` is used, votes may be probability\ndistributions.",
   "type": "object",
   "properties": {
-    "agent": {
-      "description": "The agent that produced this vote (content-addressed ID).",
+    "agent_full_id": {
+      "description": "WF-level id of the agent that produced this vote — concatenation\nof the primary agent's id with all fallback ids (see\n`InlineAgentWithFallbacks::full_id`). Same for every slot in the\nsame WF request and deterministic across api processes.",
+      "type": "string"
+    },
+    "agent_id": {
+      "description": "Leaf agent id of the slot that produced this vote (matches the\n`agent_id` on the corresponding\n[`super::super::super::super::agent::completions::response::unary::AgentCompletion`]).\nWhen fallbacks fired, this is the fallback's id rather than the\nprimary's.",
       "type": "string"
     },
     "flat_swarm_index": {
