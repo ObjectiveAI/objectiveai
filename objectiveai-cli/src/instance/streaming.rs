@@ -1,4 +1,4 @@
-//! Shared chunk-consumption loop every endpoint reuses.
+﻿//! Shared chunk-consumption loop every endpoint reuses.
 //!
 //! Drains the WS chunk stream, sends each chunk as an
 //! [`InstanceEmission::Chunk`] through `emissions_tx`, ensures a
@@ -17,7 +17,7 @@ use futures::{Stream, StreamExt};
 use objectiveai_sdk::Notifier;
 use objectiveai_sdk::agent::completions::message::RichContent;
 use objectiveai_sdk::agent::completions::response::streaming::AgentCompletionIds;
-use objectiveai_sdk::cli::command::agents::read::subscribe::RequestMessageKind;
+use objectiveai_sdk::cli::command::agents::instances::read::subscribe::RequestMessageKind;
 use serde::Serialize;
 use tokio::sync::mpsc;
 
@@ -76,7 +76,7 @@ where
     // primary_id becomes available (which may be mid-stream or only
     // during `finalize`, depending on the chunk shape). Until the
     // signal arrives we buffer chunks below so consumers see
-    // `LogStreamReady, Chunk, Chunk, …` — never a Chunk before the
+    // `LogStreamReady, Chunk, Chunk, â€¦` â€” never a Chunk before the
     // LogStreamReady.
     let (log_ready_id_tx, log_ready_id_rx) =
         tokio::sync::oneshot::channel::<String>();
@@ -100,7 +100,7 @@ where
     // `LogStreamReady` + drain this buffer, and subsequent iterations
     // emit chunks directly. Bounded in practice by however many
     // chunks the stream produces before the writer flushes its first
-    // log file — typically 1-3.
+    // log file â€” typically 1-3.
     let mut buffered: Vec<Chunk> = Vec::new();
     let mut log_ready_emitted = false;
 
@@ -112,11 +112,11 @@ where
             // The writer's primary_id landed. Emit `LogStreamReady`,
             // drain everything we've been holding back, and from here
             // on each chunk emits directly. This branch runs at most
-            // once per stream — disabled the moment `log_ready_emitted`
+            // once per stream â€” disabled the moment `log_ready_emitted`
             // flips. By keeping it in the same `select!` as the chunk
             // stream we react the instant the oneshot fires instead
             // of waiting for the next chunk to come around and poll
-            // `try_recv` — important when the api goes quiet between
+            // `try_recv` â€” important when the api goes quiet between
             // the last burst of chunks and the WS close, which is
             // exactly the window the watchdog used to fire on.
             ready_result = async {
@@ -168,7 +168,7 @@ where
                                     std::process::exit(crate::instance::api::SLOT_TAKEN_EXIT_CODE);
                                 }
                                 Err(BindStatus::Io) => {
-                                    // Degraded path — warning already eprintln'd.
+                                    // Degraded path â€” warning already eprintln'd.
                                 }
                             }
                             registry
@@ -193,7 +193,7 @@ where
         }
     }
 
-    // Stream EOF — close the writer's input channels so its
+    // Stream EOF â€” close the writer's input channels so its
     // `finalize` runs. `finalize` processes the last chunk still
     // buffered behind `log_writer`'s one-behind write semantics, so
     // for single-chunk completions this is the only point at which
@@ -203,7 +203,7 @@ where
     drop(notif_tx);
 
     // If we never saw the log-ready signal mid-stream, await it now
-    // — the writer is racing toward `finalize` which fires it once
+    // â€” the writer is racing toward `finalize` which fires it once
     // primary_id lands. On writer error before any primary_id, the
     // sender drops and the await resolves with `Err(Canceled)`; we
     // still emit the buffered chunks for visibility into what
@@ -252,7 +252,7 @@ where
 {
     let mut agg: Option<Chunk> = None;
     let mut pending: Vec<PendingNotification> = Vec::new();
-    // Held until `log_writer.primary_id()` returns Some — could fire
+    // Held until `log_writer.primary_id()` returns Some â€” could fire
     // mid-loop (multi-chunk completions; `write` flushes the
     // previous chunk on its second-and-later call) or only from
     // `finalize` below (single-chunk completions, where the only
@@ -320,7 +320,7 @@ where
     let inserted = log_writer.finalize(&mut pending).await?;
     broadcast_rows(&registry, &inserted);
 
-    // Last-chance fire — the chunk that was sitting in
+    // Last-chance fire â€” the chunk that was sitting in
     // `log_writer`'s one-behind buffer just got flushed by
     // `finalize`, so this is the latest possible point primary_id
     // can land. If we still don't have one (e.g. zero-chunk

@@ -1,7 +1,7 @@
-//! `functions inventions recursive create alpha-scalar` — async handler stub.
+﻿//! `functions inventions recursive create alpha-scalar` â€” async handler stub.
 
 use crate::cli::command::CommandRequest;
-use crate::cli::command::agents::spawn::AgentSpec;
+use crate::cli::command::agents::instances::spawn::AgentSpec;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.functions.inventions.recursive.create.alpha_scalar.Request")]

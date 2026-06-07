@@ -1,21 +1,21 @@
-//! `agents message-queue add` Ã¢â‚¬â€ defer a single user-message-equivalent
+﻿//! `agents message-queue add` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â defer a single user-message-equivalent
 //! `RichContent` to a target agent.
 //!
 //! Stores the content in `tags.sqlite` (the `prompts` table + the
 //! per-kind `prompt_<kind>` content tables) against either a
 //! resolved `agent_instance_hierarchy` (Direct mode) or a literal
-//! `agent_tag` (Tag mode Ã¢â‚¬â€ no resolution at enqueue time; the
+//! `agent_tag` (Tag mode ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â no resolution at enqueue time; the
 //! future reader resolves at dequeue time).
 //!
-//! The CLI flag surface mirrors `agents message` Ã¢â‚¬â€
+//! The CLI flag surface mirrors `agents message` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â
 //! `--simple` / `--inline` / `--file` / `--python-inline` /
-//! `--python-file` Ã¢â‚¬â€ and reuses the SDK
-//! [`super::super::message::RequestMessage`] /
-//! [`super::super::message::MessageArgs`] types verbatim so the two
+//! `--python-file` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â and reuses the SDK
+//! [`super::super::instances::message::RequestMessage`] /
+//! [`super::super::instances::message::MessageArgs`] types verbatim so the two
 //! leaves' producer plumbing stays in lock-step.
 //!
 //! This is the write-only slice of #211. No dequeue / flush leaf
-//! exists yet Ã¢â‚¬â€ rows persist until a future reader picks them up.
+//! exists yet ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â rows persist until a future reader picks them up.
 
 use crate::cli::command::CommandRequest;
 
@@ -24,10 +24,10 @@ use crate::cli::command::CommandRequest;
 pub struct Request {
     pub path_type: Path,
     pub target: Target,
-    pub message: super::super::message::RequestMessage,
+    pub message: super::super::instances::message::RequestMessage,
     /// Optional idempotency token (#213). When `Some`, any prior
     /// queued row for the same `(target, key)` pair is overwritten
-    /// — old content cascade-dropped, new content inserted with a
+    /// â€” old content cascade-dropped, new content inserted with a
     /// fresh `enqueued_at`. Per-target scope: a `key` on a
     /// hierarchy and the same `key` on a tag coexist.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -46,7 +46,7 @@ pub enum Path {
 /// Mutually-exclusive target. `Direct` composes
 /// `{parent}/{agent_instance}` at handler time (parent defaults to
 /// the cli's own `Config.agent_instance_hierarchy`). `Tag` stores
-/// the tag name verbatim Ã¢â‚¬â€ no `tags.sqlite` lookup at enqueue time.
+/// the tag name verbatim ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â no `tags.sqlite` lookup at enqueue time.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(tag = "by", rename_all = "snake_case")]
 #[schemars(rename = "cli.command.agents.message_queue.add.Target")]
@@ -104,7 +104,7 @@ impl CommandRequest for Request {
 
 /// `id` is the row id from `tags.sqlite`'s `prompts` table. Exactly
 /// one of `agent_instance_hierarchy` / `agent_tag` is set, matching
-/// the chosen [`Target`] variant Ã¢â‚¬â€ `agent_instance_hierarchy` is
+/// the chosen [`Target`] variant ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â `agent_instance_hierarchy` is
 /// the **resolved** `{parent}/{instance}` for Direct mode.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.message_queue.add.Response")]
@@ -135,7 +135,7 @@ pub struct Args {
     /// Only valid alongside `agent_instance`.
     #[arg(long = "parent-agent-instance-hierarchy", requires = "agent_instance")]
     pub parent_agent_instance_hierarchy: Option<String>,
-    /// Tag name to enqueue against. Stored verbatim Ã¢â‚¬â€ the cli does
+    /// Tag name to enqueue against. Stored verbatim ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the cli does
     /// NOT resolve the tag at enqueue time. Mutually exclusive with
     /// `agent_instance` and `--parent-agent-instance-hierarchy`.
     #[arg(long = "agent-tag")]
@@ -143,10 +143,10 @@ pub struct Args {
     /// Message content input (one of `--simple` / `--inline` /
     /// `--file` / `--python-inline` / `--python-file`). Required.
     #[command(flatten)]
-    pub message: super::super::message::MessageArgs,
+    pub message: super::super::instances::message::MessageArgs,
     /// Optional idempotency token. When set, a second `add` with
     /// the same `(target, key)` overwrites the prior queued row
-    /// instead of stacking a new one. Per-target scope — a key on
+    /// instead of stacking a new one. Per-target scope â€” a key on
     /// a hierarchy and the same key on a tag coexist.
     #[arg(long)]
     pub key: Option<String>,
@@ -179,7 +179,7 @@ impl TryFrom<Args> for Request {
         // normalise the mutually-exclusive MessageArgs fields into
         // one RequestMessage variant.
         let message = if let Some(s) = args.message.simple {
-            super::super::message::RequestMessage::Simple(s)
+            super::super::instances::message::RequestMessage::Simple(s)
         } else if let Some(s) = args.message.inline {
             let mut de = serde_json::Deserializer::from_str(&s);
             let v = serde_path_to_error::deserialize(&mut de).map_err(|source| {
@@ -188,13 +188,13 @@ impl TryFrom<Args> for Request {
                     source: source.into(),
                 }
             })?;
-            super::super::message::RequestMessage::Inline(v)
+            super::super::instances::message::RequestMessage::Inline(v)
         } else if let Some(p) = args.message.file {
-            super::super::message::RequestMessage::File(p)
+            super::super::instances::message::RequestMessage::File(p)
         } else if let Some(s) = args.message.python_inline {
-            super::super::message::RequestMessage::PythonInline(s)
+            super::super::instances::message::RequestMessage::PythonInline(s)
         } else {
-            super::super::message::RequestMessage::PythonFile(args.message.python_file.unwrap())
+            super::super::instances::message::RequestMessage::PythonFile(args.message.python_file.unwrap())
         };
         let target = match (args.agent_instance, args.agent_tag) {
             (Some(agent_instance), None) => Target::Direct {

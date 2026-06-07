@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+﻿use std::collections::HashMap;
 use std::path::PathBuf;
 
 use futures::stream::{FuturesUnordered, StreamExt};
@@ -8,7 +8,7 @@ use objectiveai_sdk::agent::completions::response::streaming::AgentCompletionIds
 
 use super::super::db::messages::Queue;
 use super::super::db::pending::PendingNotification;
-use objectiveai_sdk::cli::command::agents::read::subscribe::RequestMessageKind;
+use objectiveai_sdk::cli::command::agents::instances::read::subscribe::RequestMessageKind;
 
 use super::super::db::schema::MessageRow;
 use super::LogFile;
@@ -32,7 +32,7 @@ struct PendingRequest {
     route: String,
     /// Walks the request, returns every [`LogFile`] under
     /// `<route>/...` plus the top-level summary file. The summary
-    /// is conventionally the last element — see each
+    /// is conventionally the last element â€” see each
     /// [`crate::logs::ProducesRequestFiles`] impl.
     produce: Box<dyn FnOnce(&str) -> Vec<LogFile> + Send>,
 }
@@ -119,7 +119,7 @@ impl<C> LogWriter<C> {
 
     /// Stamp the caller's lineage onto every `messages.agent_instance_hierarchy` this
     /// writer inserts. `Some("cli")` prepends `"cli/"`; `None` keeps
-    /// the bare chunk-emitted id. Passed verbatim — slashes inside
+    /// the bare chunk-emitted id. Passed verbatim â€” slashes inside
     /// `caller` (e.g. nested-spawn case `"cli/parent-X"`) become
     /// real subdir segments when the pipe path is derived from the
     /// same lineage string elsewhere in cli-stream.
@@ -140,11 +140,11 @@ impl<C> LogWriter<C> {
     /// Attach a request body that will be written alongside the first
     /// response chunk. The request itself is captured eagerly (cloned
     /// into a closure), but the on-disk extraction is deferred until
-    /// the response ID is known — the per-leaf filenames embed the
+    /// the response ID is known â€” the per-leaf filenames embed the
     /// id, so we can't materialize anything until the first chunk
     /// arrives. The closure produces the full Log envelope
     /// (`<route>/<id>.json`) plus every extracted child (messages,
-    /// response_format, continuation, …) using each request type's
+    /// response_format, continuation, â€¦) using each request type's
     /// [`crate::logs::ProducesRequestFiles`] impl.
     pub fn with_request<R>(
         mut self,
@@ -225,14 +225,14 @@ impl<C> LogWriter<C> {
     /// Write a chunk to disk. Files whose content hasn't changed since the
     /// last write are skipped. All file writes plus all per-agent DB
     /// inserts (requests, messages, and any drained notifications)
-    /// run concurrently — only operations targeting the same agent's
+    /// run concurrently â€” only operations targeting the same agent's
     /// db serialise (via that agent's mutex inside [`Queue`]).
     ///
     /// `pending` is the caller's local notification queue. For each
     /// tool-response row encountered, every queued notification with
     /// the matching `agent_instance_hierarchy` is removed from `pending` and its
     /// `INSERT` is pushed into the same concurrent op set (at its
-    /// already-reserved index — so the notification's index precedes
+    /// already-reserved index â€” so the notification's index precedes
     /// the tool response's reserved index). Notifications for agents
     /// not in this chunk remain in `pending` for the next call.
     pub async fn write(
@@ -246,7 +246,7 @@ impl<C> LogWriter<C> {
         // Process the previously-buffered chunk (one chunk behind),
         // then stash the current one to await its successor. The
         // returned vec lists every (agent_instance_hierarchy, kind) row that was
-        // newly inserted by this call — in dedup-survivor order —
+        // newly inserted by this call â€” in dedup-survivor order â€”
         // so the cli-stream writer task can broadcast one Row event
         // per insert on the outbound subscribe pipe.
         let prev = self.pending_chunk.replace(chunk.clone());
@@ -260,7 +260,7 @@ impl<C> LogWriter<C> {
     /// DB rows + notification drain in one atomic op set. Returns
     /// every (agent_instance_hierarchy, kind) row that survived the dedup gate and
     /// was scheduled for insert. The vec is populated in scheduling
-    /// order — request rows (one per agent in this chunk) first,
+    /// order â€” request rows (one per agent in this chunk) first,
     /// then message rows in iterator order, with any drained
     /// notifications interleaved just before each `ToolResponse`
     /// row. The actual DB inserts run concurrently via the same
@@ -361,7 +361,7 @@ impl<C> LogWriter<C> {
                 // caller prefix so two agents that happen to share
                 // `chunk.id` under different callers can't collide
                 // in `messages.agent_instance_hierarchy`.
-                // (agent_instance_hierarchy, response_id) pairs — `raw` is the bare
+                // (agent_instance_hierarchy, response_id) pairs â€” `raw` is the bare
                 // response id straight from the chunk; lineage-stamping
                 // produces the column value. We thread both so the
                 // reader doesn't have to reverse the stamp.
@@ -400,7 +400,7 @@ impl<C> LogWriter<C> {
                     })
                     .collect();
                 for row in rows {
-                    // Dedup by (kind, path) via the queue — kind
+                    // Dedup by (kind, path) via the queue â€” kind
                     // matters because assistant and tool messages can
                     // share the same `path` (the bare index) but
                     // dispatch to different parsers on read.
@@ -478,7 +478,7 @@ impl<C> LogWriter<C> {
     /// remaining notifications into their respective per-agent dbs.
     /// Called by the cli-stream writer task after the chunk channel
     /// closes and any in-flight notifications have been pulled off
-    /// the wire — this is the writer's only "stream is over" signal,
+    /// the wire â€” this is the writer's only "stream is over" signal,
     /// and it's where the deferred-by-one `pending_chunk` finally
     /// gets processed. Each surviving notification is inserted at
     /// its already-reserved index.
@@ -490,7 +490,7 @@ impl<C> LogWriter<C> {
         C: AgentCompletionIds,
     {
         // Flush the last buffered chunk before doing the
-        // notification drain — its tool-response rows may want to
+        // notification drain â€” its tool-response rows may want to
         // drain notifications too, and those should land first.
         let mut inserted: Vec<(String, RequestMessageKind)> = Vec::new();
         if let Some(buffered) = self.pending_chunk.take() {

@@ -1,4 +1,4 @@
-//! `functions inventions recursive create` sub-tier. AlphaScalar,
+﻿//! `functions inventions recursive create` sub-tier. AlphaScalar,
 //! AlphaVector, and Remote are chunk-or-id streaming leaves.
 
 use std::pin::Pin;
@@ -6,7 +6,7 @@ use std::pin::Pin;
 use futures::{Stream, StreamExt};
 use objectiveai_sdk::Remote;
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
-use objectiveai_sdk::cli::command::agents::spawn::AgentSpec;
+use objectiveai_sdk::cli::command::agents::instances::spawn::AgentSpec;
 use objectiveai_sdk::cli::command::functions::inventions::recursive::create::{
     Request, ResponseItem,
 };

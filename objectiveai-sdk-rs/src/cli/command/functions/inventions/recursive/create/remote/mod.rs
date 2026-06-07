@@ -1,7 +1,7 @@
-//! `functions inventions recursive create remote` — async handler stub.
+﻿//! `functions inventions recursive create remote` â€” async handler stub.
 
 use crate::cli::command::CommandRequest;
-use crate::cli::command::agents::spawn::AgentSpec;
+use crate::cli::command::agents::instances::spawn::AgentSpec;
 use crate::functions::inventions::state::ParamsState;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]

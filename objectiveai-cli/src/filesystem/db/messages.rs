@@ -1,4 +1,4 @@
-//! Shared per-agent-id API for the `messages` table.
+﻿//! Shared per-agent-id API for the `messages` table.
 
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex as StdMutex};
 
 use objectiveai_sdk::agent::completions::message::RichContent;
 
-use objectiveai_sdk::cli::command::agents::read::subscribe::RequestMessageKind;
+use objectiveai_sdk::cli::command::agents::instances::read::subscribe::RequestMessageKind;
 
 use super::pending::PendingNotification;
 use super::schema::{self, MessageRow, parse_message_kind};
@@ -16,7 +16,7 @@ use super::schema::{self, MessageRow, parse_message_kind};
 /// - the per-agent "request row inserted" once-flag,
 /// - the per-agent path-dedup set.
 ///
-/// All db reads/writes flow through this type. `Clone` is cheap —
+/// All db reads/writes flow through this type. `Clone` is cheap â€”
 /// internal state is `Arc`-shared across clones, so the LogWriter,
 /// the cli-stream writer task, and any future readers can hold their
 /// own clone without contention beyond the per-agent mutex.
@@ -28,7 +28,7 @@ pub struct Queue {
 struct QueueInner {
     /// Shared SQLite connection (from [`super::connection::connection`]).
     conn: Arc<StdMutex<rusqlite::Connection>>,
-    /// `${logs_dir}` — base for any files the queue writes
+    /// `${logs_dir}` â€” base for any files the queue writes
     /// (notification log files today).
     logs_dir: PathBuf,
     agents: StdMutex<HashMap<String, Arc<AgentEntry>>>,
@@ -43,16 +43,16 @@ struct AgentMutableState {
     request_inserted: bool,
     /// Per-(kind, path) dedup, scoped per agent (per `response_id`
     /// after lineage-stamping) via the enclosing `agents` HashMap.
-    /// The full unique tuple is `(response_id, kind, path)` —
+    /// The full unique tuple is `(response_id, kind, path)` â€”
     /// `(kind, path)`, `(kind, response_id)`, and `(response_id, path)`
     /// can each collide alone:
     ///   - one writer drives multiple agent completions in the same
     ///     stream (e.g. inside a function execution), so two agents
-    ///     can land identical `(kind, path)` rows — distinguished by
+    ///     can land identical `(kind, path)` rows â€” distinguished by
     ///     `response_id`.
     ///   - within one agent completion, the same chunk gets re-emitted
     ///     each `write` as the agg grows, so two consecutive calls can
-    ///     produce identical `(kind, response_id)` rows — distinguished
+    ///     produce identical `(kind, response_id)` rows â€” distinguished
     ///     by `path` (the bare message index).
     ///   - assistant and tool messages can land at distinct paths but
     ///     the reader dispatches by `kind`, so omitting `kind` would
@@ -159,7 +159,7 @@ impl Queue {
     /// Returns `true` if newly inserted, `false` if already present
     /// (caller should skip the insert).
     ///
-    /// The effective unique tuple is `(response_id, kind, path)` —
+    /// The effective unique tuple is `(response_id, kind, path)` â€”
     /// `agent_instance_hierarchy`'s trailing segment is the response id (set by the
     /// chunk producer and lineage-stamped here), so the per-agent
     /// HashMap entry contributes `response_id` and this set adds
@@ -190,7 +190,7 @@ impl Queue {
     /// from the kind + the new column).
     ///
     /// `response_id` is the agent completion the notification targets
-    /// — the same value `AgentCompletionNotifyParams.response_id`
+    /// â€” the same value `AgentCompletionNotifyParams.response_id`
     /// carries on the wire. Stored explicitly; never re-derived from
     /// `agent_instance_hierarchy`.
     pub async fn write_notification(
@@ -288,7 +288,7 @@ impl Queue {
     /// returned on a first call.
     ///
     /// The SELECT + UPSERT pair runs under one connection lock, so
-    /// concurrent calls for the same pair serialise — no double-
+    /// concurrent calls for the same pair serialise â€” no double-
     /// delivery, no torn watermark.
     pub async fn read_new_messages(
         &self,
@@ -327,9 +327,9 @@ impl Queue {
                 })?
                 .collect::<rusqlite::Result<Vec<_>>>()?;
             // Drop the prepared-statement borrow before doing the
-            // subsequent INSERT — `prepare_cached` holds `&conn`.
+            // subsequent INSERT â€” `prepare_cached` holds `&conn`.
             drop(stmt);
-            // Map raw tuples → MessageRow (parsing kind happens here
+            // Map raw tuples â†’ MessageRow (parsing kind happens here
             // so we can surface a typed error before the upsert).
             let rows: Vec<MessageRow> = rows
                 .into_iter()
@@ -369,8 +369,8 @@ impl Queue {
     /// [`Self::read_new_messages`]: the SELECT + UPSERT run under
     /// one connection lock.
     ///
-    /// The watermark only moves forward — MAX over every row is
-    /// always ≥ whatever was previously stored, so a no-op when
+    /// The watermark only moves forward â€” MAX over every row is
+    /// always â‰¥ whatever was previously stored, so a no-op when
     /// the caller has already drained.
     pub async fn read_all_messages(
         &self,
@@ -429,7 +429,7 @@ impl Queue {
 
     /// Internal: ensure the agent's mutable state is initialised.
     /// Seeds `next_index` from `MAX(index) WHERE agent_instance_hierarchy = ?` + 1
-    /// the first time this id is seen. Idempotent — losing-race
+    /// the first time this id is seen. Idempotent â€” losing-race
     /// callers see the winner's entry.
     async fn ensure_agent(
         &self,

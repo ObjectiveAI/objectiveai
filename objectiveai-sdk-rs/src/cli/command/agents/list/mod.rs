@@ -1,188 +1,148 @@
-pub mod active;
-pub mod available;
+﻿//! `agents list available` â€” async handler stub.
+
+use crate::cli::command::CommandRequest;
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.list.Request")]
+pub struct Request {
+    pub path_type: Path,
+    pub source: RequestSource,
+    pub jq: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.list.Path")]
+pub enum Path {
+    #[serde(rename = "agents/list")]
+    AgentsList,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema, clap::ValueEnum)]
+#[clap(rename_all = "kebab-case")]
+#[schemars(rename = "cli.command.agents.list.RequestSource")]
+pub enum RequestSource {
+    Filesystem,
+    Favorites,
+    Objectiveai,
+    Mock,
+    All,
+}
+
+impl RequestSource {
+    fn as_str(&self) -> &'static str {
+        match self {
+            RequestSource::Filesystem => "filesystem",
+            RequestSource::Favorites => "favorites",
+            RequestSource::Objectiveai => "objectiveai",
+            RequestSource::Mock => "mock",
+            RequestSource::All => "all",
+        }
+    }
+}
+
+impl CommandRequest for Request {
+    fn into_command(&self) -> Vec<String> {
+        let mut argv = vec![
+            "agents".to_string(),
+            "list".to_string(),
+            "--source".to_string(),
+            self.source.as_str().to_string(),
+        ];
+        if let Some(jq) = &self.jq {
+            argv.push("--jq".to_string());
+            argv.push(jq.clone());
+        }
+        argv
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.list.ResponseFavorite")]
+pub struct ResponseFavorite {
+    pub name: String,
+    #[serde(flatten)]
+    pub path: crate::RemotePathCommitOptional,
+    pub note: String,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
+#[schemars(rename = "cli.command.agents.list.ResponseItem")]
+pub enum ResponseItem {
+    #[schemars(title = "Favorite")]
+    Favorite(ResponseFavorite),
+    #[schemars(title = "Item")]
+    Item(crate::RemotePath),
+}
+
+#[derive(clap::Args)]
+pub struct Args {
+    /// Which source to list from.
+    #[arg(long, value_enum)]
+    pub source: RequestSource,
+    /// jq filter applied to the JSON output.
+    #[arg(long)]
+    pub jq: Option<String>,
+}
+
+#[derive(clap::Args)]
+#[command(args_conflicts_with_subcommands = true)]
+pub struct Command {
+    #[command(flatten)]
+    pub args: Args,
+    #[command(subcommand)]
+    pub schema: Option<Schema>,
+}
 
 #[derive(clap::Subcommand)]
-pub enum Command {
-    /// Direct children of the calling agent.
-    Active(active::Command),
-    /// Remote agents available from a given source.
-    Available(available::Command),
+pub enum Schema {
+    /// Emit the JSON Schema for this leaf's `Request` type and exit.
+    RequestSchema(request_schema::Args),
+    /// Emit the JSON Schema for this leaf's `Response` type and exit.
+    ResponseSchema(response_schema::Args),
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(untagged)]
-#[schemars(rename = "cli.command.agents.list.Request")]
-pub enum Request {
-    #[schemars(title = "Active")]
-    Active(active::Request),
-    #[schemars(title = "ActiveRequestSchema")]
-    ActiveRequestSchema(active::request_schema::Request),
-    #[schemars(title = "ActiveResponseSchema")]
-    ActiveResponseSchema(active::response_schema::Request),
-    #[schemars(title = "Available")]
-    Available(available::Request),
-    #[schemars(title = "AvailableRequestSchema")]
-    AvailableRequestSchema(available::request_schema::Request),
-    #[schemars(title = "AvailableResponseSchema")]
-    AvailableResponseSchema(available::response_schema::Request),
-}
-
-// Exempt from json-schema coverage: tier aggregate (see the root
-// `ResponseItem` in command.rs - TS7056).
-#[objectiveai_sdk_macros::json_schema_ignore]
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.list.ResponseItem")]
-#[serde(untagged)]
-pub enum ResponseItem {
-    #[schemars(title = "Active")]
-    Active(active::ResponseItem),
-    #[schemars(title = "ActiveRequestSchema")]
-    ActiveRequestSchema(active::request_schema::Response),
-    #[schemars(title = "ActiveResponseSchema")]
-    ActiveResponseSchema(active::response_schema::Response),
-    #[schemars(title = "Available")]
-    Available(available::ResponseItem),
-    #[schemars(title = "AvailableRequestSchema")]
-    AvailableRequestSchema(available::request_schema::Response),
-    #[schemars(title = "AvailableResponseSchema")]
-    AvailableResponseSchema(available::response_schema::Response),
-}
-
-#[cfg(feature = "mcp")]
-impl crate::cli::command::CommandResponse for ResponseItem {
-    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
-        match self {
-            ResponseItem::Active(v) => v.into_mcp(),
-            ResponseItem::ActiveRequestSchema(v) => v.into_mcp(),
-            ResponseItem::ActiveResponseSchema(v) => v.into_mcp(),
-            ResponseItem::Available(v) => v.into_mcp(),
-            ResponseItem::AvailableRequestSchema(v) => v.into_mcp(),
-            ResponseItem::AvailableResponseSchema(v) => v.into_mcp(),
-        }
-    }
-}
-
-impl TryFrom<Command> for Request {
+impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
-    fn try_from(command: Command) -> Result<Self, Self::Error> {
-        match command {
-            Command::Active(cmd) => match cmd.schema {
-                None => Ok(Request::Active(active::Request::try_from(cmd.args)?)),
-                Some(active::Schema::RequestSchema(args)) =>
-                    Ok(Request::ActiveRequestSchema(active::request_schema::Request::try_from(args)?)),
-                Some(active::Schema::ResponseSchema(args)) =>
-                    Ok(Request::ActiveResponseSchema(active::response_schema::Request::try_from(args)?)),
-            },
-            Command::Available(cmd) => match cmd.schema {
-                None => Ok(Request::Available(available::Request::try_from(cmd.args)?)),
-                Some(available::Schema::RequestSchema(args)) =>
-                    Ok(Request::AvailableRequestSchema(available::request_schema::Request::try_from(args)?)),
-                Some(available::Schema::ResponseSchema(args)) =>
-                    Ok(Request::AvailableResponseSchema(available::response_schema::Request::try_from(args)?)),
-            },
-        }
-    }
-}
-
-impl crate::cli::command::CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        match self {
-            Request::Active(inner) => inner.into_command(),
-            Request::ActiveRequestSchema(inner) => inner.into_command(),
-            Request::ActiveResponseSchema(inner) => inner.into_command(),
-            Request::Available(inner) => inner.into_command(),
-            Request::AvailableRequestSchema(inner) => inner.into_command(),
-            Request::AvailableResponseSchema(inner) => inner.into_command(),
-        }
+    fn try_from(args: Args) -> Result<Self, Self::Error> {
+        Ok(Self { path_type: Path::AgentsList,
+            source: args.source,
+            jq: args.jq,
+        })
     }
 }
 
 #[cfg(feature = "cli-executor")]
 pub async fn execute<E: crate::cli::command::CommandExecutor>(
     executor: &E,
-    request: Request,
+    mut request: Request,
 
         agent_arguments: Option<&crate::cli::command::AgentArguments>,
-    ) -> Result<
-    std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>>,
-    E::Error,
-> {
-    use futures::StreamExt;
-    let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>> =
-        match request {
-            Request::Active(req) => {
-                let inner = active::execute(executor, req, agent_arguments).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Active)))
-            }
-            Request::ActiveRequestSchema(req) => {
-                let value = active::request_schema::execute(executor, req, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::ActiveRequestSchema(value),
-                )))
-            }
-            Request::ActiveResponseSchema(req) => {
-                let value = active::response_schema::execute(executor, req, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::ActiveResponseSchema(value),
-                )))
-            }
-            Request::Available(req) => {
-                let inner = available::execute(executor, req, agent_arguments).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Available)))
-            }
-            Request::AvailableRequestSchema(req) => {
-                let value = available::request_schema::execute(executor, req, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::AvailableRequestSchema(value),
-                )))
-            }
-            Request::AvailableResponseSchema(req) => {
-                let value = available::response_schema::execute(executor, req, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::AvailableResponseSchema(value),
-                )))
-            }
-        };
-    Ok(stream)
+    ) -> Result<E::Stream<ResponseItem>, E::Error> {
+    request.jq = None;
+    executor.execute(request, agent_arguments).await
 }
 
 #[cfg(feature = "cli-executor")]
 pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
     executor: &E,
-    request: Request,
+    mut request: Request,
     jq: String,
 
         agent_arguments: Option<&crate::cli::command::AgentArguments>,
-    ) -> Result<
-    std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>>,
-    E::Error,
-> {
-    let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
-        match request {
-            Request::Active(req) => {
-                let inner = active::execute_jq(executor, req, jq, agent_arguments).await?;
-                Box::pin(inner)
-            }
-            Request::ActiveRequestSchema(req) => {
-                let value = active::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
-            }
-            Request::ActiveResponseSchema(req) => {
-                let value = active::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
-            }
-            Request::Available(req) => {
-                let inner = available::execute_jq(executor, req, jq, agent_arguments).await?;
-                Box::pin(inner)
-            }
-            Request::AvailableRequestSchema(req) => {
-                let value = available::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
-            }
-            Request::AvailableResponseSchema(req) => {
-                let value = available::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
-            }
-        };
-    Ok(stream)
+    ) -> Result<E::Stream<serde_json::Value>, E::Error> {
+    request.jq = Some(jq);
+    executor.execute(request, agent_arguments).await
 }
+
+#[cfg(feature = "mcp")]
+impl crate::cli::command::CommandResponse for ResponseItem {
+    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
+        crate::cli::command::McpResponseItem::JSONL(serde_json::to_value(self).unwrap())
+    }
+}
+
+pub mod request_schema;
+
+
+pub mod response_schema;

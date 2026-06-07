@@ -14,7 +14,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     // helper Ã¢â‚¬â€ turns all five RequestMessage variants into one
     // RichContent. File / Python sources are read NOW so they
     // don't need to survive until the future dequeue.
-    let content = crate::command::agents::message::resolve_message(request.message)?;
+    let content = crate::command::agents::instances::message::resolve_message(request.message)?;
 
     // Normalise the target to (Option<full_hierarchy>, Option<tag>).
     // Exactly one is Some; the table's CHECK enforces this at the

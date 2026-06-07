@@ -1,4 +1,4 @@
-//! Recursive-invention snapshot suite driven through the SDK
+﻿//! Recursive-invention snapshot suite driven through the SDK
 //! `BinaryExecutor`. Each test builds a typed
 //! `functions::inventions::recursive::create::remote::Request`,
 //! streams `ResponseItem` chunks, accumulates them into a
@@ -36,7 +36,7 @@ fn snapshots_dir() -> PathBuf {
         .join("../objectiveai-api/assets/functions/inventions/recursive_client_tests")
 }
 
-/// Mock invention agent — exactly what `objectiveai-sdk-py` and
+/// Mock invention agent â€” exactly what `objectiveai-sdk-py` and
 /// `objectiveai-sdk-go` send for these snapshot tests. Mirrors
 /// `MOCK_INVENTION_AGENT` in
 /// `objectiveai-sdk-py/tests/functions/inventions/recursive/test_http.py`.
@@ -59,7 +59,7 @@ fn mock_invention_agent() -> InlineAgentBaseWithFallbacksOrRemoteCommitOptional 
 /// convert to the unary FunctionInventionRecursive, and normalize for
 /// test comparison. The cli emits ResponseItem::Chunk variants as
 /// progressive updates to the same inventions, so counting chunks is
-/// not the same as counting inventions — we have to push them through
+/// not the same as counting inventions â€” we have to push them through
 /// the aggregator first.
 async fn run_remote(state: ParamsState, seed: i64) -> FunctionInventionRecursive {
     let request = Request { path_type: objectiveai_sdk::cli::command::functions::inventions::recursive::create::remote::Path::FunctionsInventionsRecursiveCreateRemote,
@@ -97,7 +97,7 @@ fn snapshot_path(name: &str) -> PathBuf {
 }
 
 // ---------------------------------------------------------------------------
-// Remote mock state tests — identical to objectiveai-js and objectiveai-py
+// Remote mock state tests â€” identical to objectiveai-js and objectiveai-py
 // ---------------------------------------------------------------------------
 
 /// Scalar leaf with valid input schema, tasks, and description.
@@ -105,7 +105,7 @@ fn snapshot_path(name: &str) -> PathBuf {
 #[tokio::test]
 async fn valid_schema_valid_tasks_scalar_leaf() {
     if cli_test_util::test_api_address().is_none() {
-        eprintln!("OBJECTIVEAI_TEST_PORT not set — skipping valid_schema_valid_tasks_scalar_leaf");
+        eprintln!("OBJECTIVEAI_TEST_PORT not set â€” skipping valid_schema_valid_tasks_scalar_leaf");
         return;
     }
     let state = state_from_json(json!({
@@ -150,7 +150,7 @@ async fn valid_schema_valid_tasks_scalar_leaf() {
 #[tokio::test]
 async fn valid_vector_schema_valid_tasks() {
     if cli_test_util::test_api_address().is_none() {
-        eprintln!("OBJECTIVEAI_TEST_PORT not set — skipping valid_vector_schema_valid_tasks");
+        eprintln!("OBJECTIVEAI_TEST_PORT not set â€” skipping valid_vector_schema_valid_tasks");
         return;
     }
     let state = state_from_json(json!({
@@ -190,7 +190,7 @@ async fn valid_vector_schema_valid_tasks() {
 #[tokio::test]
 async fn valid_schema_no_tasks_with_essay() {
     if cli_test_util::test_api_address().is_none() {
-        eprintln!("OBJECTIVEAI_TEST_PORT not set — skipping valid_schema_no_tasks_with_essay");
+        eprintln!("OBJECTIVEAI_TEST_PORT not set â€” skipping valid_schema_no_tasks_with_essay");
         return;
     }
     let state = state_from_json(json!({

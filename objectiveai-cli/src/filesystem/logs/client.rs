@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+﻿use std::path::PathBuf;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -12,14 +12,14 @@ use objectiveai_sdk::agent::completions::message::{
 /// Result of reading a log file. The variant is determined by **which
 /// typed `read_*` method the caller invoked** (or, for
 /// [`Client::read_file_by_id`], by the on-disk folder the path
-/// classified into). Nothing is guessed from the bytes — each
+/// classified into). Nothing is guessed from the bytes â€” each
 /// variant is picked at the call site that already knows the kind.
 ///
 /// Wire form (when wrapped in
 /// `TypedNotificationValue::LogContent`): the outer `type:
 /// "log_content"` envelope from `TypedNotificationValue` plus this
 /// inner `kind` discriminator (`type`/`kind` swap relative to the
-/// historical shape — needed to avoid a key collision when the
+/// historical shape â€” needed to avoid a key collision when the
 /// outer enum flattens through `Notification`):
 ///
 /// ```text
@@ -55,7 +55,7 @@ pub enum LogContent {
 }
 
 impl LogContent {
-    /// `LogContent::json(value)` — constructor sugar for the `Json`
+    /// `LogContent::json(value)` â€” constructor sugar for the `Json`
     /// variant. Useful at `.map(LogContent::json)` call sites that
     /// were `.map(LogContent::Json)` before the struct-variant rename.
     pub fn json(content: serde_json::Value) -> Self {
@@ -89,7 +89,7 @@ impl LogContent {
 /// point for the `LogContent` family.
 ///
 /// `LogContent::Json` projects to a `Text` part carrying the
-/// JSON-encoded body (closest `RichContentPart` representation —
+/// JSON-encoded body (closest `RichContentPart` representation â€”
 /// there's no structured-JSON variant). Every other LogContent
 /// variant maps to the matching typed `RichContentPart`.
 impl From<LogContent> for objectiveai_sdk::agent::completions::message::RichContentPart {
@@ -442,7 +442,7 @@ impl Client {
         .with_request("agents/completions/request", request)?
         .with_queue(
             queue,
-            Some(objectiveai_sdk::cli::command::agents::read::subscribe::RequestMessageKind::AgentCompletionRequest),
+            Some(objectiveai_sdk::cli::command::agents::instances::read::subscribe::RequestMessageKind::AgentCompletionRequest),
             |chunk: &AgentCompletionChunk| {
                 Box::new(crate::logs::agents::completions::response::streaming::agent_completion_chunk::produce_message_rows(chunk))
             },
@@ -487,7 +487,7 @@ impl Client {
         .with_queue(
             queue,
             Some(
-                objectiveai_sdk::cli::command::agents::read::subscribe::RequestMessageKind::FunctionExecutionRequest,
+                objectiveai_sdk::cli::command::agents::instances::read::subscribe::RequestMessageKind::FunctionExecutionRequest,
             ),
             |chunk: &FunctionExecutionChunk| crate::logs::functions::executions::response::streaming::function_execution_chunk::produce_message_rows(chunk),
         ))
@@ -524,7 +524,7 @@ impl Client {
             .with_request("functions/inventions/recursive/request", request)?
             .with_queue(
                 queue,
-                Some(objectiveai_sdk::cli::command::agents::read::subscribe::RequestMessageKind::FunctionInventionRecursiveRequest),
+                Some(objectiveai_sdk::cli::command::agents::instances::read::subscribe::RequestMessageKind::FunctionInventionRecursiveRequest),
                 |chunk: &FunctionInventionRecursiveChunk| Box::new(crate::logs::functions::inventions::recursive::response::streaming::function_invention_recursive_chunk::produce_message_rows(chunk)),
             ))
     }
@@ -548,7 +548,7 @@ impl Client {
 
     /// Reads `<dir>/<stem>.json` and deserializes its contents into the
     /// caller-specified `T`. Sits on top of [`Self::read_json`] (no jq
-    /// — the typed reads pass `None`) and surfaces a typed-shape
+    /// â€” the typed reads pass `None`) and surfaces a typed-shape
     /// deserialization failure as [`Error::TypedDeserialize`] with the
     /// originating file path attached. Used by the typed `read_*`
     /// methods that match the SDK's per-leaf `Response` shapes.
@@ -564,7 +564,7 @@ impl Client {
 
     /// Reads a `.txt` file at `<dir>/<stem>.txt` as a UTF-8 string.
     /// Sibling to [`Self::read_json`] / [`Self::read_data_url_by_stem`]
-    /// for the text-content writers (`extract_media` → `<...>/text/<stem>.txt`).
+    /// for the text-content writers (`extract_media` â†’ `<...>/text/<stem>.txt`).
     async fn read_text(&self, dir: &str, stem: &str) -> Result<String, Error> {
         let full = self.logs_dir().join(dir).join(format!("{stem}.txt"));
         let bytes = tokio::fs::read(&full)
@@ -707,7 +707,7 @@ impl Client {
         self.read_text("agents/completions/response/continuation", id)
             .await
     }
-    /// The assistant envelope, exactly as written —
+    /// The assistant envelope, exactly as written â€”
     /// an [`AssistantResponseChunkLog`], not the lossy `MessageLog`
     /// projection.
     ///
@@ -726,7 +726,7 @@ impl Client {
         )
         .await
     }
-    /// The tool envelope, exactly as written — a [`ToolResponseLog`].
+    /// The tool envelope, exactly as written â€” a [`ToolResponseLog`].
     ///
     /// [`ToolResponseLog`]: objectiveai_sdk::agent::completions::response::ToolResponseLog
     pub async fn read_agent_completion_message_tool(
@@ -759,7 +759,7 @@ impl Client {
         id: &str,
         message_index: u64,
     ) -> Result<String, Error> {
-        // Raw text — `.txt` on disk, not `.json`. (Writer:
+        // Raw text â€” `.txt` on disk, not `.json`. (Writer:
         // `assistant_response_chunk.rs::extract_*` puts reasoning
         // there as plain bytes; no JSON quoting.)
         self.read_text(
@@ -773,7 +773,7 @@ impl Client {
         id: &str,
         message_index: u64,
     ) -> Result<String, Error> {
-        // Raw text — `.txt` on disk, not `.json`. See reasoning.
+        // Raw text â€” `.txt` on disk, not `.json`. See reasoning.
         self.read_text(
             "agents/completions/response/messages/assistant/refusal",
             &format!("{id}_{message_index}"),
@@ -926,8 +926,8 @@ impl Client {
 
     // -- Assistant message content (response side) -------------------------
     //
-    // `RichContent::Text(_)` → `<id>_<message_index>.txt` (no media_index).
-    // `RichContent::Parts([... Text { text } ...])` → one file per part,
+    // `RichContent::Text(_)` â†’ `<id>_<message_index>.txt` (no media_index).
+    // `RichContent::Parts([... Text { text } ...])` â†’ one file per part,
     // `<id>_<message_index>_<part>.<ext>`. The text reader takes
     // `media_index: Option<u64>` to cover both cases.
 
@@ -1088,7 +1088,7 @@ impl Client {
         id: &str,
         message_index: u64,
     ) -> Result<String, Error> {
-        // A JSON-encoded string — the request-side writer
+        // A JSON-encoded string â€” the request-side writer
         // (`assistant_message.rs::extract`) serializes reasoning with
         // `serde_json::to_vec_pretty`, unlike the response side's
         // raw-bytes `.txt`.
@@ -1103,7 +1103,7 @@ impl Client {
         id: &str,
         message_index: u64,
     ) -> Result<String, Error> {
-        // A JSON-encoded string — see reasoning.
+        // A JSON-encoded string â€” see reasoning.
         self.read_json_typed(
             "agents/completions/request/messages/assistant/refusal",
             &format!("{id}_{message_index}"),
@@ -1112,7 +1112,7 @@ impl Client {
     }
     /// Request-side tool calls are full `AssistantToolCall`s (the
     /// caller supplied them whole), unlike the response side's
-    /// streaming deltas. Returned exactly as written — no delta
+    /// streaming deltas. Returned exactly as written â€” no delta
     /// conversion.
     pub async fn read_agent_completion_request_message_assistant_tool_call(
         &self,
@@ -1254,7 +1254,7 @@ impl Client {
     }
 
     /// Sibling to [`Self::read_json_typed`] but built atop
-    /// [`Self::subscribe_json`] — waits for the file to appear (or be
+    /// [`Self::subscribe_json`] â€” waits for the file to appear (or be
     /// modified, when `require_modification`), then deserializes its
     /// contents into `T`. A timeout becomes
     /// [`Error::LogSubscribeTimedOut`]; a typed-shape deserialize
@@ -1523,7 +1523,7 @@ impl Client {
         timeout: std::time::Duration,
         require_modification: bool,
     ) -> Result<String, Error> {
-        // Raw text — `.txt` on disk, not `.json`. See
+        // Raw text â€” `.txt` on disk, not `.json`. See
         // [`Self::read_agent_completion_message_assistant_reasoning`].
         self.subscribe_text(
             "agents/completions/response/messages/assistant/reasoning",
@@ -1541,7 +1541,7 @@ impl Client {
         timeout: std::time::Duration,
         require_modification: bool,
     ) -> Result<String, Error> {
-        // Raw text — `.txt` on disk, not `.json`. See
+        // Raw text â€” `.txt` on disk, not `.json`. See
         // [`Self::read_agent_completion_message_assistant_refusal`].
         self.subscribe_text(
             "agents/completions/response/messages/assistant/refusal",
@@ -1794,7 +1794,7 @@ impl Client {
     /// from its on-disk log file(s) and translated into a typed
     /// [`super::queue::QueueItem`] following the `WORK.md` schema.
     ///
-    /// Returns the items in ascending DB-`"index"` order — the same
+    /// Returns the items in ascending DB-`"index"` order â€” the same
     /// order they were inserted. First-call semantics inherit from
     /// [`super::super::db::messages::Queue::read_new_messages`]: when
     /// no `messages_queue` row exists yet, the watermark defaults
@@ -1822,7 +1822,7 @@ impl Client {
     /// filter), advancing `caller_agent_instance_hierarchy`'s watermark to the
     /// returned max. Companion to [`Self::read_new_from_queue`]:
     /// `read_all` returns everything; `read_new` returns only past
-    /// the watermark. Both advance the watermark identically — a
+    /// the watermark. Both advance the watermark identically â€” a
     /// subsequent `read_new` after `read_all` always returns empty
     /// until new rows land.
     pub async fn read_all_from_queue(
@@ -1852,7 +1852,7 @@ impl Client {
         row: crate::filesystem::db::schema::MessageRow,
     ) -> Result<super::queue::QueueItem, Error> {
         use super::queue::QueueItem;
-        use objectiveai_sdk::cli::command::agents::read::subscribe::RequestMessageKind;
+        use objectiveai_sdk::cli::command::agents::instances::read::subscribe::RequestMessageKind;
 
         let rel_path = crate::filesystem::db::schema::message_kind_file_path(
             row.kind,
@@ -2075,8 +2075,8 @@ impl Client {
     pub async fn read_file_by_id(
         &self,
         id: i64,
-    ) -> Result<objectiveai_sdk::cli::command::agents::read::id::Response, Error> {
-        use objectiveai_sdk::cli::command::agents::read::id::Response as R;
+    ) -> Result<objectiveai_sdk::cli::command::agents::instances::read::id::Response, Error> {
+        use objectiveai_sdk::cli::command::agents::instances::read::id::Response as R;
         let rel_path = self
             .path_for_file_id(id)
             .await?
@@ -2085,7 +2085,7 @@ impl Client {
         // Classify the path via the catalog of writer-side patterns,
         // then dispatch to the matching `read_*` method. The
         // variant-to-method match is the single source of truth for
-        // "what `LogContent` shape this kind of file produces" —
+        // "what `LogContent` shape this kind of file produces" â€”
         // every existing typed reader already knows its own kind,
         // and `read_file_by_id` re-uses that knowledge instead of
         // re-deriving it from a path-extension sniff.
@@ -2192,9 +2192,9 @@ impl Client {
                 .map(R::AgentsCompletionsResponseMessagesAssistantToolCalls),
 
             // -- Assistant content ------------------------------------------
-            // Text → `Json(Value::String(text))` so it lands under the
+            // Text â†’ `Json(Value::String(text))` so it lands under the
             // same `value.content` shape as every other textual log
-            // (reasoning, refusal, etc.). Media → `DataUrl`.
+            // (reasoning, refusal, etc.). Media â†’ `DataUrl`.
             K::AgentCompletionMessageAssistantText {
                 id,
                 message_index,
@@ -2488,19 +2488,19 @@ impl Client {
     /// Newest-first.
     ///
     /// The `agent_instance_hierarchy` in each returned [`ActiveAgent`] is the
-    /// sub-portion past the parent — i.e. the trailing
+    /// sub-portion past the parent â€” i.e. the trailing
     /// composite-id segment(s) with the `{parent_agent_instance_hierarchy}/`
-    /// prefix stripped — so callers can paste it back into
+    /// prefix stripped â€” so callers can paste it back into
     /// commands that re-prepend the parent (e.g. `agents
     /// read pending`).
     pub async fn list_active(
         &self,
         parent_agent_instance_hierarchy: &str,
     ) -> Result<
-        Vec<objectiveai_sdk::cli::command::agents::list::active::ResponseItem>,
+        Vec<objectiveai_sdk::cli::command::agents::instances::list::ResponseItem>,
         Error,
     > {
-        use objectiveai_sdk::cli::command::agents::list::active::ResponseItem;
+        use objectiveai_sdk::cli::command::agents::instances::list::ResponseItem;
         let conn = super::super::db::connection::connection(self)?;
         let rows = super::super::db::schema::list_direct_active_children_async(
             conn,
