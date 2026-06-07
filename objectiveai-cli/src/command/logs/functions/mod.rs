@@ -9,7 +9,6 @@ use crate::context::Context;
 use crate::error::Error;
 
 pub mod executions;
-pub mod inventions;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
@@ -18,10 +17,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::Executions(req) => {
             let inner = executions::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Executions)))
-        }
-        Request::Inventions(req) => {
-            let inner = inventions::execute(ctx, req).await?;
-            Box::pin(inner.map(|r| r.map(ResponseItem::Inventions)))
         }
     };
     Ok(stream)

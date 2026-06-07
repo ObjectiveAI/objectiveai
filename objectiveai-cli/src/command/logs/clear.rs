@@ -28,8 +28,6 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error
         Box::pin(fs.clear_vector_completions()),
         Box::pin(fs.clear_function_executions()),
         Box::pin(fs.clear_function_execution_retry_tokens()),
-        Box::pin(fs.clear_function_inventions()),
-        Box::pin(fs.clear_function_inventions_recursive()),
     ];
     let counts = futures::future::try_join_all(futures).await?;
     Ok(Response {

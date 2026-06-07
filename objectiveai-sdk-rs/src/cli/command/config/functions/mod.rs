@@ -1,6 +1,5 @@
 pub mod favorites;
 pub mod get;
-pub mod inventions;
 pub mod profiles;
 
 #[derive(clap::Subcommand)]
@@ -9,10 +8,6 @@ pub enum Command {
     Favorites {
         #[command(subcommand)]
         command: favorites::Command,
-    },
-    Inventions {
-        #[command(subcommand)]
-        command: inventions::Command,
     },
     Profiles {
         #[command(subcommand)]
@@ -32,8 +27,6 @@ pub enum Request {
     GetResponseSchema(get::response_schema::Request),
     #[schemars(title = "Favorites")]
     Favorites(favorites::Request),
-    #[schemars(title = "Inventions")]
-    Inventions(inventions::Request),
     #[schemars(title = "Profiles")]
     Profiles(profiles::Request),
 }
@@ -53,8 +46,6 @@ pub enum ResponseItem {
     GetResponseSchema(get::response_schema::Response),
     #[schemars(title = "Favorites")]
     Favorites(favorites::ResponseItem),
-    #[schemars(title = "Inventions")]
-    Inventions(inventions::Response),
     #[schemars(title = "Profiles")]
     Profiles(profiles::ResponseItem),
 }
@@ -67,7 +58,6 @@ impl crate::cli::command::CommandResponse for ResponseItem {
             ResponseItem::GetRequestSchema(v) => v.into_mcp(),
             ResponseItem::GetResponseSchema(v) => v.into_mcp(),
             ResponseItem::Favorites(v) => v.into_mcp(),
-            ResponseItem::Inventions(v) => v.into_mcp(),
             ResponseItem::Profiles(v) => v.into_mcp(),
         }
     }
@@ -86,8 +76,6 @@ impl TryFrom<Command> for Request {
             },
             Command::Favorites { command } =>
                 Ok(Request::Favorites(favorites::Request::try_from(command)?)),
-            Command::Inventions { command } =>
-                Ok(Request::Inventions(inventions::Request::try_from(command)?)),
             Command::Profiles { command } =>
                 Ok(Request::Profiles(profiles::Request::try_from(command)?)),
         }
@@ -101,7 +89,6 @@ impl crate::cli::command::CommandRequest for Request {
             Request::GetRequestSchema(inner) => inner.into_command(),
             Request::GetResponseSchema(inner) => inner.into_command(),
             Request::Favorites(inner) => inner.into_command(),
-            Request::Inventions(inner) => inner.into_command(),
             Request::Profiles(inner) => inner.into_command(),
         }
     }
@@ -142,10 +129,6 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
                 let inner = favorites::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Favorites)))
             }
-            Request::Inventions(req) => {
-                let inner = inventions::execute(executor, req, agent_arguments).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Inventions)))
-            }
             Request::Profiles(req) => {
                 let inner = profiles::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Profiles)))
@@ -181,10 +164,6 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
             }
             Request::Favorites(req) => {
                 let inner = favorites::execute_jq(executor, req, jq, agent_arguments).await?;
-                Box::pin(inner)
-            }
-            Request::Inventions(req) => {
-                let inner = inventions::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Profiles(req) => {

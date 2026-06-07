@@ -212,10 +212,6 @@ pub enum ResponseQueueItem {
     FunctionExecutionRequest {
         id: i64,
     },
-    #[schemars(title = "FunctionInventionRecursiveRequest")]
-    FunctionInventionRecursiveRequest {
-        id: i64,
-    },
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]

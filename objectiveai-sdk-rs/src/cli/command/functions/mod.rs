@@ -1,6 +1,5 @@
 pub mod executions;
 pub mod get;
-pub mod inventions;
 pub mod list;
 pub mod profiles;
 pub mod publish;
@@ -12,10 +11,6 @@ pub enum Command {
         command: executions::Command,
     },
     Get(get::Command),
-    Inventions {
-        #[command(subcommand)]
-        command: inventions::Command,
-    },
     List(list::Command),
     Profiles {
         #[command(subcommand)]
@@ -36,8 +31,6 @@ pub enum Request {
     GetRequestSchema(get::request_schema::Request),
     #[schemars(title = "GetResponseSchema")]
     GetResponseSchema(get::response_schema::Request),
-    #[schemars(title = "Inventions")]
-    Inventions(inventions::Request),
     #[schemars(title = "List")]
     List(list::Request),
     #[schemars(title = "ListRequestSchema")]
@@ -69,8 +62,6 @@ pub enum ResponseItem {
     GetRequestSchema(get::request_schema::Response),
     #[schemars(title = "GetResponseSchema")]
     GetResponseSchema(get::response_schema::Response),
-    #[schemars(title = "Inventions")]
-    Inventions(inventions::ResponseItem),
     #[schemars(title = "List")]
     List(list::ResponseItem),
     #[schemars(title = "ListRequestSchema")]
@@ -95,7 +86,6 @@ impl crate::cli::command::CommandResponse for ResponseItem {
             ResponseItem::Get(v) => v.into_mcp(),
             ResponseItem::GetRequestSchema(v) => v.into_mcp(),
             ResponseItem::GetResponseSchema(v) => v.into_mcp(),
-            ResponseItem::Inventions(v) => v.into_mcp(),
             ResponseItem::List(v) => v.into_mcp(),
             ResponseItem::ListRequestSchema(v) => v.into_mcp(),
             ResponseItem::ListResponseSchema(v) => v.into_mcp(),
@@ -120,8 +110,6 @@ impl TryFrom<Command> for Request {
                 Some(get::Schema::ResponseSchema(args)) =>
                     Ok(Request::GetResponseSchema(get::response_schema::Request::try_from(args)?)),
             },
-            Command::Inventions { command } =>
-                Ok(Request::Inventions(inventions::Request::try_from(command)?)),
             Command::List(cmd) => match cmd.schema {
                 None => Ok(Request::List(list::Request::try_from(cmd.args)?)),
                 Some(list::Schema::RequestSchema(args)) =>
@@ -149,7 +137,6 @@ impl crate::cli::command::CommandRequest for Request {
             Request::Get(inner) => inner.into_command(),
             Request::GetRequestSchema(inner) => inner.into_command(),
             Request::GetResponseSchema(inner) => inner.into_command(),
-            Request::Inventions(inner) => inner.into_command(),
             Request::List(inner) => inner.into_command(),
             Request::ListRequestSchema(inner) => inner.into_command(),
             Request::ListResponseSchema(inner) => inner.into_command(),
@@ -195,10 +182,6 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::GetResponseSchema(value),
                 )))
-            }
-            Request::Inventions(req) => {
-                let inner = inventions::execute(executor, req, agent_arguments).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Inventions)))
             }
             Request::List(req) => {
                 let inner = list::execute(executor, req, agent_arguments).await?;
@@ -270,10 +253,6 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
             Request::GetResponseSchema(req) => {
                 let value = get::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
-            }
-            Request::Inventions(req) => {
-                let inner = inventions::execute_jq(executor, req, jq, agent_arguments).await?;
-                Box::pin(inner)
             }
             Request::List(req) => {
                 let inner = list::execute_jq(executor, req, jq, agent_arguments).await?;

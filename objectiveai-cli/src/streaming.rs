@@ -113,7 +113,7 @@ async fn run_subprocess(
     tx: tokio::sync::mpsc::Sender<Result<InstanceItem, Error>>,
 ) -> Result<(), Error> {
     // Only agent-completion runs participate in tag binding. Function
-    // executions / invention recursive runs skip the hook entirely.
+    // execution runs skip the hook entirely.
     let is_agent_completion = matches!(endpoint, InstanceEndpoint::AgentsSpawn(_));
     // Resolve every forwarded header / address / auth token using the
     // same env → on-disk-config → SDK-default precedence the regular

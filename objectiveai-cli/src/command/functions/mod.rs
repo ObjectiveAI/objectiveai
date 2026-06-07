@@ -10,7 +10,6 @@ use crate::error::Error;
 
 pub mod executions;
 pub mod get;
-pub mod inventions;
 pub mod list;
 pub mod profiles;
 pub mod publish;
@@ -40,10 +39,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::GetResponseSchema(req) => {
             let value = get::response_schema::execute(ctx, req).await?;
             once(Ok(ResponseItem::GetResponseSchema(value)))
-        }
-        Request::Inventions(req) => {
-            let inner = inventions::execute(ctx, req).await?;
-            Box::pin(inner.map(|r| r.map(ResponseItem::Inventions)))
         }
         Request::List(req) => {
             let inner = list::execute(ctx, req).await?;

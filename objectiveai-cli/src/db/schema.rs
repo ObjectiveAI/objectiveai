@@ -16,9 +16,6 @@ pub fn message_kind_as_str(kind: RequestMessageKind) -> &'static str {
     match kind {
         RequestMessageKind::AgentCompletionRequest => "agent_completion_request",
         RequestMessageKind::FunctionExecutionRequest => "function_execution_request",
-        RequestMessageKind::FunctionInventionRecursiveRequest => {
-            "function_invention_recursive_request"
-        }
         RequestMessageKind::AgentCompletionNotification => "agent_completion_notification",
         RequestMessageKind::AssistantResponse => "assistant_response",
         RequestMessageKind::ToolResponse => "tool_response",
@@ -30,9 +27,6 @@ pub fn parse_message_kind(s: &str) -> Result<RequestMessageKind, Error> {
     match s {
         "agent_completion_request" => Ok(RequestMessageKind::AgentCompletionRequest),
         "function_execution_request" => Ok(RequestMessageKind::FunctionExecutionRequest),
-        "function_invention_recursive_request" => {
-            Ok(RequestMessageKind::FunctionInventionRecursiveRequest)
-        }
         "agent_completion_notification" => {
             Ok(RequestMessageKind::AgentCompletionNotification)
         }
@@ -73,15 +67,6 @@ pub fn message_kind_file_path(
                 path.to_string()
             } else {
                 format!("functions/executions/request/{path}.json")
-            }
-        }
-        RequestMessageKind::FunctionInventionRecursiveRequest => {
-            if path.starts_with("functions/inventions/recursive/request/")
-                && path.ends_with(".json")
-            {
-                path.to_string()
-            } else {
-                format!("functions/inventions/recursive/request/{path}.json")
             }
         }
         RequestMessageKind::AssistantResponse => {

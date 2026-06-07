@@ -54,18 +54,6 @@ pub enum LogFileKind {
     /// `functions/executions/response/retry_token/<id>.txt`
     /// — [`crate::filesystem::Client::read_function_execution_retry_token`].
     FunctionExecutionRetryToken { id: String },
-    /// `functions/inventions/response/<id>.json`
-    /// — [`crate::filesystem::Client::read_function_invention`].
-    FunctionInvention { id: String },
-    /// `functions/inventions/request/<id>.json`
-    /// — [`crate::filesystem::Client::read_function_invention_request`].
-    FunctionInventionRequest { id: String },
-    /// `functions/inventions/recursive/response/<id>.json`
-    /// — [`crate::filesystem::Client::read_function_invention_recursive`].
-    FunctionInventionRecursive { id: String },
-    /// `functions/inventions/recursive/request/<id>.json`
-    /// — [`crate::filesystem::Client::read_function_invention_recursive_request`].
-    FunctionInventionRecursiveRequest { id: String },
 
     // -- Per-message metadata (response side, JSON) -------------------------
     /// `agents/completions/response/messages/assistant/<id>_<msg>.json`
@@ -323,24 +311,6 @@ impl LogFileKind {
             }
             "functions/executions/response/retry_token" => {
                 Some(Self::FunctionExecutionRetryToken {
-                    id: stem.to_string(),
-                })
-            }
-            "functions/inventions/response" => Some(Self::FunctionInvention {
-                id: stem.to_string(),
-            }),
-            "functions/inventions/request" => {
-                Some(Self::FunctionInventionRequest {
-                    id: stem.to_string(),
-                })
-            }
-            "functions/inventions/recursive/response" => {
-                Some(Self::FunctionInventionRecursive {
-                    id: stem.to_string(),
-                })
-            }
-            "functions/inventions/recursive/request" => {
-                Some(Self::FunctionInventionRecursiveRequest {
                     id: stem.to_string(),
                 })
             }

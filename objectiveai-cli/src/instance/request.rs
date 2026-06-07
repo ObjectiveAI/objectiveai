@@ -8,7 +8,6 @@ use std::path::{Path, PathBuf};
 
 use objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams;
 use objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams;
-use objectiveai_sdk::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams;
 use serde::{Deserialize, Serialize};
 
 /// One JSON object delivered over the parent → child handshake pipe
@@ -100,5 +99,4 @@ impl PipeConfig {
 pub enum InstanceEndpoint {
     AgentsSpawn(AgentCompletionCreateParams),
     FunctionsExecutionsCreate(FunctionExecutionCreateParams),
-    FunctionsInventionsRecursiveCreate(FunctionInventionRecursiveCreateParams),
 }

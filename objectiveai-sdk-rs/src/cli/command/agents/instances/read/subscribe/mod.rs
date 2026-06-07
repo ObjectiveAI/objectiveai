@@ -2,7 +2,7 @@
 
 use crate::cli::command::CommandRequest;
 
-/// The six values stored in the `messages.kind` TEXT column. Owning
+/// The five values stored in the `messages.kind` TEXT column. Owning
 /// this enum in the SDK lets bare-naked callers reason about message
 /// kinds without depending on the CLI's filesystem layer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, schemars::JsonSchema, clap::ValueEnum)]
@@ -12,7 +12,6 @@ use crate::cli::command::CommandRequest;
 pub enum RequestMessageKind {
     AgentCompletionRequest,
     FunctionExecutionRequest,
-    FunctionInventionRecursiveRequest,
     AgentCompletionNotification,
     AssistantResponse,
     ToolResponse,
@@ -98,9 +97,6 @@ fn message_kind_flag(kind: &RequestMessageKind) -> &'static str {
     match kind {
         RequestMessageKind::AgentCompletionRequest => "agent-completion-request",
         RequestMessageKind::FunctionExecutionRequest => "function-execution-request",
-        RequestMessageKind::FunctionInventionRecursiveRequest => {
-            "function-invention-recursive-request"
-        }
         RequestMessageKind::AgentCompletionNotification => "agent-completion-notification",
         RequestMessageKind::AssistantResponse => "assistant-response",
         RequestMessageKind::ToolResponse => "tool-response",

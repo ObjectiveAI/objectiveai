@@ -117,9 +117,6 @@ fn queue_item_kind(item: &QueueItem) -> RequestMessageKind {
         QueueItem::Notification { .. } => RequestMessageKind::AgentCompletionNotification,
         QueueItem::AgentCompletionRequest { .. } => RequestMessageKind::AgentCompletionRequest,
         QueueItem::FunctionExecutionRequest { .. } => RequestMessageKind::FunctionExecutionRequest,
-        QueueItem::FunctionInventionRecursiveRequest { .. } => {
-            RequestMessageKind::FunctionInventionRecursiveRequest
-        }
     }
 }
 

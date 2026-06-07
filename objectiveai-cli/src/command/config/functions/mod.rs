@@ -10,7 +10,6 @@ use crate::error::Error;
 
 pub mod favorites;
 pub mod get;
-pub mod inventions;
 pub mod profiles;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
@@ -38,10 +37,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::Favorites(req) => {
             let inner = favorites::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Favorites)))
-        }
-        Request::Inventions(req) => {
-            let inner = inventions::execute(ctx, req).await?;
-            Box::pin(inner.map(|r| r.map(ResponseItem::Inventions)))
         }
         Request::Profiles(req) => {
             let inner = profiles::execute(ctx, req).await?;

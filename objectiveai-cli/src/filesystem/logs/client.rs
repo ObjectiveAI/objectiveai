@@ -238,48 +238,6 @@ impl Client {
             })
             .collect())
     }
-    pub async fn list_function_inventions(
-        &self,
-        offset: usize,
-        limit: usize,
-    ) -> Result<
-        Vec<objectiveai_sdk::cli::command::logs::functions::inventions::response::list::ResponseItem>,
-        Error,
-    > {
-        let items = self
-            .list_endpoint("functions/inventions/response", offset, limit)
-            .await?;
-        Ok(items
-            .into_iter()
-            .map(|i| {
-                objectiveai_sdk::cli::command::logs::functions::inventions::response::list::ResponseItem {
-                    id: i.id,
-                    created: i.created,
-                }
-            })
-            .collect())
-    }
-    pub async fn list_function_inventions_recursive(
-        &self,
-        offset: usize,
-        limit: usize,
-    ) -> Result<
-        Vec<objectiveai_sdk::cli::command::logs::functions::inventions::recursive::response::list::ResponseItem>,
-        Error,
-    > {
-        let items = self
-            .list_endpoint("functions/inventions/recursive/response", offset, limit)
-            .await?;
-        Ok(items
-            .into_iter()
-            .map(|i| {
-                objectiveai_sdk::cli::command::logs::functions::inventions::recursive::response::list::ResponseItem {
-                    id: i.id,
-                    created: i.created,
-                }
-            })
-            .collect())
-    }
 
     // -- Clear helpers + methods --------------------------------------------
 
@@ -412,15 +370,6 @@ impl Client {
         self.clear_endpoint("functions/executions/response/retry_token")
             .await
     }
-    pub async fn clear_function_inventions(&self) -> Result<u64, Error> {
-        self.clear_endpoint("functions/inventions/response").await
-    }
-    pub async fn clear_function_inventions_recursive(
-        &self,
-    ) -> Result<u64, Error> {
-        self.clear_endpoint("functions/inventions/recursive/response")
-            .await
-    }
 
     // -- Write methods (LogWriter constructors) -----------------------------
 
@@ -491,42 +440,6 @@ impl Client {
             ),
             |chunk: &FunctionExecutionChunk| crate::logs::functions::executions::response::streaming::function_execution_chunk::produce_message_rows(chunk),
         ))
-    }
-    pub fn write_function_invention(
-        &self,
-        db: &crate::db::Pool,
-        request: &objectiveai_sdk::functions::inventions::request::FunctionInventionCreateParams,
-    ) -> Result<super::LogWriter<objectiveai_sdk::functions::inventions::response::streaming::FunctionInventionChunk>, crate::error::Error>{
-        use objectiveai_sdk::functions::inventions::response::streaming::FunctionInventionChunk;
-        let queue =
-            crate::db::messages::Queue::new(db.clone(), self.logs_dir());
-        Ok(super::LogWriter::new(
-            self.logs_dir(),
-            |chunk: &FunctionInventionChunk| {
-                crate::logs::functions::inventions::response::streaming::function_invention_chunk::produce_files(chunk)
-                    .map(|(_, files)| files)
-            },
-        )
-        .with_request("functions/inventions/request", request)?
-        .with_queue(queue, None, |chunk: &FunctionInventionChunk| {
-            Box::new(crate::logs::functions::inventions::response::streaming::function_invention_chunk::produce_message_rows(chunk))
-        }))
-    }
-    pub fn write_function_invention_recursive(
-        &self,
-        db: &crate::db::Pool,
-        request: &objectiveai_sdk::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams,
-    ) -> Result<super::LogWriter<objectiveai_sdk::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk>, crate::error::Error>{
-        use objectiveai_sdk::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk;
-        let queue =
-            crate::db::messages::Queue::new(db.clone(), self.logs_dir());
-        Ok(super::LogWriter::new(self.logs_dir(), |chunk: &FunctionInventionRecursiveChunk| crate::logs::functions::inventions::recursive::response::streaming::function_invention_recursive_chunk::produce_files(chunk).map(|(_, files)| files))
-            .with_request("functions/inventions/recursive/request", request)?
-            .with_queue(
-                queue,
-                Some(objectiveai_sdk::cli::command::agents::instances::read::subscribe::RequestMessageKind::FunctionInventionRecursiveRequest),
-                |chunk: &FunctionInventionRecursiveChunk| Box::new(crate::logs::functions::inventions::recursive::response::streaming::function_invention_recursive_chunk::produce_message_rows(chunk)),
-            ))
     }
 
     // -- Read helpers + methods ---------------------------------------------
@@ -883,44 +796,6 @@ impl Client {
         id: &str,
     ) -> Result<String, Error> {
         self.read_text("functions/executions/response/retry_token", id)
-            .await
-    }
-    pub async fn read_function_invention(
-        &self,
-        id: &str,
-    ) -> Result<
-        objectiveai_sdk::functions::inventions::response::streaming::FunctionInventionChunkLog,
-        Error,
-    > {
-        self.read_json_typed("functions/inventions/response", id)
-            .await
-    }
-    pub async fn read_function_invention_request(
-        &self,
-        id: &str,
-    ) -> Result<objectiveai_sdk::functions::inventions::request::FunctionInventionCreateParams, Error>
-    {
-        self.read_json_typed("functions/inventions/request", id)
-            .await
-    }
-    pub async fn read_function_invention_recursive(
-        &self,
-        id: &str,
-    ) -> Result<
-        objectiveai_sdk::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunkLog,
-        Error,
-    > {
-        self.read_json_typed("functions/inventions/recursive/response", id)
-            .await
-    }
-    pub async fn read_function_invention_recursive_request(
-        &self,
-        id: &str,
-    ) -> Result<
-        objectiveai_sdk::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParamsLog,
-        Error,
-    > {
-        self.read_json_typed("functions/inventions/recursive/request", id)
             .await
     }
 
@@ -1719,72 +1594,6 @@ impl Client {
         .await?
         .ok_or(Error::LogSubscribeTimedOut)
     }
-    pub async fn subscribe_function_invention(
-        &self,
-        id: &str,
-        timeout: std::time::Duration,
-        require_modification: bool,
-    ) -> Result<
-        objectiveai_sdk::functions::inventions::response::streaming::FunctionInventionChunkLog,
-        Error,
-    > {
-        self.subscribe_json_typed(
-            "functions/inventions/response",
-            id,
-            timeout,
-            require_modification,
-        )
-        .await
-    }
-    pub async fn subscribe_function_invention_request(
-        &self,
-        id: &str,
-        timeout: std::time::Duration,
-        require_modification: bool,
-    ) -> Result<objectiveai_sdk::functions::inventions::request::FunctionInventionCreateParams, Error>
-    {
-        self.subscribe_json_typed(
-            "functions/inventions/request",
-            id,
-            timeout,
-            require_modification,
-        )
-        .await
-    }
-    pub async fn subscribe_function_invention_recursive(
-        &self,
-        id: &str,
-        timeout: std::time::Duration,
-        require_modification: bool,
-    ) -> Result<
-        objectiveai_sdk::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunkLog,
-        Error,
-    > {
-        self.subscribe_json_typed(
-            "functions/inventions/recursive/response",
-            id,
-            timeout,
-            require_modification,
-        )
-        .await
-    }
-    pub async fn subscribe_function_invention_recursive_request(
-        &self,
-        id: &str,
-        timeout: std::time::Duration,
-        require_modification: bool,
-    ) -> Result<
-        objectiveai_sdk::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParamsLog,
-        Error,
-    > {
-        self.subscribe_json_typed(
-            "functions/inventions/recursive/request",
-            id,
-            timeout,
-            require_modification,
-        )
-        .await
-    }
 
     // -- Per-agent message queue ---------------------------------------------
 
@@ -1864,11 +1673,6 @@ impl Client {
         match row.kind {
             RequestMessageKind::FunctionExecutionRequest => {
                 Ok(QueueItem::FunctionExecutionRequest {
-                    id: self.file_id(db, &rel_path).await?,
-                })
-            }
-            RequestMessageKind::FunctionInventionRecursiveRequest => {
-                Ok(QueueItem::FunctionInventionRecursiveRequest {
                     id: self.file_id(db, &rel_path).await?,
                 })
             }
@@ -2145,22 +1949,6 @@ impl Client {
                 .read_function_execution_retry_token(&id)
                 .await
                 .map(R::Text),
-            K::FunctionInvention { id } => self
-                .read_function_invention(&id)
-                .await
-                .map(R::FunctionsInventionsResponse),
-            K::FunctionInventionRequest { id } => self
-                .read_function_invention_request(&id)
-                .await
-                .map(R::FunctionsInventionsRequest),
-            K::FunctionInventionRecursive { id } => self
-                .read_function_invention_recursive(&id)
-                .await
-                .map(R::FunctionsInventionsRecursiveResponse),
-            K::FunctionInventionRecursiveRequest { id } => self
-                .read_function_invention_recursive_request(&id)
-                .await
-                .map(R::FunctionsInventionsRecursiveRequest),
 
             // -- Per-message metadata (JSON) --------------------------------
             K::AgentCompletionMessageAssistant { id, message_index } => self

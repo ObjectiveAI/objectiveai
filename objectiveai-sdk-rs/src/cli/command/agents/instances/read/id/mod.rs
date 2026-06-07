@@ -78,16 +78,6 @@ pub enum Response {
     #[schemars(title = "FunctionsExecutionsRequest")]
     FunctionsExecutionsRequest(crate::cli::command::logs::functions::executions::request::get::Response),
 
-    #[schemars(title = "FunctionsInventionsResponse")]
-    FunctionsInventionsResponse(crate::cli::command::logs::functions::inventions::response::get::Response),
-    #[schemars(title = "FunctionsInventionsRequest")]
-    FunctionsInventionsRequest(crate::cli::command::logs::functions::inventions::request::get::Response),
-
-    #[schemars(title = "FunctionsInventionsRecursiveResponse")]
-    FunctionsInventionsRecursiveResponse(crate::cli::command::logs::functions::inventions::recursive::response::get::Response),
-    #[schemars(title = "FunctionsInventionsRecursiveRequest")]
-    FunctionsInventionsRecursiveRequest(crate::cli::command::logs::functions::inventions::recursive::request::get::Response),
-
     // Collapsed text/media — one variant per content kind, regardless
     // of where the file lives.
     #[schemars(title = "Text")]
@@ -159,10 +149,6 @@ impl crate::cli::command::CommandResponse for Response {
             Response::VectorCompletionsRequest(v) => v.into_mcp(),
             Response::FunctionsExecutionsResponse(v) => v.into_mcp(),
             Response::FunctionsExecutionsRequest(v) => v.into_mcp(),
-            Response::FunctionsInventionsResponse(v) => v.into_mcp(),
-            Response::FunctionsInventionsRequest(v) => v.into_mcp(),
-            Response::FunctionsInventionsRecursiveResponse(v) => v.into_mcp(),
-            Response::FunctionsInventionsRecursiveRequest(v) => v.into_mcp(),
             Response::Text(v) => v.into_mcp(),
             Response::Image(v) => v.into_mcp(),
             Response::Audio(v) => v.into_mcp(),

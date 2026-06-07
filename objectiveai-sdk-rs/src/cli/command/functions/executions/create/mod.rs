@@ -126,9 +126,7 @@ impl ProfileSpec {
 /// default-group rule would otherwise pull every outer field into
 /// the same group). The group id is `function_group` rather than
 /// `function` to avoid colliding with the bare `--function` flag's
-/// own arg name — see the
-/// `functions::inventions::recursive::create::remote::StateArgs`
-/// precedent for the same idiom.
+/// own arg name.
 #[derive(clap::Args)]
 #[group(id = "function_group", required = true, multiple = false)]
 pub struct FunctionArgs {

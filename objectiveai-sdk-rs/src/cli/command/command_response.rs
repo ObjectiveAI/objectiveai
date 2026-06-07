@@ -243,59 +243,6 @@ impl CommandResponse
 }
 
 #[cfg(feature = "mcp")]
-impl CommandResponse for crate::functions::inventions::request::FunctionInventionCreateParams {
-    fn into_mcp(self) -> McpResponseItem {
-        McpResponseItem::JSONL(
-            serde_json::to_value(self).unwrap(),
-        )
-    }
-}
-
-#[cfg(feature = "mcp")]
-impl CommandResponse
-    for crate::functions::inventions::response::streaming::FunctionInventionChunkLog
-{
-    fn into_mcp(self) -> McpResponseItem {
-        McpResponseItem::JSONL(
-            serde_json::to_value(self).unwrap(),
-        )
-    }
-}
-
-#[cfg(feature = "mcp")]
-impl CommandResponse
-    for crate::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParamsLog
-{
-    fn into_mcp(self) -> McpResponseItem {
-        McpResponseItem::JSONL(
-            serde_json::to_value(self).unwrap(),
-        )
-    }
-}
-
-#[cfg(feature = "mcp")]
-impl CommandResponse
-    for crate::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunkLog
-{
-    fn into_mcp(self) -> McpResponseItem {
-        McpResponseItem::JSONL(
-            serde_json::to_value(self).unwrap(),
-        )
-    }
-}
-
-#[cfg(feature = "mcp")]
-impl CommandResponse
-    for crate::functions::inventions::state::response::GetFunctionInventionStateResponse
-{
-    fn into_mcp(self) -> McpResponseItem {
-        McpResponseItem::JSONL(
-            serde_json::to_value(self).unwrap(),
-        )
-    }
-}
-
-#[cfg(feature = "mcp")]
 impl CommandResponse for crate::functions::profiles::response::GetProfileResponse {
     fn into_mcp(self) -> McpResponseItem {
         McpResponseItem::JSONL(

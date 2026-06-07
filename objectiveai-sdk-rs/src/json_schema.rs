@@ -499,48 +499,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::functions::get::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::inventions::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::inventions::get::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::inventions::get::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::inventions::get::Response),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::inventions::get::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::inventions::get::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::inventions::get::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::inventions::get::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::inventions::remote::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::inventions::remote::get::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::inventions::remote::get::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::inventions::remote::get::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::inventions::remote::get::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::inventions::remote::get::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::inventions::remote::get::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::inventions::remote::set::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::inventions::remote::set::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::inventions::remote::set::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::inventions::remote::set::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::inventions::remote::set::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::inventions::remote::set::response_schema::Request),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::functions::profiles::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::Request),
@@ -1114,78 +1072,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::functions::get::response_schema::Path),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::functions::get::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::alpha_scalar::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::alpha_scalar::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::alpha_scalar::RequestDangerousAdvanced),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::alpha_scalar::RequestParams),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::alpha_scalar::ResponseItem),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::alpha_scalar::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::alpha_scalar::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::alpha_scalar::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::alpha_scalar::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::alpha_vector::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::alpha_vector::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::alpha_vector::RequestDangerousAdvanced),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::alpha_vector::RequestParams),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::alpha_vector::ResponseItem),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::alpha_vector::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::alpha_vector::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::alpha_vector::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::alpha_vector::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::remote::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::remote::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::remote::RequestDangerousAdvanced),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::remote::RequestState),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::remote::ResponseItem),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::remote::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::remote::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::remote::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::recursive::create::remote::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::state::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::state::get::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::state::get::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::state::get::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::state::get::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::state::get::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::inventions::state::get::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::functions::list::Path),
         #[cfg(feature = "cli")]
@@ -2169,170 +2055,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::functions::executions::response::subscribe::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::request::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::request::get::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::request::get::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::request::get::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::request::get::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::request::get::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::request::get::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::request::subscribe::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::request::subscribe::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::request::subscribe::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::request::subscribe::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::request::subscribe::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::request::subscribe::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::clear::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::clear::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::clear::Response),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::clear::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::clear::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::clear::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::clear::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::get::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::get::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::get::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::get::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::get::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::get::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::list::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::list::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::list::ResponseItem),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::list::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::list::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::list::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::list::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::subscribe::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::subscribe::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::subscribe::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::subscribe::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::subscribe::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::recursive::response::subscribe::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::request::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::request::get::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::request::get::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::request::get::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::request::get::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::request::get::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::request::get::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::request::subscribe::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::request::subscribe::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::request::subscribe::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::request::subscribe::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::request::subscribe::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::request::subscribe::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::clear::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::clear::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::clear::Response),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::clear::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::clear::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::clear::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::clear::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::get::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::get::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::get::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::get::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::get::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::get::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::list::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::list::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::list::ResponseItem),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::list::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::list::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::list::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::list::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::subscribe::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::subscribe::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::subscribe::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::subscribe::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::subscribe::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::logs::functions::inventions::response::subscribe::response_schema::Request),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::vector::completions::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::logs::vector::completions::request::Request),
@@ -2913,7 +2635,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParamsLog),
         schemars::schema_for!(crate::functions::inventions::recursive::response::streaming::FunctionInventionChunk),
         schemars::schema_for!(crate::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk),
-        schemars::schema_for!(crate::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunkLog),
         schemars::schema_for!(crate::functions::inventions::recursive::response::streaming::InnerError<'_>),
         schemars::schema_for!(crate::functions::inventions::recursive::response::streaming::Object),
         schemars::schema_for!(crate::functions::inventions::recursive::response::unary::FunctionInvention),
@@ -2922,7 +2643,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::functions::inventions::request::FunctionInventionCreateParams),
         schemars::schema_for!(crate::functions::inventions::response::streaming::AgentCompletionChunk),
         schemars::schema_for!(crate::functions::inventions::response::streaming::FunctionInventionChunk),
-        schemars::schema_for!(crate::functions::inventions::response::streaming::FunctionInventionChunkLog),
         schemars::schema_for!(crate::functions::inventions::response::streaming::InnerError<'_>),
         schemars::schema_for!(crate::functions::inventions::response::streaming::Object),
         schemars::schema_for!(crate::functions::inventions::response::unary::AgentCompletion),
