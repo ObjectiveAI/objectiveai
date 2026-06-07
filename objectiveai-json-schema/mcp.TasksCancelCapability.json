@@ -1,6 +1,0 @@
-{
-  "title": "mcp.TasksCancelCapability",
-  "description": "Marker capability for task cancellation support.",
-  "type": "object",
-  "additionalProperties": false
-}

@@ -1,8 +1,0 @@
-{
-  "title": "mcp.tool.ToolSchemaType",
-  "description": "The type of a JSON Schema used by MCP tools.",
-  "type": "string",
-  "enum": [
-    "object"
-  ]
-}

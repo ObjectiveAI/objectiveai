@@ -3125,30 +3125,13 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::plugins::CommandType),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::plugins::Output),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::client_objectiveai_mcp::McpKind),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::client_objectiveai_mcp::client_request::McpListChanged),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::client_objectiveai_mcp::client_request::McpListChangedKind),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::client_objectiveai_mcp::client_request::Payload),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::client_objectiveai_mcp::client_request::Request),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::client_objectiveai_mcp::client_response::Response),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::client_objectiveai_mcp::server_request::InitializeRequest),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::client_objectiveai_mcp::server_request::Payload),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::client_objectiveai_mcp::server_request::Request),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::client_objectiveai_mcp::server_response::InitializeReply),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::client_objectiveai_mcp::server_response::Payload),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::client_objectiveai_mcp::server_response::Response),
+        // client_objectiveai_mcp::* schemas are deliberately omitted —
+        // `JsonRpcResult<()>::Ok::result` bottoms out at bare
+        // `{"type":"null"}`, which downstream Go/TS/Python SDK
+        // generators can't reconstruct. The wire types still derive
+        // JsonSchema for local documentation; the json-schema-builder
+        // test `no_property_type_null` enforces that none of those
+        // schemas slip back into the published set.
         schemars::schema_for!(crate::error::request::ErrorCreateParams),
         schemars::schema_for!(crate::error::response::ErrorResponse),
         schemars::schema_for!(crate::error::ResponseError),
@@ -3382,104 +3365,11 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::laboratories::executions::response::unary::Evaluation),
         schemars::schema_for!(crate::laboratories::executions::response::unary::LaboratoryExecution),
         schemars::schema_for!(crate::laboratories::executions::response::unary::Object),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::initialize_result::CompletionsCapability),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::initialize_result::Implementation),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::initialize_result::InitializeResult),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::JsonRpcError),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::JsonRpcNotification),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::JsonRpcRequest),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::initialize_result::LoggingCapability),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::initialize_result::PromptsCapability),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::initialize_result::ResourcesCapability),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::initialize_result::ServerCapabilities),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::initialize_result::TasksCancelCapability),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::initialize_result::TasksCapability),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::initialize_result::TasksListCapability),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::initialize_result::TasksRequestsCapability),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::initialize_result::TasksToolsCallCapability),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::initialize_result::TasksToolsCapability),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::initialize_result::ToolsCapability),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::resource::ListResourcesRequest),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::resource::ListResourcesResult),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::resource::ReadResourceRequestParams),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::resource::ReadResourceResult),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::resource::Resource),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::shared::Annotations),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::shared::BlobResourceContents),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::shared::Icon),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::shared::IconTheme),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::shared::ResourceContents),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::shared::ResourceContentsUnion),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::shared::Role),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::shared::TextResourceContents),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::tool::AudioContent),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::tool::CallToolRequestParams),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::tool::CallToolResult),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::tool::ContentBlock),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::tool::EmbeddedResource),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::tool::ImageContent),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::tool::ListToolsRequest),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::tool::ListToolsResult),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::tool::ResourceLink),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::tool::TaskMetadata),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::tool::TaskSupport),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::tool::TextContent),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::tool::Tool),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::tool::ToolAnnotations),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::tool::ToolExecution),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::tool::ToolResultContent),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::tool::ToolSchemaObject),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::tool::ToolSchemaType),
-        #[cfg(feature = "mcp")]
-        schemars::schema_for!(crate::mcp::tool::ToolUseContent),
+        // mcp::* schemas (and the client_objectiveai_mcp::* tree below)
+        // are deliberately omitted — see the comment at the top of
+        // `json_schemas()`. The wire types still derive JsonSchema for
+        // local documentation; they just don't ship in the published
+        // schema set and aren't checked by the coverage harness.
         schemars::schema_for!(crate::swarm::response::GetSwarmResponse),
         schemars::schema_for!(crate::swarm::InlineSwarm),
         schemars::schema_for!(crate::swarm::InlineSwarmBase),
@@ -3512,205 +3402,44 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::viewer::Event),
         schemars::schema_for!(crate::auth::ApiKey),
     ];
-    #[cfg(feature = "mcp")]
-    {
-        schemas.extend([
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::shared::Annotations),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::shared::Role),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::shared::Icon),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::shared::IconTheme),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::shared::ResourceContents),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::shared::TextResourceContents),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::shared::BlobResourceContents),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::shared::ResourceContentsUnion),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::initialize_result::InitializeResult),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::initialize_result::Implementation),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::initialize_result::ServerCapabilities),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::initialize_result::PromptsCapability),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::initialize_result::ResourcesCapability),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::initialize_result::ToolsCapability),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::initialize_result::LoggingCapability),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::initialize_result::CompletionsCapability),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::initialize_result::TasksCapability),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::initialize_result::TasksListCapability),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::initialize_result::TasksCancelCapability),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::initialize_result::TasksRequestsCapability),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::initialize_result::TasksToolsCapability),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::initialize_result::TasksToolsCallCapability),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::client_objectiveai_mcp::McpKind),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::client_objectiveai_mcp::client_request::Request),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::client_objectiveai_mcp::client_request::Payload),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::client_objectiveai_mcp::client_request::McpListChanged),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::client_objectiveai_mcp::client_request::McpListChangedKind),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::client_objectiveai_mcp::client_response::Response),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::client_objectiveai_mcp::server_request::Request),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::client_objectiveai_mcp::server_request::InitializeRequest),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::client_objectiveai_mcp::server_response::Response),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::client_objectiveai_mcp::server_response::InitializeReply),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::client_objectiveai_mcp::server_response::JsonRpcResult<crate::client_objectiveai_mcp::server_response::InitializeReply>),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::client_objectiveai_mcp::server_response::JsonRpcResult<crate::mcp::tool::ListToolsResult>),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::client_objectiveai_mcp::server_response::JsonRpcResult<crate::mcp::tool::CallToolResult>),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::client_objectiveai_mcp::server_response::JsonRpcResult<crate::mcp::resource::ListResourcesResult>),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::client_objectiveai_mcp::server_response::JsonRpcResult<crate::mcp::resource::ReadResourceResult>),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::client_objectiveai_mcp::server_response::JsonRpcResult<()>),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::JsonRpcRequest),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::JsonRpcError),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::JsonRpcNotification),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::resource::ListResourcesRequest),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::resource::ListResourcesResult),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::resource::ReadResourceRequestParams),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::resource::ReadResourceResult),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::resource::Resource),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::tool::AudioContent),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::tool::CallToolRequestParams),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::tool::CallToolResult),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::tool::TaskMetadata),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::tool::ContentBlock),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::tool::EmbeddedResource),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::tool::ImageContent),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::tool::ListToolsRequest),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::tool::ListToolsResult),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::tool::ResourceLink),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::tool::TextContent),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::tool::Tool),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::tool::ToolSchemaObject),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::tool::ToolSchemaType),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::tool::ToolAnnotations),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::tool::ToolExecution),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::tool::TaskSupport),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::tool::ToolResultContent),
-            #[cfg(feature = "mcp")]
-            schemars::schema_for!(crate::mcp::tool::ToolUseContent),
-        ]);
-    }
-    #[cfg(feature = "filesystem")]
-    {
-        schemas.extend([
-            schemars::schema_for!(crate::filesystem::config::AgentsConfig),
-            schemars::schema_for!(crate::filesystem::config::ApiConfig),
-            schemars::schema_for!(crate::filesystem::config::Config),
-            schemars::schema_for!(crate::filesystem::config::Favorite),
-            schemars::schema_for!(crate::filesystem::config::PairFavorite),
-            schemars::schema_for!(crate::filesystem::config::FunctionsConfig),
-            schemars::schema_for!(crate::filesystem::config::FunctionsInventionsConfig),
-            schemars::schema_for!(crate::filesystem::config::FunctionsProfilesConfig),
-            schemars::schema_for!(crate::filesystem::config::FunctionsProfilesPairsConfig),
-            schemars::schema_for!(crate::filesystem::config::SwarmsConfig),
-            schemars::schema_for!(crate::filesystem::config::ViewerSecretSignaturePair),
-            schemars::schema_for!(crate::filesystem::config::ViewerConfig),
-            schemars::schema_for!(crate::filesystem::config::McpConfig),
-            schemars::schema_for!(crate::filesystem::logs::ListItem),
-            schemars::schema_for!(crate::filesystem::logs::LogReference),
-            schemars::schema_for!(crate::filesystem::logs::LogReferenceTag),
-            schemars::schema_for!(crate::filesystem::logs::indexed_reference::LogReference),
-            schemars::schema_for!(crate::filesystem::logs::LatestContinuation),
-            // Per-site `LogReference` types (sibling to the chunk
-            // that produces them; same name, distinct module paths).
-            schemars::schema_for!(crate::functions::executions::response::streaming::function_execution_task_log_reference::LogReference),
-            schemars::schema_for!(crate::functions::executions::response::streaming::reasoning_summary_log_reference::LogReference),
-            schemars::schema_for!(crate::functions::executions::response::streaming::task_log_reference::LogReference),
-            schemars::schema_for!(crate::functions::executions::response::streaming::vector_completion_task_log_reference::LogReference),
-            // *Log structs (on-disk log file shapes for every
-            // chunk type that has a `produce_files` implementation).
-            schemars::schema_for!(crate::agent::completions::message::RichContentLog),
-            schemars::schema_for!(crate::agent::completions::message::SimpleContentLog),
-            schemars::schema_for!(crate::agent::completions::message::MessageLog),
-            schemars::schema_for!(crate::agent::completions::message::DeveloperMessageLog),
-            schemars::schema_for!(crate::agent::completions::message::SystemMessageLog),
-            schemars::schema_for!(crate::agent::completions::message::UserMessageLog),
-            schemars::schema_for!(crate::agent::completions::message::AssistantMessageLog),
-            schemars::schema_for!(crate::agent::completions::message::ToolMessageLog),
-            schemars::schema_for!(crate::agent::completions::request::AgentCompletionCreateParamsLog),
-            schemars::schema_for!(crate::agent::completions::response::ToolResponseLog),
-            schemars::schema_for!(crate::agent::completions::response::streaming::AgentCompletionChunkLog),
-            schemars::schema_for!(crate::agent::completions::response::streaming::AssistantResponseChunkLog),
-            schemars::schema_for!(crate::functions::expression::InputValueLog),
-            schemars::schema_for!(crate::functions::executions::request::FunctionExecutionCreateParamsLog),
-            schemars::schema_for!(crate::functions::executions::response::streaming::FunctionExecutionChunkLog),
-            schemars::schema_for!(crate::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParamsLog),
-            schemars::schema_for!(crate::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunkLog),
-            schemars::schema_for!(crate::functions::inventions::response::streaming::FunctionInventionChunkLog),
-            schemars::schema_for!(crate::vector::completions::response::streaming::VectorCompletionChunkLog),
-            // Typed queue-reader schemas (Client::read_new_from_queue).
-            schemars::schema_for!(crate::filesystem::logs::queue::Content),
-            schemars::schema_for!(crate::filesystem::logs::queue::QueueMessage),
-            schemars::schema_for!(crate::filesystem::logs::queue::QueueItem),
-            schemars::schema_for!(crate::filesystem::plugins::Binaries),
-            schemars::schema_for!(crate::filesystem::plugins::Manifest),
-            schemars::schema_for!(crate::filesystem::plugins::ManifestWithNameAndSource),
-            schemars::schema_for!(crate::filesystem::plugins::McpServer),
-            schemars::schema_for!(crate::filesystem::plugins::Platform),
-            schemars::schema_for!(crate::filesystem::plugins::ViewerRoute),
-            schemars::schema_for!(crate::filesystem::plugins::HttpMethod),
-            schemars::schema_for!(crate::filesystem::plugins::WhitelistEntry),
-            schemars::schema_for!(crate::filesystem::tools::Manifest),
-            schemars::schema_for!(crate::filesystem::tools::ManifestWithNameAndSource),
-        ]);
-    }
+    // The mcp-feature block that used to register every
+    // mcp::* + client_objectiveai_mcp::* type was removed: the wire
+    // types still derive JsonSchema for local documentation but they
+    // don't ship in the published schema set. See the matching comment
+    // at the top of this function.
+    // Per-site `LogReference` types (sibling to the chunk that
+    // produces them; same name, distinct module paths) + every `*Log`
+    // struct (on-disk log file shapes for chunk types with a
+    // `produce_files` implementation). Previously gated behind
+    // `cfg(feature = "filesystem")`, which never existed as a
+    // feature, so the whole block was dead code. The filesystem-only
+    // entries that lived alongside these (`crate::filesystem::*`)
+    // were removed — that module doesn't exist in the SDK either.
+    schemas.extend([
+        schemars::schema_for!(crate::functions::executions::response::streaming::function_execution_task_log_reference::LogReference),
+        schemars::schema_for!(crate::functions::executions::response::streaming::reasoning_summary_log_reference::LogReference),
+        schemars::schema_for!(crate::functions::executions::response::streaming::task_log_reference::LogReference),
+        schemars::schema_for!(crate::functions::executions::response::streaming::vector_completion_task_log_reference::LogReference),
+        schemars::schema_for!(crate::agent::completions::message::RichContentLog),
+        schemars::schema_for!(crate::agent::completions::message::SimpleContentLog),
+        schemars::schema_for!(crate::agent::completions::message::MessageLog),
+        schemars::schema_for!(crate::agent::completions::message::DeveloperMessageLog),
+        schemars::schema_for!(crate::agent::completions::message::SystemMessageLog),
+        schemars::schema_for!(crate::agent::completions::message::UserMessageLog),
+        schemars::schema_for!(crate::agent::completions::message::AssistantMessageLog),
+        schemars::schema_for!(crate::agent::completions::message::ToolMessageLog),
+        schemars::schema_for!(crate::agent::completions::request::AgentCompletionCreateParamsLog),
+        schemars::schema_for!(crate::agent::completions::response::ToolResponseLog),
+        schemars::schema_for!(crate::agent::completions::response::streaming::AgentCompletionChunkLog),
+        schemars::schema_for!(crate::agent::completions::response::streaming::AssistantResponseChunkLog),
+        schemars::schema_for!(crate::functions::expression::InputValueLog),
+        schemars::schema_for!(crate::functions::executions::request::FunctionExecutionCreateParamsLog),
+        schemars::schema_for!(crate::functions::executions::response::streaming::FunctionExecutionChunkLog),
+        schemars::schema_for!(crate::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParamsLog),
+        schemars::schema_for!(crate::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunkLog),
+        schemars::schema_for!(crate::functions::inventions::response::streaming::FunctionInventionChunkLog),
+        schemars::schema_for!(crate::vector::completions::response::streaming::VectorCompletionChunkLog),
+    ]);
     #[cfg(feature = "cli")]
     {
         schemas.extend([

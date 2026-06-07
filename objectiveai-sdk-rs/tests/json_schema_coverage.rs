@@ -21,6 +21,22 @@ fn module_prefix(path: &str) -> String {
     }
 }
 
+/// Modules whose JsonSchema-deriving types are intentionally skipped by
+/// every coverage test in this file. Neither the MCP protocol types
+/// (`src/mcp/`) nor the API↔CLI envelope shape used by the
+/// `objectiveai-mcp` plugin runner (`src/client_objectiveai_mcp/`)
+/// ship in the published schema set: their `JsonRpcResult<R>::Ok` arm
+/// schemas `R = ()` as bare `{"type":"null"}`, which downstream Go /
+/// TS / Python SDK generators can't reconstruct, and the broader MCP
+/// wire types are documented externally by the MCP spec. The wire
+/// structs still derive JsonSchema (locally documenting), they just
+/// don't ship in `json_schemas()` and aren't checked for global
+/// coverage.
+fn is_skipped_module(relative: &str) -> bool {
+    relative.starts_with("src/mcp/")
+        || relative.starts_with("src/client_objectiveai_mcp/")
+}
+
 fn has_derive(attrs: &[syn::Attribute], trait_name: &str) -> bool {
     attrs.iter().any(|attr| {
         if attr.path().is_ident("derive") {
@@ -165,6 +181,10 @@ fn all_serializable_types_have_json_schema() {
             .to_str()
             .unwrap()
             .replace('\\', "/");
+
+        if is_skipped_module(&relative) {
+            continue;
+        }
 
         let source = fs::read_to_string(path).unwrap();
         let file = match syn::parse_file(&source) {
@@ -322,6 +342,9 @@ fn json_schemas_covers_all_types() {
             .to_str()
             .unwrap()
             .replace('\\', "/");
+        if is_skipped_module(&relative) {
+            continue;
+        }
         let source = fs::read_to_string(path).unwrap();
         let file = match syn::parse_file(&source) {
             Ok(f) => f,

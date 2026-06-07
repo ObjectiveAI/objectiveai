@@ -549,6 +549,63 @@ fn no_nested_null_in_anyof_variants() {
     );
 }
 
+fn check_no_property_type_null(
+    value: &serde_json::Value,
+    inside_properties: bool,
+    errors: &mut Vec<String>,
+    path: &str,
+) {
+    if let serde_json::Value::Object(map) = value {
+        if inside_properties {
+            // Every value at this depth is a property schema. Flag any
+            // whose entire body is `{"type": "null"}` — schemars's
+            // shape for a `()` field — because downstream SDK
+            // generators (Go in particular) can't reconstruct a unit
+            // type and the schema gets emitted as JsonValue / any,
+            // which then fails the roundtrip harness. Nullable fields
+            // (anyOf with a {"type": "null"} variant) are unaffected.
+            for (prop, ps) in map {
+                if let serde_json::Value::Object(inner) = ps {
+                    if inner.len() == 1
+                        && inner.get("type").and_then(|t| t.as_str()) == Some("null")
+                    {
+                        errors.push(format!(
+                            "{path}.properties.{prop}: bare `{{\"type\":\"null\"}}` property — \
+                             use a wrapper struct or untagged enum so downstream SDKs can \
+                             reconstruct the field"
+                        ));
+                    }
+                }
+            }
+        }
+        for (k, v) in map {
+            let child_path = if path.is_empty() {
+                k.clone()
+            } else {
+                format!("{path}.{k}")
+            };
+            check_no_property_type_null(v, k == "properties", errors, &child_path);
+        }
+    } else if let serde_json::Value::Array(arr) = value {
+        for (i, v) in arr.iter().enumerate() {
+            check_no_property_type_null(v, false, errors, &format!("{path}[{i}]"));
+        }
+    }
+}
+
+#[test]
+fn no_property_type_null() {
+    let mut errors = Vec::new();
+    for (name, schema) in load_schemas() {
+        check_no_property_type_null(&schema, false, &mut errors, &name);
+    }
+    assert!(
+        errors.is_empty(),
+        "properties must not be schemaed as bare `{{\"type\":\"null\"}}`:\n{}",
+        errors.join("\n")
+    );
+}
+
 fn check_any_of_variants_have_title(
     value: &serde_json::Value,
     inside_properties: bool,
