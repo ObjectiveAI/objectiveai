@@ -660,6 +660,38 @@ func reconstructVariantInner(
 			return result
 		}
 
+		// Sum-type variant: the field is a struct whose own fields are
+		// each tagged variants (pointers to types carrying
+		// SchemaVariantTitle, no json tag — they're untagged-union
+		// alternatives, not properties). Emit anyOf.
+		isSumType := len(subTi.fields) > 0
+		for _, sf := range subTi.fields {
+			jsonTag := getTagValue(sf.tags, "json")
+			if jsonTag != "" && jsonTag != "-" {
+				isSumType = false
+				break
+			}
+			subType := strings.TrimPrefix(sf.typeName, "*")
+			if subTi2, ok := types[subType]; ok {
+				if _, has := subTi2.methods["SchemaVariantTitle"]; !has {
+					isSumType = false
+					break
+				}
+			} else if _, ok := titleMap[subType]; !ok {
+				isSumType = false
+				break
+			}
+		}
+		if isSumType {
+			result := map[string]any{}
+			anyOf := make([]any, 0, len(subTi.fields))
+			for _, sf := range subTi.fields {
+				anyOf = append(anyOf, reconstructVariant(sf, types, titleMap))
+			}
+			result["anyOf"] = anyOf
+			return result
+		}
+
 		// Inline object without embedding
 		result := map[string]any{"type": "object"}
 		addInlineStructProps(result, subTi, types, titleMap)

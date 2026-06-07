@@ -40,7 +40,7 @@ done
 # Run tests, capture all output. cargo-nextest is installed locally by
 # `build-bin.sh` into `bin/` — see the [workspace.metadata.tools] table
 # in the root Cargo.toml.
-if "$NEXTEST" nextest run --manifest-path "$SCRIPT_DIR/Cargo.toml" "${CARGO_ARGS[@]}" > "$LOG_FILE" 2>&1; then
+if "$NEXTEST" nextest run --manifest-path "$SCRIPT_DIR/Cargo.toml" --no-fail-fast "${CARGO_ARGS[@]}" > "$LOG_FILE" 2>&1; then
   PASSED=$(sed -n 's/.* \([0-9][0-9]*\) passed.*/\1/p' "$LOG_FILE" | awk '{s+=$1} END {print s+0}')
   FAILED=$(sed -n 's/.* \([0-9][0-9]*\) failed.*/\1/p' "$LOG_FILE" | awk '{s+=$1} END {print s+0}')
   TOTAL=$((PASSED + FAILED))
