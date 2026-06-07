@@ -130,7 +130,7 @@ pub fn produce_files(
     let msg_file = LogFile {
         // Kind-specific subdir so this file can't collide with a tool
         // message at the same (response_id, index) — see
-        // `crate::filesystem::db::schema::message_kind_file_path` for the reader-side mirror.
+        // `crate::db::schema::message_kind_file_path` for the reader-side mirror.
         route: format!("{route_base}/messages/assistant"),
         id: id.to_string(),
         message_index: Some(c.index),

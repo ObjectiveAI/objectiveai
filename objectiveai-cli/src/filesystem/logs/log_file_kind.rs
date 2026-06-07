@@ -434,7 +434,7 @@ impl LogFileKind {
             // The ToolResponse envelope — written by
             // `crate::logs::agents::completions::response::tool_response`
             // at `messages/tool/<id>_<msg>.json`, mirrored by
-            // `crate::filesystem::db::schema::message_kind_file_path`.
+            // `crate::db::schema::message_kind_file_path`.
             "agents/completions/response/messages/tool" => {
                 let (id, message_index) = peel_u64(stem)?;
                 Some(Self::AgentCompletionMessageTool { id, message_index })

@@ -1796,7 +1796,7 @@ impl Client {
     ///
     /// Returns the items in ascending DB-`"index"` order — the same
     /// order they were inserted. First-call semantics inherit from
-    /// [`super::super::db::messages::Queue::read_new_messages`]: when
+    /// [`crate::db::messages::Queue::read_new_messages`]: when
     /// no `messages_queue` row exists yet, the watermark defaults
     /// to 0 and the (typically request-row) index 0 is NOT
     /// returned.
