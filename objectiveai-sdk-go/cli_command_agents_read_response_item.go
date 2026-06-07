@@ -67,7 +67,7 @@ type CliCommandAgentsReadResponseItem struct {
 	All *CliCommandAgentsReadAllResponseItem 
 	AllRequestSchema *CliCommandAgentsReadResponseItemAllRequestSchema 
 	AllResponseSchema *CliCommandAgentsReadResponseItemAllResponseSchema 
-	ID *CliCommandAgentsReadIdResponse 
+	ID *CliCommandAgentsReadIdResponse `variantTitle:"Id"`
 	IdRequestSchema *CliCommandAgentsReadResponseItemIdRequestSchema 
 	IdResponseSchema *CliCommandAgentsReadResponseItemIdResponseSchema 
 	Pending *CliCommandAgentsReadPendingResponseItem 

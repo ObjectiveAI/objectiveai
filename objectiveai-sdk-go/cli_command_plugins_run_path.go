@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandPluginsRunPath struct {
-	PluginsRun string `validate:"omitempty,oneof=plugins/run"`
+	PluginsRun string `validate:"omitempty,oneof=plugins/run" variantTitle:"Plugins/run"`
 }
 
 func (v CliCommandPluginsRunPath) MarshalJSON() ([]byte, error) {

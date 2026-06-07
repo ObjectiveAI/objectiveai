@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandAgentsTagsLookupResponseSchemaPath struct {
-	AgentsTagsLookupResponseSchema string `validate:"omitempty,oneof=agents/tags/lookup/response_schema"`
+	AgentsTagsLookupResponseSchema string `validate:"omitempty,oneof=agents/tags/lookup/response_schema" variantTitle:"Agents/tags/lookup/responseSchema"`
 }
 
 func (v CliCommandAgentsTagsLookupResponseSchemaPath) MarshalJSON() ([]byte, error) {

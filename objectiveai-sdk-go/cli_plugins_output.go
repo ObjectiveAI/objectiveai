@@ -24,7 +24,7 @@ func (v *CliPluginsOutputNotification) UnmarshalJSON(data []byte) error { return
 // re-export it; importers reach it by its canonical path.
 type CliPluginsOutput struct {
 	Command *CliPluginsCommand 
-	MCP *CliCommandPluginsRunMcp 
+	MCP *CliCommandPluginsRunMcp `variantTitle:"Mcp"`
 	Error *CliError 
 	// Final fallback — anything that didn't match a typed variant
 	// lands here as an opaque JSON value. Hosts treat this as a

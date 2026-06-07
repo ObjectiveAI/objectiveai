@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandAgentsReadSubscribePath struct {
-	AgentsReadSubscribe string `validate:"omitempty,oneof=agents/read/subscribe"`
+	AgentsReadSubscribe string `validate:"omitempty,oneof=agents/read/subscribe" variantTitle:"Agents/read/subscribe"`
 }
 
 func (v CliCommandAgentsReadSubscribePath) MarshalJSON() ([]byte, error) {

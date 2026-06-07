@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandFunctionsInventionsRecursiveCreateRemotePath struct {
-	FunctionsInventionsRecursiveCreateRemote string `validate:"omitempty,oneof=functions/inventions/recursive/create/remote"`
+	FunctionsInventionsRecursiveCreateRemote string `validate:"omitempty,oneof=functions/inventions/recursive/create/remote" variantTitle:"Functions/inventions/recursive/create/remote"`
 }
 
 func (v CliCommandFunctionsInventionsRecursiveCreateRemotePath) MarshalJSON() ([]byte, error) {

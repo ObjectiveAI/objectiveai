@@ -586,12 +586,21 @@ func reconstructVariant(
 		typeName = strings.TrimPrefix(typeName, "*")
 	}
 
-	// Get variant title from SchemaVariantTitle() if available, else field name
+	// Get variant title. Priority:
+	//   1. `variantTitle:"X"` struct tag — generator stamps this on
+	//      $ref variants whose field name differs from the title
+	//      (e.g. `MCP` field → `Mcp` title).
+	//   2. SchemaVariantTitle() method — generator emits this for
+	//      inline + primitive variants.
+	//   3. Field name — fallback.
 	variantTitle := f.name
 	if subTi, ok := types[typeName]; ok {
 		if svt, ok := subTi.methods["SchemaVariantTitle"]; ok {
 			variantTitle = svt
 		}
+	}
+	if vt := getTagValue(f.tags, "variantTitle"); vt != "" {
+		variantTitle = vt
 	}
 
 	// Build the inner schema (without title/description)

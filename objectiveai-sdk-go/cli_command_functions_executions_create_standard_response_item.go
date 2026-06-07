@@ -13,7 +13,7 @@ func (CliCommandFunctionsExecutionsCreateStandardResponseItemID) SchemaVariantTi
 
 type CliCommandFunctionsExecutionsCreateStandardResponseItem struct {
 	Chunk *FunctionsExecutionsResponseStreamingFunctionExecutionChunk 
-	ID *CliCommandFunctionsExecutionsCreateStandardResponseItemID 
+	ID *CliCommandFunctionsExecutionsCreateStandardResponseItemID `variantTitle:"Id"`
 }
 
 func (v CliCommandFunctionsExecutionsCreateStandardResponseItem) MarshalJSON() ([]byte, error) {

@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandLogsAgentsCompletionsResponseMessagesAssistantImageGetPath struct {
-	LogsAgentsCompletionsResponseMessagesAssistantImageGet string `validate:"omitempty,oneof=logs/agents/completions/response/messages/assistant/image/get"`
+	LogsAgentsCompletionsResponseMessagesAssistantImageGet string `validate:"omitempty,oneof=logs/agents/completions/response/messages/assistant/image/get" variantTitle:"Logs/agents/completions/response/messages/assistant/image/get"`
 }
 
 func (v CliCommandLogsAgentsCompletionsResponseMessagesAssistantImageGetPath) MarshalJSON() ([]byte, error) {

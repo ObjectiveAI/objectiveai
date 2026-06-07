@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandConfigViewerGetRequestSchemaPath struct {
-	ConfigViewerGetRequestSchema string `validate:"omitempty,oneof=config/viewer/get/request_schema"`
+	ConfigViewerGetRequestSchema string `validate:"omitempty,oneof=config/viewer/get/request_schema" variantTitle:"Config/viewer/get/requestSchema"`
 }
 
 func (v CliCommandConfigViewerGetRequestSchemaPath) MarshalJSON() ([]byte, error) {

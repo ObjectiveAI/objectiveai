@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandPluginsInstallGithubResponseSchemaPath struct {
-	PluginsInstallGithubResponseSchema string `validate:"omitempty,oneof=plugins/install/github/response_schema"`
+	PluginsInstallGithubResponseSchema string `validate:"omitempty,oneof=plugins/install/github/response_schema" variantTitle:"Plugins/install/github/responseSchema"`
 }
 
 func (v CliCommandPluginsInstallGithubResponseSchemaPath) MarshalJSON() ([]byte, error) {

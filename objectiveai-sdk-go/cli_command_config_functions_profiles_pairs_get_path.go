@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandConfigFunctionsProfilesPairsGetPath struct {
-	ConfigFunctionsProfilesPairsGet string `validate:"omitempty,oneof=config/functions/profiles/pairs/get"`
+	ConfigFunctionsProfilesPairsGet string `validate:"omitempty,oneof=config/functions/profiles/pairs/get" variantTitle:"Config/functions/profiles/pairs/get"`
 }
 
 func (v CliCommandConfigFunctionsProfilesPairsGetPath) MarshalJSON() ([]byte, error) {

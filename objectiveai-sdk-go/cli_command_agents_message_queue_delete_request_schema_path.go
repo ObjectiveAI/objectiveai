@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandAgentsMessageQueueDeleteRequestSchemaPath struct {
-	AgentsMessageQueueDeleteRequestSchema string `validate:"omitempty,oneof=agents/message-queue/delete/request_schema"`
+	AgentsMessageQueueDeleteRequestSchema string `validate:"omitempty,oneof=agents/message-queue/delete/request_schema" variantTitle:"Agents/messageQueue/delete/requestSchema"`
 }
 
 func (v CliCommandAgentsMessageQueueDeleteRequestSchemaPath) MarshalJSON() ([]byte, error) {

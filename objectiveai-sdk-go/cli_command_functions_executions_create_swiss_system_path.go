@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandFunctionsExecutionsCreateSwissSystemPath struct {
-	FunctionsExecutionsCreateSwissSystem string `validate:"omitempty,oneof=functions/executions/create/swiss_system"`
+	FunctionsExecutionsCreateSwissSystem string `validate:"omitempty,oneof=functions/executions/create/swiss_system" variantTitle:"Functions/executions/create/swissSystem"`
 }
 
 func (v CliCommandFunctionsExecutionsCreateSwissSystemPath) MarshalJSON() ([]byte, error) {

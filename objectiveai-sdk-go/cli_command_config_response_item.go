@@ -10,7 +10,7 @@ import (
 type CliCommandConfigResponseItem struct {
 	Agents *CliCommandConfigAgentsResponseItem 
 	Functions *CliCommandConfigFunctionsResponseItem 
-	MCP *CliCommandConfigMcpResponse 
+	MCP *CliCommandConfigMcpResponse `variantTitle:"Mcp"`
 	Swarms *CliCommandConfigSwarmsResponseItem 
 	Viewer *CliCommandConfigViewerResponse 
 }

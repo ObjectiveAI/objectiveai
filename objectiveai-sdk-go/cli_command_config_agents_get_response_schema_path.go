@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandConfigAgentsGetResponseSchemaPath struct {
-	ConfigAgentsGetResponseSchema string `validate:"omitempty,oneof=config/agents/get/response_schema"`
+	ConfigAgentsGetResponseSchema string `validate:"omitempty,oneof=config/agents/get/response_schema" variantTitle:"Config/agents/get/responseSchema"`
 }
 
 func (v CliCommandConfigAgentsGetResponseSchemaPath) MarshalJSON() ([]byte, error) {

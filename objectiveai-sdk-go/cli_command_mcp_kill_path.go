@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandMcpKillPath struct {
-	MCPKill string `validate:"omitempty,oneof=mcp/kill"`
+	MCPKill string `validate:"omitempty,oneof=mcp/kill" variantTitle:"Mcp/kill"`
 }
 
 func (v CliCommandMcpKillPath) MarshalJSON() ([]byte, error) {

@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandLogsFunctionsInventionsRecursiveResponseSubscribeRequestSchemaPath struct {
-	LogsFunctionsInventionsRecursiveResponseSubscribeRequestSchema string `validate:"omitempty,oneof=logs/functions/inventions/recursive/response/subscribe/request_schema"`
+	LogsFunctionsInventionsRecursiveResponseSubscribeRequestSchema string `validate:"omitempty,oneof=logs/functions/inventions/recursive/response/subscribe/request_schema" variantTitle:"Logs/functions/inventions/recursive/response/subscribe/requestSchema"`
 }
 
 func (v CliCommandLogsFunctionsInventionsRecursiveResponseSubscribeRequestSchemaPath) MarshalJSON() ([]byte, error) {

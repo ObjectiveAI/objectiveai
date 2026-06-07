@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandViewerKillRequestSchemaPath struct {
-	ViewerKillRequestSchema string `validate:"omitempty,oneof=viewer/kill/request_schema"`
+	ViewerKillRequestSchema string `validate:"omitempty,oneof=viewer/kill/request_schema" variantTitle:"Viewer/kill/requestSchema"`
 }
 
 func (v CliCommandViewerKillRequestSchemaPath) MarshalJSON() ([]byte, error) {

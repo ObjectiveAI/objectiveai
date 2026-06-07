@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandMcpSpawnRequestSchemaPath struct {
-	MCPSpawnRequestSchema string `validate:"omitempty,oneof=mcp/spawn/request_schema"`
+	MCPSpawnRequestSchema string `validate:"omitempty,oneof=mcp/spawn/request_schema" variantTitle:"Mcp/spawn/requestSchema"`
 }
 
 func (v CliCommandMcpSpawnRequestSchemaPath) MarshalJSON() ([]byte, error) {

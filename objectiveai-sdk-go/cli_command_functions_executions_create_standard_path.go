@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandFunctionsExecutionsCreateStandardPath struct {
-	FunctionsExecutionsCreateStandard string `validate:"omitempty,oneof=functions/executions/create/standard"`
+	FunctionsExecutionsCreateStandard string `validate:"omitempty,oneof=functions/executions/create/standard" variantTitle:"Functions/executions/create/standard"`
 }
 
 func (v CliCommandFunctionsExecutionsCreateStandardPath) MarshalJSON() ([]byte, error) {

@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandLogsAgentsCompletionsResponseMessagesAssistantLogprobsGetRequestSchemaPath struct {
-	LogsAgentsCompletionsResponseMessagesAssistantLogprobsGetRequestSchema string `validate:"omitempty,oneof=logs/agents/completions/response/messages/assistant/logprobs/get/request_schema"`
+	LogsAgentsCompletionsResponseMessagesAssistantLogprobsGetRequestSchema string `validate:"omitempty,oneof=logs/agents/completions/response/messages/assistant/logprobs/get/request_schema" variantTitle:"Logs/agents/completions/response/messages/assistant/logprobs/get/requestSchema"`
 }
 
 func (v CliCommandLogsAgentsCompletionsResponseMessagesAssistantLogprobsGetRequestSchemaPath) MarshalJSON() ([]byte, error) {

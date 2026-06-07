@@ -12,7 +12,7 @@ type CliCommandRequest struct {
 	Config *CliCommandConfigRequest 
 	Functions *CliCommandFunctionsRequest 
 	Logs *CliCommandLogsRequest 
-	MCP *CliCommandMcpRequest 
+	MCP *CliCommandMcpRequest `variantTitle:"Mcp"`
 	Plugins *CliCommandPluginsRequest 
 	Swarms *CliCommandSwarmsRequest 
 	Tools *CliCommandToolsRequest 

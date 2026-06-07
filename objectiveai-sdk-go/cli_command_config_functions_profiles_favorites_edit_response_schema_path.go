@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandConfigFunctionsProfilesFavoritesEditResponseSchemaPath struct {
-	ConfigFunctionsProfilesFavoritesEditResponseSchema string `validate:"omitempty,oneof=config/functions/profiles/favorites/edit/response_schema"`
+	ConfigFunctionsProfilesFavoritesEditResponseSchema string `validate:"omitempty,oneof=config/functions/profiles/favorites/edit/response_schema" variantTitle:"Config/functions/profiles/favorites/edit/responseSchema"`
 }
 
 func (v CliCommandConfigFunctionsProfilesFavoritesEditResponseSchemaPath) MarshalJSON() ([]byte, error) {

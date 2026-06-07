@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandAgentsTasksRunPath struct {
-	AgentsTasksRun string `validate:"omitempty,oneof=agents/tasks/run"`
+	AgentsTasksRun string `validate:"omitempty,oneof=agents/tasks/run" variantTitle:"Agents/tasks/run"`
 }
 
 func (v CliCommandAgentsTasksRunPath) MarshalJSON() ([]byte, error) {

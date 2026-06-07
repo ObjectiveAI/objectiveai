@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandLogsFunctionsInventionsResponseClearPath struct {
-	LogsFunctionsInventionsResponseClear string `validate:"omitempty,oneof=logs/functions/inventions/response/clear"`
+	LogsFunctionsInventionsResponseClear string `validate:"omitempty,oneof=logs/functions/inventions/response/clear" variantTitle:"Logs/functions/inventions/response/clear"`
 }
 
 func (v CliCommandLogsFunctionsInventionsResponseClearPath) MarshalJSON() ([]byte, error) {

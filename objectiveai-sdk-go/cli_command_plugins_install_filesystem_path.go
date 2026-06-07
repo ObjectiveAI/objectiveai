@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandPluginsInstallFilesystemPath struct {
-	PluginsInstallFilesystem string `validate:"omitempty,oneof=plugins/install/filesystem"`
+	PluginsInstallFilesystem string `validate:"omitempty,oneof=plugins/install/filesystem" variantTitle:"Plugins/install/filesystem"`
 }
 
 func (v CliCommandPluginsInstallFilesystemPath) MarshalJSON() ([]byte, error) {

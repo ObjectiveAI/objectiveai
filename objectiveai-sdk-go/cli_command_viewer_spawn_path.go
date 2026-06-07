@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandViewerSpawnPath struct {
-	ViewerSpawn string `validate:"omitempty,oneof=viewer/spawn"`
+	ViewerSpawn string `validate:"omitempty,oneof=viewer/spawn" variantTitle:"Viewer/spawn"`
 }
 
 func (v CliCommandViewerSpawnPath) MarshalJSON() ([]byte, error) {

@@ -15,7 +15,7 @@ func (v CliCommandPluginsRunResponseItemNotification) MarshalJSON() ([]byte, err
 func (v *CliCommandPluginsRunResponseItemNotification) UnmarshalJSON(data []byte) error { return json.Unmarshal(data, (*JsonValue)(v)) }
 
 type CliCommandPluginsRunResponseItem struct {
-	MCP *CliCommandPluginsRunMcp 
+	MCP *CliCommandPluginsRunMcp `variantTitle:"Mcp"`
 	Error *CliError 
 	Notification *CliCommandPluginsRunResponseItemNotification 
 }

@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandConfigFunctionsInventionsRemoteGetResponseSchemaPath struct {
-	ConfigFunctionsInventionsRemoteGetResponseSchema string `validate:"omitempty,oneof=config/functions/inventions/remote/get/response_schema"`
+	ConfigFunctionsInventionsRemoteGetResponseSchema string `validate:"omitempty,oneof=config/functions/inventions/remote/get/response_schema" variantTitle:"Config/functions/inventions/remote/get/responseSchema"`
 }
 
 func (v CliCommandConfigFunctionsInventionsRemoteGetResponseSchemaPath) MarshalJSON() ([]byte, error) {

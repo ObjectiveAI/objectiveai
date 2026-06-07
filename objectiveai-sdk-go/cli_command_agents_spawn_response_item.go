@@ -13,7 +13,7 @@ func (CliCommandAgentsSpawnResponseItemID) SchemaVariantTitle() string { return 
 
 type CliCommandAgentsSpawnResponseItem struct {
 	Chunk *AgentCompletionsResponseStreamingAgentCompletionChunk 
-	ID *CliCommandAgentsSpawnResponseItemID 
+	ID *CliCommandAgentsSpawnResponseItemID `variantTitle:"Id"`
 }
 
 func (v CliCommandAgentsSpawnResponseItem) MarshalJSON() ([]byte, error) {

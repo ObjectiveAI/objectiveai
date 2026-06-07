@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandAgentsMessageQueueReadIdRequestSchemaPath struct {
-	AgentsMessageQueueReadIDRequestSchema string `validate:"omitempty,oneof=agents/message-queue/read/id/request_schema"`
+	AgentsMessageQueueReadIDRequestSchema string `validate:"omitempty,oneof=agents/message-queue/read/id/request_schema" variantTitle:"Agents/messageQueue/read/id/requestSchema"`
 }
 
 func (v CliCommandAgentsMessageQueueReadIdRequestSchemaPath) MarshalJSON() ([]byte, error) {

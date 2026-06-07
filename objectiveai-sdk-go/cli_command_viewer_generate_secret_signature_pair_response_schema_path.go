@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandViewerGenerateSecretSignaturePairResponseSchemaPath struct {
-	ViewerGenerateSecretSignaturePairResponseSchema string `validate:"omitempty,oneof=viewer/generate_secret_signature_pair/response_schema"`
+	ViewerGenerateSecretSignaturePairResponseSchema string `validate:"omitempty,oneof=viewer/generate_secret_signature_pair/response_schema" variantTitle:"Viewer/generateSecretSignaturePair/responseSchema"`
 }
 
 func (v CliCommandViewerGenerateSecretSignaturePairResponseSchemaPath) MarshalJSON() ([]byte, error) {

@@ -13,7 +13,7 @@ func (CliCommandFunctionsInventionsRecursiveCreateRemoteResponseItemID) SchemaVa
 
 type CliCommandFunctionsInventionsRecursiveCreateRemoteResponseItem struct {
 	Chunk *FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunk 
-	ID *CliCommandFunctionsInventionsRecursiveCreateRemoteResponseItemID 
+	ID *CliCommandFunctionsInventionsRecursiveCreateRemoteResponseItemID `variantTitle:"Id"`
 }
 
 func (v CliCommandFunctionsInventionsRecursiveCreateRemoteResponseItem) MarshalJSON() ([]byte, error) {

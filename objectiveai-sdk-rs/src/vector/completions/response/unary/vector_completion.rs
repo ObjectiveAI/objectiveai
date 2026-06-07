@@ -45,6 +45,17 @@ impl VectorCompletion {
         for completion in &mut self.completions {
             completion.inner.normalize_for_tests();
         }
+        for vote in &mut self.votes {
+            // Vote.agent is the full `agent_instance_hierarchy` =
+            // `<content-addressed-agent-id>-<per-process-suffix>...`.
+            // The suffix varies per api process / per run, so snapshot
+            // comparisons across processes (sdk-go/-py/-js against a
+            // shared api) flake on it. Strip everything past the first
+            // `-` so the deterministic prefix is what gets snapshotted.
+            if let Some(dash) = vote.agent.find('-') {
+                vote.agent.truncate(dash);
+            }
+        }
         self.votes.sort_by_key(|v| v.flat_swarm_index);
 
         // sort completions by JSON representation since ordering is non-determinstic

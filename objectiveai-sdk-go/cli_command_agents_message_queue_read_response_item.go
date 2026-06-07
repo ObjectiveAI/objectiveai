@@ -36,7 +36,7 @@ func (v CliCommandAgentsMessageQueueReadResponseItemPendingResponseSchema) Marsh
 func (v *CliCommandAgentsMessageQueueReadResponseItemPendingResponseSchema) UnmarshalJSON(data []byte) error { return json.Unmarshal(data, (*JsonValue)(v)) }
 
 type CliCommandAgentsMessageQueueReadResponseItem struct {
-	ID *AgentCompletionsMessageRichContentPart 
+	ID *AgentCompletionsMessageRichContentPart `variantTitle:"Id"`
 	IdRequestSchema *CliCommandAgentsMessageQueueReadResponseItemIdRequestSchema 
 	IdResponseSchema *CliCommandAgentsMessageQueueReadResponseItemIdResponseSchema 
 	Pending *CliCommandAgentsMessageQueueReadPendingResponseItem 

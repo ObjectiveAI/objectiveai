@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandFunctionsGetPath struct {
-	FunctionsGet string `validate:"omitempty,oneof=functions/get"`
+	FunctionsGet string `validate:"omitempty,oneof=functions/get" variantTitle:"Functions/get"`
 }
 
 func (v CliCommandFunctionsGetPath) MarshalJSON() ([]byte, error) {

@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandAgentsListActiveResponseSchemaPath struct {
-	AgentsListActiveResponseSchema string `validate:"omitempty,oneof=agents/list/active/response_schema"`
+	AgentsListActiveResponseSchema string `validate:"omitempty,oneof=agents/list/active/response_schema" variantTitle:"Agents/list/active/responseSchema"`
 }
 
 func (v CliCommandAgentsListActiveResponseSchemaPath) MarshalJSON() ([]byte, error) {

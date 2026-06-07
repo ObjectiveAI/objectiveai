@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandPluginsInstallGithubRequestSchemaPath struct {
-	PluginsInstallGithubRequestSchema string `validate:"omitempty,oneof=plugins/install/github/request_schema"`
+	PluginsInstallGithubRequestSchema string `validate:"omitempty,oneof=plugins/install/github/request_schema" variantTitle:"Plugins/install/github/requestSchema"`
 }
 
 func (v CliCommandPluginsInstallGithubRequestSchemaPath) MarshalJSON() ([]byte, error) {

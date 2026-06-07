@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandFunctionsInventionsRecursiveCreateAlphaScalarPath struct {
-	FunctionsInventionsRecursiveCreateAlphaScalar string `validate:"omitempty,oneof=functions/inventions/recursive/create/alpha_scalar"`
+	FunctionsInventionsRecursiveCreateAlphaScalar string `validate:"omitempty,oneof=functions/inventions/recursive/create/alpha_scalar" variantTitle:"Functions/inventions/recursive/create/alphaScalar"`
 }
 
 func (v CliCommandFunctionsInventionsRecursiveCreateAlphaScalarPath) MarshalJSON() ([]byte, error) {

@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandConfigViewerPortGetResponseSchemaPath struct {
-	ConfigViewerPortGetResponseSchema string `validate:"omitempty,oneof=config/viewer/port/get/response_schema"`
+	ConfigViewerPortGetResponseSchema string `validate:"omitempty,oneof=config/viewer/port/get/response_schema" variantTitle:"Config/viewer/port/get/responseSchema"`
 }
 
 func (v CliCommandConfigViewerPortGetResponseSchemaPath) MarshalJSON() ([]byte, error) {

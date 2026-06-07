@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandLogsVectorCompletionsRequestGetPath struct {
-	LogsVectorCompletionsRequestGet string `validate:"omitempty,oneof=logs/vector/completions/request/get"`
+	LogsVectorCompletionsRequestGet string `validate:"omitempty,oneof=logs/vector/completions/request/get" variantTitle:"Logs/vector/completions/request/get"`
 }
 
 func (v CliCommandLogsVectorCompletionsRequestGetPath) MarshalJSON() ([]byte, error) {

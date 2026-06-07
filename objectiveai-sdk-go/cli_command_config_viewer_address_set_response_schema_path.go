@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandConfigViewerAddressSetResponseSchemaPath struct {
-	ConfigViewerAddressSetResponseSchema string `validate:"omitempty,oneof=config/viewer/address/set/response_schema"`
+	ConfigViewerAddressSetResponseSchema string `validate:"omitempty,oneof=config/viewer/address/set/response_schema" variantTitle:"Config/viewer/address/set/responseSchema"`
 }
 
 func (v CliCommandConfigViewerAddressSetResponseSchemaPath) MarshalJSON() ([]byte, error) {

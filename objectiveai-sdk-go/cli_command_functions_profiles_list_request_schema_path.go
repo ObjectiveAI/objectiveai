@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandFunctionsProfilesListRequestSchemaPath struct {
-	FunctionsProfilesListRequestSchema string `validate:"omitempty,oneof=functions/profiles/list/request_schema"`
+	FunctionsProfilesListRequestSchema string `validate:"omitempty,oneof=functions/profiles/list/request_schema" variantTitle:"Functions/profiles/list/requestSchema"`
 }
 
 func (v CliCommandFunctionsProfilesListRequestSchemaPath) MarshalJSON() ([]byte, error) {

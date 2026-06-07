@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandToolsListPath struct {
-	ToolsList string `validate:"omitempty,oneof=tools/list"`
+	ToolsList string `validate:"omitempty,oneof=tools/list" variantTitle:"Tools/list"`
 }
 
 func (v CliCommandToolsListPath) MarshalJSON() ([]byte, error) {

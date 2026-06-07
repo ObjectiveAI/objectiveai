@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandConfigViewerAddressSetPath struct {
-	ConfigViewerAddressSet string `validate:"omitempty,oneof=config/viewer/address/set"`
+	ConfigViewerAddressSet string `validate:"omitempty,oneof=config/viewer/address/set" variantTitle:"Config/viewer/address/set"`
 }
 
 func (v CliCommandConfigViewerAddressSetPath) MarshalJSON() ([]byte, error) {

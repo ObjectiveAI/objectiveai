@@ -13,7 +13,7 @@ func (CliCommandFunctionsInventionsRecursiveCreateAlphaScalarResponseItemID) Sch
 
 type CliCommandFunctionsInventionsRecursiveCreateAlphaScalarResponseItem struct {
 	Chunk *FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunk 
-	ID *CliCommandFunctionsInventionsRecursiveCreateAlphaScalarResponseItemID 
+	ID *CliCommandFunctionsInventionsRecursiveCreateAlphaScalarResponseItemID `variantTitle:"Id"`
 }
 
 func (v CliCommandFunctionsInventionsRecursiveCreateAlphaScalarResponseItem) MarshalJSON() ([]byte, error) {

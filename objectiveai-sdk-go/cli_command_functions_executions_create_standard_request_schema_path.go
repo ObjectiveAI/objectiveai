@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandFunctionsExecutionsCreateStandardRequestSchemaPath struct {
-	FunctionsExecutionsCreateStandardRequestSchema string `validate:"omitempty,oneof=functions/executions/create/standard/request_schema"`
+	FunctionsExecutionsCreateStandardRequestSchema string `validate:"omitempty,oneof=functions/executions/create/standard/request_schema" variantTitle:"Functions/executions/create/standard/requestSchema"`
 }
 
 func (v CliCommandFunctionsExecutionsCreateStandardRequestSchemaPath) MarshalJSON() ([]byte, error) {

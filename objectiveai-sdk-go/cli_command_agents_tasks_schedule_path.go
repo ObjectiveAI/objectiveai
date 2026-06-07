@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandAgentsTasksSchedulePath struct {
-	AgentsTasksSchedule string `validate:"omitempty,oneof=agents/tasks/schedule"`
+	AgentsTasksSchedule string `validate:"omitempty,oneof=agents/tasks/schedule" variantTitle:"Agents/tasks/schedule"`
 }
 
 func (v CliCommandAgentsTasksSchedulePath) MarshalJSON() ([]byte, error) {

@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandLogsFunctionsExecutionsResponseRetryTokensGetRequestSchemaPath struct {
-	LogsFunctionsExecutionsResponseRetryTokensGetRequestSchema string `validate:"omitempty,oneof=logs/functions/executions/response/retry_tokens/get/request_schema"`
+	LogsFunctionsExecutionsResponseRetryTokensGetRequestSchema string `validate:"omitempty,oneof=logs/functions/executions/response/retry_tokens/get/request_schema" variantTitle:"Logs/functions/executions/response/retryTokens/get/requestSchema"`
 }
 
 func (v CliCommandLogsFunctionsExecutionsResponseRetryTokensGetRequestSchemaPath) MarshalJSON() ([]byte, error) {

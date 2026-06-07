@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandAgentsTasksScheduleResponseSchemaPath struct {
-	AgentsTasksScheduleResponseSchema string `validate:"omitempty,oneof=agents/tasks/schedule/response_schema"`
+	AgentsTasksScheduleResponseSchema string `validate:"omitempty,oneof=agents/tasks/schedule/response_schema" variantTitle:"Agents/tasks/schedule/responseSchema"`
 }
 
 func (v CliCommandAgentsTasksScheduleResponseSchemaPath) MarshalJSON() ([]byte, error) {

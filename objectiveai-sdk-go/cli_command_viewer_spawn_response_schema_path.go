@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandViewerSpawnResponseSchemaPath struct {
-	ViewerSpawnResponseSchema string `validate:"omitempty,oneof=viewer/spawn/response_schema"`
+	ViewerSpawnResponseSchema string `validate:"omitempty,oneof=viewer/spawn/response_schema" variantTitle:"Viewer/spawn/responseSchema"`
 }
 
 func (v CliCommandViewerSpawnResponseSchemaPath) MarshalJSON() ([]byte, error) {

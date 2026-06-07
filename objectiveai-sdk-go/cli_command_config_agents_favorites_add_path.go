@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandConfigAgentsFavoritesAddPath struct {
-	ConfigAgentsFavoritesAdd string `validate:"omitempty,oneof=config/agents/favorites/add"`
+	ConfigAgentsFavoritesAdd string `validate:"omitempty,oneof=config/agents/favorites/add" variantTitle:"Config/agents/favorites/add"`
 }
 
 func (v CliCommandConfigAgentsFavoritesAddPath) MarshalJSON() ([]byte, error) {

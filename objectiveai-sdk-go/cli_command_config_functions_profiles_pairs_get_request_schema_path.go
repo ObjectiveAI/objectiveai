@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandConfigFunctionsProfilesPairsGetRequestSchemaPath struct {
-	ConfigFunctionsProfilesPairsGetRequestSchema string `validate:"omitempty,oneof=config/functions/profiles/pairs/get/request_schema"`
+	ConfigFunctionsProfilesPairsGetRequestSchema string `validate:"omitempty,oneof=config/functions/profiles/pairs/get/request_schema" variantTitle:"Config/functions/profiles/pairs/get/requestSchema"`
 }
 
 func (v CliCommandConfigFunctionsProfilesPairsGetRequestSchemaPath) MarshalJSON() ([]byte, error) {

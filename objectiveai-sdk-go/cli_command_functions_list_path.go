@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandFunctionsListPath struct {
-	FunctionsList string `validate:"omitempty,oneof=functions/list"`
+	FunctionsList string `validate:"omitempty,oneof=functions/list" variantTitle:"Functions/list"`
 }
 
 func (v CliCommandFunctionsListPath) MarshalJSON() ([]byte, error) {

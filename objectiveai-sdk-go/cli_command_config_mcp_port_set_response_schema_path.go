@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandConfigMcpPortSetResponseSchemaPath struct {
-	ConfigMCPPortSetResponseSchema string `validate:"omitempty,oneof=config/mcp/port/set/response_schema"`
+	ConfigMCPPortSetResponseSchema string `validate:"omitempty,oneof=config/mcp/port/set/response_schema" variantTitle:"Config/mcp/port/set/responseSchema"`
 }
 
 func (v CliCommandConfigMcpPortSetResponseSchemaPath) MarshalJSON() ([]byte, error) {

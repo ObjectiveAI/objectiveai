@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandFunctionsProfilesGetPath struct {
-	FunctionsProfilesGet string `validate:"omitempty,oneof=functions/profiles/get"`
+	FunctionsProfilesGet string `validate:"omitempty,oneof=functions/profiles/get" variantTitle:"Functions/profiles/get"`
 }
 
 func (v CliCommandFunctionsProfilesGetPath) MarshalJSON() ([]byte, error) {

@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandToolsRunResponseSchemaPath struct {
-	ToolsRunResponseSchema string `validate:"omitempty,oneof=tools/run/response_schema"`
+	ToolsRunResponseSchema string `validate:"omitempty,oneof=tools/run/response_schema" variantTitle:"Tools/run/responseSchema"`
 }
 
 func (v CliCommandToolsRunResponseSchemaPath) MarshalJSON() ([]byte, error) {

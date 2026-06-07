@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandViewerKillResponseSchemaPath struct {
-	ViewerKillResponseSchema string `validate:"omitempty,oneof=viewer/kill/response_schema"`
+	ViewerKillResponseSchema string `validate:"omitempty,oneof=viewer/kill/response_schema" variantTitle:"Viewer/kill/responseSchema"`
 }
 
 func (v CliCommandViewerKillResponseSchemaPath) MarshalJSON() ([]byte, error) {

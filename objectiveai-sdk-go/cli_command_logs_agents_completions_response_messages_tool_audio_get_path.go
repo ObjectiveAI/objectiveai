@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandLogsAgentsCompletionsResponseMessagesToolAudioGetPath struct {
-	LogsAgentsCompletionsResponseMessagesToolAudioGet string `validate:"omitempty,oneof=logs/agents/completions/response/messages/tool/audio/get"`
+	LogsAgentsCompletionsResponseMessagesToolAudioGet string `validate:"omitempty,oneof=logs/agents/completions/response/messages/tool/audio/get" variantTitle:"Logs/agents/completions/response/messages/tool/audio/get"`
 }
 
 func (v CliCommandLogsAgentsCompletionsResponseMessagesToolAudioGetPath) MarshalJSON() ([]byte, error) {

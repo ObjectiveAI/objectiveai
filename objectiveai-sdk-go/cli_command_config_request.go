@@ -10,7 +10,7 @@ import (
 type CliCommandConfigRequest struct {
 	Agents *CliCommandConfigAgentsRequest 
 	Functions *CliCommandConfigFunctionsRequest 
-	MCP *CliCommandConfigMcpRequest 
+	MCP *CliCommandConfigMcpRequest `variantTitle:"Mcp"`
 	Swarms *CliCommandConfigSwarmsRequest 
 	Viewer *CliCommandConfigViewerRequest 
 }

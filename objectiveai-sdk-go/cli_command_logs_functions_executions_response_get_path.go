@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandLogsFunctionsExecutionsResponseGetPath struct {
-	LogsFunctionsExecutionsResponseGet string `validate:"omitempty,oneof=logs/functions/executions/response/get"`
+	LogsFunctionsExecutionsResponseGet string `validate:"omitempty,oneof=logs/functions/executions/response/get" variantTitle:"Logs/functions/executions/response/get"`
 }
 
 func (v CliCommandLogsFunctionsExecutionsResponseGetPath) MarshalJSON() ([]byte, error) {

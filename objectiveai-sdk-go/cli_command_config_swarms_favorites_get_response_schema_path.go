@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandConfigSwarmsFavoritesGetResponseSchemaPath struct {
-	ConfigSwarmsFavoritesGetResponseSchema string `validate:"omitempty,oneof=config/swarms/favorites/get/response_schema"`
+	ConfigSwarmsFavoritesGetResponseSchema string `validate:"omitempty,oneof=config/swarms/favorites/get/response_schema" variantTitle:"Config/swarms/favorites/get/responseSchema"`
 }
 
 func (v CliCommandConfigSwarmsFavoritesGetResponseSchemaPath) MarshalJSON() ([]byte, error) {

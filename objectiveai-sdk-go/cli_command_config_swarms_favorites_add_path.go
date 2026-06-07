@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandConfigSwarmsFavoritesAddPath struct {
-	ConfigSwarmsFavoritesAdd string `validate:"omitempty,oneof=config/swarms/favorites/add"`
+	ConfigSwarmsFavoritesAdd string `validate:"omitempty,oneof=config/swarms/favorites/add" variantTitle:"Config/swarms/favorites/add"`
 }
 
 func (v CliCommandConfigSwarmsFavoritesAddPath) MarshalJSON() ([]byte, error) {

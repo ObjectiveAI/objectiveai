@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandLogsAgentsCompletionsResponseMessagesToolVideoGetResponseSchemaPath struct {
-	LogsAgentsCompletionsResponseMessagesToolVideoGetResponseSchema string `validate:"omitempty,oneof=logs/agents/completions/response/messages/tool/video/get/response_schema"`
+	LogsAgentsCompletionsResponseMessagesToolVideoGetResponseSchema string `validate:"omitempty,oneof=logs/agents/completions/response/messages/tool/video/get/response_schema" variantTitle:"Logs/agents/completions/response/messages/tool/video/get/responseSchema"`
 }
 
 func (v CliCommandLogsAgentsCompletionsResponseMessagesToolVideoGetResponseSchemaPath) MarshalJSON() ([]byte, error) {

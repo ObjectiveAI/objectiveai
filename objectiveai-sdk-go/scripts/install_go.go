@@ -884,6 +884,15 @@ func generateAnyOfStruct(typeName string, anyOf []any, selfTitle string, schema 
 		if t, _ := m["type"].(string); t == "object" {
 			variantTags = append(variantTags, `outerObject:"true"`)
 		}
+		// Preserve the variant title from the source schema. Go field
+		// names diverge from the title for acronyms ("Mcp" → "MCP" per
+		// Go conventions); the roundtrip harness needs the original
+		// title to emit a matching schema. Inline / primitive variants
+		// already expose this via SchemaVariantTitle(), but $ref
+		// variants don't — the field tag covers them.
+		if variantTitle != "" && variantTitle != fieldName {
+			variantTags = append(variantTags, fmt.Sprintf(`variantTitle:%q`, variantTitle))
+		}
 		var tagStr string
 		if len(variantTags) > 0 {
 			tagStr = "`" + strings.Join(variantTags, " ") + "`"

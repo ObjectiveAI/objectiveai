@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandFunctionsInventionsStateGetRequestSchemaPath struct {
-	FunctionsInventionsStateGetRequestSchema string `validate:"omitempty,oneof=functions/inventions/state/get/request_schema"`
+	FunctionsInventionsStateGetRequestSchema string `validate:"omitempty,oneof=functions/inventions/state/get/request_schema" variantTitle:"Functions/inventions/state/get/requestSchema"`
 }
 
 func (v CliCommandFunctionsInventionsStateGetRequestSchemaPath) MarshalJSON() ([]byte, error) {

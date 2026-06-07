@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandConfigMcpGetPath struct {
-	ConfigMCPGet string `validate:"omitempty,oneof=config/mcp/get"`
+	ConfigMCPGet string `validate:"omitempty,oneof=config/mcp/get" variantTitle:"Config/mcp/get"`
 }
 
 func (v CliCommandConfigMcpGetPath) MarshalJSON() ([]byte, error) {

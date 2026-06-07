@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandLogsAgentsCompletionsResponseContinuationsSubscribePath struct {
-	LogsAgentsCompletionsResponseContinuationsSubscribe string `validate:"omitempty,oneof=logs/agents/completions/response/continuations/subscribe"`
+	LogsAgentsCompletionsResponseContinuationsSubscribe string `validate:"omitempty,oneof=logs/agents/completions/response/continuations/subscribe" variantTitle:"Logs/agents/completions/response/continuations/subscribe"`
 }
 
 func (v CliCommandLogsAgentsCompletionsResponseContinuationsSubscribePath) MarshalJSON() ([]byte, error) {

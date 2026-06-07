@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandPluginsInstallFilesystemResponseSchemaPath struct {
-	PluginsInstallFilesystemResponseSchema string `validate:"omitempty,oneof=plugins/install/filesystem/response_schema"`
+	PluginsInstallFilesystemResponseSchema string `validate:"omitempty,oneof=plugins/install/filesystem/response_schema" variantTitle:"Plugins/install/filesystem/responseSchema"`
 }
 
 func (v CliCommandPluginsInstallFilesystemResponseSchemaPath) MarshalJSON() ([]byte, error) {

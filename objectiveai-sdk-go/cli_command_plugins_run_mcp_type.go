@@ -9,7 +9,7 @@ import (
 // Single-variant discriminator for [`Mcp`]'s `type` field. Always
 // `"mcp"` on the wire.
 type CliCommandPluginsRunMcpType struct {
-	MCP string `validate:"omitempty,oneof=mcp"`
+	MCP string `validate:"omitempty,oneof=mcp" variantTitle:"Mcp"`
 }
 
 func (v CliCommandPluginsRunMcpType) MarshalJSON() ([]byte, error) {

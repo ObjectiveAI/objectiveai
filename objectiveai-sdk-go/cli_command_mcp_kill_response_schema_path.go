@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandMcpKillResponseSchemaPath struct {
-	MCPKillResponseSchema string `validate:"omitempty,oneof=mcp/kill/response_schema"`
+	MCPKillResponseSchema string `validate:"omitempty,oneof=mcp/kill/response_schema" variantTitle:"Mcp/kill/responseSchema"`
 }
 
 func (v CliCommandMcpKillResponseSchemaPath) MarshalJSON() ([]byte, error) {

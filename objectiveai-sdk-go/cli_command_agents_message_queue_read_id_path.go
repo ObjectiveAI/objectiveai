@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandAgentsMessageQueueReadIdPath struct {
-	AgentsMessageQueueReadID string `validate:"omitempty,oneof=agents/message-queue/read/id"`
+	AgentsMessageQueueReadID string `validate:"omitempty,oneof=agents/message-queue/read/id" variantTitle:"Agents/messageQueue/read/id"`
 }
 
 func (v CliCommandAgentsMessageQueueReadIdPath) MarshalJSON() ([]byte, error) {

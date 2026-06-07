@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandFunctionsPublishResponseSchemaPath struct {
-	FunctionsPublishResponseSchema string `validate:"omitempty,oneof=functions/publish/response_schema"`
+	FunctionsPublishResponseSchema string `validate:"omitempty,oneof=functions/publish/response_schema" variantTitle:"Functions/publish/responseSchema"`
 }
 
 func (v CliCommandFunctionsPublishResponseSchemaPath) MarshalJSON() ([]byte, error) {

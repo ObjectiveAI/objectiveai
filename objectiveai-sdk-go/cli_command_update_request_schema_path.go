@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandUpdateRequestSchemaPath struct {
-	UpdateRequestSchema string `validate:"omitempty,oneof=update/request_schema"`
+	UpdateRequestSchema string `validate:"omitempty,oneof=update/request_schema" variantTitle:"Update/requestSchema"`
 }
 
 func (v CliCommandUpdateRequestSchemaPath) MarshalJSON() ([]byte, error) {

@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandAgentsTagsAddPath struct {
-	AgentsTagsAdd string `validate:"omitempty,oneof=agents/tags/add"`
+	AgentsTagsAdd string `validate:"omitempty,oneof=agents/tags/add" variantTitle:"Agents/tags/add"`
 }
 
 func (v CliCommandAgentsTagsAddPath) MarshalJSON() ([]byte, error) {

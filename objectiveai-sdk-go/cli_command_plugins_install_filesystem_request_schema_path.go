@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandPluginsInstallFilesystemRequestSchemaPath struct {
-	PluginsInstallFilesystemRequestSchema string `validate:"omitempty,oneof=plugins/install/filesystem/request_schema"`
+	PluginsInstallFilesystemRequestSchema string `validate:"omitempty,oneof=plugins/install/filesystem/request_schema" variantTitle:"Plugins/install/filesystem/requestSchema"`
 }
 
 func (v CliCommandPluginsInstallFilesystemRequestSchemaPath) MarshalJSON() ([]byte, error) {

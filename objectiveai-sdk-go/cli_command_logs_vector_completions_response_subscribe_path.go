@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandLogsVectorCompletionsResponseSubscribePath struct {
-	LogsVectorCompletionsResponseSubscribe string `validate:"omitempty,oneof=logs/vector/completions/response/subscribe"`
+	LogsVectorCompletionsResponseSubscribe string `validate:"omitempty,oneof=logs/vector/completions/response/subscribe" variantTitle:"Logs/vector/completions/response/subscribe"`
 }
 
 func (v CliCommandLogsVectorCompletionsResponseSubscribePath) MarshalJSON() ([]byte, error) {

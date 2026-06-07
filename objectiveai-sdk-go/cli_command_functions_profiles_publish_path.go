@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandFunctionsProfilesPublishPath struct {
-	FunctionsProfilesPublish string `validate:"omitempty,oneof=functions/profiles/publish"`
+	FunctionsProfilesPublish string `validate:"omitempty,oneof=functions/profiles/publish" variantTitle:"Functions/profiles/publish"`
 }
 
 func (v CliCommandFunctionsProfilesPublishPath) MarshalJSON() ([]byte, error) {

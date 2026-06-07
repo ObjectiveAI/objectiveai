@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandFunctionsExecutionsCreateSwissSystemRequestSchemaPath struct {
-	FunctionsExecutionsCreateSwissSystemRequestSchema string `validate:"omitempty,oneof=functions/executions/create/swiss_system/request_schema"`
+	FunctionsExecutionsCreateSwissSystemRequestSchema string `validate:"omitempty,oneof=functions/executions/create/swiss_system/request_schema" variantTitle:"Functions/executions/create/swissSystem/requestSchema"`
 }
 
 func (v CliCommandFunctionsExecutionsCreateSwissSystemRequestSchemaPath) MarshalJSON() ([]byte, error) {

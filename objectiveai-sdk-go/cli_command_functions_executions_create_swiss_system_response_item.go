@@ -13,7 +13,7 @@ func (CliCommandFunctionsExecutionsCreateSwissSystemResponseItemID) SchemaVarian
 
 type CliCommandFunctionsExecutionsCreateSwissSystemResponseItem struct {
 	Chunk *FunctionsExecutionsResponseStreamingFunctionExecutionChunk 
-	ID *CliCommandFunctionsExecutionsCreateSwissSystemResponseItemID 
+	ID *CliCommandFunctionsExecutionsCreateSwissSystemResponseItemID `variantTitle:"Id"`
 }
 
 func (v CliCommandFunctionsExecutionsCreateSwissSystemResponseItem) MarshalJSON() ([]byte, error) {

@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandMcpSpawnPath struct {
-	MCPSpawn string `validate:"omitempty,oneof=mcp/spawn"`
+	MCPSpawn string `validate:"omitempty,oneof=mcp/spawn" variantTitle:"Mcp/spawn"`
 }
 
 func (v CliCommandMcpSpawnPath) MarshalJSON() ([]byte, error) {

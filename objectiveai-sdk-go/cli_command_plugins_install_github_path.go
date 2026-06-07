@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandPluginsInstallGithubPath struct {
-	PluginsInstallGithub string `validate:"omitempty,oneof=plugins/install/github"`
+	PluginsInstallGithub string `validate:"omitempty,oneof=plugins/install/github" variantTitle:"Plugins/install/github"`
 }
 
 func (v CliCommandPluginsInstallGithubPath) MarshalJSON() ([]byte, error) {

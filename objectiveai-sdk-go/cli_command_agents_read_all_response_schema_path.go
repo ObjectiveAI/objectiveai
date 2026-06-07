@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandAgentsReadAllResponseSchemaPath struct {
-	AgentsReadAllResponseSchema string `validate:"omitempty,oneof=agents/read/all/response_schema"`
+	AgentsReadAllResponseSchema string `validate:"omitempty,oneof=agents/read/all/response_schema" variantTitle:"Agents/read/all/responseSchema"`
 }
 
 func (v CliCommandAgentsReadAllResponseSchemaPath) MarshalJSON() ([]byte, error) {

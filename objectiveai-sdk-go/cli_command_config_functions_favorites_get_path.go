@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandConfigFunctionsFavoritesGetPath struct {
-	ConfigFunctionsFavoritesGet string `validate:"omitempty,oneof=config/functions/favorites/get"`
+	ConfigFunctionsFavoritesGet string `validate:"omitempty,oneof=config/functions/favorites/get" variantTitle:"Config/functions/favorites/get"`
 }
 
 func (v CliCommandConfigFunctionsFavoritesGetPath) MarshalJSON() ([]byte, error) {

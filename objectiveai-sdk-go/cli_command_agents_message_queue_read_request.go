@@ -8,7 +8,7 @@ import (
 )
 
 type CliCommandAgentsMessageQueueReadRequest struct {
-	ID *CliCommandAgentsMessageQueueReadIdRequest 
+	ID *CliCommandAgentsMessageQueueReadIdRequest `variantTitle:"Id"`
 	IdRequestSchema *CliCommandAgentsMessageQueueReadIdRequestSchemaRequest 
 	IdResponseSchema *CliCommandAgentsMessageQueueReadIdResponseSchemaRequest 
 	Pending *CliCommandAgentsMessageQueueReadPendingRequest 

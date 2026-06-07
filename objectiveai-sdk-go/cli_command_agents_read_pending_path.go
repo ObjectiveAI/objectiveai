@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandAgentsReadPendingPath struct {
-	AgentsReadPending string `validate:"omitempty,oneof=agents/read/pending"`
+	AgentsReadPending string `validate:"omitempty,oneof=agents/read/pending" variantTitle:"Agents/read/pending"`
 }
 
 func (v CliCommandAgentsReadPendingPath) MarshalJSON() ([]byte, error) {

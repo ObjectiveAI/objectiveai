@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandConfigViewerPortSetPath struct {
-	ConfigViewerPortSet string `validate:"omitempty,oneof=config/viewer/port/set"`
+	ConfigViewerPortSet string `validate:"omitempty,oneof=config/viewer/port/set" variantTitle:"Config/viewer/port/set"`
 }
 
 func (v CliCommandConfigViewerPortSetPath) MarshalJSON() ([]byte, error) {

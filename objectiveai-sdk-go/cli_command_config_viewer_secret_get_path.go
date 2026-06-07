@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandConfigViewerSecretGetPath struct {
-	ConfigViewerSecretGet string `validate:"omitempty,oneof=config/viewer/secret/get"`
+	ConfigViewerSecretGet string `validate:"omitempty,oneof=config/viewer/secret/get" variantTitle:"Config/viewer/secret/get"`
 }
 
 func (v CliCommandConfigViewerSecretGetPath) MarshalJSON() ([]byte, error) {

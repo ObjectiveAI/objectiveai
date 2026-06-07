@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandLogsAgentsCompletionsResponseMessagesAssistantReasoningGetPath struct {
-	LogsAgentsCompletionsResponseMessagesAssistantReasoningGet string `validate:"omitempty,oneof=logs/agents/completions/response/messages/assistant/reasoning/get"`
+	LogsAgentsCompletionsResponseMessagesAssistantReasoningGet string `validate:"omitempty,oneof=logs/agents/completions/response/messages/assistant/reasoning/get" variantTitle:"Logs/agents/completions/response/messages/assistant/reasoning/get"`
 }
 
 func (v CliCommandLogsAgentsCompletionsResponseMessagesAssistantReasoningGetPath) MarshalJSON() ([]byte, error) {

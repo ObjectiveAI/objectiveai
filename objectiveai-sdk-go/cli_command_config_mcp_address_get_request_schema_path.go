@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandConfigMcpAddressGetRequestSchemaPath struct {
-	ConfigMCPAddressGetRequestSchema string `validate:"omitempty,oneof=config/mcp/address/get/request_schema"`
+	ConfigMCPAddressGetRequestSchema string `validate:"omitempty,oneof=config/mcp/address/get/request_schema" variantTitle:"Config/mcp/address/get/requestSchema"`
 }
 
 func (v CliCommandConfigMcpAddressGetRequestSchemaPath) MarshalJSON() ([]byte, error) {

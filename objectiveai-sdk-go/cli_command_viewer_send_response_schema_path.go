@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandViewerSendResponseSchemaPath struct {
-	ViewerSendResponseSchema string `validate:"omitempty,oneof=viewer/send/response_schema"`
+	ViewerSendResponseSchema string `validate:"omitempty,oneof=viewer/send/response_schema" variantTitle:"Viewer/send/responseSchema"`
 }
 
 func (v CliCommandViewerSendResponseSchemaPath) MarshalJSON() ([]byte, error) {

@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandAgentsMePath struct {
-	AgentsMe string `validate:"omitempty,oneof=agents/me"`
+	AgentsMe string `validate:"omitempty,oneof=agents/me" variantTitle:"Agents/me"`
 }
 
 func (v CliCommandAgentsMePath) MarshalJSON() ([]byte, error) {

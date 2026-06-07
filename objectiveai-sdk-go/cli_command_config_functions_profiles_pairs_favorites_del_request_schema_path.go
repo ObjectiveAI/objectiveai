@@ -7,7 +7,7 @@ import (
 )
 
 type CliCommandConfigFunctionsProfilesPairsFavoritesDelRequestSchemaPath struct {
-	ConfigFunctionsProfilesPairsFavoritesDelRequestSchema string `validate:"omitempty,oneof=config/functions/profiles/pairs/favorites/del/request_schema"`
+	ConfigFunctionsProfilesPairsFavoritesDelRequestSchema string `validate:"omitempty,oneof=config/functions/profiles/pairs/favorites/del/request_schema" variantTitle:"Config/functions/profiles/pairs/favorites/del/requestSchema"`
 }
 
 func (v CliCommandConfigFunctionsProfilesPairsFavoritesDelRequestSchemaPath) MarshalJSON() ([]byte, error) {
