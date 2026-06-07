@@ -19,7 +19,6 @@ pub(crate) mod api;
 mod functions;
 pub mod handshake;
 pub(crate) mod mcp_server;
-mod pipes;
 pub mod request;
 mod streaming;
 

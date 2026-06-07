@@ -1,29 +1,22 @@
 //! Shared chunk-consumption loop every endpoint reuses.
 //!
 //! Drains the WS chunk stream, sends each chunk as an
-//! [`InstanceEmission::Chunk`] through `emissions_tx`, ensures a
-//! per-agent outbound pipe exists for every `agent_completion_id`
-//! the chunk references, writes each chunk to a [`LogWriter`] on a
-//! separate coalescing task (so log writes don't gate stream
-//! consumption), accumulates chunks into a final aggregate via the
-//! caller-supplied `push` closure, and emits a one-shot
-//! [`InstanceEmission::LogStreamReady`] with the root log id as soon
-//! as the first write completes. On stream end fires the outbound
-//! broadcast `StreamEnd` event.
-
-use std::path::PathBuf;
+//! [`InstanceEmission::Chunk`] through `emissions_tx`, writes each
+//! chunk to a [`LogWriter`] on a separate coalescing task (so log
+//! writes don't gate stream consumption), accumulates chunks into
+//! a final aggregate via the caller-supplied `push` closure, and
+//! emits a one-shot [`InstanceEmission::LogStreamReady`] with the
+//! root log id as soon as the first write completes.
 
 use futures::{Stream, StreamExt};
 use objectiveai_sdk::agent::completions::response::streaming::AgentCompletionIds;
-use objectiveai_sdk::cli::command::agents::instances::read::subscribe::RequestMessageKind;
 use serde::Serialize;
 use tokio::sync::mpsc;
 
-use crate::error::Error;
 use crate::db::pending::PendingNotification;
-use crate::filesystem::logs::{LogWriter, SubscribeEvent};
+use crate::error::Error;
+use crate::filesystem::logs::LogWriter;
 use crate::instance::InstanceEmission;
-use crate::instance::pipes::PipeRegistry;
 
 pub type EmissionsTx = mpsc::Sender<Result<InstanceEmission, Error>>;
 
@@ -35,20 +28,14 @@ pub struct Consumed<Chunk> {
 }
 
 /// Drain `stream`, send each chunk as one
-/// [`InstanceEmission::Chunk`] through `emissions_tx`, manage
-/// per-agent outbound pipes, coalesce-write to the log, emit
-/// [`InstanceEmission::LogStreamReady`] once, accumulate. On stream
-/// end (success or first error), broadcasts `StreamEnd` to every
-/// outbound subscriber and waits for the writer task to flush its
-/// final batch.
+/// [`InstanceEmission::Chunk`] through `emissions_tx`, coalesce-write
+/// to the log, emit [`InstanceEmission::LogStreamReady`] once,
+/// accumulate.
 pub async fn run_chunk_loop<S, Chunk, E, F>(
     mut stream: S,
-    pipes_root: PathBuf,
-    caller_agent_instance_hierarchy: Option<String>,
     log_writer: LogWriter<Chunk>,
     emissions_tx: EmissionsTx,
     push: F,
-    registry: PipeRegistry,
 ) -> Result<Consumed<Chunk>, String>
 where
     S: Stream<Item = Result<Chunk, E>> + Unpin,
@@ -72,16 +59,8 @@ where
         tokio::sync::oneshot::channel::<String>();
     let mut log_ready_id_rx = Some(log_ready_id_rx);
     let writer_push = push.clone();
-    let writer_registry = registry.clone();
     let writer_task = tokio::spawn(async move {
-        writer_loop(
-            rx,
-            log_writer,
-            writer_push,
-            writer_registry,
-            log_ready_id_tx,
-        )
-        .await
+        writer_loop(rx, log_writer, writer_push, log_ready_id_tx).await
     });
 
     // Local buffer for chunks held back until the writer signals it
@@ -135,19 +114,7 @@ where
                             buffered.push(chunk.clone());
                         }
 
-                        // 3. Ensure an outbound subscribe pipe is bound
-                        //    for every agent id this chunk references.
-                        for raw in chunk.agent_completion_ids() {
-                            let lineage_id = match &caller_agent_instance_hierarchy {
-                                Some(c) => format!("{c}/{raw}"),
-                                None => raw.to_string(),
-                            };
-                            registry
-                                .ensure_outbound_pipe(&lineage_id, &pipes_root)
-                                .await;
-                        }
-
-                        // 4. Accumulate main-side.
+                        // 3. Accumulate main-side.
                         match aggregate.as_mut() {
                             Some(acc) => push(acc, &chunk),
                             None => aggregate = Some(chunk),
@@ -193,10 +160,8 @@ where
         .await
         .map_err(|e| format!("log writer task panicked: {e}"))?;
     if let Err(e) = writer_outcome {
-        registry.shutdown_outbound();
         return Err(format!("log writer failed: {e}"));
     }
-    registry.shutdown_outbound();
 
     if let Some(e) = stream_err {
         return Err(e);
@@ -211,7 +176,6 @@ async fn writer_loop<Chunk, F>(
     mut rx: mpsc::UnboundedReceiver<Chunk>,
     mut log_writer: LogWriter<Chunk>,
     push: F,
-    registry: PipeRegistry,
     log_ready_id_tx: tokio::sync::oneshot::Sender<String>,
 ) -> Result<(), crate::error::Error>
 where
@@ -241,8 +205,7 @@ where
             }
         }
         if let Some(a) = &agg {
-            let inserted = log_writer.write(a, &mut pending).await?;
-            broadcast_rows(&registry, &inserted);
+            let _inserted = log_writer.write(a, &mut pending).await?;
         }
         if let Some(tx) = log_ready_id_tx.take() {
             if let Some(id) = log_writer.primary_id() {
@@ -253,8 +216,7 @@ where
         }
     }
 
-    let inserted = log_writer.finalize(&mut pending).await?;
-    broadcast_rows(&registry, &inserted);
+    let _inserted = log_writer.finalize(&mut pending).await?;
 
     // Last-chance fire — the chunk that was sitting in
     // `log_writer`'s one-behind buffer just got flushed by
@@ -268,18 +230,7 @@ where
         }
     }
 
-    registry.broadcast_stream_end();
     Ok(())
-}
-
-fn broadcast_rows(registry: &PipeRegistry, inserted: &[(String, RequestMessageKind)]) {
-    for (agent_instance_hierarchy, kind) in inserted {
-        if let Some(tx) = registry.outbound_sender(agent_instance_hierarchy) {
-            let _ = tx.send(SubscribeEvent::Row {
-                message_kind: *kind,
-            });
-        }
-    }
 }
 
 async fn send_log_stream_ready(emissions_tx: &EmissionsTx, id: &str) {

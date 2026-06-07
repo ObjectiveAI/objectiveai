@@ -25,14 +25,12 @@ pub async fn execute(
     mcp_server: crate::instance::mcp_server::McpServerHandle,
     params: AgentCompletionCreateParams,
 ) -> Result<EmissionStream, Error> {
-    let pipes_root = pipes.pipes_root();
     let client = http.build_http_client().map_err(Error::Instance)?;
     let fs_client = ctx.filesystem.clone();
     let db = ctx.db.clone();
     let conduit = pipes.build_conduit(ctx, mcp_server);
 
     let (tx, rx) = mpsc::channel::<Result<InstanceEmission, Error>>(16);
-    let registry = crate::instance::pipes::PipeRegistry::new(tx.clone());
 
     let caller_agent_instance_hierarchy = Some(http.objectiveai_agent_instance_hierarchy.clone());
     let log_writer = fs_client
@@ -40,7 +38,7 @@ pub async fn execute(
         .map_err(|e| Error::Instance(format!(
             "failed to build agent-completion log writer: {e}"
         )))?
-        .with_caller_agent_instance_hierarchy(caller_agent_instance_hierarchy.clone());
+        .with_caller_agent_instance_hierarchy(caller_agent_instance_hierarchy);
 
     let (stream, notifier) =
         objectiveai_sdk::agent::completions::create_agent_completion_streaming(
@@ -59,12 +57,9 @@ pub async fn execute(
     tokio::spawn(async move {
         let result = streaming::run_chunk_loop::<_, AgentCompletionChunk, _, _>(
             stream,
-            pipes_root,
-            caller_agent_instance_hierarchy,
             log_writer,
             tx.clone(),
             |agg: &mut AgentCompletionChunk, chunk: &AgentCompletionChunk| agg.push(chunk),
-            registry,
         )
         .await;
 

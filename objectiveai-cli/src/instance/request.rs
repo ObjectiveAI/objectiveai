@@ -82,10 +82,6 @@ impl PipeConfig {
         &self.config_base_dir
     }
 
-    pub fn pipes_root(&self) -> PathBuf {
-        self.config_base_dir.join("pipes")
-    }
-
     pub fn build_conduit(
         &self,
         ctx: crate::context::Context,
