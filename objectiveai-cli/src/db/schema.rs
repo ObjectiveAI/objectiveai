@@ -1,8 +1,12 @@
-//! Per-message-row primitives + the `messages` / `files` tables'
-//! `&Pool`-accepting API. Bodies are stubbed; real SQL lands in
-//! stage 5.
+//! `messages` / `files` table primitives. Postgres-backed via sqlx.
+//!
+//! Pure helpers (`message_kind_as_str`, `parse_message_kind`,
+//! `message_kind_file_path`, `MessageRow`) carry over verbatim from
+//! the sqlite predecessor; the rest take `&Pool` and run native-async
+//! against the embedded postmaster.
 
 use objectiveai_sdk::cli::command::agents::instances::read::subscribe::RequestMessageKind;
+use sqlx::Row as _;
 
 use super::{Error, Pool};
 
@@ -120,65 +124,160 @@ pub struct MessageRow {
 }
 
 /// Look up (or insert) the SQL row id for `path` in the `files` table.
-pub async fn file_id_for_path(_pool: &Pool, _path: &str) -> Result<i64, Error> {
-    unimplemented!("db::schema::file_id_for_path — stage 5")
+/// Idempotent: same path → same id forever, even across processes and
+/// concurrent callers, because of the `UNIQUE(path)` constraint.
+///
+/// Uses `INSERT … ON CONFLICT(path) DO UPDATE SET path=EXCLUDED.path
+/// RETURNING id`. The no-op `UPDATE` makes `RETURNING` fire on the
+/// existing row when there's a conflict, so the call always returns
+/// the right id in one round-trip.
+pub async fn file_id_for_path(pool: &Pool, path: &str) -> Result<i64, Error> {
+    let row = sqlx::query(
+        "INSERT INTO files (path) VALUES ($1) \
+         ON CONFLICT (path) DO UPDATE SET path = EXCLUDED.path \
+         RETURNING id",
+    )
+    .bind(path)
+    .fetch_one(&**pool)
+    .await?;
+    Ok(row.try_get::<i64, _>(0)?)
 }
 
-/// Resolve a SQL row id back to its path.
-pub async fn path_for_file_id(_pool: &Pool, _id: i64) -> Result<Option<String>, Error> {
-    unimplemented!("db::schema::path_for_file_id — stage 5")
+/// Resolve a SQL row id back to its path. `None` when no row matches.
+pub async fn path_for_file_id(pool: &Pool, id: i64) -> Result<Option<String>, Error> {
+    let row = sqlx::query("SELECT path FROM files WHERE id = $1")
+        .bind(id)
+        .fetch_optional(&**pool)
+        .await?;
+    Ok(row.map(|r| r.try_get::<String, _>(0)).transpose()?)
 }
 
 /// List every direct-child agent of `parent_agent_instance_hierarchy`
-/// along with the unix-seconds timestamp of its most recent
-/// `AssistantResponse` row. Newest-first.
+/// (one lineage segment deeper, no grandchildren) along with the unix-
+/// seconds timestamp of its most recent
+/// [`RequestMessageKind::AssistantResponse`] row. Newest-first.
+///
+/// Composite agent ids are slash-separated lineage strings; "direct
+/// child" means: `LIKE 'parent/%'` AND no further `/` after the prefix
+/// (`position('/' in substring(hierarchy from parent_len+2)) = 0`).
 pub async fn list_direct_active_children(
-    _pool: &Pool,
-    _parent_agent_instance_hierarchy: &str,
+    pool: &Pool,
+    parent_agent_instance_hierarchy: &str,
 ) -> Result<Vec<(String, u64)>, Error> {
-    unimplemented!("db::schema::list_direct_active_children — stage 5")
+    // postgres's `position('/' in <substr>)` returns 1-based position
+    // or 0 when not found — the `= 0` test is the "no further slash"
+    // gate. `substring(s from n)` is the postgres equivalent of
+    // sqlite's `substr(s, n)`. The `+ 2` accounts for the extra
+    // boundary slash after `parent` (1-based indexing).
+    let prefix_len = parent_agent_instance_hierarchy.len() as i32;
+    let pattern = format!("{parent_agent_instance_hierarchy}/%");
+    let rows = sqlx::query(
+        "SELECT agent_instance_hierarchy, MAX(timestamp) AS last_log \
+         FROM messages \
+         WHERE agent_instance_hierarchy LIKE $1 \
+           AND position('/' in substring(agent_instance_hierarchy from cast($2 as int) + 2)) = 0 \
+           AND kind = $3 \
+         GROUP BY agent_instance_hierarchy \
+         ORDER BY last_log DESC",
+    )
+    .bind(&pattern)
+    .bind(prefix_len)
+    .bind(message_kind_as_str(RequestMessageKind::AssistantResponse))
+    .fetch_all(&**pool)
+    .await?;
+    let mut out = Vec::with_capacity(rows.len());
+    for row in rows {
+        let hierarchy: String = row.try_get(0)?;
+        let last_log: i64 = row.try_get(1)?;
+        out.push((hierarchy, last_log.max(0) as u64));
+    }
+    Ok(out)
 }
 
 /// `SELECT MAX("index") FROM messages WHERE agent_instance_hierarchy = ?`.
+/// `None` when no row matches.
 pub async fn max_index(
-    _pool: &Pool,
-    _agent_instance_hierarchy: &str,
+    pool: &Pool,
+    agent_instance_hierarchy: &str,
 ) -> Result<Option<u64>, Error> {
-    unimplemented!("db::schema::max_index — stage 5")
+    let row = sqlx::query(
+        "SELECT MAX(\"index\") FROM messages WHERE agent_instance_hierarchy = $1",
+    )
+    .bind(agent_instance_hierarchy)
+    .fetch_one(&**pool)
+    .await?;
+    let v: Option<i64> = row.try_get(0)?;
+    Ok(v.map(|x| x.max(0) as u64))
 }
 
-/// Whether the cli has ever logged an `agent_completion_request` row
-/// against `agent_instance_hierarchy`.
+/// Whether `agent_instance_hierarchy` has any
+/// `agent_completion_request` row logged in the messages table.
 pub async fn agent_exists(
-    _pool: &Pool,
-    _agent_instance_hierarchy: &str,
+    pool: &Pool,
+    agent_instance_hierarchy: &str,
 ) -> Result<bool, Error> {
-    unimplemented!("db::schema::agent_exists — stage 5")
+    let row = sqlx::query(
+        "SELECT EXISTS(SELECT 1 FROM messages \
+         WHERE agent_instance_hierarchy = $1 AND kind = $2)",
+    )
+    .bind(agent_instance_hierarchy)
+    .bind(message_kind_as_str(RequestMessageKind::AgentCompletionRequest))
+    .fetch_one(&**pool)
+    .await?;
+    Ok(row.try_get::<bool, _>(0)?)
 }
 
-/// Insert a single message row.
+/// Insert a single row into `messages`.
+///
+/// `agent_instance_hierarchy` is the lineage-stamped composite (`{caller}/{response_id}`
+/// or just `{response_id}` for the unstamped root case). `response_id`
+/// is the *bare* chunk id, passed in explicitly — we never recover it
+/// by parsing `agent_instance_hierarchy`.
 pub async fn insert(
-    _pool: &Pool,
-    _agent_instance_hierarchy: &str,
-    _response_id: &str,
-    _kind: RequestMessageKind,
-    _path: &str,
-    _timestamp: u64,
-    _index: u64,
+    pool: &Pool,
+    agent_instance_hierarchy: &str,
+    response_id: &str,
+    kind: RequestMessageKind,
+    path: &str,
+    timestamp: u64,
+    index: u64,
 ) -> Result<(), Error> {
-    unimplemented!("db::schema::insert — stage 5")
+    sqlx::query(
+        "INSERT INTO messages (agent_instance_hierarchy, response_id, kind, path, timestamp, \"index\") \
+         VALUES ($1, $2, $3, $4, $5, $6)",
+    )
+    .bind(agent_instance_hierarchy)
+    .bind(response_id)
+    .bind(message_kind_as_str(kind))
+    .bind(path)
+    .bind(timestamp as i64)
+    .bind(index as i64)
+    .execute(&**pool)
+    .await?;
+    Ok(())
 }
 
 /// Every `AgentCompletionRequest` row's `path` column for
-/// `agent_instance_hierarchy`, ordered by `"index"` descending —
-/// newest first. The path column carries the full on-disk path
-/// (`agents/completions/request/<id>.json`); strip the prefix +
-/// `.json` to recover the bare response id.
+/// `agent_instance_hierarchy`, ordered by `"index"` descending — newest
+/// first. The `path` column carries the full on-disk path
+/// (`agents/completions/request/<id>.json`); the caller is responsible
+/// for stripping the prefix + `.json` to recover the bare response id.
 pub async fn agent_completion_request_paths_newest_first(
-    _pool: &Pool,
-    _agent_instance_hierarchy: &str,
+    pool: &Pool,
+    agent_instance_hierarchy: &str,
 ) -> Result<Vec<String>, Error> {
-    unimplemented!(
-        "db::schema::agent_completion_request_paths_newest_first — stage 5"
+    let rows = sqlx::query(
+        "SELECT path FROM messages \
+         WHERE agent_instance_hierarchy = $1 AND kind = $2 \
+         ORDER BY \"index\" DESC",
     )
+    .bind(agent_instance_hierarchy)
+    .bind(message_kind_as_str(RequestMessageKind::AgentCompletionRequest))
+    .fetch_all(&**pool)
+    .await?;
+    let mut out = Vec::with_capacity(rows.len());
+    for row in rows {
+        out.push(row.try_get::<String, _>(0)?);
+    }
+    Ok(out)
 }
