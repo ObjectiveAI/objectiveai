@@ -230,6 +230,13 @@ pub async fn handle_delete(
     // (`Authorization`, custom `X-*`, etc.) from the payload — those
     // are the credentials that opened the upstream session in the
     // first place, so they're the credentials we need to tear it down.
+    //
+    // An empty payload means the session was minted with no upstreams
+    // (test rig with `vec![]`) and is already gone — return 404 so the
+    // caller doesn't get a misleading 200 from `join_all([])`.
+    if payload.connections.is_empty() {
+        return (StatusCode::NOT_FOUND, "unknown session").into_response();
+    }
     let attempts: Vec<_> = payload
         .connections
         .into_iter()
