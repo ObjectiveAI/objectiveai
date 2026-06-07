@@ -283,6 +283,14 @@ pub async fn run(
         None => Context::new(load_config()).await?,
     };
 
+    // Ensure the embedded postgres postmaster is alive at
+    // `<base_dir>/db/.s.PGSQL.1` before any command dispatches.
+    // Fast-paths (instance subprocess re-entry, second CLI process)
+    // hit the live socket and return immediately; the first one
+    // wins the single-flight lock and spawns + detaches the
+    // postmaster.
+    crate::postgres::bootstrap(ctx.filesystem.base_dir()).await?;
+
     if args.get(1).map(String::as_str) == Some("instance") {
         let inst = crate::instance::run(ctx).await?;
         return Ok(Box::pin(inst.map(|r| r.map(RunItem::Instance))));

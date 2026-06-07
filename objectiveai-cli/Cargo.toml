@@ -48,6 +48,7 @@ rustpython = { version = "0.4.0", optional = true }
 serde_path_to_error = "0.1.20"
 regex = "1.12.3"
 uuid = { version = "1.22", features = ["v4"] }
+postgresql_embedded = "0.20"
 base62 = "2.2.4"
 base64 = "0.22.1"
 futures = "0.3.32"

@@ -134,6 +134,8 @@ pub enum Error {
     },
     #[error("tag {0:?} is not registered")]
     TagNotFound(String),
+    #[error("embedded postgres bootstrap failed: {0}")]
+    PostgresBootstrap(String),
 }
 
 impl Error {
