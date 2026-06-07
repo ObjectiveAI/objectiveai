@@ -3,11 +3,17 @@
 import { z } from "zod";
 import { type CliCommandAgentsTasksRunRequest } from "../../../../cli/command/agents/tasks/run/request";
 import { type CliCommandAgentsTasksRunRequestSchemaRequest } from "../../../../cli/command/agents/tasks/run/request_schema/request";
+import { CliCommandAgentsTasksRunResponseItemSchema, type CliCommandAgentsTasksRunResponseItem } from "../../../../cli/command/agents/tasks/run/responseItem";
 import { type CliCommandAgentsTasksRunResponseSchemaRequest } from "../../../../cli/command/agents/tasks/run/response_schema/request";
 import { CliErrorSchema, type CliError } from "../../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../../jsonValue";
 import { CliStream } from "../../../cliStream";
 import { invokeCliRequest } from "../../../invoke";
+
+/** `agents tasks run execute` — streaming; mirror of the Rust fn of the same path. */
+export function agentsTasksRunExecute(request: Omit<CliCommandAgentsTasksRunRequest, "path_type">): CliStream<CliError | CliCommandAgentsTasksRunResponseItem> {
+  return new CliStream(invokeCliRequest({ ...request, jq: undefined, path_type: "agents/tasks/run" }), z.union([CliErrorSchema, CliCommandAgentsTasksRunResponseItemSchema]));
+}
 
 /** `agents tasks run execute_jq` — streaming; mirror of the Rust fn of the same path. */
 export function agentsTasksRunExecuteJq(request: Omit<CliCommandAgentsTasksRunRequest, "path_type">, jq: string): CliStream<CliError | JsonValue> {

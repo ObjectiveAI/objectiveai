@@ -516,11 +516,14 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::agents::tasks::run::Path),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::tasks::run::Request),
+        // `agents tasks run` is the only leaf whose `execute` returns
+        // a typed (non-jq) stream item — every other leaf with a
+        // recursive root reference is `_jq`-only. We register its
+        // ResponseItem (and its `value` field is schemared as
+        // `serde_json::Value` so the recursion stops at JsonValue
+        // instead of inlining the full root union).
         #[cfg(feature = "cli")]
-        // agents::tasks::run::ResponseItem is json_schema_ignore; it
-        // refs cli::command::ResponseItem (the unregistered root
-        // aggregate). Not registered.
-        // schemars::schema_for!(crate::cli::command::agents::tasks::run::ResponseItem),
+        schemars::schema_for!(crate::cli::command::agents::tasks::run::ResponseItem),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::tasks::run::request_schema::Path),
         #[cfg(feature = "cli")]

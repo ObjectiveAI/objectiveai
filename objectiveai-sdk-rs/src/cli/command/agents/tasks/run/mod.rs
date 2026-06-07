@@ -80,14 +80,17 @@ impl CommandRequest for Request {
 /// *this* variant (`agents → tasks → run`), and boxing is what
 /// makes the recursion sized.
 ///
-/// Exempt from json-schema coverage because the boxed root union
-/// is the same TS7056 blowup the root and tier aggregates already
-/// dodge — see the marker on `cli.command.ResponseItem` itself.
-#[objectiveai_sdk_macros::json_schema_ignore]
+/// The `value` field's JSON schema is opaqued to `serde_json::Value`
+/// (renders as bare `{}` aka JsonValue) so the published schema
+/// doesn't inline the entire root union — that's the TS7056 blowup
+/// the root and tier aggregates dodge by being `json_schema_ignore`.
+/// Downstream SDKs see `value: JsonValue` on the typed `execute`
+/// path; consumers that want to peer inside parse it case-by-case.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.tasks.run.ResponseItem")]
 pub struct ResponseItem {
     pub id: String,
+    #[schemars(with = "serde_json::Value")]
     pub value: Box<crate::cli::command::ResponseItem>,
 }
 
