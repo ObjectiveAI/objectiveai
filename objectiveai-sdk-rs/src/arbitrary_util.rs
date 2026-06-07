@@ -47,17 +47,12 @@ fn arbitrary_vec<T>(
     Ok(v)
 }
 
-/// Generates an arbitrary `rust_decimal::Decimal` from an f32, bounded
-/// to a magnitude small enough that repeated additive aggregation
-/// (the SDK's `Usage::push` and `cost += other.cost` chains) won't
-/// overflow during chunk-push fuzz tests. `Decimal::MAX` is ~7.92e28;
-/// 20 iterations × 1e3 leaves plenty of headroom.
+/// Generates an arbitrary `rust_decimal::Decimal` from an f32.
 pub fn arbitrary_rust_decimal(
     u: &mut arbitrary::Unstructured,
 ) -> arbitrary::Result<rust_decimal::Decimal> {
     let f: f32 = u.arbitrary()?;
-    let bounded = (f % 1000.0).abs();
-    Ok(rust_decimal::Decimal::try_from(bounded).unwrap_or_default())
+    Ok(rust_decimal::Decimal::try_from(f).unwrap_or_default())
 }
 
 /// Generates an arbitrary `Option<rust_decimal::Decimal>`.
