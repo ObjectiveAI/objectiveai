@@ -2232,7 +2232,8 @@ var VectorCompletionsRequestVectorCompletionCreateParamsSchema = zod.z.object({
 }).describe("Parameters for creating a vector completion.\n\nVector completions run multiple agent completions (one per LLM in the\nswarm), force each to vote for one of the predefined responses, and\ncombine votes using the provided profile weights to produce final scores.").meta({ title: "vector.completions.request.VectorCompletionCreateParams" });
 var VectorCompletionsResponseStreamingObjectSchema = zod.z.literal("vector.completion.chunk").describe("A streaming vector completion chunk.").meta({ title: "vector.completions.response.streaming.Object" });
 var VectorCompletionsResponseVoteSchema = zod.z.object({
-  agent: zod.z.string().describe("The agent that produced this vote (content-addressed ID)."),
+  agent_full_id: zod.z.string().describe("WF-level id of the agent that produced this vote \u2014 concatenation\nof the primary agent's id with all fallback ids (see\n`InlineAgentWithFallbacks::full_id`). Same for every slot in the\nsame WF request and deterministic across api processes."),
+  agent_id: zod.z.string().describe("Leaf agent id of the slot that produced this vote (matches the\n`agent_id` on the corresponding\n[`super::super::super::super::agent::completions::response::unary::AgentCompletion`]).\nWhen fallbacks fired, this is the fallback's id rather than the\nprimary's."),
   flat_swarm_index: zod.z.number().int().min(0).max(18446744073709552e3).describe("Flattened index accounting for agent counts in the swarm."),
   from_cache: zod.z.boolean().nullable().describe("If true, this vote was retrieved from cache rather than generated fresh.").meta({ omitempty: true }).optional(),
   prompt_id: zod.z.string().describe("Content hash of the request messages (for caching/deduplication)."),
@@ -2653,6 +2654,15 @@ async function agentsTasksListResponseSchemaExecuteJq(request, jq) {
     throw new Error("agents tasks list response_schema: cli produced no output before the end marker");
   }
   return first;
+}
+var CliCommandAgentsTasksRunResponseItemSchema = zod.z.object({
+  id: zod.z.string(),
+  value: JsonValueSchema
+}).describe("One output item from one fired schedule's in-process stream.\n`id` is the source schedule's stable identifier, formatted\n`\"{name}-{db_id}\"` so it's both human-readable (the user-\nsupplied `--name` from `schedule`) and globally unique (the\nrow id from `schedules`). `value` is the typed root\n[`crate::cli::command::ResponseItem`] emitted by the scheduled\ncli leaf \u2014 boxed because the root union transitively contains\n*this* variant (`agents \u2192 tasks \u2192 run`), and boxing is what\nmakes the recursion sized.\n\nThe `value` field's JSON schema is opaqued to `serde_json::Value`\n(renders as bare `{}` aka JsonValue) so the published schema\ndoesn't inline the entire root union \u2014 that's the TS7056 blowup\nthe root and tier aggregates dodge by being `json_schema_ignore`.\nDownstream SDKs see `value: JsonValue` on the typed `execute`\npath; consumers that want to peer inside parse it case-by-case.").meta({ title: "cli.command.agents.tasks.run.ResponseItem" });
+
+// src/viewer/command/agents/tasks/run.ts
+function agentsTasksRunExecute(request) {
+  return new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/tasks/run" }), zod.z.union([CliErrorSchema, CliCommandAgentsTasksRunResponseItemSchema]));
 }
 function agentsTasksRunExecuteJq(request, jq) {
   return new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/tasks/run" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
@@ -10944,6 +10954,7 @@ exports.agentsTasksListRequestSchemaExecute = agentsTasksListRequestSchemaExecut
 exports.agentsTasksListRequestSchemaExecuteJq = agentsTasksListRequestSchemaExecuteJq;
 exports.agentsTasksListResponseSchemaExecute = agentsTasksListResponseSchemaExecute;
 exports.agentsTasksListResponseSchemaExecuteJq = agentsTasksListResponseSchemaExecuteJq;
+exports.agentsTasksRunExecute = agentsTasksRunExecute;
 exports.agentsTasksRunExecuteJq = agentsTasksRunExecuteJq;
 exports.agentsTasksRunRequestSchemaExecute = agentsTasksRunRequestSchemaExecute;
 exports.agentsTasksRunRequestSchemaExecuteJq = agentsTasksRunRequestSchemaExecuteJq;
