@@ -4,22 +4,30 @@
 //!
 //! - `lookup` — look up by `agent_instance_hierarchy` (returns the
 //!   tag, if any) or by `tag` (returns the bound hierarchy, if any).
-//! - `add` — register a tag in PENDING state for an
-//!   `(agent_full_id, parent_agent_instance_hierarchy)` pair. The
-//!   next agent-completion that matches the pair auto-binds the tag
-//!   on its first chunk.
+//! - `apply` — bind a tag to a target. Three target shapes:
+//!   - `--me`: BOUND immediately to the cli's own
+//!     `Config.agent_instance_hierarchy`.
+//!   - `--agent-full-id <id>`: PENDING. The next matching
+//!     agent-completion auto-binds the tag on its first chunk.
+//!   - `--agent-instance <inst>`: BOUND immediately to
+//!     `{parent}/{instance}`.
+//!
+//!   `--agent-full-id` / `--agent-instance` accept an optional
+//!   `--parent-agent-instance-hierarchy` (defaults to ctx own).
+//!   `--me` forbids `--parent-agent-instance-hierarchy`.
 
 use crate::cli::command::CommandRequest;
 
-pub mod add;
+pub mod apply;
 pub mod lookup;
 
 #[derive(clap::Subcommand)]
 pub enum Command {
     /// Resolve a tag → agent-instance-hierarchy or vice versa.
     Lookup(lookup::Command),
-    /// Register a tag in PENDING state (or refresh an existing tag).
-    Add(add::Command),
+    /// Bind a tag to a target (`--me`, `--agent-full-id`, or
+    /// `--agent-instance`). Replaces any existing binding silently.
+    Apply(apply::Command),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -32,12 +40,12 @@ pub enum Request {
     LookupRequestSchema(lookup::request_schema::Request),
     #[schemars(title = "LookupResponseSchema")]
     LookupResponseSchema(lookup::response_schema::Request),
-    #[schemars(title = "Add")]
-    Add(add::Request),
-    #[schemars(title = "AddRequestSchema")]
-    AddRequestSchema(add::request_schema::Request),
-    #[schemars(title = "AddResponseSchema")]
-    AddResponseSchema(add::response_schema::Request),
+    #[schemars(title = "Apply")]
+    Apply(apply::Request),
+    #[schemars(title = "ApplyRequestSchema")]
+    ApplyRequestSchema(apply::request_schema::Request),
+    #[schemars(title = "ApplyResponseSchema")]
+    ApplyResponseSchema(apply::response_schema::Request),
 }
 
 // Exempt from json-schema coverage: tier aggregate (see the root
@@ -53,12 +61,12 @@ pub enum ResponseItem {
     LookupRequestSchema(lookup::request_schema::Response),
     #[schemars(title = "LookupResponseSchema")]
     LookupResponseSchema(lookup::response_schema::Response),
-    #[schemars(title = "Add")]
-    Add(add::Response),
-    #[schemars(title = "AddRequestSchema")]
-    AddRequestSchema(add::request_schema::Response),
-    #[schemars(title = "AddResponseSchema")]
-    AddResponseSchema(add::response_schema::Response),
+    #[schemars(title = "Apply")]
+    Apply(apply::Response),
+    #[schemars(title = "ApplyRequestSchema")]
+    ApplyRequestSchema(apply::request_schema::Response),
+    #[schemars(title = "ApplyResponseSchema")]
+    ApplyResponseSchema(apply::response_schema::Response),
 }
 
 #[cfg(feature = "mcp")]
@@ -68,9 +76,9 @@ impl crate::cli::command::CommandResponse for ResponseItem {
             ResponseItem::Lookup(v) => v.into_mcp(),
             ResponseItem::LookupRequestSchema(v) => v.into_mcp(),
             ResponseItem::LookupResponseSchema(v) => v.into_mcp(),
-            ResponseItem::Add(v) => v.into_mcp(),
-            ResponseItem::AddRequestSchema(v) => v.into_mcp(),
-            ResponseItem::AddResponseSchema(v) => v.into_mcp(),
+            ResponseItem::Apply(v) => v.into_mcp(),
+            ResponseItem::ApplyRequestSchema(v) => v.into_mcp(),
+            ResponseItem::ApplyResponseSchema(v) => v.into_mcp(),
         }
     }
 }
@@ -88,13 +96,13 @@ impl TryFrom<Command> for Request {
                     Request::LookupResponseSchema(lookup::response_schema::Request::try_from(args)?),
                 ),
             },
-            Command::Add(cmd) => match cmd.schema {
-                None => Ok(Request::Add(add::Request::try_from(cmd.args)?)),
-                Some(add::Schema::RequestSchema(args)) => Ok(
-                    Request::AddRequestSchema(add::request_schema::Request::try_from(args)?),
+            Command::Apply(cmd) => match cmd.schema {
+                None => Ok(Request::Apply(apply::Request::try_from(cmd.args)?)),
+                Some(apply::Schema::RequestSchema(args)) => Ok(
+                    Request::ApplyRequestSchema(apply::request_schema::Request::try_from(args)?),
                 ),
-                Some(add::Schema::ResponseSchema(args)) => Ok(
-                    Request::AddResponseSchema(add::response_schema::Request::try_from(args)?),
+                Some(apply::Schema::ResponseSchema(args)) => Ok(
+                    Request::ApplyResponseSchema(apply::response_schema::Request::try_from(args)?),
                 ),
             },
         }
@@ -107,9 +115,9 @@ impl CommandRequest for Request {
             Request::Lookup(inner) => inner.into_command(),
             Request::LookupRequestSchema(inner) => inner.into_command(),
             Request::LookupResponseSchema(inner) => inner.into_command(),
-            Request::Add(inner) => inner.into_command(),
-            Request::AddRequestSchema(inner) => inner.into_command(),
-            Request::AddResponseSchema(inner) => inner.into_command(),
+            Request::Apply(inner) => inner.into_command(),
+            Request::ApplyRequestSchema(inner) => inner.into_command(),
+            Request::ApplyResponseSchema(inner) => inner.into_command(),
         }
     }
 }
@@ -142,20 +150,20 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
                 ResponseItem::LookupResponseSchema(value),
             )))
         }
-        Request::Add(req) => {
-            let value = add::execute(executor, req, agent_arguments).await?;
-            Box::pin(crate::cli::command::StreamOnce::new(Ok(ResponseItem::Add(value))))
+        Request::Apply(req) => {
+            let value = apply::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(ResponseItem::Apply(value))))
         }
-        Request::AddRequestSchema(req) => {
-            let value = add::request_schema::execute(executor, req, agent_arguments).await?;
+        Request::ApplyRequestSchema(req) => {
+            let value = apply::request_schema::execute(executor, req, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                ResponseItem::AddRequestSchema(value),
+                ResponseItem::ApplyRequestSchema(value),
             )))
         }
-        Request::AddResponseSchema(req) => {
-            let value = add::response_schema::execute(executor, req, agent_arguments).await?;
+        Request::ApplyResponseSchema(req) => {
+            let value = apply::response_schema::execute(executor, req, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                ResponseItem::AddResponseSchema(value),
+                ResponseItem::ApplyResponseSchema(value),
             )))
         }
     };
@@ -189,18 +197,18 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
                 lookup::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
-        Request::Add(req) => {
-            let value = add::execute_jq(executor, req, jq, agent_arguments).await?;
+        Request::Apply(req) => {
+            let value = apply::execute_jq(executor, req, jq, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
-        Request::AddRequestSchema(req) => {
+        Request::ApplyRequestSchema(req) => {
             let value =
-                add::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+                apply::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
-        Request::AddResponseSchema(req) => {
+        Request::ApplyResponseSchema(req) => {
             let value =
-                add::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+                apply::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
     };

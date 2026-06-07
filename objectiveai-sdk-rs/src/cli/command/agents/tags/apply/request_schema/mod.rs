@@ -1,17 +1,17 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.tags.add.response_schema.Request")]
+#[schemars(rename = "cli.command.agents.tags.apply.request_schema.Request")]
 pub struct Request {
     pub path_type: Path,
     pub jq: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.tags.add.response_schema.Path")]
+#[schemars(rename = "cli.command.agents.tags.apply.request_schema.Path")]
 pub enum Path {
-    #[serde(rename = "agents/tags/add/response_schema")]
-    AgentsTagsAddResponseSchema,
+    #[serde(rename = "agents/tags/apply/request_schema")]
+    AgentsTagsApplyRequestSchema,
 }
 
 #[derive(clap::Args)]
@@ -22,7 +22,7 @@ pub struct Args {
 
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
-        let mut argv: Vec<String> = vec!["agents", "tags", "add", "response-schema"]
+        let mut argv: Vec<String> = vec!["agents", "tags", "apply", "request-schema"]
             .into_iter()
             .map(String::from)
             .collect();
@@ -40,7 +40,7 @@ impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
         Ok(Self {
-            path_type: Path::AgentsTagsAddResponseSchema,
+            path_type: Path::AgentsTagsApplyRequestSchema,
             jq: args.jq,
         })
     }
