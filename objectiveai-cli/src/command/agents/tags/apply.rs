@@ -11,8 +11,16 @@
 //!   `{parent}/{instance}` (or just `{instance}` when parent is
 //!   empty, matching the rootless case in `tags::upgrade`). Parent
 //!   defaults to ctx own.
+//! - `Target::AgentTag` — looks up an existing tag and writes a new
+//!   row under `request.name` that reproduces the source row's state
+//!   (BOUND or PENDING). PENDING aliases auto-promote alongside the
+//!   source on the next matching spawn — `tags::upgrade` UPDATEs by
+//!   `(agent_full_id, parent)` with no `name` filter. Absent source
+//!   raises `Error::TagNotFound`.
 
-use objectiveai_sdk::cli::command::agents::tags::apply::{Request, Response, Target};
+use objectiveai_sdk::cli::command::agents::tags::apply::{
+    AgentTagResolution, Request, Response, Target,
+};
 
 use crate::context::Context;
 use crate::error::Error;
@@ -77,6 +85,56 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                 agent_instance,
                 parent_agent_instance_hierarchy: parent,
                 agent_instance_hierarchy: hierarchy,
+            })
+        }
+        Target::AgentTag { agent_tag } => {
+            // Snapshot the source tag's state, then write a new row
+            // under `request.name` reproducing it. Two transactions
+            // — a concurrent first-chunk promotion between them may
+            // leave the alias one state behind (PENDING after source
+            // flipped to BOUND). Acceptable: re-applying re-snapshots.
+            // PENDING aliases auto-promote on the next matching spawn
+            // because `tags::upgrade` matches by (agent_full_id,
+            // parent) and writes every matching row.
+            let state = db::tags::lookup_async(
+                ctx.filesystem.clone(),
+                agent_tag.clone(),
+            )
+            .await?;
+            let resolved = match state {
+                db::tags::LookupState::Bound { agent_instance_hierarchy } => {
+                    db::tags::upsert_bound_async(
+                        ctx.filesystem.clone(),
+                        request.name.clone(),
+                        agent_instance_hierarchy.clone(),
+                    )
+                    .await?;
+                    AgentTagResolution::Bound { agent_instance_hierarchy }
+                }
+                db::tags::LookupState::Pending {
+                    parent_agent_instance_hierarchy,
+                    agent_full_id,
+                } => {
+                    db::tags::upsert_pending_async(
+                        ctx.filesystem.clone(),
+                        request.name.clone(),
+                        agent_full_id.clone(),
+                        parent_agent_instance_hierarchy.clone(),
+                    )
+                    .await?;
+                    AgentTagResolution::Pending {
+                        agent_full_id,
+                        parent_agent_instance_hierarchy,
+                    }
+                }
+                db::tags::LookupState::Absent => {
+                    return Err(Error::TagNotFound(agent_tag));
+                }
+            };
+            Ok(Response::AgentTag {
+                name: request.name,
+                agent_tag,
+                resolved,
             })
         }
     }

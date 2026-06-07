@@ -17,6 +17,12 @@
 //!   `--parent-agent-instance-hierarchy` defaults to ctx own. Rootless
 //!   parents (empty string) yield just `{instance}`, matching the
 //!   PENDING → BOUND promotion in `tags::upgrade`.
+//! - `--agent-tag <existing>` — copies the existing tag's binding
+//!   (BOUND or PENDING) under `--name`. Forbids
+//!   `--parent-agent-instance-hierarchy`. PENDING aliases auto-promote
+//!   alongside the source on the next matching spawn (because
+//!   `tags::upgrade` UPDATEs by `(agent_full_id, parent)` with no
+//!   `name` filter).
 
 use crate::cli::command::CommandRequest;
 
@@ -58,6 +64,28 @@ pub enum Target {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[schemars(extend("omitempty" = true))]
         parent_agent_instance_hierarchy: Option<String>,
+    },
+    /// Copy an existing tag's binding under `--name`. Source's
+    /// state (BOUND or PENDING) is reproduced exactly.
+    #[schemars(title = "AgentTag")]
+    AgentTag { agent_tag: String },
+}
+
+/// Snapshot of the source tag's binding at the moment `--agent-tag`
+/// resolved it. The handler writes a new row reproducing this state
+/// under the caller's `--name`. Self-contained on the `apply` leaf —
+/// not reused from `tags::lookup`, so each leaf's schema stays
+/// decoupled.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(tag = "state", rename_all = "snake_case")]
+#[schemars(rename = "cli.command.agents.tags.apply.AgentTagResolution")]
+pub enum AgentTagResolution {
+    #[schemars(title = "Bound")]
+    Bound { agent_instance_hierarchy: String },
+    #[schemars(title = "Pending")]
+    Pending {
+        agent_full_id: String,
+        parent_agent_instance_hierarchy: String,
     },
 }
 
@@ -103,6 +131,10 @@ impl CommandRequest for Request {
                     argv.push(parent.clone());
                 }
             }
+            Target::AgentTag { agent_tag } => {
+                argv.push("--agent-tag".to_string());
+                argv.push(agent_tag.clone());
+            }
         }
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
@@ -139,6 +171,16 @@ pub enum Response {
         /// empty (rootless).
         agent_instance_hierarchy: String,
     },
+    /// Wire shape mirrors the resolved-at-apply-time state of the
+    /// source tag: `{"by":"agent_tag","name":...,"agent_tag":...,
+    /// "state":"bound"|"pending", ...state fields...}`.
+    #[schemars(title = "AgentTag")]
+    AgentTag {
+        name: String,
+        agent_tag: String,
+        #[serde(flatten)]
+        resolved: AgentTagResolution,
+    },
 }
 
 #[derive(clap::Args)]
@@ -146,7 +188,7 @@ pub enum Response {
     clap::ArgGroup::new("apply_by")
         .required(true)
         .multiple(false)
-        .args(["me", "agent_full_id", "agent_instance"])
+        .args(["me", "agent_full_id", "agent_instance", "agent_tag"])
 ))]
 pub struct Args {
     /// Tag name (unique). Re-using an existing tag displaces the
@@ -166,9 +208,17 @@ pub struct Args {
     /// `{parent}/{instance}`.
     #[arg(long)]
     pub agent_instance: Option<String>,
+    /// Existing tag whose binding will be copied under `--name`.
+    /// Source state (BOUND or PENDING) is reproduced exactly;
+    /// PENDING aliases auto-promote alongside the source on the
+    /// next matching spawn. Forbids
+    /// `--parent-agent-instance-hierarchy`.
+    #[arg(long)]
+    pub agent_tag: Option<String>,
     /// Optional parent scope for `--agent-full-id` /
-    /// `--agent-instance`. Forbidden with `--me`. When omitted, the
-    /// CLI uses its own `Config.agent_instance_hierarchy`.
+    /// `--agent-instance`. Forbidden with `--me` or `--agent-tag`.
+    /// When omitted, the CLI uses its own
+    /// `Config.agent_instance_hierarchy`.
     #[arg(long = "parent-agent-instance-hierarchy")]
     pub parent_agent_instance_hierarchy: Option<String>,
     /// jq filter applied to the JSON output.
@@ -196,8 +246,13 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        let target = match (args.me, args.agent_full_id, args.agent_instance) {
-            (true, None, None) => {
+        let target = match (
+            args.me,
+            args.agent_full_id,
+            args.agent_instance,
+            args.agent_tag,
+        ) {
+            (true, None, None, None) => {
                 if args.parent_agent_instance_hierarchy.is_some() {
                     return Err(crate::cli::command::FromArgsError::path_parse(
                         "parent_agent_instance_hierarchy",
@@ -206,14 +261,23 @@ impl TryFrom<Args> for Request {
                 }
                 Target::Me
             }
-            (false, Some(id), None) => Target::AgentFullId {
+            (false, Some(id), None, None) => Target::AgentFullId {
                 agent_full_id: id,
                 parent_agent_instance_hierarchy: args.parent_agent_instance_hierarchy,
             },
-            (false, None, Some(inst)) => Target::AgentInstance {
+            (false, None, Some(inst), None) => Target::AgentInstance {
                 agent_instance: inst,
                 parent_agent_instance_hierarchy: args.parent_agent_instance_hierarchy,
             },
+            (false, None, None, Some(tag)) => {
+                if args.parent_agent_instance_hierarchy.is_some() {
+                    return Err(crate::cli::command::FromArgsError::path_parse(
+                        "parent_agent_instance_hierarchy",
+                        "--agent-tag forbids --parent-agent-instance-hierarchy".into(),
+                    ));
+                }
+                Target::AgentTag { agent_tag: tag }
+            }
             _ => unreachable!("clap group `apply_by` ensures exactly one"),
         };
         Ok(Request {
