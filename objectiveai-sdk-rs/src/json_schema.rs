@@ -2632,7 +2632,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::functions::inventions::prompts::StepPromptType),
         schemars::schema_for!(crate::functions::inventions::prompts::response::UsagePromptResponse),
         schemars::schema_for!(crate::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams),
-        schemars::schema_for!(crate::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParamsLog),
         schemars::schema_for!(crate::functions::inventions::recursive::response::streaming::FunctionInventionChunk),
         schemars::schema_for!(crate::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk),
         schemars::schema_for!(crate::functions::inventions::recursive::response::streaming::InnerError<'_>),
