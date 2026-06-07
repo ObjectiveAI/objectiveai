@@ -3,8 +3,8 @@
 from __future__ import annotations
 from typing import Union
 from pydantic import ConfigDict, RootModel
+from objectiveai_sdk.RemotePath.remote_path import RemotePath
 from objectiveai_sdk.cli.command.agents.list.available.response_favorite import ResponseFavorite
-from objectiveai_sdk.remote_path import RemotePath
 
 
 class ResponseItemFavorite(RootModel):

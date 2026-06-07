@@ -3,7 +3,7 @@
 from __future__ import annotations
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
-from objectiveai_sdk.weights import Weights
+from objectiveai_sdk.Weights.weights import Weights
 
 
 class InlineTasksProfile(BaseModel):

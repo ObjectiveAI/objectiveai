@@ -3,8 +3,8 @@
 from __future__ import annotations
 from typing import Annotated, Optional
 from pydantic import BaseModel, ConfigDict, Field
+from objectiveai_sdk.IndexedLogReference.indexed_log_reference import IndexedLogReference
 from objectiveai_sdk.agent.completions.response.usage import Usage
-from objectiveai_sdk.indexed_log_reference import IndexedLogReference
 from objectiveai_sdk.vector.completions.response.streaming.object import Object
 from objectiveai_sdk.vector.completions.response.vote import Vote
 

@@ -3,12 +3,12 @@
 from __future__ import annotations
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
+from objectiveai_sdk.RemotePath.remote_path import RemotePath
 from objectiveai_sdk.agent.completions.response.usage import Usage
 from objectiveai_sdk.functions.inline_tasks_profile import InlineTasksProfile
 from objectiveai_sdk.functions.profiles.computations.response.fitting_stats import FittingStats
 from objectiveai_sdk.functions.profiles.computations.response.streaming.function_execution_chunk import FunctionExecutionChunk
 from objectiveai_sdk.functions.profiles.computations.response.streaming.object import Object
-from objectiveai_sdk.remote_path import RemotePath
 
 
 class FunctionProfileComputationChunk(BaseModel):

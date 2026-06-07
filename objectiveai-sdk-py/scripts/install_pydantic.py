@@ -50,11 +50,31 @@ _PY_KEYWORDS = {
     "while", "with", "yield",
 }
 
+# Top-level stdlib package names. If a schema title's TOP segment matches
+# one of these, the generated `objectiveai_sdk/<name>/` package would
+# shadow the stdlib package once pytest loads any test under it as a
+# namespace package (e.g. `tests/http/__init__.py` ends up making
+# `import http` resolve to the test dir, breaking
+# `urllib.request → http.client`). Suffix-escape the top segment to
+# dodge.
+_PY_STDLIB_TOP = {
+    "http", "urllib", "email", "json", "typing", "logging", "queue",
+    "socket", "ssl", "subprocess", "io", "os", "sys", "re", "html",
+    "xml", "csv", "math", "random", "time", "datetime", "test",
+    "tests",
+}
+
 
 def _escape_py_keyword(segment: str) -> str:
     """If `segment` is a Python keyword, suffix it with `_` so it works as
     a module-name component (e.g. `del` → `del_`)."""
     return segment + "_" if segment in _PY_KEYWORDS else segment
+
+
+def _escape_py_top_segment(segment: str) -> str:
+    """Same as `_escape_py_keyword`, plus stdlib top-level package names —
+    only applied to the FIRST title segment so we don't shadow stdlib."""
+    return (segment + "_") if segment in _PY_KEYWORDS or segment in _PY_STDLIB_TOP else segment
 
 
 def _safe_docstring(desc: str | None) -> str:
@@ -85,6 +105,17 @@ def _safe_docstring(desc: str | None) -> str:
 _COLLIDING_PATHS: set[str] = set()
 
 
+def _title_segments(title: str) -> list[str]:
+    """Tokenize a title into module-path segments with keyword + stdlib
+    escapes applied. The first segment additionally avoids stdlib
+    shadowing; inner segments only need keyword escapes."""
+    raw = title.split(".")
+    head = _escape_py_top_segment(raw[0])
+    middle = [_escape_py_keyword(p) for p in raw[1:-1]]
+    tail = _escape_py_keyword(_to_snake(raw[-1]))
+    return [head, *middle, tail]
+
+
 def compute_colliding_paths(all_titles: set[str]) -> None:
     """Populate `_COLLIDING_PATHS` with file paths that collide with
     package directories from other titles."""
@@ -92,8 +123,7 @@ def compute_colliding_paths(all_titles: set[str]) -> None:
     dir_paths: set[str] = set()
     file_paths: set[str] = set()
     for title in all_titles:
-        parts = title.split(".")
-        parts = [_escape_py_keyword(p) for p in parts[:-1]] + [_escape_py_keyword(_to_snake(parts[-1]))]
+        parts = _title_segments(title)
         # Each prefix of `parts[:-1]` is a directory.
         for i in range(1, len(parts)):
             dir_paths.add("/".join(parts[:i]))
@@ -114,10 +144,9 @@ def title_to_path(title: str) -> tuple[str, str]:
     with `_` (e.g. `request.py` → `request_.py`) so Python's package
     resolver doesn't pick up the sub-package directory in place of the
     module."""
-    parts = title.split(".")
-    type_name = parts.pop()
-    dir_path = "/".join(_escape_py_keyword(p) for p in parts)
-    file_name = _escape_py_keyword(_to_snake(type_name))
+    parts = _title_segments(title)
+    file_name = parts[-1]
+    dir_path = "/".join(parts[:-1])
     natural = f"{dir_path}/{file_name}" if dir_path else file_name
     if natural in _COLLIDING_PATHS:
         file_name = file_name + "_"

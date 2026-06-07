@@ -3,7 +3,7 @@
 from __future__ import annotations
 from typing import Union
 from pydantic import ConfigDict, RootModel
-from objectiveai_sdk.log_reference import LogReference
+from objectiveai_sdk.LogReference.log_reference import LogReference
 
 
 class RichContentLogReference(RootModel):

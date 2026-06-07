@@ -3,7 +3,7 @@
 from __future__ import annotations
 from typing import Union
 from pydantic import ConfigDict, RootModel
-from objectiveai_sdk.remote_path import RemotePath
+from objectiveai_sdk.RemotePath.remote_path import RemotePath
 from objectiveai_sdk.swarm.inline_swarm_base import InlineSwarmBase
 
 

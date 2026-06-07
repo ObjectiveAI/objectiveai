@@ -3,9 +3,9 @@
 from __future__ import annotations
 from typing import Literal, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field, RootModel
+from objectiveai_sdk.RemotePath.remote_path import RemotePath
 from objectiveai_sdk.functions.alpha_vector.expression.vector_function_input_value_expression import VectorFunctionInputValueExpression
 from objectiveai_sdk.functions.expression.expression import Expression
-from objectiveai_sdk.remote_path import RemotePath
 
 
 class VectorFunctionTaskExpressionGithub(BaseModel):

@@ -3,8 +3,8 @@
 from __future__ import annotations
 from typing import Union
 from pydantic import ConfigDict, RootModel
+from objectiveai_sdk.RemotePathCommitOptional.remote_path_commit_optional import RemotePathCommitOptional
 from objectiveai_sdk.functions.inventions.prompts.inline_prompt import InlinePrompt
-from objectiveai_sdk.remote_path_commit_optional import RemotePathCommitOptional
 
 
 class InlinePromptOrRemoteCommitOptionalInline(RootModel):

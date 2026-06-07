@@ -4,8 +4,8 @@ from __future__ import annotations
 from typing import Union
 from objectiveai_sdk.json_value import JsonValue
 from pydantic import ConfigDict, RootModel
+from objectiveai_sdk.Remote.remote import Remote
 from objectiveai_sdk.cli.command.ok import Ok
-from objectiveai_sdk.remote import Remote
 
 
 class ResponseGet(RootModel):

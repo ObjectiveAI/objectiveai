@@ -3,8 +3,8 @@
 from __future__ import annotations
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
+from objectiveai_sdk.Weights.weights import Weights
 from objectiveai_sdk.agent.inline_agent_base_with_fallbacks_or_remote_with_count import InlineAgentBaseWithFallbacksOrRemoteWithCount
-from objectiveai_sdk.weights import Weights
 
 
 class InlineSwarmBase(BaseModel):

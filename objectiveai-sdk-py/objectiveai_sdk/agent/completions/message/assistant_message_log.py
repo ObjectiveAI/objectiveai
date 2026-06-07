@@ -3,8 +3,8 @@
 from __future__ import annotations
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
+from objectiveai_sdk.LogReference.log_reference import LogReference
 from objectiveai_sdk.agent.completions.message.rich_content_log import RichContentLog
-from objectiveai_sdk.log_reference import LogReference
 
 
 class AssistantMessageLog(BaseModel):

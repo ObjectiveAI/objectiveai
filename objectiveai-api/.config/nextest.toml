@@ -1,0 +1,10 @@
+# Limit parallelism and add retries for the api suite. Each test process
+# spawns its own api server (LazyLock in tests/common/server.rs); with
+# nextest's default `test-threads = num_cpus`, the burst of N parallel
+# server processes during the agent_completions group races for
+# ephemeral ports / overruns Windows OS resource limits, surfacing as
+# ConnectionRefused panics on the tests that happen to land in slots
+# 194–201.
+[profile.default]
+test-threads = "num-cpus / 2"
+retries = 2

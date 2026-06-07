@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
-from objectiveai_sdk.prefixed_uuid import PrefixedUuid
+from objectiveai_sdk.PrefixedUuid.prefixed_uuid import PrefixedUuid
 
 
 class ApiKeyWithMetadata(BaseModel):

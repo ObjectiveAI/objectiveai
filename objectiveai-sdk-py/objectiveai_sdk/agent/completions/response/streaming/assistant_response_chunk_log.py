@@ -3,11 +3,11 @@
 from __future__ import annotations
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
+from objectiveai_sdk.LogReference.log_reference import LogReference
 from objectiveai_sdk.agent.completions.message.rich_content_log import RichContentLog
 from objectiveai_sdk.agent.completions.response.assistant_role import AssistantRole
 from objectiveai_sdk.agent.completions.response.finish_reason import FinishReason
 from objectiveai_sdk.agent.completions.response.upstream_usage import UpstreamUsage
-from objectiveai_sdk.log_reference import LogReference
 
 
 class AssistantResponseChunkLog(BaseModel):

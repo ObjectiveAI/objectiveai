@@ -3,7 +3,7 @@
 from __future__ import annotations
 from typing import Literal, Union
 from pydantic import BaseModel, ConfigDict, RootModel
-from objectiveai_sdk.remote_path import RemotePath
+from objectiveai_sdk.RemotePath.remote_path import RemotePath
 
 
 class GetFunctionInventionStateResponseGithub(BaseModel):

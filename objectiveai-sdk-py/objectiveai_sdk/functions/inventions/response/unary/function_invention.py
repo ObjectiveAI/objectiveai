@@ -3,13 +3,13 @@
 from __future__ import annotations
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
+from objectiveai_sdk.RemotePath.remote_path import RemotePath
 from objectiveai_sdk.agent.completions.response.usage import Usage
 from objectiveai_sdk.error.response_error import ResponseError
 from objectiveai_sdk.functions.full_remote_function import FullRemoteFunction
 from objectiveai_sdk.functions.inventions.response.unary.agent_completion import AgentCompletion
 from objectiveai_sdk.functions.inventions.response.unary.object import Object
 from objectiveai_sdk.functions.inventions.state.state import State
-from objectiveai_sdk.remote_path import RemotePath
 
 
 class FunctionInvention(BaseModel):

@@ -3,13 +3,13 @@
 from __future__ import annotations
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
+from objectiveai_sdk.RemotePath.remote_path import RemotePath
 from objectiveai_sdk.agent.completions.response.streaming.message_chunk import MessageChunk
 from objectiveai_sdk.agent.completions.response.streaming.object import Object
 from objectiveai_sdk.agent.completions.response.usage import Usage
 from objectiveai_sdk.agent.upstream import Upstream
 from objectiveai_sdk.error.response_error import ResponseError
 from objectiveai_sdk.functions.expression.input_value import InputValue
-from objectiveai_sdk.remote_path import RemotePath
 
 
 class EvaluationChunk(BaseModel):

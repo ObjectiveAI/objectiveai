@@ -3,11 +3,11 @@
 from __future__ import annotations
 from typing import Annotated, Optional
 from pydantic import BaseModel, ConfigDict, Field
+from objectiveai_sdk.Remote.remote import Remote
 from objectiveai_sdk.agent.completions.request.provider import Provider
 from objectiveai_sdk.agent.inline_agent_base_with_fallbacks_or_remote_commit_optional import InlineAgentBaseWithFallbacksOrRemoteCommitOptional
 from objectiveai_sdk.functions.inventions.prompts.inline_prompt_or_remote_commit_optional import InlinePromptOrRemoteCommitOptional
 from objectiveai_sdk.functions.inventions.state.params_state_or_remote_commit_optional import ParamsStateOrRemoteCommitOptional
-from objectiveai_sdk.remote import Remote
 
 
 class FunctionInventionRecursiveCreateParams(BaseModel):
