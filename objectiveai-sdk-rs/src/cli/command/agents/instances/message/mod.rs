@@ -16,14 +16,14 @@ pub struct Request {
 
 /// Mutually-exclusive addressing for an `agents message` call.
 ///
-/// `Direct` is the default — the CLI composes
-/// `{parent}/{agent_instance}` (parent defaults to
-/// `Config.agent_instance_hierarchy` when omitted) and optionally
-/// binds `agent_tag` to that hierarchy as a side effect.
+/// `Direct` composes `{parent}/{agent_instance}` (parent defaults to
+/// `Config.agent_instance_hierarchy` when omitted). `Tag` resolves
+/// the named tag to its bound hierarchy via the tags DB and
+/// addresses that hierarchy directly. PENDING and ABSENT tags are
+/// rejected with structured errors at handler time.
 ///
-/// `Tag` resolves the named tag to its bound hierarchy via the
-/// tags DB and addresses that hierarchy directly. PENDING and
-/// ABSENT tags are rejected with structured errors at handler time.
+/// Tags can only *select* the target here — they cannot be applied
+/// as a side effect of messaging. Use `agents tags apply` for that.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(tag = "by", rename_all = "snake_case")]
 #[schemars(rename = "cli.command.agents.instances.message.MessageTarget")]
@@ -38,11 +38,6 @@ pub enum MessageTarget {
         parent_agent_instance_hierarchy: Option<String>,
         /// Leaf id of the target agent.
         agent_instance: String,
-        /// Optional tag to bind to the resolved
-        /// `{parent}/{agent_instance}` hierarchy.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[schemars(extend("omitempty" = true))]
-        agent_tag: Option<String>,
     },
     #[schemars(title = "Tag")]
     Tag { agent_tag: String },
@@ -112,16 +107,11 @@ impl CommandRequest for Request {
             MessageTarget::Direct {
                 parent_agent_instance_hierarchy,
                 agent_instance,
-                agent_tag,
             } => {
                 argv.push(agent_instance.clone());
                 if let Some(parent) = parent_agent_instance_hierarchy {
                     argv.push("--parent-agent-instance-hierarchy".to_string());
                     argv.push(parent.clone());
-                }
-                if let Some(tag) = agent_tag {
-                    argv.push("--agent-tag".to_string());
-                    argv.push(tag.clone());
                 }
             }
             MessageTarget::Tag { agent_tag } => {
@@ -221,15 +211,14 @@ impl From<Response> for ResponseItem {
 #[command(group(
     clap::ArgGroup::new("message_target")
         .required(true)
-        .multiple(true)
+        .multiple(false)
         .args(["agent_instance", "agent_tag"])
 ))]
 pub struct Args {
     /// Leaf id of the target agent. Combined with `--parent` (or
     /// the cli's own `Config.agent_instance_hierarchy` when
-    /// `--parent` is omitted) to form the full lineage. Optional
-    /// when `--agent-tag` is set alone (tag-resolution mode);
-    /// required otherwise.
+    /// `--parent` is omitted) to form the full lineage. Mutually
+    /// exclusive with `--agent-tag`.
     pub agent_instance: Option<String>,
     /// Optional lineage prefix to prepend to `agent_instance`.
     /// When omitted, the cli substitutes its own
@@ -242,10 +231,9 @@ pub struct Args {
     /// Seed for deterministic mock responses.
     #[arg(long)]
     pub seed: Option<i64>,
-    /// Tag to apply to the resolved hierarchy (Direct mode, when
-    /// `agent_instance` is also set), or to look up to find the
-    /// target hierarchy (Tag mode, when `agent_instance` is
-    /// omitted).
+    /// Tag to resolve to the target hierarchy. The tag must already
+    /// be BOUND (apply it explicitly with `agents tags apply`).
+    /// Mutually exclusive with `--agent-instance`.
     #[arg(long = "agent-tag")]
     pub agent_tag: Option<String>,
     /// Raw JSON for `RequestDangerousAdvanced` (e.g. `{"stream":true}`).
@@ -315,14 +303,13 @@ impl TryFrom<Args> for Request {
             RequestMessage::PythonFile(args.message.python_file.unwrap())
         };
         let target = match (args.agent_instance, args.agent_tag) {
-            (Some(agent_instance), agent_tag) => MessageTarget::Direct {
+            (Some(agent_instance), None) => MessageTarget::Direct {
                 parent_agent_instance_hierarchy: args.parent_agent_instance_hierarchy,
                 agent_instance,
-                agent_tag,
             },
             (None, Some(agent_tag)) => MessageTarget::Tag { agent_tag },
-            (None, None) => unreachable!(
-                "clap group `message_target` ensures at least one of agent_instance | agent_tag"
+            _ => unreachable!(
+                "clap group `message_target` ensures exactly one of agent_instance | agent_tag"
             ),
         };
         let dangerous_advanced = if let Some(s) = args.dangerous_advanced {

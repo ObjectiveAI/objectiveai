@@ -65,38 +65,27 @@ type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     // Resolve `target` into the full delivery hierarchy. Direct mode
     // composes `{parent}/{agent_instance}` (parent defaults to the
-    // cli's own position) and, if `agent_tag` is set, binds the tag
-    // to the resolved hierarchy as a side effect. Tag mode looks the
-    // name up in `tags.sqlite`; BOUND resolves to the target,
-    // PENDING / ABSENT raise structured errors.
-    // Returns `(hierarchy, opt_tag)`. `opt_tag` is `Some` only in
-    // Direct mode when the caller supplied `--agent-tag` alongside
-    // the agent instance (the binding-tag case); the drain below
-    // uses it for rule 3 of the predicate (`p.agent_tag = opt_tag`).
-    // Tag-mode resolution sets `opt_tag = None` — per the user
-    // spec, the resolved hierarchy is enough; rule 2 of the drain
-    // predicate sweeps all tags pointing to that hierarchy.
+    // cli's own position). Tag mode looks the name up in
+    // `tags.sqlite`; BOUND resolves to the target, PENDING / ABSENT
+    // raise structured errors.
+    //
+    // `opt_tag` was historically `Some` when Direct also carried an
+    // `--agent-tag` (the apply-as-side-effect case, removed). Now
+    // always `None`: tag application must go through `agents tags
+    // apply` explicitly. The drain predicate's rule 3 (match by
+    // explicit tag) becomes dead code for this leaf; rule 2 ("any
+    // tag bound to this hierarchy") still sweeps tag-addressed
+    // queue rows once their tag has BOUND-up.
     let (agent_instance_hierarchy, opt_tag) = match request.target {
         MessageTarget::Direct {
             parent_agent_instance_hierarchy,
             agent_instance,
-            agent_tag,
         } => {
             let parent = parent_agent_instance_hierarchy
                 .as_deref()
                 .unwrap_or(&ctx.config.agent_instance_hierarchy);
             let full_id = format!("{parent}/{agent_instance}");
-            if let Some(tag) = &agent_tag {
-                // Bind once, before the delivery loop, so a SLOT_TAKEN
-                // retry doesn't repeat the write.
-                crate::filesystem::db::tags::upsert_bound_async(
-                    ctx.filesystem.clone(),
-                    tag.clone(),
-                    full_id.clone(),
-                )
-                .await?;
-            }
-            (full_id, agent_tag)
+            (full_id, None)
         }
         MessageTarget::Tag { agent_tag } => {
             use crate::filesystem::db::tags;

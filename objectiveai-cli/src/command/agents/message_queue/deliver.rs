@@ -84,9 +84,11 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
 
 /// Build an in-process `agents::message::Request` for one delivery
 /// target. Always Direct mode (the resolved hierarchy is already
-/// known); the binding tag, if any, travels along so
-/// `agents/message` rebinds it as a side effect — same shape a
-/// user `agents message <leaf> --agent-tag <tag>` would take.
+/// known). The originating tag, if any, no longer travels along —
+/// `agents/message` lost the apply-as-side-effect path; queue rows
+/// tagged for this target are still picked up by drain rule 2 ("any
+/// tag bound to this hierarchy") since deliver only fires over BOUND
+/// targets.
 fn build_message_request(tgt: &DeliveryTarget) -> MessageRequest {
     let (parent, leaf) = match tgt.agent_instance_hierarchy.rfind('/') {
         Some(i) => (
@@ -106,7 +108,6 @@ fn build_message_request(tgt: &DeliveryTarget) -> MessageRequest {
         target: MessageTarget::Direct {
             parent_agent_instance_hierarchy: Some(parent),
             agent_instance: leaf,
-            agent_tag: tgt.agent_tag.clone(),
         },
         // Empty Inline content — `agents/message` handles the
         // drain-only path (skips appending the empty own_content,
