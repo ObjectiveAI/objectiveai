@@ -938,3 +938,64 @@ pub async fn list_delivery_targets(
     }
     Ok(out)
 }
+
+// ---------------------------------------------------------------------------
+// Combined: upgrade PENDING tags + check whether any messages are pending
+// for the given hierarchy. One round-trip via a modifying CTE.
+// ---------------------------------------------------------------------------
+
+/// Single-query upgrade + check used by `agents spawn`'s end-of-stream
+/// restart logic AND its per-chunk new-hierarchy hook.
+///
+/// 1. Promotes every PENDING `tags` row whose
+///    `(agent_full_id, parent_agent_instance_hierarchy)` matches the
+///    given pair to BOUND against `hierarchy`. Same effect as
+///    [`crate::db::tags::upgrade`].
+/// 2. Reports whether any `message_queue` row currently targets
+///    `hierarchy` — directly (`agent_instance_hierarchy = $1`) or via
+///    a BOUND tag whose bound hierarchy equals `$1`. Because the
+///    upgrade runs in the same CTE, this naturally picks up tags
+///    that were just promoted.
+///
+/// Returns the bool the SELECT EXISTS yields. Errors propagate via
+/// the `?` chain.
+pub async fn upgrade_and_check_pending(
+    pool: &Pool,
+    hierarchy: &str,
+    parent_hierarchy: &str,
+    agent_full_id: &str,
+) -> Result<bool, Error> {
+    let now = now_seconds();
+    let row = sqlx::query(
+        "WITH upgraded AS ( \
+             UPDATE tags \
+             SET agent_instance_hierarchy        = $1, \
+                 parent_agent_instance_hierarchy = NULL, \
+                 agent_full_id                   = NULL, \
+                 updated_at                      = $4 \
+             WHERE agent_full_id                   = $3 \
+               AND parent_agent_instance_hierarchy = $2 \
+             RETURNING name \
+         ) \
+         SELECT EXISTS ( \
+             SELECT 1 FROM message_queue p \
+             WHERE p.agent_instance_hierarchy = $1 \
+                OR ( \
+                    p.agent_tag IS NOT NULL \
+                    AND EXISTS ( \
+                        SELECT 1 FROM tags t \
+                        WHERE t.name = p.agent_tag \
+                          AND t.agent_instance_hierarchy = $1 \
+                    ) \
+                ) \
+         )",
+    )
+    .bind(hierarchy)
+    .bind(parent_hierarchy)
+    .bind(agent_full_id)
+    .bind(now)
+    .fetch_one(&**pool)
+    .await?;
+    let pending: bool = row.try_get(0)?;
+    Ok(pending)
+}

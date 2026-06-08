@@ -61,7 +61,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     let raw = instance_subprocess_stream(
         ctx,
         crate::instance::request::InstanceEndpoint::FunctionsExecute(params),
-        None,
         stream,
     );
     Ok(Box::pin(raw.map(map_item)))

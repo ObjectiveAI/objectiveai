@@ -15,8 +15,7 @@
 //! deserializes back into [`crate::streaming::InstanceItem`]).
 
 mod agent_hierarchies;
-mod agent_registry;
-mod agents;
+pub(crate) mod agent_registry;
 pub(crate) mod api;
 mod functions;
 pub mod handshake;
@@ -68,15 +67,17 @@ type EmissionStream = Pin<Box<dyn Stream<Item = Result<InstanceEmission, Error>>
 /// request blob, then dispatches to one of the typed endpoint
 /// functions. Each handler returns a typed stream of
 /// [`InstanceEmission`]s.
+///
+/// Only `functions execute` still uses the subprocess flow. Agents
+/// spawn runs entirely in-process in
+/// [`crate::command::agents::instances::spawn::execute`] and never
+/// fires `InstanceRequest`.
 pub async fn run(ctx: crate::context::Context) -> Result<EmissionStream, Error> {
     let request = handshake::read_request().map_err(Error::Instance)?;
     let mcp_server = mcp_server::spawn(ctx.clone());
     let http = request.http;
     let pipes = request.pipes;
     let stream: EmissionStream = match request.endpoint {
-        InstanceEndpoint::AgentsSpawn(params) => {
-            agents::spawn::execute(ctx, http, pipes, mcp_server, params).await?
-        }
         InstanceEndpoint::FunctionsExecute(params) => {
             functions::execute::execute(ctx, http, pipes, mcp_server, params).await?
         }

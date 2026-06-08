@@ -6,7 +6,6 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams;
 use objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams;
 use serde::{Deserialize, Serialize};
 
@@ -97,6 +96,5 @@ impl PipeConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "endpoint", content = "params", rename_all = "snake_case")]
 pub enum InstanceEndpoint {
-    AgentsSpawn(AgentCompletionCreateParams),
     FunctionsExecute(FunctionExecutionCreateParams),
 }
