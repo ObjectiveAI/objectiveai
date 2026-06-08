@@ -75,8 +75,8 @@ pub async fn run(ctx: crate::context::Context) -> Result<EmissionStream, Error> 
         InstanceEndpoint::AgentsSpawn(params) => {
             agents::spawn::execute(ctx, http, pipes, mcp_server, params).await?
         }
-        InstanceEndpoint::FunctionsExecutionsCreate(params) => {
-            functions::executions::create::execute(ctx, http, pipes, mcp_server, params).await?
+        InstanceEndpoint::FunctionsExecute(params) => {
+            functions::execute::execute(ctx, http, pipes, mcp_server, params).await?
         }
     };
     Ok(stream)

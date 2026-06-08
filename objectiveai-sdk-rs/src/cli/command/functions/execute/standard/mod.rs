@@ -1,4 +1,4 @@
-//! `functions executions create standard` — async handler stub.
+//! `functions execute standard` — async handler stub.
 
 use crate::agent::completions::message::Message;  // unused placeholder to keep imports tidy
 use crate::cli::command::CommandRequest;
@@ -9,7 +9,7 @@ use super::{FunctionArgs, FunctionSpec, ProfileArgs, ProfileSpec};
 type _UnusedMessage = Message;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.functions.executions.create.standard.Request")]
+#[schemars(rename = "cli.command.functions.execute.standard.Request")]
 pub struct Request {
     pub path_type: Path,
     pub function: FunctionSpec,
@@ -25,14 +25,14 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.functions.executions.create.standard.Path")]
+#[schemars(rename = "cli.command.functions.execute.standard.Path")]
 pub enum Path {
-    #[serde(rename = "functions/executions/create/standard")]
-    FunctionsExecutionsCreateStandard,
+    #[serde(rename = "functions/execute/standard")]
+    FunctionsExecuteStandard,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.functions.executions.create.standard.RequestInput")]
+#[schemars(rename = "cli.command.functions.execute.standard.RequestInput")]
 pub enum RequestInput {
     #[schemars(title = "Inline")]
     Inline(InputValue),
@@ -71,8 +71,7 @@ impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         let mut argv = vec![
             "functions".to_string(),
-            "executions".to_string(),
-            "create".to_string(),
+            "execute".to_string(),
             "standard".to_string(),
         ];
         self.function.push_flags(&mut argv);
@@ -112,7 +111,7 @@ impl CommandRequest for Request {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.functions.executions.create.standard.RequestDangerousAdvanced")]
+#[schemars(rename = "cli.command.functions.execute.standard.RequestDangerousAdvanced")]
 pub struct RequestDangerousAdvanced {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
@@ -121,7 +120,7 @@ pub struct RequestDangerousAdvanced {
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
-#[schemars(rename = "cli.command.functions.executions.create.standard.ResponseItem")]
+#[schemars(rename = "cli.command.functions.execute.standard.ResponseItem")]
 pub enum ResponseItem {
     #[schemars(title = "Chunk")]
     Chunk(crate::functions::executions::response::streaming::FunctionExecutionChunk),
@@ -239,7 +238,7 @@ impl TryFrom<Args> for Request {
         } else {
             None
         };
-        Ok(Self { path_type: Path::FunctionsExecutionsCreateStandard,
+        Ok(Self { path_type: Path::FunctionsExecuteStandard,
             function,
             profile,
             input,

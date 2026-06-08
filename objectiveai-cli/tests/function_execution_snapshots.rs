@@ -22,10 +22,10 @@ mod cli_test_util;
 use std::path::{Path, PathBuf};
 
 use objectiveai_sdk::RemotePathCommitOptional;
-use objectiveai_sdk::cli::command::functions::executions::create::standard::{
+use objectiveai_sdk::cli::command::functions::execute::standard::{
     Request, RequestDangerousAdvanced, RequestInput, ResponseItem,
 };
-use objectiveai_sdk::cli::command::functions::executions::create::{
+use objectiveai_sdk::cli::command::functions::execute::{
     FunctionSpec, ProfileSpec,
 };
 use objectiveai_sdk::functions::FullInlineFunctionOrRemoteCommitOptional;
@@ -95,7 +95,7 @@ macro_rules! snapshot_test {
                 return;
             }
             let request = Request {
-                path_type: objectiveai_sdk::cli::command::functions::executions::create::standard::Path::FunctionsExecutionsCreateStandard,
+                path_type: objectiveai_sdk::cli::command::functions::execute::standard::Path::FunctionsExecuteStandard,
                 function: mock_function_spec($function),
                 profile: mock_profile_spec($profile),
                 input: RequestInput::Inline(
@@ -179,7 +179,7 @@ async fn split_tweet_scorer_10_tweets_seed_42() {
     });
 
     let request = Request {
-        path_type: objectiveai_sdk::cli::command::functions::executions::create::standard::Path::FunctionsExecutionsCreateStandard,
+        path_type: objectiveai_sdk::cli::command::functions::execute::standard::Path::FunctionsExecuteStandard,
         function: mock_function_spec("tweet-scorer"),
         profile: inline_profile_spec(profile_json),
         input: RequestInput::Inline(

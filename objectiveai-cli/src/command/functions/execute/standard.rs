@@ -1,12 +1,17 @@
-//! `functions executions create swiss_system` — bare-naked
-//! chunk-or-id streaming handler. Same shape as `standard`, with
-//! `Strategy::SwissSystem { pool, rounds }` instead of the default.
+//! `functions execute standard` — bare-naked chunk-or-id
+//! streaming handler.
+//!
+//! Same shape as `agents spawn`: spawns the instance runner as a
+//! detached background process (unless `dangerous_advanced.stream =
+//! Some(true)`, in which case the leaf follows the stream to EOF) and
+//! yields one `ResponseItem::Id` then optionally per-chunk
+//! `ResponseItem::Chunk` items.
 
 use std::pin::Pin;
 
 use futures::Stream;
 use futures::StreamExt;
-use objectiveai_sdk::cli::command::functions::executions::create::swiss_system::{
+use objectiveai_sdk::cli::command::functions::execute::standard::{
     Request, RequestInput, ResponseItem,
 };
 use objectiveai_sdk::functions::executions::request::{
@@ -37,10 +42,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         retry_token: request.retry_token,
         from_cache: None,
         reasoning: None,
-        strategy: Some(Strategy::SwissSystem {
-            pool: request.pool,
-            rounds: request.rounds,
-        }),
+        strategy: Some(Strategy::Default),
         input,
         split: if request.split { Some(true) } else { None },
         invert: if request.invert { Some(true) } else { None },
@@ -58,7 +60,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
 
     let raw = instance_subprocess_stream(
         ctx,
-        crate::instance::request::InstanceEndpoint::FunctionsExecutionsCreate(params),
+        crate::instance::request::InstanceEndpoint::FunctionsExecute(params),
         None,
         stream,
     );
@@ -75,8 +77,8 @@ fn map_item(item: Result<InstanceItem, Error>) -> Result<ResponseItem, Error> {
 }
 
 pub mod request_schema {
-    use objectiveai_sdk::cli::command::functions::executions::create::swiss_system as sdk;
-    use objectiveai_sdk::cli::command::functions::executions::create::swiss_system::request_schema::{Request, Response};
+    use objectiveai_sdk::cli::command::functions::execute::standard as sdk;
+    use objectiveai_sdk::cli::command::functions::execute::standard::request_schema::{Request, Response};
 
     use crate::context::Context;
     use crate::error::Error;
@@ -87,8 +89,8 @@ pub mod request_schema {
 }
 
 pub mod response_schema {
-    use objectiveai_sdk::cli::command::functions::executions::create::swiss_system as sdk;
-    use objectiveai_sdk::cli::command::functions::executions::create::swiss_system::response_schema::{Request, Response};
+    use objectiveai_sdk::cli::command::functions::execute::standard as sdk;
+    use objectiveai_sdk::cli::command::functions::execute::standard::response_schema::{Request, Response};
 
     use crate::context::Context;
     use crate::error::Error;

@@ -18,10 +18,10 @@
 
 mod cli_test_util;
 
-use objectiveai_sdk::cli::command::functions::executions::create::standard::{
+use objectiveai_sdk::cli::command::functions::execute::standard::{
     Request, RequestDangerousAdvanced, RequestInput, ResponseItem,
 };
-use objectiveai_sdk::cli::command::functions::executions::create::{
+use objectiveai_sdk::cli::command::functions::execute::{
     FunctionSpec, ProfileSpec,
 };
 use objectiveai_sdk::functions::FullInlineFunctionOrRemoteCommitOptional;
@@ -112,7 +112,7 @@ async fn function_swarm_writes_per_agent_files() {
             .expect("profile JSON must deserialize"),
     );
 
-    let request = Request { path_type: objectiveai_sdk::cli::command::functions::executions::create::standard::Path::FunctionsExecutionsCreateStandard,
+    let request = Request { path_type: objectiveai_sdk::cli::command::functions::execute::standard::Path::FunctionsExecuteStandard,
         function,
         profile,
         input: RequestInput::Inline(

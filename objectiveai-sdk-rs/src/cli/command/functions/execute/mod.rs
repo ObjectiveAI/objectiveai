@@ -16,7 +16,7 @@ pub mod swiss_system;
 /// are new variants that only appear on the cli wire side.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
-#[schemars(rename = "cli.command.functions.executions.create.FunctionSpec")]
+#[schemars(rename = "cli.command.functions.execute.FunctionSpec")]
 pub enum FunctionSpec {
     #[schemars(title = "Resolved")]
     Resolved(crate::functions::FullInlineFunctionOrRemoteCommitOptional),
@@ -35,7 +35,7 @@ pub enum FunctionSpec {
 /// enum. See [`FunctionSpec`] for the variant semantics.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
-#[schemars(rename = "cli.command.functions.executions.create.ProfileSpec")]
+#[schemars(rename = "cli.command.functions.execute.ProfileSpec")]
 pub enum ProfileSpec {
     #[schemars(title = "Resolved")]
     Resolved(crate::functions::InlineProfileOrRemoteCommitOptional),
@@ -239,7 +239,7 @@ pub enum Command {
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
-#[schemars(rename = "cli.command.functions.executions.create.Request")]
+#[schemars(rename = "cli.command.functions.execute.Request")]
 pub enum Request {
     #[schemars(title = "Standard")]
     Standard(standard::Request),
@@ -259,7 +259,7 @@ pub enum Request {
 // `ResponseItem` in command.rs - TS7056).
 #[objectiveai_sdk_macros::json_schema_ignore]
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.functions.executions.create.ResponseItem")]
+#[schemars(rename = "cli.command.functions.execute.ResponseItem")]
 #[serde(untagged)]
 pub enum ResponseItem {
     #[schemars(title = "Standard")]

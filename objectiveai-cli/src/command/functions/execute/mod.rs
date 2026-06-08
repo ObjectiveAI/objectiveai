@@ -1,4 +1,4 @@
-//! `functions executions create` sub-tier. Standard and SwissSystem are
+//! `functions execute` sub-tier. Standard and SwissSystem are
 //! chunk-or-id streaming leaves; their bare-naked `execute` returns
 //! `Stream<ResponseItem>` and the inner stream is mapped into the
 //! tier's `ResponseItem` directly.
@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::pin::Pin;
 
 use futures::{Stream, StreamExt};
-use objectiveai_sdk::cli::command::functions::executions::create::{
+use objectiveai_sdk::cli::command::functions::execute::{
     FunctionSpec, ProfileSpec, Request, ResponseItem,
 };
 use objectiveai_sdk::functions::expression::InputValue;

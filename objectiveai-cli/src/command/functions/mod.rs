@@ -8,7 +8,7 @@ use objectiveai_sdk::cli::command::functions::{Request, ResponseItem};
 use crate::context::Context;
 use crate::error::Error;
 
-pub mod executions;
+pub mod execute;
 pub mod get;
 pub mod list;
 pub mod profiles;
@@ -24,9 +24,9 @@ fn once<T: Send + 'static>(
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     let stream: ItemStream = match request {
-        Request::Executions(req) => {
-            let inner = executions::execute(ctx, req).await?;
-            Box::pin(inner.map(|r| r.map(ResponseItem::Executions)))
+        Request::Execute(req) => {
+            let inner = execute::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Execute)))
         }
         Request::Get(req) => {
             let value = get::execute(ctx, req).await?;

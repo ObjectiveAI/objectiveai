@@ -1,4 +1,4 @@
-pub mod executions;
+pub mod execute;
 pub mod get;
 pub mod list;
 pub mod profiles;
@@ -6,9 +6,9 @@ pub mod publish;
 
 #[derive(clap::Subcommand)]
 pub enum Command {
-    Executions {
+    Execute {
         #[command(subcommand)]
-        command: executions::Command,
+        command: execute::Command,
     },
     Get(get::Command),
     List(list::Command),
@@ -23,8 +23,8 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.functions.Request")]
 pub enum Request {
-    #[schemars(title = "Executions")]
-    Executions(executions::Request),
+    #[schemars(title = "Execute")]
+    Execute(execute::Request),
     #[schemars(title = "Get")]
     Get(get::Request),
     #[schemars(title = "GetRequestSchema")]
@@ -54,8 +54,8 @@ pub enum Request {
 #[schemars(rename = "cli.command.functions.ResponseItem")]
 #[serde(untagged)]
 pub enum ResponseItem {
-    #[schemars(title = "Executions")]
-    Executions(executions::ResponseItem),
+    #[schemars(title = "Execute")]
+    Execute(execute::ResponseItem),
     #[schemars(title = "Get")]
     Get(get::Response),
     #[schemars(title = "GetRequestSchema")]
@@ -82,7 +82,7 @@ pub enum ResponseItem {
 impl crate::cli::command::CommandResponse for ResponseItem {
     fn into_mcp(self) -> crate::cli::command::McpResponseItem {
         match self {
-            ResponseItem::Executions(v) => v.into_mcp(),
+            ResponseItem::Execute(v) => v.into_mcp(),
             ResponseItem::Get(v) => v.into_mcp(),
             ResponseItem::GetRequestSchema(v) => v.into_mcp(),
             ResponseItem::GetResponseSchema(v) => v.into_mcp(),
@@ -101,8 +101,8 @@ impl TryFrom<Command> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(command: Command) -> Result<Self, Self::Error> {
         match command {
-            Command::Executions { command } =>
-                Ok(Request::Executions(executions::Request::try_from(command)?)),
+            Command::Execute { command } =>
+                Ok(Request::Execute(execute::Request::try_from(command)?)),
             Command::Get(cmd) => match cmd.schema {
                 None => Ok(Request::Get(get::Request::try_from(cmd.args)?)),
                 Some(get::Schema::RequestSchema(args)) =>
@@ -133,7 +133,7 @@ impl TryFrom<Command> for Request {
 impl crate::cli::command::CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         match self {
-            Request::Executions(inner) => inner.into_command(),
+            Request::Execute(inner) => inner.into_command(),
             Request::Get(inner) => inner.into_command(),
             Request::GetRequestSchema(inner) => inner.into_command(),
             Request::GetResponseSchema(inner) => inner.into_command(),
@@ -161,9 +161,9 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     use futures::StreamExt;
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>> =
         match request {
-            Request::Executions(req) => {
-                let inner = executions::execute(executor, req, agent_arguments).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Executions)))
+            Request::Execute(req) => {
+                let inner = execute::execute(executor, req, agent_arguments).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Execute)))
             }
             Request::Get(req) => {
                 let value = get::execute(executor, req, agent_arguments).await?;
@@ -238,8 +238,8 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
 > {
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
         match request {
-            Request::Executions(req) => {
-                let inner = executions::execute_jq(executor, req, jq, agent_arguments).await?;
+            Request::Execute(req) => {
+                let inner = execute::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Get(req) => {

@@ -98,5 +98,5 @@ impl PipeConfig {
 #[serde(tag = "endpoint", content = "params", rename_all = "snake_case")]
 pub enum InstanceEndpoint {
     AgentsSpawn(AgentCompletionCreateParams),
-    FunctionsExecutionsCreate(FunctionExecutionCreateParams),
+    FunctionsExecute(FunctionExecutionCreateParams),
 }

@@ -11,7 +11,7 @@ pub mod plugin;
 /// stream of typed items.
 ///
 /// `T` is left to the caller: pick a concrete leaf response type
-/// (`agents::spawn::Response`, `functions::executions::create::standard::ResponseItem`,
+/// (`agents::spawn::Response`, `functions::execute::standard::ResponseItem`,
 /// …) or a more general `serde_json::Value` for opaque consumption.
 ///
 /// Every call accepts an optional [`AgentArguments`] bag controlling

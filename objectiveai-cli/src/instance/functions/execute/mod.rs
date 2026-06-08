@@ -1,4 +1,4 @@
-//! `functions executions create` — open a function execution stream,
+//! `functions execute` — open a function execution stream,
 //! yield each chunk + `LogStreamReady` + any warnings as typed
 //! [`InstanceEmission`] items, manage per-agent named pipes, write
 //! coalesced log files to `${config_base_dir}/logs/`.

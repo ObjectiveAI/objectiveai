@@ -32,10 +32,10 @@ mod cli_test_util;
 use std::path::{Path, PathBuf};
 
 use objectiveai_sdk::RemotePathCommitOptional;
-use objectiveai_sdk::cli::command::functions::executions::create::standard::{
+use objectiveai_sdk::cli::command::functions::execute::standard::{
     Request, RequestDangerousAdvanced, RequestInput, ResponseItem,
 };
-use objectiveai_sdk::cli::command::functions::executions::create::{
+use objectiveai_sdk::cli::command::functions::execute::{
     FunctionSpec, ProfileSpec,
 };
 use objectiveai_sdk::functions::FullInlineFunctionOrRemoteCommitOptional;
@@ -101,7 +101,7 @@ async fn test_twenty_agents_json_schema_10x_tools_seed_42() {
         "items": ["A", "B"],
     });
 
-    let request = Request { path_type: objectiveai_sdk::cli::command::functions::executions::create::standard::Path::FunctionsExecutionsCreateStandard,
+    let request = Request { path_type: objectiveai_sdk::cli::command::functions::execute::standard::Path::FunctionsExecuteStandard,
         function,
         profile,
         input: RequestInput::Inline(

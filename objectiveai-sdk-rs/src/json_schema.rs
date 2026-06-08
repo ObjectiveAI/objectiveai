@@ -1,4 +1,4 @@
-﻿/// Returns JSON Schemas for all public types that derive `JsonSchema`.
+/// Returns JSON Schemas for all public types that derive `JsonSchema`.
 ///
 /// Each schema is generated via `schemars::schema_for!()` and includes
 /// the type's `$defs` for referenced types. The schema title matches
@@ -1002,47 +1002,47 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::functions::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::executions::create::FunctionSpec),
+        schemars::schema_for!(crate::cli::command::functions::execute::FunctionSpec),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::executions::create::ProfileSpec),
+        schemars::schema_for!(crate::cli::command::functions::execute::ProfileSpec),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::executions::create::Request),
+        schemars::schema_for!(crate::cli::command::functions::execute::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::executions::create::standard::Path),
+        schemars::schema_for!(crate::cli::command::functions::execute::standard::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::executions::create::standard::Request),
+        schemars::schema_for!(crate::cli::command::functions::execute::standard::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::executions::create::standard::RequestDangerousAdvanced),
+        schemars::schema_for!(crate::cli::command::functions::execute::standard::RequestDangerousAdvanced),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::executions::create::standard::RequestInput),
+        schemars::schema_for!(crate::cli::command::functions::execute::standard::RequestInput),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::executions::create::standard::ResponseItem),
+        schemars::schema_for!(crate::cli::command::functions::execute::standard::ResponseItem),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::executions::create::standard::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::functions::execute::standard::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::executions::create::standard::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::functions::execute::standard::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::executions::create::standard::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::functions::execute::standard::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::executions::create::standard::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::functions::execute::standard::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::executions::create::swiss_system::Path),
+        schemars::schema_for!(crate::cli::command::functions::execute::swiss_system::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::executions::create::swiss_system::Request),
+        schemars::schema_for!(crate::cli::command::functions::execute::swiss_system::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::executions::create::swiss_system::RequestDangerousAdvanced),
+        schemars::schema_for!(crate::cli::command::functions::execute::swiss_system::RequestDangerousAdvanced),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::executions::create::swiss_system::RequestInput),
+        schemars::schema_for!(crate::cli::command::functions::execute::swiss_system::RequestInput),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::executions::create::swiss_system::ResponseItem),
+        schemars::schema_for!(crate::cli::command::functions::execute::swiss_system::ResponseItem),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::executions::create::swiss_system::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::functions::execute::swiss_system::request_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::executions::create::swiss_system::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::functions::execute::swiss_system::request_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::executions::create::swiss_system::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::functions::execute::swiss_system::response_schema::Path),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::executions::create::swiss_system::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::functions::execute::swiss_system::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::functions::get::Path),
         #[cfg(feature = "cli")]
