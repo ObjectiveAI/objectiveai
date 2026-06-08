@@ -27,7 +27,6 @@
 //! `dangerous_advanced.stream` setting only controls cli-side
 //! output.
 
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::pin::Pin;
 
@@ -213,8 +212,11 @@ fn run_multi_pass(
                 "failed to open agent claim registry: {e}"
             )))?;
         let mut params = initial_params;
-        let mut emitted_id = false;
-        let mut first_pass = true;
+        // A spawn has exactly one `(agent_instance_hierarchy,
+        // agent_full_id)` pair — set by the API on the very first
+        // chunk and never changes across restart passes. Capture
+        // once; reuse forever. `None` until the first chunk lands.
+        let mut identity: Option<(String, String)> = None;
 
         loop {
             // Per-pass resources. New WS connection, new log writer,
@@ -247,7 +249,6 @@ fn run_multi_pass(
             conduit.install_notifier(notifier);
 
             let mut sdk_stream = Box::pin(sdk_stream);
-            let mut seen: HashMap<String, String> = HashMap::new();
             let mut last_continuation: Option<String> = None;
 
             while let Some(item) = sdk_stream.next().await {
@@ -255,51 +256,42 @@ fn run_multi_pass(
                     Error::Instance(format!("agent stream item error: {e}"))
                 })?;
 
-                // First chunk of the FIRST pass: bind the explicit
-                // `agent_tag` (if any) to the spawn's primary
-                // hierarchy. Subsequent passes share the same root,
-                // so we only do this once.
-                if !emitted_id {
-                    let id = chunk.agent_instance_hierarchy.clone();
-                    if first_pass {
-                        if let Some(tag) = &agent_tag {
-                            let _ = crate::db::tags::upsert_bound(
-                                &ctx.db, tag, &id,
-                            )
-                            .await;
-                        }
+                // First chunk EVER (first pass, first chunk):
+                // capture the spawn's identity, claim the lock
+                // file, optionally bind the explicit `agent_tag`,
+                // run the initial PENDING-tag upgrade, and emit
+                // the `ResponseItem::Id` handshake. Everything
+                // here runs exactly once per spawn lifetime.
+                if identity.is_none() {
+                    let hier = chunk.agent_instance_hierarchy.clone();
+                    let full_id = chunk.agent_full_id.clone();
+                    registry.observe(&hier);
+                    if let Some(tag) = &agent_tag {
+                        let _ = crate::db::tags::upsert_bound(
+                            &ctx.db, tag, &hier,
+                        )
+                        .await;
                     }
-                    emitted_id = true;
-                    yield ResponseItem::Id(id);
+                    let parent = crate::db::tags::parent_of(&hier);
+                    let _ = crate::db::message_queue::upgrade_and_check_pending(
+                        &ctx.db, &hier, parent, &full_id,
+                    )
+                    .await;
+                    yield ResponseItem::Id(hier.clone());
+                    identity = Some((hier, full_id));
                 }
 
                 // Latest continuation seen on the wire — what we
-                // use to restart if any pending messages turn up at
+                // use to restart if pending messages turn up at
                 // EOF. Only the terminal chunk usually carries one.
                 if let Some(c) = chunk.continuation.as_deref() {
                     last_continuation = Some(c.to_string());
                 }
 
-                // Per-chunk hook: for every *new*
-                // (agent_instance_hierarchy, agent_full_id) pair,
-                // claim the process-owned lock file and upgrade
-                // any PENDING tags that match. Both are best-effort
-                // (the file may already be claimed by another live
-                // process; the upgrade is a no-op if no matching
-                // rows exist).
-                let hier = chunk.agent_instance_hierarchy.as_str();
-                let full_id = chunk.agent_full_id.as_str();
-                if !seen.contains_key(hier) {
-                    registry.observe(hier);
-                    let parent = crate::db::tags::parent_of(hier);
-                    let _ = crate::db::message_queue::upgrade_and_check_pending(
-                        &ctx.db, hier, parent, full_id,
-                    )
-                    .await;
-                    seen.insert(hier.to_string(), full_id.to_string());
-                }
-
-                // Log + forward.
+                // Log + forward. No per-chunk registry / upgrade /
+                // pending probe — the hierarchy is invariant and
+                // those side effects already fired on the first
+                // chunk above.
                 log_writer
                     .write(&chunk)
                     .await
@@ -314,48 +306,34 @@ fn run_multi_pass(
             })?;
             drop(sdk_stream);
             drop(conduit);
-            first_pass = false;
 
-            // End-of-pass: re-run the combined upgrade-and-check
-            // against every seen (hierarchy, agent_full_id) pair.
-            // Doing the upgrade pass again here matters — tags
-            // that became PENDING during the stream are upgraded
-            // now so the message_queue lookup can see anything
-            // routed via newly-bound tags. Then: destroy the claim
-            // file for every hierarchy that has *no* pending
-            // messages (those agents are done, free their slot),
-            // keep the claim for hierarchies that do (the next
-            // pass will re-encounter them).
-            let mut any_pending = false;
-            for (hier, full_id) in &seen {
-                let parent = crate::db::tags::parent_of(hier);
-                let pending = crate::db::message_queue::upgrade_and_check_pending(
-                    &ctx.db, hier, parent, full_id,
-                )
-                .await
-                .unwrap_or(false);
-                if pending {
-                    any_pending = true;
-                    // Keep the claim — restart will revisit this
-                    // hierarchy.
-                } else {
-                    // No pending — this agent is good to go,
-                    // release the claim so other processes can
-                    // pick the hierarchy up if they need to.
-                    registry.destroy(hier);
-                }
-            }
-
-            if !any_pending {
+            // End-of-pass: one upgrade-and-check call against the
+            // spawn's single hierarchy. The upgrade half matters
+            // even when no messages are pending — tags that became
+            // PENDING mid-stream get promoted now so the
+            // message_queue lookup can see anything routed via
+            // newly-bound tags. On `false`, fall through to the
+            // implicit registry drop on function return (no
+            // explicit destroy needed — there's only one claim and
+            // we're done with it).
+            let Some((hier, full_id)) = identity.as_ref() else {
+                // Empty stream — nothing was claimed, nothing to
+                // restart. Just exit.
+                break;
+            };
+            let parent = crate::db::tags::parent_of(hier);
+            let pending = crate::db::message_queue::upgrade_and_check_pending(
+                &ctx.db, hier, parent, full_id,
+            )
+            .await
+            .unwrap_or(false);
+            if !pending {
                 break;
             }
 
             // Restart with the latest continuation only. No new
             // messages — the API picks up state from the
-            // continuation token. The original messages list (or
-            // empty, if prompt was `None`) is replaced by an
-            // empty Vec; this is the same content-less re-invoke
-            // the SDK Request's optional `prompt` field models.
+            // continuation token.
             params.messages = Vec::new();
             params.continuation = last_continuation;
         }
