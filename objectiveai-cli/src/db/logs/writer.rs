@@ -45,7 +45,7 @@ use super::row::{RowTable, RowsIter};
 use super::rows::{
     agent_completion_chunk_rows, function_execution_chunk_rows, vector_completion_chunk_rows,
 };
-use super::shadow::{Shadow, WriteOp, blob_fingerprint};
+use super::shadow::{Shadow, WriteOp};
 use super::write::{
     Tier, insert_request_blob, insert_response_blob, update_response_blob, write_value,
 };
@@ -239,7 +239,6 @@ impl<C> LogWriter<C> {
             WriteOp::Skip => {}
         }
 
-        let _ = blob_fingerprint(&response_bytes);
         Ok(Vec::new())
     }
 
