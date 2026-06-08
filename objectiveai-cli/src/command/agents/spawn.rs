@@ -173,9 +173,10 @@ async fn execute_streaming(
     };
 
     // Message-queue delivery to the live API happens through the
-    // conduit's `read_pending_and_upgrade_tag` / `clear_by_ids`
-    // calls — the API pulls pending rows on demand as the stream
-    // runs. No pre-spawn drain + prepend here.
+    // conduit's `read_pending_and_upgrade_tag` call — the API
+    // pulls pending rows on demand as the stream runs and stamps
+    // their ids onto the first emitted assistant chunk's
+    // `request_message_ids`. No pre-spawn drain + prepend here.
     let ctx_clone = ctx.clone();
     Ok(Box::pin(run_multi_pass(ctx_clone, params, agent_tag, agents_dir)))
 }

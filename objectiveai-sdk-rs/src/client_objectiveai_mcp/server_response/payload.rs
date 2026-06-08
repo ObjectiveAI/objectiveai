@@ -84,20 +84,12 @@ pub enum Payload {
     /// `mcp_kind` to echo.
     #[schemars(title = "ReadMessageQueue")]
     ReadMessageQueue(JsonRpcResult<ReadMessageQueueResult>),
-
-    /// Acknowledges
-    /// [`super::super::server_request::Payload::ClearMessageQueue`].
-    /// Unit on success; storage error on failure. No row-count is
-    /// returned — unknown ids are silently absorbed. Non-MCP — no
-    /// `mcp_kind` to echo.
-    #[schemars(title = "ClearMessageQueue")]
-    ClearMessageQueue(JsonRpcResult<()>),
 }
 
 impl Payload {
     /// Which CLI-hosted MCP server produced this reply. `Some` for
     /// MCP-routed variants (echoes the request's `mcp_kind`); `None`
-    /// for `ReadMessageQueue` and `ClearMessageQueue`.
+    /// for `ReadMessageQueue`.
     pub fn mcp_kind(&self) -> Option<super::super::McpKind> {
         match self {
             Payload::Initialize { mcp_kind, .. }
@@ -106,7 +98,7 @@ impl Payload {
             | Payload::ResourcesList { mcp_kind, .. }
             | Payload::ResourcesRead { mcp_kind, .. }
             | Payload::SessionTerminate { mcp_kind, .. } => Some(mcp_kind.clone()),
-            Payload::ReadMessageQueue(_) | Payload::ClearMessageQueue(_) => None,
+            Payload::ReadMessageQueue(_) => None,
         }
     }
 }
@@ -114,10 +106,10 @@ impl Payload {
 /// Successful payload for
 /// [`Payload::ReadMessageQueue`].
 ///
-/// Entries are oldest-first (`prompts.id ASC`) — same ordering the
-/// in-process drain emits. Feed each `id` back into
-/// [`super::super::server_request::ClearMessageQueueRequest::ids`]
-/// once the content has been consumed.
+/// Entries are oldest-first (`message_queue.id ASC`). The API
+/// stamps the consumed ids onto the first
+/// `AssistantResponseChunk.request_message_ids` it emits — the
+/// downstream consumer owns row deletion from there.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.server_response.ReadMessageQueueResult")]
 pub struct ReadMessageQueueResult {
@@ -128,9 +120,9 @@ pub struct ReadMessageQueueResult {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.server_response.ReadMessageQueueEntry")]
 pub struct ReadMessageQueueEntry {
-    /// `prompts.id` — opaque integer the caller feeds back into
-    /// [`super::super::server_request::ClearMessageQueueRequest`] to
-    /// drop the row.
+    /// `message_queue.id` — opaque integer the API stamps onto
+    /// the first emitted assistant chunk's `request_message_ids`
+    /// so the downstream consumer can drop the row.
     pub id: i64,
     /// Reconstructed body. Single-text-part rows collapse to
     /// [`crate::agent::completions::message::RichContent::Text`];

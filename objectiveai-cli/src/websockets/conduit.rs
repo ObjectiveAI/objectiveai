@@ -187,9 +187,6 @@ impl McpHandler for ConduitMcpHandler {
             server_request::Payload::ReadMessageQueue(req) => {
                 dispatch_read_message_queue(&self.inner, req).await
             }
-            server_request::Payload::ClearMessageQueue(req) => {
-                dispatch_clear_message_queue(&self.inner, req).await
-            }
         };
 
         server_response::Response { id, payload }
@@ -541,29 +538,6 @@ async fn dispatch_read_message_queue(
         Err(e) => server_response::Payload::ReadMessageQueue(JsonRpcResult::Err {
             code: -32603,
             message: format!("conduit: read_message_queue: {e}"),
-            data: None,
-        }),
-    }
-}
-
-/// Bulk-delete message rows by id from `message_queue (postgres)`. Empty `ids`
-/// is a no-op; unknown ids are silently absorbed (`DELETE WHERE id =
-/// ?` with no match returns 0 rows affected without erroring).
-async fn dispatch_clear_message_queue(
-    inner: &Arc<Inner>,
-    req: server_request::ClearMessageQueueRequest,
-) -> server_response::Payload {
-    match crate::db::message_queue::clear_by_ids(
-        &inner.ctx.db,
-        &req.agent_instance_hierarchy,
-        req.ids,
-    )
-    .await
-    {
-        Ok(()) => server_response::Payload::ClearMessageQueue(JsonRpcResult::Ok { result: () }),
-        Err(e) => server_response::Payload::ClearMessageQueue(JsonRpcResult::Err {
-            code: -32603,
-            message: format!("conduit: clear_message_queue: {e}"),
             data: None,
         }),
     }

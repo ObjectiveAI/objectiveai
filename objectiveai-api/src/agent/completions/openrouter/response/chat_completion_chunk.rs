@@ -99,6 +99,7 @@ impl ChatCompletionChunk {
                 usage: self
                     .usage
                     .map(|usage| usage.into_downstream(is_byok, cost_multiplier)),
+                request_message_ids: None,
             },
         );
 

@@ -100,7 +100,6 @@ fn payload_variant_name(p: &server_response::Payload) -> &'static str {
         P::ResourcesRead { .. } => "resources_read",
         P::SessionTerminate { .. } => "session_terminate",
         P::ReadMessageQueue(_) => "read_message_queue",
-        P::ClearMessageQueue(_) => "clear_message_queue",
     }
 }
 

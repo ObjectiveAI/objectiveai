@@ -1370,15 +1370,18 @@ where
         };
 
         // Drain the CLI's local prompt queue via the WS reverse-
-        // attach. Replaces the previous `conn.drain_notifications()`
-        // call on the MCP proxy connection: the queue lives in the
-        // CLI's `prompts.sqlite`, the API asks for its current
-        // contents via `read_message_queue`, joins every entry into a
-        // single new user turn, and saves the entry ids so a
-        // follow-up `clear_message_queue` (fired after the first OK
-        // chunk yields downstream — see the stream body below) can
-        // release them. This way the queue stays populated through a
-        // failed turn and the next attempt re-reads it.
+        // attach. The queue lives in the CLI's postgres-backed
+        // `message_queue`; the API asks for its current contents
+        // via `read_message_queue`, joins every entry into a single
+        // new user turn, and saves the entry ids. The ids are then
+        // stamped onto the first assistant chunk yielded downstream
+        // via `AssistantResponseChunk.request_message_ids` — a
+        // signal to the consumer that those rows have been
+        // consumed for this turn. The consumer owns row deletion
+        // (no longer fires a separate `clear_message_queue` WS
+        // call). If the upstream stream errors before any assistant
+        // chunk lands, the ids drop on the floor and the queue
+        // stays populated — the next turn re-reads it.
         let mut queue_ids_to_clear: Vec<i64> = Vec::new();
         if let Some(handle) = &reverse_attach {
             let entries = read_message_queue_via_ws(
@@ -1524,26 +1527,21 @@ where
             let mut final_error: Option<objectiveai_sdk::error::ResponseError> = None;
             let mut stream: Pin<Box<dyn futures::Stream<Item = super::StreamItem<U::State>> + Send>> =
                 Box::pin(initial_stream);
-            // Fire-and-forget `clear_message_queue` once the first OK
-            // chunk yields downstream — the queued content has now
-            // reached the consumer, so the CLI side can safely
-            // release the rows. Failures here are silently absorbed:
-            // a stale queue row gets re-read (and re-cleared) on the
-            // next turn, which is the same recovery the read path
-            // already tolerates.
-            let mut queue_clear_pending = !queue_ids_to_clear.is_empty();
-            let mut maybe_fire_clear = |chunk_is_ok: bool| {
-                if !queue_clear_pending || !chunk_is_ok {
-                    return;
-                }
-                queue_clear_pending = false;
-                let Some(handle) = reverse_attach.clone() else { return; };
-                let ids = std::mem::take(&mut queue_ids_to_clear);
-                let hierarchy = agent_instance_hierarchy_header.clone();
-                tokio::spawn(clear_message_queue_via_ws(
-                    handle, hierarchy, ids,
-                ));
-            };
+            // In-band signal of queue consumption: stamp
+            // `queue_ids_to_clear` onto the first
+            // `MessageChunk::Assistant` we can find in an OK
+            // outbound chunk. The downstream consumer owns row
+            // deletion (no more `clear_message_queue` WS RPC).
+            // Until the stamp lands, the ids ride in the local
+            // `pending_request_message_ids` slot; if the upstream
+            // errors first, they fall on the floor and the queue
+            // stays populated for the next turn to re-read.
+            let mut pending_request_message_ids: Option<Vec<i64>> =
+                if queue_ids_to_clear.is_empty() {
+                    None
+                } else {
+                    Some(std::mem::take(&mut queue_ids_to_clear))
+                };
             loop {
                 let mut current_state: Option<U::State> = None;
                 let mut had_error = false;
@@ -1583,11 +1581,20 @@ where
                                 None => aggregate = Some(chunk.clone()),
                             }
                             // Yield the previous pending chunk (without usage),
-                            // buffer the current one.
-                            if let Some(prev) = pending_chunk.replace(chunk) {
-                                let was_ok = prev.error.is_none();
+                            // buffer the current one. Before yielding, walk
+                            // its messages and stamp `request_message_ids`
+                            // onto the first assistant chunk we can find —
+                            // single-shot per stream lifetime.
+                            if let Some(mut prev) = pending_chunk.replace(chunk) {
+                                if pending_request_message_ids.is_some() && prev.error.is_none() {
+                                    for m in prev.messages.iter_mut() {
+                                        if let objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(asst) = m {
+                                            asst.request_message_ids = pending_request_message_ids.take();
+                                            break;
+                                        }
+                                    }
+                                }
                                 yield super::StreamItem::Chunk(prev);
-                                maybe_fire_clear(was_ok);
                             }
                         }
                         Ok(Some(super::StreamItem::State(state))) => {
@@ -1602,11 +1609,19 @@ where
                     }
                 }
 
-                // Yield the last buffered chunk.
-                if let Some(last) = pending_chunk.take() {
-                    let was_ok = last.error.is_none();
+                // Yield the last buffered chunk. Same stamp-on-
+                // first-assistant pass as above so the pending ids
+                // get a final attempt before the stream ends.
+                if let Some(mut last) = pending_chunk.take() {
+                    if pending_request_message_ids.is_some() && last.error.is_none() {
+                        for m in last.messages.iter_mut() {
+                            if let objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(asst) = m {
+                                asst.request_message_ids = pending_request_message_ids.take();
+                                break;
+                            }
+                        }
+                    }
                     yield super::StreamItem::Chunk(last);
-                    maybe_fire_clear(was_ok);
                 }
 
                 // Push the upstream state (carries SDK session_id) onto the
@@ -1998,45 +2013,6 @@ async fn read_message_queue_via_ws(
     }
 }
 
-/// Fire `ClearMessageQueue` over the WS reverse-attach. Returns
-/// nothing — the typical caller spawns this off the chunk-yield hot
-/// path and lets it complete in the background. The CLI side scopes
-/// the DELETE to the same three-rule predicate the read uses, so a
-/// stale or wrongly-addressed id list is silently absorbed (see
-/// `ClearMessageQueueRequest`'s doc).
-async fn clear_message_queue_via_ws(
-    handle: std::sync::Arc<crate::objectiveai_mcp::ReverseAttachHandle>,
-    agent_instance_hierarchy: String,
-    ids: Vec<i64>,
-) {
-    use objectiveai_sdk::client_objectiveai_mcp::server_request;
-    if ids.is_empty() {
-        return;
-    }
-    let rc = handle.channel();
-    let request = server_request::Request {
-        id: uuid::Uuid::new_v4().to_string(),
-        headers: indexmap::IndexMap::new(),
-        payload: server_request::Payload::ClearMessageQueue(
-            server_request::ClearMessageQueueRequest {
-                agent_instance_hierarchy,
-                ids,
-            },
-        ),
-    };
-    let rx = match crate::objectiveai_mcp::send_server_request(
-        &rc.sink, &rc.pending, request,
-    )
-    .await
-    {
-        Ok(rx) => rx,
-        Err(()) => return,
-    };
-    // Best-effort: ignore the response. Timeout matches the read
-    // path so a wedged WS doesn't leak this background task forever.
-    let _ = tokio::time::timeout(MESSAGE_QUEUE_WS_TIMEOUT, rx).await;
-}
-
 /// Builds an `AgentCompletionChunk` containing a single tool-response message.
 fn make_tool_chunk(
     id: &str,
@@ -2065,6 +2041,7 @@ fn make_tool_chunk(
             role: Default::default(),
             index,
             inner: tool_msg.clone(),
+            request_message_ids: None,
         })],
         ..Default::default()
     }

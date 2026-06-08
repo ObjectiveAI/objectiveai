@@ -54,6 +54,9 @@ impl From<response::streaming::AssistantResponseChunk> for AssistantResponse {
             system_fingerprint,
             provider,
             usage,
+            // `request_message_ids` is a streaming-side signal —
+            // the unary response shape ignores it.
+            request_message_ids: _,
         }: response::streaming::AssistantResponseChunk,
     ) -> Self {
         Self {

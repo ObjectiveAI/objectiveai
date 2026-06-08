@@ -18,6 +18,19 @@ pub struct ToolResponse {
     pub index: u64,
     #[serde(flatten)]
     pub inner: agent::completions::message::ToolMessage,
+    /// Mirrors `AssistantResponseChunk.request_message_ids` —
+    /// `message_queue.id`s the API consumed. Currently never
+    /// populated (the API stamps the assistant chunk instead);
+    /// the field exists so the wire shape is symmetric across
+    /// the two `MessageChunk` variants. Both `None` and
+    /// `Some(empty)` are skipped on serialize.
+    #[serde(default, skip_serializing_if = "request_message_ids_is_empty")]
+    #[schemars(extend("omitempty" = true))]
+    pub request_message_ids: Option<Vec<i64>>,
+}
+
+fn request_message_ids_is_empty(opt: &Option<Vec<i64>>) -> bool {
+    opt.as_ref().map_or(true, |v| v.is_empty())
 }
 
 

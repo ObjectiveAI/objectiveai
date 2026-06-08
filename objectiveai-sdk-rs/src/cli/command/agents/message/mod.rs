@@ -221,8 +221,9 @@ impl CommandRequest for Request {
 #[serde(tag = "type", rename_all = "snake_case")]
 #[schemars(rename = "cli.command.agents.message.Response")]
 pub enum Response {
-    /// The queue row reached a live agent (the API's conduit ran
-    /// `clear_by_ids` on it) before any other race finalized.
+    /// The queue row reached a live agent (the API stamped its id
+    /// onto an assistant chunk's `request_message_ids`) before
+    /// any other race finalized.
     Delivered,
     /// The target's tag wasn't bound at call time (PENDING /
     /// ABSENT). The message was deferred into the queue.

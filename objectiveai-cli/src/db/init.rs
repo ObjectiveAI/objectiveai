@@ -180,7 +180,7 @@ CREATE TABLE IF NOT EXISTS schedules (
 -- AFTER-DELETE trigger on `message_queue`: every clear emits a
 -- `NOTIFY message_queue_delete '<id>'` so the cli's
 -- `db::message_queue::subscribe_delivered` listener can wake up
--- the instant the conduit's `clear_by_ids` removes our row. No
+-- the instant any path removes our row. No
 -- polling — pure native LISTEN/NOTIFY.
 CREATE OR REPLACE FUNCTION notify_message_queue_delete()
 RETURNS trigger AS $$

@@ -102,6 +102,7 @@ impl SDKUserMessage {
                     tool_call_id,
                     metadata: None,
                 },
+                request_message_ids: None,
             },
         );
 

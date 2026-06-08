@@ -770,46 +770,6 @@ pub async fn read_pending_and_upgrade_tag(
     Ok(out)
 }
 
-/// Bulk-delete message rows by id, scoped to the same two-rule
-/// predicate `read_pending_and_upgrade_tag` uses. Empty `ids`
-/// short-circuits.
-pub async fn clear_by_ids(
-    pool: &Pool,
-    agent_instance_hierarchy: &str,
-    ids: Vec<i64>,
-) -> Result<(), Error> {
-    if ids.is_empty() {
-        return Ok(());
-    }
-    let mut tx = pool.begin().await?;
-    // Loop a single-id DELETE inside one transaction — sqlx doesn't
-    // bind `IN (?)` lists from a slice cleanly across drivers, and
-    // the per-row scope predicate makes the loop trivial.
-    for id in ids {
-        sqlx::query(
-            "DELETE FROM message_queue \
-             WHERE id = $1 \
-               AND ( \
-                 agent_instance_hierarchy = $2 \
-                 OR ( \
-                     agent_tag IS NOT NULL \
-                     AND EXISTS ( \
-                         SELECT 1 FROM tags t \
-                         WHERE t.name = agent_tag \
-                           AND t.agent_instance_hierarchy = $2 \
-                     ) \
-                 ) \
-               )",
-        )
-        .bind(id)
-        .bind(agent_instance_hierarchy)
-        .execute(&mut *tx)
-        .await?;
-    }
-    tx.commit().await?;
-    Ok(())
-}
-
 // ---------------------------------------------------------------------------
 // Delivery enumeration — `agents queue deliver` fan-out.
 // ---------------------------------------------------------------------------
@@ -912,9 +872,8 @@ pub async fn check_any_pending(
 // ---------------------------------------------------------------------------
 
 /// Wait until the `message_queue` row identified by `id` is
-/// deleted. Resolves `Ok(())` the moment the row is gone — either
-/// because the conduit's `clear_by_ids` just removed it, or
-/// because it was already gone before we started listening.
+/// deleted. Resolves `Ok(())` the moment the row is gone —
+/// regardless of which path performed the delete.
 ///
 /// Uses `sqlx::postgres::PgListener` on the
 /// `message_queue_delete` channel that the AFTER-DELETE trigger

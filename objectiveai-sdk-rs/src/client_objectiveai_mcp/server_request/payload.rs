@@ -9,11 +9,10 @@ use serde::{Deserialize, Serialize};
 /// [`super::super::server_response::Payload`] by name.
 ///
 /// MCP-routed variants carry `mcp_kind` directly on the variant
-/// (alongside the typed params via `#[serde(flatten)]`). Non-MCP
-/// variants (`ReadMessageQueue` / `ClearMessageQueue`) don't carry
-/// `mcp_kind` at all — they hit the CLI's own local state and never
-/// route to an upstream MCP server. Use [`Payload::mcp_kind`] to
-/// retrieve it generically.
+/// (alongside the typed params via `#[serde(flatten)]`). The non-MCP
+/// `ReadMessageQueue` variant doesn't carry `mcp_kind` at all — it
+/// hits the CLI's own local state and never routes to an upstream
+/// MCP server. Use [`Payload::mcp_kind`] to retrieve it generically.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.server_request.Payload")]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -67,23 +66,20 @@ pub enum Payload {
     #[schemars(title = "SessionTerminate")]
     SessionTerminate { mcp_kind: super::super::McpKind },
 
-    /// Read the CLI's local message queue (`prompts.sqlite`) for a
-    /// given agent hierarchy. Non-MCP — no `mcp_kind`. Non-destructive;
-    /// pair with [`Payload::ClearMessageQueue`] to release rows
-    /// after the caller has consumed them.
+    /// Read the CLI's local message queue for a given agent
+    /// hierarchy. Non-MCP — no `mcp_kind`. Non-destructive: the
+    /// API stamps the consumed ids onto the first
+    /// `AssistantResponseChunk.request_message_ids` it emits so
+    /// the downstream consumer owns row deletion; no separate
+    /// release RPC.
     #[schemars(title = "ReadMessageQueue")]
     ReadMessageQueue(ReadMessageQueueRequest),
-
-    /// Delete a set of message-queue rows by id. Non-MCP — no
-    /// `mcp_kind`. Unknown ids are silently ignored.
-    #[schemars(title = "ClearMessageQueue")]
-    ClearMessageQueue(ClearMessageQueueRequest),
 }
 
 impl Payload {
     /// Which CLI-hosted MCP server this payload targets. `Some` for
-    /// the MCP-routed variants; `None` for `ReadMessageQueue` and
-    /// `ClearMessageQueue` which hit the CLI's own local state.
+    /// the MCP-routed variants; `None` for `ReadMessageQueue` which
+    /// hits the CLI's own local state.
     pub fn mcp_kind(&self) -> Option<super::super::McpKind> {
         match self {
             Payload::Initialize { mcp_kind, .. }
@@ -92,7 +88,7 @@ impl Payload {
             | Payload::ResourcesList { mcp_kind, .. }
             | Payload::ResourcesRead { mcp_kind, .. }
             | Payload::SessionTerminate { mcp_kind } => Some(mcp_kind.clone()),
-            Payload::ReadMessageQueue(_) | Payload::ClearMessageQueue(_) => None,
+            Payload::ReadMessageQueue(_) => None,
         }
     }
 }
@@ -110,30 +106,16 @@ impl Payload {
 /// group become BOUND before the EXISTS-check runs and feed
 /// straight into rule 2.
 ///
-/// Returns rows oldest-first (`message_queue.id ASC`, which also matches
-/// `message_queue.enqueued_at` ascending due to AUTOINCREMENT). Pair with
-/// [`ClearMessageQueueRequest`] (same `agent_instance_hierarchy`)
-/// after processing to release the rows; rows left behind remain
-/// visible to the next read.
+/// Returns rows oldest-first (`message_queue.id ASC`, which also
+/// matches `message_queue.enqueued_at` ascending due to
+/// AUTOINCREMENT). Row deletion is the downstream consumer's job:
+/// the API stamps the consumed ids onto the first emitted
+/// `AssistantResponseChunk.request_message_ids` so the consumer
+/// knows which rows it owns.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.server_request.ReadMessageQueueRequest")]
 pub struct ReadMessageQueueRequest {
     pub agent_instance_hierarchy: String,
-}
-
-/// Parameters for [`Payload::ClearMessageQueue`].
-///
-/// `ids` not matching the target hierarchy are silently absorbed;
-/// this protects against an API caller mis-addressing a row that
-/// belongs to a different agent. `ON DELETE CASCADE` on
-/// `message_queue_contents.message_queue_id` sweeps the per-kind
-/// content rows. Empty `ids` is a no-op. Unknown ids are silently
-/// ignored — the API may have raced another reader.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "client_objectiveai_mcp.server_request.ClearMessageQueueRequest")]
-pub struct ClearMessageQueueRequest {
-    pub agent_instance_hierarchy: String,
-    pub ids: Vec<i64>,
 }
 
 /// Parameters for [`Payload::Initialize`].

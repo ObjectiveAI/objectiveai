@@ -59,6 +59,18 @@ pub struct AssistantResponseChunk {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub usage: Option<response::UpstreamUsage>,
+    /// `message_queue.id`s the API consumed to seed this turn's
+    /// request. Stamped onto the first assistant chunk the API
+    /// emits downstream — when set, the consumer owns these rows
+    /// and may delete them once the turn is committed. Both
+    /// `None` and `Some(empty)` are skipped on serialize.
+    #[serde(default, skip_serializing_if = "request_message_ids_is_empty")]
+    #[schemars(extend("omitempty" = true))]
+    pub request_message_ids: Option<Vec<i64>>,
+}
+
+fn request_message_ids_is_empty(opt: &Option<Vec<i64>>) -> bool {
+    opt.as_ref().map_or(true, |v| v.is_empty())
 }
 
 impl AssistantResponseChunk {
@@ -79,6 +91,7 @@ impl AssistantResponseChunk {
             system_fingerprint,
             provider,
             usage,
+            request_message_ids,
             ..
         }: &AssistantResponseChunk,
     ) {
@@ -124,6 +137,18 @@ impl AssistantResponseChunk {
             }
             (None, Some(other_usage)) => {
                 self.usage = Some(other_usage.clone());
+            }
+            _ => {}
+        }
+        match (
+            &mut self.request_message_ids,
+            request_message_ids.as_ref(),
+        ) {
+            (Some(existing), Some(incoming)) => {
+                existing.extend(incoming.iter().copied());
+            }
+            (slot @ None, Some(incoming)) => {
+                *slot = Some(incoming.clone());
             }
             _ => {}
         }
