@@ -215,7 +215,11 @@ pub(crate) fn run_multi_pass(
                     ctx.clone(),
                     agent_tag.clone(),
                 );
-            let mut log_writer = crate::db::logs::write_agent_completion(
+            // Spawn.rs doesn't need the primary-id ready signal —
+            // it yields `ResponseItem::Id` from
+            // `chunk.agent_instance_hierarchy` directly on the first
+            // chunk. Drop the receiver.
+            let (log_writer, _ready_rx) = crate::db::logs::write_agent_completion(
                 &ctx.db, &params,
             )
             .map_err(|e| Error::Instance(format!(
@@ -264,13 +268,12 @@ pub(crate) fn run_multi_pass(
                     last_continuation = Some(c.to_string());
                 }
 
-                // Log + forward. No per-chunk registry / upgrade /
-                // pending probe — the hierarchy is invariant and
-                // those side effects already fired on the first
-                // chunk above.
+                // Log + forward. The write is now a synchronous
+                // mpsc send into the LogWriter's listener task — DB
+                // IO happens off this critical path. Clone the chunk
+                // for the listener; the original yields downstream.
                 log_writer
-                    .write(&chunk)
-                    .await
+                    .write(chunk.clone())
                     .map_err(|e| Error::Instance(format!(
                         "log writer error: {e}"
                     )))?;

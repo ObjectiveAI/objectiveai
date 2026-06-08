@@ -1,7 +1,32 @@
-//! `LogWriter<C>` — postgres log writer driven by the chunk-rows
-//! iterator family.
+//! `LogWriter<C>` — postgres log writer fronted by an mpsc sender.
 //!
-//! Per-chunk lifecycle:
+//! Architecturally:
+//!
+//! - The constructor (`write_agent_completion` etc.) spawns a tokio
+//!   task that owns the [`LogWriterState`] and the
+//!   `mpsc::UnboundedReceiver<C>`. It returns the [`LogWriter`]
+//!   handle plus a [`tokio::sync::oneshot::Receiver<String>`] that
+//!   fires the first time the writer learns the stream's primary
+//!   `response_id`.
+//! - [`LogWriter::write`] is **synchronous** — it just hands the
+//!   chunk to the listener task via `UnboundedSender::send`. The
+//!   caller's chunk-yield hot path stays off the DB write critical
+//!   path.
+//! - The listener task drains every queued chunk per loop iteration
+//!   and `.push()`-aggregates them into one before running the
+//!   per-chunk persistence logic ([`LogWriterState::apply_chunk`]).
+//!   Aggregation is correct because each tier's chunk is a cumulative
+//!   roll-up of state — `push` folds the later chunk's deltas into
+//!   the earlier one's accumulators (`AgentCompletionChunk::push` /
+//!   `VectorCompletionChunk::push` / `FunctionExecutionChunk::push`).
+//! - [`LogWriter::finalize`] consumes the writer by value, drops the
+//!   sender, and `.await`s the JoinHandle. By the time it returns,
+//!   both invariants hold: the channel is empty (sender dropped →
+//!   `recv()` returned `None` only after every queued chunk was
+//!   consumed) and the task's future has fully completed (no
+//!   in-flight row-bucket joins or blob writes).
+//!
+//! Per-chunk persistence (unchanged from the prior in-line `write`):
 //!
 //! 1. **First chunk**: capture the chunk's `response_id`, INSERT the
 //!    request blob (no `agent_instance_hierarchy` on the blob — that
@@ -11,9 +36,7 @@
 //!    bucket the survivors by `agent_instance_hierarchy`. For every
 //!    agent the writer hasn't seen yet in this stream's lifetime,
 //!    prepend a `logs.messages` row that registers the request blob
-//!    in that agent's history — this is always the first item in the
-//!    bucket, so postgres's BIGSERIAL gives it an `"index"` strictly
-//!    less than the streaming-content rows that follow.
+//!    in that agent's history.
 //! 3. **Per-bucket execution**: rows within one agent's bucket fire
 //!    sequentially (so the per-agent ORDER BY `"index"` matches the
 //!    iterator's order). All buckets fire concurrently via
@@ -34,6 +57,8 @@ use objectiveai_sdk::functions::executions::response::streaming::FunctionExecuti
 use objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams;
 use objectiveai_sdk::vector::completions::response::streaming::VectorCompletionChunk;
 use serde::Serialize;
+use tokio::sync::{mpsc, oneshot};
+use tokio::task::JoinHandle;
 
 use crate::db::Pool;
 
@@ -67,7 +92,81 @@ impl WriterChunk for FunctionExecutionChunk {
     }
 }
 
+/// CLI-side wrapper exposing the SDK's intrinsic `push(&mut self,
+/// other: &Self)` method via a uniform trait. Each impl simply
+/// delegates to the chunk type's inherent method — the SDK already
+/// guarantees `push` is a correct accumulator for the tier's
+/// cumulative-state semantics.
+pub trait ChunkPush {
+    fn push(&mut self, other: &Self);
+}
+
+impl ChunkPush for AgentCompletionChunk {
+    fn push(&mut self, other: &Self) {
+        AgentCompletionChunk::push(self, other);
+    }
+}
+impl ChunkPush for VectorCompletionChunk {
+    fn push(&mut self, other: &Self) {
+        VectorCompletionChunk::push(self, other);
+    }
+}
+impl ChunkPush for FunctionExecutionChunk {
+    fn push(&mut self, other: &Self) {
+        FunctionExecutionChunk::push(self, other);
+    }
+}
+
+/// Background-task-fronted log writer.
+///
+/// Construction (via `write_agent_completion` etc.) spawns a tokio
+/// task that owns the per-stream [`LogWriterState`]. The handle here
+/// is a thin sender + JoinHandle pair.
 pub struct LogWriter<C> {
+    tx: mpsc::UnboundedSender<C>,
+    handle: JoinHandle<Result<(), crate::error::Error>>,
+    _chunk: PhantomData<fn() -> C>,
+}
+
+impl<C> LogWriter<C> {
+    /// Hand off one chunk to the listener task. Returns
+    /// `Err(Error::Instance(_))` only when the listener has already
+    /// exited — typically because an earlier DB write failed. The
+    /// caller should treat that error the same way it would treat an
+    /// upstream stream error: stop reading, surface upward.
+    pub fn write(&self, chunk: C) -> Result<(), crate::error::Error> {
+        self.tx
+            .send(chunk)
+            .map_err(|_| crate::error::Error::Instance(
+                "log writer task has exited (earlier write failed)".to_string(),
+            ))
+    }
+
+    /// Consume the writer. Drops the sender (signaling EOF to the
+    /// listener) and awaits the task. Returns only once:
+    ///
+    /// - the channel is empty: `recv()` returns `None` only after the
+    ///   listener has drained every queued chunk, AND
+    /// - no work is in flight: the task's future has fully completed,
+    ///   so no row-bucket joins or blob writes remain pending.
+    ///
+    /// Surfaces the first DB error the task encountered, if any.
+    pub async fn finalize(self) -> Result<(), crate::error::Error> {
+        let LogWriter { tx, handle, .. } = self;
+        drop(tx);
+        match handle.await {
+            Ok(inner) => inner,
+            Err(e) => Err(crate::error::Error::Instance(
+                format!("log writer task: {e}"),
+            )),
+        }
+    }
+}
+
+/// All the per-stream state the listener task owns. Was previously
+/// inlined onto `LogWriter`; now lives entirely inside the spawned
+/// task so the handle stays send-and-clone-cheap.
+struct LogWriterState<C> {
     pool: Pool,
     tier: Tier,
     request_body: serde_json::Value,
@@ -89,7 +188,7 @@ pub struct LogWriter<C> {
     _chunk: PhantomData<fn() -> C>,
 }
 
-impl<C> LogWriter<C> {
+impl<C> LogWriterState<C> {
     fn new(
         pool: Pool,
         tier: Tier,
@@ -110,16 +209,9 @@ impl<C> LogWriter<C> {
         }
     }
 
-    pub fn primary_id(&self) -> Option<&str> {
-        self.primary_id.as_deref()
-    }
-
-    pub async fn write(
-        &mut self,
-        chunk: &C,
-    ) -> Result<(), crate::error::Error>
+    async fn apply_chunk(&mut self, chunk: &C) -> Result<(), crate::error::Error>
     where
-        C: WriterChunk + AgentCompletionIds + Serialize + Clone + Send + Sync,
+        C: WriterChunk + AgentCompletionIds + Serialize + Send + Sync,
     {
         // First chunk: stamp the primary id, write the request blob
         // ONCE. The request blob has no agent_instance_hierarchy.
@@ -239,12 +331,54 @@ impl<C> LogWriter<C> {
 
         Ok(())
     }
+}
 
-    /// Stream-over hook. The per-chunk writes have already persisted
-    /// the latest state; nothing to flush here today.
-    pub async fn finalize(&mut self) -> Result<(), crate::error::Error> {
-        Ok(())
+/// Listener loop. One iteration:
+///
+/// 1. Block on `rx.recv()` for the first chunk of a batch.
+/// 2. Drain any other chunks queued behind it via `try_recv`,
+///    `.push()`-aggregating them into the first.
+/// 3. Apply the aggregated chunk to the state.
+/// 4. If `primary_id` just became known, fire the ready oneshot.
+///
+/// On `recv() = None` (sender dropped via `finalize`), the loop
+/// exits cleanly. On any DB error from `apply_chunk`, the loop
+/// exits with `Err`; subsequent sender sends fail with `SendError`,
+/// which `LogWriter::write` maps to a stable `Error::Instance`.
+async fn listener_loop<C>(
+    mut rx: mpsc::UnboundedReceiver<C>,
+    mut state: LogWriterState<C>,
+    ready_tx: oneshot::Sender<String>,
+) -> Result<(), crate::error::Error>
+where
+    C: WriterChunk + AgentCompletionIds + ChunkPush + Serialize + Send + Sync,
+{
+    let mut ready_tx = Some(ready_tx);
+    while let Some(first) = rx.recv().await {
+        // Coalesce: aggregate any queued chunks into the first.
+        let mut agg = first;
+        while let Ok(next) = rx.try_recv() {
+            agg.push(&next);
+        }
+        state.apply_chunk(&agg).await?;
+        // Fire the oneshot the first time primary_id becomes known.
+        // `apply_chunk` sets `primary_id` on the first invocation, so
+        // by the time we get here it's already Some on at least the
+        // first iteration.
+        if let Some(tx) = ready_tx.take() {
+            match state.primary_id.as_deref() {
+                Some(id) => {
+                    let _ = tx.send(id.to_string());
+                }
+                None => {
+                    ready_tx = Some(tx);
+                }
+            }
+        }
     }
+    // EOF: nothing to flush — the in-flight write completed before
+    // recv() returned None.
+    Ok(())
 }
 
 fn now_secs() -> u64 {
@@ -254,12 +388,38 @@ fn now_secs() -> u64 {
         .unwrap_or(0)
 }
 
+fn spawn_writer<C>(
+    pool: Pool,
+    tier: Tier,
+    request_body: serde_json::Value,
+    rows_fn: for<'a> fn(&'a C) -> RowsIter<'a>,
+) -> (LogWriter<C>, oneshot::Receiver<String>)
+where
+    C: WriterChunk + AgentCompletionIds + ChunkPush + Serialize + Send + Sync + 'static,
+{
+    let (tx, rx) = mpsc::unbounded_channel();
+    let (ready_tx, ready_rx) = oneshot::channel();
+    let state = LogWriterState::new(pool, tier, request_body, rows_fn);
+    let handle = tokio::spawn(listener_loop(rx, state, ready_tx));
+    (
+        LogWriter {
+            tx,
+            handle,
+            _chunk: PhantomData,
+        },
+        ready_rx,
+    )
+}
+
 pub fn write_agent_completion(
     pool: &Pool,
     params: &AgentCompletionCreateParams,
-) -> Result<LogWriter<AgentCompletionChunk>, crate::error::Error> {
+) -> Result<
+    (LogWriter<AgentCompletionChunk>, oneshot::Receiver<String>),
+    crate::error::Error,
+> {
     let body = serde_json::to_value(params)?;
-    Ok(LogWriter::new(
+    Ok(spawn_writer(
         pool.clone(),
         Tier::Agent,
         body,
@@ -270,9 +430,12 @@ pub fn write_agent_completion(
 pub fn write_vector_completion(
     pool: &Pool,
     params: &VectorCompletionCreateParams,
-) -> Result<LogWriter<VectorCompletionChunk>, crate::error::Error> {
+) -> Result<
+    (LogWriter<VectorCompletionChunk>, oneshot::Receiver<String>),
+    crate::error::Error,
+> {
     let body = serde_json::to_value(params)?;
-    Ok(LogWriter::new(
+    Ok(spawn_writer(
         pool.clone(),
         Tier::Vector,
         body,
@@ -283,9 +446,12 @@ pub fn write_vector_completion(
 pub fn write_function_execution(
     pool: &Pool,
     params: &FunctionExecutionCreateParams,
-) -> Result<LogWriter<FunctionExecutionChunk>, crate::error::Error> {
+) -> Result<
+    (LogWriter<FunctionExecutionChunk>, oneshot::Receiver<String>),
+    crate::error::Error,
+> {
     let body = serde_json::to_value(params)?;
-    Ok(LogWriter::new(
+    Ok(spawn_writer(
         pool.clone(),
         Tier::Function,
         body,

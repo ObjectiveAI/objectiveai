@@ -1,9 +1,10 @@
 //! In-process driver for `functions execute`.
 //!
-//! Opens one upstream WebSocket via the SDK, drains chunks through
-//! a coalescing log writer task, and yields a typed [`Event`]
-//! stream straight back to the cli leaf. No subprocess, no
-//! generics, no message-queue restart logic (that's spawn-specific).
+//! Opens one upstream WebSocket via the SDK, hands every chunk to
+//! the [`LogWriter`] (which owns the coalescing listener task
+//! internally), and yields a typed [`Event`] stream straight back to
+//! the cli leaf. No subprocess, no generics, no message-queue
+//! restart logic (that's spawn-specific).
 //!
 //! Per-chunk: claim a process-owned lock file for every
 //! `agent_instance_hierarchy` referenced anywhere in the chunk's
@@ -11,17 +12,13 @@
 //! [`crate::websockets::agent_hierarchies::ChunkAgentHierarchies`]
 //! + [`crate::websockets::agent_registry::AgentInstanceRegistry`].
 //!
-//! Log writes go to a dedicated tokio task that coalesces bursts
-//! via `mpsc::try_recv` — function executions emit many chunks
-//! rapidly during a swiss-system round and we must not gate the
-//! stream-consumption critical path on synchronous postgres writes.
-//!
-//! `LogStreamReady` equivalent: the writer task fires a oneshot
-//! the first time `log_writer.primary_id()` returns Some. The main
-//! loop reacts via `tokio::select!` so it doesn't sit blocked on
-//! `stream.next()` while the writer races toward `finalize` —
-//! important for single-chunk completions where the primary id
-//! only lands during finalize.
+//! `LogStreamReady` equivalent: the LogWriter exposes a
+//! `oneshot::Receiver<String>` from its constructor that fires the
+//! first time the listener task learns the stream's primary
+//! `response_id`. The main loop reacts via `tokio::select!` so it
+//! doesn't sit blocked on `stream.next()` while the writer races
+//! toward `finalize` — important for single-chunk completions where
+//! the primary id only lands after the SDK stream closes.
 
 use std::path::PathBuf;
 
@@ -29,10 +26,8 @@ use futures::Stream;
 use futures::StreamExt;
 use objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams;
 use objectiveai_sdk::functions::executions::response::streaming::FunctionExecutionChunk;
-use tokio::sync::mpsc;
 
 use crate::context::Context;
-use crate::db::logs::LogWriter;
 use crate::error::Error;
 use crate::websockets::agent_hierarchies::ChunkAgentHierarchies;
 use crate::websockets::agent_registry::AgentInstanceRegistry;
@@ -74,12 +69,17 @@ pub fn run(
             ctx.clone(),
             None,
         );
-        let log_writer = crate::db::logs::write_function_execution(
+        // The LogWriter owns a listener task internally; it
+        // coalesces queued chunks and persists off this critical
+        // path. The ready receiver fires the first time the
+        // listener learns the primary response id.
+        let (log_writer, log_ready_rx) = crate::db::logs::write_function_execution(
             &ctx.db, &params,
         )
         .map_err(|e| Error::Instance(format!(
             "failed to build function-execution log writer: {e}"
         )))?;
+        let mut log_ready_rx = Some(log_ready_rx);
 
         let (sdk_stream, notifier) =
             objectiveai_sdk::functions::executions::create_function_execution_streaming(
@@ -94,18 +94,6 @@ pub fn run(
         conduit.install_notifier(notifier);
 
         let mut sdk_stream = Box::pin(sdk_stream);
-
-        // Coalesced log writes. Same pattern as the deleted
-        // `instance::streaming::run_chunk_loop`: a dedicated task
-        // drains chunks via mpsc, on every recv tries to drain any
-        // more queued ones into a single coalesced write, and
-        // signals primary_id via the oneshot the first time it
-        // becomes available.
-        let (tx, rx) = mpsc::unbounded_channel::<FunctionExecutionChunk>();
-        let (log_ready_tx, log_ready_rx) =
-            tokio::sync::oneshot::channel::<String>();
-        let mut log_ready_rx = Some(log_ready_rx);
-        let writer_task = tokio::spawn(writer_loop(rx, log_writer, log_ready_tx));
 
         // Local buffer for chunks observed before primary_id lands.
         // Drained the moment the oneshot fires.
@@ -142,8 +130,15 @@ pub fn run(
                                 registry.observe(hier);
                             }
 
-                            // 1. Hand a clone to the writer task.
-                            let _ = tx.send(chunk.clone());
+                            // 1. Hand a clone to the LogWriter. A
+                            //    send error means the listener task
+                            //    has exited (likely from an earlier
+                            //    DB error) — treat it like a
+                            //    stream-level failure.
+                            if let Err(e) = log_writer.write(chunk.clone()) {
+                                stream_err = Some(format!("{e}"));
+                                break;
+                            }
 
                             // 2. Emit or buffer until Id fires.
                             if id_emitted {
@@ -162,12 +157,18 @@ pub fn run(
             }
         }
 
-        // EOF — close the writer's input channel so its `finalize`
-        // runs. `finalize` flushes the one-behind chunk, which is
-        // the only opportunity for primary_id on single-chunk
-        // completions.
-        drop(tx);
+        // EOF — close the writer's input by consuming it via
+        // `finalize`. The await blocks until the listener has
+        // drained every queued chunk AND finished its in-flight
+        // future, so both "queue empty" and "no work in flight"
+        // hold by the time we proceed.
+        let finalize_outcome = log_writer.finalize().await;
 
+        // If the ready oneshot hadn't fired by stream EOF, the
+        // listener may have just landed primary_id during its last
+        // batch. Drain the receiver (now that the sender side has
+        // been dropped by the finalize-consume path) so we can fire
+        // a last-chance Event::Id for single-chunk completions.
         if !id_emitted {
             if let Some(rx) = log_ready_rx.take() {
                 if let Ok(id) = rx.await {
@@ -182,63 +183,11 @@ pub fn run(
         // Surface writer failures. Stream errors take precedence
         // since they're the upstream cause; writer errors are a
         // downstream symptom.
-        let writer_outcome = writer_task.await.map_err(|e| {
-            Error::Instance(format!("log writer task panicked: {e}"))
-        })?;
         if let Some(e) = stream_err {
             Err(Error::Instance(e))?;
         }
-        if let Err(e) = writer_outcome {
+        if let Err(e) = finalize_outcome {
             Err(Error::Instance(format!("log writer failed: {e}")))?;
         }
     }
-}
-
-async fn writer_loop(
-    mut rx: mpsc::UnboundedReceiver<FunctionExecutionChunk>,
-    mut log_writer: LogWriter<FunctionExecutionChunk>,
-    log_ready_tx: tokio::sync::oneshot::Sender<String>,
-) -> Result<(), Error> {
-    let mut agg: Option<FunctionExecutionChunk> = None;
-    let mut log_ready_tx = Some(log_ready_tx);
-
-    while let Some(first) = rx.recv().await {
-        match &mut agg {
-            Some(a) => a.push(&first),
-            None => agg = Some(first),
-        }
-        // Coalesce any chunks already sitting in the channel.
-        while let Ok(next) = rx.try_recv() {
-            if let Some(a) = &mut agg {
-                a.push(&next);
-            }
-        }
-        if let Some(a) = &agg {
-            log_writer.write(a).await?;
-        }
-        // First write where primary_id became available fires the
-        // oneshot; subsequent loops are no-ops since `take` left
-        // it None.
-        if let Some(tx) = log_ready_tx.take() {
-            if let Some(id) = log_writer.primary_id() {
-                let _ = tx.send(id.to_string());
-            } else {
-                log_ready_tx = Some(tx);
-            }
-        }
-    }
-
-    log_writer.finalize().await?;
-
-    // Last-chance fire — `finalize` flushed the one-behind chunk,
-    // so this is the latest possible point primary_id can land
-    // (single-chunk completions). If we still don't have one the
-    // sender drops here and the receiver wakes `Err(Canceled)` in
-    // `run()`.
-    if let Some(tx) = log_ready_tx.take() {
-        if let Some(id) = log_writer.primary_id() {
-            let _ = tx.send(id.to_string());
-        }
-    }
-    Ok(())
 }
