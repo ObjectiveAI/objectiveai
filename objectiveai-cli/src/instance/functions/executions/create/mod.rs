@@ -33,12 +33,10 @@ pub async fn execute(
     let (tx, rx) = mpsc::channel::<Result<InstanceEmission, Error>>(16);
 
     let _ = fs_client;
-    let caller_agent_instance_hierarchy = Some(http.objectiveai_agent_instance_hierarchy.clone());
     let log_writer = crate::db::logs::write_function_execution(&db, &params)
         .map_err(|e| Error::Instance(format!(
             "failed to build function-execution log writer: {e}"
-        )))?
-        .with_caller_agent_instance_hierarchy(caller_agent_instance_hierarchy);
+        )))?;
 
     let (stream, notifier) =
         objectiveai_sdk::functions::executions::create_function_execution_streaming(

@@ -565,37 +565,28 @@ async fn run_update_with_downgrade<'a>(
     let mut sql = update_sql_template.to_string();
     let mut pos = 1usize;
 
-    // Replace each WHERE bind token with its positional index.
-    let resp_pos: usize;
-    let ri_pos: usize;
-    let mut rsi_pos: Option<usize> = None;
-    {
-        // Order tokens for binding sequence
-        let mut resp_assigned = None;
-        let mut ri_assigned = None;
-        let mut rsi_assigned = None;
-        for slot in update_where_binds {
-            let idx = pos;
-            pos += 1;
-            match slot {
-                BindIdx::Resp => {
-                    sql = sql.replace("$RESP", &format!("${idx}"));
-                    resp_assigned = Some(idx);
-                }
-                BindIdx::Ri => {
-                    sql = sql.replace("$RI", &format!("${idx}"));
-                    ri_assigned = Some(idx);
-                }
-                BindIdx::Rsi => {
-                    sql = sql.replace("$RSI", &format!("${idx}"));
-                    rsi_assigned = Some(idx);
-                }
+    // Replace each WHERE bind token with its positional index. The
+    // resp/ri/rsi positions inside `sql` are written back into the
+    // template via `sql.replace(...)`; we only need to remember
+    // resp_pos for the downgrade CTE below.
+    let mut resp_pos: Option<usize> = None;
+    for slot in update_where_binds {
+        let idx = pos;
+        pos += 1;
+        match slot {
+            BindIdx::Resp => {
+                sql = sql.replace("$RESP", &format!("${idx}"));
+                resp_pos = Some(idx);
+            }
+            BindIdx::Ri => {
+                sql = sql.replace("$RI", &format!("${idx}"));
+            }
+            BindIdx::Rsi => {
+                sql = sql.replace("$RSI", &format!("${idx}"));
             }
         }
-        resp_pos = resp_assigned.expect("Resp bind required");
-        ri_pos = ri_assigned.expect("Ri bind required");
-        rsi_pos = rsi_assigned;
     }
+    let resp_pos = resp_pos.expect("Resp bind required");
 
     // Replace extra-bind tokens ($A, $B, $C, $D) with positional.
     for (token, _val) in extra_binds {
@@ -609,8 +600,6 @@ async fn run_update_with_downgrade<'a>(
     let rsi_for_msg_pos = pos; pos += 1;
     let hier_pos = pos;
 
-    // Wrap the UPDATE in a CTE that does the messages_queue downgrade.
-    let _ = (resp_pos, ri_pos, rsi_pos); // bound above for clarity
     let final_sql = format!(
         "WITH \
             data_upd AS ({sql} RETURNING response_id),\

@@ -98,8 +98,6 @@ pub struct LogWriter<C> {
     /// request blob in that agent's history; subsequent ticks see
     /// the agent already-marked and skip the registration.
     seen_agents: HashSet<String>,
-    #[allow(dead_code)]
-    caller_agent_instance_hierarchy: Option<String>,
     _chunk: PhantomData<fn() -> C>,
 }
 
@@ -120,14 +118,8 @@ impl<C> LogWriter<C> {
             last_response_blob: None,
             request_written: false,
             seen_agents: HashSet::new(),
-            caller_agent_instance_hierarchy: None,
             _chunk: PhantomData,
         }
-    }
-
-    pub fn with_caller_agent_instance_hierarchy(mut self, caller: Option<String>) -> Self {
-        self.caller_agent_instance_hierarchy = caller;
-        self
     }
 
     pub fn primary_id(&self) -> Option<&str> {
