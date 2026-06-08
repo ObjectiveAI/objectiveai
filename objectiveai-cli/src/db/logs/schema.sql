@@ -179,11 +179,10 @@ CREATE TABLE IF NOT EXISTS logs.assistant_response_content_audio (
 );
 
 CREATE TABLE IF NOT EXISTS logs.assistant_response_content_video (
-    response_id TEXT    NOT NULL,
-    "index"     BIGINT  NOT NULL,
-    part_index  BIGINT  NOT NULL,
-    url         TEXT    NOT NULL,
-    is_input    BOOLEAN NOT NULL,
+    response_id TEXT   NOT NULL,
+    "index"     BIGINT NOT NULL,
+    part_index  BIGINT NOT NULL,
+    url         TEXT   NOT NULL,
     inserted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (response_id, "index", part_index)
 );
@@ -236,11 +235,10 @@ CREATE TABLE IF NOT EXISTS logs.tool_response_content_audio (
 );
 
 CREATE TABLE IF NOT EXISTS logs.tool_response_content_video (
-    response_id TEXT    NOT NULL,
-    "index"     BIGINT  NOT NULL,
-    part_index  BIGINT  NOT NULL,
-    url         TEXT    NOT NULL,
-    is_input    BOOLEAN NOT NULL,
+    response_id TEXT   NOT NULL,
+    "index"     BIGINT NOT NULL,
+    part_index  BIGINT NOT NULL,
+    url         TEXT   NOT NULL,
     inserted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (response_id, "index", part_index)
 );

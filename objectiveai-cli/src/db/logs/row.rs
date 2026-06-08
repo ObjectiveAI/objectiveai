@@ -196,7 +196,6 @@ pub enum RowValue<'a> {
         index: u64,
         part_index: u64,
         video_url: &'a VideoUrl,
-        is_input: bool,
     },
     AssistantResponseContentFile {
         response_id: &'a str,
@@ -233,7 +232,6 @@ pub enum RowValue<'a> {
         index: u64,
         part_index: u64,
         video_url: &'a VideoUrl,
-        is_input: bool,
     },
     ToolResponseContentFile {
         response_id: &'a str,
@@ -452,9 +450,9 @@ impl<'a> RowValue<'a> {
                 RowBody::AssistantContentAudio { input_audio: b },
             ) => *a == b,
             (
-                RowValue::AssistantResponseContentVideo { video_url: a, is_input: ai, .. },
-                RowBody::AssistantContentVideo { video_url: b, is_input: bi },
-            ) => *a == b && ai == bi,
+                RowValue::AssistantResponseContentVideo { video_url: a, .. },
+                RowBody::AssistantContentVideo { video_url: b },
+            ) => *a == b,
             (
                 RowValue::AssistantResponseContentFile { file: a, .. },
                 RowBody::AssistantContentFile { file: b },
@@ -472,9 +470,9 @@ impl<'a> RowValue<'a> {
                 RowBody::ToolContentAudio { input_audio: b },
             ) => *a == b,
             (
-                RowValue::ToolResponseContentVideo { video_url: a, is_input: ai, .. },
-                RowBody::ToolContentVideo { video_url: b, is_input: bi },
-            ) => *a == b && ai == bi,
+                RowValue::ToolResponseContentVideo { video_url: a, .. },
+                RowBody::ToolContentVideo { video_url: b },
+            ) => *a == b,
             (
                 RowValue::ToolResponseContentFile { file: a, .. },
                 RowBody::ToolContentFile { file: b },
@@ -512,10 +510,9 @@ impl<'a> RowValue<'a> {
             RowValue::AssistantResponseContentAudio { input_audio, .. } => {
                 RowBody::AssistantContentAudio { input_audio: (*input_audio).clone() }
             }
-            RowValue::AssistantResponseContentVideo { video_url, is_input, .. } => {
+            RowValue::AssistantResponseContentVideo { video_url, .. } => {
                 RowBody::AssistantContentVideo {
                     video_url: (*video_url).clone(),
-                    is_input: *is_input,
                 }
             }
             RowValue::AssistantResponseContentFile { file, .. } => {
@@ -530,9 +527,8 @@ impl<'a> RowValue<'a> {
             RowValue::ToolResponseContentAudio { input_audio, .. } => {
                 RowBody::ToolContentAudio { input_audio: (*input_audio).clone() }
             }
-            RowValue::ToolResponseContentVideo { video_url, is_input, .. } => RowBody::ToolContentVideo {
+            RowValue::ToolResponseContentVideo { video_url, .. } => RowBody::ToolContentVideo {
                 video_url: (*video_url).clone(),
-                is_input: *is_input,
             },
             RowValue::ToolResponseContentFile { file, .. } => RowBody::ToolContentFile {
                 file: (*file).clone(),
@@ -766,11 +762,11 @@ pub enum RowBody {
     AssistantContentText { text: String },
     AssistantContentImage { image_url: ImageUrl },
     AssistantContentAudio { input_audio: InputAudio },
-    AssistantContentVideo { video_url: VideoUrl, is_input: bool },
+    AssistantContentVideo { video_url: VideoUrl },
     AssistantContentFile { file: File },
     ToolContentText { text: String },
     ToolContentImage { image_url: ImageUrl },
     ToolContentAudio { input_audio: InputAudio },
-    ToolContentVideo { video_url: VideoUrl, is_input: bool },
+    ToolContentVideo { video_url: VideoUrl },
     ToolContentFile { file: File },
 }

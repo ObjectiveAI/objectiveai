@@ -218,11 +218,9 @@ fn assistant_content_part<'a>(
         RichContentPart::InputAudio { input_audio } => RowValue::AssistantResponseContentAudio {
             response_id, agent_instance_hierarchy, index, part_index, input_audio,
         },
-        RichContentPart::InputVideo { video_url } => RowValue::AssistantResponseContentVideo {
-            response_id, agent_instance_hierarchy, index, part_index, video_url, is_input: true,
-        },
-        RichContentPart::VideoUrl { video_url } => RowValue::AssistantResponseContentVideo {
-            response_id, agent_instance_hierarchy, index, part_index, video_url, is_input: false,
+        RichContentPart::InputVideo { video_url }
+        | RichContentPart::VideoUrl { video_url } => RowValue::AssistantResponseContentVideo {
+            response_id, agent_instance_hierarchy, index, part_index, video_url,
         },
         RichContentPart::File { file } => RowValue::AssistantResponseContentFile {
             response_id, agent_instance_hierarchy, index, part_index, file,
@@ -267,11 +265,9 @@ fn tool_content_part<'a>(
         RichContentPart::InputAudio { input_audio } => RowValue::ToolResponseContentAudio {
             response_id, agent_instance_hierarchy, index, part_index, input_audio,
         },
-        RichContentPart::InputVideo { video_url } => RowValue::ToolResponseContentVideo {
-            response_id, agent_instance_hierarchy, index, part_index, video_url, is_input: true,
-        },
-        RichContentPart::VideoUrl { video_url } => RowValue::ToolResponseContentVideo {
-            response_id, agent_instance_hierarchy, index, part_index, video_url, is_input: false,
+        RichContentPart::InputVideo { video_url }
+        | RichContentPart::VideoUrl { video_url } => RowValue::ToolResponseContentVideo {
+            response_id, agent_instance_hierarchy, index, part_index, video_url,
         },
         RichContentPart::File { file } => RowValue::ToolResponseContentFile {
             response_id, agent_instance_hierarchy, index, part_index, file,

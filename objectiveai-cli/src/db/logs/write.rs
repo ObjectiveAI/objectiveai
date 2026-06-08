@@ -184,11 +184,11 @@ async fn insert_value<'a>(
         RowValue::ToolResponseContentAudio { input_audio, .. } => {
             insert_audio_part_with_msg(pool, "logs.tool_response_content_audio", value, input_audio, timestamp).await?;
         }
-        RowValue::AssistantResponseContentVideo { video_url, is_input, .. } => {
-            insert_video_part_with_msg(pool, "logs.assistant_response_content_video", value, video_url, is_input, timestamp).await?;
+        RowValue::AssistantResponseContentVideo { video_url, .. } => {
+            insert_video_part_with_msg(pool, "logs.assistant_response_content_video", value, video_url, timestamp).await?;
         }
-        RowValue::ToolResponseContentVideo { video_url, is_input, .. } => {
-            insert_video_part_with_msg(pool, "logs.tool_response_content_video", value, video_url, is_input, timestamp).await?;
+        RowValue::ToolResponseContentVideo { video_url, .. } => {
+            insert_video_part_with_msg(pool, "logs.tool_response_content_video", value, video_url, timestamp).await?;
         }
         RowValue::AssistantResponseContentFile { file, .. } => {
             insert_file_part_with_msg(pool, "logs.assistant_response_content_file", value, file, timestamp).await?;
@@ -304,23 +304,20 @@ async fn update_value<'a>(pool: &Pool, value: &RowValue<'a>) -> Result<(), Error
                 &[BindIdx::Resp, BindIdx::Ri, BindIdx::Rsi],
             ).await?;
         }
-        RowValue::AssistantResponseContentVideo { video_url, is_input, .. }
-        | RowValue::ToolResponseContentVideo { video_url, is_input, .. } => {
+        RowValue::AssistantResponseContentVideo { video_url, .. }
+        | RowValue::ToolResponseContentVideo { video_url, .. } => {
             let table = match *value {
                 RowValue::AssistantResponseContentVideo { .. } => "logs.assistant_response_content_video",
                 _ => "logs.tool_response_content_video",
             };
             let sql = format!(
-                "UPDATE {table} SET url = $A, is_input = $B \
+                "UPDATE {table} SET url = $A \
                  WHERE response_id = $RESP AND \"index\" = $RI AND part_index = $RSI"
             );
             run_update_with_downgrade(
                 pool, &sql,
                 response_id, row_index, row_sub_index, mt, hier,
-                &[
-                    ("A", BindVal::Str(video_url.url.as_str())),
-                    ("B", BindVal::Bool(is_input)),
-                ],
+                &[("A", BindVal::Str(video_url.url.as_str()))],
                 &[BindIdx::Resp, BindIdx::Ri, BindIdx::Rsi],
             ).await?;
         }
@@ -456,25 +453,23 @@ async fn insert_video_part_with_msg<'a>(
     table: &str,
     value: &RowValue<'a>,
     video: &VideoUrl,
-    is_input: bool,
     timestamp: i64,
 ) -> Result<(), Error> {
     let sql = format!(
         "WITH data_ins AS (\
-            INSERT INTO {table} (response_id, \"index\", part_index, url, is_input) \
-            VALUES ($1, $2, $3, $4, $5) RETURNING response_id\
+            INSERT INTO {table} (response_id, \"index\", part_index, url) \
+            VALUES ($1, $2, $3, $4) RETURNING response_id\
          )\
          INSERT INTO logs.messages \
             (response_id, \"table\", row_index, row_sub_index, \
              agent_instance_hierarchy, \"timestamp\") \
-         SELECT $1, $6, $7, $8, $9, $10 FROM data_ins"
+         SELECT $1, $5, $6, $7, $8, $9 FROM data_ins"
     );
     sqlx::query(&sql)
         .bind(value.response_id())
         .bind(value.row_index())
         .bind(value.row_sub_index())
         .bind(video.url.as_str())
-        .bind(is_input)
         .bind(value.message_table())
         .bind(value.row_index())
         .bind(value.row_sub_index())
