@@ -125,16 +125,6 @@ pub struct Response {
         .multiple(false)
         .args(["agent_instance", "agent_tag"])
 ))]
-#[command(group(
-    // `MessageArgs`'s own clap group is now `required = false` —
-    // `agents instances message` accepts an empty message. `add`
-    // still wants exactly-one, so we layer a per-command group on
-    // top to re-impose the required-ness here.
-    clap::ArgGroup::new("queue_add_message")
-        .required(true)
-        .multiple(false)
-        .args(["simple", "inline", "file", "python_inline", "python_file"])
-))]
 pub struct Args {
     /// Leaf id of the target agent. Combined with `--parent` (or
     /// the cli's own `Config.agent_instance_hierarchy` when

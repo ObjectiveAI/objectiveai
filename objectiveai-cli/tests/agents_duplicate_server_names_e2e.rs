@@ -149,7 +149,7 @@ async fn duplicate_server_names_routed_across_turns() {
 
     // Turn 1: agents instances spawn ──────────────────────────────
     let spawn = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::instances::spawn::Path::AgentsInstancesSpawn,
-        message: Some(RequestMessage::Simple("use a tool".to_string())),
+        message: RequestMessage::Simple("use a tool".to_string()),
         agent,
         agent_tag: None,
         seed: Some(SEED),
@@ -189,7 +189,7 @@ async fn duplicate_server_names_routed_across_turns() {
             agent_instance: instance.clone(),
             agent_tag: None,
         },
-        message: Some(RequestMessage::Simple("again".to_string())),
+        message: RequestMessage::Simple("again".to_string()),
         seed: Some(SEED),
         dangerous_advanced: Some(MessageDangerousAdvanced {
             stream: Some(true),
@@ -210,7 +210,7 @@ async fn duplicate_server_names_routed_across_turns() {
             agent_instance: instance.clone(),
             agent_tag: None,
         },
-        message: Some(RequestMessage::Simple("one more".to_string())),
+        message: RequestMessage::Simple("one more".to_string()),
         seed: Some(SEED),
         dangerous_advanced: Some(MessageDangerousAdvanced {
             stream: Some(true),

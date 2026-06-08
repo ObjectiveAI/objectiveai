@@ -271,7 +271,7 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
             );
             let request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::instances::spawn::Path::AgentsInstancesSpawn,
                 agent_tag: None,
-                message: Some(RequestMessage::Simple("go".to_string())),
+                message: RequestMessage::Simple("go".to_string()),
                 agent,
                 seed: Some(seed),
                 // Stream so we stay attached until the spawn's first
@@ -329,7 +329,7 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
                 agent_instance: instance.clone(),
                 agent_tag: None,
             },
-            message: Some(RequestMessage::Simple("again".to_string())),
+            message: RequestMessage::Simple("again".to_string()),
             seed: None,
             dangerous_advanced: Some(MessageDangerousAdvanced {
                 stream: Some(true),

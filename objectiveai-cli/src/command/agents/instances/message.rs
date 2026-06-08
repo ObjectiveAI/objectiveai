@@ -58,11 +58,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         }
     };
 
-    // Phase 2: resolve the user payload (if any).
-    let message_content: Option<RichContent> = match request.message.clone() {
-        Some(rm) => Some(resolve_message(rm)?),
-        None => None,
-    };
+    // Phase 2: resolve the user payload — always required.
+    let message_content = resolve_message(request.message.clone())?;
 
     if want_stream {
         execute_streaming(ctx, hierarchy, message_content, agents_dir).await
@@ -111,13 +108,7 @@ async fn resolve_target(ctx: &Context, request: &Request) -> Result<ResolvedTarg
                 LookupState::Pending { .. } | LookupState::Absent => {
                     // No live target. Pure enqueue against the
                     // tag name — the queue reader resolves it later.
-                    let Some(rm) = request.message.clone() else {
-                        return Err(Error::Instance(
-                            "tag is not bound and no message payload was provided"
-                                .to_string(),
-                        ));
-                    };
-                    let content = resolve_message(rm)?;
+                    let content = resolve_message(request.message.clone())?;
                     let id = crate::db::message_queue::enqueue_with_content(
                         &ctx.db,
                         None,
@@ -142,7 +133,7 @@ async fn resolve_target(ctx: &Context, request: &Request) -> Result<ResolvedTarg
 async fn execute_streaming(
     ctx: &Context,
     hierarchy: String,
-    message_content: Option<RichContent>,
+    message_content: RichContent,
     agents_dir: PathBuf,
 ) -> Result<ItemStream, Error> {
     std::fs::create_dir_all(&agents_dir)
@@ -155,15 +146,12 @@ async fn execute_streaming(
     }
 
     // Slow path: live owner. Enqueue + race.
-    let content = message_content
-        .clone()
-        .unwrap_or_else(|| RichContent::Text(String::new()));
     let queue_id = crate::db::message_queue::enqueue_with_content(
         &ctx.db,
         Some(hierarchy.clone()),
         None,
         None,
-        content,
+        message_content.clone(),
     )
     .await?;
 
@@ -196,7 +184,7 @@ async fn run_spawn_with(
     ctx: &Context,
     claim: lock_file::LockClaim,
     hierarchy: String,
-    message_content: Option<RichContent>,
+    message_content: RichContent,
 ) -> Result<ItemStream, Error> {
     let lookup = crate::db::logs::lookup_session(&ctx.db, &hierarchy)
         .await?
@@ -204,13 +192,10 @@ async fn run_spawn_with(
             Error::Instance(format!("no prior session for {hierarchy:?}"))
         })?;
 
-    let messages = match message_content {
-        Some(rich) => vec![Message::User(UserMessage {
-            content: rich,
-            name: None,
-        })],
-        None => Vec::new(),
-    };
+    let messages = vec![Message::User(UserMessage {
+        content: message_content,
+        name: None,
+    })];
     let params = AgentCompletionCreateParams {
         messages,
         provider: None,
@@ -260,7 +245,7 @@ async fn run_spawn_with(
 async fn execute_unary(
     ctx: &Context,
     hierarchy: String,
-    message_content: Option<RichContent>,
+    message_content: RichContent,
     agents_dir: PathBuf,
     request: Request,
 ) -> Result<ItemStream, Error> {
@@ -271,15 +256,12 @@ async fn execute_unary(
     loop {
         if lock_file::is_held(&lock_path) {
             // Live agent — enqueue + race delivery vs release.
-            let content = message_content
-                .clone()
-                .unwrap_or_else(|| RichContent::Text(String::new()));
             let queue_id = crate::db::message_queue::enqueue_with_content(
                 &ctx.db,
                 Some(hierarchy.clone()),
                 None,
                 None,
-                content,
+                message_content.clone(),
             )
             .await?;
 

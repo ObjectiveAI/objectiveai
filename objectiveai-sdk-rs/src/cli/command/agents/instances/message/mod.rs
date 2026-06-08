@@ -31,12 +31,10 @@ use crate::cli::command::CommandRequest;
 pub struct Request {
     pub path_type: Path,
     pub target: MessageTarget,
-    /// Optional payload. When `None`, the eventual spawn (if any)
-    /// runs with an empty `messages` array; the pure-enqueue
-    /// branch returns an error because there's nothing to write.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub message: Option<RequestMessage>,
+    /// Required payload. The eventual enqueue / delivery / spawn
+    /// always carries this exact `RichContent` as its single
+    /// user message.
+    pub message: RequestMessage,
     /// `Some(true)` → in-process streaming delivery / spawn.
     /// `None | Some(false)` → detached subprocess re-exec for the
     /// spawn-take-over case; the call returns the first item of
@@ -158,9 +156,7 @@ impl CommandRequest for Request {
                 argv.push(agent_tag.clone());
             }
         }
-        if let Some(message) = &self.message {
-            message.push_flags(&mut argv);
-        }
+        self.message.push_flags(&mut argv);
         if let Some(advanced) = &self.dangerous_advanced {
             argv.push("--dangerous-advanced".to_string());
             argv.push(
@@ -295,7 +291,7 @@ pub struct Args {
 }
 
 #[derive(clap::Args)]
-#[group(required = false, multiple = false)]
+#[group(required = true, multiple = false)]
 pub struct MessageArgs {
     /// Plain text — becomes one user message.
     #[arg(long)]
@@ -335,7 +331,7 @@ impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
         let message = if let Some(s) = args.message.simple {
-            Some(RequestMessage::Simple(s))
+            RequestMessage::Simple(s)
         } else if let Some(s) = args.message.inline {
             let mut de = serde_json::Deserializer::from_str(&s);
             let v = serde_path_to_error::deserialize(&mut de).map_err(|source| {
@@ -344,15 +340,15 @@ impl TryFrom<Args> for Request {
                     source: source.into(),
                 }
             })?;
-            Some(RequestMessage::Inline(v))
+            RequestMessage::Inline(v)
         } else if let Some(p) = args.message.file {
-            Some(RequestMessage::File(p))
+            RequestMessage::File(p)
         } else if let Some(s) = args.message.python_inline {
-            Some(RequestMessage::PythonInline(s))
-        } else if let Some(p) = args.message.python_file {
-            Some(RequestMessage::PythonFile(p))
+            RequestMessage::PythonInline(s)
         } else {
-            None
+            // Clap `required = true` on `MessageArgs` guarantees
+            // exactly one of the five flags is set.
+            RequestMessage::PythonFile(args.message.python_file.unwrap())
         };
         let target = match (args.agent_instance, args.agent_tag) {
             (Some(agent_instance), None) => MessageTarget::Direct {

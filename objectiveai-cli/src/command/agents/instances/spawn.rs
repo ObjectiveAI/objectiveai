@@ -117,24 +117,17 @@ async fn execute_streaming(
     ctx: &Context,
     request: Request,
 ) -> Result<ItemStream, Error> {
-    // Optional user-message slot. `Some` becomes a single
+    // Required user-message slot — gets wrapped into a single
     // `Message::User` at the head of the API call's `messages`
-    // array; `None` leaves `messages` empty (continuation-only
-    // re-spawn, or a spawn where the API picks its own opening).
-    // Reuses `agents instances message`'s `resolve_message` so the
-    // five wire variants (`Simple` / `Inline(RichContent)` /
-    // `File` / `PythonInline` / `PythonFile`) round-trip
+    // array. Reuses `agents instances message`'s `resolve_message`
+    // so the five wire variants (`Simple` / `Inline(RichContent)`
+    // / `File` / `PythonInline` / `PythonFile`) round-trip
     // identically.
-    let messages = match request.message {
-        Some(rm) => {
-            let content = super::message::resolve_message(rm)?;
-            vec![Message::User(UserMessage {
-                content,
-                name: None,
-            })]
-        }
-        None => Vec::new(),
-    };
+    let content = super::message::resolve_message(request.message)?;
+    let messages = vec![Message::User(UserMessage {
+        content,
+        name: None,
+    })];
     let agent = resolve_agent(ctx, request.agent).await?;
     let agent_tag = request.agent_tag.clone();
     let agents_dir = ctx

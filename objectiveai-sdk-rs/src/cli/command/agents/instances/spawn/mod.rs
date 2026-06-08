@@ -8,20 +8,12 @@ use crate::cli::command::agents::instances::message::RequestMessage;
 #[schemars(rename = "cli.command.agents.instances.spawn.Request")]
 pub struct Request {
     pub path_type: Path,
-    /// Optional initial user message. When `Some`, the CLI turns
-    /// it into a single `Message::User` at the head of the
-    /// `messages` array on the API call. When `None` (e.g. on a
-    /// continuation-driven re-spawn where no new user content is
-    /// being delivered), the request goes out with an empty
-    /// `messages` array and the API picks up state from
-    /// `continuation`.
-    ///
-    /// Same wire shape as `agents instances message`'s
-    /// `RequestMessage` — `Simple`, `Inline(RichContent)`, `File`,
-    /// `PythonInline`, `PythonFile`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub message: Option<RequestMessage>,
+    /// Initial user message. The CLI turns it into a single
+    /// `Message::User` at the head of the `messages` array on the
+    /// API call. Same wire shape as `agents instances message`'s
+    /// `RequestMessage` — `Simple`, `Inline(RichContent)`,
+    /// `File`, `PythonInline`, `PythonFile`.
+    pub message: RequestMessage,
     pub agent: AgentSpec,
     pub seed: Option<i64>,
     pub dangerous_advanced: Option<RequestDangerousAdvanced>,
@@ -59,11 +51,9 @@ pub enum AgentSpec {
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         let mut argv = vec!["agents".to_string(), "instances".to_string(), "spawn".to_string()];
-        if let Some(message) = &self.message {
-            // `RequestMessage` lives in `agents::instances::message`
-            // and emits the same five flags spawn accepts.
-            message.push_flags(&mut argv);
-        }
+        // `RequestMessage` lives in `agents::instances::message`
+        // and emits the same five flags spawn accepts.
+        self.message.push_flags(&mut argv);
         // The cli's `AgentArg` (from `define_inline_or_ref!`) accepts
         // either `--agent <REFERENCE>` (a `FavoriteRef` wire form, then
         // resolved to the `Remote` variant) or `--agent-inline <JSON>`
@@ -142,11 +132,10 @@ pub struct Args {
     pub jq: Option<String>,
 }
 
-/// Optional user-message group. Mirrors `agents instances message`'s
-/// own `MessageArgs` shape but with `required = false` — spawn
-/// accepts an empty message slot.
+/// Required user-message group. Mirrors `agents instances
+/// message`'s shape: exactly one of the five flags must be set.
 #[derive(clap::Args)]
-#[group(required = false, multiple = false)]
+#[group(required = true, multiple = false)]
 pub struct MessageArgs {
     /// Plain text — becomes the body of a single user message.
     #[arg(long)]
@@ -197,7 +186,7 @@ impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
         let message = if let Some(s) = args.message.simple {
-            Some(RequestMessage::Simple(s))
+            RequestMessage::Simple(s)
         } else if let Some(s) = args.message.inline {
             let mut de = serde_json::Deserializer::from_str(&s);
             let v = serde_path_to_error::deserialize(&mut de).map_err(|source| {
@@ -206,15 +195,15 @@ impl TryFrom<Args> for Request {
                     source: source.into(),
                 }
             })?;
-            Some(RequestMessage::Inline(v))
+            RequestMessage::Inline(v)
         } else if let Some(p) = args.message.file {
-            Some(RequestMessage::File(p))
+            RequestMessage::File(p)
         } else if let Some(s) = args.message.python_inline {
-            Some(RequestMessage::PythonInline(s))
-        } else if let Some(p) = args.message.python_file {
-            Some(RequestMessage::PythonFile(p))
+            RequestMessage::PythonInline(s)
         } else {
-            None
+            // Clap `required = true` on the `MessageArgs` group
+            // guarantees exactly one of the five flags is set.
+            RequestMessage::PythonFile(args.message.python_file.unwrap())
         };
         let agent = if let Some(s) = args.agent.agent_inline {
             let mut de = serde_json::Deserializer::from_str(&s);
