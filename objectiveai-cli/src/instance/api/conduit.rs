@@ -496,7 +496,7 @@ async fn dispatch_resources_read(
     }
 }
 
-/// Non-destructive read of the local `prompts.sqlite` queue. Hits the
+/// Non-destructive read of the local `message_queue (postgres)` queue. Hits the
 /// CLI's own filesystem — no upstream MCP session involved, no
 /// headers consulted. Pair with [`dispatch_clear_message_queue`] to
 /// release rows once consumed.
@@ -504,7 +504,7 @@ async fn dispatch_read_message_queue(
     inner: &Arc<Inner>,
     req: server_request::ReadMessageQueueRequest,
 ) -> server_response::Payload {
-    match crate::db::prompts::read_for_message(
+    match crate::db::message_queue::read_for_message(
         &inner.ctx.db,
         &req.agent_instance_hierarchy,
         &req.parent_agent_instance_hierarchy.unwrap_or_default(),
@@ -529,14 +529,14 @@ async fn dispatch_read_message_queue(
     }
 }
 
-/// Bulk-delete prompt rows by id from `prompts.sqlite`. Empty `ids`
+/// Bulk-delete message rows by id from `message_queue (postgres)`. Empty `ids`
 /// is a no-op; unknown ids are silently absorbed (`DELETE WHERE id =
 /// ?` with no match returns 0 rows affected without erroring).
 async fn dispatch_clear_message_queue(
     inner: &Arc<Inner>,
     req: server_request::ClearMessageQueueRequest,
 ) -> server_response::Payload {
-    match crate::db::prompts::clear_by_ids(
+    match crate::db::message_queue::clear_by_ids(
         &inner.ctx.db,
         &req.agent_instance_hierarchy,
         &req.parent_agent_instance_hierarchy.unwrap_or_default(),

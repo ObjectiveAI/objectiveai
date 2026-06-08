@@ -60,11 +60,11 @@ CREATE INDEX IF NOT EXISTS tags_hierarchy_idx
 CREATE INDEX IF NOT EXISTS tags_pending_match_idx
     ON tags(agent_full_id, parent_agent_instance_hierarchy);
 
-CREATE TABLE IF NOT EXISTS prompts (
+CREATE TABLE IF NOT EXISTS message_queue (
     id                       BIGSERIAL PRIMARY KEY,
     agent_instance_hierarchy TEXT,
     agent_tag                TEXT,
-    prompt                   TEXT   NOT NULL,
+    content                  TEXT   NOT NULL,
     enqueued_at              BIGINT NOT NULL,
     key                      TEXT,
     CHECK (
@@ -73,62 +73,62 @@ CREATE TABLE IF NOT EXISTS prompts (
         (agent_instance_hierarchy IS NULL AND agent_tag IS NOT NULL)
     )
 );
-CREATE INDEX IF NOT EXISTS prompts_hierarchy_idx
-    ON prompts(agent_instance_hierarchy, id)
+CREATE INDEX IF NOT EXISTS message_queue_hierarchy_idx
+    ON message_queue(agent_instance_hierarchy, id)
     WHERE agent_instance_hierarchy IS NOT NULL;
-CREATE INDEX IF NOT EXISTS prompts_tag_idx
-    ON prompts(agent_tag, id)
+CREATE INDEX IF NOT EXISTS message_queue_tag_idx
+    ON message_queue(agent_tag, id)
     WHERE agent_tag IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS prompts_key_hierarchy_unique_idx
-    ON prompts(agent_instance_hierarchy, key)
+CREATE UNIQUE INDEX IF NOT EXISTS message_queue_key_hierarchy_unique_idx
+    ON message_queue(agent_instance_hierarchy, key)
     WHERE agent_instance_hierarchy IS NOT NULL AND key IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS prompts_key_tag_unique_idx
-    ON prompts(agent_tag, key)
+CREATE UNIQUE INDEX IF NOT EXISTS message_queue_key_tag_unique_idx
+    ON message_queue(agent_tag, key)
     WHERE agent_tag IS NOT NULL AND key IS NOT NULL;
 
-CREATE TABLE IF NOT EXISTS prompt_contents (
-    id        BIGSERIAL PRIMARY KEY,
-    prompt_id BIGINT NOT NULL,
-    kind      TEXT   NOT NULL
+CREATE TABLE IF NOT EXISTS message_queue_contents (
+    id               BIGSERIAL PRIMARY KEY,
+    message_queue_id BIGINT NOT NULL,
+    kind             TEXT   NOT NULL
         CHECK (kind IN ('text','image','audio','video','file')),
-    FOREIGN KEY (prompt_id) REFERENCES prompts(id) ON DELETE CASCADE
+    FOREIGN KEY (message_queue_id) REFERENCES message_queue(id) ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS prompt_contents_prompt_idx
-    ON prompt_contents(prompt_id);
+CREATE INDEX IF NOT EXISTS message_queue_contents_parent_idx
+    ON message_queue_contents(message_queue_id);
 
-CREATE TABLE IF NOT EXISTS prompt_texts (
+CREATE TABLE IF NOT EXISTS message_queue_texts (
     id   BIGINT PRIMARY KEY,
     text TEXT   NOT NULL,
-    FOREIGN KEY (id) REFERENCES prompt_contents(id) ON DELETE CASCADE
+    FOREIGN KEY (id) REFERENCES message_queue_contents(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS prompt_images (
+CREATE TABLE IF NOT EXISTS message_queue_images (
     id     BIGINT PRIMARY KEY,
     url    TEXT   NOT NULL,
     detail TEXT,
-    FOREIGN KEY (id) REFERENCES prompt_contents(id) ON DELETE CASCADE
+    FOREIGN KEY (id) REFERENCES message_queue_contents(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS prompt_audios (
+CREATE TABLE IF NOT EXISTS message_queue_audios (
     id     BIGINT PRIMARY KEY,
     data   TEXT   NOT NULL,
     format TEXT   NOT NULL,
-    FOREIGN KEY (id) REFERENCES prompt_contents(id) ON DELETE CASCADE
+    FOREIGN KEY (id) REFERENCES message_queue_contents(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS prompt_videos (
+CREATE TABLE IF NOT EXISTS message_queue_videos (
     id  BIGINT PRIMARY KEY,
     url TEXT   NOT NULL,
-    FOREIGN KEY (id) REFERENCES prompt_contents(id) ON DELETE CASCADE
+    FOREIGN KEY (id) REFERENCES message_queue_contents(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS prompt_files (
+CREATE TABLE IF NOT EXISTS message_queue_files (
     id        BIGINT PRIMARY KEY,
     file_data TEXT,
     file_id   TEXT,
     filename  TEXT,
     file_url  TEXT,
-    FOREIGN KEY (id) REFERENCES prompt_contents(id) ON DELETE CASCADE
+    FOREIGN KEY (id) REFERENCES message_queue_contents(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS schedules (

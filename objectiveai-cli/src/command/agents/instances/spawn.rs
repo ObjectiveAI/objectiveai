@@ -1,4 +1,4 @@
-﻿//! `agents spawn` — bare-naked chunk-or-id streaming handler.
+//! `agents spawn` — bare-naked chunk-or-id streaming handler.
 //!
 //! Spawns the instance runner as a detached background process. The
 //! streamed item shape depends on `dangerous_advanced.stream`:
@@ -41,7 +41,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     let mut messages = resolve_prompt(request.prompt)?;
 
     // Drain the queue *before* the instance fires. Two-rule
-    // predicate (see `db::prompts::drain_for_spawn_async`):
+    // predicate (see `db::message_queue::drain_for_spawn`):
     //   1. queue items addressed to `request.agent_tag` directly
     //   2. queue items addressed to any PENDING tag whose
     //      (parent, agent_full_id) matches this spawn — i.e. tags
@@ -50,7 +50,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     // separators and prepended as a fresh User message at the head
     // of `messages`.
     let agent_full_id = resolve_agent_full_id(ctx, &request.agent).await?;
-    let drained = db::prompts::drain_for_spawn(
+    let drained = db::message_queue::drain_for_spawn(
         &ctx.db,
         &ctx.config.agent_instance_hierarchy,
         &agent_full_id,
@@ -97,7 +97,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     // Peek the first item before returning the stream. If the
     // head is Err (or the producer closes without yielding
     // anything), restore the drained queue rows via
-    // `db::prompts::re_enqueue_async` and surface the original
+    // `db::message_queue::re_enqueue` and surface the original
     // error. On Ok, hand back a `StreamOnce::new(head).chain(tail)`
     // — same pattern objectiveai-api's
     // `functions/executions/client.rs::create_streaming_handle_usage`
@@ -108,11 +108,11 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             objectiveai_sdk::cli::command::StreamOnce::new(Ok(first)).chain(tail),
         )),
         Some(Err(e)) => {
-            let r = db::prompts::re_enqueue(&ctx.db, drained).await;
+            let r = db::message_queue::re_enqueue(&ctx.db, drained).await;
             Err(crate::command::message_queue_drain::combine_drain_failure(e, r))
         }
         None => {
-            let r = db::prompts::re_enqueue(&ctx.db, drained).await;
+            let r = db::message_queue::re_enqueue(&ctx.db, drained).await;
             Err(crate::command::message_queue_drain::combine_drain_failure(
                 Error::EmptyStream,
                 r,

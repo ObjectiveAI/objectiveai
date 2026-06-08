@@ -27,7 +27,7 @@ use objectiveai_sdk::agent::completions::message::{RichContent, RichContentPart}
 use crate::error::Error;
 
 /// Combine the original spawn/message failure with the result of
-/// `db::prompts::re_enqueue`. When re-enqueue succeeds, the original
+/// `db::message_queue::re_enqueue`. When re-enqueue succeeds, the original
 /// error wins — the queue is whole; only delivery failed. When
 /// re-enqueue *also* fails, both are surfaced via [`Error::DrainLost`]
 /// so the caller sees what failed and that the queued content is lost.

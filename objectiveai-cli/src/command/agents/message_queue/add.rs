@@ -1,5 +1,5 @@
 //! `agents message-queue add` — bare-naked handler. Persists one
-//! `RichContent` into the `prompts` table in `tags.sqlite` against
+//! `RichContent` into the `message_queue` table in `tags.sqlite` against
 //! either the resolved `{parent}/{instance}` hierarchy (Direct
 //! mode) or the literal tag name (Tag mode — no resolution).
 
@@ -41,7 +41,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         Target::Tag { agent_tag } => (None, Some(agent_tag)),
     };
 
-    let id = db::prompts::enqueue_with_content(
+    let id = db::message_queue::enqueue_with_content(
         &ctx.db,
         agent_instance_hierarchy.clone(),
         agent_tag.clone(),

@@ -1,4 +1,4 @@
-//! `agents message-queue read id` — resolve a `prompt_contents.id` to its
+//! `agents message-queue read id` — resolve a `message_queue_contents.id` to its
 //! typed payload via the per-kind content tables, returning a
 //! `RichContentPart` directly.
 
@@ -9,7 +9,7 @@ use crate::db;
 use crate::error::Error;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    let row = db::prompts::read_content(&ctx.db, request.id)
+    let row = db::message_queue::read_content(&ctx.db, request.id)
         .await?
         .ok_or_else(|| {
             Error::Filesystem(crate::filesystem::Error::NotFound(format!(
@@ -19,7 +19,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         })?;
     // `Response` is a type alias for `RichContentPart`; the shared
     // helper does the variant mapping.
-    Ok(db::prompts::content_row_to_part(row))
+    Ok(db::message_queue::content_row_to_part(row))
 }
 
 pub mod request_schema {

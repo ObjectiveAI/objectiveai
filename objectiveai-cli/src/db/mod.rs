@@ -2,7 +2,7 @@
 //!
 //! Replaces the legacy `filesystem::db` SQLite tree. One sqlx `PgPool`
 //! over the postmaster spun up by [`crate::postgres::bootstrap`]; every
-//! tier ([`tags`], [`prompts`], [`tasks`], [`logs`]) takes `&Pool` and
+//! tier ([`tags`], [`message_queue`], [`tasks`], [`logs`]) takes `&Pool` and
 //! runs natively async.
 
 mod error;
@@ -16,5 +16,5 @@ pub use init::*;
 
 pub mod logs;
 pub mod tags;
-pub mod prompts;
+pub mod message_queue;
 pub mod tasks;

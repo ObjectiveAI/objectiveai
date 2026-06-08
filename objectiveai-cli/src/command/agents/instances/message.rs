@@ -1,6 +1,6 @@
 //! `agents instances message` — pure enqueue.
 //!
-//! Persists one `RichContent` into the `prompts` table in
+//! Persists one `RichContent` into the `message_queue` table in
 //! `tags.sqlite` against either the resolved `{parent}/{instance}`
 //! hierarchy (Direct mode) or the literal tag name (Tag mode — no
 //! resolution at enqueue time). The API picks the row up via the
@@ -51,7 +51,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         MessageTarget::Tag { agent_tag } => (None, Some(agent_tag)),
     };
 
-    let id = crate::db::prompts::enqueue_with_content(
+    let id = crate::db::message_queue::enqueue_with_content(
         &ctx.db,
         agent_instance_hierarchy.clone(),
         agent_tag.clone(),

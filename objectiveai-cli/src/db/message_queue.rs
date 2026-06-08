@@ -1,11 +1,11 @@
-//! Deferred-prompt storage for `agents message-queue {add, list, read id}`.
+//! Deferred-message storage for `agents message-queue {add, list, read id}`.
 //!
-//! Mirrors the sqlite predecessor's split: a `prompts` row carries
+//! Mirrors the sqlite predecessor's split: a `message_queue` row carries
 //! either an `agent_instance_hierarchy` or an `agent_tag` (CHECK
-//! enforces); the master `prompt_contents` registry has FK-cascade
-//! chains down to per-kind tables (`prompt_texts`, `prompt_images`,
-//! `prompt_audios`, `prompt_videos`, `prompt_files`) — one DELETE on
-//! `prompts` sweeps every per-kind row through the cascades.
+//! enforces); the master `message_queue_contents` registry has FK-cascade
+//! chains down to per-kind tables (`message_queue_texts`, `message_queue_images`,
+//! `message_queue_audios`, `message_queue_videos`, `message_queue_files`) — one DELETE on
+//! `message_queue` sweeps every per-kind row through the cascades.
 
 use objectiveai_sdk::agent::completions::message::{
     File, ImageUrl, InputAudio, RichContent, RichContentPart, VideoUrl,
@@ -18,7 +18,7 @@ use sqlx::{PgConnection, Postgres, Row as _, Transaction};
 
 use super::{Error, Pool};
 
-/// One content row — typed payload of a single `prompt_contents.id`.
+/// One content row — typed payload of a single `message_queue_contents.id`.
 #[derive(Debug, Clone)]
 pub enum ContentRow {
     Text(String),
@@ -39,10 +39,10 @@ pub fn content_row_to_part(row: ContentRow) -> RichContentPart {
     }
 }
 
-/// One drained prompt — carries enough metadata to re-INSERT the
+/// One drained message — carries enough metadata to re-INSERT the
 /// original row.
 #[derive(Debug, Clone)]
-pub struct DrainedPrompt {
+pub struct DrainedMessage {
     pub agent_instance_hierarchy: Option<String>,
     pub agent_tag: Option<String>,
     pub key: Option<String>,
@@ -69,7 +69,7 @@ fn now_seconds() -> i64 {
 // read_content — single-id resolver
 // ---------------------------------------------------------------------------
 
-/// Look up a single content row by `prompt_contents.id`. Returns
+/// Look up a single content row by `message_queue_contents.id`. Returns
 /// `None` when the id doesn't exist; a per-kind miss is DB corruption
 /// and surfaces as `Error::InvalidData`.
 pub async fn read_content(
@@ -89,7 +89,7 @@ async fn read_content_on_conn(
     conn: &mut PgConnection,
     id: i64,
 ) -> Result<Option<ContentRow>, Error> {
-    let row = sqlx::query("SELECT kind FROM prompt_contents WHERE id = $1")
+    let row = sqlx::query("SELECT kind FROM message_queue_contents WHERE id = $1")
         .bind(id)
         .fetch_optional(&mut *conn)
         .await?;
@@ -97,14 +97,14 @@ async fn read_content_on_conn(
     let kind: String = row.try_get(0)?;
     let result = match kind.as_str() {
         "text" => {
-            let r = sqlx::query("SELECT text FROM prompt_texts WHERE id = $1")
+            let r = sqlx::query("SELECT text FROM message_queue_texts WHERE id = $1")
                 .bind(id)
                 .fetch_one(&mut *conn)
                 .await?;
             ContentRow::Text(r.try_get(0)?)
         }
         "image" => {
-            let r = sqlx::query("SELECT url, detail FROM prompt_images WHERE id = $1")
+            let r = sqlx::query("SELECT url, detail FROM message_queue_images WHERE id = $1")
                 .bind(id)
                 .fetch_one(&mut *conn)
                 .await?;
@@ -117,7 +117,7 @@ async fn read_content_on_conn(
             ContentRow::Image(ImageUrl { url, detail })
         }
         "audio" => {
-            let r = sqlx::query("SELECT data, format FROM prompt_audios WHERE id = $1")
+            let r = sqlx::query("SELECT data, format FROM message_queue_audios WHERE id = $1")
                 .bind(id)
                 .fetch_one(&mut *conn)
                 .await?;
@@ -127,7 +127,7 @@ async fn read_content_on_conn(
             })
         }
         "video" => {
-            let r = sqlx::query("SELECT url FROM prompt_videos WHERE id = $1")
+            let r = sqlx::query("SELECT url FROM message_queue_videos WHERE id = $1")
                 .bind(id)
                 .fetch_one(&mut *conn)
                 .await?;
@@ -136,7 +136,7 @@ async fn read_content_on_conn(
         "file" => {
             let r = sqlx::query(
                 "SELECT file_data, file_id, filename, file_url \
-                 FROM prompt_files WHERE id = $1",
+                 FROM message_queue_files WHERE id = $1",
             )
             .bind(id)
             .fetch_one(&mut *conn)
@@ -150,7 +150,7 @@ async fn read_content_on_conn(
         }
         other => {
             return Err(Error::InvalidData(format!(
-                "unknown prompt_contents.kind: {other}"
+                "unknown message_queue_contents.kind: {other}"
             )));
         }
     };
@@ -158,14 +158,14 @@ async fn read_content_on_conn(
 }
 
 // ---------------------------------------------------------------------------
-// enqueue_with_content — INSERT prompts + walk content into per-kind tables
+// enqueue_with_content — INSERT message_queue + walk content into per-kind tables
 // ---------------------------------------------------------------------------
 
-/// Atomic enqueue: inserts the `prompts` row, walks `content` and
+/// Atomic enqueue: inserts the `message_queue` row, walks `content` and
 /// extracts every part into a per-kind table referenced by id, then
-/// UPDATEs the `prompts.prompt` column with the assembled
+/// UPDATEs the `message_queue.content` column with the assembled
 /// [`ResponseContent`] JSON (`One(i64)` for single-part, `Many(Vec<i64>)`
-/// for multi-part). Returns the new `prompts.id`. Everything runs
+/// for multi-part). Returns the new `message_queue.id`. Everything runs
 /// inside one transaction — failure rolls every content row back.
 pub async fn enqueue_with_content(
     pool: &Pool,
@@ -175,7 +175,7 @@ pub async fn enqueue_with_content(
     content: RichContent,
 ) -> Result<i64, Error> {
     let mut tx = pool.begin().await?;
-    let prompt_id = enqueue_with_content_in_tx(
+    let message_queue_id = enqueue_with_content_in_tx(
         &mut tx,
         agent_instance_hierarchy.as_deref(),
         agent_tag.as_deref(),
@@ -185,10 +185,10 @@ pub async fn enqueue_with_content(
     )
     .await?;
     tx.commit().await?;
-    Ok(prompt_id)
+    Ok(message_queue_id)
 }
 
-/// Insert one prompt row + its content rows inside an existing
+/// Insert one message row + its content rows inside an existing
 /// transaction. Lets `re_enqueue` batch multiple inserts under a
 /// single transaction by reusing this body once per item.
 /// `enqueued_at` is parameterised so re-enqueue can preserve the
@@ -205,10 +205,10 @@ async fn enqueue_with_content_in_tx(
     if let Some(key_value) = key {
         // Upsert: drop any prior row for this (target, key) pair so
         // the partial unique index never trips. Cascade on
-        // `prompt_contents.prompt_id` sweeps the prior row's content
+        // `message_queue_contents.message_queue_id` sweeps the prior row's content
         // rows in the same transaction.
         sqlx::query(
-            "DELETE FROM prompts \
+            "DELETE FROM message_queue \
              WHERE key = $3 \
                AND ( \
                    (agent_instance_hierarchy IS NOT NULL \
@@ -226,11 +226,11 @@ async fn enqueue_with_content_in_tx(
         .execute(&mut **tx)
         .await?;
     }
-    // Empty `prompt` placeholder — overwritten by the final UPDATE
-    // once we know the id-referenced shape. `prompts.prompt` is NOT
+    // Empty `message` placeholder — overwritten by the final UPDATE
+    // once we know the id-referenced shape. `message_queue.content` is NOT
     // NULL so we need *some* value here.
-    let prompt_id: i64 = sqlx::query_scalar(
-        "INSERT INTO prompts (agent_instance_hierarchy, agent_tag, prompt, enqueued_at, key) \
+    let message_queue_id: i64 = sqlx::query_scalar(
+        "INSERT INTO message_queue (agent_instance_hierarchy, agent_tag, content, enqueued_at, key) \
          VALUES ($1, $2, '', $3, $4) \
          RETURNING id",
     )
@@ -240,30 +240,30 @@ async fn enqueue_with_content_in_tx(
     .bind(key)
     .fetch_one(&mut **tx)
     .await?;
-    let response_content = walk_rich(tx, prompt_id, content).await?;
+    let response_content = walk_rich(tx, message_queue_id, content).await?;
     let json = serde_json::to_string(&response_content)?;
-    sqlx::query("UPDATE prompts SET prompt = $1 WHERE id = $2")
+    sqlx::query("UPDATE message_queue SET content = $1 WHERE id = $2")
         .bind(json)
-        .bind(prompt_id)
+        .bind(message_queue_id)
         .execute(&mut **tx)
         .await?;
-    Ok(prompt_id)
+    Ok(message_queue_id)
 }
 
 async fn walk_rich(
     tx: &mut Transaction<'_, Postgres>,
-    prompt_id: i64,
+    message_queue_id: i64,
     content: RichContent,
 ) -> Result<ResponseContent, Error> {
     match content {
         RichContent::Text(text) => {
-            let id = insert_content_text(tx, prompt_id, &text).await?;
+            let id = insert_content_text(tx, message_queue_id, &text).await?;
             Ok(ResponseContent::One(id))
         }
         RichContent::Parts(parts) => {
             let mut ids = Vec::with_capacity(parts.len());
             for part in parts {
-                ids.push(insert_content_part(tx, prompt_id, part).await?);
+                ids.push(insert_content_part(tx, message_queue_id, part).await?);
             }
             if ids.len() == 1 {
                 Ok(ResponseContent::One(ids.remove(0)))
@@ -276,34 +276,34 @@ async fn walk_rich(
 
 async fn insert_content_part(
     tx: &mut Transaction<'_, Postgres>,
-    prompt_id: i64,
+    message_queue_id: i64,
     part: RichContentPart,
 ) -> Result<i64, Error> {
     match part {
-        RichContentPart::Text { text } => insert_content_text(tx, prompt_id, &text).await,
+        RichContentPart::Text { text } => insert_content_text(tx, message_queue_id, &text).await,
         RichContentPart::ImageUrl { image_url } => {
-            insert_content_image(tx, prompt_id, &image_url).await
+            insert_content_image(tx, message_queue_id, &image_url).await
         }
         RichContentPart::InputAudio { input_audio } => {
-            insert_content_audio(tx, prompt_id, &input_audio).await
+            insert_content_audio(tx, message_queue_id, &input_audio).await
         }
         RichContentPart::InputVideo { video_url }
         | RichContentPart::VideoUrl { video_url } => {
-            insert_content_video(tx, prompt_id, &video_url).await
+            insert_content_video(tx, message_queue_id, &video_url).await
         }
-        RichContentPart::File { file } => insert_content_file(tx, prompt_id, &file).await,
+        RichContentPart::File { file } => insert_content_file(tx, message_queue_id, &file).await,
     }
 }
 
 async fn mint_content_id(
     tx: &mut Transaction<'_, Postgres>,
-    prompt_id: i64,
+    message_queue_id: i64,
     kind: &str,
 ) -> Result<i64, Error> {
     let id: i64 = sqlx::query_scalar(
-        "INSERT INTO prompt_contents (prompt_id, kind) VALUES ($1, $2) RETURNING id",
+        "INSERT INTO message_queue_contents (message_queue_id, kind) VALUES ($1, $2) RETURNING id",
     )
-    .bind(prompt_id)
+    .bind(message_queue_id)
     .bind(kind)
     .fetch_one(&mut **tx)
     .await?;
@@ -312,11 +312,11 @@ async fn mint_content_id(
 
 async fn insert_content_text(
     tx: &mut Transaction<'_, Postgres>,
-    prompt_id: i64,
+    message_queue_id: i64,
     text: &str,
 ) -> Result<i64, Error> {
-    let id = mint_content_id(tx, prompt_id, "text").await?;
-    sqlx::query("INSERT INTO prompt_texts (id, text) VALUES ($1, $2)")
+    let id = mint_content_id(tx, message_queue_id, "text").await?;
+    sqlx::query("INSERT INTO message_queue_texts (id, text) VALUES ($1, $2)")
         .bind(id)
         .bind(text)
         .execute(&mut **tx)
@@ -326,17 +326,17 @@ async fn insert_content_text(
 
 async fn insert_content_image(
     tx: &mut Transaction<'_, Postgres>,
-    prompt_id: i64,
+    message_queue_id: i64,
     image: &ImageUrl,
 ) -> Result<i64, Error> {
-    let id = mint_content_id(tx, prompt_id, "image").await?;
+    let id = mint_content_id(tx, message_queue_id, "image").await?;
     let detail = image
         .detail
         .as_ref()
         .map(|d| serde_json::to_value(d).map(|v| v.as_str().map(str::to_string)))
         .transpose()?
         .flatten();
-    sqlx::query("INSERT INTO prompt_images (id, url, detail) VALUES ($1, $2, $3)")
+    sqlx::query("INSERT INTO message_queue_images (id, url, detail) VALUES ($1, $2, $3)")
         .bind(id)
         .bind(&image.url)
         .bind(detail)
@@ -347,11 +347,11 @@ async fn insert_content_image(
 
 async fn insert_content_audio(
     tx: &mut Transaction<'_, Postgres>,
-    prompt_id: i64,
+    message_queue_id: i64,
     audio: &InputAudio,
 ) -> Result<i64, Error> {
-    let id = mint_content_id(tx, prompt_id, "audio").await?;
-    sqlx::query("INSERT INTO prompt_audios (id, data, format) VALUES ($1, $2, $3)")
+    let id = mint_content_id(tx, message_queue_id, "audio").await?;
+    sqlx::query("INSERT INTO message_queue_audios (id, data, format) VALUES ($1, $2, $3)")
         .bind(id)
         .bind(&audio.data)
         .bind(&audio.format)
@@ -362,11 +362,11 @@ async fn insert_content_audio(
 
 async fn insert_content_video(
     tx: &mut Transaction<'_, Postgres>,
-    prompt_id: i64,
+    message_queue_id: i64,
     video: &VideoUrl,
 ) -> Result<i64, Error> {
-    let id = mint_content_id(tx, prompt_id, "video").await?;
-    sqlx::query("INSERT INTO prompt_videos (id, url) VALUES ($1, $2)")
+    let id = mint_content_id(tx, message_queue_id, "video").await?;
+    sqlx::query("INSERT INTO message_queue_videos (id, url) VALUES ($1, $2)")
         .bind(id)
         .bind(&video.url)
         .execute(&mut **tx)
@@ -376,12 +376,12 @@ async fn insert_content_video(
 
 async fn insert_content_file(
     tx: &mut Transaction<'_, Postgres>,
-    prompt_id: i64,
+    message_queue_id: i64,
     file: &File,
 ) -> Result<i64, Error> {
-    let id = mint_content_id(tx, prompt_id, "file").await?;
+    let id = mint_content_id(tx, message_queue_id, "file").await?;
     sqlx::query(
-        "INSERT INTO prompt_files (id, file_data, file_id, filename, file_url) \
+        "INSERT INTO message_queue_files (id, file_data, file_id, filename, file_url) \
          VALUES ($1, $2, $3, $4, $5)",
     )
     .bind(id)
@@ -395,11 +395,11 @@ async fn insert_content_file(
 }
 
 // ---------------------------------------------------------------------------
-// List — JOIN prompts ⨝ tags with three-rule predicate (Direct child /
+// List — JOIN message_queue ⨝ tags with three-rule predicate (Direct child /
 // BOUND tag / PENDING tag).
 // ---------------------------------------------------------------------------
 
-/// List all queued prompts visible under `parent`. Three rules:
+/// List all queued message_queue visible under `parent`. Three rules:
 /// 1. Direct row: `agent_instance_hierarchy` is a direct child of
 ///    `parent` (LIKE `parent/%` AND no further `/`).
 /// 2. BOUND tag (LEFT JOIN matches): tag's bound hierarchy is a direct
@@ -413,11 +413,11 @@ pub async fn list(pool: &Pool, parent: &str) -> Result<Vec<ResponseItem>, Error>
                 p.agent_instance_hierarchy, \
                 p.agent_tag, \
                 p.key, \
-                p.prompt, \
+                p.content, \
                 t.agent_instance_hierarchy        AS tag_bound_hierarchy, \
                 t.parent_agent_instance_hierarchy AS tag_pending_parent, \
                 t.agent_full_id                   AS tag_pending_full_id \
-         FROM prompts p \
+         FROM message_queue p \
          LEFT JOIN tags t ON p.agent_tag = t.name \
          WHERE \
                 /* Direct row: agent_instance_hierarchy is a direct child of $1 */ \
@@ -452,15 +452,15 @@ pub async fn list(pool: &Pool, parent: &str) -> Result<Vec<ResponseItem>, Error>
         let agent_instance_hierarchy: Option<String> = row.try_get(1)?;
         let agent_tag: Option<String> = row.try_get(2)?;
         let key: Option<String> = row.try_get(3)?;
-        let prompt_json: String = row.try_get(4)?;
+        let content_json: String = row.try_get(4)?;
         let tag_bound_hierarchy: Option<String> = row.try_get(5)?;
         let tag_pending_parent: Option<String> = row.try_get(6)?;
         let tag_pending_full_id: Option<String> = row.try_get(7)?;
 
-        let content: ResponseContent = if prompt_json.is_empty() {
+        let content: ResponseContent = if content_json.is_empty() {
             ResponseContent::Many(Vec::new())
         } else {
-            serde_json::from_str(&prompt_json)?
+            serde_json::from_str(&content_json)?
         };
         if let Some(h) = agent_instance_hierarchy {
             let agent_instance = h
@@ -510,27 +510,27 @@ pub async fn list(pool: &Pool, parent: &str) -> Result<Vec<ResponseItem>, Error>
 // Drain — atomically pull rows + reconstruct each as a RichContent.
 // ---------------------------------------------------------------------------
 
-/// Row data the drain SELECT pulls out of `prompts`.
+/// Row data the drain SELECT pulls out of `message_queue`.
 struct DrainedRow {
-    prompt_id: i64,
+    message_queue_id: i64,
     agent_instance_hierarchy: Option<String>,
     agent_tag: Option<String>,
     key: Option<String>,
     enqueued_at: i64,
-    prompt_json: String,
+    content_json: String,
 }
 
 /// Drain rows targeting `target_hierarchy`, `target_tag` (if some), or
 /// any BOUND tag whose `agent_instance_hierarchy` equals
-/// `target_hierarchy`. Returns drained prompts oldest-first; deletes
+/// `target_hierarchy`. Returns drained message_queue oldest-first; deletes
 /// the matched rows in the same transaction.
 pub async fn drain_for_message(
     pool: &Pool,
     target_hierarchy: &str,
     target_tag: Option<&str>,
-) -> Result<Vec<DrainedPrompt>, Error> {
+) -> Result<Vec<DrainedMessage>, Error> {
     let mut tx = pool.begin().await?;
-    let rows = collect_matching_prompts_for_message(
+    let rows = collect_matching_for_message(
         &mut tx,
         target_hierarchy,
         target_tag,
@@ -541,7 +541,7 @@ pub async fn drain_for_message(
     Ok(drained)
 }
 
-async fn collect_matching_prompts_for_message(
+async fn collect_matching_for_message(
     tx: &mut Transaction<'_, Postgres>,
     target_hierarchy: &str,
     target_tag: Option<&str>,
@@ -552,8 +552,8 @@ async fn collect_matching_prompts_for_message(
                 p.agent_tag, \
                 p.key, \
                 p.enqueued_at, \
-                p.prompt \
-         FROM prompts p \
+                p.content \
+         FROM message_queue p \
          WHERE p.agent_instance_hierarchy = $1 \
             OR ( \
                 p.agent_tag IS NOT NULL \
@@ -583,9 +583,9 @@ pub async fn drain_for_spawn(
     parent_hierarchy: &str,
     agent_full_id: &str,
     target_tag: Option<&str>,
-) -> Result<Vec<DrainedPrompt>, Error> {
+) -> Result<Vec<DrainedMessage>, Error> {
     let mut tx = pool.begin().await?;
-    let rows = collect_matching_prompts_for_spawn(
+    let rows = collect_matching_for_spawn(
         &mut tx,
         parent_hierarchy,
         agent_full_id,
@@ -597,7 +597,7 @@ pub async fn drain_for_spawn(
     Ok(drained)
 }
 
-async fn collect_matching_prompts_for_spawn(
+async fn collect_matching_for_spawn(
     tx: &mut Transaction<'_, Postgres>,
     parent_hierarchy: &str,
     agent_full_id: &str,
@@ -609,8 +609,8 @@ async fn collect_matching_prompts_for_spawn(
                 p.agent_tag, \
                 p.key, \
                 p.enqueued_at, \
-                p.prompt \
-         FROM prompts p \
+                p.content \
+         FROM message_queue p \
          WHERE ( \
                  $3::text IS NOT NULL \
                  AND p.agent_tag = $3 \
@@ -638,12 +638,12 @@ fn rows_to_drained(rows: Vec<sqlx::postgres::PgRow>) -> Result<Vec<DrainedRow>, 
     let mut out = Vec::with_capacity(rows.len());
     for row in rows {
         out.push(DrainedRow {
-            prompt_id: row.try_get(0)?,
+            message_queue_id: row.try_get(0)?,
             agent_instance_hierarchy: row.try_get(1)?,
             agent_tag: row.try_get(2)?,
             key: row.try_get(3)?,
             enqueued_at: row.try_get(4)?,
-            prompt_json: row.try_get(5)?,
+            content_json: row.try_get(5)?,
         });
     }
     Ok(out)
@@ -651,25 +651,25 @@ fn rows_to_drained(rows: Vec<sqlx::postgres::PgRow>) -> Result<Vec<DrainedRow>, 
 
 /// For each matched row, decode the JSON column as `ResponseContent`,
 /// reconstruct a `RichContent` from the referenced per-kind rows, then
-/// DELETE the prompt row (which cascades to its content rows via the
+/// DELETE the message row (which cascades to its content rows via the
 /// FK chain).
 async fn reconstruct_and_delete(
     tx: &mut Transaction<'_, Postgres>,
     rows: Vec<DrainedRow>,
-) -> Result<Vec<DrainedPrompt>, Error> {
+) -> Result<Vec<DrainedMessage>, Error> {
     let mut out = Vec::with_capacity(rows.len());
     for row in rows {
-        let response_content: ResponseContent = if row.prompt_json.is_empty() {
+        let response_content: ResponseContent = if row.content_json.is_empty() {
             ResponseContent::Many(Vec::new())
         } else {
-            serde_json::from_str(&row.prompt_json)?
+            serde_json::from_str(&row.content_json)?
         };
         let content = reconstruct_rich_content(tx, response_content).await?;
-        sqlx::query("DELETE FROM prompts WHERE id = $1")
-            .bind(row.prompt_id)
+        sqlx::query("DELETE FROM message_queue WHERE id = $1")
+            .bind(row.message_queue_id)
             .execute(&mut **tx)
             .await?;
-        out.push(DrainedPrompt {
+        out.push(DrainedMessage {
             agent_instance_hierarchy: row.agent_instance_hierarchy,
             agent_tag: row.agent_tag,
             key: row.key,
@@ -695,7 +695,7 @@ async fn reconstruct_rich_content(
     for id in ids {
         let row = read_content_on_conn(&mut **tx, id).await?.ok_or_else(|| {
             Error::InvalidData(format!(
-                "queue prompt referenced missing prompt_contents id {id}"
+                "queue message referenced missing message_queue_contents id {id}"
             ))
         })?;
         parts.push(content_row_to_part(row));
@@ -713,10 +713,10 @@ async fn reconstruct_rich_content(
 // Re-enqueue — undo a drain.
 // ---------------------------------------------------------------------------
 
-/// Re-INSERT every item as a fresh `prompts` row + its content rows.
+/// Re-INSERT every item as a fresh `message_queue` row + its content rows.
 /// Empty `items` short-circuits without touching the pool. Transaction-
 /// wrapped: any failure rolls every restored row back.
-pub async fn re_enqueue(pool: &Pool, items: Vec<DrainedPrompt>) -> Result<(), Error> {
+pub async fn re_enqueue(pool: &Pool, items: Vec<DrainedMessage>) -> Result<(), Error> {
     if items.is_empty() {
         return Ok(());
     }
@@ -740,12 +740,12 @@ pub async fn re_enqueue(pool: &Pool, items: Vec<DrainedPrompt>) -> Result<(), Er
 // Delete-by-id — `agents message-queue delete <id>`.
 // ---------------------------------------------------------------------------
 
-/// Atomically delete the `prompts` row with the given `id` and return
+/// Atomically delete the `message_queue` row with the given `id` and return
 /// its reconstructed shape. `None` when no row matches.
 pub async fn delete_by_id(
     pool: &Pool,
     id: i64,
-) -> Result<Option<DrainedPrompt>, Error> {
+) -> Result<Option<DrainedMessage>, Error> {
     let mut tx = pool.begin().await?;
     let rows = sqlx::query(
         "SELECT p.id, \
@@ -753,8 +753,8 @@ pub async fn delete_by_id(
                 p.agent_tag, \
                 p.key, \
                 p.enqueued_at, \
-                p.prompt \
-         FROM prompts p \
+                p.content \
+         FROM message_queue p \
          WHERE p.id = $1 \
          ORDER BY p.id ASC",
     )
@@ -788,8 +788,8 @@ pub async fn read_for_message(
                 p.agent_tag, \
                 p.key, \
                 p.enqueued_at, \
-                p.prompt \
-         FROM prompts p \
+                p.content \
+         FROM message_queue p \
          WHERE p.agent_instance_hierarchy = $1 \
             OR ( \
                 p.agent_tag IS NOT NULL \
@@ -819,20 +819,20 @@ pub async fn read_for_message(
     let drained = rows_to_drained(rows)?;
     let mut out = Vec::with_capacity(drained.len());
     for row in drained {
-        let rc: ResponseContent = if row.prompt_json.is_empty() {
+        let rc: ResponseContent = if row.content_json.is_empty() {
             ResponseContent::Many(Vec::new())
         } else {
-            serde_json::from_str(&row.prompt_json)?
+            serde_json::from_str(&row.content_json)?
         };
         let content = reconstruct_rich_content(&mut tx, rc).await?;
-        out.push((row.prompt_id, content));
+        out.push((row.message_queue_id, content));
     }
     // Read-only transaction. Dropping `tx` without commit rolls back
     // (a no-op for pure SELECTs).
     Ok(out)
 }
 
-/// Bulk-delete prompt rows by id, scoped to the same three-rule
+/// Bulk-delete message rows by id, scoped to the same three-rule
 /// predicate `read_for_message` uses. Empty `ids` short-circuits.
 pub async fn clear_by_ids(
     pool: &Pool,
@@ -850,7 +850,7 @@ pub async fn clear_by_ids(
     // the per-row scope predicate makes the loop trivial.
     for id in ids {
         sqlx::query(
-            "DELETE FROM prompts \
+            "DELETE FROM message_queue \
              WHERE id = $1 \
                AND ( \
                  agent_instance_hierarchy = $2 \
@@ -900,7 +900,7 @@ pub async fn list_delivery_targets(
         "SELECT DISTINCT \
                 COALESCE(t.agent_instance_hierarchy, p.agent_instance_hierarchy) AS hier, \
                 p.agent_tag \
-         FROM prompts p \
+         FROM message_queue p \
          LEFT JOIN tags t \
              ON p.agent_tag = t.name \
              AND t.agent_instance_hierarchy IS NOT NULL \
