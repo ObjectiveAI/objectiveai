@@ -6,13 +6,11 @@
 
 mod agent_completion_chunk;
 mod inner_error;
-mod log_rows;
 mod object;
 mod vector_completion_chunk;
 
 pub use agent_completion_chunk::*;
 pub use inner_error::*;
-pub use log_rows::*;
 pub use object::*;
 pub use vector_completion_chunk::*;
 

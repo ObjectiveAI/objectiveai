@@ -7,14 +7,12 @@
 mod agent_completion_chunk;
 mod agent_completion_ids;
 mod assistant_response_chunk;
-mod log_rows;
 mod message_chunk;
 mod object;
 
 pub use agent_completion_chunk::*;
 pub use agent_completion_ids::*;
 pub use assistant_response_chunk::*;
-pub use log_rows::*;
 pub use message_chunk::*;
 pub use object::*;
 
