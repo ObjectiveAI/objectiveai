@@ -38,33 +38,44 @@ const APP_DB_NAME: &str = "objectiveai";
 /// idempotent — re-running against an existing database is a no-op.
 /// No migration framework: nobody is on this DB yet, and adding one
 /// would add ceremony we don't need.
+//
+// Reference: the legacy `messages` / `messages_queue` / `files` tables
+// are NOT applied here. They previously backed the per-agent message
+// index + watermarked read API + log-file path lookup. The entire
+// surface (the `db::messages::Queue` handle, `db::pending`, and the
+// `db::schema` helpers) was deleted alongside the postgres-backed
+// logs.* migration; reader endpoints will be re-architected on top of
+// `logs.*` directly. The SQL is preserved here so we can lift it back
+// in if/when we resurrect the per-agent watermark surface:
+//
+// ```sql
+// CREATE TABLE IF NOT EXISTS messages (
+//     id                          BIGSERIAL PRIMARY KEY,
+//     agent_instance_hierarchy    TEXT      NOT NULL,
+//     response_id                 TEXT      NOT NULL,
+//     kind                        TEXT      NOT NULL,
+//     path                        TEXT      NOT NULL,
+//     timestamp                   BIGINT    NOT NULL,
+//     "index"                     BIGINT    NOT NULL
+// );
+// CREATE INDEX IF NOT EXISTS messages_agent_index_idx
+//     ON messages(agent_instance_hierarchy, "index");
+// CREATE INDEX IF NOT EXISTS messages_agent_instance_hierarchyx
+//     ON messages(agent_instance_hierarchy);
+//
+// CREATE TABLE IF NOT EXISTS messages_queue (
+//     caller_agent_instance_hierarchy  TEXT   NOT NULL,
+//     spawned_agent_instance_hierarchy TEXT   NOT NULL,
+//     "index"                          BIGINT NOT NULL,
+//     PRIMARY KEY (caller_agent_instance_hierarchy, spawned_agent_instance_hierarchy)
+// );
+//
+// CREATE TABLE IF NOT EXISTS files (
+//     id   BIGSERIAL PRIMARY KEY,
+//     path TEXT      NOT NULL UNIQUE
+// );
+// ```
 const SCHEMA: &str = r#"
-CREATE TABLE IF NOT EXISTS messages (
-    id                          BIGSERIAL PRIMARY KEY,
-    agent_instance_hierarchy    TEXT      NOT NULL,
-    response_id                 TEXT      NOT NULL,
-    kind                        TEXT      NOT NULL,
-    path                        TEXT      NOT NULL,
-    timestamp                   BIGINT    NOT NULL,
-    "index"                     BIGINT    NOT NULL
-);
-CREATE INDEX IF NOT EXISTS messages_agent_index_idx
-    ON messages(agent_instance_hierarchy, "index");
-CREATE INDEX IF NOT EXISTS messages_agent_instance_hierarchyx
-    ON messages(agent_instance_hierarchy);
-
-CREATE TABLE IF NOT EXISTS messages_queue (
-    caller_agent_instance_hierarchy  TEXT   NOT NULL,
-    spawned_agent_instance_hierarchy TEXT   NOT NULL,
-    "index"                          BIGINT NOT NULL,
-    PRIMARY KEY (caller_agent_instance_hierarchy, spawned_agent_instance_hierarchy)
-);
-
-CREATE TABLE IF NOT EXISTS files (
-    id   BIGSERIAL PRIMARY KEY,
-    path TEXT      NOT NULL UNIQUE
-);
-
 CREATE TABLE IF NOT EXISTS tags (
     name                            TEXT PRIMARY KEY NOT NULL,
     agent_instance_hierarchy        TEXT,

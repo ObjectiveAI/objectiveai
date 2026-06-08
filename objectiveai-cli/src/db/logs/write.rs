@@ -1,21 +1,20 @@
-//! Per-table INSERT and UPDATE helpers.
+//! Per-table flat INSERT and UPDATE helpers.
 //!
 //! The writer's shadow already decided whether each row is new
 //! (`Insert`), changed (`Update`), or unchanged (`Skip`). These
-//! helpers issue the matching SQL — no `ON CONFLICT` clauses, no
-//! upsert ambiguity, just direct INSERTs and UPDATEs gated by the
-//! shadow's verdict.
+//! helpers issue the matching SQL with no `ON CONFLICT` clauses — the
+//! shadow is authoritative.
 
 use objectiveai_sdk::agent::completions::message::{File, ImageUrl, InputAudio, VideoUrl};
-use super::row::RowValue;
 use serde::Serialize;
 
 use crate::db::{Error, Pool};
 
+use super::row::RowValue;
 use super::shadow::WriteOp;
 
-/// Issue the matching SQL for `value` per `op`. `Skip` is a no-op.
-pub async fn write_value<'a>(pool: &Pool, op: WriteOp, value: RowValue<'a>) -> Result<(), Error> {
+/// Dispatch SQL for `value` per `op`. `Skip` is a no-op.
+pub async fn write_value<'a>(pool: &Pool, op: WriteOp, value: &RowValue<'a>) -> Result<(), Error> {
     match op {
         WriteOp::Skip => Ok(()),
         WriteOp::Insert => insert_value(pool, value).await,
@@ -23,8 +22,8 @@ pub async fn write_value<'a>(pool: &Pool, op: WriteOp, value: RowValue<'a>) -> R
     }
 }
 
-async fn insert_value<'a>(pool: &Pool, value: RowValue<'a>) -> Result<(), Error> {
-    match value {
+async fn insert_value<'a>(pool: &Pool, value: &RowValue<'a>) -> Result<(), Error> {
+    match *value {
         RowValue::ToolResponse { response_id, index, tool_call_id } => {
             sqlx::query(
                 "INSERT INTO logs.tool_response (response_id, \"index\", tool_call_id) \
@@ -108,12 +107,11 @@ async fn insert_value<'a>(pool: &Pool, value: RowValue<'a>) -> Result<(), Error>
     Ok(())
 }
 
-async fn update_value<'a>(pool: &Pool, value: RowValue<'a>) -> Result<(), Error> {
-    match value {
+async fn update_value<'a>(pool: &Pool, value: &RowValue<'a>) -> Result<(), Error> {
+    match *value {
         RowValue::ToolResponse { response_id, index, tool_call_id } => {
             sqlx::query(
-                "UPDATE logs.tool_response \
-                 SET tool_call_id = $3 \
+                "UPDATE logs.tool_response SET tool_call_id = $3 \
                  WHERE response_id = $1 AND \"index\" = $2",
             )
             .bind(response_id)
@@ -124,8 +122,7 @@ async fn update_value<'a>(pool: &Pool, value: RowValue<'a>) -> Result<(), Error>
         }
         RowValue::AssistantResponseRefusal { response_id, index, text } => {
             sqlx::query(
-                "UPDATE logs.assistant_response_refusal \
-                 SET text = $3 \
+                "UPDATE logs.assistant_response_refusal SET text = $3 \
                  WHERE response_id = $1 AND \"index\" = $2",
             )
             .bind(response_id)
@@ -136,8 +133,7 @@ async fn update_value<'a>(pool: &Pool, value: RowValue<'a>) -> Result<(), Error>
         }
         RowValue::AssistantResponseReasoning { response_id, index, text } => {
             sqlx::query(
-                "UPDATE logs.assistant_response_reasoning \
-                 SET text = $3 \
+                "UPDATE logs.assistant_response_reasoning SET text = $3 \
                  WHERE response_id = $1 AND \"index\" = $2",
             )
             .bind(response_id)
@@ -198,111 +194,59 @@ async fn update_value<'a>(pool: &Pool, value: RowValue<'a>) -> Result<(), Error>
 
 async fn insert_text_part(pool: &Pool, table: &str, response_id: &str, index: u64, part_index: u64, text: &str) -> Result<(), Error> {
     let sql = format!("INSERT INTO {table} (response_id, \"index\", part_index, text) VALUES ($1, $2, $3, $4)");
-    sqlx::query(&sql)
-        .bind(response_id)
-        .bind(index as i64)
-        .bind(part_index as i64)
-        .bind(text)
-        .execute(&**pool)
-        .await?;
+    sqlx::query(&sql).bind(response_id).bind(index as i64).bind(part_index as i64).bind(text)
+        .execute(&**pool).await?;
     Ok(())
 }
 
 async fn update_text_part(pool: &Pool, table: &str, response_id: &str, index: u64, part_index: u64, text: &str) -> Result<(), Error> {
     let sql = format!("UPDATE {table} SET text = $4 WHERE response_id = $1 AND \"index\" = $2 AND part_index = $3");
-    sqlx::query(&sql)
-        .bind(response_id)
-        .bind(index as i64)
-        .bind(part_index as i64)
-        .bind(text)
-        .execute(&**pool)
-        .await?;
+    sqlx::query(&sql).bind(response_id).bind(index as i64).bind(part_index as i64).bind(text)
+        .execute(&**pool).await?;
     Ok(())
 }
 
 async fn insert_image_part(pool: &Pool, table: &str, response_id: &str, index: u64, part_index: u64, image: &ImageUrl) -> Result<(), Error> {
-    let detail = image
-        .detail
-        .as_ref()
-        .and_then(|d| serde_json::to_string(d).ok());
+    let detail = image.detail.as_ref().and_then(|d| serde_json::to_string(d).ok());
     let sql = format!("INSERT INTO {table} (response_id, \"index\", part_index, url, detail) VALUES ($1, $2, $3, $4, $5)");
-    sqlx::query(&sql)
-        .bind(response_id)
-        .bind(index as i64)
-        .bind(part_index as i64)
-        .bind(image.url.as_str())
-        .bind(detail)
-        .execute(&**pool)
-        .await?;
+    sqlx::query(&sql).bind(response_id).bind(index as i64).bind(part_index as i64).bind(image.url.as_str()).bind(detail)
+        .execute(&**pool).await?;
     Ok(())
 }
 
 async fn update_image_part(pool: &Pool, table: &str, response_id: &str, index: u64, part_index: u64, image: &ImageUrl) -> Result<(), Error> {
-    let detail = image
-        .detail
-        .as_ref()
-        .and_then(|d| serde_json::to_string(d).ok());
+    let detail = image.detail.as_ref().and_then(|d| serde_json::to_string(d).ok());
     let sql = format!("UPDATE {table} SET url = $4, detail = $5 WHERE response_id = $1 AND \"index\" = $2 AND part_index = $3");
-    sqlx::query(&sql)
-        .bind(response_id)
-        .bind(index as i64)
-        .bind(part_index as i64)
-        .bind(image.url.as_str())
-        .bind(detail)
-        .execute(&**pool)
-        .await?;
+    sqlx::query(&sql).bind(response_id).bind(index as i64).bind(part_index as i64).bind(image.url.as_str()).bind(detail)
+        .execute(&**pool).await?;
     Ok(())
 }
 
 async fn insert_audio_part(pool: &Pool, table: &str, response_id: &str, index: u64, part_index: u64, audio: &InputAudio) -> Result<(), Error> {
     let sql = format!("INSERT INTO {table} (response_id, \"index\", part_index, data, format) VALUES ($1, $2, $3, $4, $5)");
-    sqlx::query(&sql)
-        .bind(response_id)
-        .bind(index as i64)
-        .bind(part_index as i64)
-        .bind(audio.data.as_str())
-        .bind(audio.format.as_str())
-        .execute(&**pool)
-        .await?;
+    sqlx::query(&sql).bind(response_id).bind(index as i64).bind(part_index as i64).bind(audio.data.as_str()).bind(audio.format.as_str())
+        .execute(&**pool).await?;
     Ok(())
 }
 
 async fn update_audio_part(pool: &Pool, table: &str, response_id: &str, index: u64, part_index: u64, audio: &InputAudio) -> Result<(), Error> {
     let sql = format!("UPDATE {table} SET data = $4, format = $5 WHERE response_id = $1 AND \"index\" = $2 AND part_index = $3");
-    sqlx::query(&sql)
-        .bind(response_id)
-        .bind(index as i64)
-        .bind(part_index as i64)
-        .bind(audio.data.as_str())
-        .bind(audio.format.as_str())
-        .execute(&**pool)
-        .await?;
+    sqlx::query(&sql).bind(response_id).bind(index as i64).bind(part_index as i64).bind(audio.data.as_str()).bind(audio.format.as_str())
+        .execute(&**pool).await?;
     Ok(())
 }
 
 async fn insert_video_part(pool: &Pool, table: &str, response_id: &str, index: u64, part_index: u64, video: &VideoUrl, is_input: bool) -> Result<(), Error> {
     let sql = format!("INSERT INTO {table} (response_id, \"index\", part_index, url, is_input) VALUES ($1, $2, $3, $4, $5)");
-    sqlx::query(&sql)
-        .bind(response_id)
-        .bind(index as i64)
-        .bind(part_index as i64)
-        .bind(video.url.as_str())
-        .bind(is_input)
-        .execute(&**pool)
-        .await?;
+    sqlx::query(&sql).bind(response_id).bind(index as i64).bind(part_index as i64).bind(video.url.as_str()).bind(is_input)
+        .execute(&**pool).await?;
     Ok(())
 }
 
 async fn update_video_part(pool: &Pool, table: &str, response_id: &str, index: u64, part_index: u64, video: &VideoUrl, is_input: bool) -> Result<(), Error> {
     let sql = format!("UPDATE {table} SET url = $4, is_input = $5 WHERE response_id = $1 AND \"index\" = $2 AND part_index = $3");
-    sqlx::query(&sql)
-        .bind(response_id)
-        .bind(index as i64)
-        .bind(part_index as i64)
-        .bind(video.url.as_str())
-        .bind(is_input)
-        .execute(&**pool)
-        .await?;
+    sqlx::query(&sql).bind(response_id).bind(index as i64).bind(part_index as i64).bind(video.url.as_str()).bind(is_input)
+        .execute(&**pool).await?;
     Ok(())
 }
 
@@ -311,35 +255,20 @@ async fn insert_file_part(pool: &Pool, table: &str, response_id: &str, index: u6
         "INSERT INTO {table} (response_id, \"index\", part_index, file_data, file_id, filename, file_url) \
          VALUES ($1, $2, $3, $4, $5, $6, $7)"
     );
-    sqlx::query(&sql)
-        .bind(response_id)
-        .bind(index as i64)
-        .bind(part_index as i64)
-        .bind(file.file_data.as_deref())
-        .bind(file.file_id.as_deref())
-        .bind(file.filename.as_deref())
-        .bind(file.file_url.as_deref())
-        .execute(&**pool)
-        .await?;
+    sqlx::query(&sql).bind(response_id).bind(index as i64).bind(part_index as i64)
+        .bind(file.file_data.as_deref()).bind(file.file_id.as_deref()).bind(file.filename.as_deref()).bind(file.file_url.as_deref())
+        .execute(&**pool).await?;
     Ok(())
 }
 
 async fn update_file_part(pool: &Pool, table: &str, response_id: &str, index: u64, part_index: u64, file: &File) -> Result<(), Error> {
     let sql = format!(
-        "UPDATE {table} SET \
-             file_data = $4, file_id = $5, filename = $6, file_url = $7 \
+        "UPDATE {table} SET file_data = $4, file_id = $5, filename = $6, file_url = $7 \
          WHERE response_id = $1 AND \"index\" = $2 AND part_index = $3"
     );
-    sqlx::query(&sql)
-        .bind(response_id)
-        .bind(index as i64)
-        .bind(part_index as i64)
-        .bind(file.file_data.as_deref())
-        .bind(file.file_id.as_deref())
-        .bind(file.filename.as_deref())
-        .bind(file.file_url.as_deref())
-        .execute(&**pool)
-        .await?;
+    sqlx::query(&sql).bind(response_id).bind(index as i64).bind(part_index as i64)
+        .bind(file.file_data.as_deref()).bind(file.file_id.as_deref()).bind(file.filename.as_deref()).bind(file.file_url.as_deref())
+        .execute(&**pool).await?;
     Ok(())
 }
 
@@ -347,7 +276,6 @@ async fn update_file_part(pool: &Pool, table: &str, response_id: &str, index: u6
 // Tier blob writes
 // =====================================================================
 
-/// Which tier the blob belongs to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tier {
     Agent,
@@ -372,10 +300,6 @@ impl Tier {
     }
 }
 
-/// INSERT the tier request blob. Called once on first chunk arrival;
-/// the writer never re-issues this. Agent tier writes the
-/// `agent_instance_hierarchy` column from the first chunk;
-/// vector/function tiers don't have that column.
 pub async fn insert_request_blob<P: Serialize>(
     pool: &Pool,
     tier: Tier,
@@ -415,7 +339,6 @@ pub async fn insert_request_blob<P: Serialize>(
     Ok(())
 }
 
-/// INSERT the tier response blob (first tick only).
 pub async fn insert_response_blob<C: Serialize>(
     pool: &Pool,
     tier: Tier,
@@ -455,7 +378,6 @@ pub async fn insert_response_blob<C: Serialize>(
     Ok(())
 }
 
-/// UPDATE the tier response blob (subsequent ticks).
 pub async fn update_response_blob<C: Serialize>(
     pool: &Pool,
     tier: Tier,

@@ -13,7 +13,6 @@ use objectiveai_sdk::agent::completions::response::streaming::AgentCompletionIds
 use serde::Serialize;
 use tokio::sync::mpsc;
 
-use crate::db::pending::PendingNotification;
 use crate::error::Error;
 use crate::db::logs::LogWriter;
 use crate::instance::InstanceEmission;
@@ -195,15 +194,12 @@ where
         + 'static,
 {
     let mut agg: Option<Chunk> = None;
-    let pending: Vec<PendingNotification> = Vec::new();
-    let mut pending = pending;
     // Held until `log_writer.primary_id()` returns Some — could fire
     // mid-loop (multi-chunk completions; `write` flushes the
     // previous chunk on its second-and-later call) or only from
-    // `finalize` below (single-chunk completions, where the only
-    // chunk sits in `log_writer`'s one-behind buffer until shutdown).
-    // Drop without `take` = chunk loop sees `Err(Canceled)` and
-    // emits any buffered chunks without LogStreamReady.
+    // `finalize` below (single-chunk completions). Drop without
+    // `take` = chunk loop sees `Err(Canceled)` and emits any buffered
+    // chunks without LogStreamReady.
     let mut log_ready_id_tx = Some(log_ready_id_tx);
 
     while let Some(first) = rx.recv().await {
@@ -217,7 +213,7 @@ where
             }
         }
         if let Some(a) = &agg {
-            let _inserted = log_writer.write(a, &mut pending).await?;
+            log_writer.write(a).await?;
         }
         if let Some(tx) = log_ready_id_tx.take() {
             if let Some(id) = log_writer.primary_id() {
@@ -228,7 +224,7 @@ where
         }
     }
 
-    let _inserted = log_writer.finalize(&mut pending).await?;
+    log_writer.finalize().await?;
 
     // Last-chance fire — the chunk that was sitting in
     // `log_writer`'s one-behind buffer just got flushed by

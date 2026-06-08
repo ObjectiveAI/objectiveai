@@ -4280,6 +4280,7 @@ dependencies = [
  "envconfig",
  "futures",
  "git2",
+ "hashbrown 0.15.5",
  "humantime",
  "indexmap 2.13.0",
  "insta",
