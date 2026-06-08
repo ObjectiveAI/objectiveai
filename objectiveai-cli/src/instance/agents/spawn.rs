@@ -28,6 +28,7 @@ pub async fn execute(
     let client = http.build_http_client().map_err(Error::Instance)?;
     let fs_client = ctx.filesystem.clone();
     let db = ctx.db.clone();
+    let agents_dir = fs_client.base_dir().join("instances").join("agents");
     let conduit = pipes.build_conduit(ctx, mcp_server);
 
     let (tx, rx) = mpsc::channel::<Result<InstanceEmission, Error>>(16);
@@ -58,6 +59,7 @@ pub async fn execute(
             log_writer,
             tx.clone(),
             |agg: &mut AgentCompletionChunk, chunk: &AgentCompletionChunk| agg.push(chunk),
+            agents_dir,
         )
         .await;
 

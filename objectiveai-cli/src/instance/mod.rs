@@ -14,6 +14,8 @@
 //! impls ARE the wire format that the parent's `crate::streaming`
 //! deserializes back into [`crate::streaming::InstanceItem`]).
 
+mod agent_hierarchies;
+mod agent_registry;
 mod agents;
 pub(crate) mod api;
 mod functions;

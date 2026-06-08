@@ -8,6 +8,8 @@
 //! emits a one-shot [`InstanceEmission::LogStreamReady`] with the
 //! root log id as soon as the first write completes.
 
+use std::path::PathBuf;
+
 use futures::{Stream, StreamExt};
 use objectiveai_sdk::agent::completions::response::streaming::AgentCompletionIds;
 use serde::Serialize;
@@ -16,6 +18,8 @@ use tokio::sync::mpsc;
 use crate::error::Error;
 use crate::db::logs::LogWriter;
 use crate::instance::InstanceEmission;
+use crate::instance::agent_hierarchies::ChunkAgentHierarchies;
+use crate::instance::agent_registry::AgentInstanceRegistry;
 
 pub type EmissionsTx = mpsc::Sender<Result<InstanceEmission, Error>>;
 
@@ -35,11 +39,13 @@ pub async fn run_chunk_loop<S, Chunk, E, F>(
     log_writer: LogWriter<Chunk>,
     emissions_tx: EmissionsTx,
     push: F,
+    agents_dir: PathBuf,
 ) -> Result<Consumed<Chunk>, String>
 where
     S: Stream<Item = Result<Chunk, E>> + Unpin,
     Chunk: crate::db::logs::WriterChunk
         + AgentCompletionIds
+        + ChunkAgentHierarchies
         + Serialize
         + Clone
         + Send
@@ -48,6 +54,15 @@ where
     E: std::fmt::Display,
     F: Fn(&mut Chunk, &Chunk) + Clone + Send + 'static,
 {
+    // Process-owned exclusive claims on every agent_instance_hierarchy
+    // observed in the stream. Dropped when the loop returns, releasing
+    // every still-held file. Creation failure on the registry root is
+    // best-effort — we proceed with an empty registry so the stream
+    // still runs.
+    let mut seen_agents = match AgentInstanceRegistry::new(agents_dir) {
+        Ok(r) => Some(r),
+        Err(_) => None,
+    };
     let mut aggregate: Option<Chunk> = None;
     let mut chunk_count: usize = 0;
 
@@ -108,6 +123,20 @@ where
             item = stream.next() => {
                 match item {
                     Some(Ok(chunk)) => {
+                        // 0. Best-effort claim of every
+                        //    agent_instance_hierarchy referenced in this
+                        //    chunk. Per-chunk dispatch — the registry's
+                        //    internal HashMap dedupes, so each new
+                        //    hierarchy becomes a live OS-managed lock
+                        //    file the moment it first appears on the
+                        //    wire. Failures (already claimed elsewhere,
+                        //    illegal chars, etc.) are silently dropped.
+                        if let Some(reg) = seen_agents.as_mut() {
+                            for hier in chunk.agent_instance_hierarchies() {
+                                reg.observe(hier);
+                            }
+                        }
+
                         // 1. Hand a clone to the writer task so it can flush
                         //    a log entry and expose `primary_id`.
                         let _ = tx.send(chunk.clone());

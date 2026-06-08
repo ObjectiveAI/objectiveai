@@ -4288,6 +4288,7 @@ dependencies = [
  "jaq-core",
  "jaq-json",
  "jaq-std",
+ "nix 0.29.0",
  "notify",
  "objectiveai-mcp",
  "objectiveai-sdk",
