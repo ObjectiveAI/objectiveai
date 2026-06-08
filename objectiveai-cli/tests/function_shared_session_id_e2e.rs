@@ -329,7 +329,7 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
                 agent_instance: instance.clone(),
                 agent_tag: None,
             },
-            message: RequestMessage::Simple("again".to_string()),
+            message: Some(RequestMessage::Simple("again".to_string())),
             seed: None,
             dangerous_advanced: Some(MessageDangerousAdvanced {
                 stream: Some(true),

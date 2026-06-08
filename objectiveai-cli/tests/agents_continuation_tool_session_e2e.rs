@@ -186,7 +186,7 @@ async fn continue_agent(executor: &HangPreventingBinaryCommandExecutor, spawn_id
             agent_instance: instance,
             agent_tag: None,
         },
-        message: RequestMessage::Simple("more".to_string()),
+        message: Some(RequestMessage::Simple("more".to_string())),
         seed: Some(seed),
         dangerous_advanced: Some(MessageDangerousAdvanced {
             stream: Some(true),

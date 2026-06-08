@@ -17,7 +17,14 @@ use crate::cli::command::CommandRequest;
 pub struct Request {
     pub path_type: Path,
     pub target: MessageTarget,
-    pub message: RequestMessage,
+    /// Optional payload. `None` is a no-op — nothing is written
+    /// to the `message_queue` table and the response stream
+    /// yields zero items. Lets scripts call `agents instances
+    /// message` conditionally without branching on whether
+    /// there's a payload to deliver.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub message: Option<RequestMessage>,
     pub jq: Option<String>,
 }
 
@@ -123,7 +130,9 @@ impl CommandRequest for Request {
                 argv.push(agent_tag.clone());
             }
         }
-        self.message.push_flags(&mut argv);
+        if let Some(message) = &self.message {
+            message.push_flags(&mut argv);
+        }
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
             argv.push(jq.clone());
@@ -188,7 +197,7 @@ pub struct Args {
 }
 
 #[derive(clap::Args)]
-#[group(required = true, multiple = false)]
+#[group(required = false, multiple = false)]
 pub struct MessageArgs {
     /// Plain text — becomes one user message.
     #[arg(long)]
@@ -228,7 +237,7 @@ impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
         let message = if let Some(s) = args.message.simple {
-            RequestMessage::Simple(s)
+            Some(RequestMessage::Simple(s))
         } else if let Some(s) = args.message.inline {
             let mut de = serde_json::Deserializer::from_str(&s);
             let v = serde_path_to_error::deserialize(&mut de).map_err(|source| {
@@ -237,13 +246,15 @@ impl TryFrom<Args> for Request {
                     source: source.into(),
                 }
             })?;
-            RequestMessage::Inline(v)
+            Some(RequestMessage::Inline(v))
         } else if let Some(p) = args.message.file {
-            RequestMessage::File(p)
+            Some(RequestMessage::File(p))
         } else if let Some(s) = args.message.python_inline {
-            RequestMessage::PythonInline(s)
+            Some(RequestMessage::PythonInline(s))
+        } else if let Some(p) = args.message.python_file {
+            Some(RequestMessage::PythonFile(p))
         } else {
-            RequestMessage::PythonFile(args.message.python_file.unwrap())
+            None
         };
         let target = match (args.agent_instance, args.agent_tag) {
             (Some(agent_instance), None) => MessageTarget::Direct {

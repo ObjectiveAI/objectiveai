@@ -168,7 +168,7 @@ async fn spawn_then_message_propagates_response_continuation() {
             agent_instance: instance,
             agent_tag: None,
         },
-        message: RequestMessage::Simple("follow up".to_string()),
+        message: Some(RequestMessage::Simple("follow up".to_string())),
         seed: Some(42),
         dangerous_advanced: Some(MessageDangerousAdvanced {
             stream: Some(true),

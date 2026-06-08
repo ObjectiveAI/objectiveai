@@ -185,7 +185,7 @@ async fn duplicate_tool_names_routed_across_turns() {
             agent_instance: instance.clone(),
             agent_tag: None,
         },
-        message: RequestMessage::Simple("again".to_string()),
+        message: Some(RequestMessage::Simple("again".to_string())),
         seed: Some(SEED),
         dangerous_advanced: Some(MessageDangerousAdvanced {
             stream: Some(true),
@@ -207,7 +207,7 @@ async fn duplicate_tool_names_routed_across_turns() {
             agent_instance: instance.clone(),
             agent_tag: None,
         },
-        message: RequestMessage::Simple("one more".to_string()),
+        message: Some(RequestMessage::Simple("one more".to_string())),
         seed: Some(SEED),
         dangerous_advanced: Some(MessageDangerousAdvanced {
             stream: Some(true),

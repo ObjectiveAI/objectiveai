@@ -25,7 +25,15 @@ use crate::error::Error;
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
-    let content = resolve_message(request.message)?;
+    // `None` ⇒ no-op: nothing is written to the `message_queue`
+    // table and the stream yields zero items. The command stays
+    // valid for scripts that want to call `agents instances
+    // message` conditionally without branching on whether there's
+    // payload to send.
+    let Some(rm) = request.message else {
+        return Ok(Box::pin(futures::stream::empty()));
+    };
+    let content = resolve_message(rm)?;
 
     // Direct: compose `{parent}/{agent_instance}` (parent defaults to
     // the cli's own position). No `agent_exists` check — `agents
