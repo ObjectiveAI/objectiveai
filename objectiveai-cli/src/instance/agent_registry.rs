@@ -131,22 +131,27 @@ fn open_claim_file(path: &std::path::Path) -> Option<std::fs::File> {
 
 #[cfg(unix)]
 fn open_claim_file(path: &std::path::Path) -> Option<std::fs::File> {
-    // Atomic create. AlreadyExists → try to reclaim from a (possibly
-    // stale) prior owner. Any other error is fatal-for-this-attempt.
+    // First try atomic O_CREAT | O_EXCL — wins cleanly when no file
+    // exists yet. AlreadyExists falls through to the reclaim path.
     match try_create_locked(path) {
         Ok(file) => return Some(file),
         Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
         Err(_) => return None,
     }
 
-    // Reclaim path: open the existing file, try the exclusive lock. If
-    // we get it, the previous owner is gone — unlink + retry the
-    // atomic create. If the lock is held, a live owner has it.
-    if !is_stale(path) {
-        return None;
-    }
-    let _ = std::fs::remove_file(path);
-    try_create_locked(path).ok()
+    // Reclaim path: open the existing file and acquire its exclusive
+    // lock. The lock — not the directory entry — is the source of
+    // truth on Unix, so we hold the same inode the prior (now-dead)
+    // owner had. If a live owner still holds the lock, `flock`
+    // LOCK_NB fails and we silently give up.
+    //
+    // Critical: we keep the lock continuously from acquisition
+    // through return. Never unlink + recreate here — doing so opens
+    // a TOCTOU window where two concurrent reclaimers can both end
+    // up "owning" the hierarchy (one on the new inode, one on the
+    // orphan). The lock arbitrates; whoever wins the `flock` race is
+    // the sole owner.
+    take_existing_lock(path)
 }
 
 #[cfg(unix)]
@@ -172,12 +177,15 @@ fn try_create_locked(path: &std::path::Path) -> std::io::Result<std::fs::File> {
 }
 
 #[cfg(unix)]
-fn is_stale(path: &std::path::Path) -> bool {
+fn take_existing_lock(path: &std::path::Path) -> Option<std::fs::File> {
     use nix::fcntl::{FlockArg, flock};
-    let Ok(file) = std::fs::OpenOptions::new().read(true).open(path) else {
-        return false;
-    };
-    // Acquire success = no other process holds the flock = prior owner
-    // is gone. The lock auto-releases when `file` drops below.
-    flock(&file, FlockArg::LockExclusiveNonblock).is_ok()
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(path)
+        .ok()?;
+    if flock(&file, FlockArg::LockExclusiveNonblock).is_err() {
+        return None;
+    }
+    Some(file)
 }
