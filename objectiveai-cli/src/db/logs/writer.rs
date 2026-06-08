@@ -139,9 +139,11 @@ impl<C> LogWriter<C> {
     }
 
     /// Reserve a per-agent notification index for the caller to queue.
-    /// Notification content extraction will land via the same row
-    /// iterator path once the request-side message tables come online
-    /// — for now the writer just reserves the index.
+    /// Notifications carry rich content but on the request side every
+    /// tier is a single JSONB blob (no per-message decomposition);
+    /// the writer just reserves the per-agent index here, and the
+    /// notification's content rides along inside the request blob the
+    /// next time the request body is rewritten.
     pub async fn write_notification(
         &mut self,
         agent_instance_hierarchy: &str,
