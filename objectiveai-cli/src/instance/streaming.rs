@@ -39,7 +39,13 @@ pub async fn run_chunk_loop<S, Chunk, E, F>(
 ) -> Result<Consumed<Chunk>, String>
 where
     S: Stream<Item = Result<Chunk, E>> + Unpin,
-    Chunk: AgentCompletionIds + Serialize + Clone + Send + Sync + 'static,
+    Chunk: crate::db::logs::WriterChunk
+        + AgentCompletionIds
+        + Serialize
+        + Clone
+        + Send
+        + Sync
+        + 'static,
     E: std::fmt::Display,
     F: Fn(&mut Chunk, &Chunk) + Clone + Send + 'static,
 {
@@ -180,7 +186,13 @@ async fn writer_loop<Chunk, F>(
 ) -> Result<(), crate::error::Error>
 where
     F: Fn(&mut Chunk, &Chunk),
-    Chunk: AgentCompletionIds + Clone,
+    Chunk: crate::db::logs::WriterChunk
+        + AgentCompletionIds
+        + Serialize
+        + Clone
+        + Send
+        + Sync
+        + 'static,
 {
     let mut agg: Option<Chunk> = None;
     let pending: Vec<PendingNotification> = Vec::new();
