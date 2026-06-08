@@ -16,7 +16,6 @@ pub mod functions;
 pub mod list_helpers;
 pub mod mcp;
 pub mod plugins;
-pub mod message_queue_drain;
 pub mod swarms;
 pub mod tools;
 pub mod update;

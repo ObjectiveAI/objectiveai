@@ -189,11 +189,9 @@ pub async fn enqueue_with_content(
 }
 
 /// Insert one message row + its content rows inside an existing
-/// transaction. Lets `re_enqueue` batch multiple inserts under a
-/// single transaction by reusing this body once per item.
-/// `enqueued_at` is parameterised so re-enqueue can preserve the
-/// originally-stored timestamp (FIFO order across drain → fail →
-/// re-enqueue cycles).
+/// transaction. `enqueued_at` is parameterised so callers that
+/// preserve the original FIFO timestamp (e.g. batched bulk inserts)
+/// can pass it through unchanged.
 async fn enqueue_with_content_in_tx(
     tx: &mut Transaction<'_, Postgres>,
     agent_instance_hierarchy: Option<&str>,
@@ -576,64 +574,6 @@ async fn collect_matching_for_message(
     rows_to_drained(rows)
 }
 
-/// Drain rows targeting `target_tag` (if some), or any PENDING tag
-/// whose `(parent_agent_instance_hierarchy, agent_full_id)` matches.
-pub async fn drain_for_spawn(
-    pool: &Pool,
-    parent_hierarchy: &str,
-    agent_full_id: &str,
-    target_tag: Option<&str>,
-) -> Result<Vec<DrainedMessage>, Error> {
-    let mut tx = pool.begin().await?;
-    let rows = collect_matching_for_spawn(
-        &mut tx,
-        parent_hierarchy,
-        agent_full_id,
-        target_tag,
-    )
-    .await?;
-    let drained = reconstruct_and_delete(&mut tx, rows).await?;
-    tx.commit().await?;
-    Ok(drained)
-}
-
-async fn collect_matching_for_spawn(
-    tx: &mut Transaction<'_, Postgres>,
-    parent_hierarchy: &str,
-    agent_full_id: &str,
-    target_tag: Option<&str>,
-) -> Result<Vec<DrainedRow>, Error> {
-    let rows = sqlx::query(
-        "SELECT p.id, \
-                p.agent_instance_hierarchy, \
-                p.agent_tag, \
-                p.key, \
-                p.enqueued_at, \
-                p.content \
-         FROM message_queue p \
-         WHERE ( \
-                 $3::text IS NOT NULL \
-                 AND p.agent_tag = $3 \
-             ) \
-            OR ( \
-                p.agent_tag IS NOT NULL \
-                AND EXISTS ( \
-                    SELECT 1 FROM tags t \
-                    WHERE t.name = p.agent_tag \
-                      AND t.parent_agent_instance_hierarchy = $1 \
-                      AND t.agent_full_id = $2 \
-                ) \
-            ) \
-         ORDER BY p.id ASC",
-    )
-    .bind(parent_hierarchy)
-    .bind(agent_full_id)
-    .bind(target_tag)
-    .fetch_all(&mut **tx)
-    .await?;
-    rows_to_drained(rows)
-}
-
 fn rows_to_drained(rows: Vec<sqlx::postgres::PgRow>) -> Result<Vec<DrainedRow>, Error> {
     let mut out = Vec::with_capacity(rows.len());
     for row in rows {
@@ -707,33 +647,6 @@ async fn reconstruct_rich_content(
         }
     }
     Ok(RichContent::Parts(parts))
-}
-
-// ---------------------------------------------------------------------------
-// Re-enqueue — undo a drain.
-// ---------------------------------------------------------------------------
-
-/// Re-INSERT every item as a fresh `message_queue` row + its content rows.
-/// Empty `items` short-circuits without touching the pool. Transaction-
-/// wrapped: any failure rolls every restored row back.
-pub async fn re_enqueue(pool: &Pool, items: Vec<DrainedMessage>) -> Result<(), Error> {
-    if items.is_empty() {
-        return Ok(());
-    }
-    let mut tx = pool.begin().await?;
-    for item in items {
-        enqueue_with_content_in_tx(
-            &mut tx,
-            item.agent_instance_hierarchy.as_deref(),
-            item.agent_tag.as_deref(),
-            item.key.as_deref(),
-            item.enqueued_at,
-            item.content,
-        )
-        .await?;
-    }
-    tx.commit().await?;
-    Ok(())
 }
 
 // ---------------------------------------------------------------------------

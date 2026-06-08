@@ -43,7 +43,6 @@ use objectiveai_sdk::cli::command::agents::instances::spawn::{
 use objectiveai_sdk::cli::command::{BinaryExecutor, CommandExecutor};
 
 use crate::context::Context;
-use crate::db;
 use crate::error::Error;
 use crate::websockets::agent_registry::AgentInstanceRegistry;
 
@@ -120,34 +119,7 @@ async fn execute_streaming(
     ctx: &Context,
     request: Request,
 ) -> Result<ItemStream, Error> {
-    let mut messages = resolve_prompt(request.prompt)?;
-
-    // Drain the queue once before the first pass. Two-rule
-    // predicate (see `db::message_queue::drain_for_spawn`):
-    //   1. queue items addressed to `request.agent_tag` directly
-    //   2. queue items addressed to any PENDING tag whose
-    //      `(parent, agent_full_id)` matches this spawn.
-    let agent_full_id_top = resolve_agent_full_id(ctx, &request.agent).await?;
-    let drained = db::message_queue::drain_for_spawn(
-        &ctx.db,
-        &ctx.config.agent_instance_hierarchy,
-        &agent_full_id_top,
-        request.agent_tag.as_deref(),
-    )
-    .await?;
-    if !drained.is_empty() {
-        let prepended = crate::command::message_queue_drain::join_with_separator(
-            drained.iter().map(|d| d.content.clone()).collect(),
-        );
-        messages.insert(
-            0,
-            Message::User(UserMessage {
-                content: prepended,
-                name: None,
-            }),
-        );
-    }
-
+    let messages = resolve_prompt(request.prompt)?;
     let agent = resolve_agent(ctx, request.agent).await?;
     let agent_tag = request.agent_tag.clone();
     let agents_dir = ctx
@@ -166,32 +138,12 @@ async fn execute_streaming(
         continuation: None,
     };
 
-    // Run the multi-pass driver as an async-stream so chunks flow
-    // straight through to the consumer (no Vec collection).
+    // Message-queue delivery to the live API happens through the
+    // conduit's `read_for_message` / `clear_by_ids` calls — the
+    // API pulls pending rows on demand as the stream runs. No
+    // pre-spawn drain + prepend here.
     let ctx_clone = ctx.clone();
-    let driver = run_multi_pass(ctx_clone, params, agent_tag, agents_dir);
-
-    // Peek the first item — on error/empty BEFORE any item, restore
-    // the drained queue rows (the spawn never effectively ran).
-    let mut tail: ItemStream = Box::pin(driver);
-    match tail.as_mut().next().await {
-        Some(Ok(first)) => Ok(Box::pin(
-            objectiveai_sdk::cli::command::StreamOnce::new(Ok(first)).chain(tail),
-        )),
-        Some(Err(e)) => {
-            let r = db::message_queue::re_enqueue(&ctx.db, drained).await;
-            Err(crate::command::message_queue_drain::combine_drain_failure(
-                e, r,
-            ))
-        }
-        None => {
-            let r = db::message_queue::re_enqueue(&ctx.db, drained).await;
-            Err(crate::command::message_queue_drain::combine_drain_failure(
-                Error::EmptyStream,
-                r,
-            ))
-        }
-    }
+    Ok(Box::pin(run_multi_pass(ctx_clone, params, agent_tag, agents_dir)))
 }
 
 /// Drives one or more stream passes until no seen hierarchy has
@@ -384,41 +336,6 @@ async fn resolve_agent(
             ))
         }
     }
-}
-
-/// Compute the content-addressed `agent_full_id` (concatenated
-/// base62 ids of the primary agent + each fallback) for `spec`
-/// **before** the spawn fires. Used by the queue drain to address
-/// PENDING tags that this spawn will bind on first chunk.
-async fn resolve_agent_full_id(
-    ctx: &Context,
-    spec: &AgentSpec,
-) -> Result<String, Error> {
-    let path = match spec {
-        AgentSpec::Resolved(InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(
-            base,
-        )) => {
-            let with_ids = base
-                .clone()
-                .convert()
-                .map_err(Error::AgentConvert)?;
-            return Ok(with_ids.full_id());
-        }
-        AgentSpec::Resolved(InlineAgentBaseWithFallbacksOrRemoteCommitOptional::Remote(
-            p,
-        )) => p.clone(),
-        AgentSpec::Favorite(name) => {
-            let mut config = ctx.filesystem.read_config().await?;
-            let favorites = config.agents().get_favorites();
-            let fav = favorites
-                .iter()
-                .find(|f| f.get_name() == name)
-                .ok_or_else(|| Error::FavoriteNotFound(name.clone()))?;
-            fav.path.clone()
-        }
-    };
-    let response = objectiveai_sdk::agent::get_agent(&ctx.http, path).await?;
-    Ok(response.inner.full_id())
 }
 
 pub mod request_schema {

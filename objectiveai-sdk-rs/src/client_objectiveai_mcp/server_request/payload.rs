@@ -99,20 +99,19 @@ impl Payload {
 
 /// Parameters for [`Payload::ReadMessageQueue`].
 ///
-/// Three-rule predicate (matches `drain_for_message` +
-/// `drain_for_spawn` combined):
-/// 1. Direct hit — `prompts.agent_instance_hierarchy =
+/// Three-rule predicate:
+/// 1. Direct hit — `message_queue.agent_instance_hierarchy =
 ///    agent_instance_hierarchy`.
-/// 2. BOUND-tag hit — `prompts.agent_tag` resolves to a tag whose
+/// 2. BOUND-tag hit — `message_queue.agent_tag` resolves to a tag whose
 ///    `tags.agent_instance_hierarchy = agent_instance_hierarchy`.
-/// 3. PENDING-tag hit — `prompts.agent_tag` resolves to a tag in
+/// 3. PENDING-tag hit — `message_queue.agent_tag` resolves to a tag in
 ///    PENDING state whose
 ///    `(parent_agent_instance_hierarchy, agent_full_id)` matches the
-///    fields below. Lets the API drain rows that were enqueued
+///    fields below. Lets the API pick up rows that were enqueued
 ///    against a tag whose spawn this agent is.
 ///
-/// Returns rows oldest-first (`prompts.id ASC`, which also matches
-/// `prompts.enqueued_at` ascending due to AUTOINCREMENT). Pair with
+/// Returns rows oldest-first (`message_queue.id ASC`, which also matches
+/// `message_queue.enqueued_at` ascending due to AUTOINCREMENT). Pair with
 /// [`ClearMessageQueueRequest`] (same scope fields) after processing
 /// to release the rows; rows left behind remain visible to the next
 /// read.
