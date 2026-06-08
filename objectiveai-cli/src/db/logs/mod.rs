@@ -21,12 +21,14 @@
 //! so the shadow's verdict is authoritative — concurrent races on
 //! the same row id can't happen.
 
+mod lookup;
 mod row;
 mod rows;
 mod shadow;
 mod write;
 mod writer;
 
+pub use lookup::*;
 pub use row::*;
 pub use rows::*;
 pub use shadow::*;

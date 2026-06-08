@@ -144,6 +144,23 @@ CREATE TABLE IF NOT EXISTS schedules (
     last_ran_at              BIGINT
 );
 
+-- AFTER-DELETE trigger on `message_queue`: every clear emits a
+-- `NOTIFY message_queue_delete '<id>'` so the cli's
+-- `db::message_queue::subscribe_delivered` listener can wake up
+-- the instant the conduit's `clear_by_ids` removes our row. No
+-- polling — pure native LISTEN/NOTIFY.
+CREATE OR REPLACE FUNCTION notify_message_queue_delete()
+RETURNS trigger AS $$
+BEGIN
+    PERFORM pg_notify('message_queue_delete', OLD.id::text);
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS message_queue_delete_notify ON message_queue;
+CREATE TRIGGER message_queue_delete_notify
+AFTER DELETE ON message_queue
+FOR EACH ROW EXECUTE FUNCTION notify_message_queue_delete();
+
 "#;
 
 /// `logs.*` schema. Pulled from `src/db/logs/schema.sql` so the

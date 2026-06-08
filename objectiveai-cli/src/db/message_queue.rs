@@ -912,3 +912,49 @@ pub async fn upgrade_and_check_pending(
     let pending: bool = row.try_get(0)?;
     Ok(pending)
 }
+
+// ---------------------------------------------------------------------------
+// Delivery subscription — native postgres LISTEN/NOTIFY.
+// ---------------------------------------------------------------------------
+
+/// Wait until the `message_queue` row identified by `id` is
+/// deleted. Resolves `Ok(())` the moment the row is gone — either
+/// because the conduit's `clear_by_ids` just removed it, or
+/// because it was already gone before we started listening.
+///
+/// Uses `sqlx::postgres::PgListener` on the
+/// `message_queue_delete` channel that the AFTER-DELETE trigger
+/// in `db::init` populates. The function attaches the listener
+/// FIRST, then re-checks whether the row still exists — that's
+/// what closes the window where a fast delete races our
+/// `LISTEN`.
+pub async fn subscribe_delivered(pool: &Pool, id: i64) -> Result<(), Error> {
+    use sqlx::postgres::PgListener;
+
+    let mut listener = PgListener::connect_with(&**pool).await?;
+    listener.listen("message_queue_delete").await?;
+
+    // Belt-and-suspenders: if the row is already gone (the
+    // conduit raced our listen), the LISTEN saw nothing and would
+    // hang forever. SELECT once after attaching — if the row is
+    // gone, we already delivered. After this point the LISTEN is
+    // attached so any future DELETE will wake us.
+    let still_present: bool = sqlx::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM message_queue WHERE id = $1)",
+    )
+    .bind(id)
+    .fetch_one(&**pool)
+    .await?;
+    if !still_present {
+        return Ok(());
+    }
+
+    let target = id.to_string();
+    loop {
+        let notification = listener.recv().await?;
+        if notification.payload() == target {
+            return Ok(());
+        }
+        // Different row — keep listening.
+    }
+}

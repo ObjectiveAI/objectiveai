@@ -20,4 +20,5 @@
 pub mod agent_hierarchies;
 pub mod agent_registry;
 pub mod conduit;
+pub mod lock_file;
 pub mod mcp_server;

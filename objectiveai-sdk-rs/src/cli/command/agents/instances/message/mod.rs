@@ -1,15 +1,29 @@
-//! `agents message` — pure enqueue. Persists one `RichContent`
-//! into the `prompts` table in `tags.sqlite` against either a
-//! resolved `{parent}/{instance}` hierarchy (Direct mode) or a
-//! literal tag name (Tag mode — no resolution at enqueue time).
+//! `agents instances message` — stream-aware delivery primitive.
 //!
-//! Same wire shape as [`super::super::message_queue::add`] — `id` of
-//! the new row + the chosen target. Direct vs Tag is symmetric:
-//! neither variant looks the target up at enqueue time; the API's
-//! `read_message_queue` predicate picks rows up once a matching
-//! hierarchy comes online (rule 1 for Direct, rules 2/3 for Tag).
+//! Resolves the target, decides whether to enqueue / race delivery
+//! against a live agent / take over and spawn, all driven by
+//! `dangerous_advanced.stream` (mirror of `agents instances
+//! spawn`'s same flag).
+//!
+//! Tag resolution is the first step: a `MessageTarget::Tag` lookup
+//! against `tags` either yields a BOUND hierarchy (which makes the
+//! call act like a Direct target) or fails (PENDING / ABSENT), in
+//! which case the call falls back to a pure enqueue.
+//!
+//! Once we have a resolved hierarchy, the path splits by stream
+//! mode:
+//!
+//! - **stream=false** (default): non-acquiring lock-file check.
+//!   If a live agent holds it: enqueue + race DB-delivery against
+//!   lock-file release. If no live agent: re-exec ourselves as a
+//!   detached subprocess with stream=true so the new process
+//!   becomes the agent.
+//! - **stream=true**: try to acquire the lock-file. On success:
+//!   skip enqueue, run `spawn::run_multi_pass` in-process. On
+//!   failure: enqueue + race DB-delivery against lock acquisition.
 
 use crate::agent::completions::message::RichContent;
+use crate::agent::completions::response::streaming::AgentCompletionChunk;
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -17,24 +31,30 @@ use crate::cli::command::CommandRequest;
 pub struct Request {
     pub path_type: Path,
     pub target: MessageTarget,
-    /// Optional payload. `None` is a no-op — nothing is written
-    /// to the `message_queue` table and the response stream
-    /// yields zero items. Lets scripts call `agents instances
-    /// message` conditionally without branching on whether
-    /// there's a payload to deliver.
+    /// Optional payload. When `None`, the eventual spawn (if any)
+    /// runs with an empty `messages` array; the pure-enqueue
+    /// branch returns an error because there's nothing to write.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub message: Option<RequestMessage>,
+    /// `Some(true)` → in-process streaming delivery / spawn.
+    /// `None | Some(false)` → detached subprocess re-exec for the
+    /// spawn-take-over case; the call returns the first item of
+    /// that child's stream.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub dangerous_advanced: Option<RequestDangerousAdvanced>,
     pub jq: Option<String>,
 }
 
 /// Mutually-exclusive addressing for an `agents message` call.
 ///
 /// `Direct` composes `{parent}/{agent_instance}` (parent defaults to
-/// `Config.agent_instance_hierarchy` when omitted) and enqueues
-/// against that hierarchy. `Tag` stores the tag name verbatim — no
-/// `tags.sqlite` lookup at enqueue time; the queue reader resolves
-/// the tag at dequeue time.
+/// `Config.agent_instance_hierarchy` when omitted) and operates
+/// against that hierarchy. `Tag` is resolved against the tags DB at
+/// call time: a BOUND tag becomes effectively a Direct target,
+/// while PENDING / ABSENT falls back to pure enqueue against the
+/// tag name.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(tag = "by", rename_all = "snake_case")]
 #[schemars(rename = "cli.command.agents.instances.message.MessageTarget")]
@@ -111,6 +131,14 @@ impl RequestMessage {
     }
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.instances.message.RequestDangerousAdvanced")]
+pub struct RequestDangerousAdvanced {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub stream: Option<bool>,
+}
+
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         let mut argv = vec!["agents".to_string(), "instances".to_string(), "message".to_string()];
@@ -133,6 +161,13 @@ impl CommandRequest for Request {
         if let Some(message) = &self.message {
             message.push_flags(&mut argv);
         }
+        if let Some(advanced) = &self.dangerous_advanced {
+            argv.push("--dangerous-advanced".to_string());
+            argv.push(
+                serde_json::to_string(advanced)
+                    .expect("RequestDangerousAdvanced serializes"),
+            );
+        }
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
             argv.push(jq.clone());
@@ -141,29 +176,78 @@ impl CommandRequest for Request {
     }
 }
 
-/// `id` is the row id from `tags.sqlite`'s `prompts` table. Exactly
-/// one of `agent_instance_hierarchy` / `agent_tag` is set, matching
-/// the chosen [`MessageTarget`] variant — `agent_instance_hierarchy`
-/// is the **resolved** `{parent}/{instance}` for Direct mode.
-///
-/// Same shape as `agents message-queue add`'s `Response`.
+/// Unary response (stream=false). Exactly one of these per call.
+/// Internally tagged via `type`; bare unit variant `Delivered`
+/// serializes as `{"type":"delivered"}`.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(tag = "type", rename_all = "snake_case")]
 #[schemars(rename = "cli.command.agents.instances.message.Response")]
-pub struct Response {
-    pub id: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub agent_instance_hierarchy: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub agent_tag: Option<String>,
+pub enum Response {
+    /// The queue row reached a live agent (the API's conduit ran
+    /// `clear_by_ids` on it) before any other race finalized.
+    Delivered,
+    /// The target's tag wasn't bound at call time (PENDING /
+    /// ABSENT). The message was deferred into the queue.
+    Enqueued {
+        id: i64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        agent_instance_hierarchy: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        agent_tag: Option<String>,
+    },
+    /// The stream=false path re-execed itself as a detached
+    /// subprocess (stream=true). The subprocess yielded a
+    /// `ResponseItem::SpawnId` first; the bare id string is
+    /// surfaced here.
+    SpawnId { value: String },
 }
 
-/// Streamed-mode wire shape is identical to the unary [`Response`] —
-/// the cli emits exactly one item and exits. Kept as a type alias so
-/// the SDK-side dispatch (`ResponseItem::Message(...)`) doesn't have
-/// to special-case `agents instances message`.
-pub type ResponseItem = Response;
+/// Streamed response (stream=true). The cli yields a sequence of
+/// these. Same `Delivered` / `Enqueued` first-item semantics as
+/// [`Response`]; the spawn-take-over branch adds streaming
+/// `SpawnChunk` items plus a final/initial `SpawnId`.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(tag = "type", rename_all = "snake_case")]
+#[schemars(rename = "cli.command.agents.instances.message.ResponseItem")]
+pub enum ResponseItem {
+    Delivered,
+    Enqueued {
+        id: i64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        agent_instance_hierarchy: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        agent_tag: Option<String>,
+    },
+    SpawnId { value: String },
+    SpawnChunk { content: AgentCompletionChunk },
+}
+
+impl From<Response> for ResponseItem {
+    /// Lift the unary [`Response`] into the streaming
+    /// [`ResponseItem`] shape. Lossless — every `Response`
+    /// variant maps 1-to-1 onto a `ResponseItem` variant of the
+    /// same name; streaming-only variants (`SpawnChunk`) are
+    /// never produced from a `Response`.
+    fn from(r: Response) -> Self {
+        match r {
+            Response::Delivered => ResponseItem::Delivered,
+            Response::Enqueued {
+                id,
+                agent_instance_hierarchy,
+                agent_tag,
+            } => ResponseItem::Enqueued {
+                id,
+                agent_instance_hierarchy,
+                agent_tag,
+            },
+            Response::SpawnId { value } => ResponseItem::SpawnId { value },
+        }
+    }
+}
 
 #[derive(clap::Args)]
 #[command(group(
@@ -191,6 +275,10 @@ pub struct Args {
     /// `--agent-instance`.
     #[arg(long = "agent-tag")]
     pub agent_tag: Option<String>,
+    /// Raw JSON for [`RequestDangerousAdvanced`] (e.g.
+    /// `{"stream":true}`).
+    #[arg(long)]
+    pub dangerous_advanced: Option<String>,
     /// jq filter applied to the JSON output.
     #[arg(long)]
     pub jq: Option<String>,
@@ -266,13 +354,55 @@ impl TryFrom<Args> for Request {
                 "clap group `message_target` ensures exactly one of agent_instance | agent_tag"
             ),
         };
+        let dangerous_advanced = if let Some(s) = args.dangerous_advanced {
+            let mut de = serde_json::Deserializer::from_str(&s);
+            let v = serde_path_to_error::deserialize(&mut de).map_err(|source| {
+                crate::cli::command::FromArgsError {
+                    field: "dangerous_advanced",
+                    source: source.into(),
+                }
+            })?;
+            Some(v)
+        } else {
+            None
+        };
         Ok(Self {
             path_type: Path::AgentsInstancesMessage,
             target,
             message,
+            dangerous_advanced,
             jq: args.jq,
         })
     }
+}
+
+#[cfg(feature = "cli-executor")]
+pub async fn execute_streaming<E: crate::cli::command::CommandExecutor>(
+    executor: &E,
+    mut request: Request,
+
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    ) -> Result<E::Stream<ResponseItem>, E::Error> {
+    request.jq = None;
+    let mut advanced = request.dangerous_advanced.unwrap_or_default();
+    advanced.stream = Some(true);
+    request.dangerous_advanced = Some(advanced);
+    executor.execute(request, agent_arguments).await
+}
+
+#[cfg(feature = "cli-executor")]
+pub async fn execute_streaming_jq<E: crate::cli::command::CommandExecutor>(
+    executor: &E,
+    mut request: Request,
+    jq: String,
+
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    ) -> Result<E::Stream<serde_json::Value>, E::Error> {
+    request.jq = Some(jq);
+    let mut advanced = request.dangerous_advanced.unwrap_or_default();
+    advanced.stream = Some(true);
+    request.dangerous_advanced = Some(advanced);
+    executor.execute(request, agent_arguments).await
 }
 
 #[cfg(feature = "cli-executor")]
@@ -283,6 +413,9 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
         agent_arguments: Option<&crate::cli::command::AgentArguments>,
     ) -> Result<Response, E::Error> {
     request.jq = None;
+    if let Some(advanced) = request.dangerous_advanced.as_mut() {
+        advanced.stream = None;
+    }
     executor.execute_one(request, agent_arguments).await
 }
 
@@ -295,11 +428,21 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
         agent_arguments: Option<&crate::cli::command::AgentArguments>,
     ) -> Result<serde_json::Value, E::Error> {
     request.jq = Some(jq);
+    if let Some(advanced) = request.dangerous_advanced.as_mut() {
+        advanced.stream = None;
+    }
     executor.execute_one(request, agent_arguments).await
 }
 
 #[cfg(feature = "mcp")]
 impl crate::cli::command::CommandResponse for Response {
+    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
+        crate::cli::command::McpResponseItem::JSONL(serde_json::to_value(self).unwrap())
+    }
+}
+
+#[cfg(feature = "mcp")]
+impl crate::cli::command::CommandResponse for ResponseItem {
     fn into_mcp(self) -> crate::cli::command::McpResponseItem {
         crate::cli::command::McpResponseItem::JSONL(serde_json::to_value(self).unwrap())
     }

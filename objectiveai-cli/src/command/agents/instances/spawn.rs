@@ -167,7 +167,7 @@ async fn execute_streaming(
 /// [`AgentInstanceRegistry`] persists across passes so an agent's
 /// process-owned claim file stays held for the whole spawn
 /// lifetime, not per-pass.
-fn run_multi_pass(
+pub(crate) fn run_multi_pass(
     ctx: Context,
     initial_params: AgentCompletionCreateParams,
     agent_tag: Option<String>,
