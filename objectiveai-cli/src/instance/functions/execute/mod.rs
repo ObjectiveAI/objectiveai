@@ -22,7 +22,7 @@ pub async fn execute(
     ctx: crate::context::Context,
     http: HttpConfig,
     pipes: PipeConfig,
-    mcp_server: crate::instance::mcp_server::McpServerHandle,
+    mcp_server: crate::mcp_server::McpServerHandle,
     params: FunctionExecutionCreateParams,
 ) -> Result<EmissionStream, Error> {
     let client = http.build_http_client().map_err(Error::Instance)?;

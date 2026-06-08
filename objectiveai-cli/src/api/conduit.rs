@@ -67,7 +67,7 @@ struct Inner {
     /// `instance::run`. Each `McpKind::ObjectiveAi` dial awaits the
     /// handle's shared port future and builds
     /// `http://127.0.0.1:{port}` on the fly.
-    mcp_server: crate::instance::mcp_server::McpServerHandle,
+    mcp_server: crate::mcp_server::McpServerHandle,
     client: objectiveai_sdk::mcp::Client,
     /// Every dialed upstream — primary + plugin — keyed by its
     /// native `Mcp-Session-Id`. One entry per CLI-hosted MCP
@@ -94,7 +94,7 @@ impl ConduitMcpHandler {
     /// conduit clones+mutates per plugin dial to thread the
     /// transient header values into [`crate::Config`].
     pub fn new(
-        mcp_server: crate::instance::mcp_server::McpServerHandle,
+        mcp_server: crate::mcp_server::McpServerHandle,
         ctx: crate::context::Context,
     ) -> Self {
         let http = reqwest::Client::builder()

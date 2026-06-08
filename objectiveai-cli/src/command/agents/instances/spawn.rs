@@ -44,7 +44,7 @@ use objectiveai_sdk::cli::command::agents::instances::spawn::{
 use crate::context::Context;
 use crate::db;
 use crate::error::Error;
-use crate::instance::agent_registry::AgentInstanceRegistry;
+use crate::agent_registry::AgentInstanceRegistry;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
@@ -204,9 +204,9 @@ fn run_multi_pass(
             // new conduit + MCP server. The registry survives across
             // passes (see above).
             let mcp_server =
-                crate::instance::mcp_server::spawn(ctx.clone());
+                crate::mcp_server::spawn(ctx.clone());
             let conduit =
-                crate::instance::api::conduit::ConduitMcpHandler::new(
+                crate::api::conduit::ConduitMcpHandler::new(
                     mcp_server,
                     ctx.clone(),
                 );

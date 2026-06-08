@@ -42,10 +42,10 @@ use crate::instance::InstanceEmission;
 use crate::instance::handshake::{self, PIPE_ENV};
 use crate::instance::request::{HttpConfig, InstanceEndpoint, InstanceRequest, PipeConfig};
 
-/// Re-export of the producer-side constant from [`crate::instance::api`]
+/// Re-export of the producer-side constant from [`crate::api`]
 /// so cli callers parse subprocess exit codes against the same value the
 /// runner uses to signal a lost admission race.
-pub use crate::instance::api::SLOT_TAKEN_EXIT_CODE;
+pub use crate::api::SLOT_TAKEN_EXIT_CODE;
 
 /// Item yielded by [`instance_subprocess_stream`]. The leaf maps it to
 /// its typed `ResponseItem`:
