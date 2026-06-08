@@ -176,19 +176,6 @@ impl<C> LogWriter<C> {
             }
         }
 
-        // Decide which buckets need a leading request-messages row,
-        // and mark those agents as seen before spawning futures so
-        // the seen_agents update happens synchronously.
-        let mut bucket_list: Vec<(&str, Vec<(WriteOp, RowValue<'_>)>, bool)> =
-            Vec::with_capacity(buckets.len());
-        for (hier, items) in buckets {
-            let needs_request_row = !self.seen_agents.contains(hier);
-            if needs_request_row {
-                self.seen_agents.insert(hier.to_string());
-            }
-            bucket_list.push((hier, items, needs_request_row));
-        }
-
         // Serialize the response chunk once, diff against the
         // last-written blob.
         let response_bytes = serde_json::to_vec(chunk)?;
@@ -198,20 +185,26 @@ impl<C> LogWriter<C> {
             None => WriteOp::Insert,
         };
 
-        // Build the per-agent bucket futures. Each one runs its rows
-        // sequentially — order matters within an agent's history.
-        // Different buckets run concurrently via `try_join_all`.
+        // Build the per-agent bucket futures. Each future runs its
+        // rows sequentially (order matters within one agent's
+        // history); different agents run concurrently via
+        // `try_join_all`. The seen_agents mutation happens
+        // synchronously inside the map closure — by the time the
+        // futures actually run, every bucket already knows whether it
+        // owes a request-messages row.
         let pool = &self.pool;
         let tier = self.tier;
         let resp_id = response_id.as_str();
+        let seen_agents = &mut self.seen_agents;
         let bucket_futures: Vec<
             Pin<Box<dyn Future<Output = Result<(), crate::error::Error>> + Send + '_>>,
-        > = bucket_list
-            .iter()
-            .map(|(hier, items, needs_request_row)| {
-                let hier = *hier;
-                let items_ref = items.as_slice();
-                let needs_request_row = *needs_request_row;
+        > = buckets
+            .into_iter()
+            .map(|(hier, items)| {
+                let needs_request_row = !seen_agents.contains(hier);
+                if needs_request_row {
+                    seen_agents.insert(hier.to_string());
+                }
                 Box::pin(async move {
                     if needs_request_row {
                         insert_request_messages_row(
@@ -223,7 +216,7 @@ impl<C> LogWriter<C> {
                         )
                         .await?;
                     }
-                    for (op, value) in items_ref {
+                    for (op, value) in &items {
                         write_value(pool, *op, value, created_at_seed).await?;
                     }
                     Ok::<(), crate::error::Error>(())
