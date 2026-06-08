@@ -1,12 +1,11 @@
 use std::pin::Pin;
 
 use envconfig::Envconfig;
-use futures::{Stream, StreamExt};
+use futures::Stream;
 use objectiveai_sdk::cli::command::{ResponseItem, parse_request};
 
 use crate::context::Context;
 use crate::error::Error;
-use crate::instance::InstanceEmission;
 
 /// Windows-only: clear `HANDLE_FLAG_INHERIT` on this process's
 /// stdin/stdout/stderr handles. Called at the top of the instance
@@ -23,7 +22,7 @@ use crate::instance::InstanceEmission;
 /// and the cli outer hangs forever waiting for an EOF that never
 /// arrives.
 #[cfg(windows)]
-fn clear_stdio_inheritance() {
+pub fn clear_stdio_inheritance() {
     use windows_sys::Win32::Foundation::{HANDLE_FLAG_INHERIT, SetHandleInformation};
     use windows_sys::Win32::System::Console::{
         GetStdHandle, STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
@@ -182,35 +181,7 @@ pub struct Config {
     pub mcp_session_id: Option<String>,
 }
 
-/// One typed item yielded by [`run`]. The two variants reflect the
-/// two dispatch paths: the bare-naked command tree (the SDK's typed
-/// `ResponseItem` aggregator) or the instance subprocess runtime (its
-/// own typed [`InstanceEmission`] enum).
-#[derive(Debug, Clone, serde::Serialize)]
-#[serde(untagged)]
-pub enum RunItem {
-    Command(ResponseItem),
-    Instance(InstanceEmission),
-}
-
-#[cfg(feature = "mcp")]
-impl objectiveai_sdk::cli::command::CommandResponse for RunItem {
-    fn into_mcp(
-        self,
-    ) -> objectiveai_sdk::cli::command::McpResponseItem {
-        match self {
-            RunItem::Command(item) => item.into_mcp(),
-            RunItem::Instance(emission) => {
-                objectiveai_sdk::cli::command::McpResponseItem::JSONL(
-                    serde_json::to_value(emission)
-                        .unwrap_or(serde_json::Value::Null),
-                )
-            }
-        }
-    }
-}
-
-pub type RunStream = Pin<Box<dyn Stream<Item = Result<RunItem, Error>> + Send>>;
+pub type RunStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
 /// Build the top-level CLI config from the process environment.
 pub fn load_config() -> Config {
@@ -229,19 +200,20 @@ pub fn is_informational(e: &clap::Error) -> bool {
     )
 }
 
-/// Run the CLI.
+/// Run the CLI command tree.
 ///
-/// Step 1: if argv[1] is `"instance"`, fast-path into the
-/// FD-handshake instance subcommand — no clap, no [`Context`],
-/// no SDK [`Request`]. The instance handler returns its own typed
-/// [`InstanceEmission`] stream which we wrap as
-/// [`RunItem::Instance`].
+/// Clap-parse argv against the SDK's top-level command surface;
+/// `TryFrom` it into [`Request`]; resolve [`Context`] (caller-
+/// supplied or built from env); dispatch through
+/// `crate::command::command::execute`. Yields each
+/// [`ResponseItem`] as it arrives.
 ///
-/// Step 2: otherwise, clap-parse argv against the SDK's top-level
-/// [`SdkCommand`]; `TryFrom` it into [`Request`]; resolve
-/// [`Context`] (caller-supplied or built from env); dispatch through
-/// `crate::command::command::execute`. Each yielded
-/// [`ResponseItem`] is wrapped as [`RunItem::Command`].
+/// The `instance` subprocess subcommand is **not** handled here
+/// — it has its own entry point at [`crate::instance::run`]
+/// because its wire shape (`InstanceEmission`) differs from
+/// [`ResponseItem`]. `main.rs` routes argv[1] == "instance" to
+/// that entry directly and writes its own ndjson; ordinary
+/// command flows go through this function.
 ///
 /// Pre-dispatch failures (clap parse error, arg-conversion error,
 /// context build) and child-function errors propagate as the outer
@@ -287,11 +259,6 @@ pub async fn run(
         None => Context::new(load_config()).await?,
     };
 
-    if args.get(1).map(String::as_str) == Some("instance") {
-        let inst = crate::instance::run(ctx).await?;
-        return Ok(Box::pin(inst.map(|r| r.map(RunItem::Instance))));
-    }
-
     // `args[0]` is the program name however the binary was invoked —
     // bare name from PATH, full path from a test harness or a
     // `current_exe()` self-respawn — never part of the command.
@@ -306,6 +273,5 @@ pub async fn run(
 
     // TODO(jq): if the resolved request carries a `jq` filter, extract
     // it here and apply to the returned stream before wrapping.
-    let typed = crate::command::command::execute(&ctx, request).await?;
-    Ok(Box::pin(typed.map(|r| r.map(RunItem::Command))))
+    crate::command::command::execute(&ctx, request).await
 }

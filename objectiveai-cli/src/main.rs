@@ -5,20 +5,37 @@ use tokio::io::AsyncWriteExt;
 async fn main() {
     let _ = dotenv::dotenv();
 
+    // Windows-only: clear `HANDLE_FLAG_INHERIT` on this process's
+    // stdio handles before any child spawns. See
+    // `objectiveai_cli::clear_stdio_inheritance` for the
+    // grandchild-stdio-leak background; applies to both the
+    // instance subprocess flow and the regular command flow.
+    #[cfg(windows)]
+    objectiveai_cli::clear_stdio_inheritance();
+
     let args: Vec<String> = std::env::args().collect();
-    let code = run(args).await;
+    // `instance` is the subprocess-only subcommand used by
+    // function execute's subprocess flow. Its stream shape
+    // (`InstanceEmission`) is different from regular commands
+    // (`ResponseItem`), so it bypasses `objectiveai_cli::run`
+    // and writes its own ndjson directly.
+    let code = if args.get(1).map(String::as_str) == Some("instance") {
+        run_instance(args).await
+    } else {
+        run_command(args).await
+    };
     std::process::exit(code);
 }
 
-async fn run(args: Vec<String>) -> i32 {
+async fn run_command(args: Vec<String>) -> i32 {
     let mut stdout = tokio::io::stdout();
     match objectiveai_cli::run(args, None).await {
         Ok(mut stream) => {
             let mut last_tool_exit: Option<i32> = None;
             while let Some(item) = stream.next().await {
                 match item {
-                    Ok(run_item) => {
-                        write_line(&mut stdout, &run_item).await;
+                    Ok(response) => {
+                        write_line(&mut stdout, &response).await;
                     }
                     Err(e) => {
                         // `ToolExit(code)` carries the exit code the
@@ -48,6 +65,36 @@ async fn run(args: Vec<String>) -> i32 {
                 objectiveai_cli::error::Error::ToolExit(code) => code,
                 _ => 1,
             }
+        }
+    }
+}
+
+async fn run_instance(_args: Vec<String>) -> i32 {
+    let mut stdout = tokio::io::stdout();
+    let ctx = match objectiveai_cli::context::Context::new(
+        objectiveai_cli::load_config(),
+    )
+    .await
+    {
+        Ok(c) => c,
+        Err(e) => {
+            write_error_line(&mut stdout, &e, Some(true)).await;
+            return 1;
+        }
+    };
+    match objectiveai_cli::instance::run(ctx).await {
+        Ok(mut stream) => {
+            while let Some(item) = stream.next().await {
+                match item {
+                    Ok(emission) => write_line(&mut stdout, &emission).await,
+                    Err(e) => write_error_line(&mut stdout, &e, None).await,
+                }
+            }
+            0
+        }
+        Err(e) => {
+            write_error_line(&mut stdout, &e, Some(true)).await;
+            1
         }
     }
 }
