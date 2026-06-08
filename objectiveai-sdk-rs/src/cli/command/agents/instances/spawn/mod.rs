@@ -1,20 +1,27 @@
 ﻿//! `agents spawn` — async handler stub.
 
 use crate::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
-use crate::agent::completions::message::Message;
 use crate::cli::command::CommandRequest;
+use crate::cli::command::agents::instances::message::RequestMessage;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.instances.spawn.Request")]
 pub struct Request {
     pub path_type: Path,
-    /// Optional. Required on a fresh spawn (user-provided
-    /// content). Omitted on a continuation-driven re-spawn —
-    /// `continuation` carries the API-side state forward and no
-    /// new user content is being delivered.
+    /// Optional initial user message. When `Some`, the CLI turns
+    /// it into a single `Message::User` at the head of the
+    /// `messages` array on the API call. When `None` (e.g. on a
+    /// continuation-driven re-spawn where no new user content is
+    /// being delivered), the request goes out with an empty
+    /// `messages` array and the API picks up state from
+    /// `continuation`.
+    ///
+    /// Same wire shape as `agents instances message`'s
+    /// `RequestMessage` — `Simple`, `Inline(RichContent)`, `File`,
+    /// `PythonInline`, `PythonFile`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub prompt: Option<RequestPrompt>,
+    pub message: Option<RequestMessage>,
     pub agent: AgentSpec,
     pub seed: Option<i64>,
     pub dangerous_advanced: Option<RequestDangerousAdvanced>,
@@ -49,55 +56,13 @@ pub enum AgentSpec {
     Favorite(String),
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.instances.spawn.RequestPrompt")]
-pub enum RequestPrompt {
-    #[schemars(title = "Inline")]
-    Inline(Vec<Message>),
-    #[schemars(title = "Simple")]
-    Simple(String),
-    #[schemars(title = "File")]
-    File(std::path::PathBuf),
-    #[schemars(title = "PythonInline")]
-    PythonInline(String),
-    #[schemars(title = "PythonFile")]
-    PythonFile(std::path::PathBuf),
-}
-
-impl RequestPrompt {
-    pub fn push_flags(&self, out: &mut Vec<String>) {
-        match self {
-            RequestPrompt::Inline(msgs) => {
-                out.push("--inline".to_string());
-                out.push(
-                    serde_json::to_string(msgs).expect("Vec<Message> serializes"),
-                );
-            }
-            RequestPrompt::Simple(s) => {
-                out.push("--simple".to_string());
-                out.push(s.clone());
-            }
-            RequestPrompt::File(p) => {
-                out.push("--file".to_string());
-                out.push(p.to_string_lossy().into_owned());
-            }
-            RequestPrompt::PythonInline(code) => {
-                out.push("--python-inline".to_string());
-                out.push(code.clone());
-            }
-            RequestPrompt::PythonFile(p) => {
-                out.push("--python-file".to_string());
-                out.push(p.to_string_lossy().into_owned());
-            }
-        }
-    }
-}
-
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         let mut argv = vec!["agents".to_string(), "instances".to_string(), "spawn".to_string()];
-        if let Some(prompt) = &self.prompt {
-            prompt.push_flags(&mut argv);
+        if let Some(message) = &self.message {
+            // `RequestMessage` lives in `agents::instances::message`
+            // and emits the same five flags spawn accepts.
+            message.push_flags(&mut argv);
         }
         // The cli's `AgentArg` (from `define_inline_or_ref!`) accepts
         // either `--agent <REFERENCE>` (a `FavoriteRef` wire form, then
@@ -159,7 +124,7 @@ pub type Response = String;
 #[derive(clap::Args)]
 pub struct Args {
     #[command(flatten)]
-    pub prompt: PromptArgs,
+    pub message: MessageArgs,
     #[command(flatten)]
     pub agent: AgentArgs,
     /// Seed for deterministic mock responses.
@@ -177,22 +142,25 @@ pub struct Args {
     pub jq: Option<String>,
 }
 
+/// Optional user-message group. Mirrors `agents instances message`'s
+/// own `MessageArgs` shape but with `required = false` — spawn
+/// accepts an empty message slot.
 #[derive(clap::Args)]
 #[group(required = false, multiple = false)]
-pub struct PromptArgs {
-    /// Plain text — becomes one user message.
+pub struct MessageArgs {
+    /// Plain text — becomes the body of a single user message.
     #[arg(long)]
     pub simple: Option<String>,
-    /// Inline JSON messages array.
+    /// Inline JSON `RichContent`.
     #[arg(long)]
     pub inline: Option<String>,
-    /// Path to a JSON file containing the messages array.
+    /// Path to a JSON file containing the rich content.
     #[arg(long)]
     pub file: Option<std::path::PathBuf>,
-    /// Inline Python code that produces the messages array.
+    /// Inline Python code that produces the rich content.
     #[arg(long)]
     pub python_inline: Option<String>,
-    /// Path to a Python file that produces the messages array.
+    /// Path to a Python file that produces the rich content.
     #[arg(long)]
     pub python_file: Option<std::path::PathBuf>,
 }
@@ -228,9 +196,9 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        let prompt = if let Some(s) = args.prompt.simple {
-            Some(RequestPrompt::Simple(s))
-        } else if let Some(s) = args.prompt.inline {
+        let message = if let Some(s) = args.message.simple {
+            Some(RequestMessage::Simple(s))
+        } else if let Some(s) = args.message.inline {
             let mut de = serde_json::Deserializer::from_str(&s);
             let v = serde_path_to_error::deserialize(&mut de).map_err(|source| {
                 crate::cli::command::FromArgsError {
@@ -238,13 +206,13 @@ impl TryFrom<Args> for Request {
                     source: source.into(),
                 }
             })?;
-            Some(RequestPrompt::Inline(v))
-        } else if let Some(p) = args.prompt.file {
-            Some(RequestPrompt::File(p))
-        } else if let Some(s) = args.prompt.python_inline {
-            Some(RequestPrompt::PythonInline(s))
-        } else if let Some(p) = args.prompt.python_file {
-            Some(RequestPrompt::PythonFile(p))
+            Some(RequestMessage::Inline(v))
+        } else if let Some(p) = args.message.file {
+            Some(RequestMessage::File(p))
+        } else if let Some(s) = args.message.python_inline {
+            Some(RequestMessage::PythonInline(s))
+        } else if let Some(p) = args.message.python_file {
+            Some(RequestMessage::PythonFile(p))
         } else {
             None
         };
@@ -272,7 +240,7 @@ impl TryFrom<Args> for Request {
             None
         };
         Ok(Self { path_type: Path::AgentsInstancesSpawn,
-            prompt,
+            message,
             agent,
             seed: args.seed,
             dangerous_advanced,

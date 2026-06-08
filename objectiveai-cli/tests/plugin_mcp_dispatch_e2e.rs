@@ -29,9 +29,9 @@ use std::time::{Duration, Instant};
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use objectiveai_sdk::cli::command::agents::instances::spawn::{
-    AgentSpec, Request as SpawnRequest, RequestDangerousAdvanced, RequestPrompt,
-    ResponseItem as SpawnResponseItem,
+    AgentSpec, Request as SpawnRequest, RequestDangerousAdvanced, ResponseItem as SpawnResponseItem,
 };
+use objectiveai_sdk::cli::command::agents::instances::message::RequestMessage;
 use serde_json::{Value, json};
 
 /// RAII kill of the plugin process (PID read from
@@ -227,7 +227,7 @@ async fn plugin_mcp_dispatch_round_trip() {
     // only a bare `Id(leaf)`.
     let spawn_request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::instances::spawn::Path::AgentsInstancesSpawn,
         agent_tag: None,
-        prompt: Some(RequestPrompt::Simple("use a tool".to_string())),
+        message: Some(RequestMessage::Simple("use a tool".to_string())),
         agent,
         seed: Some(1),
         dangerous_advanced: Some(RequestDangerousAdvanced { stream: Some(true) }),

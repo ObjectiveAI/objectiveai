@@ -33,12 +33,10 @@ use std::pin::Pin;
 use futures::Stream;
 use futures::StreamExt;
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
-use objectiveai_sdk::agent::completions::message::{
-    Message, RichContent, UserMessage,
-};
+use objectiveai_sdk::agent::completions::message::{Message, UserMessage};
 use objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams;
 use objectiveai_sdk::cli::command::agents::instances::spawn::{
-    AgentSpec, Request, RequestDangerousAdvanced, RequestPrompt, ResponseItem,
+    AgentSpec, Request, RequestDangerousAdvanced, ResponseItem,
 };
 use objectiveai_sdk::cli::command::{BinaryExecutor, CommandExecutor};
 
@@ -119,7 +117,24 @@ async fn execute_streaming(
     ctx: &Context,
     request: Request,
 ) -> Result<ItemStream, Error> {
-    let messages = resolve_prompt(request.prompt)?;
+    // Optional user-message slot. `Some` becomes a single
+    // `Message::User` at the head of the API call's `messages`
+    // array; `None` leaves `messages` empty (continuation-only
+    // re-spawn, or a spawn where the API picks its own opening).
+    // Reuses `agents instances message`'s `resolve_message` so the
+    // five wire variants (`Simple` / `Inline(RichContent)` /
+    // `File` / `PythonInline` / `PythonFile`) round-trip
+    // identically.
+    let messages = match request.message {
+        Some(rm) => {
+            let content = super::message::resolve_message(rm)?;
+            vec![Message::User(UserMessage {
+                content,
+                name: None,
+            })]
+        }
+        None => Vec::new(),
+    };
     let agent = resolve_agent(ctx, request.agent).await?;
     let agent_tag = request.agent_tag.clone();
     let agents_dir = ctx
@@ -290,32 +305,6 @@ fn run_multi_pass(
             params.continuation = last_continuation;
         }
     }
-}
-
-pub(crate) fn resolve_prompt(
-    prompt: Option<RequestPrompt>,
-) -> Result<Vec<Message>, Error> {
-    let Some(prompt) = prompt else {
-        return Ok(Vec::new());
-    };
-    match prompt {
-        RequestPrompt::Inline(msgs) => Ok(msgs),
-        RequestPrompt::Simple(text) => Ok(vec![Message::User(UserMessage {
-            content: RichContent::Text(text),
-            name: None,
-        })]),
-        RequestPrompt::File(path) => read_messages_file(path),
-        RequestPrompt::PythonInline(code) => crate::python::exec_code(&code),
-        RequestPrompt::PythonFile(path) => crate::python::exec_file(&path),
-    }
-}
-
-pub(crate) fn read_messages_file(path: PathBuf) -> Result<Vec<Message>, Error> {
-    let bytes = std::fs::read(&path)
-        .map_err(|e| Error::PromptFileRead(path.clone(), e))?;
-    let mut de = serde_json::Deserializer::from_slice(&bytes);
-    serde_path_to_error::deserialize(&mut de)
-        .map_err(Error::InlineDeserialize)
 }
 
 async fn resolve_agent(

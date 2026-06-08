@@ -48,8 +48,7 @@ use objectiveai_sdk::cli::command::agents::instances::read::id::{
     Request as ReadIdRequest, Response as ReadIdResponse,
 };
 use objectiveai_sdk::cli::command::agents::instances::spawn::{
-    AgentSpec, Request as SpawnRequest, RequestDangerousAdvanced, RequestPrompt,
-    ResponseItem as SpawnResponseItem,
+    AgentSpec, Request as SpawnRequest, RequestDangerousAdvanced, ResponseItem as SpawnResponseItem,
 };
 use serde_json::{Value, json};
 
@@ -150,7 +149,7 @@ async fn duplicate_server_names_routed_across_turns() {
 
     // Turn 1: agents instances spawn ──────────────────────────────
     let spawn = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::instances::spawn::Path::AgentsInstancesSpawn,
-        prompt: Some(RequestPrompt::Simple("use a tool".to_string())),
+        message: Some(RequestMessage::Simple("use a tool".to_string())),
         agent,
         agent_tag: None,
         seed: Some(SEED),

@@ -45,7 +45,7 @@ use objectiveai_sdk::cli::command::agents::instances::message::{
 };
 use objectiveai_sdk::cli::command::agents::instances::spawn::{
     AgentSpec, Request as SpawnRequest, RequestDangerousAdvanced as SpawnDangerousAdvanced,
-    RequestPrompt, ResponseItem as SpawnResponseItem,
+    ResponseItem as SpawnResponseItem,
 };
 use serde_json::{Value, json};
 use tokio::sync::Mutex;
@@ -271,7 +271,7 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
             );
             let request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::instances::spawn::Path::AgentsInstancesSpawn,
                 agent_tag: None,
-                prompt: Some(RequestPrompt::Simple("go".to_string())),
+                message: Some(RequestMessage::Simple("go".to_string())),
                 agent,
                 seed: Some(seed),
                 // Stream so we stay attached until the spawn's first

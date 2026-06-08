@@ -25,8 +25,7 @@ use objectiveai_sdk::cli::command::agents::instances::message::{
     ResponseItem as MessageResponseItem,
 };
 use objectiveai_sdk::cli::command::agents::instances::spawn::{
-    AgentSpec, Request as SpawnRequest, RequestDangerousAdvanced, RequestPrompt,
-    ResponseItem as SpawnResponseItem,
+    AgentSpec, Request as SpawnRequest, RequestDangerousAdvanced, ResponseItem as SpawnResponseItem,
 };
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use serde_json::Value;
@@ -68,7 +67,7 @@ async fn spawn_then_message_propagates_response_continuation() {
     // bare `Id(leaf)` — no Chunk, no `agent_instance_hierarchy`.
     let spawn_request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::instances::spawn::Path::AgentsInstancesSpawn,
         agent_tag: None,
-        prompt: Some(RequestPrompt::Simple("first turn".to_string())),
+        message: Some(RequestMessage::Simple("first turn".to_string())),
         agent: AgentSpec::Resolved(
             serde_json::from_value::<InlineAgentBaseWithFallbacksOrRemoteCommitOptional>(
                 serde_json::json!({"upstream":"mock","output_mode":"instruction"}),
