@@ -1,26 +1,25 @@
 //! Look up the agent definition + latest continuation that
 //! belong to a given `agent_instance_hierarchy`.
 //!
-//! `agent_instance_hierarchy` embeds the original `response_id`
-//! as the trailing suffix after the final `-`
-//! (`{ctx lineage}/{agent_full_id}-{response_id}`). Splitting on
-//! that delimiter gives us the key both `agent_completion_requests`
-//! and `agent_completion_responses` are PK'd by, so one round-
-//! trip via a LEFT JOIN returns:
+//! Two sources, one round-trip:
 //!
 //! - **agent definition** — extracted from
-//!   `agent_completion_requests.body.agent` (the request blob is
-//!   a serialized `AgentCompletionCreateParams`).
-//! - **latest continuation** — extracted from
-//!   `agent_completion_responses.body.continuation` (the
-//!   coalesced response chunk body, present only after the
-//!   stream has emitted at least one chunk that carried a
-//!   continuation token; `None` otherwise).
+//!   `logs.agent_completion_requests.body.agent` (the request blob
+//!   is a serialized `AgentCompletionCreateParams`). The request
+//!   row is PK'd by `response_id`, which is the trailing suffix of
+//!   the AIH after the final `-`
+//!   (`{ctx lineage}/{agent_full_id}-{response_id}`).
+//! - **latest continuation** — read straight from the
+//!   `agent_continuations` table keyed by the full AIH. The
+//!   chunk-yielder loops (`agents spawn` + `functions execute`)
+//!   upsert into that table per chunk, so this is the
+//!   authoritative latest-continuation source — no more parsing it
+//!   out of the cumulative response blob.
 //!
-//! Used by `agents message`'s stream-true path after
-//! it acquires the hierarchy's lock: it needs the agent
-//! definition to drive `spawn::run_multi_pass` and the latest
-//! continuation to seed the resumed conversation.
+//! Used by `agents message`'s stream-true path after it acquires
+//! the hierarchy's lock: it needs the agent definition to drive
+//! `spawn::run_multi_pass` and the latest continuation to seed the
+//! resumed conversation.
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use sqlx::Row as _;
@@ -32,9 +31,9 @@ use super::super::{Error, Pool};
 #[derive(Debug, Clone)]
 pub struct SessionLookup {
     pub agent: InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
-    /// `None` when the session has a logged request but no logged
-    /// response yet (e.g. the stream errored before its first
-    /// chunk landed).
+    /// `None` when the `agent_continuations` row hasn't been
+    /// written yet — typically because the stream errored before
+    /// any chunk that carried a continuation landed.
     pub continuation: Option<String>,
 }
 
@@ -52,25 +51,27 @@ pub async fn lookup_session(
         return Ok(None);
     };
 
-    // LEFT JOIN so a missing response row still gives us the
-    // request row's `body`. `response_id` is PK on both tables —
-    // at most one row each side.
+    // LEFT JOIN `agent_continuations` onto the request row. The
+    // request row is PK'd by `response_id`; the continuation row is
+    // PK'd by the full AIH. Both keys are bound separately. A NULL
+    // `continuation` column means there's no row in
+    // `agent_continuations` yet for this AIH.
     let row = sqlx::query(
-        "SELECT req.body AS request_body, \
-                resp.body AS response_body \
+        "SELECT req.body AS request_body, cont.continuation AS continuation \
          FROM logs.agent_completion_requests req \
-         LEFT JOIN logs.agent_completion_responses resp \
-           ON resp.response_id = req.response_id \
+         LEFT JOIN agent_continuations cont \
+           ON cont.agent_instance_hierarchy = $2 \
          WHERE req.response_id = $1",
     )
     .bind(response_id)
+    .bind(agent_instance_hierarchy)
     .fetch_optional(&**pool)
     .await?;
 
     let Some(row) = row else { return Ok(None) };
 
     let request_body: serde_json::Value = row.try_get("request_body")?;
-    let response_body: Option<serde_json::Value> = row.try_get("response_body")?;
+    let continuation: Option<String> = row.try_get("continuation")?;
 
     // The request blob is a serialized
     // `AgentCompletionCreateParams`; the agent field there is what
@@ -82,15 +83,6 @@ pub async fn lookup_session(
     })?;
     let agent: InlineAgentBaseWithFallbacksOrRemoteCommitOptional =
         serde_json::from_value(agent_value)?;
-
-    // Continuation is the trailing chunk's `continuation` field
-    // (the response body is the COALESCED chunk view, so the
-    // continuation persisted there is the latest one emitted).
-    let continuation = response_body
-        .as_ref()
-        .and_then(|b| b.get("continuation"))
-        .and_then(|c| c.as_str())
-        .map(str::to_string);
 
     Ok(Some(SessionLookup { agent, continuation }))
 }
