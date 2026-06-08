@@ -3,16 +3,23 @@
 //!
 //! Each registered hierarchy is backed by a file at
 //! `<root>/<hier-with-'/'-replaced-by-'_'>`. Open semantics differ by
-//! platform, but the externally-observable contract is the same:
+//! platform — each picks the strongest OS-managed mechanism available:
 //!
-//! - While the owning process is alive, the file exists on disk and no
-//!   other process can create a file by the same name.
-//! - When the owning process dies (by any means — panic, abort, SIGKILL,
-//!   alt+F4, OOM kill, power loss), the OS releases the claim. On
-//!   Windows the kernel deletes the file via `FILE_FLAG_DELETE_ON_CLOSE`.
-//!   On Unix the kernel releases the `flock`; the directory entry may
-//!   persist briefly until the next [`AgentInstanceRegistry::observe`]
-//!   call reclaims it.
+//! - **Windows**: `FILE_FLAG_DELETE_ON_CLOSE`. The file's existence is
+//!   exactly equivalent to "the owning process is alive". When that
+//!   process dies by any means (panic, abort, SIGKILL-equivalent,
+//!   alt+F4, OOM kill, power loss), the kernel deletes the file. Other
+//!   processes detect liveness by simply checking whether the file
+//!   exists.
+//! - **Unix**: persistent file + `flock(LOCK_EX | LOCK_NB)`. The file
+//!   stays on disk across runs; **lock state alone** is the liveness
+//!   signal. The kernel auto-releases the flock when the FD closes by
+//!   any means, so even after a hard kill the lock state correctly
+//!   reflects "no one home". Other processes detect liveness by trying
+//!   a `flock(LOCK_SH | LOCK_NB)` (or `LOCK_EX | LOCK_NB`): success
+//!   means no live owner. There is no `remove_file` on graceful
+//!   release — that would re-introduce a TOCTOU race between file
+//!   existence and lock state. The file simply persists.
 //!
 //! Every fallible operation is best-effort: [`observe`] returns `()` and
 //! silently swallows IO errors. The registry only tracks claims it
@@ -26,23 +33,16 @@ pub struct AgentInstanceRegistry {
     open: HashMap<String, ClaimFile>,
 }
 
+/// Owns the open file handle for one claimed hierarchy. Drop closes
+/// the handle, which on Windows triggers `FILE_FLAG_DELETE_ON_CLOSE`
+/// and on Unix releases the `flock`. We deliberately do *not*
+/// `remove_file` on Unix — the lock state is the source of truth,
+/// and unlinking graceful-shutdown-only would reintroduce the same
+/// TOCTOU class between "file exists" and "flock held" that the
+/// earlier recreate-on-reclaim path had.
 struct ClaimFile {
     #[allow(dead_code)] // Drop closes the handle; the field anchors the lifetime.
     file: std::fs::File,
-    path: PathBuf,
-}
-
-impl Drop for ClaimFile {
-    fn drop(&mut self) {
-        // Windows: FILE_FLAG_DELETE_ON_CLOSE deletes the file when the
-        // handle closes (which happens when `file` drops right after
-        // this). Nothing to do here.
-        // Unix: the kernel will release the flock when the FD closes,
-        // but the directory entry persists. Unlink it explicitly so the
-        // graceful-shutdown path leaves no stale file behind.
-        #[cfg(unix)]
-        let _ = std::fs::remove_file(&self.path);
-    }
 }
 
 impl AgentInstanceRegistry {
@@ -66,16 +66,16 @@ impl AgentInstanceRegistry {
         let filename = hier.replace('/', "_");
         let path = self.root.join(filename);
         if let Some(file) = open_claim_file(&path) {
-            self.open
-                .insert(hier.to_string(), ClaimFile { file, path });
+            self.open.insert(hier.to_string(), ClaimFile { file });
         }
     }
 
-    /// Release the claim immediately. After this returns the file is
-    /// gone from disk (or, on Unix where the OS didn't auto-delete it,
-    /// explicitly unlinked by the Drop impl) and another process can
-    /// reclaim the same hierarchy. No-op if `hier` was never observed
-    /// or never produced a successful claim.
+    /// Release the claim immediately. On Windows the file is gone
+    /// from disk (DELETE_ON_CLOSE fires). On Unix the file persists
+    /// on disk but the `flock` is released — another process can
+    /// detect the unlocked state and reclaim the hierarchy. No-op if
+    /// `hier` was never observed or never produced a successful
+    /// claim.
     pub fn destroy(&mut self, hier: &str) {
         self.open.remove(hier);
     }
