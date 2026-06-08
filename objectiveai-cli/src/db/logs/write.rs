@@ -80,9 +80,9 @@ async fn insert_value<'a>(
                     VALUES ($1, $2, $3) RETURNING response_id\
                  )\
                  INSERT INTO logs.messages \
-                    (response_id, \"table\", row_index, row_sub_index, \"index\", \
+                    (response_id, \"table\", row_index, row_sub_index, \
                      agent_instance_hierarchy, \"timestamp\") \
-                 SELECT $1, $4, $5, $6, nextval('logs.messages_index_seq'), $7, $8 FROM data_ins",
+                 SELECT $1, $4, $5, $6, $7, $8 FROM data_ins",
             )
             .bind(response_id)
             .bind(row_index)
@@ -102,9 +102,9 @@ async fn insert_value<'a>(
                     VALUES ($1, $2, $3) RETURNING response_id\
                  )\
                  INSERT INTO logs.messages \
-                    (response_id, \"table\", row_index, row_sub_index, \"index\", \
+                    (response_id, \"table\", row_index, row_sub_index, \
                      agent_instance_hierarchy, \"timestamp\") \
-                 SELECT $1, $4, $5, $6, nextval('logs.messages_index_seq'), $7, $8 FROM data_ins",
+                 SELECT $1, $4, $5, $6, $7, $8 FROM data_ins",
             )
             .bind(response_id)
             .bind(row_index)
@@ -124,9 +124,9 @@ async fn insert_value<'a>(
                     VALUES ($1, $2, $3) RETURNING response_id\
                  )\
                  INSERT INTO logs.messages \
-                    (response_id, \"table\", row_index, row_sub_index, \"index\", \
+                    (response_id, \"table\", row_index, row_sub_index, \
                      agent_instance_hierarchy, \"timestamp\") \
-                 SELECT $1, $4, $5, $6, nextval('logs.messages_index_seq'), $7, $8 FROM data_ins",
+                 SELECT $1, $4, $5, $6, $7, $8 FROM data_ins",
             )
             .bind(response_id)
             .bind(row_index)
@@ -149,9 +149,9 @@ async fn insert_value<'a>(
                     VALUES ($1, $2, $3, $4, $5) RETURNING response_id\
                  )\
                  INSERT INTO logs.messages \
-                    (response_id, \"table\", row_index, row_sub_index, \"index\", \
+                    (response_id, \"table\", row_index, row_sub_index, \
                      agent_instance_hierarchy, \"timestamp\") \
-                 SELECT $1, $6, $7, $8, nextval('logs.messages_index_seq'), $9, $10 FROM data_ins",
+                 SELECT $1, $6, $7, $8, $9, $10 FROM data_ins",
             )
             .bind(response_id)
             .bind(row_index)
@@ -365,9 +365,9 @@ async fn insert_text_part_with_msg<'a>(
             VALUES ($1, $2, $3, $4) RETURNING response_id\
          )\
          INSERT INTO logs.messages \
-            (response_id, \"table\", row_index, row_sub_index, \"index\", \
+            (response_id, \"table\", row_index, row_sub_index, \
              agent_instance_hierarchy, \"timestamp\") \
-         SELECT $1, $5, $6, $7, nextval('logs.messages_index_seq'), $8, $9 FROM data_ins"
+         SELECT $1, $5, $6, $7, $8, $9 FROM data_ins"
     );
     sqlx::query(&sql)
         .bind(value.response_id())
@@ -398,9 +398,9 @@ async fn insert_image_part_with_msg<'a>(
             VALUES ($1, $2, $3, $4, $5) RETURNING response_id\
          )\
          INSERT INTO logs.messages \
-            (response_id, \"table\", row_index, row_sub_index, \"index\", \
+            (response_id, \"table\", row_index, row_sub_index, \
              agent_instance_hierarchy, \"timestamp\") \
-         SELECT $1, $6, $7, $8, nextval('logs.messages_index_seq'), $9, $10 FROM data_ins"
+         SELECT $1, $6, $7, $8, $9, $10 FROM data_ins"
     );
     sqlx::query(&sql)
         .bind(value.response_id())
@@ -431,9 +431,9 @@ async fn insert_audio_part_with_msg<'a>(
             VALUES ($1, $2, $3, $4, $5) RETURNING response_id\
          )\
          INSERT INTO logs.messages \
-            (response_id, \"table\", row_index, row_sub_index, \"index\", \
+            (response_id, \"table\", row_index, row_sub_index, \
              agent_instance_hierarchy, \"timestamp\") \
-         SELECT $1, $6, $7, $8, nextval('logs.messages_index_seq'), $9, $10 FROM data_ins"
+         SELECT $1, $6, $7, $8, $9, $10 FROM data_ins"
     );
     sqlx::query(&sql)
         .bind(value.response_id())
@@ -465,9 +465,9 @@ async fn insert_video_part_with_msg<'a>(
             VALUES ($1, $2, $3, $4, $5) RETURNING response_id\
          )\
          INSERT INTO logs.messages \
-            (response_id, \"table\", row_index, row_sub_index, \"index\", \
+            (response_id, \"table\", row_index, row_sub_index, \
              agent_instance_hierarchy, \"timestamp\") \
-         SELECT $1, $6, $7, $8, nextval('logs.messages_index_seq'), $9, $10 FROM data_ins"
+         SELECT $1, $6, $7, $8, $9, $10 FROM data_ins"
     );
     sqlx::query(&sql)
         .bind(value.response_id())
@@ -498,9 +498,9 @@ async fn insert_file_part_with_msg<'a>(
             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING response_id\
          )\
          INSERT INTO logs.messages \
-            (response_id, \"table\", row_index, row_sub_index, \"index\", \
+            (response_id, \"table\", row_index, row_sub_index, \
              agent_instance_hierarchy, \"timestamp\") \
-         SELECT $1, $8, $9, $10, nextval('logs.messages_index_seq'), $11, $12 FROM data_ins"
+         SELECT $1, $8, $9, $10, $11, $12 FROM data_ins"
     );
     sqlx::query(&sql)
         .bind(value.response_id())
@@ -714,9 +714,9 @@ pub async fn insert_request_blob<P: Serialize>(
                     VALUES ($1, $2, $3, $4) RETURNING response_id\
                  )\
                  INSERT INTO logs.messages \
-                    (response_id, \"table\", row_index, row_sub_index, \"index\", \
+                    (response_id, \"table\", row_index, row_sub_index, \
                      agent_instance_hierarchy, \"timestamp\") \
-                 SELECT $1, $5, NULL, NULL, nextval('logs.messages_index_seq'), $2, $4 FROM data_ins",
+                 SELECT $1, $5, NULL, NULL, $2, $4 FROM data_ins",
             )
             .bind(response_id)
             .bind(agent_instance_hierarchy.unwrap_or(""))
@@ -733,9 +733,9 @@ pub async fn insert_request_blob<P: Serialize>(
                     VALUES ($1, $2, $3) RETURNING response_id\
                  )\
                  INSERT INTO logs.messages \
-                    (response_id, \"table\", row_index, row_sub_index, \"index\", \
+                    (response_id, \"table\", row_index, row_sub_index, \
                      agent_instance_hierarchy, \"timestamp\") \
-                 SELECT $1, $4, NULL, NULL, nextval('logs.messages_index_seq'), NULL, $3 FROM data_ins",
+                 SELECT $1, $4, NULL, NULL, NULL, $3 FROM data_ins",
                 table = tier.request_table()
             );
             sqlx::query(&sql)
