@@ -202,6 +202,12 @@ pub(crate) fn run_multi_pass(
         // chunk and never changes across restart passes. Capture
         // once; reuse forever. `None` until the first chunk lands.
         let mut identity: Option<(String, String)> = None;
+        // Has `ResponseItem::Id` been yielded yet? Persists across
+        // restart passes — the spawn-id handshake is a one-time
+        // event, gated on the LogWriter's `written_once` signal so
+        // the caller only sees the Id after at least one log row
+        // has been persisted.
+        let mut id_emitted = false;
 
         loop {
             // Per-pass resources. New WS connection, new log writer,
@@ -240,24 +246,37 @@ pub(crate) fn run_multi_pass(
 
             let mut sdk_stream = Box::pin(sdk_stream);
             let mut last_continuation: Option<String> = None;
+            // Per-pass buffer of chunks held back until the
+            // LogWriter confirms it has persisted at least once.
+            // Only meaningful for pass 1 — pass 2+ already has
+            // `id_emitted = true` from a prior pass, so the buffer
+            // gate never triggers and chunks flow through directly.
+            let mut buffered: Vec<
+                objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk,
+            > = Vec::new();
+            let mut stream_err: Option<String> = None;
 
             while let Some(item) = sdk_stream.next().await {
-                let chunk = item.map_err(|e| {
-                    Error::Instance(format!("agent stream item error: {e}"))
-                })?;
+                let chunk = match item {
+                    Ok(c) => c,
+                    Err(e) => {
+                        stream_err = Some(format!("agent stream item error: {e}"));
+                        break;
+                    }
+                };
 
                 // First chunk EVER (first pass, first chunk):
-                // capture the spawn's identity, claim the lock
-                // file, and emit the `ResponseItem::Id` handshake.
-                // Tag-group upgrade is owned by the conduit's
+                // capture the spawn's identity + claim the lock
+                // file. Tag-group upgrade is owned by the conduit's
                 // `read_pending_and_upgrade_tag`, which the API
                 // fires before the very first chunk is produced —
-                // no upgrade fan-out is needed here.
+                // no upgrade fan-out is needed here. The
+                // `ResponseItem::Id` handshake itself fires later,
+                // gated on `log_writer.written_once()`.
                 if identity.is_none() {
                     let hier = chunk.agent_instance_hierarchy.clone();
                     let full_id = chunk.agent_full_id.clone();
                     registry.observe(&hier);
-                    yield ResponseItem::Id(hier.clone());
                     identity = Some((hier, full_id));
                 }
 
@@ -268,23 +287,74 @@ pub(crate) fn run_multi_pass(
                     last_continuation = Some(c.to_string());
                 }
 
-                // Log + forward. The write is now a synchronous
-                // mpsc send into the LogWriter's listener task — DB
-                // IO happens off this critical path. Clone the chunk
-                // for the listener; the original yields downstream.
-                log_writer
-                    .write(chunk.clone())
-                    .map_err(|e| Error::Instance(format!(
-                        "log writer error: {e}"
-                    )))?;
-                yield ResponseItem::Chunk(chunk);
+                // Log + forward. The write is a synchronous mpsc
+                // send into the LogWriter's listener task — DB IO
+                // happens off this critical path. Clone the chunk
+                // for the listener; the original yields downstream
+                // (or sits in the buffer until the Id gate opens).
+                if let Err(e) = log_writer.write(chunk.clone()) {
+                    stream_err = Some(format!("log writer error: {e}"));
+                    break;
+                }
+
+                // Id gate: once the LogWriter signals it has
+                // persisted at least one batch, yield the Id and
+                // drain any chunks buffered up to this point. The
+                // gate flips exactly once per spawn (across all
+                // passes) — `id_emitted` persists outside the
+                // restart loop.
+                if !id_emitted && log_writer.written_once() {
+                    let (hier, _) = identity
+                        .as_ref()
+                        .expect("identity set above on the first chunk");
+                    yield ResponseItem::Id(hier.clone());
+                    for c in buffered.drain(..) {
+                        yield ResponseItem::Chunk(c);
+                    }
+                    id_emitted = true;
+                }
+
+                if id_emitted {
+                    yield ResponseItem::Chunk(chunk);
+                } else {
+                    buffered.push(chunk);
+                }
             }
 
-            log_writer.finalize().await.map_err(|e| {
-                Error::Instance(format!("log writer finalize: {e}"))
-            })?;
+            // Post-stream: if the SDK closed before the LogWriter
+            // ever flipped `written_once` true (e.g. very fast EOF
+            // ahead of the listener's first batch), wait for the
+            // first persistence to land, then emit the Id + drain
+            // any held chunks. Only fires when we actually have
+            // chunks queued behind the gate.
+            if !id_emitted && !buffered.is_empty() {
+                if let Err(e) = log_writer.wait_written_once().await {
+                    stream_err.get_or_insert_with(|| format!("log writer wait: {e}"));
+                } else {
+                    let (hier, _) = identity
+                        .as_ref()
+                        .expect("identity set on the first chunk");
+                    yield ResponseItem::Id(hier.clone());
+                    for c in buffered.drain(..) {
+                        yield ResponseItem::Chunk(c);
+                    }
+                    id_emitted = true;
+                }
+            }
+
+            // Finalize the log writer (consumes it; drops the
+            // sender; awaits the listener task). By construction
+            // this returns only after the queue is empty AND no
+            // work is in flight.
+            if let Err(e) = log_writer.finalize().await {
+                stream_err.get_or_insert_with(|| format!("log writer finalize: {e}"));
+            }
             drop(sdk_stream);
             drop(conduit);
+
+            if let Some(e) = stream_err {
+                Err(Error::Instance(e))?;
+            }
 
             // End-of-pass: a pure EXISTS check against the spawn's
             // single hierarchy. The conduit already promoted every

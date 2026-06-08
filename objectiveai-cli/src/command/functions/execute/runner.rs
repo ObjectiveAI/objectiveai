@@ -12,13 +12,18 @@
 //! [`crate::websockets::agent_hierarchies::ChunkAgentHierarchies`]
 //! + [`crate::websockets::agent_registry::AgentInstanceRegistry`].
 //!
-//! `LogStreamReady` equivalent: the LogWriter exposes a
-//! `oneshot::Receiver<String>` from its constructor that fires the
-//! first time the listener task learns the stream's primary
-//! `response_id`. The main loop reacts via `tokio::select!` so it
-//! doesn't sit blocked on `stream.next()` while the writer races
-//! toward `finalize` — important for single-chunk completions where
-//! the primary id only lands after the SDK stream closes.
+//! Event::Id handshake: gated on
+//! [`crate::db::logs::LogWriter::written_once`]. Every chunk we
+//! receive from the SDK is sent into the LogWriter and either
+//! yielded immediately (if `written_once` already flipped) or
+//! buffered. The first chunk on which `written_once` returns true
+//! triggers the Id emission (the LogWriter's
+//! `oneshot::Receiver<String>` is awaited inline — it's ready by
+//! that point because the listener fires the watch immediately
+//! before the ready oneshot) followed by a drain of the buffer.
+//! After the SDK stream ends, if `written_once` is still false but
+//! the buffer is non-empty, we `wait_written_once().await` and then
+//! emit the deferred Id + buffer drain before finalizing.
 
 use std::path::PathBuf;
 
@@ -36,8 +41,9 @@ use crate::websockets::agent_registry::AgentInstanceRegistry;
 /// `ResponseItem` (`standard::ResponseItem` or
 /// `swiss_system::ResponseItem`).
 pub enum Event {
-    /// One-shot. Fires after the writer task mints the primary
-    /// log id. Always emitted before any `Chunk` item.
+    /// One-shot. Fires after the LogWriter has confirmed at least
+    /// one successful batch persistence (`written_once`). Always
+    /// emitted before any `Chunk` item.
     Id(String),
     /// One chunk straight off the SDK stream.
     Chunk(FunctionExecutionChunk),
@@ -72,13 +78,17 @@ pub fn run(
         // The LogWriter owns a listener task internally; it
         // coalesces queued chunks and persists off this critical
         // path. The ready receiver fires the first time the
-        // listener learns the primary response id.
+        // listener learns the primary response id — by which point
+        // `written_once` has also been flipped, so we never await
+        // this oneshot before the gate opens.
         let (log_writer, log_ready_rx) = crate::db::logs::write_function_execution(
             &ctx.db, &params,
         )
         .map_err(|e| Error::Instance(format!(
             "failed to build function-execution log writer: {e}"
         )))?;
+        // Wrap so we can `take()` the receiver exactly once when
+        // the Id gate opens (whether mid-stream or post-stream).
         let mut log_ready_rx = Some(log_ready_rx);
 
         let (sdk_stream, notifier) =
@@ -95,94 +105,101 @@ pub fn run(
 
         let mut sdk_stream = Box::pin(sdk_stream);
 
-        // Local buffer for chunks observed before primary_id lands.
-        // Drained the moment the oneshot fires.
+        // Local buffer: chunks held back until `written_once` flips.
         let mut buffered: Vec<FunctionExecutionChunk> = Vec::new();
         let mut id_emitted = false;
         let mut stream_err: Option<String> = None;
 
-        loop {
-            tokio::select! {
-                biased;
+        while let Some(item) = sdk_stream.next().await {
+            match item {
+                Ok(chunk) => {
+                    // 0. Best-effort claim of every
+                    //    agent_instance_hierarchy in the chunk's
+                    //    nested task tree. Registry HashMap dedupes;
+                    //    per-chunk dispatch catches each fresh slot
+                    //    the moment it appears on the wire.
+                    for hier in chunk.agent_instance_hierarchies() {
+                        registry.observe(hier);
+                    }
 
-                ready = async { log_ready_rx.as_mut().unwrap().await },
-                    if !id_emitted && log_ready_rx.is_some() => {
-                    log_ready_rx = None;
-                    id_emitted = true;
-                    if let Ok(id) = ready {
+                    // 1. Hand a clone to the LogWriter. A send
+                    //    error means the listener task has exited
+                    //    (likely from an earlier DB error) — treat
+                    //    it like a stream-level failure.
+                    if let Err(e) = log_writer.write(chunk.clone()) {
+                        stream_err = Some(format!("{e}"));
+                        break;
+                    }
+
+                    // 2. Id gate: once the LogWriter confirms it
+                    //    has persisted at least one batch, take the
+                    //    ready oneshot (already fired by then) and
+                    //    emit Id + drain the buffer.
+                    if !id_emitted && log_writer.written_once() {
+                        let rx = log_ready_rx
+                            .take()
+                            .expect("ready_rx taken exactly once via id_emitted gate");
+                        let id = rx.await.map_err(|e| Error::Instance(
+                            format!("log writer ready signal lost: {e}")
+                        ))?;
                         yield Event::Id(id);
+                        for c in buffered.drain(..) {
+                            yield Event::Chunk(c);
+                        }
+                        id_emitted = true;
+                    }
+
+                    // 3. Emit or buffer.
+                    if id_emitted {
+                        yield Event::Chunk(chunk);
+                    } else {
+                        buffered.push(chunk);
+                    }
+                }
+                Err(e) => {
+                    stream_err = Some(format!("{e}"));
+                    break;
+                }
+            }
+        }
+
+        // Post-stream: if `written_once` never flipped during the
+        // loop but we DID send chunks to the LogWriter, wait for
+        // the first batch to land, then emit the deferred Id +
+        // buffer drain. (If the buffer is empty there's no Id to
+        // emit — we just finalize and propagate.)
+        if !id_emitted && !buffered.is_empty() {
+            match log_writer.wait_written_once().await {
+                Ok(()) => {
+                    let rx = log_ready_rx
+                        .take()
+                        .expect("ready_rx taken exactly once via id_emitted gate");
+                    match rx.await {
+                        Ok(id) => yield Event::Id(id),
+                        Err(e) => {
+                            stream_err.get_or_insert_with(||
+                                format!("log writer ready signal lost: {e}")
+                            );
+                        }
                     }
                     for c in buffered.drain(..) {
                         yield Event::Chunk(c);
                     }
+                    id_emitted = true;
                 }
-
-                item = sdk_stream.next() => {
-                    match item {
-                        Some(Ok(chunk)) => {
-                            // 0. Best-effort claim of every
-                            //    agent_instance_hierarchy in the
-                            //    chunk's nested task tree. Registry
-                            //    HashMap dedupes; per-chunk dispatch
-                            //    catches each fresh slot the moment
-                            //    it appears on the wire.
-                            for hier in chunk.agent_instance_hierarchies() {
-                                registry.observe(hier);
-                            }
-
-                            // 1. Hand a clone to the LogWriter. A
-                            //    send error means the listener task
-                            //    has exited (likely from an earlier
-                            //    DB error) — treat it like a
-                            //    stream-level failure.
-                            if let Err(e) = log_writer.write(chunk.clone()) {
-                                stream_err = Some(format!("{e}"));
-                                break;
-                            }
-
-                            // 2. Emit or buffer until Id fires.
-                            if id_emitted {
-                                yield Event::Chunk(chunk);
-                            } else {
-                                buffered.push(chunk);
-                            }
-                        }
-                        Some(Err(e)) => {
-                            stream_err = Some(format!("{e}"));
-                            break;
-                        }
-                        None => break,
-                    }
+                Err(e) => {
+                    stream_err.get_or_insert_with(|| format!("log writer wait: {e}"));
                 }
             }
         }
 
-        // EOF — close the writer's input by consuming it via
-        // `finalize`. The await blocks until the listener has
-        // drained every queued chunk AND finished its in-flight
-        // future, so both "queue empty" and "no work in flight"
-        // hold by the time we proceed.
+        // Finalize the LogWriter (consumes; drops the sender;
+        // awaits the listener). By the time this returns: the
+        // queue is empty AND no work is in flight.
         let finalize_outcome = log_writer.finalize().await;
 
-        // If the ready oneshot hadn't fired by stream EOF, the
-        // listener may have just landed primary_id during its last
-        // batch. Drain the receiver (now that the sender side has
-        // been dropped by the finalize-consume path) so we can fire
-        // a last-chance Event::Id for single-chunk completions.
-        if !id_emitted {
-            if let Some(rx) = log_ready_rx.take() {
-                if let Ok(id) = rx.await {
-                    yield Event::Id(id);
-                }
-                for c in buffered.drain(..) {
-                    yield Event::Chunk(c);
-                }
-            }
-        }
-
-        // Surface writer failures. Stream errors take precedence
-        // since they're the upstream cause; writer errors are a
-        // downstream symptom.
+        // Surface errors. Stream errors take precedence (upstream
+        // cause); writer errors are a downstream symptom.
         if let Some(e) = stream_err {
             Err(Error::Instance(e))?;
         }
