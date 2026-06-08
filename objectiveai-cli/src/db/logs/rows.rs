@@ -110,14 +110,11 @@ fn assistant_response_chunk_rows<'a>(
 ) -> RowsIter<'a> {
     let index = chunk.index;
 
-    let refusal_iter = chunk.refusal.iter().map(move |text| {
-        RowValue::AssistantResponseRefusal {
-            response_id,
-            agent_instance_hierarchy,
-            index,
-            text: text.as_str(),
-        }
-    });
+    // Emission order: reasoning → tool_calls → content → refusal.
+    // Refusal goes last on purpose — when a model refuses it's
+    // typically the terminal signal of the turn, so readers see all
+    // the actual work (reasoning / tool calls / content parts) before
+    // the refusal stamp.
     let reasoning_iter = chunk.reasoning.iter().map(move |text| {
         RowValue::AssistantResponseReasoning {
             response_id,
@@ -147,12 +144,20 @@ fn assistant_response_chunk_rows<'a>(
         .content
         .iter()
         .flat_map(move |c| assistant_content_rows(response_id, agent_instance_hierarchy, index, c));
+    let refusal_iter = chunk.refusal.iter().map(move |text| {
+        RowValue::AssistantResponseRefusal {
+            response_id,
+            agent_instance_hierarchy,
+            index,
+            text: text.as_str(),
+        }
+    });
 
     Box::new(
-        refusal_iter
-            .chain(reasoning_iter)
+        reasoning_iter
             .chain(tool_calls_iter)
-            .chain(content_iter),
+            .chain(content_iter)
+            .chain(refusal_iter),
     )
 }
 
