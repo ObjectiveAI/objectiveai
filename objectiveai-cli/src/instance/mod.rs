@@ -14,7 +14,6 @@
 //! impls ARE the wire format that the parent's `crate::streaming`
 //! deserializes back into [`crate::streaming::InstanceItem`]).
 
-mod agent_hierarchies;
 mod functions;
 pub mod handshake;
 pub mod request;
@@ -71,7 +70,7 @@ type EmissionStream = Pin<Box<dyn Stream<Item = Result<InstanceEmission, Error>>
 /// fires `InstanceRequest`.
 pub async fn run(ctx: crate::context::Context) -> Result<EmissionStream, Error> {
     let request = handshake::read_request().map_err(Error::Instance)?;
-    let mcp_server = crate::mcp_server::spawn(ctx.clone());
+    let mcp_server = crate::websockets::mcp_server::spawn(ctx.clone());
     let http = request.http;
     let pipes = request.pipes;
     let stream: EmissionStream = match request.endpoint {

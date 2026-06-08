@@ -83,9 +83,9 @@ impl PipeConfig {
     pub fn build_conduit(
         &self,
         ctx: crate::context::Context,
-        mcp_server: crate::mcp_server::McpServerHandle,
-    ) -> crate::api::conduit::ConduitMcpHandler {
-        crate::api::conduit::ConduitMcpHandler::new(mcp_server, ctx)
+        mcp_server: crate::websockets::mcp_server::McpServerHandle,
+    ) -> crate::websockets::conduit::ConduitMcpHandler {
+        crate::websockets::conduit::ConduitMcpHandler::new(mcp_server, ctx)
     }
 }
 

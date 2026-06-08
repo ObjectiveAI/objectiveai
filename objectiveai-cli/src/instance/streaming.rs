@@ -18,8 +18,8 @@ use tokio::sync::mpsc;
 use crate::error::Error;
 use crate::db::logs::LogWriter;
 use crate::instance::InstanceEmission;
-use crate::instance::agent_hierarchies::ChunkAgentHierarchies;
-use crate::agent_registry::AgentInstanceRegistry;
+use crate::websockets::agent_hierarchies::ChunkAgentHierarchies;
+use crate::websockets::agent_registry::AgentInstanceRegistry;
 
 pub type EmissionsTx = mpsc::Sender<Result<InstanceEmission, Error>>;
 

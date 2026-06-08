@@ -46,7 +46,7 @@ use objectiveai_sdk::cli::command::{BinaryExecutor, CommandExecutor};
 use crate::context::Context;
 use crate::db;
 use crate::error::Error;
-use crate::agent_registry::AgentInstanceRegistry;
+use crate::websockets::agent_registry::AgentInstanceRegistry;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
@@ -221,9 +221,9 @@ fn run_multi_pass(
             // new conduit + MCP server. The registry survives across
             // passes (see above).
             let mcp_server =
-                crate::mcp_server::spawn(ctx.clone());
+                crate::websockets::mcp_server::spawn(ctx.clone());
             let conduit =
-                crate::api::conduit::ConduitMcpHandler::new(
+                crate::websockets::conduit::ConduitMcpHandler::new(
                     mcp_server,
                     ctx.clone(),
                 );
