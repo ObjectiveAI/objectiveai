@@ -57,7 +57,7 @@ use objectiveai_sdk::functions::executions::response::streaming::FunctionExecuti
 use objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams;
 use objectiveai_sdk::vector::completions::response::streaming::VectorCompletionChunk;
 use serde::Serialize;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{mpsc, oneshot, watch};
 use tokio::task::JoinHandle;
 
 use crate::db::Pool;
@@ -125,6 +125,11 @@ impl ChunkPush for FunctionExecutionChunk {
 pub struct LogWriter<C> {
     tx: mpsc::UnboundedSender<C>,
     handle: JoinHandle<Result<(), crate::error::Error>>,
+    /// Toggled `false` → `true` by the listener task once it has
+    /// completed a single successful `apply_chunk`. Powers
+    /// [`LogWriter::written_once`] (sync peek) and
+    /// [`LogWriter::wait_written_once`] (async wait).
+    written_rx: watch::Receiver<bool>,
     _chunk: PhantomData<fn() -> C>,
 }
 
@@ -139,6 +144,29 @@ impl<C> LogWriter<C> {
             .send(chunk)
             .map_err(|_| crate::error::Error::Instance(
                 "log writer task has exited (earlier write failed)".to_string(),
+            ))
+    }
+
+    /// Sync peek: has the listener completed at least one successful
+    /// `apply_chunk` batch? Flips `false → true` exactly once,
+    /// immediately after the first batch's write completes and
+    /// before the listener parks on the next `recv`.
+    pub fn written_once(&self) -> bool {
+        *self.written_rx.borrow()
+    }
+
+    /// Async wait that resolves once the listener has completed its
+    /// first successful `apply_chunk` batch. Returns immediately if
+    /// that already happened. Errors only if the listener task
+    /// exited before its first successful write (DB error on the
+    /// very first batch).
+    pub async fn wait_written_once(&self) -> Result<(), crate::error::Error> {
+        let mut rx = self.written_rx.clone();
+        rx.wait_for(|b| *b)
+            .await
+            .map(|_| ())
+            .map_err(|_| crate::error::Error::Instance(
+                "log writer task exited before completing its first write".to_string(),
             ))
     }
 
@@ -339,7 +367,9 @@ impl<C> LogWriterState<C> {
 /// 2. Drain any other chunks queued behind it via `try_recv`,
 ///    `.push()`-aggregating them into the first.
 /// 3. Apply the aggregated chunk to the state.
-/// 4. If `primary_id` just became known, fire the ready oneshot.
+/// 4. If this was the first successful batch, flip `written_tx` to
+///    `true` (powers `LogWriter::wait_written_once`).
+/// 5. If `primary_id` just became known, fire the ready oneshot.
 ///
 /// On `recv() = None` (sender dropped via `finalize`), the loop
 /// exits cleanly. On any DB error from `apply_chunk`, the loop
@@ -349,11 +379,13 @@ async fn listener_loop<C>(
     mut rx: mpsc::UnboundedReceiver<C>,
     mut state: LogWriterState<C>,
     ready_tx: oneshot::Sender<String>,
+    written_tx: watch::Sender<bool>,
 ) -> Result<(), crate::error::Error>
 where
     C: WriterChunk + AgentCompletionIds + ChunkPush + Serialize + Send + Sync,
 {
     let mut ready_tx = Some(ready_tx);
+    let mut written_fired = false;
     while let Some(first) = rx.recv().await {
         // Coalesce: aggregate any queued chunks into the first.
         let mut agg = first;
@@ -361,6 +393,13 @@ where
             agg.push(&next);
         }
         state.apply_chunk(&agg).await?;
+        // First successful apply: flip the watch true exactly once.
+        // Subsequent batches don't touch it (the value is already
+        // true; no point waking waiters again).
+        if !written_fired {
+            let _ = written_tx.send(true);
+            written_fired = true;
+        }
         // Fire the oneshot the first time primary_id becomes known.
         // `apply_chunk` sets `primary_id` on the first invocation, so
         // by the time we get here it's already Some on at least the
@@ -399,12 +438,14 @@ where
 {
     let (tx, rx) = mpsc::unbounded_channel();
     let (ready_tx, ready_rx) = oneshot::channel();
+    let (written_tx, written_rx) = watch::channel(false);
     let state = LogWriterState::new(pool, tier, request_body, rows_fn);
-    let handle = tokio::spawn(listener_loop(rx, state, ready_tx));
+    let handle = tokio::spawn(listener_loop(rx, state, ready_tx, written_tx));
     (
         LogWriter {
             tx,
             handle,
+            written_rx,
             _chunk: PhantomData,
         },
         ready_rx,
