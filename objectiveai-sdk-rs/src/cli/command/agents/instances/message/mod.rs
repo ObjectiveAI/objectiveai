@@ -198,16 +198,17 @@ pub enum Response {
         agent_tag: Option<String>,
     },
     /// The stream=false path re-execed itself as a detached
-    /// subprocess (stream=true). The subprocess yielded a
-    /// `ResponseItem::SpawnId` first; the bare id string is
-    /// surfaced here.
-    SpawnId { value: String },
+    /// subprocess (stream=true) and the subprocess yielded a
+    /// `ResponseItem::Id` first. Same payload as spawn's
+    /// `ResponseItem::Id(String)` — the bare
+    /// `agent_instance_hierarchy` string the runner just minted.
+    Id { agent_instance_hierarchy: String },
 }
 
 /// Streamed response (stream=true). The cli yields a sequence of
-/// these. Same `Delivered` / `Enqueued` first-item semantics as
-/// [`Response`]; the spawn-take-over branch adds streaming
-/// `SpawnChunk` items plus a final/initial `SpawnId`.
+/// these. Same `Delivered` / `Enqueued` / `Id` first-item
+/// semantics as [`Response`]; the spawn-take-over branch adds
+/// streaming `Chunk` items after the initial `Id`.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[schemars(rename = "cli.command.agents.instances.message.ResponseItem")]
@@ -222,16 +223,21 @@ pub enum ResponseItem {
         #[schemars(extend("omitempty" = true))]
         agent_tag: Option<String>,
     },
-    SpawnId { value: String },
-    SpawnChunk { content: AgentCompletionChunk },
+    Id { agent_instance_hierarchy: String },
+    /// Newtype-of-struct under an internally-tagged enum: the
+    /// chunk's own fields land at the top level of the JSON, with
+    /// `"type":"chunk"` injected. Wire shape equivalent to spawn's
+    /// `ResponseItem::Chunk(AgentCompletionChunk)` plus the `type`
+    /// discriminator.
+    Chunk(AgentCompletionChunk),
 }
 
 impl From<Response> for ResponseItem {
     /// Lift the unary [`Response`] into the streaming
     /// [`ResponseItem`] shape. Lossless — every `Response`
     /// variant maps 1-to-1 onto a `ResponseItem` variant of the
-    /// same name; streaming-only variants (`SpawnChunk`) are
-    /// never produced from a `Response`.
+    /// same name; streaming-only variants (`Chunk`) are never
+    /// produced from a `Response`.
     fn from(r: Response) -> Self {
         match r {
             Response::Delivered => ResponseItem::Delivered,
@@ -244,7 +250,11 @@ impl From<Response> for ResponseItem {
                 agent_instance_hierarchy,
                 agent_tag,
             },
-            Response::SpawnId { value } => ResponseItem::SpawnId { value },
+            Response::Id {
+                agent_instance_hierarchy,
+            } => ResponseItem::Id {
+                agent_instance_hierarchy,
+            },
         }
     }
 }

@@ -241,10 +241,12 @@ async fn run_spawn_with(
         while let Some(item) = inner.next().await {
             let ev = item?;
             match ev {
-                SpawnResponseItem::Id(id) => yield ResponseItem::SpawnId { value: id },
-                SpawnResponseItem::Chunk(c) => {
-                    yield ResponseItem::SpawnChunk { content: c }
+                SpawnResponseItem::Id(id) => {
+                    yield ResponseItem::Id {
+                        agent_instance_hierarchy: id,
+                    }
                 }
+                SpawnResponseItem::Chunk(c) => yield ResponseItem::Chunk(c),
             }
         }
     };
