@@ -106,18 +106,15 @@ pub enum Response {
         arguments: String,
     },
     #[schemars(title = "Text")]
-    Text { text: String },
+    Text(String),
     #[schemars(title = "Image")]
-    Image { image_url: ImageUrl },
+    Image(ImageUrl),
     #[schemars(title = "Audio")]
-    Audio { input_audio: InputAudio },
+    Audio(InputAudio),
     #[schemars(title = "Video")]
-    Video {
-        video_url: VideoUrl,
-        is_input: bool,
-    },
+    Video(VideoUrl),
     #[schemars(title = "File")]
-    File { file: File },
+    File(File),
 }
 
 #[derive(clap::Args)]
@@ -166,11 +163,11 @@ impl crate::cli::command::CommandResponse for Response {
             // Content payloads delegate to the existing inner-type
             // projections so they ride MCP exactly the way bare
             // `RichContentPart` does today.
-            Response::Text { text } => text.into_mcp(),
-            Response::Image { image_url } => image_url.into_mcp(),
-            Response::Audio { input_audio } => input_audio.into_mcp(),
-            Response::Video { video_url, .. } => video_url.into_mcp(),
-            Response::File { file } => file.into_mcp(),
+            Response::Text(text) => text.into_mcp(),
+            Response::Image(image_url) => image_url.into_mcp(),
+            Response::Audio(input_audio) => input_audio.into_mcp(),
+            Response::Video(video_url) => video_url.into_mcp(),
+            Response::File(file) => file.into_mcp(),
             // Everything else: the full typed variant rides as JSONL.
             other => crate::cli::command::McpResponseItem::JSONL(
                 serde_json::to_value(other).unwrap(),

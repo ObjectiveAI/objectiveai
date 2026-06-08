@@ -112,7 +112,7 @@ async fn load_payload(
                 index,
             )
             .await?;
-            Ok(Response::Text { text })
+            Ok(Response::Text(text))
         }
         MessageTable::AssistantResponseReasoning => {
             let index = require_row_index(table_kind, row_index)?;
@@ -123,7 +123,7 @@ async fn load_payload(
                 index,
             )
             .await?;
-            Ok(Response::Text { text })
+            Ok(Response::Text(text))
         }
         MessageTable::AssistantResponseToolCalls => {
             let index = require_row_index(table_kind, row_index)?;
@@ -157,7 +157,7 @@ async fn load_payload(
                 part_index,
             )
             .await?;
-            Ok(Response::Text { text })
+            Ok(Response::Text(text))
         }
         MessageTable::AssistantResponseContentImage => {
             let (index, part_index) =
@@ -170,7 +170,7 @@ async fn load_payload(
                 part_index,
             )
             .await?;
-            Ok(Response::Image { image_url })
+            Ok(Response::Image(image_url))
         }
         MessageTable::AssistantResponseContentAudio => {
             let (index, part_index) =
@@ -183,12 +183,12 @@ async fn load_payload(
                 part_index,
             )
             .await?;
-            Ok(Response::Audio { input_audio })
+            Ok(Response::Audio(input_audio))
         }
         MessageTable::AssistantResponseContentVideo => {
             let (index, part_index) =
                 require_full_indices(table_kind, row_index, row_sub_index)?;
-            let (video_url, is_input) = fetch_content_video(
+            let video_url = fetch_content_video(
                 pool,
                 "logs.assistant_response_content_video",
                 response_id,
@@ -196,7 +196,7 @@ async fn load_payload(
                 part_index,
             )
             .await?;
-            Ok(Response::Video { video_url, is_input })
+            Ok(Response::Video(video_url))
         }
         MessageTable::AssistantResponseContentFile => {
             let (index, part_index) =
@@ -209,7 +209,7 @@ async fn load_payload(
                 part_index,
             )
             .await?;
-            Ok(Response::File { file })
+            Ok(Response::File(file))
         }
         MessageTable::ToolResponseContentText => {
             let (index, part_index) =
@@ -222,7 +222,7 @@ async fn load_payload(
                 part_index,
             )
             .await?;
-            Ok(Response::Text { text })
+            Ok(Response::Text(text))
         }
         MessageTable::ToolResponseContentImage => {
             let (index, part_index) =
@@ -235,7 +235,7 @@ async fn load_payload(
                 part_index,
             )
             .await?;
-            Ok(Response::Image { image_url })
+            Ok(Response::Image(image_url))
         }
         MessageTable::ToolResponseContentAudio => {
             let (index, part_index) =
@@ -248,12 +248,12 @@ async fn load_payload(
                 part_index,
             )
             .await?;
-            Ok(Response::Audio { input_audio })
+            Ok(Response::Audio(input_audio))
         }
         MessageTable::ToolResponseContentVideo => {
             let (index, part_index) =
                 require_full_indices(table_kind, row_index, row_sub_index)?;
-            let (video_url, is_input) = fetch_content_video(
+            let video_url = fetch_content_video(
                 pool,
                 "logs.tool_response_content_video",
                 response_id,
@@ -261,7 +261,7 @@ async fn load_payload(
                 part_index,
             )
             .await?;
-            Ok(Response::Video { video_url, is_input })
+            Ok(Response::Video(video_url))
         }
         MessageTable::ToolResponseContentFile => {
             let (index, part_index) =
@@ -274,7 +274,7 @@ async fn load_payload(
                 part_index,
             )
             .await?;
-            Ok(Response::File { file })
+            Ok(Response::File(file))
         }
     }
 }
@@ -389,9 +389,9 @@ async fn fetch_content_video(
     response_id: &str,
     index: i64,
     part_index: i64,
-) -> Result<(VideoUrl, bool), Error> {
+) -> Result<VideoUrl, Error> {
     let sql = format!(
-        "SELECT url, is_input FROM {table} \
+        "SELECT url FROM {table} \
          WHERE response_id = $1 AND \"index\" = $2 AND part_index = $3",
     );
     let row = sqlx::query(&sql)
@@ -400,10 +400,7 @@ async fn fetch_content_video(
         .bind(part_index)
         .fetch_one(&**pool)
         .await?;
-    Ok((
-        VideoUrl { url: row.try_get("url")? },
-        row.try_get("is_input")?,
-    ))
+    Ok(VideoUrl { url: row.try_get("url")? })
 }
 
 async fn fetch_content_file(
