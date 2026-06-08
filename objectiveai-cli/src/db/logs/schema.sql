@@ -309,23 +309,20 @@ DO $logs_message_table_bootstrap$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $logs_message_table_bootstrap$;
 
--- Sequence backing the `"index"` column. Pulled once per messages-row
--- INSERT — never re-pulled on UPDATE. The number it produces is the
--- event's position in the agent's full history (see column docstring
--- on `logs.messages."index"`).
-CREATE SEQUENCE IF NOT EXISTS logs.messages_index_seq;
-
 CREATE TABLE IF NOT EXISTS logs.messages (
     response_id              TEXT                NOT NULL,
     "table"                  logs.message_table  NOT NULL,
     row_index                BIGINT              NULL,
     row_sub_index            BIGINT              NULL,
-    -- Position of this event in the agent's full history. Assigned
-    -- once from `logs.messages_index_seq` on INSERT; never bumped on
-    -- UPDATE. Readers paginate `WHERE "index" > read_index`; the
-    -- writer downgrades `messages_queue.read_index` when an UPDATE
-    -- needs to re-deliver an already-consumed row to a caller.
-    "index"                  BIGINT              NOT NULL,
+    -- Position of this event in the agent's full history (and in the
+    -- global cross-agent event stream — the column is BIGSERIAL, so
+    -- per-agent values are gappy but strictly increasing). Assigned
+    -- once on INSERT via the implicit sequence postgres creates for
+    -- BIGSERIAL (`logs.messages_index_seq`); never bumped on UPDATE.
+    -- Readers paginate `WHERE "index" > read_index`; the writer
+    -- downgrades `messages_queue.read_index` when an UPDATE needs to
+    -- re-deliver an already-consumed row to a caller.
+    "index"                  BIGSERIAL           NOT NULL,
     agent_instance_hierarchy TEXT                NULL,
     "timestamp"              BIGINT              NOT NULL,
     CONSTRAINT messages_table_row_consistency CHECK (
