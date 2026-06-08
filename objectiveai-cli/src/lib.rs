@@ -7,13 +7,11 @@ pub mod error;
 pub mod executor;
 pub mod favorite_ref;
 pub mod filesystem;
-pub mod instance;
 pub mod path_ref;
 mod postgres;
 mod python;
 mod source_resolver;
 mod spawn;
-mod streaming;
 pub(crate) mod websockets;
 
 #[cfg(test)]

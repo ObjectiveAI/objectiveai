@@ -18,6 +18,7 @@ use objectiveai_sdk::functions::{
 use crate::context::Context;
 use crate::error::Error;
 
+pub(super) mod runner;
 pub mod standard;
 pub mod swiss_system;
 

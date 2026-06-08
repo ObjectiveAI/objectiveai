@@ -107,12 +107,6 @@ pub enum Error {
     SpawnNoListeningLine { name: String },
     #[error("spawn {0}: {1}")]
     Spawn(String, std::io::Error),
-    #[error("cli-stream subprocess exited with code {code}:\n{stderr_tail}")]
-    CliStreamSubprocess { code: i32, stderr_tail: String },
-    #[error(
-        "cli-stream lost the single-flight bind race for the target agent (slot taken):\n{stderr_tail}"
-    )]
-    CliStreamSlotTaken { stderr_tail: String },
     #[error(
         "no prior agent_completion_request for agent {agent_instance_hierarchy:?}; spawn the agent first with `agents spawn`"
     )]

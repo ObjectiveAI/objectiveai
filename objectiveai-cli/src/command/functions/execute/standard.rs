@@ -1,30 +1,49 @@
-//! `functions execute standard` — bare-naked chunk-or-id
+//! `functions execute standard` — in-process chunk-or-id
 //! streaming handler.
 //!
-//! Same shape as `agents spawn`: spawns the instance runner as a
-//! detached background process (unless `dangerous_advanced.stream =
-//! Some(true)`, in which case the leaf follows the stream to EOF) and
-//! yields one `ResponseItem::Id` then optionally per-chunk
-//! `ResponseItem::Chunk` items.
+//! Same two-mode shape as `agents spawn`: `stream=true` drives the
+//! upstream WS directly via [`super::runner::run`] and yields each
+//! chunk as it arrives; `stream=false` re-execs `objectiveai-cli`
+//! as a detached subprocess with the same argv plus
+//! `stream=true`, captures the first `ResponseItem::Id`, yields
+//! it, and returns. The detached subprocess outlives the parent
+//! (Unix: kernel re-parents to init; Windows: `DETACHED_PROCESS |
+//! CREATE_NEW_PROCESS_GROUP` from `BinaryExecutor::detach(true)`).
 
 use std::pin::Pin;
 
 use futures::Stream;
 use futures::StreamExt;
 use objectiveai_sdk::cli::command::functions::execute::standard::{
-    Request, RequestInput, ResponseItem,
+    Request, RequestDangerousAdvanced, RequestInput, ResponseItem,
 };
+use objectiveai_sdk::cli::command::{BinaryExecutor, CommandExecutor};
 use objectiveai_sdk::functions::executions::request::{
     FunctionExecutionCreateParams, Strategy,
 };
 
 use crate::context::Context;
 use crate::error::Error;
-use crate::streaming::{InstanceItem, instance_subprocess_stream};
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
+    let want_stream = request
+        .dangerous_advanced
+        .as_ref()
+        .and_then(|a| a.stream)
+        .unwrap_or(false);
+    if want_stream {
+        execute_streaming(ctx, request).await
+    } else {
+        execute_detached(request).await
+    }
+}
+
+async fn execute_streaming(
+    ctx: &Context,
+    request: Request,
+) -> Result<ItemStream, Error> {
     let (function, profile) = tokio::try_join!(
         super::resolve_function(ctx, request.function),
         super::resolve_profile(ctx, request.profile),
@@ -35,7 +54,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         RequestInput::PythonInline(code) => super::resolve_input_python_inline(code)?,
         RequestInput::PythonFile(path) => super::resolve_input_python_file(path)?,
     };
-
     let params = FunctionExecutionCreateParams {
         function,
         profile,
@@ -51,28 +69,52 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         stream: Some(true),
         continuation: request.continuation,
     };
-
-    let stream = request
-        .dangerous_advanced
-        .as_ref()
-        .and_then(|a| a.stream)
-        .unwrap_or(false);
-
-    let raw = instance_subprocess_stream(
-        ctx,
-        crate::instance::request::InstanceEndpoint::FunctionsExecute(params),
-        stream,
-    );
-    Ok(Box::pin(raw.map(map_item)))
+    let agents_dir = ctx
+        .filesystem
+        .base_dir()
+        .join("instances")
+        .join("agents");
+    let inner = super::runner::run(ctx.clone(), params, agents_dir);
+    Ok(Box::pin(inner.map(|r| {
+        r.map(|ev| match ev {
+            super::runner::Event::Id(id) => ResponseItem::Id(id),
+            super::runner::Event::Chunk(c) => ResponseItem::Chunk(c),
+        })
+    })))
 }
 
-fn map_item(item: Result<InstanceItem, Error>) -> Result<ResponseItem, Error> {
-    match item? {
-        InstanceItem::Id(id) => Ok(ResponseItem::Id(id)),
-        InstanceItem::Chunk(value) => serde_json::from_value(value)
-            .map(ResponseItem::Chunk)
-            .map_err(|e| Error::InlineJson(e)),
+/// Stream-false: self-respawn as a detached subprocess running
+/// the same `functions execute standard ...` argv with
+/// `stream=true`. Take the first `ResponseItem::Id` off the
+/// child's stdout, yield it, return. Child outlives this call.
+async fn execute_detached(request: Request) -> Result<ItemStream, Error> {
+    let mut child_request = request;
+    match child_request.dangerous_advanced.as_mut() {
+        Some(adv) => adv.stream = Some(true),
+        None => {
+            child_request.dangerous_advanced =
+                Some(RequestDangerousAdvanced { stream: Some(true) })
+        }
     }
+    let exe = std::env::current_exe()
+        .map_err(|e| Error::Spawn("current_exe".into(), e))?;
+    let executor = BinaryExecutor::from_path(exe).detach(true);
+    let mut stream = executor
+        .execute::<Request, ResponseItem>(child_request, None)
+        .await
+        .map_err(|e| Error::Instance(format!(
+            "self-respawn for functions execute standard: {e}"
+        )))?;
+    let first = stream
+        .next()
+        .await
+        .ok_or(Error::EmptyStream)?
+        .map_err(|e| Error::Instance(format!(
+            "self-respawn for functions execute standard: {e}"
+        )))?;
+    Ok(Box::pin(
+        objectiveai_sdk::cli::command::StreamOnce::new(Ok(first)),
+    ))
 }
 
 pub mod request_schema {
