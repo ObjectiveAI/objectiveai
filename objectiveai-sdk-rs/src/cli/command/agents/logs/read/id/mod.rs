@@ -1,6 +1,31 @@
-﻿//! `agents read id` — async handler stub.
+//! `agents logs read id` — fetch one logged row by its
+//! `logs.messages."index"` BIGSERIAL. The handler resolves the row's
+//! target table via the `logs.message_table` discriminator and
+//! returns a typed [`Response`] variant carrying that table's
+//! payload — no `serde_json::Value` anywhere in the public shape.
+//!
+//! The 17 underlying `logs.*` tables collapse into 10 variants:
+//!
+//! 1. **Request-blob tiers (3)** — agent / vector / function
+//!    request bodies. The JSONB column round-trips through the
+//!    matching SDK `…CreateParams` type so callers see a proper
+//!    typed object, not a raw blob.
+//! 2. **`ToolResponse`** — the per-message tool-response container
+//!    row (`tool_call_id` + index).
+//! 3. **`ResponseToolCalls`** — one assistant tool-call slot
+//!    (`tool_call_id` + `arguments` + indices).
+//! 4. **Content payloads (5)** — `Text` / `Image` / `Audio` /
+//!    `Video` / `File`. The `Text` variant subsumes all text-bearing
+//!    rows (refusal, reasoning, assistant content text, tool
+//!    content text); media variants carry the SDK media type
+//!    directly so MCP rendering routes through the existing
+//!    `ContentBlock` projections.
 
+use crate::agent::completions::message::{File, ImageUrl, InputAudio, VideoUrl};
+use crate::agent::completions::request::AgentCompletionCreateParams;
 use crate::cli::command::CommandRequest;
+use crate::functions::executions::request::FunctionExecutionCreateParams;
+use crate::vector::completions::request::VectorCompletionCreateParams;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.logs.read.id.Request")]
@@ -34,20 +59,71 @@ impl CommandRequest for Request {
     }
 }
 
-// Stub Response shape during the postgres-backed reader rewrite.
-// The CLI handler returns `NotImplemented`; this enum exists only so
-// the SDK leaf still compiles and produces a JSON Schema.
+/// Resolved payload for one `logs.messages."index"`. Tagged by
+/// `type`, snake_case discriminant. The MCP projection in
+/// [`CommandResponse::into_mcp`] hands media variants over as
+/// [`ContentBlock`]s and text as a bare JSON string — matching the
+/// existing `agents queue read id` projection of `RichContentPart`.
+/// The five non-content variants render as JSONL with their full
+/// typed body so callers can introspect request-blob /
+/// tool-response / tool-call metadata.
+///
+/// [`ContentBlock`]: crate::mcp::tool::ContentBlock
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(tag = "type", content = "value", rename_all = "snake_case")]
+#[serde(tag = "type", rename_all = "snake_case")]
 #[schemars(rename = "cli.command.agents.logs.read.id.Response")]
 pub enum Response {
-    #[schemars(title = "NotImplemented")]
-    NotImplemented,
+    #[schemars(title = "AgentCompletionRequest")]
+    AgentCompletionRequest {
+        response_id: String,
+        body: AgentCompletionCreateParams,
+        created_at: i64,
+    },
+    #[schemars(title = "VectorCompletionRequest")]
+    VectorCompletionRequest {
+        response_id: String,
+        body: VectorCompletionCreateParams,
+        created_at: i64,
+    },
+    #[schemars(title = "FunctionExecutionRequest")]
+    FunctionExecutionRequest {
+        response_id: String,
+        body: FunctionExecutionCreateParams,
+        created_at: i64,
+    },
+    #[schemars(title = "ToolResponse")]
+    ToolResponse {
+        response_id: String,
+        index: i64,
+        tool_call_id: String,
+    },
+    #[schemars(title = "ResponseToolCalls")]
+    ResponseToolCalls {
+        response_id: String,
+        index: i64,
+        tool_call_index: i64,
+        tool_call_id: String,
+        arguments: String,
+    },
+    #[schemars(title = "Text")]
+    Text { text: String },
+    #[schemars(title = "Image")]
+    Image { image_url: ImageUrl },
+    #[schemars(title = "Audio")]
+    Audio { input_audio: InputAudio },
+    #[schemars(title = "Video")]
+    Video {
+        video_url: VideoUrl,
+        is_input: bool,
+    },
+    #[schemars(title = "File")]
+    File { file: File },
 }
 
 #[derive(clap::Args)]
 pub struct Args {
-    /// Log row id.
+    /// `logs.messages."index"` — the BIGSERIAL position of the
+    /// event in the cross-agent history.
     pub id: i64,
     /// jq filter applied to the JSON output.
     #[arg(long)]
@@ -74,7 +150,8 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path_type: Path::AgentsLogsReadId,
+        Ok(Self {
+            path_type: Path::AgentsLogsReadId,
             id: args.id,
             jq: args.jq,
         })
@@ -84,10 +161,20 @@ impl TryFrom<Args> for Request {
 #[cfg(feature = "mcp")]
 impl crate::cli::command::CommandResponse for Response {
     fn into_mcp(self) -> crate::cli::command::McpResponseItem {
+        use crate::cli::command::CommandResponse;
         match self {
-            Response::NotImplemented => {
-                crate::cli::command::McpResponseItem::JSONL(serde_json::Value::Null)
-            }
+            // Content payloads delegate to the existing inner-type
+            // projections so they ride MCP exactly the way bare
+            // `RichContentPart` does today.
+            Response::Text { text } => text.into_mcp(),
+            Response::Image { image_url } => image_url.into_mcp(),
+            Response::Audio { input_audio } => input_audio.into_mcp(),
+            Response::Video { video_url, .. } => video_url.into_mcp(),
+            Response::File { file } => file.into_mcp(),
+            // Everything else: the full typed variant rides as JSONL.
+            other => crate::cli::command::McpResponseItem::JSONL(
+                serde_json::to_value(other).unwrap(),
+            ),
         }
     }
 }

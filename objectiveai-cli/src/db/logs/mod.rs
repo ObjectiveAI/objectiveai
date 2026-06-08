@@ -22,6 +22,7 @@
 //! the same row id can't happen.
 
 mod lookup;
+mod read_id;
 mod row;
 mod rows;
 mod shadow;
@@ -29,6 +30,7 @@ mod write;
 mod writer;
 
 pub use lookup::*;
+pub use read_id::*;
 pub use row::*;
 pub use rows::*;
 pub use shadow::*;

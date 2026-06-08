@@ -1,19 +1,21 @@
-﻿//! `agents read id <id>` — resolve a queue Id (SQL row id in the
-//! `files` table) to its log file's typed content. The filesystem
-//! dispatcher classifies the path, calls the matching typed read,
-//! and wraps the value in the matching `Response` variant — the cli
-//! leaf just returns it.
+//! `agents logs read id <id>` — resolve a `logs.messages."index"`
+//! to its typed [`Response`] variant. The dispatch logic lives in
+//! [`crate::db::logs::read_by_id`]; this handler is a thin wrapper.
 
 use objectiveai_sdk::cli::command::agents::logs::read::id::{Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
 
-pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-    // The reader will materialize a typed Response variant once the
-    // postgres-backed `logs.*` reader lands. Today every call returns
-    // the NotImplemented sentinel so callers see a structured signal.
-    Ok(Response::NotImplemented)
+pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+    crate::db::logs::read_by_id(&ctx.db, request.id)
+        .await?
+        .ok_or_else(|| {
+            Error::Filesystem(crate::filesystem::Error::NotFound(format!(
+                "logs.messages row at index {}",
+                request.id
+            )))
+        })
 }
 
 pub mod request_schema {
