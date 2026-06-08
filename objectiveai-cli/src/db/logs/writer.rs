@@ -33,7 +33,7 @@ use serde::Serialize;
 
 use crate::db::Pool;
 
-use super::row::RowsIter;
+use super::row::{RowValue, RowsIter};
 use super::rows::{
     agent_completion_chunk_rows, function_execution_chunk_rows, vector_completion_chunk_rows,
 };
@@ -154,43 +154,70 @@ impl<C> LogWriter<C> {
             self.request_written = true;
         }
 
-        // Streaming-content rows: borrowed-key shadow probe, PartialEq
-        // body compare; Skip path is pure memory.
-        for value in (self.rows_fn)(chunk) {
-            match self.shadow.record(&value) {
-                WriteOp::Skip => continue,
-                op => write_value(&self.pool, op, &value).await?,
-            }
-        }
+        // Stage 1: walk streaming-content rows, gate each through the
+        // shadow (borrowed-key probe + PartialEq body diff). Collect
+        // the survivors — the Skip path stays pure-memory; only
+        // non-Skip rows make it into `dispatched`. The collected vec
+        // borrows from `chunk`, which outlives this function, so the
+        // futures below can reference the borrowed payloads directly.
+        let dispatched: Vec<(WriteOp, RowValue<'_>)> = (self.rows_fn)(chunk)
+            .filter_map(|value| match self.shadow.record(&value) {
+                WriteOp::Skip => None,
+                op => Some((op, value)),
+            })
+            .collect();
 
-        // Tier response blob: serialize once per tick (we need bytes
-        // for postgres anyway), compare against last-written bytes.
-        // PartialEq on Vec<u8> bails fast on length/byte mismatch.
+        // Stage 2: serialize the response chunk once (we need the
+        // bytes anyway), diff against the last-written blob.
         let response_bytes = serde_json::to_vec(chunk)?;
         let blob_op = match &self.last_response_blob {
             Some(prev) if prev == &response_bytes => WriteOp::Skip,
             Some(_) => WriteOp::Update,
             None => WriteOp::Insert,
         };
-        match blob_op {
-            WriteOp::Insert => {
-                insert_response_blob(
-                    &self.pool,
-                    self.tier,
-                    &response_id,
-                    agent_hierarchy,
-                    chunk,
-                    created_at_seed,
-                )
-                .await?;
-                self.last_response_blob = Some(response_bytes);
+
+        // Stage 3: fan out every surviving streaming-content write
+        // AND the response-blob write concurrently. All futures share
+        // the live `chunk`'s borrow scope, so we never need to clone
+        // payloads into the futures.
+        let pool = &self.pool;
+        let content_fut = futures::future::try_join_all(
+            dispatched
+                .iter()
+                .map(|(op, value)| write_value(pool, *op, value)),
+        );
+        let blob_fut = async {
+            match blob_op {
+                WriteOp::Insert => {
+                    insert_response_blob(
+                        pool,
+                        self.tier,
+                        &response_id,
+                        agent_hierarchy,
+                        chunk,
+                        created_at_seed,
+                    )
+                    .await
+                }
+                WriteOp::Update => {
+                    update_response_blob(
+                        pool,
+                        self.tier,
+                        &response_id,
+                        chunk,
+                        created_at_seed,
+                    )
+                    .await
+                }
+                WriteOp::Skip => Ok(()),
             }
-            WriteOp::Update => {
-                update_response_blob(&self.pool, self.tier, &response_id, chunk, created_at_seed)
-                    .await?;
-                self.last_response_blob = Some(response_bytes);
-            }
-            WriteOp::Skip => {}
+        };
+        let (content_res, blob_res) = tokio::join!(content_fut, blob_fut);
+        content_res?;
+        blob_res?;
+
+        if blob_op != WriteOp::Skip {
+            self.last_response_blob = Some(response_bytes);
         }
 
         Ok(())
