@@ -66,7 +66,7 @@ pub fn run(
         // Per-call resources.
         let mcp_server = crate::websockets::mcp_server::spawn(ctx.clone());
         // Function execution doesn't bind a tag — that's only the
-        // `agents instances spawn --agent-tag` path. Pass `None` so
+        // `agents spawn --agent-tag` path. Pass `None` so
         // the conduit's read-message-queue handler skips the fused
         // tag-group upgrade.
         let conduit = crate::websockets::conduit::ConduitMcpHandler::new(

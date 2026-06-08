@@ -19,7 +19,7 @@
 //! (the postgres analog of sqlite's `INSERT OR REPLACE`), so the
 //! prior binding is silently displaced.
 
-use objectiveai_sdk::cli::command::agents::instances::spawn::AgentSpec;
+use objectiveai_sdk::cli::command::agents::spawn::AgentSpec;
 use sqlx::Row as _;
 
 use super::{Error, Pool};

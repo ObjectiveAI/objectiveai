@@ -1,6 +1,6 @@
 //! Native OS-level claim-file primitives shared between
 //! [`crate::websockets::agent_registry`] (the per-spawn lock owner)
-//! and [`crate::command::agents::instances::message`] (the
+//! and [`crate::command::agents::message`] (the
 //! delivery-vs-spawn race driver).
 //!
 //! Each claim is one filesystem path. Each platform uses its

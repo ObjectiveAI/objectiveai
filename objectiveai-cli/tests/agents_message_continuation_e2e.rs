@@ -1,5 +1,5 @@
-//! `agents instances spawn` → wait for cli-stream to finish →
-//! `agents instances message` takes the continuation-fallback path
+//! `agents spawn` → wait for cli-stream to finish →
+//! `agents message` takes the continuation-fallback path
 //! → assert the second turn's request continuation byte-equals the
 //! first turn's response continuation.
 //!
@@ -19,12 +19,12 @@ mod cli_test_util;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use objectiveai_sdk::cli::command::agents::instances::message::{
+use objectiveai_sdk::cli::command::agents::message::{
     MessageTarget, Request as MessageRequest,
     RequestDangerousAdvanced as MessageDangerousAdvanced, RequestMessage,
     ResponseItem as MessageResponseItem,
 };
-use objectiveai_sdk::cli::command::agents::instances::spawn::{
+use objectiveai_sdk::cli::command::agents::spawn::{
     AgentSpec, Request as SpawnRequest, RequestDangerousAdvanced, ResponseItem as SpawnResponseItem,
 };
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
@@ -65,7 +65,7 @@ async fn spawn_then_message_propagates_response_continuation() {
     // id, for the on-disk log file stems) off it. Without streaming
     // the parent cli detaches on `LogStreamReady` and emits only a
     // bare `Id(leaf)` — no Chunk, no `agent_instance_hierarchy`.
-    let spawn_request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::instances::spawn::Path::AgentsInstancesSpawn,
+    let spawn_request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
         agent_tag: None,
         message: RequestMessage::Simple("first turn".to_string()),
         agent: AgentSpec::Resolved(
@@ -102,7 +102,7 @@ async fn spawn_then_message_propagates_response_continuation() {
             }
             SpawnResponseItem::Id(_) => None,
         })
-        .expect("agents instances spawn must emit a Chunk with non-empty id");
+        .expect("agents spawn must emit a Chunk with non-empty id");
     // CLI-side lineage. The cli's `Config.agent_instance_hierarchy`
     // defaults to `"cli"` for caller-less invocations; combined with
     // the spawn's leaf response id this is what the cli's
@@ -114,7 +114,7 @@ async fn spawn_then_message_propagates_response_continuation() {
     //
     // "Finished" = the response continuation file landed AND the
     // per-agent socket file is gone (cli-stream unlinks on exit).
-    // If we raced this check the next `agents instances message` invocation
+    // If we raced this check the next `agents message` invocation
     // could hit the live path instead of the fallback we want to
     // exercise.
     //
@@ -162,7 +162,7 @@ async fn spawn_then_message_propagates_response_continuation() {
     // returning implies the runner exited, avoiding the leak nextest
     // would otherwise flag.
     let message_request = MessageRequest {
-        path_type: objectiveai_sdk::cli::command::agents::instances::message::Path::AgentsInstancesMessage,
+        path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
         target: MessageTarget::Direct {
             parent_agent_instance_hierarchy: parent,
             agent_instance: instance,
@@ -182,13 +182,13 @@ async fn spawn_then_message_propagates_response_continuation() {
     let new_response_id = match items.first() {
         Some(MessageResponseItem::Queued { response_id, .. }) => response_id.clone(),
         Some(MessageResponseItem::Delivered { .. }) => panic!(
-            "agents instances message must take the fallback path (Queued), got Delivered — the cli \
+            "agents message must take the fallback path (Queued), got Delivered — the cli \
              stream from the spawn turn never tore down cleanly"
         ),
         Some(MessageResponseItem::Chunk(_)) => panic!(
             "first stream item must be Queued/Delivered, got Chunk"
         ),
-        None => panic!("agents instances message yielded no items"),
+        None => panic!("agents message yielded no items"),
     };
     // Continuations from the api server reuse the original chunk.id
     // as the new turn's response_id (the agent's stable lineage id

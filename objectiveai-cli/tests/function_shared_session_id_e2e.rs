@@ -38,12 +38,12 @@ use axum::{
 };
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use objectiveai_sdk::cli::command::CommandExecutor;
-use objectiveai_sdk::cli::command::agents::instances::message::{
+use objectiveai_sdk::cli::command::agents::message::{
     MessageTarget, Request as MessageRequest,
     RequestDangerousAdvanced as MessageDangerousAdvanced, RequestMessage,
     ResponseItem as MessageResponseItem,
 };
-use objectiveai_sdk::cli::command::agents::instances::spawn::{
+use objectiveai_sdk::cli::command::agents::spawn::{
     AgentSpec, Request as SpawnRequest, RequestDangerousAdvanced as SpawnDangerousAdvanced,
     ResponseItem as SpawnResponseItem,
 };
@@ -58,7 +58,7 @@ const TOOL_NAME: &str = "ping";
 /// `executor_with_base_dir` helper does NOT set that env var, so the
 /// cli child uses this value as the parent for `agents instances list`
 /// and we have to re-prepend it to each returned `agent_id` before
-/// passing it to `agents instances message` (which expects the FULL
+/// passing it to `agents message` (which expects the FULL
 /// hierarchy).
 const CLI_HIERARCHY_ROOT: &str = "cli";
 
@@ -231,12 +231,12 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
 
     // Inline mock agent body — same JSON for all 5 agents. The
     // `calls` override scripts FOUR mock-emissions across TWO turns:
-    //   turn 1 (agents instances spawn):   emit Call[0] (tool call) →
+    //   turn 1 (agents spawn):   emit Call[0] (tool call) →
     //                            MCP gets a fresh session →
     //                            "true-<sid>" line on the axum server;
     //                            then emit Call[1] ("done") to end
     //                            the turn.
-    //   turn 2 (agents instances message): emit Call[2] (tool call) →
+    //   turn 2 (agents message): emit Call[2] (tool call) →
     //                            same MCP session is REUSED → "false-<sid>"
     //                            line; then Call[3] ("done2") ends.
     //
@@ -269,7 +269,7 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
                 )
                 .expect("inline mock agent must deserialize"),
             );
-            let request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::instances::spawn::Path::AgentsInstancesSpawn,
+            let request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
                 agent_tag: None,
                 message: RequestMessage::Simple("go".to_string()),
                 agent,
@@ -291,7 +291,7 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
                     }
                     SpawnResponseItem::Id(_) => None,
                 })
-                .expect("agents instances spawn must emit a Chunk with non-empty id")
+                .expect("agents spawn must emit a Chunk with non-empty id")
         }
     };
 
@@ -315,7 +315,7 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
         .collect();
     let instances = leaves;
 
-    // ── Send `agents instances message` to all 5 in parallel ──────
+    // ── Send `agents message` to all 5 in parallel ──────
     // `dangerous_advanced.stream = Some(true)` keeps the parent cli
     // attached to its spawned instance runner so `collect_stream`
     // returning implies the runner exited — avoids the leak nextest
@@ -323,7 +323,7 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
     let send_futures = instances.iter().map(|instance| {
         let executor = &executor;
         let request = MessageRequest {
-            path_type: objectiveai_sdk::cli::command::agents::instances::message::Path::AgentsInstancesMessage,
+            path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
             target: MessageTarget::Direct {
                 parent_agent_instance_hierarchy: None,
                 agent_instance: instance.clone(),

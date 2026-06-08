@@ -1,7 +1,8 @@
 //! `agents` tier dispatch. Mirrors
 //! `objectiveai-sdk-rs/src/cli/command/agents/mod.rs`. Mix of unary
-//! leaves (`get`, `publish`) and streaming sub-trees (`list`, plus the
-//! `instances` aggregate that owns `spawn`/`message`/`read`/`me`/`list`).
+//! leaves (`get`, `publish`) and streaming sub-trees (`list`, `spawn`,
+//! `message`, `logs`, `queue`, `tags`, `tasks`, plus the surviving
+//! `instances` aggregate that owns `me`/`list`).
 
 use std::pin::Pin;
 
@@ -14,8 +15,11 @@ use crate::error::Error;
 pub mod get;
 pub mod instances;
 pub mod list;
-pub mod message_queue;
+pub mod logs;
+pub mod message;
 pub mod publish;
+pub mod queue;
+pub mod spawn;
 pub mod tags;
 pub mod tasks;
 
@@ -57,6 +61,22 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             let value = list::response_schema::execute(ctx, req).await?;
             once(Ok(ResponseItem::ListResponseSchema(value)))
         }
+        Request::Logs(req) => {
+            let inner = logs::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Logs)))
+        }
+        Request::Message(req) => {
+            let inner = message::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Message)))
+        }
+        Request::MessageRequestSchema(req) => {
+            let value = message::request_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::MessageRequestSchema(value)))
+        }
+        Request::MessageResponseSchema(req) => {
+            let value = message::response_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::MessageResponseSchema(value)))
+        }
         Request::Publish(req) => {
             let value = publish::execute(ctx, req).await?;
             once(Ok(ResponseItem::Publish(value)))
@@ -69,9 +89,21 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             let value = publish::response_schema::execute(ctx, req).await?;
             once(Ok(ResponseItem::PublishResponseSchema(value)))
         }
-        Request::MessageQueue(req) => {
-            let inner = message_queue::execute(ctx, req).await?;
-            Box::pin(inner.map(|r| r.map(ResponseItem::MessageQueue)))
+        Request::Queue(req) => {
+            let inner = queue::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Queue)))
+        }
+        Request::Spawn(req) => {
+            let inner = spawn::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Spawn)))
+        }
+        Request::SpawnRequestSchema(req) => {
+            let value = spawn::request_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::SpawnRequestSchema(value)))
+        }
+        Request::SpawnResponseSchema(req) => {
+            let value = spawn::response_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::SpawnResponseSchema(value)))
         }
         Request::Tags(req) => {
             let inner = tags::execute(ctx, req).await?;

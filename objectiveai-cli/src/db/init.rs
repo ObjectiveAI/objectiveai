@@ -50,7 +50,7 @@ const SCHEMA: &str = r#"
 -- `db::message_queue::read_pending_and_upgrade_tag`.
 CREATE TABLE IF NOT EXISTS tag_groups (
     id                              BIGSERIAL PRIMARY KEY,
-    -- Resolved `agents::instances::spawn::AgentSpec`; serialized
+    -- Resolved `agents::spawn::AgentSpec`; serialized
     -- as JSONB. Favorites are resolved at apply-time, never at
     -- spawn-time, so this column is always inline-or-remote.
     agent_spec                      JSONB  NOT NULL,

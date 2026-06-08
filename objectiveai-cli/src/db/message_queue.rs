@@ -1,4 +1,4 @@
-//! Deferred-message storage for `agents message-queue {add, list, read id}`.
+//! Deferred-message storage for `agents queue {add, list, read id}`.
 //!
 //! Mirrors the sqlite predecessor's split: a `message_queue` row carries
 //! either an `agent_instance_hierarchy` or an `agent_tag` (CHECK
@@ -10,8 +10,8 @@
 use objectiveai_sdk::agent::completions::message::{
     File, ImageUrl, InputAudio, RichContent, RichContentPart, VideoUrl,
 };
-use objectiveai_sdk::cli::command::agents::instances::read::all::ResponseContent;
-use objectiveai_sdk::cli::command::agents::message_queue::read::pending::{
+use objectiveai_sdk::cli::command::agents::logs::read::all::ResponseContent;
+use objectiveai_sdk::cli::command::agents::queue::read::pending::{
     LookupState, ResponseItem,
 };
 use sqlx::{PgConnection, Postgres, Row as _, Transaction};
@@ -656,7 +656,7 @@ async fn reconstruct_rich_content(
 }
 
 // ---------------------------------------------------------------------------
-// Delete-by-id — `agents message-queue delete <id>`.
+// Delete-by-id — `agents queue delete <id>`.
 // ---------------------------------------------------------------------------
 
 /// Atomically delete the `message_queue` row with the given `id` and return
@@ -811,7 +811,7 @@ pub async fn clear_by_ids(
 }
 
 // ---------------------------------------------------------------------------
-// Delivery enumeration — `agents message-queue deliver` fan-out.
+// Delivery enumeration — `agents queue deliver` fan-out.
 // ---------------------------------------------------------------------------
 
 /// Enumerate every distinct `(resolved hierarchy, agent_tag)` pair with
@@ -871,7 +871,7 @@ pub async fn list_delivery_targets(
 
 /// EXISTS-check: are any queue rows in scope for `target_hierarchy`?
 ///
-/// Used by `agents instances spawn`'s end-of-pass restart logic to
+/// Used by `agents spawn`'s end-of-pass restart logic to
 /// decide whether to fire another pass. The two-rule predicate
 /// matches `read_pending_and_upgrade_tag`'s SELECT exactly — direct
 /// hierarchy hit OR BOUND-tag hit.

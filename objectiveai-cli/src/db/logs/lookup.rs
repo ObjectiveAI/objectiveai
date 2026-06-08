@@ -17,7 +17,7 @@
 //!   stream has emitted at least one chunk that carried a
 //!   continuation token; `None` otherwise).
 //!
-//! Used by `agents instances message`'s stream-true path after
+//! Used by `agents message`'s stream-true path after
 //! it acquires the hierarchy's lock: it needs the agent
 //! definition to drive `spawn::run_multi_pass` and the latest
 //! continuation to seed the resumed conversation.

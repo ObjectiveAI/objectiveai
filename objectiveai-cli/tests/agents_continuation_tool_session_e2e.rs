@@ -1,7 +1,7 @@
-//! `agents instances spawn` + 2 continuations × 2 agents with a 10-tool
+//! `agents spawn` + 2 continuations × 2 agents with a 10-tool
 //! surface whose tools increment a per-MCP-session counter file. After
-//! three turns per agent we use `agents instances read all <sub-id>` to
-//! enumerate the tool-response queue items and `agents instances read
+//! three turns per agent we use `agents logs read all <sub-id>` to
+//! enumerate the tool-response queue items and `agents logs read
 //! id <sql-id>` to read
 //! each one's content. The smoking-gun assertions:
 //!
@@ -24,17 +24,17 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
-use objectiveai_sdk::cli::command::agents::instances::message::{
+use objectiveai_sdk::cli::command::agents::message::{
     MessageTarget, Request as MessageRequest,
     RequestDangerousAdvanced as MessageDangerousAdvanced, RequestMessage,
     ResponseItem as MessageResponseItem,
 };
-use objectiveai_sdk::cli::command::agents::instances::read::all::{
+use objectiveai_sdk::cli::command::agents::logs::read::all::{
     Request as ReadAllRequest, ResponseContent, ResponseItem as ReadAllItem,
     ResponseQueueItem, Target as ReadAllTarget,
 };
-use objectiveai_sdk::cli::command::agents::instances::read::id::Request as ReadIdRequest;
-use objectiveai_sdk::cli::command::agents::instances::spawn::{
+use objectiveai_sdk::cli::command::agents::logs::read::id::Request as ReadIdRequest;
+use objectiveai_sdk::cli::command::agents::spawn::{
     AgentSpec, Request as SpawnRequest, RequestDangerousAdvanced, ResponseItem as SpawnResponseItem,
 };
 use objectiveai_sdk::cli::command::CommandExecutor;
@@ -105,7 +105,7 @@ fn agent_spec() -> AgentSpec {
 /// which is the api-side slot id `cli/{agent_full_id}-{leaf}` —
 /// useful for the api's internal routing, not for finding cli logs).
 async fn spawn_agent(executor: &HangPreventingBinaryCommandExecutor, seed: i64) -> String {
-    let request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::instances::spawn::Path::AgentsInstancesSpawn,
+    let request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
         message: RequestMessage::Simple("go".to_string()),
         agent: agent_spec(),
         agent_tag: None,
@@ -132,7 +132,7 @@ async fn spawn_agent(executor: &HangPreventingBinaryCommandExecutor, seed: i64) 
             }
             SpawnResponseItem::Id(_) => None,
         })
-        .expect("agents instances spawn must emit a Chunk with non-empty id");
+        .expect("agents spawn must emit a Chunk with non-empty id");
     format!("cli/{leaf}")
 }
 
@@ -180,7 +180,7 @@ async fn continue_agent(executor: &HangPreventingBinaryCommandExecutor, spawn_id
         .map(|(p, i)| (Some(p.to_string()), i.to_string()))
         .unwrap_or_else(|| (None, spawn_id.to_string()));
     let request = MessageRequest {
-        path_type: objectiveai_sdk::cli::command::agents::instances::message::Path::AgentsInstancesMessage,
+        path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
         target: MessageTarget::Direct {
             parent_agent_instance_hierarchy: parent,
             agent_instance: instance,
@@ -202,7 +202,7 @@ async fn continue_agent(executor: &HangPreventingBinaryCommandExecutor, spawn_id
 }
 
 /// Collect every `tool_response` queue item's sql row id for `sub_id`
-/// via the public `agents instances read all` cli surface. `sub_id`
+/// via the public `agents logs read all` cli surface. `sub_id`
 /// is the full cli-side lineage (e.g. `cli/<leaf>`); the cli's
 /// read::all rebuilds the full hierarchy as `{caller}/{sub}` so we
 /// pass just the leaf (the part after the rsplit on '/'), avoiding
@@ -213,7 +213,7 @@ async fn read_tool_response_ids(executor: &HangPreventingBinaryCommandExecutor, 
         .rsplit_once('/')
         .map(|(_, leaf)| leaf)
         .unwrap_or(sub_id);
-    let request = ReadAllRequest { path_type: objectiveai_sdk::cli::command::agents::instances::read::all::Path::AgentsInstancesReadAll,
+    let request = ReadAllRequest { path_type: objectiveai_sdk::cli::command::agents::logs::read::all::Path::AgentsLogsReadAll,
         targets: vec![ReadAllTarget::Direct {
             parent_agent_instance_hierarchy: None,
             agent_instance: leaf.to_string(),
@@ -243,11 +243,11 @@ async fn read_tool_response_ids(executor: &HangPreventingBinaryCommandExecutor, 
 /// back to JSON and scans recursively for the first integer-shaped
 /// string or number.
 async fn read_count_for_id(executor: &HangPreventingBinaryCommandExecutor, id: i64) -> Option<u64> {
-    let request = ReadIdRequest { path_type: objectiveai_sdk::cli::command::agents::instances::read::id::Path::AgentsInstancesReadId, id, jq: None };
-    let response: objectiveai_sdk::cli::command::agents::instances::read::id::Response = executor
+    let request = ReadIdRequest { path_type: objectiveai_sdk::cli::command::agents::logs::read::id::Path::AgentsLogsReadId, id, jq: None };
+    let response: objectiveai_sdk::cli::command::agents::logs::read::id::Response = executor
         .execute_one(request, None)
         .await
-        .expect("agents instances read id executor call");
+        .expect("agents logs read id executor call");
     let value = serde_json::to_value(&response).expect("Response serializes");
     extract_first_u64(&value)
 }

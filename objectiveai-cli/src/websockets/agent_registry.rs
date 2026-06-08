@@ -35,7 +35,7 @@ impl AgentInstanceRegistry {
     }
 
     /// Path the registry uses for `hier`. Exposed so callers
-    /// (notably [`crate::command::agents::instances::message`])
+    /// (notably [`crate::command::agents::message`])
     /// can subscribe to release / acquisition events on the same
     /// physical lock file without going through the registry's
     /// owned-handle API.

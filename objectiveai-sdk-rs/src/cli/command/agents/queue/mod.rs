@@ -1,0 +1,187 @@
+//! `agents queue` — deferred prompts queue. Two top-level subcommands:
+//!
+//! - `delete` — remove one queued prompt by id.
+//! - `read` (nested) — sub-tier whose only leaf today is `id`,
+//!   which fetches one piece of queued content by its
+//!   `prompt_contents.id`. The wire shape mirrors `RichContentPart`
+//!   (tagged by `type`).
+//!
+//! Enqueue is no longer a CLI verb here — use `agents message`
+//! instead; it handles persistence under the hood. Drain is also
+//! gone — the API consumes queue rows directly via the WS reverse-
+//! attach `read_message_queue` / `clear_message_queue` server
+//! requests once a matching hierarchy comes online.
+
+use crate::cli::command::CommandRequest;
+
+pub mod delete;
+pub mod read;
+
+#[derive(clap::Subcommand)]
+pub enum Command {
+    /// Delete one queued prompt by id.
+    Delete(delete::Command),
+    /// Read queued content — `read id <id>` for a single content
+    /// piece, `read pending [parent]` for the list of queued
+    /// prompts under a parent.
+    Read(ReadCommand),
+}
+
+/// Intermediate clap level for the `read` sub-tier. Splitting it
+/// into its own wrapper (rather than a fattened `ReadId` variant on
+/// [`Command`]) gives the CLI surface `agents queue read id <num>`
+/// to match the user's invocation style and keeps the door open for
+/// additional `read <…>` leaves later.
+#[derive(clap::Args)]
+pub struct ReadCommand {
+    #[command(subcommand)]
+    pub sub: read::Command,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
+#[schemars(rename = "cli.command.agents.queue.Request")]
+pub enum Request {
+    #[schemars(title = "Delete")]
+    Delete(delete::Request),
+    #[schemars(title = "DeleteRequestSchema")]
+    DeleteRequestSchema(delete::request_schema::Request),
+    #[schemars(title = "DeleteResponseSchema")]
+    DeleteResponseSchema(delete::response_schema::Request),
+    #[schemars(title = "Read")]
+    Read(read::Request),
+}
+
+// Exempt from json-schema coverage: tier aggregate (see the root
+// `ResponseItem` in command.rs - TS7056).
+#[objectiveai_sdk_macros::json_schema_ignore]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.queue.ResponseItem")]
+#[serde(untagged)]
+pub enum ResponseItem {
+    #[schemars(title = "Delete")]
+    Delete(delete::Response),
+    #[schemars(title = "DeleteRequestSchema")]
+    DeleteRequestSchema(delete::request_schema::Response),
+    #[schemars(title = "DeleteResponseSchema")]
+    DeleteResponseSchema(delete::response_schema::Response),
+    #[schemars(title = "Read")]
+    Read(read::ResponseItem),
+}
+
+#[cfg(feature = "mcp")]
+impl crate::cli::command::CommandResponse for ResponseItem {
+    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
+        match self {
+            ResponseItem::Delete(v) => v.into_mcp(),
+            ResponseItem::DeleteRequestSchema(v) => v.into_mcp(),
+            ResponseItem::DeleteResponseSchema(v) => v.into_mcp(),
+            ResponseItem::Read(v) => v.into_mcp(),
+        }
+    }
+}
+
+impl TryFrom<Command> for Request {
+    type Error = crate::cli::command::FromArgsError;
+    fn try_from(command: Command) -> Result<Self, Self::Error> {
+        match command {
+            Command::Delete(cmd) => match cmd.schema {
+                None => Ok(Request::Delete(delete::Request::try_from(cmd.args)?)),
+                Some(delete::Schema::RequestSchema(args)) => Ok(
+                    Request::DeleteRequestSchema(delete::request_schema::Request::try_from(args)?),
+                ),
+                Some(delete::Schema::ResponseSchema(args)) => Ok(
+                    Request::DeleteResponseSchema(delete::response_schema::Request::try_from(args)?),
+                ),
+            },
+            Command::Read(rc) => Ok(Request::Read(read::Request::try_from(rc.sub)?)),
+        }
+    }
+}
+
+impl CommandRequest for Request {
+    fn into_command(&self) -> Vec<String> {
+        match self {
+            Request::Delete(inner) => inner.into_command(),
+            Request::DeleteRequestSchema(inner) => inner.into_command(),
+            Request::DeleteResponseSchema(inner) => inner.into_command(),
+            Request::Read(inner) => inner.into_command(),
+        }
+    }
+}
+
+#[cfg(feature = "cli-executor")]
+pub async fn execute<E: crate::cli::command::CommandExecutor>(
+    executor: &E,
+    request: Request,
+    agent_arguments: Option<&crate::cli::command::AgentArguments>,
+) -> Result<
+    std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>>,
+    E::Error,
+> {
+    use futures::StreamExt;
+    let stream: std::pin::Pin<
+        Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>,
+    > = match request {
+        Request::Delete(req) => {
+            let value = delete::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::Delete(value),
+            )))
+        }
+        Request::DeleteRequestSchema(req) => {
+            let value =
+                delete::request_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::DeleteRequestSchema(value),
+            )))
+        }
+        Request::DeleteResponseSchema(req) => {
+            let value =
+                delete::response_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::DeleteResponseSchema(value),
+            )))
+        }
+        Request::Read(req) => {
+            let inner = read::execute(executor, req, agent_arguments).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Read)))
+        }
+    };
+    Ok(stream)
+}
+
+#[cfg(feature = "cli-executor")]
+pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
+    executor: &E,
+    request: Request,
+    jq: String,
+    agent_arguments: Option<&crate::cli::command::AgentArguments>,
+) -> Result<
+    std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>>,
+    E::Error,
+> {
+    let stream: std::pin::Pin<
+        Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>,
+    > = match request {
+        Request::Delete(req) => {
+            let value = delete::execute_jq(executor, req, jq, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::DeleteRequestSchema(req) => {
+            let value =
+                delete::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::DeleteResponseSchema(req) => {
+            let value =
+                delete::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::Read(req) => {
+            let inner = read::execute_jq(executor, req, jq, agent_arguments).await?;
+            Box::pin(inner)
+        }
+    };
+    Ok(stream)
+}

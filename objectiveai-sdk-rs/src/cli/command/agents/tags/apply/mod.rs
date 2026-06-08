@@ -11,7 +11,7 @@
 //! - `--agent <ref>` / `--agent-inline <json>` — creates a fresh
 //!   `tag_groups` row carrying the resolved `AgentSpec` + parent.
 //!   The new tag points at that group. Spawning by this tag (via
-//!   `agents instances spawn --agent-tag <name>`) uses the group's
+//!   `agents spawn --agent-tag <name>`) uses the group's
 //!   AgentSpec. Optional parent defaults to ctx own.
 //! - `--agent-tag <existing>` — clones the existing tag's
 //!   resolution under the new name. BOUND sources copy the
@@ -52,7 +52,7 @@ pub enum Target {
     /// `Target::AgentTag` applies can join the new tag's group.
     #[schemars(title = "Agent")]
     Agent {
-        agent_spec: super::super::instances::spawn::AgentSpec,
+        agent_spec: super::super::spawn::AgentSpec,
         /// Optional parent scope. `None` ⇒ cli substitutes
         /// `Config.agent_instance_hierarchy`.
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -81,7 +81,7 @@ pub enum AgentTagResolution {
     #[schemars(title = "Grouped")]
     Grouped {
         tag_group_id: i64,
-        agent_spec: super::super::instances::spawn::AgentSpec,
+        agent_spec: super::super::spawn::AgentSpec,
         parent_agent_instance_hierarchy: String,
     },
 }
@@ -158,7 +158,7 @@ pub enum Response {
     Agent {
         name: String,
         tag_group_id: i64,
-        agent_spec: super::super::instances::spawn::AgentSpec,
+        agent_spec: super::super::spawn::AgentSpec,
         parent_agent_instance_hierarchy: String,
     },
     /// Wire shape mirrors the resolved source state:
@@ -244,7 +244,7 @@ impl TryFrom<Args> for Request {
             (None, Some(s), None, None) => {
                 use crate::cli::command::path_ref::RemotePathCommitOptionalOrFavorite;
                 use crate::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
-                use super::super::instances::spawn::AgentSpec;
+                use super::super::spawn::AgentSpec;
                 let parsed: RemotePathCommitOptionalOrFavorite = s
                     .parse()
                     .map_err(|e| crate::cli::command::FromArgsError::path_parse("agent", e))?;

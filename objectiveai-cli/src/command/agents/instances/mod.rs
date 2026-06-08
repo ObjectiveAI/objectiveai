@@ -1,5 +1,7 @@
-//! `agents instances` — CLI-side dispatch for the instances subtree.
-//! Five leaves: `spawn`, `message`, `read`, `me`, `list`.
+//! `agents instances` — CLI-side dispatch for the surviving
+//! instances subtree. Two leaves: `me`, `list`. `spawn`, `message`,
+//! and `read` moved up to `agents spawn`, `agents message`, and
+//! `agents logs read`.
 
 use std::pin::Pin;
 
@@ -11,9 +13,6 @@ use crate::error::Error;
 
 pub mod list;
 pub mod me;
-pub mod message;
-pub mod read;
-pub mod spawn;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
@@ -25,34 +24,6 @@ fn once<T: Send + 'static>(
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     let stream: ItemStream = match request {
-        Request::Spawn(req) => {
-            let inner = spawn::execute(ctx, req).await?;
-            Box::pin(inner.map(|r| r.map(ResponseItem::Spawn)))
-        }
-        Request::SpawnRequestSchema(req) => {
-            let value = spawn::request_schema::execute(ctx, req).await?;
-            once(Ok(ResponseItem::SpawnRequestSchema(value)))
-        }
-        Request::SpawnResponseSchema(req) => {
-            let value = spawn::response_schema::execute(ctx, req).await?;
-            once(Ok(ResponseItem::SpawnResponseSchema(value)))
-        }
-        Request::Message(req) => {
-            let inner = message::execute(ctx, req).await?;
-            Box::pin(inner.map(|r| r.map(ResponseItem::Message)))
-        }
-        Request::MessageRequestSchema(req) => {
-            let value = message::request_schema::execute(ctx, req).await?;
-            once(Ok(ResponseItem::MessageRequestSchema(value)))
-        }
-        Request::MessageResponseSchema(req) => {
-            let value = message::response_schema::execute(ctx, req).await?;
-            once(Ok(ResponseItem::MessageResponseSchema(value)))
-        }
-        Request::Read(req) => {
-            let inner = read::execute(ctx, req).await?;
-            Box::pin(inner.map(|r| r.map(ResponseItem::Read)))
-        }
         Request::Me(req) => {
             let value = me::execute(ctx, req).await?;
             once(Ok(ResponseItem::Me(value)))

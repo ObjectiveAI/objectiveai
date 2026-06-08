@@ -7,10 +7,10 @@
 //! `tags`-side write and the `tag_groups`-side write live in the
 //! same transaction). This module only exposes the read path:
 //! [`fetch`] returns the [`TagGroup`] for a given id, used by
-//! `agents instances spawn` when it resolves a `--agent-tag`
+//! `agents spawn` when it resolves a `--agent-tag`
 //! invocation into a runnable `AgentSpec` + parent.
 
-use objectiveai_sdk::cli::command::agents::instances::spawn::AgentSpec;
+use objectiveai_sdk::cli::command::agents::spawn::AgentSpec;
 use sqlx::Row as _;
 
 use super::{Error, Pool};

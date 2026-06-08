@@ -63,7 +63,7 @@ impl CommandResponse for crate::agent::completions::message::File {
 }
 
 // `RichContentPart` is a sum over the four media types above plus
-// `Text(String)`. Used directly as the `agents message-queue read id` leaf's
+// `Text(String)`. Used directly as the `agents queue read id` leaf's
 // `Response` type so the queue-content reader's wire shape is bit-
 // identical to a rich-content part. Each arm delegates to the inner
 // type's impl: media variants pick up
