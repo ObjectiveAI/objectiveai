@@ -41,6 +41,14 @@ pub struct BinaryExecutor {
     /// want to abort hung children (e.g. cli-test
     /// `HangPreventingBinaryCommandExecutor`) flip this on.
     kill_on_drop: bool,
+    /// When `true`, spawn the child detached from the parent's console
+    /// / process group so it survives the parent process exiting.
+    /// Unix already does this automatically when the parent dies
+    /// (kernel re-parents to init). Windows needs explicit
+    /// `DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP` creation flags;
+    /// otherwise the child's inherited console closes with the parent
+    /// and the child gets a `CTRL_CLOSE_EVENT`. Defaults to `false`.
+    detach: bool,
 }
 
 impl BinaryExecutor {
@@ -50,6 +58,7 @@ impl BinaryExecutor {
             explicit_path: None,
             extra_env: Vec::new(),
             kill_on_drop: false,
+            detach: false,
         }
     }
 
@@ -63,6 +72,7 @@ impl BinaryExecutor {
             explicit_path: Some(binary.into()),
             extra_env: Vec::new(),
             kill_on_drop: false,
+            detach: false,
         }
     }
 
@@ -86,6 +96,26 @@ impl BinaryExecutor {
     /// so dropping the inner stream tears the cli child down.
     pub fn kill_on_drop(mut self, on: bool) -> Self {
         self.kill_on_drop = on;
+        self
+    }
+
+    /// When `true`, the child is spawned detached from the parent's
+    /// console / process group so it survives parent exit. Pairs
+    /// naturally with `kill_on_drop = false` (the default): drop the
+    /// stream + exit the parent, the child keeps running orphaned.
+    ///
+    /// - **Windows**: sets `DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP`
+    ///   on the `CreateProcessW` call. `DETACHED_PROCESS` is what
+    ///   actually makes orphan survival work — without it the child
+    ///   inherits the parent's console and receives `CTRL_CLOSE_EVENT`
+    ///   when the parent's console window closes. The process-group
+    ///   flag is belt-and-suspenders signal isolation.
+    /// - **Unix**: no-op. The kernel automatically re-parents the
+    ///   child to init when the parent exits.
+    ///
+    /// Defaults to `false`.
+    pub fn detach(mut self, on: bool) -> Self {
+        self.detach = on;
         self
     }
 
@@ -177,6 +207,20 @@ impl CommandExecutor for BinaryExecutor {
             .kill_on_drop(self.kill_on_drop);
         for (k, v) in &self.extra_env {
             command.env(k, v);
+        }
+        // Windows detach. Required for orphan-survival when the
+        // parent will exit before the child finishes — without
+        // `DETACHED_PROCESS` the child inherits the parent's
+        // console and dies on `CTRL_CLOSE_EVENT` when the
+        // parent's console closes. We've hit this bug twice in
+        // the past; preserve the flag. Unix gets re-parent-to-init
+        // for free.
+        #[cfg(windows)]
+        if self.detach {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+            const DETACHED_PROCESS: u32 = 0x0000_0008;
+            command.creation_flags(CREATE_NEW_PROCESS_GROUP | DETACHED_PROCESS);
         }
         // Per-call agent identity override. When `Some`, every field
         // gets applied atomically: `Some(v)` → set, `None` →
