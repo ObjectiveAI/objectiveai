@@ -83,6 +83,16 @@ CREATE INDEX IF NOT EXISTS tags_hierarchy_idx
 CREATE INDEX IF NOT EXISTS tags_tag_group_idx
     ON tags(tag_group);
 
+-- Latest continuation token per agent_instance_hierarchy. Upserted
+-- per streamed chunk by the chunk-yielder loops in `agents spawn`
+-- and `functions execute`. No GC, no history — querying it gives
+-- the single most recent continuation for that AIH.
+CREATE TABLE IF NOT EXISTS agent_continuations (
+    agent_instance_hierarchy TEXT PRIMARY KEY NOT NULL,
+    continuation             TEXT             NOT NULL,
+    updated_at               BIGINT           NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS message_queue (
     id                       BIGSERIAL PRIMARY KEY,
     agent_instance_hierarchy TEXT,

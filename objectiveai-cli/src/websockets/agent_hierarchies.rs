@@ -1,11 +1,15 @@
 //! Recursive non-collecting iterators that yield every
-//! `agent_instance_hierarchy` referenced inside a chunk.
+//! `(agent_instance_hierarchy, Option<continuation>)` pair
+//! referenced inside a chunk.
 //!
 //! Mirrors the walker pattern in [`crate::db::logs::rows`]: a free
-//! function per chunk type, each returning a boxed iterator of borrowed
-//! `&str` slices into the chunk. The [`ChunkAgentHierarchies`] trait
-//! makes the dispatch usable from generic code (e.g.
-//! `streaming::run_chunk_loop`).
+//! function per chunk type, each returning a boxed iterator of
+//! `(&str, Option<&str>)` slices borrowed from the chunk. The
+//! [`ChunkAgentHierarchies`] trait makes the dispatch usable from
+//! generic code (e.g. the runner's chunk yielder + spawn's
+//! `run_multi_pass`). Every nested `AgentCompletionChunk` at every
+//! level already has both fields side-by-side; the iterator just
+//! threads the continuation through.
 
 use objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk;
 use objectiveai_sdk::functions::executions::response::streaming::{
@@ -13,12 +17,16 @@ use objectiveai_sdk::functions::executions::response::streaming::{
 };
 use objectiveai_sdk::vector::completions::response::streaming::VectorCompletionChunk;
 
-pub type HierIter<'a> = Box<dyn Iterator<Item = &'a str> + Send + 'a>;
+pub type HierIter<'a> =
+    Box<dyn Iterator<Item = (&'a str, Option<&'a str>)> + Send + 'a>;
 
 pub fn agent_completion_chunk_hierarchies<'a>(
     chunk: &'a AgentCompletionChunk,
 ) -> HierIter<'a> {
-    Box::new(std::iter::once(chunk.agent_instance_hierarchy.as_str()))
+    Box::new(std::iter::once((
+        chunk.agent_instance_hierarchy.as_str(),
+        chunk.continuation.as_deref(),
+    )))
 }
 
 pub fn vector_completion_chunk_hierarchies<'a>(

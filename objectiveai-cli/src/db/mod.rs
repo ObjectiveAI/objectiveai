@@ -14,6 +14,7 @@ pub use pool::*;
 mod init;
 pub use init::*;
 
+pub mod agent_continuations;
 pub mod logs;
 pub mod tags;
 pub mod tag_groups;

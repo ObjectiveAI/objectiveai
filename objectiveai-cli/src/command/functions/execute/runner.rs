@@ -113,13 +113,31 @@ pub fn run(
         while let Some(item) = sdk_stream.next().await {
             match item {
                 Ok(chunk) => {
-                    // 0. Best-effort claim of every
-                    //    agent_instance_hierarchy in the chunk's
-                    //    nested task tree. Registry HashMap dedupes;
-                    //    per-chunk dispatch catches each fresh slot
-                    //    the moment it appears on the wire.
-                    for hier in chunk.agent_instance_hierarchies() {
+                    // 0. Walk every `(agent_instance_hierarchy,
+                    //    continuation)` pair in the chunk's nested
+                    //    tree. Claim the lock-file slot for each
+                    //    hier (registry HashMap dedupes; per-chunk
+                    //    dispatch catches each fresh slot the moment
+                    //    it appears on the wire), and queue an
+                    //    `agent_continuations` upsert for each leaf
+                    //    that carries a continuation. The Vec is
+                    //    awaited via `try_join_all` before any
+                    //    downstream work — by the time the chunk
+                    //    yields, the rows are persisted.
+                    let mut continuation_upserts: Vec<_> = Vec::new();
+                    for (hier, continuation) in chunk.agent_instance_hierarchies() {
                         registry.observe(hier);
+                        if let Some(c) = continuation {
+                            continuation_upserts.push(
+                                crate::db::agent_continuations::upsert(&ctx.db, hier, c),
+                            );
+                        }
+                    }
+                    if let Err(e) =
+                        futures::future::try_join_all(continuation_upserts).await
+                    {
+                        stream_err = Some(format!("agent_continuations upsert: {e}"));
+                        break;
                     }
 
                     // 1. Hand a clone to the LogWriter. A send

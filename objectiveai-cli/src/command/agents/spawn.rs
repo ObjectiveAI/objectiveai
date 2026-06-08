@@ -42,6 +42,7 @@ use objectiveai_sdk::cli::command::{BinaryExecutor, CommandExecutor};
 
 use crate::context::Context;
 use crate::error::Error;
+use crate::websockets::agent_hierarchies::ChunkAgentHierarchies;
 use crate::websockets::agent_registry::AgentInstanceRegistry;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
@@ -285,6 +286,30 @@ pub(crate) fn run_multi_pass(
                 // EOF. Only the terminal chunk usually carries one.
                 if let Some(c) = chunk.continuation.as_deref() {
                     last_continuation = Some(c.to_string());
+                }
+
+                // Upsert any `(AIH, continuation)` pairs the chunk
+                // carries into the `agent_continuations` registry
+                // (cumulative chunks always yield exactly one pair;
+                // the Vec is 0-or-1 long depending on whether
+                // `continuation` is `Some`). Awaited before the
+                // log-writer send + downstream yield so the registry
+                // row is visible by the time the chunk leaves this
+                // body.
+                let mut continuation_upserts: Vec<_> = Vec::new();
+                for (hier, continuation) in chunk.agent_instance_hierarchies() {
+                    if let Some(c) = continuation {
+                        continuation_upserts.push(
+                            crate::db::agent_continuations::upsert(&ctx.db, hier, c),
+                        );
+                    }
+                }
+                if let Err(e) =
+                    futures::future::try_join_all(continuation_upserts).await
+                {
+                    stream_err =
+                        Some(format!("agent_continuations upsert: {e}"));
+                    break;
                 }
 
                 // Log + forward. The write is a synchronous mpsc
