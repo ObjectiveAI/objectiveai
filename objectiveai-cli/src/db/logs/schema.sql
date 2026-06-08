@@ -33,15 +33,19 @@ CREATE SCHEMA IF NOT EXISTS logs;
 -- The chunk body (response side) or create-params body (request side)
 -- is serialized to JSONB and stored verbatim. PK = wire response_id.
 
+-- Request blobs DON'T carry agent_instance_hierarchy. A single
+-- request can be the entry point for many agents (vector / function
+-- tiers; nested function tasks), so the "which agent is this for?"
+-- linkage lives in `logs.messages` — one row there per
+-- (request_response_id, agent_instance_hierarchy) pair, written by
+-- the LogWriter the first time it sees each agent in the chunk's row
+-- iterator.
 CREATE TABLE IF NOT EXISTS logs.agent_completion_requests (
     response_id              TEXT PRIMARY KEY,
-    agent_instance_hierarchy TEXT NOT NULL,
     body                     JSONB NOT NULL,
     created_at               BIGINT NOT NULL,
     inserted_at              TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS idx_acreq_agent_instance_hierarchy
-    ON logs.agent_completion_requests(agent_instance_hierarchy);
 CREATE INDEX IF NOT EXISTS idx_acreq_body_gin
     ON logs.agent_completion_requests USING GIN (body);
 
@@ -323,7 +327,12 @@ CREATE TABLE IF NOT EXISTS logs.messages (
     -- downgrades `messages_queue.read_index` when an UPDATE needs to
     -- re-deliver an already-consumed row to a caller.
     "index"                  BIGSERIAL           NOT NULL,
-    agent_instance_hierarchy TEXT                NULL,
+    -- Every messages row is per-agent. For streaming-content kinds
+    -- this is the agent that produced the chunk; for request-blob
+    -- kinds it's the agent whose history is being seeded with "the
+    -- request was made for me" — the writer emits one such row per
+    -- agent it sees in the chunk's row iterator.
+    agent_instance_hierarchy TEXT                NOT NULL,
     "timestamp"              BIGINT              NOT NULL,
     CONSTRAINT messages_table_row_consistency CHECK (
         -- Request-blob kinds: no per-row identity.
@@ -360,15 +369,14 @@ CREATE TABLE IF NOT EXISTS logs.messages (
          )
          AND row_index IS NOT NULL AND row_sub_index IS NOT NULL)
     ),
-    UNIQUE NULLS NOT DISTINCT (response_id, "table", row_index, row_sub_index)
+    UNIQUE NULLS NOT DISTINCT (response_id, "table", row_index, row_sub_index, agent_instance_hierarchy)
 );
 CREATE INDEX IF NOT EXISTS messages_index_idx
     ON logs.messages("index");
 CREATE INDEX IF NOT EXISTS messages_response_index_idx
     ON logs.messages(response_id, "index");
 CREATE INDEX IF NOT EXISTS messages_agent_hier_index_idx
-    ON logs.messages(agent_instance_hierarchy, "index")
-    WHERE agent_instance_hierarchy IS NOT NULL;
+    ON logs.messages(agent_instance_hierarchy, "index");
 
 -- =====================================================================
 -- messages_queue: per-caller read watermark

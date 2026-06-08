@@ -1,25 +1,29 @@
 //! `LogWriter<C>` — postgres log writer driven by the chunk-rows
 //! iterator family.
 //!
-//! Lifecycle:
+//! Per-chunk lifecycle:
 //!
-//! 1. **Construction** via one of the three tier factories
-//!    ([`write_agent_completion`] / [`write_vector_completion`] /
-//!    [`write_function_execution`]). The request body is serialized
-//!    to JSONB up-front and stashed; the matching `*_chunk_rows`
-//!    walker is wired in as a function pointer.
-//! 2. **First chunk**: capture the chunk's `response_id`, INSERT the
-//!    request blob once, INSERT the response blob.
-//! 3. **Every chunk**: walk `chunk_rows(chunk)`. For each yielded
-//!    [`RowValue`], the shadow returns
-//!    [`Insert`](crate::db::logs::WriteOp::Insert) /
-//!    [`Update`](crate::db::logs::WriteOp::Update) /
-//!    [`Skip`](crate::db::logs::WriteOp::Skip). The Skip path is
-//!    pure-memory: borrowed-key probe + `PartialEq` on the stored
-//!    body, no allocation. After the per-row walk, the response blob
-//!    is UPDATEd if its bytes changed.
+//! 1. **First chunk**: capture the chunk's `response_id`, INSERT the
+//!    request blob (no `agent_instance_hierarchy` on the blob — that
+//!    linkage lives in `logs.messages`).
+//! 2. **Every chunk**: walk `chunk_rows(chunk)`, gate each yielded
+//!    [`RowValue`] through the shadow (Skip path is pure-memory),
+//!    bucket the survivors by `agent_instance_hierarchy`. For every
+//!    agent the writer hasn't seen yet in this stream's lifetime,
+//!    prepend a `logs.messages` row that registers the request blob
+//!    in that agent's history — this is always the first item in the
+//!    bucket, so postgres's BIGSERIAL gives it an `"index"` strictly
+//!    less than the streaming-content rows that follow.
+//! 3. **Per-bucket execution**: rows within one agent's bucket fire
+//!    sequentially (so the per-agent ORDER BY `"index"` matches the
+//!    iterator's order). All buckets fire concurrently via
+//!    `try_join_all`. The response blob update runs in parallel with
+//!    the bucket fan-out via `tokio::join!`.
 
+use std::collections::{HashMap, HashSet};
+use std::future::Future;
 use std::marker::PhantomData;
+use std::pin::Pin;
 
 use objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams;
 use objectiveai_sdk::agent::completions::response::streaming::{
@@ -39,11 +43,14 @@ use super::rows::{
 };
 use super::shadow::{Shadow, WriteOp};
 use super::write::{
-    Tier, insert_request_blob, insert_response_blob, update_response_blob, write_value,
+    Tier, insert_request_blob, insert_request_messages_row, insert_response_blob,
+    update_response_blob, write_value,
 };
 
 pub trait WriterChunk {
     fn primary_id(&self) -> &str;
+    /// `agent_instance_hierarchy` on the agent-tier response blob (only).
+    /// Vector / function chunks return `None`.
     fn agent_instance_hierarchy_opt(&self) -> Option<&str>;
 }
 
@@ -78,17 +85,19 @@ pub struct LogWriter<C> {
     request_body: serde_json::Value,
     rows_fn: for<'a> fn(&'a C) -> RowsIter<'a>,
     primary_id: Option<String>,
-    /// Per-streaming-content-row shadow: hashed by borrowed key, body
-    /// compared via [`PartialEq`]. See [`Shadow`] for the
-    /// allocation-free Skip path.
+    /// Per-streaming-content-row shadow. Skip path is allocation-free.
     shadow: Shadow,
-    /// Last-written response blob bytes for diff detection. `None`
-    /// before the first chunk; `Some(bytes)` after at least one
-    /// successful response-blob write. PartialEq on `Vec<u8>` bails
-    /// fast on length / byte mismatch.
+    /// Last-written response blob bytes — `PartialEq` against the
+    /// next tick's serialized chunk decides Insert / Update / Skip.
     last_response_blob: Option<Vec<u8>>,
     /// Once-flag for the request blob INSERT.
     request_written: bool,
+    /// Every `agent_instance_hierarchy` we've observed in this
+    /// stream's lifetime. The first time an agent appears in the row
+    /// iterator we insert a `logs.messages` row registering the
+    /// request blob in that agent's history; subsequent ticks see
+    /// the agent already-marked and skip the registration.
+    seen_agents: HashSet<String>,
     #[allow(dead_code)]
     caller_agent_instance_hierarchy: Option<String>,
     _chunk: PhantomData<fn() -> C>,
@@ -110,6 +119,7 @@ impl<C> LogWriter<C> {
             shadow: Shadow::new(),
             last_response_blob: None,
             request_written: false,
+            seen_agents: HashSet::new(),
             caller_agent_instance_hierarchy: None,
             _chunk: PhantomData,
         }
@@ -131,8 +141,8 @@ impl<C> LogWriter<C> {
     where
         C: WriterChunk + AgentCompletionIds + Serialize + Clone + Send + Sync,
     {
-        // First-chunk path: stamp the primary id, write the request
-        // blob once.
+        // First chunk: stamp the primary id, write the request blob
+        // ONCE. The request blob has no agent_instance_hierarchy.
         if self.primary_id.is_none() {
             self.primary_id = Some(chunk.primary_id().to_string());
         }
@@ -146,7 +156,6 @@ impl<C> LogWriter<C> {
                 &self.pool,
                 self.tier,
                 &response_id,
-                agent_hierarchy,
                 &request_body,
                 created_at_seed,
             )
@@ -154,21 +163,34 @@ impl<C> LogWriter<C> {
             self.request_written = true;
         }
 
-        // Stage 1: walk streaming-content rows, gate each through the
-        // shadow (borrowed-key probe + PartialEq body diff). Collect
-        // the survivors — the Skip path stays pure-memory; only
-        // non-Skip rows make it into `dispatched`. The collected vec
-        // borrows from `chunk`, which outlives this function, so the
-        // futures below can reference the borrowed payloads directly.
-        let dispatched: Vec<(WriteOp, RowValue<'_>)> = (self.rows_fn)(chunk)
-            .filter_map(|value| match self.shadow.record(&value) {
-                WriteOp::Skip => None,
-                op => Some((op, value)),
-            })
-            .collect();
+        // Walk rows, gate via shadow, bucket survivors by
+        // agent_instance_hierarchy. Vec inside the HashMap preserves
+        // iterator order so per-bucket sequential awaits match
+        // chunk_rows()'s ordering.
+        let mut buckets: HashMap<&str, Vec<(WriteOp, RowValue<'_>)>> = HashMap::new();
+        for value in (self.rows_fn)(chunk) {
+            let key = value.agent_instance_hierarchy();
+            match self.shadow.record(&value) {
+                WriteOp::Skip => continue,
+                op => buckets.entry(key).or_default().push((op, value)),
+            }
+        }
 
-        // Stage 2: serialize the response chunk once (we need the
-        // bytes anyway), diff against the last-written blob.
+        // Decide which buckets need a leading request-messages row,
+        // and mark those agents as seen before spawning futures so
+        // the seen_agents update happens synchronously.
+        let mut bucket_list: Vec<(&str, Vec<(WriteOp, RowValue<'_>)>, bool)> =
+            Vec::with_capacity(buckets.len());
+        for (hier, items) in buckets {
+            let needs_request_row = !self.seen_agents.contains(hier);
+            if needs_request_row {
+                self.seen_agents.insert(hier.to_string());
+            }
+            bucket_list.push((hier, items, needs_request_row));
+        }
+
+        // Serialize the response chunk once, diff against the
+        // last-written blob.
         let response_bytes = serde_json::to_vec(chunk)?;
         let blob_op = match &self.last_response_blob {
             Some(prev) if prev == &response_bytes => WriteOp::Skip,
@@ -176,23 +198,54 @@ impl<C> LogWriter<C> {
             None => WriteOp::Insert,
         };
 
-        // Stage 3: fan out every surviving streaming-content write
-        // AND the response-blob write concurrently. All futures share
-        // the live `chunk`'s borrow scope, so we never need to clone
-        // payloads into the futures.
+        // Build the per-agent bucket futures. Each one runs its rows
+        // sequentially — order matters within an agent's history.
+        // Different buckets run concurrently via `try_join_all`.
         let pool = &self.pool;
-        let content_fut = futures::future::try_join_all(
-            dispatched
-                .iter()
-                .map(|(op, value)| write_value(pool, *op, value, created_at_seed)),
-        );
+        let tier = self.tier;
+        let resp_id = response_id.as_str();
+        let bucket_futures: Vec<
+            Pin<Box<dyn Future<Output = Result<(), crate::error::Error>> + Send + '_>>,
+        > = bucket_list
+            .iter()
+            .map(|(hier, items, needs_request_row)| {
+                let hier = *hier;
+                let items_ref = items.as_slice();
+                let needs_request_row = *needs_request_row;
+                Box::pin(async move {
+                    if needs_request_row {
+                        insert_request_messages_row(
+                            pool,
+                            tier,
+                            resp_id,
+                            hier,
+                            created_at_seed,
+                        )
+                        .await?;
+                    }
+                    for (op, value) in items_ref {
+                        write_value(pool, *op, value, created_at_seed).await?;
+                    }
+                    Ok::<(), crate::error::Error>(())
+                })
+                    as Pin<
+                        Box<
+                            dyn Future<Output = Result<(), crate::error::Error>>
+                                + Send
+                                + '_,
+                        >,
+                    >
+            })
+            .collect();
+
+        let content_fut = futures::future::try_join_all(bucket_futures);
         let blob_fut = async {
             match blob_op {
                 WriteOp::Insert => {
                     insert_response_blob(
                         pool,
-                        self.tier,
-                        &response_id,
+                        tier,
+                        resp_id,
                         agent_hierarchy,
                         chunk,
                         created_at_seed,
@@ -200,14 +253,7 @@ impl<C> LogWriter<C> {
                     .await
                 }
                 WriteOp::Update => {
-                    update_response_blob(
-                        pool,
-                        self.tier,
-                        &response_id,
-                        chunk,
-                        created_at_seed,
-                    )
-                    .await
+                    update_response_blob(pool, tier, resp_id, chunk, created_at_seed).await
                 }
                 WriteOp::Skip => Ok(()),
             }

@@ -693,60 +693,61 @@ impl Tier {
     }
 }
 
-/// INSERT the request blob AND the matching `logs.messages` row in
-/// one CTE. Called once per stream (on first chunk arrival).
+/// INSERT the request blob. Called once per stream, on first chunk
+/// arrival. Request blobs don't carry `agent_instance_hierarchy` —
+/// they're shared across every agent that participates in the stream.
+/// The per-agent "the request was made for me" linkage lives in
+/// `logs.messages` and is written separately by
+/// [`insert_request_messages_row`] the first time each agent appears
+/// in the chunk's row iterator.
 pub async fn insert_request_blob<P: Serialize>(
     pool: &Pool,
     tier: Tier,
     response_id: &str,
-    agent_instance_hierarchy: Option<&str>,
     params: &P,
     timestamp: i64,
 ) -> Result<(), Error> {
     let body = serde_json::to_value(params)?;
-    let mt = tier.request_message_table();
-    match tier {
-        Tier::Agent => {
-            sqlx::query(
-                "WITH data_ins AS (\
-                    INSERT INTO logs.agent_completion_requests \
-                        (response_id, agent_instance_hierarchy, body, created_at) \
-                    VALUES ($1, $2, $3, $4) RETURNING response_id\
-                 )\
-                 INSERT INTO logs.messages \
-                    (response_id, \"table\", row_index, row_sub_index, \
-                     agent_instance_hierarchy, \"timestamp\") \
-                 SELECT $1, $5, NULL, NULL, $2, $4 FROM data_ins",
-            )
-            .bind(response_id)
-            .bind(agent_instance_hierarchy.unwrap_or(""))
-            .bind(sqlx::types::Json(body))
-            .bind(timestamp)
-            .bind(mt)
-            .execute(&**pool)
-            .await?;
-        }
-        Tier::Vector | Tier::Function => {
-            let sql = format!(
-                "WITH data_ins AS (\
-                    INSERT INTO {table} (response_id, body, created_at) \
-                    VALUES ($1, $2, $3) RETURNING response_id\
-                 )\
-                 INSERT INTO logs.messages \
-                    (response_id, \"table\", row_index, row_sub_index, \
-                     agent_instance_hierarchy, \"timestamp\") \
-                 SELECT $1, $4, NULL, NULL, NULL, $3 FROM data_ins",
-                table = tier.request_table()
-            );
-            sqlx::query(&sql)
-                .bind(response_id)
-                .bind(sqlx::types::Json(body))
-                .bind(timestamp)
-                .bind(mt)
-                .execute(&**pool)
-                .await?;
-        }
-    }
+    let sql = format!(
+        "INSERT INTO {table} (response_id, body, created_at) VALUES ($1, $2, $3)",
+        table = tier.request_table()
+    );
+    sqlx::query(&sql)
+        .bind(response_id)
+        .bind(sqlx::types::Json(body))
+        .bind(timestamp)
+        .execute(&**pool)
+        .await?;
+    Ok(())
+}
+
+/// INSERT a `logs.messages` row that registers this stream's request
+/// blob in the agent's history. Called once per (stream, agent) pair
+/// — the writer tracks which agents it has already seen and only
+/// emits this row the first time it encounters a new one in the row
+/// iterator. By postgres's BIGSERIAL `"index"` assignment, this row
+/// is guaranteed to land earlier in the agent's history than any
+/// subsequent streaming-content row that the same writer call
+/// sequences after it.
+pub async fn insert_request_messages_row(
+    pool: &Pool,
+    tier: Tier,
+    response_id: &str,
+    agent_instance_hierarchy: &str,
+    timestamp: i64,
+) -> Result<(), Error> {
+    sqlx::query(
+        "INSERT INTO logs.messages \
+            (response_id, \"table\", row_index, row_sub_index, \
+             agent_instance_hierarchy, \"timestamp\") \
+         VALUES ($1, $2, NULL, NULL, $3, $4)",
+    )
+    .bind(response_id)
+    .bind(tier.request_message_table())
+    .bind(agent_instance_hierarchy)
+    .bind(timestamp)
+    .execute(&**pool)
+    .await?;
     Ok(())
 }
 
