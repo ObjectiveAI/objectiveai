@@ -22,7 +22,7 @@ use futures::{Stream, StreamExt};
 use objectiveai_sdk::agent::completions::message::{Message, RichContent, UserMessage};
 use objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams;
 use objectiveai_sdk::cli::command::agents::message::{
-    MessageTarget, Request, RequestDangerousAdvanced, RequestMessage, ResponseItem,
+    EnqueueMode, MessageTarget, Request, RequestDangerousAdvanced, RequestMessage, ResponseItem,
 };
 use objectiveai_sdk::cli::command::agents::spawn::ResponseItem as SpawnResponseItem;
 use objectiveai_sdk::cli::command::{BinaryExecutor, CommandExecutor};
@@ -35,6 +35,13 @@ use crate::websockets::lock_file;
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
+    // Fire-and-forget short-circuit. `--enqueue` /
+    // `--enqueue-with-key` skip every interactive step (no
+    // `tags::lookup`, no lock-file race, no spawn-takeover, no
+    // detached respawn) and just persist into `message_queue`.
+    if let Some(mode) = request.enqueue {
+        return execute_enqueue(ctx, request.target, request.message, mode).await;
+    }
     let want_stream = request
         .dangerous_advanced
         .as_ref()
@@ -347,6 +354,52 @@ async fn execute_unary_respawn(
 fn once_item(item: ResponseItem) -> ItemStream {
     Box::pin(futures::stream::once(async move {
         Ok::<ResponseItem, Error>(item)
+    }))
+}
+
+/// `--enqueue` / `--enqueue-with-key` handler. Bypasses every
+/// delivery-side concern (tag resolution, lock-file race, spawn
+/// takeover, detached respawn) and writes one row into
+/// `message_queue` against the target. `Keyed` mode threads the key
+/// through; `db::message_queue::enqueue_with_content` deletes any
+/// prior row scoped to the same (target, key) pair before insert,
+/// so re-issuing with the same key reliably replaces the prior
+/// payload.
+async fn execute_enqueue(
+    ctx: &Context,
+    target: MessageTarget,
+    message: RequestMessage,
+    mode: EnqueueMode,
+) -> Result<ItemStream, Error> {
+    let content = resolve_message(message)?;
+    let key = match mode {
+        EnqueueMode::Plain => None,
+        EnqueueMode::Keyed { key } => Some(key),
+    };
+    let (hier, tag) = match target {
+        MessageTarget::Direct {
+            parent_agent_instance_hierarchy,
+            agent_instance,
+        } => {
+            let parent = parent_agent_instance_hierarchy
+                .as_deref()
+                .unwrap_or(&ctx.config.agent_instance_hierarchy);
+            (Some(format!("{parent}/{agent_instance}")), None)
+        }
+        MessageTarget::Tag { agent_tag } => (None, Some(agent_tag)),
+    };
+    let id = crate::db::message_queue::enqueue_with_content(
+        &ctx.db,
+        hier.clone(),
+        tag.clone(),
+        key,
+        content,
+    )
+    .await?;
+    Ok(once_item(ResponseItem::Enqueued {
+        id,
+        agent_instance_hierarchy: hier,
+        agent_tag: tag,
     }))
 }
 

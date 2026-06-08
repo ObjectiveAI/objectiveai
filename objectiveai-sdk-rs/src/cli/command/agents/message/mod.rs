@@ -35,10 +35,21 @@ pub struct Request {
     /// always carries this exact `RichContent` as its single
     /// user message.
     pub message: RequestMessage,
+    /// `None` (default) → run the full delivery flow (resolve
+    /// target, lock-race, spawn-takeover). `Some(_)` →
+    /// short-circuit straight into the queue against the target;
+    /// no lookup, no race, no spawn. With `Keyed { key }`, any
+    /// pre-existing row scoped to the same target + key is deleted
+    /// before insert.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub enqueue: Option<EnqueueMode>,
     /// `Some(true)` → in-process streaming delivery / spawn.
     /// `None | Some(false)` → detached subprocess re-exec for the
     /// spawn-take-over case; the call returns the first item of
-    /// that child's stream.
+    /// that child's stream. Ignored when `enqueue.is_some()` — the
+    /// enqueue path yields a single-item stream identical to its
+    /// unary response.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub dangerous_advanced: Option<RequestDangerousAdvanced>,
@@ -137,6 +148,29 @@ pub struct RequestDangerousAdvanced {
     pub stream: Option<bool>,
 }
 
+/// "Fire and forget into the queue" mode. When attached to a
+/// [`Request`] via [`Request::enqueue`], the handler short-circuits:
+/// no tag lookup, no lock-file race, no spawn-takeover, no detached
+/// respawn — just one INSERT (preceded by a key-collision DELETE
+/// when `Keyed`) and a [`Response::Enqueued`] reply.
+///
+/// Key scope is per-target: the row's `(agent_instance_hierarchy,
+/// key)` or `(agent_tag, key)` pair is unique. Replacing an existing
+/// row scoped to one target leaves rows under other targets alone.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(tag = "by", rename_all = "snake_case")]
+#[schemars(rename = "cli.command.agents.message.EnqueueMode")]
+pub enum EnqueueMode {
+    /// `--enqueue` — bare enqueue, no idempotency key.
+    #[schemars(title = "Plain")]
+    Plain,
+    /// `--enqueue-with-key <KEY>` — idempotent enqueue. Existing
+    /// queue rows scoped to the same target (AIH or tag) AND key
+    /// are deleted before the insert lands.
+    #[schemars(title = "Keyed")]
+    Keyed { key: String },
+}
+
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         let mut argv = vec!["agents".to_string(), "message".to_string()];
@@ -163,6 +197,14 @@ impl CommandRequest for Request {
                 serde_json::to_string(advanced)
                     .expect("RequestDangerousAdvanced serializes"),
             );
+        }
+        match &self.enqueue {
+            None => {}
+            Some(EnqueueMode::Plain) => argv.push("--enqueue".to_string()),
+            Some(EnqueueMode::Keyed { key }) => {
+                argv.push("--enqueue-with-key".to_string());
+                argv.push(key.clone());
+            }
         }
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
@@ -285,6 +327,17 @@ pub struct Args {
     /// `{"stream":true}`).
     #[arg(long)]
     pub dangerous_advanced: Option<String>,
+    /// Persist the message into the queue against the target and
+    /// return immediately. No tag lookup, no delivery race, no
+    /// spawn-takeover. Mutually exclusive with
+    /// `--enqueue-with-key`.
+    #[arg(long, conflicts_with = "enqueue_with_key")]
+    pub enqueue: bool,
+    /// Persist with an idempotency key — existing queue rows
+    /// scoped to the same target + key are deleted before insert.
+    /// Mutually exclusive with `--enqueue`.
+    #[arg(long)]
+    pub enqueue_with_key: Option<String>,
     /// jq filter applied to the JSON output.
     #[arg(long)]
     pub jq: Option<String>,
@@ -372,10 +425,19 @@ impl TryFrom<Args> for Request {
         } else {
             None
         };
+        let enqueue = match (args.enqueue, args.enqueue_with_key) {
+            (false, None) => None,
+            (true, None) => Some(EnqueueMode::Plain),
+            (false, Some(key)) => Some(EnqueueMode::Keyed { key }),
+            (true, Some(_)) => unreachable!(
+                "clap `conflicts_with` prevents --enqueue + --enqueue-with-key"
+            ),
+        };
         Ok(Self {
             path_type: Path::AgentsMessage,
             target,
             message,
+            enqueue,
             dangerous_advanced,
             jq: args.jq,
         })

@@ -220,6 +220,8 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::instances::me::response_schema::Request),
         #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::agents::message::EnqueueMode),
+        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::message::Path),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::message::Request),
