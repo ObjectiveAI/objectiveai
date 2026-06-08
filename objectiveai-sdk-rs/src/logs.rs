@@ -1,105 +1,212 @@
-//! SDK-side `logs` module.
+//! SDK-side `logs` types.
 //!
-//! Hosts the shared ref shapes every `*Log` struct uses to point at a
-//! row in another postgres table:
+//! Holds the two enums every postgres-log writer dispatches on:
 //!
-//! - [`LogRef`] — `{ table, id }`. Single ref into the named table.
-//! - [`RichContentLogRef`] — untagged enum of `Solo(LogRef)` or
-//!   `Many(Vec<LogRef>)`. Used for content slots that may carry either
-//!   a single content row or an ordered list of mixed media rows.
-//! - [`LogTable`] — closed enum of every postgres table a ref can
-//!   point into: five content-addressed leaf tables (`text`, `image`,
-//!   `audio`, `video`, `file`) plus six request/response tables.
+//! - [`LogTable`] — closed list of every table in the `logs.*` schema.
+//! - [`LogValue`] — borrowed (`'a`) sum type of every row shape the
+//!   writer can be asked to UPSERT. One variant per table.
+//!
+//! Each chunk type (`AgentCompletionChunk`, `VectorCompletionChunk`,
+//! `FunctionExecutionChunk`) exposes a `log_rows(&self)` method that
+//! returns an iterator over `(LogTable, LogValue<'_>)` pairs. The
+//! iterator never collects: it yields one row at a time as the writer
+//! pulls. Recursive structures (function executions embedding vector
+//! completions embedding agent completions) chain their child
+//! iterators rather than buffering.
+//!
+//! Tier blob writes (the six tier tables) are NOT yielded by the
+//! streaming iterator — they're produced by separate `request_blob`
+//! / `response_blob` helpers because they're written once per
+//! lifecycle (request: on first chunk; response: also UPSERTed per
+//! tick once we know the body, with the writer's shadow gating).
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// `{ table, id }` ref. Every `*Log` content slot whose underlying
-/// value is a plain string (refusal, tool-call arguments, continuation
-/// tokens, function input JSON) — and every cross-completion ref
-/// (per-agent vector slot, per-task function slot, reasoning summary)
-/// — is shaped this way.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "LogRef")]
-pub struct LogRef {
-    pub table: LogTable,
-    pub id: i64,
-}
+use crate::agent::completions::message::{
+    File, ImageUrl, InputAudio, VideoUrl,
+};
 
-impl LogRef {
-    pub fn new(table: LogTable, id: i64) -> Self {
-        Self { table, id }
-    }
-}
-
-/// Ref shape for any content slot whose wire form is a `RichContent`
-/// (i.e. content fields on user / system / developer / assistant /
-/// tool messages, and tool-response content).
-///
-/// Wire form is untagged — the writer emits `Solo` when the source was
-/// a plain string (lowered to one `LogRef` into the `text` table) and
-/// `Many` when the source was a real rich-content list (one `LogRef`
-/// per part, table-tagged by media kind).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
-#[serde(untagged)]
-#[schemars(rename = "RichContentLogRef")]
-pub enum RichContentLogRef {
-    #[schemars(title = "Solo")]
-    Solo(LogRef),
-    #[schemars(title = "Many")]
-    Many(Vec<LogRef>),
-}
-
-/// Closed enum of every postgres table a [`LogRef`] can point into.
-///
-/// Content-addressed leaf tables (deduplicated payloads — same body
-/// inserted twice maps to the same row id):
-/// - `text` — plain string content (refusal, reasoning, tool-call
-///   arguments, continuation/retry tokens, any RichContent::Text
-///   part).
-/// - `image`, `audio`, `video`, `file` — JSONB bodies of the matching
-///   media struct (`ImageUrl`, `InputAudio`, `VideoUrl`, `File`).
-/// - `input` — JSONB body for function-execution inputs (structured
-///   data, kept as its own table since it isn't string-shaped).
-///
-/// Six request/response tables hold the stripped log envelopes
-/// themselves.
+/// Every table in the `logs.*` schema. Matches `schema.sql` 1:1.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[schemars(rename = "LogTable")]
 pub enum LogTable {
-    Text,
-    Image,
-    Audio,
-    Video,
-    File,
-    Input,
-    AgentCompletionRequest,
-    AgentCompletionResponse,
-    VectorCompletionRequest,
-    VectorCompletionResponse,
-    FunctionExecutionRequest,
-    FunctionExecutionResponse,
+    AgentCompletionRequests,
+    AgentCompletionResponses,
+    VectorCompletionRequests,
+    VectorCompletionResponses,
+    FunctionExecutionRequests,
+    FunctionExecutionResponses,
+
+    ToolResponse,
+
+    AssistantResponseRefusal,
+    AssistantResponseReasoning,
+    AssistantResponseToolCalls,
+
+    AssistantResponseContentText,
+    AssistantResponseContentImage,
+    AssistantResponseContentAudio,
+    AssistantResponseContentVideo,
+    AssistantResponseContentFile,
+
+    ToolResponseContentText,
+    ToolResponseContentImage,
+    ToolResponseContentAudio,
+    ToolResponseContentVideo,
+    ToolResponseContentFile,
 }
 
 impl LogTable {
-    /// Fully-qualified table name in postgres, including the `logs.`
-    /// schema prefix. Used by the CLI writer when constructing
-    /// `INSERT INTO …` statements.
+    /// Fully-qualified table name (`logs.<name>`). Used by the writer
+    /// when composing `INSERT INTO …` statements.
     pub fn fq_name(self) -> &'static str {
         match self {
-            LogTable::Text => "logs.text",
-            LogTable::Image => "logs.image",
-            LogTable::Audio => "logs.audio",
-            LogTable::Video => "logs.video",
-            LogTable::File => "logs.file",
-            LogTable::Input => "logs.input",
-            LogTable::AgentCompletionRequest => "logs.agent_completion_requests",
-            LogTable::AgentCompletionResponse => "logs.agent_completion_responses",
-            LogTable::VectorCompletionRequest => "logs.vector_completion_requests",
-            LogTable::VectorCompletionResponse => "logs.vector_completion_responses",
-            LogTable::FunctionExecutionRequest => "logs.function_execution_requests",
-            LogTable::FunctionExecutionResponse => "logs.function_execution_responses",
+            LogTable::AgentCompletionRequests => "logs.agent_completion_requests",
+            LogTable::AgentCompletionResponses => "logs.agent_completion_responses",
+            LogTable::VectorCompletionRequests => "logs.vector_completion_requests",
+            LogTable::VectorCompletionResponses => "logs.vector_completion_responses",
+            LogTable::FunctionExecutionRequests => "logs.function_execution_requests",
+            LogTable::FunctionExecutionResponses => "logs.function_execution_responses",
+            LogTable::ToolResponse => "logs.tool_response",
+            LogTable::AssistantResponseRefusal => "logs.assistant_response_refusal",
+            LogTable::AssistantResponseReasoning => "logs.assistant_response_reasoning",
+            LogTable::AssistantResponseToolCalls => "logs.assistant_response_tool_calls",
+            LogTable::AssistantResponseContentText => "logs.assistant_response_content_text",
+            LogTable::AssistantResponseContentImage => "logs.assistant_response_content_image",
+            LogTable::AssistantResponseContentAudio => "logs.assistant_response_content_audio",
+            LogTable::AssistantResponseContentVideo => "logs.assistant_response_content_video",
+            LogTable::AssistantResponseContentFile => "logs.assistant_response_content_file",
+            LogTable::ToolResponseContentText => "logs.tool_response_content_text",
+            LogTable::ToolResponseContentImage => "logs.tool_response_content_image",
+            LogTable::ToolResponseContentAudio => "logs.tool_response_content_audio",
+            LogTable::ToolResponseContentVideo => "logs.tool_response_content_video",
+            LogTable::ToolResponseContentFile => "logs.tool_response_content_file",
         }
     }
 }
+
+/// One streaming-content row to UPSERT. Variants are 1:1 with
+/// [`LogTable`]'s streaming-content tables (the tier blob tables have
+/// no `LogValue` variant — they're written through a separate path).
+///
+/// Borrowed: every variant lifts string / media payloads from the
+/// owning chunk by reference so the iterator never copies content.
+#[derive(Debug, Clone)]
+pub enum LogValue<'a> {
+    ToolResponse {
+        response_id: &'a str,
+        index: u64,
+        tool_call_id: &'a str,
+    },
+    AssistantResponseRefusal {
+        response_id: &'a str,
+        index: u64,
+        text: &'a str,
+    },
+    AssistantResponseReasoning {
+        response_id: &'a str,
+        index: u64,
+        text: &'a str,
+    },
+    AssistantResponseToolCalls {
+        response_id: &'a str,
+        index: u64,
+        tool_call_index: u64,
+        tool_call_id: &'a str,
+        arguments: &'a str,
+    },
+
+    AssistantResponseContentText {
+        response_id: &'a str,
+        index: u64,
+        part_index: u64,
+        text: &'a str,
+    },
+    AssistantResponseContentImage {
+        response_id: &'a str,
+        index: u64,
+        part_index: u64,
+        image_url: &'a ImageUrl,
+    },
+    AssistantResponseContentAudio {
+        response_id: &'a str,
+        index: u64,
+        part_index: u64,
+        input_audio: &'a InputAudio,
+    },
+    AssistantResponseContentVideo {
+        response_id: &'a str,
+        index: u64,
+        part_index: u64,
+        video_url: &'a VideoUrl,
+        is_input: bool,
+    },
+    AssistantResponseContentFile {
+        response_id: &'a str,
+        index: u64,
+        part_index: u64,
+        file: &'a File,
+    },
+
+    ToolResponseContentText {
+        response_id: &'a str,
+        index: u64,
+        part_index: u64,
+        text: &'a str,
+    },
+    ToolResponseContentImage {
+        response_id: &'a str,
+        index: u64,
+        part_index: u64,
+        image_url: &'a ImageUrl,
+    },
+    ToolResponseContentAudio {
+        response_id: &'a str,
+        index: u64,
+        part_index: u64,
+        input_audio: &'a InputAudio,
+    },
+    ToolResponseContentVideo {
+        response_id: &'a str,
+        index: u64,
+        part_index: u64,
+        video_url: &'a VideoUrl,
+        is_input: bool,
+    },
+    ToolResponseContentFile {
+        response_id: &'a str,
+        index: u64,
+        part_index: u64,
+        file: &'a File,
+    },
+}
+
+impl<'a> LogValue<'a> {
+    /// The matching [`LogTable`] for this row.
+    pub fn table(&self) -> LogTable {
+        match self {
+            LogValue::ToolResponse { .. } => LogTable::ToolResponse,
+            LogValue::AssistantResponseRefusal { .. } => LogTable::AssistantResponseRefusal,
+            LogValue::AssistantResponseReasoning { .. } => LogTable::AssistantResponseReasoning,
+            LogValue::AssistantResponseToolCalls { .. } => LogTable::AssistantResponseToolCalls,
+            LogValue::AssistantResponseContentText { .. } => LogTable::AssistantResponseContentText,
+            LogValue::AssistantResponseContentImage { .. } => LogTable::AssistantResponseContentImage,
+            LogValue::AssistantResponseContentAudio { .. } => LogTable::AssistantResponseContentAudio,
+            LogValue::AssistantResponseContentVideo { .. } => LogTable::AssistantResponseContentVideo,
+            LogValue::AssistantResponseContentFile { .. } => LogTable::AssistantResponseContentFile,
+            LogValue::ToolResponseContentText { .. } => LogTable::ToolResponseContentText,
+            LogValue::ToolResponseContentImage { .. } => LogTable::ToolResponseContentImage,
+            LogValue::ToolResponseContentAudio { .. } => LogTable::ToolResponseContentAudio,
+            LogValue::ToolResponseContentVideo { .. } => LogTable::ToolResponseContentVideo,
+            LogValue::ToolResponseContentFile { .. } => LogTable::ToolResponseContentFile,
+        }
+    }
+}
+
+/// Iterator alias used at recursive boundaries (function execution →
+/// vector completion → agent completion). Box-erased so the recursive
+/// types can name themselves; one allocation per recursive descent,
+/// not per row.
+pub type LogRowIter<'a> = Box<dyn Iterator<Item = LogValue<'a>> + Send + 'a>;

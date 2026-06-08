@@ -158,44 +158,6 @@ impl CommandResponse for crate::agent::completions::message::AssistantToolCall {
 }
 
 #[cfg(feature = "mcp")]
-impl CommandResponse
-    for crate::agent::completions::response::streaming::AssistantResponseChunkLog
-{
-    fn into_mcp(self) -> McpResponseItem {
-        McpResponseItem::JSONL(
-            serde_json::to_value(self).unwrap(),
-        )
-    }
-}
-
-#[cfg(feature = "mcp")]
-impl CommandResponse for crate::agent::completions::response::ToolResponseLog {
-    fn into_mcp(self) -> McpResponseItem {
-        McpResponseItem::JSONL(
-            serde_json::to_value(self).unwrap(),
-        )
-    }
-}
-
-#[cfg(feature = "mcp")]
-impl CommandResponse for crate::agent::completions::message::MessageLog {
-    fn into_mcp(self) -> McpResponseItem {
-        McpResponseItem::JSONL(
-            serde_json::to_value(self).unwrap(),
-        )
-    }
-}
-
-#[cfg(feature = "mcp")]
-impl CommandResponse for crate::agent::completions::request::AgentCompletionCreateParamsLog {
-    fn into_mcp(self) -> McpResponseItem {
-        McpResponseItem::JSONL(
-            serde_json::to_value(self).unwrap(),
-        )
-    }
-}
-
-#[cfg(feature = "mcp")]
 impl CommandResponse for crate::agent::completions::response::Logprobs {
     fn into_mcp(self) -> McpResponseItem {
         McpResponseItem::JSONL(
@@ -205,36 +167,7 @@ impl CommandResponse for crate::agent::completions::response::Logprobs {
 }
 
 #[cfg(feature = "mcp")]
-impl CommandResponse for crate::agent::completions::response::streaming::AgentCompletionChunkLog {
-    fn into_mcp(self) -> McpResponseItem {
-        McpResponseItem::JSONL(
-            serde_json::to_value(self).unwrap(),
-        )
-    }
-}
-
-#[cfg(feature = "mcp")]
 impl CommandResponse for crate::agent::response::GetAgentResponse {
-    fn into_mcp(self) -> McpResponseItem {
-        McpResponseItem::JSONL(
-            serde_json::to_value(self).unwrap(),
-        )
-    }
-}
-
-#[cfg(feature = "mcp")]
-impl CommandResponse for crate::functions::executions::request::FunctionExecutionCreateParamsLog {
-    fn into_mcp(self) -> McpResponseItem {
-        McpResponseItem::JSONL(
-            serde_json::to_value(self).unwrap(),
-        )
-    }
-}
-
-#[cfg(feature = "mcp")]
-impl CommandResponse
-    for crate::functions::executions::response::streaming::FunctionExecutionChunkLog
-{
     fn into_mcp(self) -> McpResponseItem {
         McpResponseItem::JSONL(
             serde_json::to_value(self).unwrap(),
@@ -287,13 +220,3 @@ impl CommandResponse for crate::vector::completions::request::VectorCompletionCr
     }
 }
 
-#[cfg(feature = "mcp")]
-impl CommandResponse
-    for crate::vector::completions::response::streaming::VectorCompletionChunkLog
-{
-    fn into_mcp(self) -> McpResponseItem {
-        McpResponseItem::JSONL(
-            serde_json::to_value(self).unwrap(),
-        )
-    }
-}

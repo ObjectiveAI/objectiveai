@@ -1,10 +1,18 @@
-//! `LogWriter<C>` — scaffolding for the postgres log writer.
+//! `LogWriter<C>` — scaffolding for the iterator-driven postgres
+//! log writer.
 //!
-//! Mirrors the API the streaming bridge expects (`write` / `finalize`
-//! / `primary_id` / `with_caller_agent_instance_hierarchy` /
-//! `write_notification`) so the surrounding cli compiles. The actual
-//! strip-and-insert bodies are stubbed pending the content-table
-//! schema landing in `db::init`.
+//! Final design (in flight): every chunk type exposes
+//! `log_rows(&self) -> impl Iterator<Item = LogValue<'_>>`. The
+//! writer pulls one row at a time, looks up its key in a shadow map,
+//! and UPSERTs into the matching table only when the row body changed
+//! since the last tick. Tier-blob writes (request on first chunk,
+//! response on every tick) happen via separate `write_request_blob`
+//! / `write_response_blob` calls.
+//!
+//! Today this stub keeps the streaming-bridge API (`write` /
+//! `finalize` / `primary_id` / `with_caller_agent_instance_hierarchy`
+//! / `with_queue` / `write_notification`) so the surrounding cli
+//! compiles. The iterator hookups land next.
 
 use std::marker::PhantomData;
 
@@ -16,24 +24,12 @@ use crate::db::Pool;
 use crate::db::messages::Queue;
 use crate::db::pending::PendingNotification;
 
-/// Streaming chunk → postgres log rows. `C` is the wire chunk type
-/// (`AgentCompletionChunk` / `VectorCompletionChunk` /
-/// `FunctionExecutionChunk`). Construct via the per-tier factory
-/// functions in this module ([`write_agent_completion`] etc.).
 pub struct LogWriter<C> {
     #[allow(dead_code)]
     pool: Pool,
-    /// Per-stream caller lineage prefix prepended to every chunk-emitted
-    /// `agent_instance_hierarchy` before it lands in
-    /// `messages.agent_instance_hierarchy`. `None` keeps the raw chunk
-    /// value.
     #[allow(dead_code)]
     caller_agent_instance_hierarchy: Option<String>,
-    /// Shared per-agent-id messages-table handle. `None` disables
-    /// per-agent message persistence entirely.
     queue: Option<Queue>,
-    /// Captured primary chunk id (the id of the first written row).
-    /// Available once at least one chunk has been processed.
     primary_id: Option<String>,
     _chunk: PhantomData<fn() -> C>,
 }
@@ -67,9 +63,6 @@ impl<C> LogWriter<C> {
         self.primary_id.as_deref()
     }
 
-    /// Reserve the agent's next db index and persist the notification's
-    /// content. Stub: returns a bare `PendingNotification` without
-    /// touching the content tables.
     pub async fn write_notification(
         &mut self,
         agent_instance_hierarchy: &str,
@@ -90,9 +83,6 @@ impl<C> LogWriter<C> {
         }
     }
 
-    /// Process one incoming chunk. Stub: captures the primary id from
-    /// the first id-bearing chunk and returns an empty inserted-row
-    /// list. The strip + ON CONFLICT insert sequence comes next.
     pub async fn write(
         &mut self,
         chunk: &C,
@@ -109,7 +99,6 @@ impl<C> LogWriter<C> {
         Ok(Vec::new())
     }
 
-    /// Stream-over hook. Stub: returns the empty inserted-row list.
     pub async fn finalize(
         &mut self,
         _pending: &mut Vec<PendingNotification>,
@@ -128,7 +117,7 @@ fn now_secs() -> u64 {
         .unwrap_or(0)
 }
 
-// ---- Factory entry points -------------------------------------------
+// ---- Factory entry points (stubs) ----
 
 use objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams;
 use objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk;
@@ -137,9 +126,6 @@ use objectiveai_sdk::functions::executions::response::streaming::FunctionExecuti
 use objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams;
 use objectiveai_sdk::vector::completions::response::streaming::VectorCompletionChunk;
 
-/// Build the writer for an agent-completion stream. Stub: captures
-/// the request alongside the pool; the strip+insert sequence lands
-/// once the content tables are wired up.
 pub fn write_agent_completion(
     pool: &Pool,
     _params: &AgentCompletionCreateParams,

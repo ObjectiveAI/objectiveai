@@ -4,36 +4,24 @@
 //! has a role (system, user, assistant, tool, or developer) and content.
 
 mod assistant_message;
-mod assistant_message_log;
 mod developer_message;
-mod developer_message_log;
 mod file_content;
-mod message_log;
 mod pipe_ack;
 mod rich_content;
 mod simple_content;
 mod system_message;
-mod system_message_log;
 mod tool_message;
-mod tool_message_log;
 mod user_message;
-mod user_message_log;
 
 pub use assistant_message::*;
-pub use assistant_message_log::*;
 pub use developer_message::*;
-pub use developer_message_log::*;
 pub use file_content::*;
-pub use message_log::*;
 pub use pipe_ack::*;
 pub use rich_content::*;
 pub use simple_content::*;
 pub use system_message::*;
-pub use system_message_log::*;
 pub use tool_message::*;
-pub use tool_message_log::*;
 pub use user_message::*;
-pub use user_message_log::*;
 
 #[cfg(test)]
 mod assistant_message_tests;

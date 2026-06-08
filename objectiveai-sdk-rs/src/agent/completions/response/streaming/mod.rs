@@ -5,18 +5,16 @@
 //! of the full response.
 
 mod agent_completion_chunk;
-mod agent_completion_chunk_log;
 mod agent_completion_ids;
 mod assistant_response_chunk;
-mod assistant_response_chunk_log;
+mod log_rows;
 mod message_chunk;
 mod object;
 
 pub use agent_completion_chunk::*;
-pub use agent_completion_chunk_log::*;
 pub use agent_completion_ids::*;
 pub use assistant_response_chunk::*;
-pub use assistant_response_chunk_log::*;
+pub use log_rows::*;
 pub use message_chunk::*;
 pub use object::*;
 
