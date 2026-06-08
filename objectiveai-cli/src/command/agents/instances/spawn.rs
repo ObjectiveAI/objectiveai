@@ -1,32 +1,33 @@
 //! `agents spawn` — in-process chunk-or-id streaming handler.
 //!
-//! No subprocess. Spawns drive the SDK streaming WS connection
-//! directly inside the cli process and yield each chunk as it
-//! arrives. Per-chunk: claim a process-owned file for every new
+//! Stream-true (`dangerous_advanced.stream = Some(true)`): drive
+//! the SDK streaming WS connection directly inside this cli
+//! process. Per-chunk: claim a process-owned file for every new
 //! `agent_instance_hierarchy` and upgrade any PENDING tags that
 //! map to it. End-of-stream: check whether any seen hierarchy has
-//! undelivered `message_queue` rows; if so, recurse with the same
-//! params but the latest captured continuation. Yields chunks
-//! straight through as they arrive — restart passes flow into the
-//! same output stream.
+//! undelivered `message_queue` rows; destroy the claim files of
+//! the ones that don't (free their slot); if any do, restart with
+//! the same params minus messages plus the latest captured
+//! continuation. Yields chunks straight through as they arrive —
+//! restart passes flow into the same output stream.
 //!
-//! - `dangerous_advanced.stream = Some(true)` → real streaming
-//!   path: emit `ResponseItem::Id(<agent_instance_hierarchy>)` on
-//!   first chunk, then one `ResponseItem::Chunk` per chunk, across
-//!   any number of restart passes, until no seen hierarchy has
-//!   pending messages.
-//! - `dangerous_advanced.stream = None | Some(false)` → recurse
-//!   into self with `stream = Some(true)`, yield only the
-//!   `ResponseItem::Id`, then drive the rest of the stream to EOF
-//!   silently in-process (so the message-queue restart logic still
-//!   runs to completion).
+//! Stream-false (`dangerous_advanced.stream = None | Some(false)`,
+//! the default): re-invoke `objectiveai-cli agents instances spawn
+//! ...` as a **detached subprocess** with the same arguments plus
+//! `stream = true`, read the first `ResponseItem::Id` line off the
+//! child's stdout, yield it, and return. The subprocess runs
+//! orphaned to completion (Unix: kernel re-parents to init;
+//! Windows: `DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP` keeps
+//! it alive past parent exit). This is how `agents spawn` has
+//! always behaved externally — only the implementation moved from
+//! the dedicated `instance` subcommand to a self-respawn of the
+//! ordinary cli command.
 //!
 //! `params.stream` on the wire is always `Some(true)`; the
 //! `dangerous_advanced.stream` setting only controls cli-side
 //! output.
 
 use std::collections::HashMap;
-use std::future::Future;
 use std::path::PathBuf;
 use std::pin::Pin;
 
@@ -40,6 +41,7 @@ use objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams;
 use objectiveai_sdk::cli::command::agents::instances::spawn::{
     AgentSpec, Request, RequestDangerousAdvanced, RequestPrompt, ResponseItem,
 };
+use objectiveai_sdk::cli::command::{BinaryExecutor, CommandExecutor};
 
 use crate::context::Context;
 use crate::db;
@@ -48,56 +50,71 @@ use crate::agent_registry::AgentInstanceRegistry;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
-pub fn execute<'a>(
-    ctx: &'a Context,
+pub async fn execute(
+    ctx: &Context,
     request: Request,
-) -> Pin<Box<dyn Future<Output = Result<ItemStream, Error>> + Send + 'a>> {
-    Box::pin(async move {
-        let want_stream = request
-            .dangerous_advanced
-            .as_ref()
-            .and_then(|a| a.stream)
-            .unwrap_or(false);
-        if want_stream {
-            execute_streaming(ctx, request).await
-        } else {
-            // Recurse with stream=true; emit only the first
-            // ResponseItem::Id, then drive the rest in-process to
-            // EOF so the restart logic still runs.
-            let mut req = request;
-            match req.dangerous_advanced.as_mut() {
-                Some(adv) => adv.stream = Some(true),
-                None => {
-                    req.dangerous_advanced =
-                        Some(RequestDangerousAdvanced { stream: Some(true) })
-                }
-            }
-            let inner = execute(ctx, req).await?;
-            Ok(yield_id_then_drain(inner))
-        }
-    })
+) -> Result<ItemStream, Error> {
+    let want_stream = request
+        .dangerous_advanced
+        .as_ref()
+        .and_then(|a| a.stream)
+        .unwrap_or(false);
+    if want_stream {
+        execute_streaming(ctx, request).await
+    } else {
+        execute_detached(request).await
+    }
 }
 
-/// Wraps an inner stream that emits `ResponseItem::Id` followed by
-/// `ResponseItem::Chunk`s. The outer stream yields the first
-/// `ResponseItem::Id` it sees, then continues to drive the inner
-/// stream to EOF without yielding anything else. Errors from the
-/// inner stream are bubbled exactly once.
-fn yield_id_then_drain(mut inner: ItemStream) -> ItemStream {
-    Box::pin(async_stream::try_stream! {
-        let mut id_yielded = false;
-        while let Some(item) = inner.next().await {
-            let item = item?;
-            if !id_yielded {
-                if let ResponseItem::Id(_) = &item {
-                    id_yielded = true;
-                    yield item;
-                }
-                // Pre-Id chunks are not expected; drop them.
-            }
-            // Post-Id items drain silently.
+/// Stream-false: re-invoke `objectiveai-cli agents instances spawn`
+/// as a detached subprocess with `stream = true`, capture the
+/// first `ResponseItem::Id` off the child's stdout, yield it, and
+/// return. The subprocess outlives this call — its
+/// `tokio::process::Child` handle is dropped without kill (the
+/// SDK's `BinaryExecutor` default + Windows `DETACHED_PROCESS`
+/// flag).
+async fn execute_detached(request: Request) -> Result<ItemStream, Error> {
+    // Re-invoke with stream=true so the child runs the real
+    // streaming path. Same argv otherwise — `BinaryExecutor` will
+    // ask `Request::into_command()` for it.
+    let mut child_request = request;
+    match child_request.dangerous_advanced.as_mut() {
+        Some(adv) => adv.stream = Some(true),
+        None => {
+            child_request.dangerous_advanced =
+                Some(RequestDangerousAdvanced { stream: Some(true) })
         }
-    })
+    }
+
+    // Self-respawn: point the executor at *this* binary (whichever
+    // path the OS recorded for the current process), then arm
+    // Windows-detach so the child survives parent exit. Unix gets
+    // re-parent-to-init for free via the default kill_on_drop=false.
+    let exe = std::env::current_exe()
+        .map_err(|e| Error::Spawn("current_exe".into(), e))?;
+    let executor = BinaryExecutor::from_path(exe).detach(true);
+
+    let mut stream = executor
+        .execute::<Request, ResponseItem>(child_request, None)
+        .await
+        .map_err(|e| Error::Instance(format!(
+            "self-respawn for agents spawn: {e}"
+        )))?;
+
+    // Take exactly the first ResponseItem (the LogStreamReady Id),
+    // yield it, return. Drop the rest of the stream + the Child
+    // handle without kill. On Windows the detach flags keep the
+    // child running; on Unix the kernel re-parents to init.
+    let first = stream
+        .next()
+        .await
+        .ok_or(Error::EmptyStream)?
+        .map_err(|e| Error::Instance(format!(
+            "self-respawn for agents spawn: {e}"
+        )))?;
+    Ok(Box::pin(
+        objectiveai_sdk::cli::command::StreamOnce::new(Ok(first)),
+    ))
 }
 
 async fn execute_streaming(
@@ -304,7 +321,11 @@ fn run_multi_pass(
             // Doing the upgrade pass again here matters — tags
             // that became PENDING during the stream are upgraded
             // now so the message_queue lookup can see anything
-            // routed via newly-bound tags.
+            // routed via newly-bound tags. Then: destroy the claim
+            // file for every hierarchy that has *no* pending
+            // messages (those agents are done, free their slot),
+            // keep the claim for hierarchies that do (the next
+            // pass will re-encounter them).
             let mut any_pending = false;
             for (hier, full_id) in &seen {
                 let parent = crate::db::tags::parent_of(hier);
@@ -315,9 +336,13 @@ fn run_multi_pass(
                 .unwrap_or(false);
                 if pending {
                     any_pending = true;
-                    // No `break` — every iteration runs the upgrade
-                    // for its side effect. The bool tracks whether
-                    // ANY of them tripped pending.
+                    // Keep the claim — restart will revisit this
+                    // hierarchy.
+                } else {
+                    // No pending — this agent is good to go,
+                    // release the claim so other processes can
+                    // pick the hierarchy up if they need to.
+                    registry.destroy(hier);
                 }
             }
 
@@ -325,9 +350,13 @@ fn run_multi_pass(
                 break;
             }
 
-            // Restart with the latest continuation; same agent,
-            // same messages, same seed, same tag-binding (already
-            // done above).
+            // Restart with the latest continuation only. No new
+            // messages — the API picks up state from the
+            // continuation token. The original messages list (or
+            // empty, if prompt was `None`) is replaced by an
+            // empty Vec; this is the same content-less re-invoke
+            // the SDK Request's optional `prompt` field models.
+            params.messages = Vec::new();
             params.continuation = last_continuation;
         }
     }

@@ -19,7 +19,7 @@ mod from_args_error;
 pub use from_args_error::*;
 
 #[cfg(feature = "cli-executor")]
-mod command_executor;
+pub mod command_executor;
 #[cfg(feature = "cli-executor")]
 pub use command_executor::*;
 
