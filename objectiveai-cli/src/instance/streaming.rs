@@ -56,13 +56,11 @@ where
 {
     // Process-owned exclusive claims on every agent_instance_hierarchy
     // observed in the stream. Dropped when the loop returns, releasing
-    // every still-held file. Creation failure on the registry root is
-    // best-effort — we proceed with an empty registry so the stream
-    // still runs.
-    let mut seen_agents = match AgentInstanceRegistry::new(agents_dir) {
-        Ok(r) => Some(r),
-        Err(_) => None,
-    };
+    // every still-held claim. `new` only fails when the root directory
+    // can't be created (permission denied, disk full, etc.) — that's a
+    // genuine environmental failure, not best-effort territory.
+    let mut seen_agents = AgentInstanceRegistry::new(agents_dir)
+        .map_err(|e| format!("failed to open agent claim registry: {e}"))?;
     let mut aggregate: Option<Chunk> = None;
     let mut chunk_count: usize = 0;
 
@@ -131,10 +129,8 @@ where
                         //    file the moment it first appears on the
                         //    wire. Failures (already claimed elsewhere,
                         //    illegal chars, etc.) are silently dropped.
-                        if let Some(reg) = seen_agents.as_mut() {
-                            for hier in chunk.agent_instance_hierarchies() {
-                                reg.observe(hier);
-                            }
+                        for hier in chunk.agent_instance_hierarchies() {
+                            seen_agents.observe(hier);
                         }
 
                         // 1. Hand a clone to the writer task so it can flush
