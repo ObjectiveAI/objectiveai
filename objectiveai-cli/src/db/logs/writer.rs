@@ -49,33 +49,21 @@ use super::write::{
 
 pub trait WriterChunk {
     fn primary_id(&self) -> &str;
-    /// `agent_instance_hierarchy` on the agent-tier response blob (only).
-    /// Vector / function chunks return `None`.
-    fn agent_instance_hierarchy_opt(&self) -> Option<&str>;
 }
 
 impl WriterChunk for AgentCompletionChunk {
     fn primary_id(&self) -> &str {
         self.id.as_str()
     }
-    fn agent_instance_hierarchy_opt(&self) -> Option<&str> {
-        Some(self.agent_instance_hierarchy.as_str())
-    }
 }
 impl WriterChunk for VectorCompletionChunk {
     fn primary_id(&self) -> &str {
         self.id.as_str()
     }
-    fn agent_instance_hierarchy_opt(&self) -> Option<&str> {
-        None
-    }
 }
 impl WriterChunk for FunctionExecutionChunk {
     fn primary_id(&self) -> &str {
         self.id.as_str()
-    }
-    fn agent_instance_hierarchy_opt(&self) -> Option<&str> {
-        None
     }
 }
 
@@ -139,7 +127,6 @@ impl<C> LogWriter<C> {
             self.primary_id = Some(chunk.primary_id().to_string());
         }
         let response_id = self.primary_id.clone().expect("set above");
-        let agent_hierarchy = chunk.agent_instance_hierarchy_opt();
         let created_at_seed = now_secs() as i64;
 
         if !self.request_written {
@@ -231,7 +218,6 @@ impl<C> LogWriter<C> {
                         pool,
                         tier,
                         resp_id,
-                        agent_hierarchy,
                         chunk,
                         created_at_seed,
                     )

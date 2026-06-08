@@ -742,42 +742,26 @@ pub async fn insert_request_messages_row(
 
 /// INSERT the response tier blob (first tick only). Response blobs
 /// don't emit messages — they're the latest snapshot, not events.
+/// Tier-symmetric: every tier's response table now has the same
+/// `(response_id, body, created_at, inserted_at)` shape.
 pub async fn insert_response_blob<C: Serialize>(
     pool: &Pool,
     tier: Tier,
     response_id: &str,
-    agent_instance_hierarchy: Option<&str>,
     chunk: &C,
     created_at: i64,
 ) -> Result<(), Error> {
     let body = serde_json::to_value(chunk)?;
-    match tier {
-        Tier::Agent => {
-            sqlx::query(
-                "INSERT INTO logs.agent_completion_responses \
-                     (response_id, agent_instance_hierarchy, body, created_at) \
-                 VALUES ($1, $2, $3, $4)",
-            )
-            .bind(response_id)
-            .bind(agent_instance_hierarchy.unwrap_or(""))
-            .bind(sqlx::types::Json(body))
-            .bind(created_at)
-            .execute(&**pool)
-            .await?;
-        }
-        Tier::Vector | Tier::Function => {
-            let sql = format!(
-                "INSERT INTO {table} (response_id, body, created_at) VALUES ($1, $2, $3)",
-                table = tier.response_table()
-            );
-            sqlx::query(&sql)
-                .bind(response_id)
-                .bind(sqlx::types::Json(body))
-                .bind(created_at)
-                .execute(&**pool)
-                .await?;
-        }
-    }
+    let sql = format!(
+        "INSERT INTO {table} (response_id, body, created_at) VALUES ($1, $2, $3)",
+        table = tier.response_table()
+    );
+    sqlx::query(&sql)
+        .bind(response_id)
+        .bind(sqlx::types::Json(body))
+        .bind(created_at)
+        .execute(&**pool)
+        .await?;
     Ok(())
 }
 

@@ -33,13 +33,13 @@ CREATE SCHEMA IF NOT EXISTS logs;
 -- The chunk body (response side) or create-params body (request side)
 -- is serialized to JSONB and stored verbatim. PK = wire response_id.
 
--- Request blobs DON'T carry agent_instance_hierarchy. A single
--- request can be the entry point for many agents (vector / function
--- tiers; nested function tasks), so the "which agent is this for?"
--- linkage lives in `logs.messages` — one row there per
--- (request_response_id, agent_instance_hierarchy) pair, written by
--- the LogWriter the first time it sees each agent in the chunk's row
--- iterator.
+-- Neither request nor response blobs carry agent_instance_hierarchy
+-- directly. A single request can be the entry point for many agents
+-- (vector / function tiers; nested function tasks), so the "which
+-- agent is this for?" linkage lives in `logs.messages` — one row
+-- there per (request_response_id, agent_instance_hierarchy) pair,
+-- written by the LogWriter the first time it sees each agent in the
+-- chunk's row iterator. All three tiers share the same blob shape.
 CREATE TABLE IF NOT EXISTS logs.agent_completion_requests (
     response_id              TEXT PRIMARY KEY,
     body                     JSONB NOT NULL,
@@ -51,13 +51,10 @@ CREATE INDEX IF NOT EXISTS idx_acreq_body_gin
 
 CREATE TABLE IF NOT EXISTS logs.agent_completion_responses (
     response_id              TEXT PRIMARY KEY,
-    agent_instance_hierarchy TEXT NOT NULL,
     body                     JSONB NOT NULL,
     created_at               BIGINT NOT NULL,
     inserted_at              TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS idx_acresp_agent_instance_hierarchy
-    ON logs.agent_completion_responses(agent_instance_hierarchy);
 CREATE INDEX IF NOT EXISTS idx_acresp_body_gin
     ON logs.agent_completion_responses USING GIN (body);
 
