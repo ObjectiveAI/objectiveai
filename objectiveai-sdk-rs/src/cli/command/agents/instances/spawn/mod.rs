@@ -8,7 +8,13 @@ use crate::cli::command::CommandRequest;
 #[schemars(rename = "cli.command.agents.instances.spawn.Request")]
 pub struct Request {
     pub path_type: Path,
-    pub prompt: RequestPrompt,
+    /// Optional. Required on a fresh spawn (user-provided
+    /// content). Omitted on a continuation-driven re-spawn —
+    /// `continuation` carries the API-side state forward and no
+    /// new user content is being delivered.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub prompt: Option<RequestPrompt>,
     pub agent: AgentSpec,
     pub seed: Option<i64>,
     pub dangerous_advanced: Option<RequestDangerousAdvanced>,
@@ -90,7 +96,9 @@ impl RequestPrompt {
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         let mut argv = vec!["agents".to_string(), "instances".to_string(), "spawn".to_string()];
-        self.prompt.push_flags(&mut argv);
+        if let Some(prompt) = &self.prompt {
+            prompt.push_flags(&mut argv);
+        }
         // The cli's `AgentArg` (from `define_inline_or_ref!`) accepts
         // either `--agent <REFERENCE>` (a `FavoriteRef` wire form, then
         // resolved to the `Remote` variant) or `--agent-inline <JSON>`
@@ -170,7 +178,7 @@ pub struct Args {
 }
 
 #[derive(clap::Args)]
-#[group(required = true, multiple = false)]
+#[group(required = false, multiple = false)]
 pub struct PromptArgs {
     /// Plain text — becomes one user message.
     #[arg(long)]
@@ -221,7 +229,7 @@ impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
         let prompt = if let Some(s) = args.prompt.simple {
-            RequestPrompt::Simple(s)
+            Some(RequestPrompt::Simple(s))
         } else if let Some(s) = args.prompt.inline {
             let mut de = serde_json::Deserializer::from_str(&s);
             let v = serde_path_to_error::deserialize(&mut de).map_err(|source| {
@@ -230,13 +238,15 @@ impl TryFrom<Args> for Request {
                     source: source.into(),
                 }
             })?;
-            RequestPrompt::Inline(v)
+            Some(RequestPrompt::Inline(v))
         } else if let Some(p) = args.prompt.file {
-            RequestPrompt::File(p)
+            Some(RequestPrompt::File(p))
         } else if let Some(s) = args.prompt.python_inline {
-            RequestPrompt::PythonInline(s)
+            Some(RequestPrompt::PythonInline(s))
+        } else if let Some(p) = args.prompt.python_file {
+            Some(RequestPrompt::PythonFile(p))
         } else {
-            RequestPrompt::PythonFile(args.prompt.python_file.unwrap())
+            None
         };
         let agent = if let Some(s) = args.agent.agent_inline {
             let mut de = serde_json::Deserializer::from_str(&s);

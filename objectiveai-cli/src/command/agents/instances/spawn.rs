@@ -333,7 +333,12 @@ fn run_multi_pass(
     }
 }
 
-pub(crate) fn resolve_prompt(prompt: RequestPrompt) -> Result<Vec<Message>, Error> {
+pub(crate) fn resolve_prompt(
+    prompt: Option<RequestPrompt>,
+) -> Result<Vec<Message>, Error> {
+    let Some(prompt) = prompt else {
+        return Ok(Vec::new());
+    };
     match prompt {
         RequestPrompt::Inline(msgs) => Ok(msgs),
         RequestPrompt::Simple(text) => Ok(vec![Message::User(UserMessage {

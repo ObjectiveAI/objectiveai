@@ -107,7 +107,7 @@ fn agent_spec() -> AgentSpec {
 /// useful for the api's internal routing, not for finding cli logs).
 async fn spawn_agent(executor: &HangPreventingBinaryCommandExecutor, seed: i64) -> String {
     let request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::instances::spawn::Path::AgentsInstancesSpawn,
-        prompt: RequestPrompt::Simple("go".to_string()),
+        prompt: Some(RequestPrompt::Simple("go".to_string())),
         agent: agent_spec(),
         agent_tag: None,
         seed: Some(seed),

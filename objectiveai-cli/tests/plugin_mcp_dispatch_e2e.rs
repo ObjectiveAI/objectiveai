@@ -227,7 +227,7 @@ async fn plugin_mcp_dispatch_round_trip() {
     // only a bare `Id(leaf)`.
     let spawn_request = SpawnRequest { path_type: objectiveai_sdk::cli::command::agents::instances::spawn::Path::AgentsInstancesSpawn,
         agent_tag: None,
-        prompt: RequestPrompt::Simple("use a tool".to_string()),
+        prompt: Some(RequestPrompt::Simple("use a tool".to_string())),
         agent,
         seed: Some(1),
         dangerous_advanced: Some(RequestDangerousAdvanced { stream: Some(true) }),
