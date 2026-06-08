@@ -47,7 +47,7 @@ regex = "1.12.3"
 uuid = { version = "1.22", features = ["v4"] }
 postgresql_embedded = { version = "0.20", default-features = false, features = ["bundled", "theseus", "tokio", "rustls"] }
 sqlx = { version = "0.8", default-features = false, features = [
-    "runtime-tokio", "tls-rustls", "postgres",
+    "runtime-tokio", "tls-rustls", "postgres", "macros",
 ] }
 percent-encoding = "2.3"
 base62 = "2.2.4"

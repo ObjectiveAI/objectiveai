@@ -1,8 +1,12 @@
-//! Row-shape types: [`RowTable`] / [`RowValue`] / [`RowKey`] /
-//! [`OwnedRowKey`] / [`RowBody`].
+//! Row-shape types: [`RowTable`] / [`MessageTable`] / [`RowValue`] /
+//! [`RowKey`] / [`OwnedRowKey`] / [`RowBody`].
 //!
 //! - [`RowValue<'a>`] — what the chunk-row iterators yield. Borrowed
-//!   sum type, one variant per streaming-content table.
+//!   sum type, one variant per streaming-content table. Every variant
+//!   carries `response_id` (the enclosing agent_completion_chunk's id)
+//!   AND `agent_instance_hierarchy` (the enclosing chunk's spawned
+//!   agent id) so the writer can address `logs.messages` /
+//!   `logs.messages_queue` without going back to the chunk.
 //! - [`RowKey<'a>`] — what [`RowValue::key`] returns. Borrowed key
 //!   used for shadow-map lookups; no allocation.
 //! - [`OwnedRowKey`] — same variants as `RowKey`, but with `String`
@@ -49,7 +53,61 @@ pub enum RowTable {
     ToolResponseContentFile,
 }
 
+/// The subset of [`RowTable`] that produces a `logs.messages` event
+/// row when written. Maps 1:1 to the postgres `logs.message_table`
+/// ENUM in `schema.sql` — same names, same order. The three
+/// response-blob tables are intentionally absent; they're not events,
+/// just the latest snapshot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, sqlx::Type)]
+#[sqlx(type_name = "logs.message_table", rename_all = "snake_case")]
+pub enum MessageTable {
+    AgentCompletionRequest,
+    VectorCompletionRequest,
+    FunctionExecutionRequest,
+    ToolResponse,
+    AssistantResponseRefusal,
+    AssistantResponseReasoning,
+    AssistantResponseToolCalls,
+    AssistantResponseContentText,
+    AssistantResponseContentImage,
+    AssistantResponseContentAudio,
+    AssistantResponseContentVideo,
+    AssistantResponseContentFile,
+    ToolResponseContentText,
+    ToolResponseContentImage,
+    ToolResponseContentAudio,
+    ToolResponseContentVideo,
+    ToolResponseContentFile,
+}
+
 impl RowTable {
+    /// The [`MessageTable`] for this table's events. Returns `None` for
+    /// the three response-blob tables (which don't emit messages).
+    pub fn message_table(self) -> Option<MessageTable> {
+        Some(match self {
+            RowTable::AgentCompletionRequests => MessageTable::AgentCompletionRequest,
+            RowTable::VectorCompletionRequests => MessageTable::VectorCompletionRequest,
+            RowTable::FunctionExecutionRequests => MessageTable::FunctionExecutionRequest,
+            RowTable::ToolResponse => MessageTable::ToolResponse,
+            RowTable::AssistantResponseRefusal => MessageTable::AssistantResponseRefusal,
+            RowTable::AssistantResponseReasoning => MessageTable::AssistantResponseReasoning,
+            RowTable::AssistantResponseToolCalls => MessageTable::AssistantResponseToolCalls,
+            RowTable::AssistantResponseContentText => MessageTable::AssistantResponseContentText,
+            RowTable::AssistantResponseContentImage => MessageTable::AssistantResponseContentImage,
+            RowTable::AssistantResponseContentAudio => MessageTable::AssistantResponseContentAudio,
+            RowTable::AssistantResponseContentVideo => MessageTable::AssistantResponseContentVideo,
+            RowTable::AssistantResponseContentFile => MessageTable::AssistantResponseContentFile,
+            RowTable::ToolResponseContentText => MessageTable::ToolResponseContentText,
+            RowTable::ToolResponseContentImage => MessageTable::ToolResponseContentImage,
+            RowTable::ToolResponseContentAudio => MessageTable::ToolResponseContentAudio,
+            RowTable::ToolResponseContentVideo => MessageTable::ToolResponseContentVideo,
+            RowTable::ToolResponseContentFile => MessageTable::ToolResponseContentFile,
+            RowTable::AgentCompletionResponses
+            | RowTable::VectorCompletionResponses
+            | RowTable::FunctionExecutionResponses => return None,
+        })
+    }
+
     pub fn fq_name(self) -> &'static str {
         match self {
             RowTable::AgentCompletionRequests => "logs.agent_completion_requests",
@@ -78,26 +136,33 @@ impl RowTable {
 
 /// One streaming-content row to INSERT or UPDATE. Borrowed: every
 /// variant lifts string / media payloads from the owning chunk by
-/// reference.
+/// reference. Every variant also carries the enclosing chunk's
+/// `agent_instance_hierarchy` so the writer can populate
+/// `logs.messages.agent_instance_hierarchy` and key the
+/// `logs.messages_queue` downgrade against the right spawned agent.
 #[derive(Debug, Clone)]
 pub enum RowValue<'a> {
     ToolResponse {
         response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
         index: u64,
         tool_call_id: &'a str,
     },
     AssistantResponseRefusal {
         response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
         index: u64,
         text: &'a str,
     },
     AssistantResponseReasoning {
         response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
         index: u64,
         text: &'a str,
     },
     AssistantResponseToolCalls {
         response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
         index: u64,
         tool_call_index: u64,
         tool_call_id: &'a str,
@@ -106,24 +171,28 @@ pub enum RowValue<'a> {
 
     AssistantResponseContentText {
         response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
         index: u64,
         part_index: u64,
         text: &'a str,
     },
     AssistantResponseContentImage {
         response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
         index: u64,
         part_index: u64,
         image_url: &'a ImageUrl,
     },
     AssistantResponseContentAudio {
         response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
         index: u64,
         part_index: u64,
         input_audio: &'a InputAudio,
     },
     AssistantResponseContentVideo {
         response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
         index: u64,
         part_index: u64,
         video_url: &'a VideoUrl,
@@ -131,6 +200,7 @@ pub enum RowValue<'a> {
     },
     AssistantResponseContentFile {
         response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
         index: u64,
         part_index: u64,
         file: &'a File,
@@ -138,24 +208,28 @@ pub enum RowValue<'a> {
 
     ToolResponseContentText {
         response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
         index: u64,
         part_index: u64,
         text: &'a str,
     },
     ToolResponseContentImage {
         response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
         index: u64,
         part_index: u64,
         image_url: &'a ImageUrl,
     },
     ToolResponseContentAudio {
         response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
         index: u64,
         part_index: u64,
         input_audio: &'a InputAudio,
     },
     ToolResponseContentVideo {
         response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
         index: u64,
         part_index: u64,
         video_url: &'a VideoUrl,
@@ -163,6 +237,7 @@ pub enum RowValue<'a> {
     },
     ToolResponseContentFile {
         response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
         index: u64,
         part_index: u64,
         file: &'a File,
@@ -186,6 +261,105 @@ impl<'a> RowValue<'a> {
             RowValue::ToolResponseContentAudio { .. } => RowTable::ToolResponseContentAudio,
             RowValue::ToolResponseContentVideo { .. } => RowTable::ToolResponseContentVideo,
             RowValue::ToolResponseContentFile { .. } => RowTable::ToolResponseContentFile,
+        }
+    }
+
+    /// [`MessageTable`] for this row's table. Streaming-content rows
+    /// always have one.
+    pub fn message_table(&self) -> MessageTable {
+        self.table()
+            .message_table()
+            .expect("RowValue variants only cover streaming-content tables")
+    }
+
+    /// `response_id` borrowed from the enclosing agent-completion chunk.
+    pub fn response_id(&self) -> &'a str {
+        match self {
+            RowValue::ToolResponse { response_id, .. }
+            | RowValue::AssistantResponseRefusal { response_id, .. }
+            | RowValue::AssistantResponseReasoning { response_id, .. }
+            | RowValue::AssistantResponseToolCalls { response_id, .. }
+            | RowValue::AssistantResponseContentText { response_id, .. }
+            | RowValue::AssistantResponseContentImage { response_id, .. }
+            | RowValue::AssistantResponseContentAudio { response_id, .. }
+            | RowValue::AssistantResponseContentVideo { response_id, .. }
+            | RowValue::AssistantResponseContentFile { response_id, .. }
+            | RowValue::ToolResponseContentText { response_id, .. }
+            | RowValue::ToolResponseContentImage { response_id, .. }
+            | RowValue::ToolResponseContentAudio { response_id, .. }
+            | RowValue::ToolResponseContentVideo { response_id, .. }
+            | RowValue::ToolResponseContentFile { response_id, .. } => response_id,
+        }
+    }
+
+    /// `agent_instance_hierarchy` borrowed from the enclosing
+    /// agent-completion chunk. Every streaming-content row lives
+    /// inside an agent completion, so this is always non-NULL.
+    pub fn agent_instance_hierarchy(&self) -> &'a str {
+        match self {
+            RowValue::ToolResponse { agent_instance_hierarchy, .. }
+            | RowValue::AssistantResponseRefusal { agent_instance_hierarchy, .. }
+            | RowValue::AssistantResponseReasoning { agent_instance_hierarchy, .. }
+            | RowValue::AssistantResponseToolCalls { agent_instance_hierarchy, .. }
+            | RowValue::AssistantResponseContentText { agent_instance_hierarchy, .. }
+            | RowValue::AssistantResponseContentImage { agent_instance_hierarchy, .. }
+            | RowValue::AssistantResponseContentAudio { agent_instance_hierarchy, .. }
+            | RowValue::AssistantResponseContentVideo { agent_instance_hierarchy, .. }
+            | RowValue::AssistantResponseContentFile { agent_instance_hierarchy, .. }
+            | RowValue::ToolResponseContentText { agent_instance_hierarchy, .. }
+            | RowValue::ToolResponseContentImage { agent_instance_hierarchy, .. }
+            | RowValue::ToolResponseContentAudio { agent_instance_hierarchy, .. }
+            | RowValue::ToolResponseContentVideo { agent_instance_hierarchy, .. }
+            | RowValue::ToolResponseContentFile { agent_instance_hierarchy, .. } => {
+                agent_instance_hierarchy
+            }
+        }
+    }
+
+    /// `row_index` column value for the postgres `messages` /
+    /// `messages_queue` entry. Always populated for streaming-content
+    /// rows.
+    pub fn row_index(&self) -> i64 {
+        match self {
+            RowValue::ToolResponse { index, .. }
+            | RowValue::AssistantResponseRefusal { index, .. }
+            | RowValue::AssistantResponseReasoning { index, .. }
+            | RowValue::AssistantResponseToolCalls { index, .. }
+            | RowValue::AssistantResponseContentText { index, .. }
+            | RowValue::AssistantResponseContentImage { index, .. }
+            | RowValue::AssistantResponseContentAudio { index, .. }
+            | RowValue::AssistantResponseContentVideo { index, .. }
+            | RowValue::AssistantResponseContentFile { index, .. }
+            | RowValue::ToolResponseContentText { index, .. }
+            | RowValue::ToolResponseContentImage { index, .. }
+            | RowValue::ToolResponseContentAudio { index, .. }
+            | RowValue::ToolResponseContentVideo { index, .. }
+            | RowValue::ToolResponseContentFile { index, .. } => *index as i64,
+        }
+    }
+
+    /// `row_sub_index` column value: `tool_call_index` for tool-call
+    /// rows, `part_index` for content-part rows, `None` for
+    /// tool_response / assistant refusal / assistant reasoning (whose
+    /// shape has no sub-index). The matching SQL column is nullable.
+    pub fn row_sub_index(&self) -> Option<i64> {
+        match self {
+            RowValue::ToolResponse { .. }
+            | RowValue::AssistantResponseRefusal { .. }
+            | RowValue::AssistantResponseReasoning { .. } => None,
+            RowValue::AssistantResponseToolCalls { tool_call_index, .. } => {
+                Some(*tool_call_index as i64)
+            }
+            RowValue::AssistantResponseContentText { part_index, .. }
+            | RowValue::AssistantResponseContentImage { part_index, .. }
+            | RowValue::AssistantResponseContentAudio { part_index, .. }
+            | RowValue::AssistantResponseContentVideo { part_index, .. }
+            | RowValue::AssistantResponseContentFile { part_index, .. }
+            | RowValue::ToolResponseContentText { part_index, .. }
+            | RowValue::ToolResponseContentImage { part_index, .. }
+            | RowValue::ToolResponseContentAudio { part_index, .. }
+            | RowValue::ToolResponseContentVideo { part_index, .. }
+            | RowValue::ToolResponseContentFile { part_index, .. } => Some(*part_index as i64),
         }
     }
 
@@ -305,11 +479,6 @@ impl<'a> RowValue<'a> {
                 RowValue::ToolResponseContentFile { file: a, .. },
                 RowBody::ToolContentFile { file: b },
             ) => *a == b,
-            // Mismatched variants — table/shape mismatch. Treat as
-            // "not equal"; the shadow only enters this branch if the
-            // hash table collided differently than expected (it can't
-            // in practice because [`RowKey`] uniquely identifies the
-            // variant via its discriminant).
             _ => false,
         }
     }
@@ -425,8 +594,6 @@ pub enum OwnedRowKey {
 }
 
 impl<'a> RowKey<'a> {
-    /// Field-by-field equality against an [`OwnedRowKey`]. Used by
-    /// the shadow's hash-then-match probe.
     pub fn matches_owned(&self, owned: &OwnedRowKey) -> bool {
         match (self, owned) {
             (
@@ -489,8 +656,6 @@ impl<'a> RowKey<'a> {
         }
     }
 
-    /// Promote to an owned key. Allocates one `String`. Called only
-    /// on Insert.
     pub fn to_owned_key(&self) -> OwnedRowKey {
         match self {
             RowKey::ToolResponse { response_id, index } => OwnedRowKey::ToolResponse {
@@ -591,9 +756,7 @@ impl<'a> RowKey<'a> {
 // ---------------------------------------------------------------------
 
 /// Owned body stored in the shadow map. Compared by `PartialEq`
-/// against an incoming [`RowValue`] via [`RowValue::body_eq`] —
-/// fast-bails on length mismatch or first-byte difference, no hash
-/// computation required.
+/// against an incoming [`RowValue`] via [`RowValue::body_eq`].
 #[derive(Debug, Clone, PartialEq)]
 pub enum RowBody {
     ToolResponse { tool_call_id: String },

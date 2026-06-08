@@ -184,7 +184,7 @@ impl<C> LogWriter<C> {
         let content_fut = futures::future::try_join_all(
             dispatched
                 .iter()
-                .map(|(op, value)| write_value(pool, *op, value)),
+                .map(|(op, value)| write_value(pool, *op, value, created_at_seed)),
         );
         let blob_fut = async {
             match blob_op {

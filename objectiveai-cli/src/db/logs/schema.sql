@@ -257,6 +257,153 @@ CREATE TABLE IF NOT EXISTS logs.tool_response_content_file (
 );
 
 -- =====================================================================
+-- messages: per-row event log
+-- =====================================================================
+--
+-- One row per (response_id, "table", row_index, row_sub_index) — the
+-- writer INSERTs exactly once per logical row, on its initial
+-- streaming-content INSERT or request-blob INSERT. The `"index"`
+-- column is drawn from `logs.messages_index_seq` at that moment and
+-- never bumps thereafter — it's the position of this event in the
+-- agent's full history, the monotonic watermark that
+-- `messages_queue.read_index` paginates against. Updates re-deliver
+-- to readers via the messages_queue downgrade path (walking a
+-- caller's read_index BACK to this row's index) instead of producing
+-- duplicate events.
+--
+-- `row_index` and `row_sub_index` are NULL when the target table
+-- doesn't carry that level of identity (request blobs have no row
+-- identity beyond response_id; tool_response / assistant_response_*
+-- scalar slots have only `index`). The CHECK constraint enforces the
+-- per-table shape. The UNIQUE NULLS NOT DISTINCT constraint treats
+-- the NULL slots as equal, so the writer's INSERT path conflicts
+-- correctly with prior rows.
+--
+-- `logs.message_table` enumerates every `logs.*` table the writer
+-- emits a messages row for. The three response-blob tables
+-- (agent / vector / function `_responses`) are intentionally absent
+-- — they're not events, just the latest snapshot.
+--
+-- Postgres enums have no `IF NOT EXISTS` shortcut; we wrap in a DO
+-- block that swallows `duplicate_object`.
+DO $logs_message_table_bootstrap$ BEGIN
+    CREATE TYPE logs.message_table AS ENUM (
+        'agent_completion_request',
+        'vector_completion_request',
+        'function_execution_request',
+        'tool_response',
+        'assistant_response_refusal',
+        'assistant_response_reasoning',
+        'assistant_response_tool_calls',
+        'assistant_response_content_text',
+        'assistant_response_content_image',
+        'assistant_response_content_audio',
+        'assistant_response_content_video',
+        'assistant_response_content_file',
+        'tool_response_content_text',
+        'tool_response_content_image',
+        'tool_response_content_audio',
+        'tool_response_content_video',
+        'tool_response_content_file'
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $logs_message_table_bootstrap$;
+
+-- Sequence backing the `"index"` column. Pulled once per messages-row
+-- INSERT — never re-pulled on UPDATE. The number it produces is the
+-- event's position in the agent's full history (see column docstring
+-- on `logs.messages."index"`).
+CREATE SEQUENCE IF NOT EXISTS logs.messages_index_seq;
+
+CREATE TABLE IF NOT EXISTS logs.messages (
+    response_id              TEXT                NOT NULL,
+    "table"                  logs.message_table  NOT NULL,
+    row_index                BIGINT              NULL,
+    row_sub_index            BIGINT              NULL,
+    -- Position of this event in the agent's full history. Assigned
+    -- once from `logs.messages_index_seq` on INSERT; never bumped on
+    -- UPDATE. Readers paginate `WHERE "index" > read_index`; the
+    -- writer downgrades `messages_queue.read_index` when an UPDATE
+    -- needs to re-deliver an already-consumed row to a caller.
+    "index"                  BIGINT              NOT NULL,
+    agent_instance_hierarchy TEXT                NULL,
+    "timestamp"              BIGINT              NOT NULL,
+    CONSTRAINT messages_table_row_consistency CHECK (
+        -- Request-blob kinds: no per-row identity.
+        ("table" IN (
+            'agent_completion_request',
+            'vector_completion_request',
+            'function_execution_request'
+         )
+         AND row_index IS NULL AND row_sub_index IS NULL)
+        OR
+        -- Single-index streaming kinds (tool_response, assistant
+        -- refusal / reasoning): row_index only.
+        ("table" IN (
+            'tool_response',
+            'assistant_response_refusal',
+            'assistant_response_reasoning'
+         )
+         AND row_index IS NOT NULL AND row_sub_index IS NULL)
+        OR
+        -- Sub-indexed streaming kinds (tool calls + every content
+        -- table): both indices required.
+        ("table" IN (
+            'assistant_response_tool_calls',
+            'assistant_response_content_text',
+            'assistant_response_content_image',
+            'assistant_response_content_audio',
+            'assistant_response_content_video',
+            'assistant_response_content_file',
+            'tool_response_content_text',
+            'tool_response_content_image',
+            'tool_response_content_audio',
+            'tool_response_content_video',
+            'tool_response_content_file'
+         )
+         AND row_index IS NOT NULL AND row_sub_index IS NOT NULL)
+    ),
+    UNIQUE NULLS NOT DISTINCT (response_id, "table", row_index, row_sub_index)
+);
+CREATE INDEX IF NOT EXISTS messages_index_idx
+    ON logs.messages("index");
+CREATE INDEX IF NOT EXISTS messages_response_index_idx
+    ON logs.messages(response_id, "index");
+CREATE INDEX IF NOT EXISTS messages_agent_hier_index_idx
+    ON logs.messages(agent_instance_hierarchy, "index")
+    WHERE agent_instance_hierarchy IS NOT NULL;
+
+-- =====================================================================
+-- messages_queue: per-caller read watermark
+-- =====================================================================
+--
+-- One row per (parent caller, spawned agent) pair. Each caller's
+-- `read_index` advances as the caller consumes events from the
+-- spawned agent's stream:
+--
+--     SELECT … FROM logs.messages
+--     WHERE agent_instance_hierarchy = $spawned
+--       AND "index" > $read_index
+--     ORDER BY "index";
+--
+-- The writer never INSERTs into this table — callers are responsible
+-- for creating their own subscription rows when they start reading.
+-- The writer's role: on every streaming-content UPDATE (a non-blob
+-- write that targets an already-existing logical row), it downgrades
+-- any caller whose `read_index >= messages."index"` for the affected
+-- spawned agent. Because `"index"` stays fixed at the row's original
+-- INSERT, the only way to re-deliver an updated row to a caller who
+-- has already moved past it is to walk their watermark back.
+CREATE TABLE IF NOT EXISTS logs.messages_queue (
+    parent_agent_instance_hierarchy  TEXT   NOT NULL,
+    spawned_agent_instance_hierarchy TEXT   NOT NULL,
+    read_index                       BIGINT NOT NULL,
+    PRIMARY KEY (parent_agent_instance_hierarchy, spawned_agent_instance_hierarchy)
+);
+CREATE INDEX IF NOT EXISTS messages_queue_spawned_idx
+    ON logs.messages_queue(spawned_agent_instance_hierarchy);
+
+-- =====================================================================
 -- log_reader role: read-only access for the future LLM SQL endpoint.
 -- =====================================================================
 DO $logs_role_bootstrap$ BEGIN
