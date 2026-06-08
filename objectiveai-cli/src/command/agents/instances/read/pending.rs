@@ -1,4 +1,4 @@
-﻿//! `agents read pending` — bare-naked streaming handler stub.
+//! `agents read pending` — bare-naked streaming handler stub.
 
 use std::pin::Pin;
 
@@ -60,14 +60,15 @@ async fn resolve_target(
                 let leaf = tags::leaf_of(&agent_instance_hierarchy).to_string();
                 Ok((parent, agent_instance_hierarchy, leaf))
             }
-            tags::LookupState::Pending {
-                parent_agent_instance_hierarchy,
-                agent_full_id,
-            } => Err(Error::TagPending {
-                tag: agent_tag,
-                parent_agent_instance_hierarchy,
-                agent_full_id,
-            }),
+            tags::LookupState::Grouped {
+            tag_group_id,
+            parent_agent_instance_hierarchy,
+            ..
+        } => Err(Error::TagGrouped {
+            tag: agent_tag,
+            tag_group_id,
+            parent_agent_instance_hierarchy,
+        }),
             tags::LookupState::Absent => Err(Error::TagNotFound(agent_tag)),
         },
     }

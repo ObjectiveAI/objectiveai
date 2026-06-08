@@ -107,12 +107,12 @@ pub enum Error {
         request_count: usize,
     },
     #[error(
-        "tag {tag:?} exists but the agent has not been spawned yet (waiting on agent_full_id={agent_full_id:?} under parent_agent_instance_hierarchy={parent_agent_instance_hierarchy:?})"
+        "tag {tag:?} exists but the agent has not been spawned yet (tag_group_id={tag_group_id}, parent_agent_instance_hierarchy={parent_agent_instance_hierarchy:?})"
     )]
-    TagPending {
+    TagGrouped {
         tag: String,
+        tag_group_id: i64,
         parent_agent_instance_hierarchy: String,
-        agent_full_id: String,
     },
     #[error("tag {0:?} is not registered")]
     TagNotFound(String),

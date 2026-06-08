@@ -1,43 +1,81 @@
-//! Client-side agent tags backed by the postgres `tags` table.
+//! Client-side agent tags backed by the postgres `tags` +
+//! `tag_groups` tables.
 //!
-//! Each row is in exactly one of two states (a CHECK constraint
-//! enforces mutual exclusion at the schema level):
+//! Each `tags` row is in exactly one of two states (a CHECK
+//! constraint enforces mutual exclusion at the schema level):
 //!
-//! - **BOUND** — `agent_instance_hierarchy` set, the other two NULL.
-//!   The tag points at one specific hierarchy.
-//! - **PENDING** — `parent_agent_instance_hierarchy + agent_full_id`
-//!   set, `agent_instance_hierarchy` NULL. The tag is waiting for the
-//!   next agent-completion that matches the (full_id, parent) pair to
-//!   spawn under it; its first chunk auto-promotes the row to BOUND
-//!   via [`upgrade`].
+//! - **BOUND** — `agent_instance_hierarchy` set. The tag points at
+//!   a live agent slot.
+//! - **GROUPED** — `tag_group` set. The tag resolves through the
+//!   referenced `tag_groups` row's `agent_spec` + parent. When the
+//!   conduit's read-message-queue path fires its upgrade, every
+//!   GROUPED tag sharing the spawn's group flips to BOUND atomically.
 //!
-//! Re-tagging uses `INSERT … ON CONFLICT (name) DO UPDATE SET …` (the
-//! postgres analog of sqlite's `INSERT OR REPLACE`), so the prior
-//! binding is silently displaced.
+//! The prior PENDING state is gone — group membership is now an
+//! explicit join via `tag_group`, not an implicit
+//! `(agent_full_id, parent_agent_instance_hierarchy)` match key.
+//!
+//! Re-tagging uses `INSERT … ON CONFLICT (name) DO UPDATE SET …`
+//! (the postgres analog of sqlite's `INSERT OR REPLACE`), so the
+//! prior binding is silently displaced.
 
+use objectiveai_sdk::cli::command::agents::instances::spawn::AgentSpec;
 use sqlx::Row as _;
 
 use super::{Error, Pool};
 
-/// Three-state result for a tag-name lookup. `Bound` is the only state
-/// callers can act on directly; `Pending` carries enough information
-/// for the read handlers to surface a "tag exists but hasn't been
-/// spawned yet" diagnostic; `Absent` means the tag was never registered.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Three-state result for a tag-name lookup.
+///
+/// - `Bound` — the tag points to a live `agent_instance_hierarchy`.
+/// - `Grouped` — the tag is a member of a `tag_groups` row carrying
+///   an `AgentSpec` + parent. Spawning by this tag uses those two
+///   fields directly; the upgrade flips all tags in this group to
+///   `Bound` once any spawn picks them up.
+/// - `Absent` — the tag was never registered.
+#[derive(Debug, Clone, PartialEq)]
 pub enum LookupState {
     Bound {
         agent_instance_hierarchy: String,
     },
-    Pending {
+    Grouped {
+        tag_group_id: i64,
+        agent_spec: AgentSpec,
         parent_agent_instance_hierarchy: String,
-        agent_full_id: String,
     },
     Absent,
 }
 
-/// Parent scope of an `agent_instance_hierarchy`: the substring up to
-/// (but not including) the last `/`. When the input has no `/`, the
-/// parent is the empty string.
+/// Apply-target with the optional parent already substituted by
+/// the cli's resolved hierarchy. The storage layer never deals
+/// with the "default-to-ctx" rule — that's the CLI handler's job.
+///
+/// Mirrors the SDK's `ApplyTarget` but with all nullable defaults
+/// pre-resolved. `AgentTag` forbids parent (the source tag's parent
+/// is inherited via the group).
+#[derive(Debug, Clone)]
+pub enum ResolvedApplyTarget {
+    /// `tag → AIH` where AIH = `{parent}/{agent_instance}`.
+    AgentInstance {
+        parent_agent_instance_hierarchy: String,
+        agent_instance: String,
+    },
+    /// `tag → new tag_group`. Creates a fresh `tag_groups` row
+    /// then a `tags` row pointing at it.
+    Agent {
+        parent_agent_instance_hierarchy: String,
+        agent_spec: AgentSpec,
+    },
+    /// Clone another tag's resolution. If source is BOUND, the
+    /// new tag also binds to the same AIH. If source is GROUPED,
+    /// the new tag joins the same `tag_group`.
+    AgentTag {
+        agent_tag: String,
+    },
+}
+
+/// Parent scope of an `agent_instance_hierarchy`: the substring up
+/// to (but not including) the last `/`. When the input has no `/`,
+/// the parent is the empty string.
 pub fn parent_of(agent_instance_hierarchy: &str) -> &str {
     match agent_instance_hierarchy.rfind('/') {
         Some(i) => &agent_instance_hierarchy[..i],
@@ -45,8 +83,9 @@ pub fn parent_of(agent_instance_hierarchy: &str) -> &str {
     }
 }
 
-/// Leaf segment of an `agent_instance_hierarchy`: everything after the
-/// last `/`. When the input has no `/`, the leaf is the whole string.
+/// Leaf segment of an `agent_instance_hierarchy`: everything after
+/// the last `/`. When the input has no `/`, the leaf is the whole
+/// string.
 pub fn leaf_of(agent_instance_hierarchy: &str) -> &str {
     match agent_instance_hierarchy.rfind('/') {
         Some(i) => &agent_instance_hierarchy[i + 1..],
@@ -62,60 +101,8 @@ fn now_seconds() -> i64 {
         .unwrap_or(0)
 }
 
-/// Upsert `name` into PENDING state. Re-tags by displacing any prior
-/// row (BOUND or PENDING) at the same `name`.
-pub async fn upsert_pending(
-    pool: &Pool,
-    name: &str,
-    agent_full_id: &str,
-    parent_agent_instance_hierarchy: &str,
-) -> Result<(), Error> {
-    sqlx::query(
-        "INSERT INTO tags \
-         (name, agent_instance_hierarchy, parent_agent_instance_hierarchy, agent_full_id, updated_at) \
-         VALUES ($1, NULL, $2, $3, $4) \
-         ON CONFLICT (name) DO UPDATE SET \
-             agent_instance_hierarchy        = EXCLUDED.agent_instance_hierarchy, \
-             parent_agent_instance_hierarchy = EXCLUDED.parent_agent_instance_hierarchy, \
-             agent_full_id                   = EXCLUDED.agent_full_id, \
-             updated_at                      = EXCLUDED.updated_at",
-    )
-    .bind(name)
-    .bind(parent_agent_instance_hierarchy)
-    .bind(agent_full_id)
-    .bind(now_seconds())
-    .execute(&**pool)
-    .await?;
-    Ok(())
-}
-
-/// Upsert `name` into BOUND state. Re-tags by displacing any prior row
-/// (BOUND or PENDING) at the same `name`.
-pub async fn upsert_bound(
-    pool: &Pool,
-    name: &str,
-    agent_instance_hierarchy: &str,
-) -> Result<(), Error> {
-    sqlx::query(
-        "INSERT INTO tags \
-         (name, agent_instance_hierarchy, parent_agent_instance_hierarchy, agent_full_id, updated_at) \
-         VALUES ($1, $2, NULL, NULL, $3) \
-         ON CONFLICT (name) DO UPDATE SET \
-             agent_instance_hierarchy        = EXCLUDED.agent_instance_hierarchy, \
-             parent_agent_instance_hierarchy = EXCLUDED.parent_agent_instance_hierarchy, \
-             agent_full_id                   = EXCLUDED.agent_full_id, \
-             updated_at                      = EXCLUDED.updated_at",
-    )
-    .bind(name)
-    .bind(agent_instance_hierarchy)
-    .bind(now_seconds())
-    .execute(&**pool)
-    .await?;
-    Ok(())
-}
-
-/// All tags currently bound to the given hierarchy, newest-bound first.
-/// PENDING rows never match.
+/// All tags currently bound to the given hierarchy, newest-bound
+/// first. GROUPED rows never match (their hierarchy column is NULL).
 pub async fn tags_for_hierarchy(
     pool: &Pool,
     agent_instance_hierarchy: &str,
@@ -135,7 +122,8 @@ pub async fn tags_for_hierarchy(
     Ok(out)
 }
 
-/// Hierarchy bound to a given tag. `None` for PENDING or absent rows.
+/// Hierarchy bound to a given tag. `None` for GROUPED rows and for
+/// absent rows.
 pub async fn hierarchy_for_tag(
     pool: &Pool,
     name: &str,
@@ -150,16 +138,20 @@ pub async fn hierarchy_for_tag(
     Ok(cell.flatten())
 }
 
-/// Look up a tag and report its precise state. One SELECT returns all
-/// three nullable columns; the table's CHECK constraint guarantees
-/// every row matches exactly one of the BOUND or PENDING patterns, so
-/// the row tuple decoding is exhaustive.
+/// Look up a tag and report its precise state. One LEFT JOIN
+/// returns the BOUND column from `tags` plus the GROUPED columns
+/// from `tag_groups`; the table's CHECK constraint guarantees
+/// every row matches exactly one of the BOUND or GROUPED patterns,
+/// so the row tuple decoding is exhaustive.
 pub async fn lookup(pool: &Pool, name: &str) -> Result<LookupState, Error> {
     let row = sqlx::query(
-        "SELECT agent_instance_hierarchy, \
-                parent_agent_instance_hierarchy, \
-                agent_full_id \
-         FROM tags WHERE name = $1",
+        "SELECT t.agent_instance_hierarchy, \
+                t.tag_group, \
+                g.agent_spec, \
+                g.parent_agent_instance_hierarchy \
+         FROM tags t \
+         LEFT JOIN tag_groups g ON g.id = t.tag_group \
+         WHERE t.name = $1",
     )
     .bind(name)
     .fetch_optional(&**pool)
@@ -167,54 +159,182 @@ pub async fn lookup(pool: &Pool, name: &str) -> Result<LookupState, Error> {
     let Some(row) = row else {
         return Ok(LookupState::Absent);
     };
+    decode_lookup_row(&row, name)
+}
+
+/// Same decode used by `lookup` and by `apply`'s in-transaction
+/// resolution of an `AgentTag` source. Single source of truth.
+fn decode_lookup_row(
+    row: &sqlx::postgres::PgRow,
+    name: &str,
+) -> Result<LookupState, Error> {
     let bound: Option<String> = row.try_get(0)?;
-    let pending_parent: Option<String> = row.try_get(1)?;
-    let pending_full_id: Option<String> = row.try_get(2)?;
-    match (bound, pending_parent, pending_full_id) {
-        (Some(h), None, None) => Ok(LookupState::Bound {
+    let group_id: Option<i64> = row.try_get(1)?;
+    let group_spec: Option<serde_json::Value> = row.try_get(2)?;
+    let group_parent: Option<String> = row.try_get(3)?;
+    match (bound, group_id, group_spec, group_parent) {
+        (Some(h), None, None, None) => Ok(LookupState::Bound {
             agent_instance_hierarchy: h,
         }),
-        (None, Some(p), Some(f)) => Ok(LookupState::Pending {
-            parent_agent_instance_hierarchy: p,
-            agent_full_id: f,
-        }),
+        (None, Some(id), Some(spec_value), Some(parent)) => {
+            let agent_spec: AgentSpec = serde_json::from_value(spec_value)?;
+            Ok(LookupState::Grouped {
+                tag_group_id: id,
+                agent_spec,
+                parent_agent_instance_hierarchy: parent,
+            })
+        }
         other => Err(Error::InvalidData(format!(
             "tags row for {name:?} violates state invariant: {other:?}"
         ))),
     }
 }
 
-/// First-chunk notification: tell the tags table about an
-/// agent-completion's identity. In one UPDATE, every PENDING row whose
-/// `(agent_full_id, parent_agent_instance_hierarchy)` matches
-/// `(agent_full_id, parent_of(agent_instance_hierarchy))` is flipped
-/// to BOUND against the full `agent_instance_hierarchy`. Returns the
-/// names of every promoted tag (typically 0 or 1).
-pub async fn upgrade(
+/// Apply a tag. Dispatches on the `ResolvedApplyTarget` variant
+/// inside one transaction. `AgentTag` resolves the source tag
+/// inline. Displaces any prior `tags` row for `name`. Returns the
+/// freshly-applied `LookupState` so callers can surface it back
+/// to the user without a second SELECT.
+pub async fn apply(
     pool: &Pool,
-    agent_full_id: &str,
-    agent_instance_hierarchy: &str,
-) -> Result<Vec<String>, Error> {
-    let parent = parent_of(agent_instance_hierarchy);
-    let rows = sqlx::query(
-        "UPDATE tags \
-         SET agent_instance_hierarchy = $1, \
-             parent_agent_instance_hierarchy = NULL, \
-             agent_full_id = NULL, \
-             updated_at = $2 \
-         WHERE agent_full_id = $3 \
-           AND parent_agent_instance_hierarchy = $4 \
-         RETURNING name",
-    )
-    .bind(agent_instance_hierarchy)
-    .bind(now_seconds())
-    .bind(agent_full_id)
-    .bind(parent)
-    .fetch_all(&**pool)
-    .await?;
-    let mut out = Vec::with_capacity(rows.len());
-    for row in rows {
-        out.push(row.try_get::<String, _>(0)?);
-    }
-    Ok(out)
+    name: &str,
+    target: ResolvedApplyTarget,
+) -> Result<LookupState, Error> {
+    let mut tx = pool.begin().await?;
+    let now = now_seconds();
+    let state = match target {
+        ResolvedApplyTarget::AgentInstance {
+            parent_agent_instance_hierarchy,
+            agent_instance,
+        } => {
+            let hier = format!("{parent_agent_instance_hierarchy}/{agent_instance}");
+            sqlx::query(
+                "INSERT INTO tags (name, agent_instance_hierarchy, tag_group, updated_at) \
+                 VALUES ($1, $2, NULL, $3) \
+                 ON CONFLICT (name) DO UPDATE SET \
+                     agent_instance_hierarchy = EXCLUDED.agent_instance_hierarchy, \
+                     tag_group                = NULL, \
+                     updated_at               = EXCLUDED.updated_at",
+            )
+            .bind(name)
+            .bind(&hier)
+            .bind(now)
+            .execute(&mut *tx)
+            .await?;
+            LookupState::Bound {
+                agent_instance_hierarchy: hier,
+            }
+        }
+        ResolvedApplyTarget::Agent {
+            parent_agent_instance_hierarchy,
+            agent_spec,
+        } => {
+            let spec_value = serde_json::to_value(&agent_spec)?;
+            let group_id: i64 = sqlx::query_scalar(
+                "INSERT INTO tag_groups (agent_spec, parent_agent_instance_hierarchy, created_at) \
+                 VALUES ($1, $2, $3) RETURNING id",
+            )
+            .bind(&spec_value)
+            .bind(&parent_agent_instance_hierarchy)
+            .bind(now)
+            .fetch_one(&mut *tx)
+            .await?;
+            sqlx::query(
+                "INSERT INTO tags (name, agent_instance_hierarchy, tag_group, updated_at) \
+                 VALUES ($1, NULL, $2, $3) \
+                 ON CONFLICT (name) DO UPDATE SET \
+                     agent_instance_hierarchy = NULL, \
+                     tag_group                = EXCLUDED.tag_group, \
+                     updated_at               = EXCLUDED.updated_at",
+            )
+            .bind(name)
+            .bind(group_id)
+            .bind(now)
+            .execute(&mut *tx)
+            .await?;
+            LookupState::Grouped {
+                tag_group_id: group_id,
+                agent_spec,
+                parent_agent_instance_hierarchy,
+            }
+        }
+        ResolvedApplyTarget::AgentTag { agent_tag } => {
+            // Cycle detection: source tag can't be this name.
+            // Longer cycles aren't possible since storage is
+            // single-step (a tag points to either AIH or a group,
+            // never another tag).
+            if agent_tag == name {
+                return Err(Error::InvalidData(format!(
+                    "tag {name:?} cannot apply to itself"
+                )));
+            }
+            let src = sqlx::query(
+                "SELECT t.agent_instance_hierarchy, \
+                        t.tag_group, \
+                        g.agent_spec, \
+                        g.parent_agent_instance_hierarchy \
+                 FROM tags t \
+                 LEFT JOIN tag_groups g ON g.id = t.tag_group \
+                 WHERE t.name = $1",
+            )
+            .bind(&agent_tag)
+            .fetch_optional(&mut *tx)
+            .await?
+            .ok_or_else(|| {
+                Error::InvalidData(format!(
+                    "source tag {agent_tag:?} does not exist"
+                ))
+            })?;
+            let src_state = decode_lookup_row(&src, &agent_tag)?;
+            match src_state {
+                LookupState::Bound {
+                    agent_instance_hierarchy,
+                } => {
+                    sqlx::query(
+                        "INSERT INTO tags (name, agent_instance_hierarchy, tag_group, updated_at) \
+                         VALUES ($1, $2, NULL, $3) \
+                         ON CONFLICT (name) DO UPDATE SET \
+                             agent_instance_hierarchy = EXCLUDED.agent_instance_hierarchy, \
+                             tag_group                = NULL, \
+                             updated_at               = EXCLUDED.updated_at",
+                    )
+                    .bind(name)
+                    .bind(&agent_instance_hierarchy)
+                    .bind(now)
+                    .execute(&mut *tx)
+                    .await?;
+                    LookupState::Bound {
+                        agent_instance_hierarchy,
+                    }
+                }
+                LookupState::Grouped {
+                    tag_group_id,
+                    agent_spec,
+                    parent_agent_instance_hierarchy,
+                } => {
+                    sqlx::query(
+                        "INSERT INTO tags (name, agent_instance_hierarchy, tag_group, updated_at) \
+                         VALUES ($1, NULL, $2, $3) \
+                         ON CONFLICT (name) DO UPDATE SET \
+                             agent_instance_hierarchy = NULL, \
+                             tag_group                = EXCLUDED.tag_group, \
+                             updated_at               = EXCLUDED.updated_at",
+                    )
+                    .bind(name)
+                    .bind(tag_group_id)
+                    .bind(now)
+                    .execute(&mut *tx)
+                    .await?;
+                    LookupState::Grouped {
+                        tag_group_id,
+                        agent_spec,
+                        parent_agent_instance_hierarchy,
+                    }
+                }
+                LookupState::Absent => unreachable!("loaded existing row above"),
+            }
+        }
+    };
+    tx.commit().await?;
+    Ok(state)
 }

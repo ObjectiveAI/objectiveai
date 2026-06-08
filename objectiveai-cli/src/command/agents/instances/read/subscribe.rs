@@ -63,13 +63,14 @@ async fn resolve_tag(
             let leaf = tags::leaf_of(&agent_instance_hierarchy).to_string();
             Ok((parent, agent_instance_hierarchy, leaf))
         }
-        tags::LookupState::Pending {
+        tags::LookupState::Grouped {
+            tag_group_id,
             parent_agent_instance_hierarchy,
-            agent_full_id,
-        } => Err(Error::TagPending {
+            ..
+        } => Err(Error::TagGrouped {
             tag: agent_tag,
+            tag_group_id,
             parent_agent_instance_hierarchy,
-            agent_full_id,
         }),
         tags::LookupState::Absent => Err(Error::TagNotFound(agent_tag)),
     }

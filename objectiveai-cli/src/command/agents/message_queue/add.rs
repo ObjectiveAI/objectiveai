@@ -31,7 +31,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                 .as_deref()
                 .unwrap_or(&ctx.config.agent_instance_hierarchy);
             let full_id = format!("{parent}/{agent_instance}");
-            if !crate::db::schema::agent_exists(&ctx.db, &full_id).await? {
+            if crate::db::logs::lookup_session(&ctx.db, &full_id)
+                .await?
+                .is_none()
+            {
                 return Err(Error::AgentNoPriorRequest {
                     agent_instance_hierarchy: full_id,
                 });

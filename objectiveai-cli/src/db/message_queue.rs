@@ -413,10 +413,12 @@ pub async fn list(pool: &Pool, parent: &str) -> Result<Vec<ResponseItem>, Error>
                 p.key, \
                 p.content, \
                 t.agent_instance_hierarchy        AS tag_bound_hierarchy, \
-                t.parent_agent_instance_hierarchy AS tag_pending_parent, \
-                t.agent_full_id                   AS tag_pending_full_id \
+                g.id                              AS tag_group_id, \
+                g.agent_spec                      AS tag_group_spec, \
+                g.parent_agent_instance_hierarchy AS tag_group_parent \
          FROM message_queue p \
          LEFT JOIN tags t ON p.agent_tag = t.name \
+         LEFT JOIN tag_groups g ON g.id = t.tag_group \
          WHERE \
                 /* Direct row: agent_instance_hierarchy is a direct child of $1 */ \
                 ( \
@@ -431,10 +433,10 @@ pub async fn list(pool: &Pool, parent: &str) -> Result<Vec<ResponseItem>, Error>
                     AND t.agent_instance_hierarchy LIKE $2 \
                     AND position('/' in substring(t.agent_instance_hierarchy from cast($3 as int) + 2)) = 0 \
                 ) \
-             /* PENDING tag: tag's stored parent equals $1 exactly */ \
+             /* GROUPED tag: group's stored parent equals $1 exactly */ \
              OR ( \
                     p.agent_tag IS NOT NULL \
-                    AND t.parent_agent_instance_hierarchy = $1 \
+                    AND g.parent_agent_instance_hierarchy = $1 \
                 ) \
          ORDER BY p.id",
     )
@@ -452,8 +454,9 @@ pub async fn list(pool: &Pool, parent: &str) -> Result<Vec<ResponseItem>, Error>
         let key: Option<String> = row.try_get(3)?;
         let content_json: String = row.try_get(4)?;
         let tag_bound_hierarchy: Option<String> = row.try_get(5)?;
-        let tag_pending_parent: Option<String> = row.try_get(6)?;
-        let tag_pending_full_id: Option<String> = row.try_get(7)?;
+        let tag_group_id: Option<i64> = row.try_get(6)?;
+        let tag_group_spec: Option<serde_json::Value> = row.try_get(7)?;
+        let tag_group_parent: Option<String> = row.try_get(8)?;
 
         let content: ResponseContent = if content_json.is_empty() {
             ResponseContent::Many(Vec::new())
@@ -474,16 +477,19 @@ pub async fn list(pool: &Pool, parent: &str) -> Result<Vec<ResponseItem>, Error>
         } else if let Some(tag) = agent_tag {
             let Some(state) = (match (
                 tag_bound_hierarchy,
-                tag_pending_parent,
-                tag_pending_full_id,
+                tag_group_id,
+                tag_group_spec,
+                tag_group_parent,
             ) {
-                (Some(agent_instance_hierarchy), None, None) => Some(LookupState::Bound {
-                    agent_instance_hierarchy,
-                }),
-                (None, Some(parent_agent_instance_hierarchy), Some(agent_full_id)) => {
-                    Some(LookupState::Pending {
-                        parent_agent_instance_hierarchy,
-                        agent_full_id,
+                (Some(agent_instance_hierarchy), None, None, None) => {
+                    Some(LookupState::Bound { agent_instance_hierarchy })
+                }
+                (None, Some(group_id), Some(spec_value), Some(group_parent)) => {
+                    let agent_spec = serde_json::from_value(spec_value)?;
+                    Some(LookupState::Grouped {
+                        tag_group_id: group_id,
+                        agent_spec,
+                        parent_agent_instance_hierarchy: group_parent,
                     })
                 }
                 _ => None,
@@ -684,17 +690,46 @@ pub async fn delete_by_id(
 // Read-without-delete + clear-by-ids — API-driven split of the drain.
 // ---------------------------------------------------------------------------
 
-/// Non-destructive read of every queue row in scope for an agent.
-/// Three-rule predicate identical to `drain_for_message` minus the
-/// optional explicit-tag rule (the API addresses by hierarchy only) +
-/// the third PENDING-tag rule keyed by `(parent_hierarchy, agent_full_id)`.
-pub async fn read_for_message(
+/// Non-destructive read of every queue row in scope for an agent,
+/// fused with the tag-group upgrade. Two-rule predicate: direct
+/// hierarchy match OR BOUND-tag match.
+///
+/// When `agent_tag` is `Some(name)`, this is the **sole** site where
+/// the tag-group upgrade fires. The UPDATE runs first inside the
+/// transaction so the subsequent SELECT (still in the same tx) sees
+/// every freshly-bound sibling tag via rule 2 — committing both
+/// effects atomically. When `agent_tag` is `None`, the UPDATE is
+/// skipped and only the SELECT runs.
+///
+/// Upgrade semantics: every `tags` row whose `tag_group` matches
+/// `name`'s group flips to BOUND on `target_hierarchy`. If `name`
+/// is itself BOUND (or absent), `tag_group` is NULL there, the
+/// `WHERE tag_group = (…)` predicate is unknown, and the UPDATE
+/// touches nothing — a tag that's already bound is left alone.
+pub async fn read_pending_and_upgrade_tag(
     pool: &Pool,
+    agent_tag: Option<&str>,
     target_hierarchy: &str,
-    parent_hierarchy: &str,
-    agent_full_id: &str,
 ) -> Result<Vec<(i64, RichContent)>, Error> {
     let mut tx = pool.begin().await?;
+    if let Some(tag) = agent_tag {
+        let now = now_seconds();
+        sqlx::query(
+            "UPDATE tags \
+             SET agent_instance_hierarchy = $2, \
+                 tag_group                = NULL, \
+                 updated_at               = $3 \
+             WHERE tag_group = ( \
+                 SELECT tag_group FROM tags \
+                 WHERE name = $1 AND tag_group IS NOT NULL \
+             )",
+        )
+        .bind(tag)
+        .bind(target_hierarchy)
+        .bind(now)
+        .execute(&mut *tx)
+        .await?;
+    }
     let rows = sqlx::query(
         "SELECT p.id, \
                 p.agent_instance_hierarchy, \
@@ -712,20 +747,9 @@ pub async fn read_for_message(
                       AND t.agent_instance_hierarchy = $1 \
                 ) \
             ) \
-            OR ( \
-                p.agent_tag IS NOT NULL \
-                AND EXISTS ( \
-                    SELECT 1 FROM tags t \
-                    WHERE t.name = p.agent_tag \
-                      AND t.parent_agent_instance_hierarchy = $2 \
-                      AND t.agent_full_id = $3 \
-                ) \
-            ) \
          ORDER BY p.id ASC",
     )
     .bind(target_hierarchy)
-    .bind(parent_hierarchy)
-    .bind(agent_full_id)
     .fetch_all(&mut *tx)
     .await?;
 
@@ -740,18 +764,18 @@ pub async fn read_for_message(
         let content = reconstruct_rich_content(&mut tx, rc).await?;
         out.push((row.message_queue_id, content));
     }
-    // Read-only transaction. Dropping `tx` without commit rolls back
-    // (a no-op for pure SELECTs).
+    // Commit so the UPGRADE (if any) sticks. The SELECTs in the
+    // same tx see the upgrade's effects already.
+    tx.commit().await?;
     Ok(out)
 }
 
-/// Bulk-delete message rows by id, scoped to the same three-rule
-/// predicate `read_for_message` uses. Empty `ids` short-circuits.
+/// Bulk-delete message rows by id, scoped to the same two-rule
+/// predicate `read_pending_and_upgrade_tag` uses. Empty `ids`
+/// short-circuits.
 pub async fn clear_by_ids(
     pool: &Pool,
     agent_instance_hierarchy: &str,
-    parent_hierarchy: &str,
-    agent_full_id: &str,
     ids: Vec<i64>,
 ) -> Result<(), Error> {
     if ids.is_empty() {
@@ -775,21 +799,10 @@ pub async fn clear_by_ids(
                            AND t.agent_instance_hierarchy = $2 \
                      ) \
                  ) \
-                 OR ( \
-                     agent_tag IS NOT NULL \
-                     AND EXISTS ( \
-                         SELECT 1 FROM tags t \
-                         WHERE t.name = agent_tag \
-                           AND t.parent_agent_instance_hierarchy = $3 \
-                           AND t.agent_full_id = $4 \
-                     ) \
-                 ) \
                )",
         )
         .bind(id)
         .bind(agent_instance_hierarchy)
-        .bind(parent_hierarchy)
-        .bind(agent_full_id)
         .execute(&mut *tx)
         .await?;
     }
@@ -853,44 +866,28 @@ pub async fn list_delivery_targets(
 }
 
 // ---------------------------------------------------------------------------
-// Combined: upgrade PENDING tags + check whether any messages are pending
-// for the given hierarchy. One round-trip via a modifying CTE.
+// Pending-only EXISTS check. Pure read; no tag-group upgrade.
 // ---------------------------------------------------------------------------
 
-/// Single-query upgrade + check used by `agents spawn`'s end-of-stream
-/// restart logic AND its per-chunk new-hierarchy hook.
+/// EXISTS-check: are any queue rows in scope for `target_hierarchy`?
 ///
-/// 1. Promotes every PENDING `tags` row whose
-///    `(agent_full_id, parent_agent_instance_hierarchy)` matches the
-///    given pair to BOUND against `hierarchy`. Same effect as
-///    [`crate::db::tags::upgrade`].
-/// 2. Reports whether any `message_queue` row currently targets
-///    `hierarchy` — directly (`agent_instance_hierarchy = $1`) or via
-///    a BOUND tag whose bound hierarchy equals `$1`. Because the
-///    upgrade runs in the same CTE, this naturally picks up tags
-///    that were just promoted.
+/// Used by `agents instances spawn`'s end-of-pass restart logic to
+/// decide whether to fire another pass. The two-rule predicate
+/// matches `read_pending_and_upgrade_tag`'s SELECT exactly — direct
+/// hierarchy hit OR BOUND-tag hit.
 ///
-/// Returns the bool the SELECT EXISTS yields. Errors propagate via
-/// the `?` chain.
-pub async fn upgrade_and_check_pending(
+/// **No upgrade side effect.** Tag-group upgrade now happens
+/// exclusively inside `read_pending_and_upgrade_tag`, fired by the
+/// conduit on every read-message-queue request. By the time the
+/// spawn pass ends, the conduit has already promoted every sibling
+/// tag in the group via its own reads, so this pure EXISTS check
+/// suffices for the restart decision.
+pub async fn check_any_pending(
     pool: &Pool,
-    hierarchy: &str,
-    parent_hierarchy: &str,
-    agent_full_id: &str,
+    target_hierarchy: &str,
 ) -> Result<bool, Error> {
-    let now = now_seconds();
     let row = sqlx::query(
-        "WITH upgraded AS ( \
-             UPDATE tags \
-             SET agent_instance_hierarchy        = $1, \
-                 parent_agent_instance_hierarchy = NULL, \
-                 agent_full_id                   = NULL, \
-                 updated_at                      = $4 \
-             WHERE agent_full_id                   = $3 \
-               AND parent_agent_instance_hierarchy = $2 \
-             RETURNING name \
-         ) \
-         SELECT EXISTS ( \
+        "SELECT EXISTS ( \
              SELECT 1 FROM message_queue p \
              WHERE p.agent_instance_hierarchy = $1 \
                 OR ( \
@@ -903,10 +900,7 @@ pub async fn upgrade_and_check_pending(
                 ) \
          )",
     )
-    .bind(hierarchy)
-    .bind(parent_hierarchy)
-    .bind(agent_full_id)
-    .bind(now)
+    .bind(target_hierarchy)
     .fetch_one(&**pool)
     .await?;
     let pending: bool = row.try_get(0)?;

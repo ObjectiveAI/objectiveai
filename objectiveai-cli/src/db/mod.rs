@@ -16,5 +16,6 @@ pub use init::*;
 
 pub mod logs;
 pub mod tags;
+pub mod tag_groups;
 pub mod message_queue;
 pub mod tasks;

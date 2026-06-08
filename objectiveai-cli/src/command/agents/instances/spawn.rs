@@ -36,7 +36,7 @@ use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use objectiveai_sdk::agent::completions::message::{Message, UserMessage};
 use objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams;
 use objectiveai_sdk::cli::command::agents::instances::spawn::{
-    AgentSpec, Request, RequestDangerousAdvanced, ResponseItem,
+    AgentResolution, AgentSpec, Request, RequestDangerousAdvanced, ResponseItem,
 };
 use objectiveai_sdk::cli::command::{BinaryExecutor, CommandExecutor};
 
@@ -128,8 +128,33 @@ async fn execute_streaming(
         content,
         name: None,
     })];
-    let agent = resolve_agent(ctx, request.agent).await?;
-    let agent_tag = request.agent_tag.clone();
+    // Dispatch on the resolution mode:
+    // - Direct → use the `AgentSpec` as-is (favorite resolution runs
+    //   in `resolve_agent`).
+    // - Tag    → look the tag up: BOUND is rejected (the AIH is
+    //   already live; `agents instances message` is the right entry
+    //   point). Grouped takes the group's stored AgentSpec.
+    let (agent_spec, agent_tag) = match request.agent {
+        AgentResolution::Direct { agent_spec } => (agent_spec, None),
+        AgentResolution::Tag { agent_tag } => {
+            match crate::db::tags::lookup(&ctx.db, &agent_tag).await? {
+                crate::db::tags::LookupState::Bound { agent_instance_hierarchy } => {
+                    return Err(Error::Instance(format!(
+                        "tag {agent_tag:?} is already bound to {agent_instance_hierarchy:?}; \
+                         use `agents instances message` to deliver to the live spawn"
+                    )));
+                }
+                crate::db::tags::LookupState::Grouped {
+                    agent_spec,
+                    ..
+                } => (agent_spec, Some(agent_tag)),
+                crate::db::tags::LookupState::Absent => {
+                    return Err(Error::TagNotFound(agent_tag));
+                }
+            }
+        }
+    };
+    let agent = resolve_agent(ctx, agent_spec).await?;
     let agents_dir = ctx
         .filesystem
         .base_dir()
@@ -147,9 +172,9 @@ async fn execute_streaming(
     };
 
     // Message-queue delivery to the live API happens through the
-    // conduit's `read_for_message` / `clear_by_ids` calls — the
-    // API pulls pending rows on demand as the stream runs. No
-    // pre-spawn drain + prepend here.
+    // conduit's `read_pending_and_upgrade_tag` / `clear_by_ids`
+    // calls — the API pulls pending rows on demand as the stream
+    // runs. No pre-spawn drain + prepend here.
     let ctx_clone = ctx.clone();
     Ok(Box::pin(run_multi_pass(ctx_clone, params, agent_tag, agents_dir)))
 }
@@ -188,6 +213,7 @@ pub(crate) fn run_multi_pass(
                 crate::websockets::conduit::ConduitMcpHandler::new(
                     mcp_server,
                     ctx.clone(),
+                    agent_tag.clone(),
                 );
             let mut log_writer = crate::db::logs::write_agent_completion(
                 &ctx.db, &params,
@@ -218,25 +244,15 @@ pub(crate) fn run_multi_pass(
 
                 // First chunk EVER (first pass, first chunk):
                 // capture the spawn's identity, claim the lock
-                // file, optionally bind the explicit `agent_tag`,
-                // run the initial PENDING-tag upgrade, and emit
-                // the `ResponseItem::Id` handshake. Everything
-                // here runs exactly once per spawn lifetime.
+                // file, and emit the `ResponseItem::Id` handshake.
+                // Tag-group upgrade is owned by the conduit's
+                // `read_pending_and_upgrade_tag`, which the API
+                // fires before the very first chunk is produced —
+                // no upgrade fan-out is needed here.
                 if identity.is_none() {
                     let hier = chunk.agent_instance_hierarchy.clone();
                     let full_id = chunk.agent_full_id.clone();
                     registry.observe(&hier);
-                    if let Some(tag) = &agent_tag {
-                        let _ = crate::db::tags::upsert_bound(
-                            &ctx.db, tag, &hier,
-                        )
-                        .await;
-                    }
-                    let parent = crate::db::tags::parent_of(&hier);
-                    let _ = crate::db::message_queue::upgrade_and_check_pending(
-                        &ctx.db, &hier, parent, &full_id,
-                    )
-                    .await;
                     yield ResponseItem::Id(hier.clone());
                     identity = Some((hier, full_id));
                 }
@@ -267,23 +283,22 @@ pub(crate) fn run_multi_pass(
             drop(sdk_stream);
             drop(conduit);
 
-            // End-of-pass: one upgrade-and-check call against the
-            // spawn's single hierarchy. The upgrade half matters
-            // even when no messages are pending — tags that became
-            // PENDING mid-stream get promoted now so the
-            // message_queue lookup can see anything routed via
-            // newly-bound tags. On `false`, fall through to the
-            // implicit registry drop on function return (no
-            // explicit destroy needed — there's only one claim and
-            // we're done with it).
-            let Some((hier, full_id)) = identity.as_ref() else {
+            // End-of-pass: a pure EXISTS check against the spawn's
+            // single hierarchy. The conduit already promoted every
+            // sibling tag in the group during its in-stream reads
+            // via `read_pending_and_upgrade_tag` — so this check
+            // sees the post-upgrade `tags` state and catches
+            // anything queued mid-stream against a now-BOUND
+            // sibling. On `false`, fall through to the implicit
+            // registry drop on function return (no explicit destroy
+            // needed — there's only one claim and we're done with it).
+            let Some((hier, _full_id)) = identity.as_ref() else {
                 // Empty stream — nothing was claimed, nothing to
                 // restart. Just exit.
                 break;
             };
-            let parent = crate::db::tags::parent_of(hier);
-            let pending = crate::db::message_queue::upgrade_and_check_pending(
-                &ctx.db, hier, parent, full_id,
+            let pending = crate::db::message_queue::check_any_pending(
+                &ctx.db, hier,
             )
             .await
             .unwrap_or(false);

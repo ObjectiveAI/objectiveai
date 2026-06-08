@@ -31,13 +31,15 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                 db::tags::LookupState::Bound { agent_instance_hierarchy } => Response::Tag {
                     state: LookupState::Bound { agent_instance_hierarchy },
                 },
-                db::tags::LookupState::Pending {
+                db::tags::LookupState::Grouped {
+                    tag_group_id,
+                    agent_spec,
                     parent_agent_instance_hierarchy,
-                    agent_full_id,
                 } => Response::Tag {
-                    state: LookupState::Pending {
+                    state: LookupState::Grouped {
+                        tag_group_id,
+                        agent_spec,
                         parent_agent_instance_hierarchy,
-                        agent_full_id,
                     },
                 },
                 db::tags::LookupState::Absent => Response::Absent,

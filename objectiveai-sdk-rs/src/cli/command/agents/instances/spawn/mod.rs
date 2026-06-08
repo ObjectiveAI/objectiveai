@@ -14,16 +14,39 @@ pub struct Request {
     /// `RequestMessage` — `Simple`, `Inline(RichContent)`,
     /// `File`, `PythonInline`, `PythonFile`.
     pub message: RequestMessage,
-    pub agent: AgentSpec,
+    /// How to resolve the agent for this spawn: either a directly-
+    /// specified `AgentSpec` (`--agent` / `--agent-inline`) or a
+    /// reference to an existing tag (`--agent-tag`). When a tag is
+    /// used, the conduit injects the tag at construction time so
+    /// every conduit read fires the tag-group upgrade — flipping
+    /// every tag in the group to BOUND on the spawn's
+    /// `agent_instance_hierarchy`.
+    pub agent: AgentResolution,
     pub seed: Option<i64>,
     pub dangerous_advanced: Option<RequestDangerousAdvanced>,
-    /// Optional tag name to bind to the spawned agent's
-    /// `agent_instance_hierarchy` on first chunk. See
-    /// `agents tags` for the storage model.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub agent_tag: Option<String>,
     pub jq: Option<String>,
+}
+
+/// Discriminated agent-resolution mode for `agents instances spawn`.
+///
+/// - `Direct` — `--agent <ref>` / `--agent-inline <json>` paths
+///   produce an `AgentSpec` directly. No tag is involved; the
+///   conduit constructs without an `agent_tag`.
+/// - `Tag` — `--agent-tag <name>` references an existing GROUPED
+///   tag (BOUND tags are rejected — there's already a live AIH for
+///   them, use `agents instances message` instead). The CLI handler
+///   resolves the tag → `tag_groups` row, takes the row's
+///   `agent_spec` to spawn, and threads the tag name into the
+///   conduit so the spawn's `agent_instance_hierarchy` flips the
+///   whole group to BOUND on the first conduit read.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(tag = "by", rename_all = "snake_case")]
+#[schemars(rename = "cli.command.agents.instances.spawn.AgentResolution")]
+pub enum AgentResolution {
+    #[schemars(title = "Direct")]
+    Direct { agent_spec: AgentSpec },
+    #[schemars(title = "Tag")]
+    Tag { agent_tag: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -54,17 +77,26 @@ impl CommandRequest for Request {
         // `RequestMessage` lives in `agents::instances::message`
         // and emits the same five flags spawn accepts.
         self.message.push_flags(&mut argv);
-        // The cli's `AgentArg` (from `define_inline_or_ref!`) accepts
-        // either `--agent <REFERENCE>` (a `FavoriteRef` wire form, then
-        // resolved to the `Remote` variant) or `--agent-inline <JSON>`
-        // (deserialized directly into the SDK type). We always emit the
-        // inline form because the Request already holds the resolved
-        // typed value — the cli's resolve hits the inline branch and
-        // round-trips identically for both Inline and Remote variants.
-        argv.push("--agent-inline".to_string());
-        argv.push(
-            serde_json::to_string(&self.agent).expect("AgentSpec serializes"),
-        );
+        // The agent argument group accepts exactly one of
+        // `--agent-inline <JSON>`, `--agent <REFERENCE>`, or
+        // `--agent-tag <name>`. We emit `--agent-inline` for the
+        // Direct path (the Request already holds the resolved typed
+        // value — the cli's parse hits the inline branch and
+        // round-trips identically for both Inline and Remote
+        // variants), and `--agent-tag` for the Tag path.
+        match &self.agent {
+            AgentResolution::Direct { agent_spec } => {
+                argv.push("--agent-inline".to_string());
+                argv.push(
+                    serde_json::to_string(agent_spec)
+                        .expect("AgentSpec serializes"),
+                );
+            }
+            AgentResolution::Tag { agent_tag } => {
+                argv.push("--agent-tag".to_string());
+                argv.push(agent_tag.clone());
+            }
+        }
         if let Some(seed) = self.seed {
             argv.push("--seed".to_string());
             argv.push(seed.to_string());
@@ -75,10 +107,6 @@ impl CommandRequest for Request {
                 serde_json::to_string(advanced)
                     .expect("RequestDangerousAdvanced serializes"),
             );
-        }
-        if let Some(tag) = &self.agent_tag {
-            argv.push("--agent-tag".to_string());
-            argv.push(tag.clone());
         }
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
@@ -123,10 +151,6 @@ pub struct Args {
     /// Raw JSON for `RequestDangerousAdvanced` (e.g. `{"stream":true}`).
     #[arg(long)]
     pub dangerous_advanced: Option<String>,
-    /// Optional tag name to bind on first chunk. The bound
-    /// hierarchy is the spawn's resolved `agent_instance_hierarchy`.
-    #[arg(long = "agent-tag")]
-    pub agent_tag: Option<String>,
     /// jq filter applied to the JSON output.
     #[arg(long)]
     pub jq: Option<String>,
@@ -163,6 +187,13 @@ pub struct AgentArgs {
     /// Inline JSON for the full agent definition.
     #[arg(long)]
     pub agent_inline: Option<String>,
+    /// Existing tag whose `tag_groups` row provides the agent spec
+    /// to spawn. The tag's parent scope is used for the new
+    /// `agent_instance_hierarchy`; every tag in the same group
+    /// flips to BOUND on the spawn's hierarchy via the conduit-
+    /// driven upgrade on the first message-queue read.
+    #[arg(long)]
+    pub agent_tag: Option<String>,
 }
 
 #[derive(clap::Args)]
@@ -207,14 +238,24 @@ impl TryFrom<Args> for Request {
         };
         let agent = if let Some(s) = args.agent.agent_inline {
             let mut de = serde_json::Deserializer::from_str(&s);
-            serde_path_to_error::deserialize(&mut de).map_err(|source| {
+            let spec: AgentSpec = serde_path_to_error::deserialize(&mut de).map_err(|source| {
                 crate::cli::command::FromArgsError {
                     field: "agent_inline",
                     source: source.into(),
                 }
-            })?
+            })?;
+            AgentResolution::Direct { agent_spec: spec }
+        } else if let Some(s) = args.agent.agent {
+            AgentResolution::Direct {
+                agent_spec: AgentSpec::Favorite(s),
+            }
         } else {
-            AgentSpec::Favorite(args.agent.agent.unwrap())
+            // Clap `required = true` on `AgentArgs` guarantees
+            // exactly one of `--agent`, `--agent-inline`, or
+            // `--agent-tag` is set.
+            AgentResolution::Tag {
+                agent_tag: args.agent.agent_tag.unwrap(),
+            }
         };
         let dangerous_advanced = if let Some(s) = args.dangerous_advanced {
             let mut de = serde_json::Deserializer::from_str(&s);
@@ -233,7 +274,6 @@ impl TryFrom<Args> for Request {
             agent,
             seed: args.seed,
             dangerous_advanced,
-            agent_tag: args.agent_tag,
             jq: args.jq,
         })
     }

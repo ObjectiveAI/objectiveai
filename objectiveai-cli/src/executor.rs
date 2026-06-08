@@ -125,7 +125,8 @@ impl CommandExecutor for CliCommandExecutor {
         R: CommandRequest + Send,
         T: CommandResponse + serde::de::DeserializeOwned + Send + 'static,
     {
-        let mut stream = self.execute::<R, T>(request, agent_arguments).await?;
+        let mut stream: Self::Stream<T> =
+            self.execute::<R, T>(request, agent_arguments).await?;
         match stream.next().await {
             Some(item) => item,
             None => Err(Error::EmptyStream),

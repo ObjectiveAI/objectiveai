@@ -86,16 +86,29 @@ struct Inner {
     /// [`crate::command::plugins::run::execute`]. Carries the
     /// filesystem client used to resolve installed plugin binaries.
     ctx: crate::context::Context,
+    /// Tag the spawn resolved against, if any. Threaded into
+    /// every `dispatch_read_message_queue` call so
+    /// `db::message_queue::read_pending_and_upgrade_tag` can fuse
+    /// the tag-group upgrade with the read — atomically flipping
+    /// every sibling tag in the same `tag_groups` row to BOUND on
+    /// the spawn's hierarchy and committing it alongside the row
+    /// selection. `None` for the Direct spawn path (no upgrade
+    /// to fire).
+    agent_tag: Option<String>,
 }
 
 impl ConduitMcpHandler {
     /// Construct a handler over the given in-process `objectiveai-mcp`
     /// server. `ctx` is the base [`crate::context::Context`] the
     /// conduit clones+mutates per plugin dial to thread the
-    /// transient header values into [`crate::Config`].
+    /// transient header values into [`crate::Config`]. `agent_tag`
+    /// is the tag the spawn resolved against (if any); when present,
+    /// each `dispatch_read_message_queue` call fuses the tag-group
+    /// upgrade with the row read in one transaction.
     pub fn new(
         mcp_server: crate::websockets::mcp_server::McpServerHandle,
         ctx: crate::context::Context,
+        agent_tag: Option<String>,
     ) -> Self {
         let http = reqwest::Client::builder()
             .build()
@@ -121,6 +134,7 @@ impl ConduitMcpHandler {
                 connections: DashMap::new(),
                 notifier: OnceLock::new(),
                 ctx,
+                agent_tag,
             }),
         }
     }
@@ -496,19 +510,22 @@ async fn dispatch_resources_read(
     }
 }
 
-/// Non-destructive read of the local `message_queue (postgres)` queue. Hits the
-/// CLI's own filesystem — no upstream MCP session involved, no
-/// headers consulted. Pair with [`dispatch_clear_message_queue`] to
-/// release rows once consumed.
+/// Non-destructive read of the local `message_queue (postgres)`
+/// queue. Hits the CLI's own filesystem — no upstream MCP session
+/// involved, no headers consulted. When the conduit was constructed
+/// with a tag, the fused `read_pending_and_upgrade_tag` atomically
+/// flips every sibling tag in the spawn's `tag_groups` row to BOUND
+/// on the live `agent_instance_hierarchy` and selects the matching
+/// queue rows in one transaction. Pair with
+/// [`dispatch_clear_message_queue`] to release rows once consumed.
 async fn dispatch_read_message_queue(
     inner: &Arc<Inner>,
     req: server_request::ReadMessageQueueRequest,
 ) -> server_response::Payload {
-    match crate::db::message_queue::read_for_message(
+    match crate::db::message_queue::read_pending_and_upgrade_tag(
         &inner.ctx.db,
+        inner.agent_tag.as_deref(),
         &req.agent_instance_hierarchy,
-        &req.parent_agent_instance_hierarchy.unwrap_or_default(),
-        &req.agent_full_id,
     )
     .await
     {
@@ -539,8 +556,6 @@ async fn dispatch_clear_message_queue(
     match crate::db::message_queue::clear_by_ids(
         &inner.ctx.db,
         &req.agent_instance_hierarchy,
-        &req.parent_agent_instance_hierarchy.unwrap_or_default(),
-        &req.agent_full_id,
         req.ids,
     )
     .await

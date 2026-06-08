@@ -1379,22 +1379,11 @@ where
         // chunk yields downstream — see the stream body below) can
         // release them. This way the queue stays populated through a
         // failed turn and the next attempt re-reads it.
-        // Lineage prefix for rule 3 (PENDING tags) — `rsplit_once('/')`
-        // returns `Some((parent, leaf))` for nested agents and `None`
-        // for root agents whose hierarchy has no `/`. The CLI side
-        // stores rootless tag parents as `""`, so we mirror that by
-        // sending `None` and letting `unwrap_or_default()` produce
-        // `""` at dispatch.
-        let parent_agent_instance_hierarchy: Option<String> = agent_instance_hierarchy_header
-            .rsplit_once('/')
-            .map(|(p, _)| p.to_string());
         let mut queue_ids_to_clear: Vec<i64> = Vec::new();
         if let Some(handle) = &reverse_attach {
             let entries = read_message_queue_via_ws(
                 handle,
                 agent_instance_hierarchy_header,
-                parent_agent_instance_hierarchy.clone(),
-                agent_full_id,
             )
             .await?;
             if !entries.is_empty() {
@@ -1551,10 +1540,8 @@ where
                 let Some(handle) = reverse_attach.clone() else { return; };
                 let ids = std::mem::take(&mut queue_ids_to_clear);
                 let hierarchy = agent_instance_hierarchy_header.clone();
-                let parent = parent_agent_instance_hierarchy.clone();
-                let full_id = agent_full_id.clone();
                 tokio::spawn(clear_message_queue_via_ws(
-                    handle, hierarchy, parent, full_id, ids,
+                    handle, hierarchy, ids,
                 ));
             };
             loop {
@@ -1966,8 +1953,6 @@ const MESSAGE_QUEUE_WS_TIMEOUT: std::time::Duration = std::time::Duration::from_
 async fn read_message_queue_via_ws(
     handle: &std::sync::Arc<crate::objectiveai_mcp::ReverseAttachHandle>,
     agent_instance_hierarchy: &str,
-    parent_agent_instance_hierarchy: Option<String>,
-    agent_full_id: &str,
 ) -> Result<Vec<objectiveai_sdk::client_objectiveai_mcp::server_response::ReadMessageQueueEntry>, super::Error> {
     use objectiveai_sdk::client_objectiveai_mcp::{server_request, server_response};
     let rc = handle.channel();
@@ -1977,8 +1962,6 @@ async fn read_message_queue_via_ws(
         payload: server_request::Payload::ReadMessageQueue(
             server_request::ReadMessageQueueRequest {
                 agent_instance_hierarchy: agent_instance_hierarchy.to_string(),
-                parent_agent_instance_hierarchy,
-                agent_full_id: agent_full_id.to_string(),
             },
         ),
     };
@@ -2024,8 +2007,6 @@ async fn read_message_queue_via_ws(
 async fn clear_message_queue_via_ws(
     handle: std::sync::Arc<crate::objectiveai_mcp::ReverseAttachHandle>,
     agent_instance_hierarchy: String,
-    parent_agent_instance_hierarchy: Option<String>,
-    agent_full_id: String,
     ids: Vec<i64>,
 ) {
     use objectiveai_sdk::client_objectiveai_mcp::server_request;
@@ -2039,8 +2020,6 @@ async fn clear_message_queue_via_ws(
         payload: server_request::Payload::ClearMessageQueue(
             server_request::ClearMessageQueueRequest {
                 agent_instance_hierarchy,
-                parent_agent_instance_hierarchy,
-                agent_full_id,
                 ids,
             },
         ),

@@ -39,26 +39,49 @@ const APP_DB_NAME: &str = "objectiveai";
 /// No migration framework: nobody is on this DB yet, and adding one
 /// would add ceremony we don't need.
 const SCHEMA: &str = r#"
+-- `tag_groups`: explicit grouping container that lets many tags
+-- share one resolved `AgentSpec` + parent lineage. The cli's
+-- `agents tags apply` either creates a group on the fly (for the
+-- `--agent` arm) or joins the new tag into an existing group (for
+-- the `--agent-tag` arm). When any one tag in a group is picked
+-- up by a live spawn, the conduit-driven upgrade flips every tag
+-- in the group from `tag_group` to `agent_instance_hierarchy` in
+-- one UPDATE inside the read transaction — see
+-- `db::message_queue::read_pending_and_upgrade_tag`.
+CREATE TABLE IF NOT EXISTS tag_groups (
+    id                              BIGSERIAL PRIMARY KEY,
+    -- Resolved `agents::instances::spawn::AgentSpec`; serialized
+    -- as JSONB. Favorites are resolved at apply-time, never at
+    -- spawn-time, so this column is always inline-or-remote.
+    agent_spec                      JSONB  NOT NULL,
+    -- The lineage prefix the spawn-by-tag will compose its AIH
+    -- against. NOT NULL: callers (CLI handlers) substitute the
+    -- cli's own `Config.agent_instance_hierarchy` when the user
+    -- omits the argument.
+    parent_agent_instance_hierarchy TEXT   NOT NULL,
+    created_at                      BIGINT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS tags (
-    name                            TEXT PRIMARY KEY NOT NULL,
-    agent_instance_hierarchy        TEXT,
-    parent_agent_instance_hierarchy TEXT,
-    agent_full_id                   TEXT,
-    updated_at                      BIGINT NOT NULL,
+    name                     TEXT PRIMARY KEY NOT NULL,
+    -- BOUND when set: this tag resolves to a live AIH.
+    agent_instance_hierarchy TEXT,
+    -- GROUPED when set: this tag's resolution is the tag_group
+    -- row's (agent_spec, parent). Exactly one of the two columns
+    -- is non-null at any time.
+    tag_group                BIGINT,
+    updated_at               BIGINT NOT NULL,
     CHECK (
-        (agent_instance_hierarchy IS NOT NULL
-         AND parent_agent_instance_hierarchy IS NULL
-         AND agent_full_id IS NULL)
+        (agent_instance_hierarchy IS NOT NULL AND tag_group IS NULL)
         OR
-        (agent_instance_hierarchy IS NULL
-         AND parent_agent_instance_hierarchy IS NOT NULL
-         AND agent_full_id IS NOT NULL)
-    )
+        (agent_instance_hierarchy IS NULL AND tag_group IS NOT NULL)
+    ),
+    FOREIGN KEY (tag_group) REFERENCES tag_groups(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS tags_hierarchy_idx
     ON tags(agent_instance_hierarchy);
-CREATE INDEX IF NOT EXISTS tags_pending_match_idx
-    ON tags(agent_full_id, parent_agent_instance_hierarchy);
+CREATE INDEX IF NOT EXISTS tags_tag_group_idx
+    ON tags(tag_group);
 
 CREATE TABLE IF NOT EXISTS message_queue (
     id                       BIGSERIAL PRIMARY KEY,

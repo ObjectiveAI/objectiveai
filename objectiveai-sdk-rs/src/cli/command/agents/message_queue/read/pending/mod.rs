@@ -4,16 +4,17 @@
 //! the given parent. Direct rows match when their
 //! `agent_instance_hierarchy` is one segment under `parent` — same
 //! filter `agents list active` uses. Tag rows resolve their parent
-//! via the joined `tags` table:
+//! via the joined `tags` + `tag_groups` tables:
 //!
 //! * BOUND tags → parent is `parent_of(bound_agent_instance_hierarchy)`.
-//! * PENDING tags → parent is the stored
-//!   `parent_agent_instance_hierarchy` from the tags row.
+//! * GROUPED tags → parent is the joined
+//!   `tag_groups.parent_agent_instance_hierarchy`.
 //! * ABSENT tags (the tag was used at enqueue but never registered)
 //!   have no parent and are excluded.
 //!
-//! Each tag-row response item carries the joined 3-state status
-//! (`Bound { hierarchy } | Pending { … }`) for inspection.
+//! Each tag-row response item carries the joined 2-state status
+//! (`Bound { hierarchy } | Grouped { tag_group_id, agent_spec, parent }`)
+//! for inspection.
 
 use crate::cli::command::CommandRequest;
 
@@ -101,10 +102,11 @@ pub use super::super::super::tags::lookup::LookupState;
 #[derive(clap::Args)]
 pub struct Args {
     /// Filter both Direct and Tag rows to direct children of this
-    /// parent. Tags resolve their parent via the joined `tags`
-    /// table (BOUND tags by `parent_of(bound_hierarchy)`, PENDING
-    /// tags by their stored `parent_agent_instance_hierarchy`).
-    /// Omit for the cli's own position.
+    /// parent. Tags resolve their parent via the joined `tags` +
+    /// `tag_groups` tables (BOUND tags by
+    /// `parent_of(bound_hierarchy)`, GROUPED tags by their joined
+    /// `tag_groups.parent_agent_instance_hierarchy`). Omit for the
+    /// cli's own position.
     pub parent_agent_instance_hierarchy: Option<String>,
     /// jq filter applied to the JSON output.
     #[arg(long)]

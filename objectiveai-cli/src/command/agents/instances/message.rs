@@ -105,7 +105,7 @@ async fn resolve_target(ctx: &Context, request: &Request) -> Result<ResolvedTarg
                     hierarchy: agent_instance_hierarchy,
                     tag: Some(agent_tag.clone()),
                 }),
-                LookupState::Pending { .. } | LookupState::Absent => {
+                LookupState::Grouped { .. } | LookupState::Absent => {
                     // No live target. Pure enqueue against the
                     // tag name — the queue reader resolves it later.
                     let content = resolve_message(request.message.clone())?;

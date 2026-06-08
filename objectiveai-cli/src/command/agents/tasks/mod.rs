@@ -15,9 +15,9 @@ pub mod schedule;
 
 /// Resolve the scope `(agent_instance_hierarchy?, tag?)` pair
 /// shared by `list` and `run` into a single hierarchy string.
-/// `tag` resolves through `tags.sqlite` BOUND-only — PENDING /
-/// ABSENT raise structured errors. When neither is given, falls
-/// back to the cli's own `Config.agent_instance_hierarchy`.
+/// `tag` resolves BOUND-only — GROUPED / ABSENT raise structured
+/// errors. When neither is given, falls back to the cli's own
+/// `Config.agent_instance_hierarchy`.
 pub(crate) async fn resolve_scope(
     ctx: &Context,
     agent_instance_hierarchy: Option<String>,
@@ -31,13 +31,14 @@ pub(crate) async fn resolve_scope(
                 tags::LookupState::Bound { agent_instance_hierarchy } => {
                     Ok(agent_instance_hierarchy)
                 }
-                tags::LookupState::Pending {
+                tags::LookupState::Grouped {
+                    tag_group_id,
                     parent_agent_instance_hierarchy,
-                    agent_full_id,
-                } => Err(Error::TagPending {
+                    ..
+                } => Err(Error::TagGrouped {
                     tag,
+                    tag_group_id,
                     parent_agent_instance_hierarchy,
-                    agent_full_id,
                 }),
                 tags::LookupState::Absent => Err(Error::TagNotFound(tag)),
             }

@@ -99,57 +99,40 @@ impl Payload {
 
 /// Parameters for [`Payload::ReadMessageQueue`].
 ///
-/// Three-rule predicate:
+/// Two-rule predicate (now that PENDING is gone):
 /// 1. Direct hit — `message_queue.agent_instance_hierarchy =
 ///    agent_instance_hierarchy`.
-/// 2. BOUND-tag hit — `message_queue.agent_tag` resolves to a tag whose
-///    `tags.agent_instance_hierarchy = agent_instance_hierarchy`.
-/// 3. PENDING-tag hit — `message_queue.agent_tag` resolves to a tag in
-///    PENDING state whose
-///    `(parent_agent_instance_hierarchy, agent_full_id)` matches the
-///    fields below. Lets the API pick up rows that were enqueued
-///    against a tag whose spawn this agent is.
+/// 2. BOUND-tag hit — `message_queue.agent_tag` resolves to a tag
+///    whose `tags.agent_instance_hierarchy = agent_instance_hierarchy`.
+///
+/// The conduit-side spawn-with-tag flow pre-fires the tag-group
+/// upgrade ahead of every read, so any tags sharing the spawn's
+/// group become BOUND before the EXISTS-check runs and feed
+/// straight into rule 2.
 ///
 /// Returns rows oldest-first (`message_queue.id ASC`, which also matches
 /// `message_queue.enqueued_at` ascending due to AUTOINCREMENT). Pair with
-/// [`ClearMessageQueueRequest`] (same scope fields) after processing
-/// to release the rows; rows left behind remain visible to the next
-/// read.
+/// [`ClearMessageQueueRequest`] (same `agent_instance_hierarchy`)
+/// after processing to release the rows; rows left behind remain
+/// visible to the next read.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.server_request.ReadMessageQueueRequest")]
 pub struct ReadMessageQueueRequest {
     pub agent_instance_hierarchy: String,
-    /// Lineage prefix used by rule 3 to find PENDING tags. `None`
-    /// for rootless agents — the tag's
-    /// `parent_agent_instance_hierarchy` is stored as `""` for those
-    /// (see `tags::upgrade`).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub parent_agent_instance_hierarchy: Option<String>,
-    /// Agent full id used by rule 3 to find PENDING tags.
-    pub agent_full_id: String,
 }
 
 /// Parameters for [`Payload::ClearMessageQueue`].
 ///
-/// Scope fields mirror [`ReadMessageQueueRequest`] — the same
-/// three-rule predicate gates which ids may be cleared. Ids outside
-/// the scope are silently absorbed; this protects against an API
-/// caller mis-addressing a row that belongs to a different agent.
-///
-/// `ON DELETE CASCADE` on `prompt_contents.prompt_id` sweeps the
-/// per-kind content rows. Empty `ids` is a no-op. Unknown ids are
-/// silently ignored — the API may have raced another reader.
+/// `ids` not matching the target hierarchy are silently absorbed;
+/// this protects against an API caller mis-addressing a row that
+/// belongs to a different agent. `ON DELETE CASCADE` on
+/// `message_queue_contents.message_queue_id` sweeps the per-kind
+/// content rows. Empty `ids` is a no-op. Unknown ids are silently
+/// ignored — the API may have raced another reader.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.server_request.ClearMessageQueueRequest")]
 pub struct ClearMessageQueueRequest {
     pub agent_instance_hierarchy: String,
-    /// Lineage prefix; see [`ReadMessageQueueRequest`].
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub parent_agent_instance_hierarchy: Option<String>,
-    /// Agent full id; see [`ReadMessageQueueRequest`].
-    pub agent_full_id: String,
     pub ids: Vec<i64>,
 }
 

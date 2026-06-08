@@ -50,7 +50,7 @@ impl Request {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.tags.lookup.Response")]
 #[serde(tag = "by", rename_all = "snake_case")]
 pub enum Response {
@@ -75,21 +75,24 @@ pub enum Response {
     Absent,
 }
 
-/// 2-state result of a successful tag-name lookup. PENDING surfaces
-/// the pre-spawn `(parent, agent_full_id)` pair so callers can see
-/// why the tag exists without a hierarchy yet. The third "not
-/// registered" possibility is represented at the [`Response`]
-/// level via [`Response::Absent`], not as a variant here.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+/// 2-state result of a successful tag-name lookup. `Grouped`
+/// surfaces the tag's `tag_groups` membership — the group id, the
+/// resolved `AgentSpec` the group carries, and the parent lineage
+/// — so callers can see what would happen on spawn-by-tag without
+/// firing one. The third "not registered" possibility is
+/// represented at the [`Response`] level via [`Response::Absent`],
+/// not as a variant here.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.tags.lookup.LookupState")]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum LookupState {
     #[schemars(title = "Bound")]
     Bound { agent_instance_hierarchy: String },
-    #[schemars(title = "Pending")]
-    Pending {
+    #[schemars(title = "Grouped")]
+    Grouped {
+        tag_group_id: i64,
+        agent_spec: super::super::instances::spawn::AgentSpec,
         parent_agent_instance_hierarchy: String,
-        agent_full_id: String,
     },
 }
 
