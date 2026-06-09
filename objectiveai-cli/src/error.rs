@@ -125,6 +125,17 @@ pub enum Error {
     /// on the postgres-backed `logs.*` reader that's still in flight.
     #[error("not implemented: {0}")]
     NotImplemented(&'static str),
+    #[error("invalid query: {0}")]
+    InvalidQuery(String),
+    #[error("query exceeded timeout")]
+    QueryTimeout,
+    #[error("query attempted a write in a read-only context")]
+    QueryReadOnlyViolation,
+    #[error(
+        "response exceeded token budget — actual {actual} tokens, limit {limit}. \
+         Consider narrowing with a WHERE clause, LIMIT, or selecting fewer columns."
+    )]
+    TokenBudgetExceeded { limit: u64, actual: u64 },
 }
 
 impl Error {

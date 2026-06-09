@@ -49,6 +49,11 @@ postgresql_embedded = { version = "0.20", default-features = false, features = [
 sqlx = { version = "0.8", default-features = false, features = [
     "runtime-tokio", "tls-rustls", "postgres", "macros",
 ] }
+sqlx-postgres = { version = "0.8", default-features = false, features = [
+    "chrono", "uuid", "ipnetwork", "json",
+] }
+chrono = { version = "=0.4.39", default-features = false, features = ["std", "clock"] }
+tiktoken-rs = "0.12.0"
 percent-encoding = "2.3"
 base62 = "2.2.4"
 base64 = "0.22.1"

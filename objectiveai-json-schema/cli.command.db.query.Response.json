@@ -1,0 +1,30 @@
+{
+  "title": "cli.command.db.query.Response",
+  "description": "Unary response from `db query`.",
+  "type": "object",
+  "properties": {
+    "columns": {
+      "description": "Result columns in select-list order. Empty for no-row\nstatements (SET / LISTEN / DO).",
+      "type": "array",
+      "items": {
+        "$ref": "cli.command.db.query.Column"
+      }
+    },
+    "command_tag": {
+      "description": "Wire-protocol-style command tag — e.g. `\"SELECT 5\"`,\n`\"SHOW 1\"`, `\"EXPLAIN 12\"`, `\"SET 0\"`. Synthesized from\n`{leading_keyword} {row_count}` since sqlx 0.8 doesn't\nexpose the wire-protocol `CommandComplete` tag; close\nenough for telemetry / display.",
+      "type": "string"
+    },
+    "rows": {
+      "description": "One inner Vec per row, length matches `columns.len()`.\nEach cell is a `serde_json::Value` produced by the CLI's\nper-cell `pg_value_to_json` decoder. Common type\nencodings: text/uuid/timestamps as JSON String, numeric\nas String (preserving precision), bytea as base64 String,\njson/jsonb passthrough as Value, arrays recurse. Empty\nwhen the statement returns no rows (no-row command OR a\nSELECT with no matches).",
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": true
+      }
+    },
+    "truncated": {
+      "description": "Always `false` in the current design — over-budget\nresponses return `TokenBudgetExceeded` rather than a\npartial result. Reserved on the wire so a future \"soft\ntruncation\" mode can be added without a shape break.",
+      "type": "boolean"
+    }
+  }
+}

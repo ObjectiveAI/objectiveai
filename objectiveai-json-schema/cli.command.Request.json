@@ -10,6 +10,10 @@
       "$ref": "cli.command.config.Request"
     },
     {
+      "title": "Db",
+      "$ref": "cli.command.db.Request"
+    },
+    {
       "title": "Functions",
       "$ref": "cli.command.functions.Request"
     },

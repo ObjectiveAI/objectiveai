@@ -1,0 +1,13 @@
+{
+  "title": "cli.command.db.query.Column",
+  "description": "One result column. `r#type` is the Postgres `pg_type.typname`\n(e.g. `\"int8\"`, `\"text\"`, `\"jsonb\"`, `\"timestamptz\"`). Callers\nneeding precision/scale/array-element-type can inspect the\nname; richer typeinfo is deferred.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string"
+    }
+  }
+}

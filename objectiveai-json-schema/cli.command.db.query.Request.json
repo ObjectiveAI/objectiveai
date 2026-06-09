@@ -1,0 +1,43 @@
+{
+  "title": "cli.command.db.query.Request",
+  "type": "object",
+  "properties": {
+    "jq": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "max_tokens": {
+      "description": "Optional response token budget. `None` ⇒ no limit;\n`Some(n)` requires `n >= 1`. When set, the CLI errors\nwith `TokenBudgetExceeded` if the per-part token sum\nexceeds the limit. Skip-serialized when None.",
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "path_type": {
+      "$ref": "cli.command.db.query.Path"
+    },
+    "query": {
+      "description": "SQL statement to execute. Single statement only (multi-\nstatement input is rejected by the CLI handler).",
+      "type": "string"
+    },
+    "timeout_seconds": {
+      "description": "Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime), `> 0` enforced at\n`TryFrom<Args>` time so this never carries 0 on the wire.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    }
+  }
+}

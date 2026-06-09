@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.db.query.Path",
+  "type": "string",
+  "enum": [
+    "db/query"
+  ]
+}

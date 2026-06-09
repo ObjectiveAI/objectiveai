@@ -1014,6 +1014,24 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::config::viewer::signature::set::response_schema::Request),
         #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::db::Request),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::db::query::Path),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::db::query::Request),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::db::query::Response),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::db::query::Column),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::db::query::request_schema::Path),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::db::query::request_schema::Request),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::db::query::response_schema::Path),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::db::query::response_schema::Request),
+        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::functions::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::functions::execute::FunctionSpec),

@@ -12,6 +12,7 @@
 pub mod agents;
 pub mod command;
 pub mod config;
+pub mod db;
 pub mod functions;
 pub mod list_helpers;
 pub mod mcp;
