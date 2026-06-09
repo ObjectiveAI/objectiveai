@@ -699,6 +699,87 @@ fn titles_are_snake_case_dot_pascal_case() {
     );
 }
 
+/// Walk every raw schema (pre-normalization) emitted by
+/// `objectiveai_sdk::json_schemas()` and assert that any
+/// single-variant `anyOf` (which the builder later flattens
+/// away — see normalization #4) does NOT carry a `title` on its
+/// lone variant.
+///
+/// Rationale: a single-variant enum is a wrapper that adds no
+/// discrimination. If the variant has a title, it's leaking
+/// "this is a tagged-union case" semantics into a schema that
+/// is actually just the variant's content. Use a struct
+/// (`Response`) instead of an enum with one variant.
+fn check_no_single_variant_anyof_with_title(
+    value: &serde_json::Value,
+    inside_properties: bool,
+    errors: &mut Vec<String>,
+    path: &str,
+) {
+    match value {
+        serde_json::Value::Object(map) => {
+            if !inside_properties {
+                if let Some(serde_json::Value::Array(variants)) = map.get("anyOf") {
+                    if variants.len() == 1 {
+                        if let Some(serde_json::Value::Object(only)) = variants.first() {
+                            if only.get("title").and_then(|t| t.as_str()).is_some() {
+                                errors.push(format!(
+                                    "{path}.anyOf: single-variant anyOf has a title on its lone \
+                                     variant — use a struct instead of a single-variant enum"
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+            for (k, v) in map {
+                let child_path = if path.is_empty() {
+                    k.clone()
+                } else {
+                    format!("{path}.{k}")
+                };
+                check_no_single_variant_anyof_with_title(
+                    v,
+                    k == "properties",
+                    errors,
+                    &child_path,
+                );
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for (i, v) in arr.iter().enumerate() {
+                check_no_single_variant_anyof_with_title(
+                    v,
+                    false,
+                    errors,
+                    &format!("{path}[{i}]"),
+                );
+            }
+        }
+        _ => {}
+    }
+}
+
+#[test]
+fn no_single_variant_enum_with_title() {
+    let mut errors = Vec::new();
+    for schema in objectiveai_sdk::json_schemas() {
+        let value = serde_json::to_value(&schema).unwrap();
+        let title = value
+            .get("title")
+            .and_then(|t| t.as_str())
+            .unwrap_or("<untitled>")
+            .to_string();
+        check_no_single_variant_anyof_with_title(&value, false, &mut errors, &title);
+    }
+    assert!(
+        errors.is_empty(),
+        "single-variant enums must not carry a title on their lone variant \
+         (use a struct named `Response` instead):\n{}",
+        errors.join("\n")
+    );
+}
+
 #[test]
 fn all_refs_resolve() {
     let schemas = load_schemas();
