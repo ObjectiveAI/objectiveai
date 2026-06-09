@@ -500,3 +500,53 @@ pub async fn read_pending_for_parent(
     let msg_rows: Vec<MsgRow> = rows.iter().map(row_into_msg).collect::<Result<_, _>>()?;
     Ok(coalesce_into_blocks(msg_rows))
 }
+
+/// Side-effect-free existence check used by
+/// `agents logs read subscribe`'s wait loop. Returns `true` iff
+/// `logs.messages_queue` has at least one unread row past the
+/// watermark for any child of `parent_agent_instance_hierarchy`
+/// whose `m."table"` falls in `kinds`. When `kinds` is `None` or
+/// empty, the kind filter is dropped (existence check across all
+/// kinds — equivalent to "is there anything pending at all?").
+///
+/// Does NOT touch `read_index`. The subscriber re-checks via
+/// this on every wake-up and only calls
+/// `read_pending_for_parent` (which DOES bump) once it confirms
+/// a matching row exists. When a match is confirmed, the
+/// subsequent `read_pending_for_parent` call returns EVERY
+/// pending row regardless of kind — the kinds filter is for
+/// "wake me up" gating only, not for the returned slice.
+pub async fn any_pending_matching_kinds(
+    pool: &Pool,
+    parent_agent_instance_hierarchy: &str,
+    after_id: Option<i64>,
+    kinds: Option<&[MessageTable]>,
+) -> Result<bool, Error> {
+    let kinds_clause = match kinds {
+        Some(ks) if !ks.is_empty() => {
+            let list = ks
+                .iter()
+                .map(|k| format!("'{}'", k.schema_name()))
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("AND m.\"table\" IN ({list})")
+        }
+        _ => String::new(),
+    };
+    let sql = format!(
+        "SELECT EXISTS( \
+             SELECT 1 FROM logs.messages m \
+             JOIN logs.messages_queue q \
+               ON q.spawned_agent_instance_hierarchy = m.agent_instance_hierarchy \
+             WHERE q.parent_agent_instance_hierarchy = $1 \
+               AND m.\"index\" > GREATEST(q.read_index, COALESCE($2, 0)) \
+               {kinds_clause} \
+         )"
+    );
+    let exists: bool = sqlx::query_scalar(&sql)
+        .bind(parent_agent_instance_hierarchy)
+        .bind(after_id)
+        .fetch_one(&**pool)
+        .await?;
+    Ok(exists)
+}

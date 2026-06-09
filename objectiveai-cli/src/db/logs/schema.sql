@@ -405,6 +405,26 @@ CREATE INDEX IF NOT EXISTS messages_response_index_idx
 CREATE INDEX IF NOT EXISTS messages_agent_hier_index_idx
     ON logs.messages(agent_instance_hierarchy, "index");
 
+-- Fires NOTIFY on every new logs.messages row. Payload is the
+-- producing agent's `agent_instance_hierarchy` — subscribers
+-- (`agents logs read subscribe`) filter on AIH match, then
+-- re-call `read_pending_for_parent` to drain anything new.
+-- Keeps the trigger stupid: no per-kind filtering here, all the
+-- type filtering happens in the read query.
+CREATE OR REPLACE FUNCTION logs.notify_messages_inserted()
+RETURNS trigger AS $logs_msg_notify$
+BEGIN
+    PERFORM pg_notify(
+        'logs_messages_inserted',
+        NEW.agent_instance_hierarchy
+    );
+    RETURN NEW;
+END;
+$logs_msg_notify$ LANGUAGE plpgsql;
+CREATE OR REPLACE TRIGGER logs_messages_inserted_notify
+AFTER INSERT ON logs.messages
+FOR EACH ROW EXECUTE FUNCTION logs.notify_messages_inserted();
+
 -- =====================================================================
 -- messages_queue: per-caller read watermark
 -- =====================================================================

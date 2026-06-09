@@ -97,6 +97,39 @@ pub enum MessageTable {
     ToolResponseContentFile,
 }
 
+impl MessageTable {
+    /// snake_case schema name — matches the postgres enum value
+    /// declared in `schema.sql`. Used to build `IN (...)` filter
+    /// clauses inline since sqlx doesn't auto-derive
+    /// `PgHasArrayType` for custom enum types.
+    pub fn schema_name(self) -> &'static str {
+        match self {
+            MessageTable::AgentCompletionRequest => "agent_completion_request",
+            MessageTable::VectorCompletionRequest => "vector_completion_request",
+            MessageTable::FunctionExecutionRequest => "function_execution_request",
+            MessageTable::MessageQueueText => "message_queue_text",
+            MessageTable::MessageQueueImage => "message_queue_image",
+            MessageTable::MessageQueueAudio => "message_queue_audio",
+            MessageTable::MessageQueueVideo => "message_queue_video",
+            MessageTable::MessageQueueFile => "message_queue_file",
+            MessageTable::ToolResponse => "tool_response",
+            MessageTable::AssistantResponseRefusal => "assistant_response_refusal",
+            MessageTable::AssistantResponseReasoning => "assistant_response_reasoning",
+            MessageTable::AssistantResponseToolCalls => "assistant_response_tool_calls",
+            MessageTable::AssistantResponseContentText => "assistant_response_content_text",
+            MessageTable::AssistantResponseContentImage => "assistant_response_content_image",
+            MessageTable::AssistantResponseContentAudio => "assistant_response_content_audio",
+            MessageTable::AssistantResponseContentVideo => "assistant_response_content_video",
+            MessageTable::AssistantResponseContentFile => "assistant_response_content_file",
+            MessageTable::ToolResponseContentText => "tool_response_content_text",
+            MessageTable::ToolResponseContentImage => "tool_response_content_image",
+            MessageTable::ToolResponseContentAudio => "tool_response_content_audio",
+            MessageTable::ToolResponseContentVideo => "tool_response_content_video",
+            MessageTable::ToolResponseContentFile => "tool_response_content_file",
+        }
+    }
+}
+
 impl RowTable {
     /// The [`MessageTable`] for this table's events. Returns `None` for
     /// the three response-blob tables (which don't emit messages).

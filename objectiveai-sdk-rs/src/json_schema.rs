@@ -322,7 +322,9 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::logs::read::subscribe::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::subscribe::RequestMessageKind),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::subscribe::KindFilter),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::agents::logs::read::subscribe::AgentsInactiveTag),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::logs::read::subscribe::ResponseItem),
         #[cfg(feature = "cli")]

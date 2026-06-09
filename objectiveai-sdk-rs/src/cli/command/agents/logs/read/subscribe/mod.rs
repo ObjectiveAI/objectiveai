@@ -1,52 +1,72 @@
-﻿//! `agents read subscribe` — async handler stub.
+//! `agents logs read subscribe` — the live cousin of
+//! `agents logs read pending`. Same `Vec<Target>` input + same
+//! parts-grouped block output, but with a first-ping-or-go-inactive
+//! wait loop. Returns either a real block (the EXACT same JSON
+//! shape `read all` / `read pending` emit) OR the literal
+//! string `"agents_inactive"` when no target has a live agent
+//! to wait on.
+//!
+//! Optional kind filter: any subset of `--request` /
+//! `--assistant` / `--tool` flags. `--request` covers BOTH
+//! request blob rows AND `message_queue_*` client notification
+//! rows (incoming work is one bucket regardless of source). No
+//! flags set = no filter (all kinds).
 
 use crate::cli::command::CommandRequest;
-
-/// The five values stored in the `messages.kind` TEXT column. Owning
-/// this enum in the SDK lets bare-naked callers reason about message
-/// kinds without depending on the CLI's filesystem layer.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, schemars::JsonSchema, clap::ValueEnum)]
-#[serde(rename_all = "snake_case")]
-#[clap(rename_all = "kebab-case")]
-#[schemars(rename = "cli.command.agents.logs.read.subscribe.RequestMessageKind")]
-pub enum RequestMessageKind {
-    AgentCompletionRequest,
-    FunctionExecutionRequest,
-    AgentCompletionNotification,
-    AssistantResponse,
-    ToolResponse,
-}
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.logs.read.subscribe.Request")]
 pub struct Request {
     pub path_type: Path,
-    pub target: SubscribeTarget,
-    pub kind: Option<RequestMessageKind>,
+    pub targets: Vec<Target>,
+    /// Filter to rows whose `MessageTable` falls in the selected
+    /// bucket(s). `None` on the wire = no filter (all kinds).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub kinds: Option<KindFilter>,
+    /// Skip rows with `logs.messages."index" <= after_id`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub after_id: Option<i64>,
+    /// Cap on rows scanned per target.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub limit: Option<i64>,
     pub jq: Option<String>,
 }
 
-/// Mutually-exclusive target selector: either direct `(parent,
-/// instance)` addressing (with the parent defaulting to the cli's
-/// own `Config.agent_instance_hierarchy` when omitted) OR a tag name
-/// the cli resolves at handler time.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(tag = "by", rename_all = "snake_case")]
-#[schemars(rename = "cli.command.agents.logs.read.subscribe.SubscribeTarget")]
-pub enum SubscribeTarget {
-    #[schemars(title = "Direct")]
-    Direct {
-        /// Lineage prefix to prepend to `agent_instance`. When
-        /// `None`, the CLI substitutes its own
-        /// `Config.agent_instance_hierarchy`.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[schemars(extend("omitempty" = true))]
-        parent_agent_instance_hierarchy: Option<String>,
-        /// Leaf id of the target agent.
-        agent_instance: String,
-    },
-    #[schemars(title = "Tag")]
-    Tag { agent_tag: String },
+/// 3-bool bitset for the type-filter flags. All independent and
+/// optional. If all 3 are false, the request's `kinds` field is
+/// serialized as `None` (no filter — wait for any kind).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.logs.read.subscribe.KindFilter")]
+pub struct KindFilter {
+    /// `--request`: covers all 3 request blob kinds
+    /// (`agent_completion_request` / `vector_completion_request`
+    /// / `function_execution_request`) AND the 5
+    /// `message_queue_*` client notification kinds. Treats
+    /// "incoming work" as one bucket regardless of whether it's
+    /// a new completion request or a queued message landing in
+    /// the agent's inbox.
+    pub request: bool,
+    /// `--assistant`: all 8 `assistant_response_*` kinds
+    /// (refusal / reasoning / tool_calls + 5 content kinds).
+    pub assistant: bool,
+    /// `--tool`: all 6 `tool_response*` kinds (1 container +
+    /// 5 content kinds).
+    pub tool: bool,
+}
+
+impl KindFilter {
+    /// Returns `None` when all 3 booleans are false (no filter
+    /// — `Request.kinds` stays `None` on the wire).
+    pub fn from_flags(request: bool, assistant: bool, tool: bool) -> Option<Self> {
+        if request || assistant || tool {
+            Some(Self { request, assistant, tool })
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -64,25 +84,28 @@ impl CommandRequest for Request {
             "read".to_string(),
             "subscribe".to_string(),
         ];
-        match &self.target {
-            SubscribeTarget::Direct {
-                parent_agent_instance_hierarchy,
-                agent_instance,
-            } => {
-                argv.push(agent_instance.clone());
-                if let Some(parent) = parent_agent_instance_hierarchy {
-                    argv.push("--parent-agent-instance-hierarchy".to_string());
-                    argv.push(parent.clone());
-                }
+        for target in &self.targets {
+            argv.push("--target".to_string());
+            argv.push(target.into_arg_string());
+        }
+        if let Some(kinds) = &self.kinds {
+            if kinds.request {
+                argv.push("--request".to_string());
             }
-            SubscribeTarget::Tag { agent_tag } => {
-                argv.push("--agent-tag".to_string());
-                argv.push(agent_tag.clone());
+            if kinds.assistant {
+                argv.push("--assistant".to_string());
+            }
+            if kinds.tool {
+                argv.push("--tool".to_string());
             }
         }
-        if let Some(kind) = &self.kind {
-            argv.push("--kind".to_string());
-            argv.push(message_kind_flag(kind).to_string());
+        if let Some(after_id) = self.after_id {
+            argv.push("--after-id".to_string());
+            argv.push(after_id.to_string());
+        }
+        if let Some(limit) = self.limit {
+            argv.push("--limit".to_string());
+            argv.push(limit.to_string());
         }
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
@@ -92,64 +115,61 @@ impl CommandRequest for Request {
     }
 }
 
-fn message_kind_flag(kind: &RequestMessageKind) -> &'static str {
-    // Wire form matches clap's `value_enum` rename_all = "kebab-case" default.
-    match kind {
-        RequestMessageKind::AgentCompletionRequest => "agent-completion-request",
-        RequestMessageKind::FunctionExecutionRequest => "function-execution-request",
-        RequestMessageKind::AgentCompletionNotification => "agent-completion-notification",
-        RequestMessageKind::AssistantResponse => "assistant-response",
-        RequestMessageKind::ToolResponse => "tool-response",
-    }
-}
+// Re-export `Target` from `logs::read::all` — single source of
+// truth for the docker-style `--target` parser. Same shape on
+// the wire as `agents logs read all` / `read pending`.
+pub use super::all::Target;
 
-// Share the ResponseItem (renamed locally) + part shapes with
-// `agents logs read all` — same `logs.messages` rows surfaced
-// through different read patterns.
-pub use super::all::{
-    AssistantResponsePart, AssistantResponsePartType, ClientNotificationPart,
-    ClientNotificationPartType, ResponseItem as ReadAllResponseItem, ToolResponsePart,
-    ToolResponsePartType,
-};
-
+/// Subscribe's wire shape. Either a real parts-grouped block
+/// (the EXACT same enum `read all` / `read pending` emit) OR
+/// the literal string `"agents_inactive"`. `#[serde(untagged)]`
+/// so the `Item` arm passes through transparently — JSONL
+/// consumers see either a block JSON object or a bare string.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
 #[schemars(rename = "cli.command.agents.logs.read.subscribe.ResponseItem")]
 pub enum ResponseItem {
     #[schemars(title = "Item")]
-    Item(ReadAllResponseItem),
-    #[schemars(title = "Inactive")]
-    Inactive { agent_id: String },
+    Item(super::all::ResponseItem),
+    #[schemars(title = "AgentsInactive")]
+    AgentsInactive(AgentsInactiveTag),
+}
+
+/// Single-variant enum whose lone variant serializes as the
+/// literal string `"agents_inactive"`. Construct as
+/// `AgentsInactiveTag::AgentsInactive`; the surrounding
+/// `ResponseItem::AgentsInactive(_)` carries it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.logs.read.subscribe.AgentsInactiveTag")]
+pub enum AgentsInactiveTag {
+    #[serde(rename = "agents_inactive")]
+    AgentsInactive,
 }
 
 #[derive(clap::Args)]
-#[command(group(
-    clap::ArgGroup::new("subscribe_target")
-        .required(true)
-        .multiple(false)
-        .args(["agent_instance", "agent_tag"])
-))]
 pub struct Args {
-    /// Leaf id of the target agent. Combined with `--parent` (or
-    /// the cli's own `Config.agent_instance_hierarchy` when
-    /// `--parent` is omitted) to form the full lineage. Mutually
-    /// exclusive with `--agent-tag`.
-    pub agent_instance: Option<String>,
-    /// Optional lineage prefix to prepend to `agent_instance`.
-    /// When omitted, the cli substitutes its own
-    /// `Config.agent_instance_hierarchy`. Only valid alongside a
-    /// positional `agent_instance` (mutually exclusive with
-    /// `--agent-tag`).
-    #[arg(long = "parent-agent-instance-hierarchy", requires = "agent_instance")]
-    pub parent_agent_instance_hierarchy: Option<String>,
-    /// Resolve the target via a previously-bound tag. Mutually
-    /// exclusive with `agent_instance` and
-    /// `--parent-agent-instance-hierarchy`.
-    #[arg(long = "agent-tag")]
-    pub agent_tag: Option<String>,
-    /// Filter the stream to messages of this kind only.
-    #[arg(long, value_enum)]
-    pub kind: Option<RequestMessageKind>,
+    /// One or more `--target instance=L[,parent=P]` entries.
+    /// `parent` defaults to the cli's own
+    /// `Config.agent_instance_hierarchy` when omitted on an
+    /// individual target.
+    #[arg(long = "target", required = true)]
+    pub targets: Vec<String>,
+    /// Wait for new request blob rows OR new `message_queue_*`
+    /// client notification rows.
+    #[arg(long)]
+    pub request: bool,
+    /// Wait for new `assistant_response_*` rows.
+    #[arg(long)]
+    pub assistant: bool,
+    /// Wait for new `tool_response*` rows.
+    #[arg(long)]
+    pub tool: bool,
+    /// Skip rows with `logs.messages."index" <= after_id`.
+    #[arg(long)]
+    pub after_id: Option<i64>,
+    /// Cap on rows scanned per target.
+    #[arg(long)]
+    pub limit: Option<i64>,
     /// jq filter applied to the JSON output.
     #[arg(long)]
     pub jq: Option<String>,
@@ -175,20 +195,22 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        let target = match (args.agent_instance, args.agent_tag) {
-            (Some(agent_instance), None) => SubscribeTarget::Direct {
-                parent_agent_instance_hierarchy: args.parent_agent_instance_hierarchy,
-                agent_instance,
-            },
-            (None, Some(agent_tag)) => SubscribeTarget::Tag { agent_tag },
-            _ => unreachable!(
-                "clap group `subscribe_target` ensures exactly one of agent_instance | agent_tag"
-            ),
-        };
+        let targets = args
+            .targets
+            .iter()
+            .map(|s| {
+                s.parse::<Target>().map_err(|msg| {
+                    crate::cli::command::FromArgsError::path_parse("target", msg)
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let kinds = KindFilter::from_flags(args.request, args.assistant, args.tool);
         Ok(Self {
             path_type: Path::AgentsLogsReadSubscribe,
-            target,
-            kind: args.kind,
+            targets,
+            kinds,
+            after_id: args.after_id,
+            limit: args.limit,
             jq: args.jq,
         })
     }
