@@ -110,6 +110,22 @@ fn assistant_response_chunk_rows<'a>(
 ) -> RowsIter<'a> {
     let index = chunk.index;
 
+    // Prepend: `MessageQueueContent` rows for every consumed
+    // `message_queue_contents.id` the API stamped. Yielded ahead
+    // of the message body so `logs.messages` chronicles
+    // consumption before the body the agent produced from it.
+    let message_queue_iter = chunk
+        .request_message_ids
+        .as_deref()
+        .unwrap_or(&[])
+        .iter()
+        .copied()
+        .map(move |message_queue_content_id| RowValue::MessageQueueContent {
+            response_id,
+            agent_instance_hierarchy,
+            message_queue_content_id,
+        });
+
     // Emission order: reasoning → tool_calls → content → refusal.
     // Refusal goes last on purpose — when a model refuses it's
     // typically the terminal signal of the turn, so readers see all
@@ -154,7 +170,8 @@ fn assistant_response_chunk_rows<'a>(
     });
 
     Box::new(
-        reasoning_iter
+        message_queue_iter
+            .chain(reasoning_iter)
             .chain(tool_calls_iter)
             .chain(content_iter)
             .chain(refusal_iter),
@@ -167,18 +184,35 @@ fn tool_response_rows<'a>(
     response: &'a ToolResponse,
 ) -> RowsIter<'a> {
     let index = response.index;
+    // Same MessageQueueContent prepend as the assistant path —
+    // surfaced for wire-shape symmetry. Currently the API never
+    // populates `ToolResponse.request_message_ids`, so this iter
+    // is empty in practice.
+    let message_queue_iter = response
+        .request_message_ids
+        .as_deref()
+        .unwrap_or(&[])
+        .iter()
+        .copied()
+        .map(move |message_queue_content_id| RowValue::MessageQueueContent {
+            response_id,
+            agent_instance_hierarchy,
+            message_queue_content_id,
+        });
     let head = std::iter::once(RowValue::ToolResponse {
         response_id,
         agent_instance_hierarchy,
         index,
         tool_call_id: response.inner.tool_call_id.as_str(),
     });
-    Box::new(head.chain(tool_content_rows(
-        response_id,
-        agent_instance_hierarchy,
-        index,
-        &response.inner.content,
-    )))
+    Box::new(
+        message_queue_iter.chain(head).chain(tool_content_rows(
+            response_id,
+            agent_instance_hierarchy,
+            index,
+            &response.inner.content,
+        )),
+    )
 }
 
 fn assistant_content_rows<'a>(

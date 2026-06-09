@@ -290,6 +290,11 @@ DO $logs_message_table_bootstrap$ BEGIN
         'agent_completion_request',
         'vector_completion_request',
         'function_execution_request',
+        'message_queue_text',
+        'message_queue_image',
+        'message_queue_audio',
+        'message_queue_video',
+        'message_queue_file',
         'tool_response',
         'assistant_response_refusal',
         'assistant_response_reasoning',
@@ -338,9 +343,19 @@ CREATE TABLE IF NOT EXISTS logs.messages (
          )
          AND row_index IS NULL AND row_sub_index IS NULL)
         OR
-        -- Single-index streaming kinds (tool_response, assistant
-        -- refusal / reasoning): row_index only.
+        -- Single-index kinds: `tool_response`, assistant refusal
+        -- / reasoning, and the five `message_queue_*` kinds
+        -- (row_index = `message_queue_contents.id`; per-kind
+        -- enum value picks the corresponding per-kind table
+        -- `message_queue_texts` / `_images` / `_audios` /
+        -- `_videos` / `_files` directly at read time). row_index
+        -- only — no sub_index.
         ("table" IN (
+            'message_queue_text',
+            'message_queue_image',
+            'message_queue_audio',
+            'message_queue_video',
+            'message_queue_file',
             'tool_response',
             'assistant_response_refusal',
             'assistant_response_reasoning'

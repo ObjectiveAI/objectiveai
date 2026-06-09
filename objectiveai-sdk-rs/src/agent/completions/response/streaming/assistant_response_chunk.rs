@@ -59,11 +59,13 @@ pub struct AssistantResponseChunk {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub usage: Option<response::UpstreamUsage>,
-    /// `message_queue.id`s the API consumed to seed this turn's
-    /// request. Stamped onto the first assistant chunk the API
-    /// emits downstream — when set, the consumer owns these rows
-    /// and may delete them once the turn is committed. Both
-    /// `None` and `Some(empty)` are skipped on serialize.
+    /// `message_queue_contents.id`s the API consumed to seed this
+    /// turn's request. Stamped onto the first assistant chunk the
+    /// API emits downstream — when set, the consumer owns these
+    /// rows. Kinds are resolved CLI-side at write time (SQL CASE
+    /// against `message_queue_contents.kind`), so the wire stays
+    /// `i64`-only. Both `None` and `Some(empty)` are skipped on
+    /// serialize.
     #[serde(default, skip_serializing_if = "request_message_ids_is_empty")]
     #[schemars(extend("omitempty" = true))]
     pub request_message_ids: Option<Vec<i64>>,

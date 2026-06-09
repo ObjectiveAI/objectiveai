@@ -100,6 +100,15 @@ CREATE TABLE IF NOT EXISTS message_queue (
     content                  TEXT   NOT NULL,
     enqueued_at              BIGINT NOT NULL,
     key                      TEXT,
+    -- Soft-delete marker. Rows start at TRUE and flip to FALSE
+    -- when consumed (either via the LogWriter's MessageQueue row
+    -- write or via `db::message_queue::delete_by_id`'s in-flight
+    -- lock-race-released path). Every reader filters
+    -- `WHERE active = TRUE`, so flipped rows are invisible.
+    -- Content stays around in `message_queue_contents` (the old
+    -- `ON DELETE CASCADE` chain no longer fires because we don't
+    -- DELETE).
+    active                   BOOLEAN NOT NULL DEFAULT TRUE,
     CHECK (
         (agent_instance_hierarchy IS NOT NULL AND agent_tag IS NULL)
         OR
@@ -112,12 +121,20 @@ CREATE INDEX IF NOT EXISTS message_queue_hierarchy_idx
 CREATE INDEX IF NOT EXISTS message_queue_tag_idx
     ON message_queue(agent_tag, id)
     WHERE agent_tag IS NOT NULL;
+-- Per-target idempotency keys. The `AND active = TRUE` clause
+-- means inactive prior rows don't count toward uniqueness — an
+-- `agents message --enqueue-with-key k` after a prior consumption
+-- inserts cleanly without UNIQUE-violating the soft-flipped row.
 CREATE UNIQUE INDEX IF NOT EXISTS message_queue_key_hierarchy_unique_idx
     ON message_queue(agent_instance_hierarchy, key)
-    WHERE agent_instance_hierarchy IS NOT NULL AND key IS NOT NULL;
+    WHERE agent_instance_hierarchy IS NOT NULL
+      AND key IS NOT NULL
+      AND active = TRUE;
 CREATE UNIQUE INDEX IF NOT EXISTS message_queue_key_tag_unique_idx
     ON message_queue(agent_tag, key)
-    WHERE agent_tag IS NOT NULL AND key IS NOT NULL;
+    WHERE agent_tag IS NOT NULL
+      AND key IS NOT NULL
+      AND active = TRUE;
 
 CREATE TABLE IF NOT EXISTS message_queue_contents (
     id               BIGSERIAL PRIMARY KEY,
@@ -177,22 +194,24 @@ CREATE TABLE IF NOT EXISTS schedules (
     last_ran_at              BIGINT
 );
 
--- AFTER-DELETE trigger on `message_queue`: every clear emits a
--- `NOTIFY message_queue_delete '<id>'` so the cli's
--- `db::message_queue::subscribe_delivered` listener can wake up
--- the instant any path removes our row. No
--- polling — pure native LISTEN/NOTIFY.
-CREATE OR REPLACE FUNCTION notify_message_queue_delete()
+-- AFTER-UPDATE trigger on `message_queue.active`: every soft-flip
+-- (TRUE → FALSE) emits a `NOTIFY message_queue_inactive '<id>'`
+-- so the cli's `db::message_queue::subscribe_delivered` listener
+-- wakes up the instant a consumption flip lands. Pure native
+-- LISTEN/NOTIFY — no polling. We no longer hard-delete, so the
+-- prior AFTER DELETE trigger is gone.
+CREATE OR REPLACE FUNCTION notify_message_queue_inactive()
 RETURNS trigger AS $$
 BEGIN
-    PERFORM pg_notify('message_queue_delete', OLD.id::text);
-    RETURN OLD;
+    IF OLD.active = TRUE AND NEW.active = FALSE THEN
+        PERFORM pg_notify('message_queue_inactive', NEW.id::text);
+    END IF;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-DROP TRIGGER IF EXISTS message_queue_delete_notify ON message_queue;
-CREATE TRIGGER message_queue_delete_notify
-AFTER DELETE ON message_queue
-FOR EACH ROW EXECUTE FUNCTION notify_message_queue_delete();
+CREATE OR REPLACE TRIGGER message_queue_inactive_notify
+AFTER UPDATE OF active ON message_queue
+FOR EACH ROW EXECUTE FUNCTION notify_message_queue_inactive();
 
 "#;
 

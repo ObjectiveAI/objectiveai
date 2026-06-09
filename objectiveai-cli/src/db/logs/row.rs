@@ -24,7 +24,12 @@
 
 use objectiveai_sdk::agent::completions::message::{File, ImageUrl, InputAudio, VideoUrl};
 
-/// Every table in the `logs.*` schema. Matches `schema.sql` 1:1.
+/// Every table in the `logs.*` schema, plus the synthetic
+/// `MessageQueueContent` variant for queue-consumption rows.
+/// The latter writes to `logs.messages` with a `"table"` value
+/// chosen at write time via SQL CASE (one of `message_queue_text`,
+/// `_image`, `_audio`, `_video`, `_file`) — the Rust-side variant
+/// is kind-less because the dispatch happens in SQL.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RowTable {
     AgentCompletionRequests,
@@ -33,6 +38,13 @@ pub enum RowTable {
     VectorCompletionResponses,
     FunctionExecutionRequests,
     FunctionExecutionResponses,
+
+    /// Synthetic — kind-less at the Rust level. The writer's
+    /// helper picks the per-kind `logs.message_table` enum value
+    /// via SQL CASE against `message_queue_contents.kind` and
+    /// flips the parent `message_queue.active = FALSE` in the
+    /// same statement.
+    MessageQueueContent,
 
     ToolResponse,
 
@@ -64,6 +76,11 @@ pub enum MessageTable {
     AgentCompletionRequest,
     VectorCompletionRequest,
     FunctionExecutionRequest,
+    MessageQueueText,
+    MessageQueueImage,
+    MessageQueueAudio,
+    MessageQueueVideo,
+    MessageQueueFile,
     ToolResponse,
     AssistantResponseRefusal,
     AssistantResponseReasoning,
@@ -88,6 +105,12 @@ impl RowTable {
             RowTable::AgentCompletionRequests => MessageTable::AgentCompletionRequest,
             RowTable::VectorCompletionRequests => MessageTable::VectorCompletionRequest,
             RowTable::FunctionExecutionRequests => MessageTable::FunctionExecutionRequest,
+            // MessageQueueContent's table value is resolved at
+            // write time via SQL CASE — the standard
+            // `message_table()` path can't pick from the 5
+            // per-kind variants without the kind. Callers writing
+            // these rows skip this helper.
+            RowTable::MessageQueueContent => return None,
             RowTable::ToolResponse => MessageTable::ToolResponse,
             RowTable::AssistantResponseRefusal => MessageTable::AssistantResponseRefusal,
             RowTable::AssistantResponseReasoning => MessageTable::AssistantResponseReasoning,
@@ -116,6 +139,10 @@ impl RowTable {
             RowTable::VectorCompletionResponses => "logs.vector_completion_responses",
             RowTable::FunctionExecutionRequests => "logs.function_execution_requests",
             RowTable::FunctionExecutionResponses => "logs.function_execution_responses",
+            // Synthetic — kind chosen at write time via SQL CASE.
+            // No per-kind table name surfaces through fq_name();
+            // the writer's helper builds its SQL inline.
+            RowTable::MessageQueueContent => "message_queue_contents",
             RowTable::ToolResponse => "logs.tool_response",
             RowTable::AssistantResponseRefusal => "logs.assistant_response_refusal",
             RowTable::AssistantResponseReasoning => "logs.assistant_response_reasoning",
@@ -142,6 +169,30 @@ impl RowTable {
 /// `logs.messages_queue` downgrade against the right spawned agent.
 #[derive(Debug, Clone)]
 pub enum RowValue<'a> {
+    /// Consumption signal: the API stamped this
+    /// `message_queue_contents.id` onto the chunk's
+    /// `request_message_ids` field. The writer's helper:
+    /// 1) resolves the row's kind via SQL CASE against
+    ///    `message_queue_contents.kind`,
+    /// 2) `UPDATE message_queue SET active=FALSE WHERE id =
+    ///    (SELECT message_queue_id FROM message_queue_contents
+    ///     WHERE id = $content_id) AND active=TRUE`, and
+    /// 3) `INSERT logs.messages` with `"table"` picked from the
+    ///    five `message_queue_*` enum values matching the kind
+    ///    and `row_index = content_id`, so the read path
+    ///    dispatches directly to the right per-kind table.
+    ///
+    /// Multiple content_ids sharing one parent fire the flip
+    /// once; the rest are no-ops via the `AND active=TRUE` guard.
+    ///
+    /// Iterators yield these AHEAD of the per-message content
+    /// rows so the log chronicles consumption before the body
+    /// the agent produced.
+    MessageQueueContent {
+        response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
+        message_queue_content_id: i64,
+    },
     ToolResponse {
         response_id: &'a str,
         agent_instance_hierarchy: &'a str,
@@ -245,6 +296,7 @@ pub enum RowValue<'a> {
 impl<'a> RowValue<'a> {
     pub fn table(&self) -> RowTable {
         match self {
+            RowValue::MessageQueueContent { .. } => RowTable::MessageQueueContent,
             RowValue::ToolResponse { .. } => RowTable::ToolResponse,
             RowValue::AssistantResponseRefusal { .. } => RowTable::AssistantResponseRefusal,
             RowValue::AssistantResponseReasoning { .. } => RowTable::AssistantResponseReasoning,
@@ -273,7 +325,8 @@ impl<'a> RowValue<'a> {
     /// `response_id` borrowed from the enclosing agent-completion chunk.
     pub fn response_id(&self) -> &'a str {
         match self {
-            RowValue::ToolResponse { response_id, .. }
+            RowValue::MessageQueueContent { response_id, .. }
+            | RowValue::ToolResponse { response_id, .. }
             | RowValue::AssistantResponseRefusal { response_id, .. }
             | RowValue::AssistantResponseReasoning { response_id, .. }
             | RowValue::AssistantResponseToolCalls { response_id, .. }
@@ -295,7 +348,8 @@ impl<'a> RowValue<'a> {
     /// inside an agent completion, so this is always non-NULL.
     pub fn agent_instance_hierarchy(&self) -> &'a str {
         match self {
-            RowValue::ToolResponse { agent_instance_hierarchy, .. }
+            RowValue::MessageQueueContent { agent_instance_hierarchy, .. }
+            | RowValue::ToolResponse { agent_instance_hierarchy, .. }
             | RowValue::AssistantResponseRefusal { agent_instance_hierarchy, .. }
             | RowValue::AssistantResponseReasoning { agent_instance_hierarchy, .. }
             | RowValue::AssistantResponseToolCalls { agent_instance_hierarchy, .. }
@@ -319,6 +373,9 @@ impl<'a> RowValue<'a> {
     /// rows.
     pub fn row_index(&self) -> i64 {
         match self {
+            RowValue::MessageQueueContent { message_queue_content_id, .. } => {
+                *message_queue_content_id
+            }
             RowValue::ToolResponse { index, .. }
             | RowValue::AssistantResponseRefusal { index, .. }
             | RowValue::AssistantResponseReasoning { index, .. }
@@ -342,7 +399,8 @@ impl<'a> RowValue<'a> {
     /// shape has no sub-index). The matching SQL column is nullable.
     pub fn row_sub_index(&self) -> Option<i64> {
         match self {
-            RowValue::ToolResponse { .. }
+            RowValue::MessageQueueContent { .. }
+            | RowValue::ToolResponse { .. }
             | RowValue::AssistantResponseRefusal { .. }
             | RowValue::AssistantResponseReasoning { .. } => None,
             RowValue::AssistantResponseToolCalls { tool_call_index, .. } => {
@@ -367,6 +425,14 @@ impl<'a> RowValue<'a> {
     /// the same row produce equal `RowKey`s.
     pub fn key(&self) -> RowKey<'a> {
         match self {
+            RowValue::MessageQueueContent {
+                response_id,
+                message_queue_content_id,
+                ..
+            } => RowKey::MessageQueueContent {
+                response_id,
+                message_queue_content_id: *message_queue_content_id,
+            },
             RowValue::ToolResponse { response_id, index, .. } => {
                 RowKey::ToolResponse { response_id, index: *index }
             }
@@ -421,6 +487,13 @@ impl<'a> RowValue<'a> {
     /// uses that signal to short-circuit the SQL.
     pub fn body_eq(&self, stored: &RowBody) -> bool {
         match (self, stored) {
+            // MessageQueueContent has no body — the row's identity is
+            // entirely in the (response_id, content_id) key; shadow
+            // skip-dedup makes the second write a no-op via this true.
+            (
+                RowValue::MessageQueueContent { .. },
+                RowBody::MessageQueueContent {},
+            ) => true,
             (
                 RowValue::ToolResponse { tool_call_id: a, .. },
                 RowBody::ToolResponse { tool_call_id: b },
@@ -486,6 +559,7 @@ impl<'a> RowValue<'a> {
     /// new value); the Skip path never allocates here.
     pub fn to_body(&self) -> RowBody {
         match self {
+            RowValue::MessageQueueContent { .. } => RowBody::MessageQueueContent {},
             RowValue::ToolResponse { tool_call_id, .. } => RowBody::ToolResponse {
                 tool_call_id: (*tool_call_id).to_owned(),
             },
@@ -553,6 +627,11 @@ pub type RowsIter<'a> = Box<dyn Iterator<Item = RowValue<'a>> + Send + 'a>;
 /// converting to owned first.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum RowKey<'a> {
+    /// `message_queue_contents.id` is globally unique across
+    /// kinds, so the key needs no kind discriminator — only the
+    /// id (the kind is recovered from `RowValue` for write
+    /// dispatch).
+    MessageQueueContent { response_id: &'a str, message_queue_content_id: i64 },
     ToolResponse { response_id: &'a str, index: u64 },
     AssistantRefusal { response_id: &'a str, index: u64 },
     AssistantReasoning { response_id: &'a str, index: u64 },
@@ -573,6 +652,7 @@ pub enum RowKey<'a> {
 /// only on Insert.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum OwnedRowKey {
+    MessageQueueContent { response_id: String, message_queue_content_id: i64 },
     ToolResponse { response_id: String, index: u64 },
     AssistantRefusal { response_id: String, index: u64 },
     AssistantReasoning { response_id: String, index: u64 },
@@ -592,6 +672,10 @@ pub enum OwnedRowKey {
 impl<'a> RowKey<'a> {
     pub fn matches_owned(&self, owned: &OwnedRowKey) -> bool {
         match (self, owned) {
+            (
+                RowKey::MessageQueueContent { response_id: a, message_queue_content_id: ai },
+                OwnedRowKey::MessageQueueContent { response_id: b, message_queue_content_id: bi },
+            ) => *a == b.as_str() && ai == bi,
             (
                 RowKey::ToolResponse { response_id: a, index: ai },
                 OwnedRowKey::ToolResponse { response_id: b, index: bi },
@@ -654,6 +738,12 @@ impl<'a> RowKey<'a> {
 
     pub fn to_owned_key(&self) -> OwnedRowKey {
         match self {
+            RowKey::MessageQueueContent { response_id, message_queue_content_id } => {
+                OwnedRowKey::MessageQueueContent {
+                    response_id: (*response_id).to_owned(),
+                    message_queue_content_id: *message_queue_content_id,
+                }
+            }
             RowKey::ToolResponse { response_id, index } => OwnedRowKey::ToolResponse {
                 response_id: (*response_id).to_owned(),
                 index: *index,
@@ -755,6 +845,11 @@ impl<'a> RowKey<'a> {
 /// against an incoming [`RowValue`] via [`RowValue::body_eq`].
 #[derive(Debug, Clone, PartialEq)]
 pub enum RowBody {
+    /// Empty marker — `MessageQueueContent` rows have no body; the
+    /// shadow uses presence-only for skip detection (body_eq
+    /// returns true for any matching key, so the second sight of
+    /// the same content_id is treated as Skip).
+    MessageQueueContent {},
     ToolResponse { tool_call_id: String },
     AssistantRefusal { text: String },
     AssistantReasoning { text: String },

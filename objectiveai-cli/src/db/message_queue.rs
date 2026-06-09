@@ -14,6 +14,7 @@ use objectiveai_sdk::cli::command::agents::logs::read::all::ResponseContent;
 use objectiveai_sdk::cli::command::agents::queue::read::pending::{
     LookupState, ResponseItem,
 };
+use objectiveai_sdk::client_objectiveai_mcp::server_response::ReadMessageQueueResult;
 use sqlx::{PgConnection, Postgres, Row as _, Transaction};
 
 use super::{Error, Pool};
@@ -201,13 +202,16 @@ async fn enqueue_with_content_in_tx(
     content: RichContent,
 ) -> Result<i64, Error> {
     if let Some(key_value) = key {
-        // Upsert: drop any prior row for this (target, key) pair so
-        // the partial unique index never trips. Cascade on
-        // `message_queue_contents.message_queue_id` sweeps the prior row's content
-        // rows in the same transaction.
+        // Upsert via soft-flip: any prior active row for this
+        // (target, key) pair flips to inactive so the partial
+        // unique index (now `WHERE … AND active = TRUE`) lets the
+        // new INSERT through. The flipped row + its
+        // `message_queue_contents` children survive untouched —
+        // they're invisible to readers via `active = FALSE`.
         sqlx::query(
-            "DELETE FROM message_queue \
-             WHERE key = $3 \
+            "UPDATE message_queue SET active = FALSE \
+             WHERE active = TRUE \
+               AND key = $3 \
                AND ( \
                    (agent_instance_hierarchy IS NOT NULL \
                     AND $1::text IS NOT NULL \
@@ -419,7 +423,7 @@ pub async fn list(pool: &Pool, parent: &str) -> Result<Vec<ResponseItem>, Error>
          FROM message_queue p \
          LEFT JOIN tags t ON p.agent_tag = t.name \
          LEFT JOIN tag_groups g ON g.id = t.tag_group \
-         WHERE \
+         WHERE p.active = TRUE AND ( \
                 /* Direct row: agent_instance_hierarchy is a direct child of $1 */ \
                 ( \
                     p.agent_instance_hierarchy IS NOT NULL \
@@ -438,6 +442,7 @@ pub async fn list(pool: &Pool, parent: &str) -> Result<Vec<ResponseItem>, Error>
                     p.agent_tag IS NOT NULL \
                     AND g.parent_agent_instance_hierarchy = $1 \
                 ) \
+         ) \
          ORDER BY p.id",
     )
     .bind(parent)
@@ -558,8 +563,10 @@ async fn collect_matching_for_message(
                 p.enqueued_at, \
                 p.content \
          FROM message_queue p \
-         WHERE p.agent_instance_hierarchy = $1 \
-            OR ( \
+         WHERE p.active = TRUE \
+           AND ( \
+                p.agent_instance_hierarchy = $1 \
+             OR ( \
                 p.agent_tag IS NOT NULL \
                 AND EXISTS ( \
                     SELECT 1 FROM tags t \
@@ -567,10 +574,10 @@ async fn collect_matching_for_message(
                       AND t.agent_instance_hierarchy = $1 \
                 ) \
             ) \
-            OR ( \
+             OR ( \
                 $2::text IS NOT NULL \
                 AND p.agent_tag = $2 \
-            ) \
+            ) ) \
          ORDER BY p.id ASC",
     )
     .bind(target_hierarchy)
@@ -611,10 +618,16 @@ async fn reconstruct_and_delete(
             serde_json::from_str(&row.content_json)?
         };
         let content = reconstruct_rich_content(tx, response_content).await?;
-        sqlx::query("DELETE FROM message_queue WHERE id = $1")
-            .bind(row.message_queue_id)
-            .execute(&mut **tx)
-            .await?;
+        // Soft-flip instead of DELETE — the row + its content
+        // children survive untouched but become invisible to
+        // readers via `active = FALSE`. Idempotent on re-flip.
+        sqlx::query(
+            "UPDATE message_queue SET active = FALSE \
+             WHERE id = $1 AND active = TRUE",
+        )
+        .bind(row.message_queue_id)
+        .execute(&mut **tx)
+        .await?;
         out.push(DrainedMessage {
             agent_instance_hierarchy: row.agent_instance_hierarchy,
             agent_tag: row.agent_tag,
@@ -659,8 +672,12 @@ async fn reconstruct_rich_content(
 // Delete-by-id — `agents queue delete <id>`.
 // ---------------------------------------------------------------------------
 
-/// Atomically delete the `message_queue` row with the given `id` and return
-/// its reconstructed shape. `None` when no row matches.
+/// Atomically soft-delete the `message_queue` row with the given
+/// `id` (flips `active = FALSE`) and return its reconstructed
+/// shape. `None` when no active row matches. The row + its
+/// `message_queue_contents` children survive in the table for
+/// audit purposes — they're invisible to readers via
+/// `active = FALSE`.
 pub async fn delete_by_id(
     pool: &Pool,
     id: i64,
@@ -674,7 +691,7 @@ pub async fn delete_by_id(
                 p.enqueued_at, \
                 p.content \
          FROM message_queue p \
-         WHERE p.id = $1 \
+         WHERE p.id = $1 AND p.active = TRUE \
          ORDER BY p.id ASC",
     )
     .bind(id)
@@ -710,7 +727,7 @@ pub async fn read_pending_and_upgrade_tag(
     pool: &Pool,
     agent_tag: Option<&str>,
     target_hierarchy: &str,
-) -> Result<Vec<(i64, RichContent)>, Error> {
+) -> Result<ReadMessageQueueResult, Error> {
     let mut tx = pool.begin().await?;
     if let Some(tag) = agent_tag {
         let now = now_seconds();
@@ -738,36 +755,94 @@ pub async fn read_pending_and_upgrade_tag(
                 p.enqueued_at, \
                 p.content \
          FROM message_queue p \
-         WHERE p.agent_instance_hierarchy = $1 \
-            OR ( \
+         WHERE p.active = TRUE \
+           AND ( \
+                p.agent_instance_hierarchy = $1 \
+             OR ( \
                 p.agent_tag IS NOT NULL \
                 AND EXISTS ( \
                     SELECT 1 FROM tags t \
                     WHERE t.name = p.agent_tag \
                       AND t.agent_instance_hierarchy = $1 \
                 ) \
-            ) \
+            ) ) \
          ORDER BY p.id ASC",
     )
     .bind(target_hierarchy)
     .fetch_all(&mut *tx)
     .await?;
 
+    // Join every entry into one RichContent with `"\n\n"`
+    // separators between entries; collect the flat list of
+    // `message_queue_contents.id`s in consumption order. The
+    // count may differ from `rich_content`'s part count because
+    // of separator insertion + the single-text-part collapse path
+    // below. Kinds are resolved CLI-side at log-write time, so
+    // they don't ride on the wire.
     let drained = rows_to_drained(rows)?;
-    let mut out = Vec::with_capacity(drained.len());
-    for row in drained {
+    let mut all_parts: Vec<RichContentPart> = Vec::new();
+    let mut all_ids: Vec<i64> = Vec::new();
+    for (i, row) in drained.into_iter().enumerate() {
+        if i > 0 {
+            all_parts.push(RichContentPart::Text {
+                text: "\n\n".to_string(),
+            });
+        }
         let rc: ResponseContent = if row.content_json.is_empty() {
             ResponseContent::Many(Vec::new())
         } else {
             serde_json::from_str(&row.content_json)?
         };
-        let content = reconstruct_rich_content(&mut tx, rc).await?;
-        out.push((row.message_queue_id, content));
+        let (content_ids, parts) = fetch_content_parts_with_ids(&mut tx, rc).await?;
+        all_ids.extend(content_ids);
+        all_parts.extend(parts);
     }
+    // Collapse single-text-part to RichContent::Text (lossless).
+    let rich_content = if all_parts.len() == 1
+        && matches!(all_parts.first(), Some(RichContentPart::Text { .. }))
+    {
+        let Some(RichContentPart::Text { text }) = all_parts.into_iter().next()
+        else {
+            unreachable!("matched single Text part above")
+        };
+        RichContent::Text(text)
+    } else {
+        RichContent::Parts(all_parts)
+    };
     // Commit so the UPGRADE (if any) sticks. The SELECTs in the
     // same tx see the upgrade's effects already.
     tx.commit().await?;
-    Ok(out)
+    Ok(ReadMessageQueueResult {
+        rich_content,
+        ids: all_ids,
+    })
+}
+
+/// Like `reconstruct_rich_content` but returns the consumed
+/// `message_queue_contents.id`s alongside the rich-content parts
+/// so the caller can preserve content-id provenance through the
+/// join + separator path. Kinds aren't returned — the LogWriter
+/// resolves them at write time via SQL CASE.
+async fn fetch_content_parts_with_ids(
+    tx: &mut Transaction<'_, Postgres>,
+    rc: ResponseContent,
+) -> Result<(Vec<i64>, Vec<RichContentPart>), Error> {
+    let ids: Vec<i64> = match rc {
+        ResponseContent::One(id) => vec![id],
+        ResponseContent::Many(ids) => ids,
+    };
+    let mut out_ids = Vec::with_capacity(ids.len());
+    let mut out_parts = Vec::with_capacity(ids.len());
+    for id in ids {
+        let row = read_content_on_conn(&mut **tx, id).await?.ok_or_else(|| {
+            Error::InvalidData(format!(
+                "queue message referenced missing message_queue_contents id {id}"
+            ))
+        })?;
+        out_ids.push(id);
+        out_parts.push(content_row_to_part(row));
+    }
+    Ok((out_ids, out_parts))
 }
 
 // ---------------------------------------------------------------------------
@@ -790,7 +865,7 @@ pub async fn list_delivery_targets(
          LEFT JOIN tags t \
              ON p.agent_tag = t.name \
              AND t.agent_instance_hierarchy IS NOT NULL \
-         WHERE \
+         WHERE p.active = TRUE AND ( \
              /* Direct row: target hierarchy in subtree (inclusive). */ \
              ( \
                  p.agent_instance_hierarchy IS NOT NULL \
@@ -808,7 +883,7 @@ pub async fn list_delivery_targets(
                      t.agent_instance_hierarchy = $1 \
                      OR t.agent_instance_hierarchy LIKE $2 \
                  ) \
-             ) \
+             ) ) \
          ORDER BY hier, p.agent_tag",
     )
     .bind(parent)
@@ -849,15 +924,17 @@ pub async fn check_any_pending(
     let row = sqlx::query(
         "SELECT EXISTS ( \
              SELECT 1 FROM message_queue p \
-             WHERE p.agent_instance_hierarchy = $1 \
-                OR ( \
+             WHERE p.active = TRUE \
+               AND ( \
+                    p.agent_instance_hierarchy = $1 \
+                 OR ( \
                     p.agent_tag IS NOT NULL \
                     AND EXISTS ( \
                         SELECT 1 FROM tags t \
                         WHERE t.name = p.agent_tag \
                           AND t.agent_instance_hierarchy = $1 \
                     ) \
-                ) \
+                ) ) \
          )",
     )
     .bind(target_hierarchy)
@@ -871,34 +948,36 @@ pub async fn check_any_pending(
 // Delivery subscription — native postgres LISTEN/NOTIFY.
 // ---------------------------------------------------------------------------
 
-/// Wait until the `message_queue` row identified by `id` is
-/// deleted. Resolves `Ok(())` the moment the row is gone —
-/// regardless of which path performed the delete.
+/// Wait until the `message_queue` row identified by `id` has been
+/// consumed — i.e. its `active` column has flipped from TRUE to
+/// FALSE. Resolves `Ok(())` the moment the flip is observed,
+/// regardless of which path performed it.
 ///
 /// Uses `sqlx::postgres::PgListener` on the
-/// `message_queue_delete` channel that the AFTER-DELETE trigger
+/// `message_queue_inactive` channel that the AFTER-UPDATE trigger
 /// in `db::init` populates. The function attaches the listener
-/// FIRST, then re-checks whether the row still exists — that's
-/// what closes the window where a fast delete races our
-/// `LISTEN`.
+/// FIRST, then re-checks whether the row is still active — that's
+/// what closes the window where a fast flip races our `LISTEN`.
 pub async fn subscribe_delivered(pool: &Pool, id: i64) -> Result<(), Error> {
     use sqlx::postgres::PgListener;
 
     let mut listener = PgListener::connect_with(&**pool).await?;
-    listener.listen("message_queue_delete").await?;
+    listener.listen("message_queue_inactive").await?;
 
-    // Belt-and-suspenders: if the row is already gone (the
-    // conduit raced our listen), the LISTEN saw nothing and would
-    // hang forever. SELECT once after attaching — if the row is
-    // gone, we already delivered. After this point the LISTEN is
-    // attached so any future DELETE will wake us.
-    let still_present: bool = sqlx::query_scalar(
-        "SELECT EXISTS(SELECT 1 FROM message_queue WHERE id = $1)",
+    // Belt-and-suspenders: if the row already flipped to inactive
+    // (the conduit / LogWriter raced our listen), the LISTEN saw
+    // nothing and would hang forever. SELECT once after attaching
+    // — if the row is gone or already inactive, we already
+    // delivered. After this point the LISTEN is attached so any
+    // future flip will wake us.
+    let still_active: bool = sqlx::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM message_queue \
+         WHERE id = $1 AND active = TRUE)",
     )
     .bind(id)
     .fetch_one(&**pool)
     .await?;
-    if !still_present {
+    if !still_active {
         return Ok(());
     }
 

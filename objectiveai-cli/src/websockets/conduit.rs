@@ -507,14 +507,16 @@ async fn dispatch_resources_read(
     }
 }
 
-/// Non-destructive read of the local `message_queue (postgres)`
-/// queue. Hits the CLI's own filesystem — no upstream MCP session
-/// involved, no headers consulted. When the conduit was constructed
-/// with a tag, the fused `read_pending_and_upgrade_tag` atomically
-/// flips every sibling tag in the spawn's `tag_groups` row to BOUND
-/// on the live `agent_instance_hierarchy` and selects the matching
-/// queue rows in one transaction. Pair with
-/// [`dispatch_clear_message_queue`] to release rows once consumed.
+/// Non-destructive read of the local `message_queue` queue. The
+/// fused `read_pending_and_upgrade_tag` returns the joined
+/// `(rich_content, ids)` payload directly — separator insertion
+/// and content-id collection live in the DB layer now. When the
+/// conduit was constructed with a tag, the same call flips every
+/// sibling tag in the spawn's `tag_groups` row to BOUND on the
+/// live `agent_instance_hierarchy` in the same transaction. Row
+/// deletion is handled downstream by the LogWriter via the
+/// in-band `request_message_ids` signal — there's no separate
+/// `ClearMessageQueue` RPC.
 async fn dispatch_read_message_queue(
     inner: &Arc<Inner>,
     req: server_request::ReadMessageQueueRequest,
@@ -526,15 +528,7 @@ async fn dispatch_read_message_queue(
     )
     .await
     {
-        Ok(rows) => {
-            let entries = rows
-                .into_iter()
-                .map(|(id, content)| server_response::ReadMessageQueueEntry { id, content })
-                .collect();
-            server_response::Payload::ReadMessageQueue(JsonRpcResult::Ok {
-                result: server_response::ReadMessageQueueResult { entries },
-            })
-        }
+        Ok(result) => server_response::Payload::ReadMessageQueue(JsonRpcResult::Ok { result }),
         Err(e) => server_response::Payload::ReadMessageQueue(JsonRpcResult::Err {
             code: -32603,
             message: format!("conduit: read_message_queue: {e}"),

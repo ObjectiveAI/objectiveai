@@ -103,32 +103,25 @@ impl Payload {
     }
 }
 
-/// Successful payload for
-/// [`Payload::ReadMessageQueue`].
+/// Successful payload for [`Payload::ReadMessageQueue`].
 ///
-/// Entries are oldest-first (`message_queue.id ASC`). The API
-/// stamps the consumed ids onto the first
-/// `AssistantResponseChunk.request_message_ids` it emits — the
-/// downstream consumer owns row deletion from there.
+/// The CLI joins every queued entry into one `rich_content`
+/// (inserting `"\n\n"` separators between consecutive entries) and
+/// returns the flat list of `message_queue_contents.id`s consumed
+/// in order. `ids.len()` may differ from the number of parts in
+/// `rich_content` because of separator insertion and
+/// `RichContent::Text` collapse — the lists aren't 1:1 indexable.
+/// The API stamps `ids` onto the first emitted
+/// `AssistantResponseChunk.request_message_ids`. The downstream
+/// LogWriter resolves each id's kind at write time (SQL CASE
+/// against `message_queue_contents.kind`) to dispatch the right
+/// `logs.message_table` variant — kinds don't need to ride on the
+/// wire.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.server_response.ReadMessageQueueResult")]
 pub struct ReadMessageQueueResult {
-    pub entries: Vec<ReadMessageQueueEntry>,
-}
-
-/// One row in a [`ReadMessageQueueResult`].
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "client_objectiveai_mcp.server_response.ReadMessageQueueEntry")]
-pub struct ReadMessageQueueEntry {
-    /// `message_queue.id` — opaque integer the API stamps onto
-    /// the first emitted assistant chunk's `request_message_ids`
-    /// so the downstream consumer can drop the row.
-    pub id: i64,
-    /// Reconstructed body. Single-text-part rows collapse to
-    /// [`crate::agent::completions::message::RichContent::Text`];
-    /// multi-part rows stay as
-    /// [`crate::agent::completions::message::RichContent::Parts`].
-    pub content: crate::agent::completions::message::RichContent,
+    pub rich_content: crate::agent::completions::message::RichContent,
+    pub ids: Vec<i64>,
 }
 
 /// The successful `Initialize` payload — the upstream's verbatim

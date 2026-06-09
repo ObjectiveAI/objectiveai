@@ -19,7 +19,7 @@ pub struct ToolResponse {
     #[serde(flatten)]
     pub inner: agent::completions::message::ToolMessage,
     /// Mirrors `AssistantResponseChunk.request_message_ids` —
-    /// `message_queue.id`s the API consumed. Currently never
+    /// the consumed `message_queue_contents.id`s. Currently never
     /// populated (the API stamps the assistant chunk instead);
     /// the field exists so the wire shape is symmetric across
     /// the two `MessageChunk` variants. Both `None` and

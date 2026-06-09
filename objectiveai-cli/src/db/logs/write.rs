@@ -66,6 +66,27 @@ async fn insert_value<'a>(
     value: &RowValue<'a>,
     timestamp: i64,
 ) -> Result<(), Error> {
+    // MessageQueueContent: branch early, its helper resolves
+    // both the kind (and thus the logs.message_table enum value)
+    // and the parent message_queue.id from `message_queue_contents`
+    // via SQL CASE/subquery. No call into `value.message_table()`
+    // — that returns `None` for this variant by design.
+    if let RowValue::MessageQueueContent {
+        response_id,
+        agent_instance_hierarchy,
+        message_queue_content_id,
+    } = *value
+    {
+        return insert_message_queue_content_with_msg(
+            pool,
+            response_id,
+            agent_instance_hierarchy,
+            message_queue_content_id,
+            timestamp,
+        )
+        .await;
+    }
+
     let mt = value.message_table();
     let hier = value.agent_instance_hierarchy();
     let row_index = value.row_index();
@@ -73,6 +94,9 @@ async fn insert_value<'a>(
     let response_id = value.response_id();
 
     match *value {
+        RowValue::MessageQueueContent { .. } => unreachable!(
+            "MessageQueueContent handled by early-return branch above"
+        ),
         RowValue::ToolResponse { tool_call_id, .. } => {
             sqlx::query(
                 "WITH data_ins AS (\
@@ -201,6 +225,13 @@ async fn insert_value<'a>(
 }
 
 async fn update_value<'a>(pool: &Pool, value: &RowValue<'a>) -> Result<(), Error> {
+    // MessageQueueContent has no updatable body — the shadow's
+    // body_eq returns true for any matching key, so this branch
+    // is unreachable in practice. Short-circuit defensively.
+    if matches!(value, RowValue::MessageQueueContent { .. }) {
+        return Ok(());
+    }
+
     let mt = value.message_table();
     let hier = value.agent_instance_hierarchy();
     let row_index = value.row_index();
@@ -208,6 +239,9 @@ async fn update_value<'a>(pool: &Pool, value: &RowValue<'a>) -> Result<(), Error
     let response_id = value.response_id();
 
     match *value {
+        RowValue::MessageQueueContent { .. } => unreachable!(
+            "MessageQueueContent handled by short-circuit above"
+        ),
         RowValue::ToolResponse { tool_call_id, .. } => {
             run_update_with_downgrade(
                 pool,
@@ -445,6 +479,62 @@ async fn insert_audio_part_with_msg<'a>(
         .bind(timestamp)
         .execute(&**pool)
         .await?;
+    Ok(())
+}
+
+/// Consumption-flip + log emit for a single
+/// `message_queue_contents.id`. One SQL statement:
+///
+/// 1. `content` CTE looks up the content row to get its `kind`
+///    and parent `message_queue_id`.
+/// 2. `flip` CTE flips `message_queue.active = FALSE` for the
+///    parent (no-op if already false via the `AND active = TRUE`
+///    guard, so repeat content_ids sharing one parent fire the
+///    flip exactly once).
+/// 3. INSERT a `logs.messages` row with `"table"` chosen by SQL
+///    CASE off the content's kind (`message_queue_text` / `_image`
+///    / `_audio` / `_video` / `_file`), `row_index = content_id`,
+///    no sub-index.
+async fn insert_message_queue_content_with_msg(
+    pool: &Pool,
+    response_id: &str,
+    agent_instance_hierarchy: &str,
+    message_queue_content_id: i64,
+    timestamp: i64,
+) -> Result<(), Error> {
+    sqlx::query(
+        "WITH content AS (\
+             SELECT id, kind, message_queue_id \
+             FROM message_queue_contents \
+             WHERE id = $1 \
+         ), \
+         flip AS (\
+             UPDATE message_queue \
+             SET active = FALSE \
+             WHERE id = (SELECT message_queue_id FROM content) \
+               AND active = TRUE \
+             RETURNING id \
+         ) \
+         INSERT INTO logs.messages \
+             (response_id, \"table\", row_index, row_sub_index, \
+              agent_instance_hierarchy, \"timestamp\") \
+         SELECT $2, \
+                CASE (SELECT kind FROM content) \
+                    WHEN 'text'  THEN 'message_queue_text'::logs.message_table \
+                    WHEN 'image' THEN 'message_queue_image'::logs.message_table \
+                    WHEN 'audio' THEN 'message_queue_audio'::logs.message_table \
+                    WHEN 'video' THEN 'message_queue_video'::logs.message_table \
+                    WHEN 'file'  THEN 'message_queue_file'::logs.message_table \
+                END, \
+                $1, NULL, $3, $4 \
+         FROM content",
+    )
+    .bind(message_queue_content_id)
+    .bind(response_id)
+    .bind(agent_instance_hierarchy)
+    .bind(timestamp)
+    .execute(&**pool)
+    .await?;
     Ok(())
 }
 

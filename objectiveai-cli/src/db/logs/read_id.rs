@@ -57,6 +57,77 @@ async fn load_payload(
     row_sub_index: Option<i64>,
 ) -> Result<Response, Error> {
     match table_kind {
+        // Five message_queue_* variants: `row_index` carries
+        // `message_queue_contents.id`. We dispatch directly to the
+        // matching per-kind table (`message_queue_texts`,
+        // `_images`, etc.) and map onto the same `Text` / `Image`
+        // / `Audio` / `Video` / `File` variants the assistant /
+        // tool content rows use — no separate response shape.
+        MessageTable::MessageQueueText => {
+            let id = require_row_index(table_kind, row_index)?;
+            let text: String = sqlx::query_scalar(
+                "SELECT text FROM message_queue_texts WHERE id = $1",
+            )
+            .bind(id)
+            .fetch_one(&**pool)
+            .await?;
+            Ok(Response::Text(text))
+        }
+        MessageTable::MessageQueueImage => {
+            let id = require_row_index(table_kind, row_index)?;
+            let row = sqlx::query(
+                "SELECT url, detail FROM message_queue_images WHERE id = $1",
+            )
+            .bind(id)
+            .fetch_one(&**pool)
+            .await?;
+            let url: String = row.try_get("url")?;
+            let detail_str: Option<String> = row.try_get("detail")?;
+            let detail = match detail_str {
+                Some(s) => serde_json::from_value(serde_json::Value::String(s))?,
+                None => None,
+            };
+            Ok(Response::Image(ImageUrl { url, detail }))
+        }
+        MessageTable::MessageQueueAudio => {
+            let id = require_row_index(table_kind, row_index)?;
+            let row = sqlx::query(
+                "SELECT data, format FROM message_queue_audios WHERE id = $1",
+            )
+            .bind(id)
+            .fetch_one(&**pool)
+            .await?;
+            Ok(Response::Audio(InputAudio {
+                data: row.try_get("data")?,
+                format: row.try_get("format")?,
+            }))
+        }
+        MessageTable::MessageQueueVideo => {
+            let id = require_row_index(table_kind, row_index)?;
+            let url: String = sqlx::query_scalar(
+                "SELECT url FROM message_queue_videos WHERE id = $1",
+            )
+            .bind(id)
+            .fetch_one(&**pool)
+            .await?;
+            Ok(Response::Video(VideoUrl { url }))
+        }
+        MessageTable::MessageQueueFile => {
+            let id = require_row_index(table_kind, row_index)?;
+            let row = sqlx::query(
+                "SELECT file_data, file_id, filename, file_url \
+                 FROM message_queue_files WHERE id = $1",
+            )
+            .bind(id)
+            .fetch_one(&**pool)
+            .await?;
+            Ok(Response::File(File {
+                file_data: row.try_get("file_data")?,
+                file_id: row.try_get("file_id")?,
+                filename: row.try_get("filename")?,
+                file_url: row.try_get("file_url")?,
+            }))
+        }
         MessageTable::AgentCompletionRequest => {
             let (body, created_at) =
                 fetch_request_blob(pool, "logs.agent_completion_requests", response_id).await?;

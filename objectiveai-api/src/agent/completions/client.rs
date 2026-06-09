@@ -1382,49 +1382,22 @@ where
         // call). If the upstream stream errors before any assistant
         // chunk lands, the ids drop on the floor and the queue
         // stays populated — the next turn re-reads it.
+        // CLI does the join + separator insertion + content-id
+        // collection; we just receive `(rich_content, ids)` and
+        // forward both — `ids` rides through to the first
+        // assistant chunk via the stamp pass below.
         let mut queue_ids_to_clear: Vec<i64> = Vec::new();
         if let Some(handle) = &reverse_attach {
-            let entries = read_message_queue_via_ws(
+            let response = read_message_queue_via_ws(
                 handle,
                 agent_instance_hierarchy_header,
             )
             .await?;
-            if !entries.is_empty() {
+            if !response.ids.is_empty() {
                 use objectiveai_sdk::agent::completions::message::{
-                    Message, RichContent, RichContentPart, UserMessage,
+                    Message, UserMessage,
                 };
-                // Flatten every entry's RichContent into one
-                // RichContentPart list, separating consecutive entries
-                // with a `Text("\n\n")` part. Collapse to
-                // `RichContent::Text` if the result is a single text
-                // part (matches how the queue itself stores single-
-                // part rows).
-                let mut parts: Vec<RichContentPart> = Vec::new();
-                for (i, entry) in entries.into_iter().enumerate() {
-                    queue_ids_to_clear.push(entry.id);
-                    if i > 0 {
-                        parts.push(RichContentPart::Text {
-                            text: "\n\n".to_string(),
-                        });
-                    }
-                    match entry.content {
-                        RichContent::Text(t) => {
-                            parts.push(RichContentPart::Text { text: t });
-                        }
-                        RichContent::Parts(ps) => parts.extend(ps),
-                    }
-                }
-                let combined = if parts.len() == 1
-                    && matches!(parts.first(), Some(RichContentPart::Text { .. }))
-                {
-                    let Some(RichContentPart::Text { text }) = parts.into_iter().next()
-                    else {
-                        unreachable!("matched single Text part above")
-                    };
-                    RichContent::Text(text)
-                } else {
-                    RichContent::Parts(parts)
-                };
+                queue_ids_to_clear = response.ids;
                 // Insert AFTER the leading system/developer chain so
                 // the agent sees its personality prefix first, then
                 // the queued content arrives as one user turn, then
@@ -1440,7 +1413,7 @@ where
                 messages.insert(
                     insert_idx,
                     Message::User(UserMessage {
-                        content: combined,
+                        content: response.rich_content,
                         name: None,
                     }),
                 );
@@ -1958,17 +1931,22 @@ fn build_drain_user_message(
 const MESSAGE_QUEUE_WS_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
 
 /// Issue a `ReadMessageQueue` server-request over the WS reverse-
-/// attach and return the typed `ReadMessageQueueEntry` list.
+/// attach and return the joined `(rich_content, ids)` payload.
 ///
-/// The CLI side dispatches this directly against `prompts.sqlite` —
-/// no upstream MCP session involved — so the envelope carries no
+/// The CLI side joins every queued entry into one RichContent
+/// (with `"\n\n"` separators between entries) and returns the
+/// content-id refs (id + kind) for every consumed
+/// `message_queue_contents` row. The envelope carries no
 /// `mcp_kind` and the headers map is empty. Failures (channel
 /// closed, dropped, timed out, or CLI-side JSON-RPC error) collapse
 /// to [`super::Error::MessageQueueRead`].
 async fn read_message_queue_via_ws(
     handle: &std::sync::Arc<crate::objectiveai_mcp::ReverseAttachHandle>,
     agent_instance_hierarchy: &str,
-) -> Result<Vec<objectiveai_sdk::client_objectiveai_mcp::server_response::ReadMessageQueueEntry>, super::Error> {
+) -> Result<
+    objectiveai_sdk::client_objectiveai_mcp::server_response::ReadMessageQueueResult,
+    super::Error,
+> {
     use objectiveai_sdk::client_objectiveai_mcp::{server_request, server_response};
     let rc = handle.channel();
     let request = server_request::Request {
@@ -1999,7 +1977,7 @@ async fn read_message_queue_via_ws(
     match response.payload {
         server_response::Payload::ReadMessageQueue(server_response::JsonRpcResult::Ok {
             result,
-        }) => Ok(result.entries),
+        }) => Ok(result),
         server_response::Payload::ReadMessageQueue(server_response::JsonRpcResult::Err {
             code,
             message,
