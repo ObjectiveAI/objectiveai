@@ -52,6 +52,22 @@ impl CommandRequest for Request {
     }
 }
 
+/// Either a single content id or many — `One(i64)` for a
+/// single-part `RichContent::Text` (or single-element
+/// `RichContent::Parts`), `Many(Vec<i64>)` for multi-part
+/// payloads. Each id is a `prompt_contents.id` resolvable via
+/// `agents queue read id`. Untagged so single-part values
+/// serialize as bare scalars on the wire.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
+#[schemars(rename = "cli.command.agents.queue.read.pending.ResponseContent")]
+pub enum ResponseContent {
+    #[schemars(title = "One")]
+    One(i64),
+    #[schemars(title = "Many")]
+    Many(Vec<i64>),
+}
+
 /// One queued prompt. Direct rows carry only the bare
 /// `agent_instance` (= leaf segment of the hierarchy); Tag rows
 /// carry the literal tag name and flatten the joined 2-state
@@ -59,13 +75,6 @@ impl CommandRequest for Request {
 /// `{"by":"tag","id":42,"agent_tag":"foo","state":"bound","agent_instance_hierarchy":"…",
 /// "content":17}` (single-part) or `…"content":[17,18,19]"` (multi-
 /// part) rather than nesting the state under its own object.
-///
-/// Both variants carry the resolved content body as a
-/// [`super::super::super::logs::read::all::ResponseContent`] — `One(i64)` for a
-/// single-part `RichContent::Text` (or single-element
-/// `RichContent::Parts`), `Many(Vec<i64>)` for multi-part payloads.
-/// Each id is a `prompt_contents.id` resolvable via
-/// `agents queue read id`.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(tag = "by", rename_all = "snake_case")]
 #[schemars(rename = "cli.command.agents.queue.read.pending.ResponseItem")]
@@ -79,7 +88,7 @@ pub enum ResponseItem {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[schemars(extend("omitempty" = true))]
         key: Option<String>,
-        content: super::super::super::logs::read::all::ResponseContent,
+        content: ResponseContent,
     },
     #[schemars(title = "Tag")]
     Tag {
@@ -91,7 +100,7 @@ pub enum ResponseItem {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[schemars(extend("omitempty" = true))]
         key: Option<String>,
-        content: super::super::super::logs::read::all::ResponseContent,
+        content: ResponseContent,
     },
 }
 

@@ -1,4 +1,8 @@
-﻿//! `agents read pending` — async handler stub.
+//! `agents logs read pending` — fetch the unread delta for the
+//! children spawned by a parent AIH, coalesced into [`ResponseItem`]
+//! blocks. Read-and-advance: the per-child watermark
+//! (`logs.messages_queue.read_index`) is bumped to the maximum
+//! returned id in the same SQL statement, never downgraded.
 
 use crate::cli::command::CommandRequest;
 
@@ -7,6 +11,16 @@ use crate::cli::command::CommandRequest;
 pub struct Request {
     pub path_type: Path,
     pub targets: Vec<Target>,
+    /// Skip rows with `logs.messages."index" <= after_id`. Composes
+    /// with the per-child watermark (`GREATEST` of the two applies).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub after_id: Option<i64>,
+    /// Cap on rows scanned per target. Defaults to 1000 server-side
+    /// when omitted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub limit: Option<i64>,
     pub jq: Option<String>,
 }
 
@@ -29,6 +43,14 @@ impl CommandRequest for Request {
             argv.push("--target".to_string());
             argv.push(target.into_arg_string());
         }
+        if let Some(after_id) = self.after_id {
+            argv.push("--after-id".to_string());
+            argv.push(after_id.to_string());
+        }
+        if let Some(limit) = self.limit {
+            argv.push("--limit".to_string());
+            argv.push(limit.to_string());
+        }
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
             argv.push(jq.clone());
@@ -37,18 +59,14 @@ impl CommandRequest for Request {
     }
 }
 
-// Share the queue-item / queue-message / content shapes AND the
-// docker-style `Target` parser with `agents read all` — same on-disk
-// persistence rows surfaced as either the full or the watermark-
-// delta slice, same per-target input shape.
-pub use super::all::{ResponseContent, ResponseQueueItem, ResponseQueueMessage, Target};
-
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.logs.read.pending.ResponseItem")]
-pub struct ResponseItem {
-    pub agent_id: String,
-    pub items: Vec<ResponseQueueItem>,
-}
+// Share the ResponseItem / part / part-type shapes AND the docker-style
+// `Target` parser with `agents logs read all` — same underlying
+// `logs.messages` rows surfaced as either the full target slice or
+// the watermark-delta slice, same per-target input shape.
+pub use super::all::{
+    AssistantResponsePart, AssistantResponsePartType, ClientNotificationPart,
+    ClientNotificationPartType, ResponseItem, Target, ToolResponsePart, ToolResponsePartType,
+};
 
 #[derive(clap::Args)]
 pub struct Args {
@@ -57,6 +75,12 @@ pub struct Args {
     /// when omitted on an individual target.
     #[arg(long = "target", required = true)]
     pub targets: Vec<String>,
+    /// Skip rows with `logs.messages."index" <= after_id` per target.
+    #[arg(long)]
+    pub after_id: Option<i64>,
+    /// Cap on rows scanned per target.
+    #[arg(long)]
+    pub limit: Option<i64>,
     /// jq filter applied to the JSON output.
     #[arg(long)]
     pub jq: Option<String>,
@@ -94,6 +118,8 @@ impl TryFrom<Args> for Request {
         Ok(Self {
             path_type: Path::AgentsLogsReadPending,
             targets,
+            after_id: args.after_id,
+            limit: args.limit,
             jq: args.jq,
         })
     }
@@ -120,13 +146,6 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
     ) -> Result<E::Stream<serde_json::Value>, E::Error> {
     request.jq = Some(jq);
     executor.execute(request, agent_arguments).await
-}
-
-#[cfg(feature = "mcp")]
-impl crate::cli::command::CommandResponse for ResponseItem {
-    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
-        crate::cli::command::McpResponseItem::JSONL(serde_json::to_value(self).unwrap())
-    }
 }
 
 pub mod request_schema;

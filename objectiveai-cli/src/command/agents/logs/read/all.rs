@@ -16,26 +16,31 @@ type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     let default_parent = ctx.config.agent_instance_hierarchy.clone();
     let db = ctx.db.clone();
+    let after_id = request.after_id;
+    let limit = request.limit;
     let stream = async_stream::stream! {
         let mut inflight = FuturesUnordered::new();
         for target in request.targets {
             let db = db.clone();
             let default_parent = default_parent.clone();
             inflight.push(async move {
-                let (_parent, _spawned, _leaf) =
+                let (_parent, spawned, _leaf) =
                     resolve_target(&db, target, &default_parent).await?;
-                // Reader endpoints will return real items once the
-                // postgres-backed `logs.*` reader lands. Until then
-                // the leaf shape stays compatible: error out as
-                // NotImplemented so callers see a structured signal
-                // instead of silently empty results.
-                Err::<ResponseItem, _>(Error::NotImplemented(
-                    "agents logs read all (postgres reader pending)",
-                ))
+                let items = crate::db::logs::read_all_for_hierarchy(
+                    &db, &spawned, after_id, limit,
+                ).await.map_err(Error::from)?;
+                Ok::<Vec<ResponseItem>, Error>(items)
             });
         }
         while let Some(result) = inflight.next().await {
-            yield result;
+            match result {
+                Ok(items) => {
+                    for item in items {
+                        yield Ok(item);
+                    }
+                }
+                Err(e) => yield Err(e),
+            }
         }
     };
     Ok(Box::pin(stream))

@@ -10,9 +10,8 @@
 use objectiveai_sdk::agent::completions::message::{
     File, ImageUrl, InputAudio, RichContent, RichContentPart, VideoUrl,
 };
-use objectiveai_sdk::cli::command::agents::logs::read::all::ResponseContent;
 use objectiveai_sdk::cli::command::agents::queue::read::pending::{
-    LookupState, ResponseItem,
+    LookupState, ResponseContent, ResponseItem,
 };
 use objectiveai_sdk::client_objectiveai_mcp::server_response::ReadMessageQueueResult;
 use sqlx::{PgConnection, Postgres, Row as _, Transaction};

@@ -1,4 +1,19 @@
-﻿//! `agents read all` — async handler stub.
+//! `agents logs read all` — fetch every log row for a target AIH,
+//! coalesced into [`ResponseItem`] blocks.
+//!
+//! Each yielded `ResponseItem` is either a single-row request blob
+//! (`AgentCompletionRequest` / `VectorCompletionRequest` /
+//! `FunctionExecutionRequest`) or a multi-row block
+//! (`ClientNotification` / `AssistantResponse` / `ToolResponse`)
+//! formed by joining consecutive `logs.messages` rows that share
+//! `(block_class, agent_instance_hierarchy, response_id)`.
+//!
+//! `response_id` is carried on every variant — for the three
+//! request-blob variants it's the chunk's own id, for the three
+//! block variants it's the immediately-enclosing
+//! agent-completion's id (even when the underlying rows were
+//! emitted inside a function execution or vector completion
+//! chunk).
 
 use std::str::FromStr;
 
@@ -20,7 +35,7 @@ use crate::cli::command::path_ref::tokenize;
 pub enum Target {
     #[schemars(title = "Direct")]
     Direct {
-        /// Optional lineage prefix. `None` â‡’ cli substitutes
+        /// Optional lineage prefix. `None` ⇒ cli substitutes
         /// `Config.agent_instance_hierarchy`.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[schemars(extend("omitempty" = true))]
@@ -86,6 +101,16 @@ impl Target {
 pub struct Request {
     pub path_type: Path,
     pub targets: Vec<Target>,
+    /// Skip rows with `logs.messages."index" <= after_id`. Use the
+    /// highest `id` from a previous page to paginate forward.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub after_id: Option<i64>,
+    /// Cap on rows scanned per target. Defaults to 1000 server-side
+    /// when omitted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub limit: Option<i64>,
     pub jq: Option<String>,
 }
 
@@ -108,6 +133,14 @@ impl CommandRequest for Request {
             argv.push("--target".to_string());
             argv.push(target.into_arg_string());
         }
+        if let Some(after_id) = self.after_id {
+            argv.push("--after-id".to_string());
+            argv.push(after_id.to_string());
+        }
+        if let Some(limit) = self.limit {
+            argv.push("--limit".to_string());
+            argv.push(limit.to_string());
+        }
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
             argv.push(jq.clone());
@@ -116,109 +149,130 @@ impl CommandRequest for Request {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(untagged)]
-#[schemars(rename = "cli.command.agents.logs.read.all.ResponseContent")]
-pub enum ResponseContent {
-    #[schemars(title = "One")]
-    One(i64),
-    #[schemars(title = "Many")]
-    Many(Vec<i64>),
+/// Type tag for one `ClientNotification` part — the table-kind of
+/// the underlying `message_queue_*` content row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+#[schemars(rename = "cli.command.agents.logs.read.all.ClientNotificationPartType")]
+pub enum ClientNotificationPartType {
+    Text,
+    Image,
+    Audio,
+    Video,
+    File,
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(tag = "type", rename_all = "snake_case")]
-#[schemars(rename = "cli.command.agents.logs.read.all.ResponseQueueMessage")]
-pub enum ResponseQueueMessage {
-    #[schemars(title = "Developer")]
-    Developer {
-        content: ResponseContent,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        #[schemars(extend("omitempty" = true))]
-        name: Option<String>,
-    },
-    #[schemars(title = "System")]
-    System {
-        content: ResponseContent,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        #[schemars(extend("omitempty" = true))]
-        name: Option<String>,
-    },
-    #[schemars(title = "User")]
-    User {
-        content: ResponseContent,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        #[schemars(extend("omitempty" = true))]
-        name: Option<String>,
-    },
-    #[schemars(title = "Assistant")]
-    Assistant {
-        #[serde(skip_serializing_if = "Option::is_none")]
-        #[schemars(extend("omitempty" = true))]
-        content: Option<ResponseContent>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        #[schemars(extend("omitempty" = true))]
-        name: Option<String>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        #[schemars(extend("omitempty" = true))]
-        reasoning: Option<i64>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        #[schemars(extend("omitempty" = true))]
-        tool_calls: Option<Vec<i64>>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        #[schemars(extend("omitempty" = true))]
-        refusal: Option<i64>,
-    },
-    #[schemars(title = "Tool")]
-    Tool {
-        content: ResponseContent,
-        tool_call_id: String,
-    },
+/// One row inside a `ClientNotification` block — a consumed
+/// `message_queue_contents` entry.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.logs.read.all.ClientNotificationPart")]
+pub struct ClientNotificationPart {
+    /// `logs.messages."index"` for this row. Pass to
+    /// `agents logs read id <n>` to fetch the consumed
+    /// `message_queue_contents` body.
+    pub id: i64,
+    pub timestamp: i64,
+    pub r#type: ClientNotificationPartType,
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+/// Type tag for one `AssistantResponse` part — the table-kind of
+/// the underlying `assistant_response_*` row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+#[schemars(rename = "cli.command.agents.logs.read.all.AssistantResponsePartType")]
+pub enum AssistantResponsePartType {
+    Refusal,
+    Reasoning,
+    ToolCall,
+    Text,
+    Image,
+    Audio,
+    Video,
+    File,
+}
+
+/// One row inside an `AssistantResponse` block.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.logs.read.all.AssistantResponsePart")]
+pub struct AssistantResponsePart {
+    /// `logs.messages."index"` for this row. Pass to
+    /// `agents logs read id <n>` for the typed body.
+    pub id: i64,
+    pub timestamp: i64,
+    pub r#type: AssistantResponsePartType,
+}
+
+/// Type tag for one `ToolResponse` part. `Container` is the
+/// `tool_response` head row (carries `tool_call_id`); the other
+/// five are content slots.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+#[schemars(rename = "cli.command.agents.logs.read.all.ToolResponsePartType")]
+pub enum ToolResponsePartType {
+    Container,
+    Text,
+    Image,
+    Audio,
+    Video,
+    File,
+}
+
+/// One row inside a `ToolResponse` block.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.logs.read.all.ToolResponsePart")]
+pub struct ToolResponsePart {
+    /// `logs.messages."index"` for this row. Pass to
+    /// `agents logs read id <n>` for the typed body.
+    pub id: i64,
+    pub timestamp: i64,
+    pub r#type: ToolResponsePartType,
+}
+
+/// One yielded item. Three single-row request blobs +
+/// three multi-row blocks. Every variant carries `response_id`.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
-#[schemars(rename = "cli.command.agents.logs.read.all.ResponseQueueItem")]
-pub enum ResponseQueueItem {
-    #[schemars(title = "AssistantResponse")]
-    AssistantResponse {
-        #[serde(skip_serializing_if = "Option::is_none")]
-        #[schemars(extend("omitempty" = true))]
-        reasoning: Option<i64>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        #[schemars(extend("omitempty" = true))]
-        tool_calls: Option<Vec<i64>>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        #[schemars(extend("omitempty" = true))]
-        content: Option<ResponseContent>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        #[schemars(extend("omitempty" = true))]
-        refusal: Option<i64>,
-    },
-    #[schemars(title = "ToolResponse")]
-    ToolResponse {
-        tool_call_id: String,
-        content: ResponseContent,
-    },
-    #[schemars(title = "Notification")]
-    Notification {
-        content: ResponseContent,
-    },
+#[schemars(rename = "cli.command.agents.logs.read.all.ResponseItem")]
+pub enum ResponseItem {
     #[schemars(title = "AgentCompletionRequest")]
     AgentCompletionRequest {
-        messages: Vec<ResponseQueueMessage>,
+        id: i64,
+        agent_instance_hierarchy: String,
+        timestamp: i64,
+        response_id: String,
+    },
+    #[schemars(title = "VectorCompletionRequest")]
+    VectorCompletionRequest {
+        id: i64,
+        agent_instance_hierarchy: String,
+        timestamp: i64,
+        response_id: String,
     },
     #[schemars(title = "FunctionExecutionRequest")]
     FunctionExecutionRequest {
         id: i64,
+        agent_instance_hierarchy: String,
+        timestamp: i64,
+        response_id: String,
     },
-}
-
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.logs.read.all.ResponseItem")]
-pub struct ResponseItem {
-    pub agent_id: String,
-    pub items: Vec<ResponseQueueItem>,
+    #[schemars(title = "ClientNotification")]
+    ClientNotification {
+        agent_instance_hierarchy: String,
+        response_id: String,
+        parts: Vec<ClientNotificationPart>,
+    },
+    #[schemars(title = "AssistantResponse")]
+    AssistantResponse {
+        agent_instance_hierarchy: String,
+        response_id: String,
+        parts: Vec<AssistantResponsePart>,
+    },
+    #[schemars(title = "ToolResponse")]
+    ToolResponse {
+        agent_instance_hierarchy: String,
+        response_id: String,
+        parts: Vec<ToolResponsePart>,
+    },
 }
 
 #[derive(clap::Args)]
@@ -228,6 +282,12 @@ pub struct Args {
     /// when omitted on an individual target.
     #[arg(long = "target", required = true)]
     pub targets: Vec<String>,
+    /// Skip rows with `logs.messages."index" <= after_id` per target.
+    #[arg(long)]
+    pub after_id: Option<i64>,
+    /// Cap on rows scanned per target.
+    #[arg(long)]
+    pub limit: Option<i64>,
     /// jq filter applied to the JSON output.
     #[arg(long)]
     pub jq: Option<String>,
@@ -265,6 +325,8 @@ impl TryFrom<Args> for Request {
         Ok(Self {
             path_type: Path::AgentsLogsReadAll,
             targets,
+            after_id: args.after_id,
+            limit: args.limit,
             jq: args.jq,
         })
     }

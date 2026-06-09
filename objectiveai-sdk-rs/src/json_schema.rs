@@ -268,13 +268,19 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::logs::read::all::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::all::ResponseContent),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::logs::read::all::ResponseItem),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::all::ResponseQueueItem),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::all::ClientNotificationPart),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::all::ResponseQueueMessage),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::all::ClientNotificationPartType),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::agents::logs::read::all::AssistantResponsePart),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::agents::logs::read::all::AssistantResponsePartType),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::agents::logs::read::all::ToolResponsePart),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::agents::logs::read::all::ToolResponsePartType),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::logs::read::all::request_schema::Path),
         #[cfg(feature = "cli")]
@@ -301,8 +307,8 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::agents::logs::read::pending::Path),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::logs::read::pending::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::pending::ResponseItem),
+        // `pending::ResponseItem` is re-exported from `all::ResponseItem`;
+        // its schema is registered above.
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::logs::read::pending::request_schema::Path),
         #[cfg(feature = "cli")]

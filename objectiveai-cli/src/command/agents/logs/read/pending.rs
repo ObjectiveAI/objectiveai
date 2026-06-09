@@ -16,21 +16,34 @@ type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     let default_parent = ctx.config.agent_instance_hierarchy.clone();
     let db = ctx.db.clone();
+    let after_id = request.after_id;
+    let limit = request.limit;
     let stream = async_stream::stream! {
         let mut inflight = FuturesUnordered::new();
         for target in request.targets {
             let db = db.clone();
             let default_parent = default_parent.clone();
             inflight.push(async move {
-                let (_parent, _spawned, _leaf) =
+                // Treat the resolved target AIH as the *parent* in
+                // `logs.messages_queue` — read pending events emitted
+                // by every spawned child under it.
+                let (_parent, spawned, _leaf) =
                     resolve_target(&db, target, &default_parent).await?;
-                Err::<ResponseItem, _>(Error::NotImplemented(
-                    "agents logs read pending (postgres reader pending)",
-                ))
+                let items = crate::db::logs::read_pending_for_parent(
+                    &db, &spawned, after_id, limit,
+                ).await.map_err(Error::from)?;
+                Ok::<Vec<ResponseItem>, Error>(items)
             });
         }
         while let Some(result) = inflight.next().await {
-            yield result;
+            match result {
+                Ok(items) => {
+                    for item in items {
+                        yield Ok(item);
+                    }
+                }
+                Err(e) => yield Err(e),
+            }
         }
     };
     Ok(Box::pin(stream))

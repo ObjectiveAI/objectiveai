@@ -103,24 +103,23 @@ fn message_kind_flag(kind: &RequestMessageKind) -> &'static str {
     }
 }
 
-// Share the queue-item / queue-message / content shapes with
-// `agents read all` — same on-disk persistence rows surfaced
+// Share the ResponseItem (renamed locally) + part shapes with
+// `agents logs read all` — same `logs.messages` rows surfaced
 // through different read patterns.
-pub use super::all::{ResponseContent, ResponseQueueItem, ResponseQueueMessage};
+pub use super::all::{
+    AssistantResponsePart, AssistantResponsePartType, ClientNotificationPart,
+    ClientNotificationPartType, ResponseItem as ReadAllResponseItem, ToolResponsePart,
+    ToolResponsePartType,
+};
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
 #[schemars(rename = "cli.command.agents.logs.read.subscribe.ResponseItem")]
 pub enum ResponseItem {
-    #[schemars(title = "Items")]
-    Items {
-        agent_id: String,
-        items: Vec<ResponseQueueItem>,
-    },
+    #[schemars(title = "Item")]
+    Item(ReadAllResponseItem),
     #[schemars(title = "Inactive")]
-    Inactive {
-        agent_id: String,
-    },
+    Inactive { agent_id: String },
 }
 
 #[derive(clap::Args)]

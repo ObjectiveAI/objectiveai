@@ -322,7 +322,14 @@ impl<'a> RowValue<'a> {
             .expect("RowValue variants only cover streaming-content tables")
     }
 
-    /// `response_id` borrowed from the enclosing agent-completion chunk.
+    /// `response_id` borrowed from the immediately-enclosing
+    /// agent-completion chunk's `id`. Even for rows emitted under
+    /// `vector_completion_chunk_rows` /
+    /// `function_execution_chunk_rows`, the recursion bottoms out
+    /// at an agent-completion chunk and uses that chunk's id —
+    /// never the outer vector/function wrapper's id. This is what
+    /// `agents logs read all` / `read pending` use as the
+    /// per-block `response_id` boundary key.
     pub fn response_id(&self) -> &'a str {
         match self {
             RowValue::MessageQueueContent { response_id, .. }
