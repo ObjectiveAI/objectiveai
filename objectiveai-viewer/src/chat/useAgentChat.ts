@@ -9,7 +9,7 @@ import {
   type AgentCompletionsMessageMessage,
   type AgentCompletionsMessageRichContent,
   type AgentCompletionsMessageRichContentPart,
-  type FilesystemConfigFavorite,
+  type CliCommandConfigAgentsFavoritesGetResponseItem,
   type ViewerEvent,
 } from "@objectiveai/sdk";
 import { buildAgentCompletionRequest } from "./buildAgentCompletionRequest";
@@ -48,7 +48,7 @@ export function useAgentChat(
     async (
       tabId: string,
       requestId: string,
-      favorite: FilesystemConfigFavorite,
+      favorite: CliCommandConfigAgentsFavoritesGetResponseItem,
       messages: AgentCompletionsMessageMessage[],
       continuation: string | null,
     ) => {
@@ -130,7 +130,7 @@ export function useAgentChat(
 
   const finalizeStream = useCallback(
     (tabId: string, requestId: string) => {
-      let scheduleDrain: { favorite: FilesystemConfigFavorite; continuation: string | null; drainRequestId: string } | null = null;
+      let scheduleDrain: { favorite: CliCommandConfigAgentsFavoritesGetResponseItem; continuation: string | null; drainRequestId: string } | null = null;
       setPanelTabs((prev) => prev.map((t) => {
         if (t.id !== tabId || t.inFlightEntryIndex === null) return t;
         const idx = t.inFlightEntryIndex;
@@ -183,7 +183,7 @@ export function useAgentChat(
   const sendMessage = useCallback(
     (tabId: string) => {
       let startFresh:
-        | { favorite: FilesystemConfigFavorite; continuation: string | null; requestId: string; userMsg: AgentCompletionsMessageMessage }
+        | { favorite: CliCommandConfigAgentsFavoritesGetResponseItem; continuation: string | null; requestId: string; userMsg: AgentCompletionsMessageMessage }
         | null = null;
       let notifyNow: { responseId: string; content: AgentCompletionsMessageRichContent } | null = null;
       setPanelTabs((prev) => prev.map((t) => {

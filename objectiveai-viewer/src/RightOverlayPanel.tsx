@@ -6,7 +6,7 @@ import type {
   AgentCompletionsMessageRichContentPart,
   AgentCompletionsResponseStreamingAgentCompletionChunk,
   ErrorResponseError,
-  FilesystemConfigFavorite,
+  CliCommandConfigAgentsFavoritesGetResponseItem,
 } from "@objectiveai/sdk";
 import { useFavoriteAgents } from "./useFavoriteAgents";
 import { ChatPane } from "./ChatPane";
@@ -31,7 +31,7 @@ export type PanelTabEntry = PanelTabUserEntry | PanelTabCompletionEntry;
 
 export interface PanelTab {
   id: string;
-  favorite: FilesystemConfigFavorite;
+  favorite: CliCommandConfigAgentsFavoritesGetResponseItem;
   draft: string;
   attachments: AgentCompletionsMessageRichContentPart[];
   /** Chronologically-ordered chat entries. Render in order. */
@@ -94,7 +94,7 @@ export function RightOverlayPanel({
     return () => document.removeEventListener("mousedown", onDocDown);
   }, [dropdownOpen]);
 
-  const openFavorite = (favorite: FilesystemConfigFavorite) => {
+  const openFavorite = (favorite: CliCommandConfigAgentsFavoritesGetResponseItem) => {
     const id = crypto.randomUUID();
     const tab: PanelTab = {
       id,
@@ -307,9 +307,9 @@ export function RightOverlayPanel({
 }
 
 interface FavoritesDropdownProps {
-  favorites: FilesystemConfigFavorite[];
+  favorites: CliCommandConfigAgentsFavoritesGetResponseItem[];
   error: string | null;
-  onPick: (favorite: FilesystemConfigFavorite) => void;
+  onPick: (favorite: CliCommandConfigAgentsFavoritesGetResponseItem) => void;
 }
 
 function FavoritesDropdown({ favorites, error, onPick }: FavoritesDropdownProps) {

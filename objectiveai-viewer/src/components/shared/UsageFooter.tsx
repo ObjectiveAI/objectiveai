@@ -1,0 +1,28 @@
+import cn from "classnames";
+import type { AgentCompletionsResponseUsage } from "@objectiveai/sdk";
+import { formatCost } from "../../lib/format";
+
+export function UsageFooter({ usage }: { usage: AgentCompletionsResponseUsage }) {
+  return (
+    <div className={cn("px-4", "py-2", "border-t", "border-node-border", "text-[11px]", "text-info-dim", "font-mono", "tabular-nums", "flex", "gap-4", "flex-wrap")}>
+      <div className={cn("flex", "gap-1")}>
+        <span className={cn("text-copper-dim")}>Prompt:</span>
+        <span>{usage.prompt_tokens}</span>
+      </div>
+      <div className={cn("flex", "gap-1")}>
+        <span className={cn("text-copper-dim")}>Completion:</span>
+        <span>{usage.completion_tokens}</span>
+      </div>
+      <div className={cn("flex", "gap-1")}>
+        <span className={cn("text-copper-dim")}>Total:</span>
+        <span>{usage.total_tokens}</span>
+      </div>
+      {usage.cost !== undefined && usage.cost !== 0 && (
+        <div className={cn("flex", "gap-1")}>
+          <span className={cn("text-copper-dim")}>Cost:</span>
+          <span>{typeof usage.cost === "number" ? formatCost(usage.cost) : `$${usage.cost}`}</span>
+        </div>
+      )}
+    </div>
+  );
+}

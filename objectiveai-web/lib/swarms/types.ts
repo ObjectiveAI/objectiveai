@@ -1,9 +1,9 @@
-/** A swarm (ensemble) as returned by the list endpoint */
+/** A swarm as returned by the list endpoint */
 export interface SwarmListItem {
   id: string;
 }
 
-/** Agent (ensemble LLM) configuration within a swarm */
+/** Agent configuration within a swarm */
 export interface Agent {
   id: string;
   model: string;

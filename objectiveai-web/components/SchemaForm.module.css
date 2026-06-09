@@ -1,0 +1,198 @@
+/* ── SchemaForm ── */
+/* Dynamic input form generated from function input_schema. */
+
+.form {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--info-mid);
+}
+
+.labelName {
+  color: var(--info-bright);
+  font-weight: 600;
+}
+
+.labelType {
+  color: var(--info-dim);
+}
+
+.labelRequired {
+  color: var(--copper-warm);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.labelDesc {
+  color: var(--info-dim);
+  font-style: italic;
+  margin-left: auto;
+}
+
+.input {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 16px;
+  padding: 6px 10px;
+  background: var(--ground);
+  border: 1px solid var(--node-border);
+  border-radius: var(--radius);
+  color: var(--info-bright);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.input:focus {
+  border-color: var(--copper-dim);
+}
+
+.input::placeholder {
+  color: var(--info-dim);
+}
+
+.textarea {
+  composes: input;
+  min-height: 64px;
+  resize: vertical;
+}
+
+.select {
+  composes: input;
+  appearance: none;
+  cursor: pointer;
+  padding-right: 24px;
+  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2378716c' fill='none' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.checkboxInput {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--copper-mid);
+  cursor: pointer;
+}
+
+/* ── Array field ── */
+
+.arrayItems {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.arrayRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.arrayRow .input {
+  flex: 1;
+}
+
+.arrayRemove {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid var(--node-border);
+  border-radius: var(--radius);
+  color: var(--info-dim);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.arrayRemove:hover {
+  color: var(--error);
+  border-color: var(--error);
+}
+
+.arrayRemove:focus-visible {
+  border-color: var(--copper-dim);
+  outline: none;
+}
+
+.arrayAdd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px dashed var(--node-border);
+  border-radius: var(--radius);
+  color: var(--info-dim);
+  cursor: pointer;
+  align-self: flex-start;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.arrayAdd:hover {
+  color: var(--copper-warm);
+  border-color: var(--copper-dim);
+}
+
+.arrayAdd:focus-visible {
+  color: var(--copper-warm);
+  border-color: var(--copper-dim);
+  outline: none;
+}
+
+/* ── Actions ── */
+
+.actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.submit {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 16px;
+  background: var(--copper-warm);
+  border: 1px solid var(--copper-mid);
+  border-radius: var(--radius);
+  color: var(--ground);
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: background 0.15s;
+}
+
+.submit:hover {
+  background: var(--copper-mid);
+}
+
+.submit:focus-visible {
+  background: var(--copper-mid);
+  outline: 1px solid var(--copper-dim);
+  outline-offset: 1px;
+}
+
+.submit:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

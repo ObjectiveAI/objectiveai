@@ -1,0 +1,134 @@
+/* ── Viewer Preview ── */
+/* Simulates Tauri desktop viewer layout — no web chrome, full bleed, dark. */
+
+.viewer {
+  min-height: 100vh;
+  background: var(--ground);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Title bar (simulated Tauri window chrome) ── */
+
+.titleBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: var(--ground-raised);
+  border-bottom: 1px solid var(--node-border);
+  user-select: none;
+  -webkit-app-region: drag;
+}
+
+.titleBarDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.titleBarDot[data-color="close"] {
+  background: #4a3228;
+}
+
+.titleBarDot[data-color="minimize"] {
+  background: #3a3520;
+}
+
+.titleBarDot[data-color="maximize"] {
+  background: #2a352a;
+}
+
+.titleBarText {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--info-dim);
+  letter-spacing: 0.06em;
+  margin-left: 8px;
+  flex: 1;
+  text-align: center;
+}
+
+.connectionStatus {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--info-dim);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  letter-spacing: 0.04em;
+}
+
+.connectionDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--copper-hot);
+  opacity: 0.6;
+}
+
+/* ── Content area ── */
+
+.content {
+  flex: 1;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 800px;
+}
+
+/* ── Sections ── */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sectionTitle {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--info-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 400;
+}
+
+.actionButton {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--copper-mid);
+  background: transparent;
+  border: 1px solid var(--copper-warm);
+  border-radius: 2px;
+  padding: 3px 10px;
+  cursor: pointer;
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+  transition: background 0.15s;
+}
+
+.actionButton:hover {
+  background: rgba(var(--copper-dim-rgb), 0.08);
+}
+
+.actionButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.empty {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--info-dim);
+  font-style: italic;
+  padding: 24px 0;
+}

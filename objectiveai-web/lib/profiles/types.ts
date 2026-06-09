@@ -6,7 +6,7 @@ export interface ProfileListItem {
   commit: string;
 }
 
-/** An LLM within a profile's ensemble */
+/** An LLM within a profile's swarm */
 export interface ProfileLlm {
   model: string;
   outputMode: string;
@@ -24,7 +24,7 @@ export interface ProfileFallback {
   reasoning: boolean | null;
 }
 
-/** A task-level ensemble config (for tasks-based profiles) */
+/** A task-level swarm config (for tasks-based profiles) */
 export interface ProfileTaskConfig {
   llms: ProfileLlm[];
   weights: number[];
@@ -49,7 +49,7 @@ export interface ProfileMeta {
   name: string;
   description: string;
   kind: "auto" | "tasks";
-  /** Auto profiles: single ensemble + weights */
+  /** Auto profiles: single swarm + weights */
   llms: ProfileLlm[];
   weights: number[];
   /** Tasks profiles: per-task configs + task-level weights */

@@ -120,6 +120,12 @@
   color: var(--info-bright);
 }
 
+.submitBtn:focus-visible {
+  border-color: var(--copper-dim);
+  color: var(--info-bright);
+  outline: none;
+}
+
 .submitBtn:disabled {
   opacity: 0.5;
   cursor: default;
@@ -168,6 +174,12 @@
 
 .link:hover {
   color: var(--copper-mid);
+}
+
+.link:focus-visible {
+  color: var(--copper-mid);
+  outline: 1px solid var(--copper-dim);
+  outline-offset: 2px;
 }
 
 /* ── Responsive: large screens ── */

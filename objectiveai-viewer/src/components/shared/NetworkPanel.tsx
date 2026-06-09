@@ -1,0 +1,133 @@
+import cn from "classnames";
+import { Fragment, useState } from "react";
+import type { ApiCallEntry } from "../../hooks/useApiCalls";
+
+function formatDuration(entry: ApiCallEntry): string {
+  if (!entry.endedAt) {
+    const elapsed = Date.now() - entry.startedAt;
+    return `${elapsed}ms…`;
+  }
+  return `${entry.endedAt - entry.startedAt}ms`;
+}
+
+function StatusDot({ status }: { status: ApiCallEntry["status"] }) {
+  const color =
+    status === "streaming"
+      ? cn("bg-copper-bright", "animate-pulse")
+      : status === "complete"
+        ? "bg-success"
+        : "bg-error";
+  return <span className={cn("inline-block", "w-1.5", "h-1.5", "rounded-full", color)} />;
+}
+
+function formatError(error: unknown): string {
+  if (error === null || error === undefined) return "";
+  if (typeof error === "string") return error;
+  try {
+    return JSON.stringify(error, null, 2);
+  } catch {
+    return String(error);
+  }
+}
+
+export function NetworkPanel({ entries }: { entries: ApiCallEntry[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+
+  return (
+    <div className={cn("border-t", "border-node-border", "bg-ground-surface")}>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        aria-label="Toggle network panel"
+        aria-expanded={expanded}
+        className={cn("w-full", "flex", "items-center", "gap-2", "px-3", "py-1.5", "text-[10px]", "font-mono", "text-info-dim", "hover:text-info-mid", "transition-colors", "select-none")}
+      >
+        <svg
+          width="8"
+          height="8"
+          viewBox="0 0 8 8"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          className={cn("transition-transform", expanded && "rotate-90")}
+        >
+          <path d="M2 1L6 4L2 7" />
+        </svg>
+        <span>Network</span>
+        <span className={cn("text-info-dim/70")}>({entries.length})</span>
+        {entries.some((e) => e.status === "error") && (
+          <span className={cn("ml-1", "text-error")}>{entries.filter((e) => e.status === "error").length} errors</span>
+        )}
+        {entries.some((e) => e.status === "streaming") && (
+          <span className={cn("ml-auto", "text-copper-bright")}>streaming</span>
+        )}
+      </button>
+
+      {expanded && (
+        <div className={cn("max-h-64", "overflow-y-auto", "border-t", "border-node-border")}>
+          <table className={cn("w-full", "text-[10px]", "font-mono")}>
+            <thead>
+              <tr className={cn("text-info-mid", "border-b", "border-node-border")}>
+                <th className={cn("text-left", "px-3", "py-1", "font-normal")}></th>
+                <th className={cn("text-left", "px-3", "py-1", "font-normal")}>Endpoint</th>
+                <th className={cn("text-right", "px-3", "py-1", "font-normal")}>Chunks</th>
+                <th className={cn("text-right", "px-3", "py-1", "font-normal")}>Duration</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map((entry) => (
+                <Fragment key={entry.id}>
+                  <tr
+                    onClick={() => setExpandedRow(expandedRow === entry.id ? null : entry.id)}
+                    className={cn("border-b", "border-node-border/30", "cursor-pointer", "hover:bg-ground-raised/50", entry.status === "error" && "bg-error/5")}
+                  >
+                    <td className={cn("px-3", "py-1")}>
+                      <StatusDot status={entry.status} />
+                    </td>
+                    <td className={cn("px-3", "py-1", "text-info-mid")}>
+                      <span className={cn("text-info-dim", "mr-1.5")}>{entry.method}</span>
+                      {entry.path}
+                    </td>
+                    <td className={cn("px-3", "py-1", "text-right", "text-info-dim")}>
+                      {entry.chunkCount}
+                    </td>
+                    <td className={cn("px-3", "py-1", "text-right", "text-info-dim")}>
+                      {formatDuration(entry)}
+                    </td>
+                  </tr>
+                  {expandedRow === entry.id && (
+                    <tr>
+                      <td colSpan={4} className={cn("px-3", "py-2", "bg-ground-raised/30")}>
+                        <div className={cn("space-y-1")}>
+                          <div className={cn("text-info-mid")}>
+                            <span className={cn("text-info-dim")}>Started:</span>{" "}
+                            {new Date(entry.startedAt).toLocaleTimeString()}
+                          </div>
+                          {entry.endedAt && (
+                            <div className={cn("text-info-mid")}>
+                              <span className={cn("text-info-dim")}>Ended:</span>{" "}
+                              {new Date(entry.endedAt).toLocaleTimeString()}
+                            </div>
+                          )}
+                          {entry.error != null && (
+                            <div className={cn("mt-1")}>
+                              <div className={cn("text-error/70", "text-[9px]", "uppercase", "tracking-wide", "mb-0.5")}>Error</div>
+                              <pre className={cn("text-error", "text-[10px]", "whitespace-pre-wrap", "break-words", "max-h-32", "overflow-y-auto", "bg-error/5", "rounded-sm", "px-2", "py-1")}>
+                                {formatError(entry.error)}
+                              </pre>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,22 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 24px;
+  gap: 16px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--copper-mid);
+}
+
+.retry {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--info-dim);
+  background: var(--ground-raised);
+  border: 1px solid var(--node-border);
+  border-radius: 2px;
+  padding: 4px 12px;
+  cursor: pointer;
+}

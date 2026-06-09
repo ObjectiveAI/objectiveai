@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/client";
+import { MOCK_SWARMS } from "@/lib/TEMPORARY_mock_explore";
 import styles from "./SwarmDetail.module.css";
 
 interface Props {
@@ -33,7 +34,28 @@ export function SwarmDetail({ id }: Props) {
 
   useEffect(() => {
     let cancelled = false;
-    apiFetch<SwarmResponse>(`/ensembles/${id}`)
+
+    // TEMPORARY — try mock data first while API is down
+    const mock = MOCK_SWARMS.find((s) => s.id === id);
+    if (mock) {
+      setData({
+        id: mock.id,
+        created: Math.floor(mock.created / 1000),
+        llms: mock.agents.map((a) => ({
+          id: a.id,
+          model: a.model,
+          output_mode: a.outputMode,
+          top_logprobs: a.topLogprobs,
+          temperature: a.temperature,
+          count: a.count,
+          fallbacks: a.hasFallbacks ? Array.from({ length: a.fallbackCount }, () => ({ id: "", model: "fallback", output_mode: "default" } as RawLlm)) : null,
+        })),
+      });
+      setLoading(false);
+      return;
+    }
+
+    apiFetch<SwarmResponse>(`/swarms/${id}`)
       .then((d) => {
         if (!cancelled) { setData(d); setLoading(false); }
       })
@@ -81,7 +103,7 @@ export function SwarmDetail({ id }: Props) {
 
   return (
     <div className={styles.detail}>
-      <Link href="/swarms" className={styles.back}>← swarms</Link>
+      <Link href="/explore" className={styles.back}>&#x2190; explore</Link>
 
       <div className={styles.header}>
         <div className={styles.titleRow}>

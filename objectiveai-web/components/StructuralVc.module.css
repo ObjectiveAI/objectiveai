@@ -1,0 +1,60 @@
+/* ── Structural VC (definition only, no execution) ── */
+
+.responses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.responseTag {
+  font-size: 9px;
+  color: var(--info-dim);
+  padding: 1px 5px;
+  background: var(--ground-surface);
+  border-radius: 2px;
+}
+
+.structuralAgents {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 480px;
+}
+
+.structuralAgent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 20px;
+}
+
+.structuralAgentBar {
+  height: 8px;
+  border-radius: 1px;
+  min-width: 4px;
+  flex-shrink: 0;
+}
+
+.structuralAgentName {
+  font-size: 9px;
+  color: var(--info-dim);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.structuralAgentWeight {
+  font-size: 9px;
+  color: var(--copper-dim);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.empty {
+  padding: 8px 0;
+  font-size: 9px;
+  color: var(--connector);
+  font-style: italic;
+}

@@ -49,7 +49,7 @@ const DEFAULT_PROFILE_SLUGS = [
 ] as const;
 
 let defaultCache: { data: ProfileMeta[]; ts: number } | null = null;
-const CACHE_TTL = 60_000;
+const CACHE_TTL = 300_000; // 5 minutes
 
 /** Fetch a profile directly from GitHub (raw.githubusercontent.com) */
 async function fetchProfileFromGitHub(owner: string, repo: string): Promise<RawAutoProfile> {
@@ -112,7 +112,7 @@ function parseFallback(raw: RawLlm): ProfileFallback {
 }
 
 /** Classify an agent into a tier based on its weight */
-function classifyTier(weight: number, maxWeight: number): "frontier" | "mid" | "budget" {
+export function classifyTier(weight: number, maxWeight: number): "frontier" | "mid" | "budget" {
   if (maxWeight === 0) return "budget";
   const ratio = weight / maxWeight;
   if (ratio >= 0.9) return "frontier";
@@ -121,7 +121,7 @@ function classifyTier(weight: number, maxWeight: number): "frontier" | "mid" | "
 }
 
 /** Build tier breakdown from LLMs and weights */
-function buildTiers(llms: ProfileLlm[], weights: number[]): TierBreakdown {
+export function buildTiers(llms: ProfileLlm[], weights: number[]): TierBreakdown {
   const maxWeight = Math.max(...weights, 0);
   const tiers: TierBreakdown = { frontier: [], mid: [], budget: [] };
 

@@ -1,0 +1,161 @@
+/* ── Explore — Tabbed Browse ── */
+
+.page {
+  width: 100%;
+  padding: 0 0 48px;
+}
+
+/* ── Tab bar ── */
+
+.tabBar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  padding: 0 24px;
+  background: rgba(12, 10, 9, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.tab {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--info-dim);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 10px 16px 10px;
+  cursor: pointer;
+  transition: color 150ms, border-color 150ms;
+}
+
+.tab:hover {
+  color: var(--info-mid);
+}
+
+.tab:focus-visible {
+  color: var(--info-mid);
+  outline: 1px solid var(--copper-dim);
+  outline-offset: -1px;
+}
+
+.tabActive {
+  color: var(--info-bright);
+  border-bottom-color: var(--copper-mid);
+}
+
+.tabCount {
+  margin-left: 6px;
+  color: var(--info-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Grid ── */
+
+.grid {
+  padding: 0 24px;
+}
+
+.functionsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.profilesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.swarmsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 10px;
+}
+
+/* ── Empty state ── */
+
+.empty {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--info-dim);
+  padding: 40px 0;
+  text-align: center;
+  font-style: italic;
+}
+
+/* ── Loading / Error ── */
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--info-dim);
+}
+
+.loadingDot {
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  background: var(--copper-mid);
+  border-radius: 1px;
+  margin-right: 8px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+.error {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--copper-mid);
+  padding: 40px 0;
+  text-align: center;
+}
+
+/* ── Responsive ── */
+
+@media (max-width: 640px) {
+  .functionsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .profilesGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .swarmsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .grid {
+    padding: 0 16px;
+  }
+
+  .tabBar {
+    padding: 0 16px;
+  }
+
+  .page {
+    padding: 0 0 32px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loadingDot {
+    animation: none;
+    opacity: 0.6;
+  }
+}
