@@ -116,6 +116,14 @@ pub enum Error {
     },
     #[error("tag {0:?} is not registered")]
     TagNotFound(String),
+    #[error(
+        "queued message {id} was sent by {sender_agent_instance_hierarchy:?}; it can only be deleted by the sender or a parent of the sender (caller is {caller_agent_instance_hierarchy:?})"
+    )]
+    QueueDeleteUnauthorized {
+        id: i64,
+        sender_agent_instance_hierarchy: String,
+        caller_agent_instance_hierarchy: String,
+    },
     #[error("embedded postgres bootstrap failed: {0}")]
     PostgresBootstrap(String),
     #[error("db: {0}")]

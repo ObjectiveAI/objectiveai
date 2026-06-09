@@ -179,7 +179,12 @@ async fn execute_streaming(
             )))?;
             // We're the new owner. Reclaim our queue row before
             // spawning — the conduit shouldn't see it again.
-            let _ = crate::db::message_queue::delete_by_id(&ctx.db, queue_id).await;
+            let _ = crate::db::message_queue::delete_by_id(
+                &ctx.db,
+                queue_id,
+                &ctx.config.agent_instance_hierarchy,
+            )
+            .await;
             run_spawn_with(ctx, claim, hierarchy, message_content, seed).await
         }
     }
@@ -301,7 +306,12 @@ async fn execute_unary(
                     // loop back to re-check (a new live agent may
                     // have claimed it already, or no one will and
                     // we'll fall through to the detached respawn).
-                    let _ = crate::db::message_queue::delete_by_id(&ctx.db, queue_id).await;
+                    let _ = crate::db::message_queue::delete_by_id(
+                &ctx.db,
+                queue_id,
+                &ctx.config.agent_instance_hierarchy,
+            )
+            .await;
                     continue;
                 }
             }

@@ -11,14 +11,34 @@ use crate::db;
 use crate::error::Error;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    let item = db::message_queue::delete_by_id(&ctx.db, request.id)
-        .await?
-        .ok_or_else(|| {
-            Error::Filesystem(crate::filesystem::Error::NotFound(format!(
-                "message-queue prompt id {}",
-                request.id
-            )))
-        })?;
+    use db::message_queue::DeleteOutcome;
+
+    let outcome = db::message_queue::delete_by_id(
+        &ctx.db,
+        request.id,
+        &ctx.config.agent_instance_hierarchy,
+    )
+    .await?;
+    let item = match outcome {
+        DeleteOutcome::Deleted(item) => item,
+        DeleteOutcome::NotFound => {
+            return Err(Error::Filesystem(crate::filesystem::Error::NotFound(
+                format!("message-queue prompt id {}", request.id),
+            )));
+        }
+        DeleteOutcome::Unauthorized {
+            sender_agent_instance_hierarchy,
+        } => {
+            return Err(Error::QueueDeleteUnauthorized {
+                id: request.id,
+                sender_agent_instance_hierarchy,
+                caller_agent_instance_hierarchy: ctx
+                    .config
+                    .agent_instance_hierarchy
+                    .clone(),
+            });
+        }
+    };
     Ok(Response {
         id: request.id,
         agent_instance_hierarchy: item.agent_instance_hierarchy,

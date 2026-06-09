@@ -690,34 +690,89 @@ async fn reconstruct_rich_content(
 // Delete-by-id — `agents queue delete <id>`.
 // ---------------------------------------------------------------------------
 
+/// Outcome of a [`delete_by_id`] attempt. Distinguishes the three
+/// terminal states the handler must surface differently: the row was
+/// soft-deleted, no active row matched the id, or the row exists but
+/// the caller isn't authorized to delete it.
+#[derive(Debug, Clone)]
+pub enum DeleteOutcome {
+    /// Row soft-deleted; carries its reconstructed shape.
+    Deleted(DrainedMessage),
+    /// No `active = TRUE` row matched the id.
+    NotFound,
+    /// Row matched but its sender is neither the caller nor a
+    /// descendant of the caller. The row is left untouched.
+    Unauthorized {
+        sender_agent_instance_hierarchy: String,
+    },
+}
+
+/// True when `sender` is the caller itself or a descendant of the
+/// caller in the AIH tree — i.e. the caller is the sender or one of
+/// its ancestors (a "parent of the sender"). The trailing `/` on the
+/// prefix enforces a path boundary so `root/ab` is not treated as
+/// living under `root/a`.
+fn sender_under_caller(caller: &str, sender: &str) -> bool {
+    sender == caller || sender.starts_with(&format!("{caller}/"))
+}
+
 /// Atomically soft-delete the `message_queue` row with the given
 /// `id` (flips `active = FALSE`) and return its reconstructed
-/// shape. `None` when no active row matches. The row + its
-/// `message_queue_contents` children survive in the table for
-/// audit purposes — they're invisible to readers via
-/// `active = FALSE`.
+/// shape — but only when `caller_agent_instance_hierarchy` is the
+/// row's sender or an ancestor of it. The authorization decision
+/// happens inside the transaction, before the flip, so an
+/// unauthorized attempt leaves the row untouched.
+///
+/// The row + its `message_queue_contents` children survive in the
+/// table for audit purposes even on delete — they're invisible to
+/// readers via `active = FALSE`.
 pub async fn delete_by_id(
     pool: &Pool,
     id: i64,
-) -> Result<Option<DrainedMessage>, Error> {
+    caller_agent_instance_hierarchy: &str,
+) -> Result<DeleteOutcome, Error> {
     let mut tx = pool.begin().await?;
-    let rows = sqlx::query(
+    let row = sqlx::query(
         "SELECT p.id, \
                 p.agent_instance_hierarchy, \
                 p.agent_tag, \
                 p.key, \
-                p.enqueued_at \
+                p.enqueued_at, \
+                p.sender_agent_instance_hierarchy \
          FROM message_queue p \
-         WHERE p.id = $1 AND p.active = TRUE \
-         ORDER BY p.id ASC",
+         WHERE p.id = $1 AND p.active = TRUE",
     )
     .bind(id)
-    .fetch_all(&mut *tx)
+    .fetch_optional(&mut *tx)
     .await?;
-    let drained_rows = rows_to_drained(rows)?;
-    let mut items = reconstruct_and_delete(&mut tx, drained_rows).await?;
+
+    let Some(row) = row else {
+        tx.commit().await?;
+        return Ok(DeleteOutcome::NotFound);
+    };
+
+    let sender: String = row.try_get(5)?;
+    if !sender_under_caller(caller_agent_instance_hierarchy, &sender) {
+        // Leave the row untouched; the dropped tx rolls back nothing
+        // (we did no writes) but releases the row lock cleanly.
+        return Ok(DeleteOutcome::Unauthorized {
+            sender_agent_instance_hierarchy: sender,
+        });
+    }
+
+    let drained_row = DrainedRow {
+        message_queue_id: row.try_get(0)?,
+        agent_instance_hierarchy: row.try_get(1)?,
+        agent_tag: row.try_get(2)?,
+        key: row.try_get(3)?,
+        enqueued_at: row.try_get(4)?,
+    };
+    let mut items = reconstruct_and_delete(&mut tx, vec![drained_row]).await?;
     tx.commit().await?;
-    Ok(items.pop())
+    match items.pop() {
+        Some(message) => Ok(DeleteOutcome::Deleted(message)),
+        None => Ok(DeleteOutcome::NotFound),
+    }
 }
 
 // ---------------------------------------------------------------------------
