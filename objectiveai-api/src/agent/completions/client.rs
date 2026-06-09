@@ -1382,9 +1382,11 @@ where
         // call). If the upstream stream errors before any assistant
         // chunk lands, the ids drop on the floor and the queue
         // stays populated — the next turn re-reads it.
-        // CLI does the join + separator insertion + content-id
-        // collection; we just receive `(rich_content, ids)` and
-        // forward both — `ids` rides through to the first
+        //
+        // The CLI now returns per-row data (no cross-row separator
+        // splicing); we join here so the agent sees one User
+        // message with `\n\n` separators between consumed rows.
+        // The flat content-id list rides through to the first
         // assistant chunk via the stamp pass below.
         let mut queue_ids_to_clear: Vec<i64> = Vec::new();
         if let Some(handle) = &reverse_attach {
@@ -1393,11 +1395,44 @@ where
                 agent_instance_hierarchy_header,
             )
             .await?;
-            if !response.ids.is_empty() {
+            if !response.rows.is_empty() {
                 use objectiveai_sdk::agent::completions::message::{
-                    Message, UserMessage,
+                    Message, RichContent, RichContentPart, UserMessage,
                 };
-                queue_ids_to_clear = response.ids;
+                // Splice rows together with `"\n\n"` separators and
+                // flatten the content_ids. Mirrors the joining the
+                // CLI used to do server-side.
+                let mut all_parts: Vec<RichContentPart> = Vec::new();
+                for (i, row) in response.rows.into_iter().enumerate() {
+                    if i > 0 {
+                        all_parts.push(RichContentPart::Text {
+                            text: "\n\n".to_string(),
+                        });
+                    }
+                    queue_ids_to_clear.extend(row.content_ids);
+                    match row.rich_content {
+                        RichContent::Text(text) => {
+                            all_parts.push(RichContentPart::Text { text });
+                        }
+                        RichContent::Parts(parts) => {
+                            all_parts.extend(parts);
+                        }
+                    }
+                }
+                // Collapse single-text-part to RichContent::Text
+                // (lossless) for the same wire shape as before.
+                let rich_content = if all_parts.len() == 1
+                    && matches!(all_parts.first(), Some(RichContentPart::Text { .. }))
+                {
+                    let Some(RichContentPart::Text { text }) =
+                        all_parts.into_iter().next()
+                    else {
+                        unreachable!("matched single Text part above")
+                    };
+                    RichContent::Text(text)
+                } else {
+                    RichContent::Parts(all_parts)
+                };
                 // Insert AFTER the leading system/developer chain so
                 // the agent sees its personality prefix first, then
                 // the queued content arrives as one user turn, then
@@ -1413,7 +1448,7 @@ where
                 messages.insert(
                     insert_idx,
                     Message::User(UserMessage {
-                        content: response.rich_content,
+                        content: rich_content,
                         name: None,
                     }),
                 );

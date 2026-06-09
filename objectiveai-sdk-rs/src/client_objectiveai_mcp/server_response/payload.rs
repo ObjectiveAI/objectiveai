@@ -105,23 +105,42 @@ impl Payload {
 
 /// Successful payload for [`Payload::ReadMessageQueue`].
 ///
-/// The CLI joins every queued entry into one `rich_content`
-/// (inserting `"\n\n"` separators between consecutive entries) and
-/// returns the flat list of `message_queue_contents.id`s consumed
-/// in order. `ids.len()` may differ from the number of parts in
-/// `rich_content` because of separator insertion and
-/// `RichContent::Text` collapse — the lists aren't 1:1 indexable.
-/// The API stamps `ids` onto the first emitted
-/// `AssistantResponseChunk.request_message_ids`. The downstream
-/// LogWriter resolves each id's kind at write time (SQL CASE
-/// against `message_queue_contents.kind`) to dispatch the right
-/// `logs.message_table` variant — kinds don't need to ride on the
-/// wire.
+/// One [`ReadMessageQueueRow`] per consumed `message_queue` row,
+/// in oldest-first id order. Each row's `content_ids` are the
+/// `message_queue_contents.id`s for that row's slots; the row's
+/// `rich_content` is the CLI's reconstructed payload for that
+/// row alone (no cross-row separator splicing — callers join if
+/// they want a unified User message).
+///
+/// Two consumers:
+/// - **Startup snapshot** (`run_agent_loop`): joins every row's
+///   parts with `"\n\n"` separators, flattens `content_ids`, and
+///   stamps the result onto the first
+///   `AssistantResponseChunk.request_message_ids`.
+/// - **`ApiQueueDelegate`** (`agents logs read subscribe`-style
+///   per-tool-response delivery): keeps rows separate so each
+///   gets converted to its own `Vec<ContentBlock>` and surfaces
+///   row-by-row on tool responses.
+///
+/// The downstream LogWriter resolves each id's kind at write
+/// time (SQL CASE against `message_queue_contents.kind`) to
+/// dispatch the right `logs.message_table` variant — kinds don't
+/// need to ride on the wire.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.server_response.ReadMessageQueueResult")]
 pub struct ReadMessageQueueResult {
+    pub rows: Vec<ReadMessageQueueRow>,
+}
+
+/// One queued row's payload + its content-slot ids.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.server_response.ReadMessageQueueRow")]
+pub struct ReadMessageQueueRow {
+    /// `message_queue_contents.id` of every slot in this row, in
+    /// part order. Matches `rich_content`'s part count 1:1.
+    pub content_ids: Vec<i64>,
+    /// The row's content as the CLI reconstructed it.
     pub rich_content: crate::agent::completions::message::RichContent,
-    pub ids: Vec<i64>,
 }
 
 /// The successful `Initialize` payload — the upstream's verbatim

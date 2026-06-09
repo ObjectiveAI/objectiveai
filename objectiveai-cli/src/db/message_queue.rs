@@ -13,7 +13,9 @@ use objectiveai_sdk::agent::completions::message::{
 use objectiveai_sdk::cli::command::agents::queue::read::pending::{
     QueuePart, QueuePartType, ResponseItem,
 };
-use objectiveai_sdk::client_objectiveai_mcp::server_response::ReadMessageQueueResult;
+use objectiveai_sdk::client_objectiveai_mcp::server_response::{
+    ReadMessageQueueResult, ReadMessageQueueRow,
+};
 use sqlx::{PgConnection, Postgres, Row as _, Transaction};
 
 use super::{Error, Pool};
@@ -786,46 +788,37 @@ pub async fn read_pending_and_upgrade_tag(
     .fetch_all(&mut *tx)
     .await?;
 
-    // Join every entry into one RichContent with `"\n\n"`
-    // separators between entries; collect the flat list of
-    // `message_queue_contents.id`s in consumption order. The
-    // count may differ from `rich_content`'s part count because
-    // of separator insertion + the single-text-part collapse path
-    // below. Kinds are resolved CLI-side at log-write time, so
-    // they don't ride on the wire.
+    // One `ReadMessageQueueRow` per queue parent — no cross-row
+    // separator splicing. Callers join if they want a unified
+    // shape (the API's startup snapshot does;
+    // `ApiQueueDelegate` keeps rows separate so each tool
+    // response surfaces its own content). Single-text-part
+    // collapse happens per row.
     let drained = rows_to_drained(rows)?;
-    let mut all_parts: Vec<RichContentPart> = Vec::new();
-    let mut all_ids: Vec<i64> = Vec::new();
-    for (i, row) in drained.into_iter().enumerate() {
-        if i > 0 {
-            all_parts.push(RichContentPart::Text {
-                text: "\n\n".to_string(),
-            });
-        }
+    let mut out_rows: Vec<ReadMessageQueueRow> = Vec::with_capacity(drained.len());
+    for row in drained {
         let (content_ids, parts) =
             fetch_content_parts_for_queue_id(&mut tx, row.message_queue_id).await?;
-        all_ids.extend(content_ids);
-        all_parts.extend(parts);
-    }
-    // Collapse single-text-part to RichContent::Text (lossless).
-    let rich_content = if all_parts.len() == 1
-        && matches!(all_parts.first(), Some(RichContentPart::Text { .. }))
-    {
-        let Some(RichContentPart::Text { text }) = all_parts.into_iter().next()
-        else {
-            unreachable!("matched single Text part above")
+        let rich_content = if parts.len() == 1
+            && matches!(parts.first(), Some(RichContentPart::Text { .. }))
+        {
+            let Some(RichContentPart::Text { text }) = parts.into_iter().next()
+            else {
+                unreachable!("matched single Text part above")
+            };
+            RichContent::Text(text)
+        } else {
+            RichContent::Parts(parts)
         };
-        RichContent::Text(text)
-    } else {
-        RichContent::Parts(all_parts)
-    };
+        out_rows.push(ReadMessageQueueRow {
+            content_ids,
+            rich_content,
+        });
+    }
     // Commit so the UPGRADE (if any) sticks. The SELECTs in the
     // same tx see the upgrade's effects already.
     tx.commit().await?;
-    Ok(ReadMessageQueueResult {
-        rich_content,
-        ids: all_ids,
-    })
+    Ok(ReadMessageQueueResult { rows: out_rows })
 }
 
 /// Like `reconstruct_rich_content` but returns the consumed
