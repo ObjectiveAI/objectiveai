@@ -492,8 +492,10 @@ pub async fn list_pending_for_targets(
         let sender = std::mem::take(sender);
         let key = key.take();
         let timestamp_queued = *timestamp;
+        let delete_id = parent.take().unwrap_or_default();
         if let Some(h) = aih.take() {
             out.push(ResponseItem::AgentInstanceHierarchy {
+                delete_id,
                 agent_instance_hierarchy: h,
                 sender_agent_instance_hierarchy: sender,
                 timestamp_queued,
@@ -502,6 +504,7 @@ pub async fn list_pending_for_targets(
             });
         } else if let Some(t) = tag.take() {
             out.push(ResponseItem::Tag {
+                delete_id,
                 agent_tag: t,
                 sender_agent_instance_hierarchy: sender,
                 timestamp_queued,
@@ -509,7 +512,6 @@ pub async fn list_pending_for_targets(
                 parts,
             });
         }
-        *parent = None;
         *timestamp = 0;
     };
 

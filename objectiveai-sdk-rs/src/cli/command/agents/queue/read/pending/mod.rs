@@ -92,6 +92,13 @@ pub struct QueuePart {
 pub enum ResponseItem {
     #[schemars(title = "AgentInstanceHierarchy")]
     AgentInstanceHierarchy {
+        /// `message_queue.id` — the row-level id this block
+        /// represents. Pass to `agents queue delete <id>` to
+        /// soft-flip the entire row (all parts) in one call.
+        /// Distinct from each `QueuePart.id` (which is a
+        /// `message_queue_contents.id` for drilling into one
+        /// content slot via `agents queue read id`).
+        delete_id: i64,
         agent_instance_hierarchy: String,
         /// AIH of the caller who enqueued — from
         /// `message_queue.sender_*`.
@@ -108,6 +115,8 @@ pub enum ResponseItem {
     },
     #[schemars(title = "Tag")]
     Tag {
+        /// `message_queue.id`. Pass to `agents queue delete <id>`.
+        delete_id: i64,
         agent_tag: String,
         sender_agent_instance_hierarchy: String,
         timestamp_queued: i64,
