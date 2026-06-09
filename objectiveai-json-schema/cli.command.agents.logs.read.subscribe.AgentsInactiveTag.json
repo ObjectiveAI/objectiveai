@@ -1,0 +1,8 @@
+{
+  "title": "cli.command.agents.logs.read.subscribe.AgentsInactiveTag",
+  "description": "Single-variant enum whose lone variant serializes as the\nliteral string `\"agents_inactive\"`. Construct as\n`AgentsInactiveTag::AgentsInactive`; the surrounding\n`ResponseItem::AgentsInactive(_)` carries it.",
+  "type": "string",
+  "enum": [
+    "agents_inactive"
+  ]
+}

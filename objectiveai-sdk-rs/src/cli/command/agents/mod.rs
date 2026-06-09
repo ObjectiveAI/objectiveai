@@ -7,7 +7,6 @@ pub mod publish;
 pub mod queue;
 pub mod spawn;
 pub mod tags;
-pub mod tasks;
 
 #[derive(clap::Subcommand)]
 pub enum Command {
@@ -44,11 +43,6 @@ pub enum Command {
     Tags {
         #[command(subcommand)]
         command: tags::Command,
-    },
-    /// Task store + (eventual) runner.
-    Tasks {
-        #[command(subcommand)]
-        command: tasks::Command,
     },
 }
 
@@ -94,8 +88,6 @@ pub enum Request {
     SpawnResponseSchema(spawn::response_schema::Request),
     #[schemars(title = "Tags")]
     Tags(tags::Request),
-    #[schemars(title = "Tasks")]
-    Tasks(tasks::Request),
 }
 
 // Exempt from json-schema coverage: tier aggregate (see the root
@@ -143,8 +135,6 @@ pub enum ResponseItem {
     SpawnResponseSchema(spawn::response_schema::Response),
     #[schemars(title = "Tags")]
     Tags(tags::ResponseItem),
-    #[schemars(title = "Tasks")]
-    Tasks(tasks::ResponseItem),
 }
 
 #[cfg(feature = "mcp")]
@@ -170,7 +160,6 @@ impl crate::cli::command::CommandResponse for ResponseItem {
             ResponseItem::SpawnRequestSchema(v) => v.into_mcp(),
             ResponseItem::SpawnResponseSchema(v) => v.into_mcp(),
             ResponseItem::Tags(v) => v.into_mcp(),
-            ResponseItem::Tasks(v) => v.into_mcp(),
         }
     }
 }
@@ -222,8 +211,6 @@ impl TryFrom<Command> for Request {
             },
             Command::Tags { command } =>
                 Ok(Request::Tags(tags::Request::try_from(command)?)),
-            Command::Tasks { command } =>
-                Ok(Request::Tasks(tasks::Request::try_from(command)?)),
         }
     }
 }
@@ -250,7 +237,6 @@ impl crate::cli::command::CommandRequest for Request {
             Request::SpawnRequestSchema(inner) => inner.into_command(),
             Request::SpawnResponseSchema(inner) => inner.into_command(),
             Request::Tags(inner) => inner.into_command(),
-            Request::Tasks(inner) => inner.into_command(),
         }
     }
 }
@@ -392,10 +378,6 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
                 let inner = tags::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Tags)))
             }
-            Request::Tasks(req) => {
-                let inner = tasks::execute(executor, req, agent_arguments).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Tasks)))
-            }
         };
     Ok(stream)
 }
@@ -511,10 +493,6 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
             }
             Request::Tags(req) => {
                 let inner = tags::execute_jq(executor, req, jq, agent_arguments).await?;
-                Box::pin(inner)
-            }
-            Request::Tasks(req) => {
-                let inner = tasks::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
         };

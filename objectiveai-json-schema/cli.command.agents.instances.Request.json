@@ -1,0 +1,29 @@
+{
+  "title": "cli.command.agents.instances.Request",
+  "anyOf": [
+    {
+      "title": "Me",
+      "$ref": "cli.command.agents.instances.me.Request"
+    },
+    {
+      "title": "MeRequestSchema",
+      "$ref": "cli.command.agents.instances.me.request_schema.Request"
+    },
+    {
+      "title": "MeResponseSchema",
+      "$ref": "cli.command.agents.instances.me.response_schema.Request"
+    },
+    {
+      "title": "List",
+      "$ref": "cli.command.agents.instances.list.Request"
+    },
+    {
+      "title": "ListRequestSchema",
+      "$ref": "cli.command.agents.instances.list.request_schema.Request"
+    },
+    {
+      "title": "ListResponseSchema",
+      "$ref": "cli.command.agents.instances.list.response_schema.Request"
+    }
+  ]
+}

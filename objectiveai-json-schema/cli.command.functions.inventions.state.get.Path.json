@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.functions.inventions.state.get.Path",
-  "type": "string",
-  "enum": [
-    "functions/inventions/state/get"
-  ]
-}

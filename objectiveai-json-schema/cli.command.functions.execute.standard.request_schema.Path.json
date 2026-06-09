@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.functions.execute.standard.request_schema.Path",
+  "type": "string",
+  "enum": [
+    "functions/execute/standard/request_schema"
+  ]
+}

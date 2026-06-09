@@ -1,0 +1,29 @@
+{
+  "title": "cli.command.functions.execute.Request",
+  "anyOf": [
+    {
+      "title": "Standard",
+      "$ref": "cli.command.functions.execute.standard.Request"
+    },
+    {
+      "title": "StandardRequestSchema",
+      "$ref": "cli.command.functions.execute.standard.request_schema.Request"
+    },
+    {
+      "title": "StandardResponseSchema",
+      "$ref": "cli.command.functions.execute.standard.response_schema.Request"
+    },
+    {
+      "title": "SwissSystem",
+      "$ref": "cli.command.functions.execute.swiss_system.Request"
+    },
+    {
+      "title": "SwissSystemRequestSchema",
+      "$ref": "cli.command.functions.execute.swiss_system.request_schema.Request"
+    },
+    {
+      "title": "SwissSystemResponseSchema",
+      "$ref": "cli.command.functions.execute.swiss_system.response_schema.Request"
+    }
+  ]
+}

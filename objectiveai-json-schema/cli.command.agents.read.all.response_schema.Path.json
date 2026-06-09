@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.agents.read.all.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "agents/read/all/response_schema"
-  ]
-}

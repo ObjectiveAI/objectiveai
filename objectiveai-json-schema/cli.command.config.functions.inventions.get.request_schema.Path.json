@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.config.functions.inventions.get.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "config/functions/inventions/get/request_schema"
-  ]
-}

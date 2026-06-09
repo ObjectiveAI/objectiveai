@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.agents.tags.lookup.Path",
-  "type": "string",
-  "enum": [
-    "agents/tags/lookup"
-  ]
-}

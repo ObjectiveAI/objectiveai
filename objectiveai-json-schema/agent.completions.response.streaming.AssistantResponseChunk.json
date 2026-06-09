@@ -81,6 +81,23 @@
       ],
       "omitempty": true
     },
+    "request_message_ids": {
+      "description": "`message_queue_contents.id`s the API consumed to seed this\nturn's request. Stamped onto the first assistant chunk the\nAPI emits downstream — when set, the consumer owns these\nrows. Kinds are resolved CLI-side at write time (SQL CASE\nagainst `message_queue_contents.kind`), so the wire stays\n`i64`-only. Both `None` and `Some(empty)` are skipped on\nserialize.",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": -9223372036854775808,
+            "maximum": 9223372036854775807
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "role": {
       "$ref": "agent.completions.response.AssistantRole"
     },

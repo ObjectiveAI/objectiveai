@@ -1,0 +1,17 @@
+{
+  "title": "cli.command.functions.execute.standard.RequestDangerousAdvanced",
+  "type": "object",
+  "properties": {
+    "stream": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

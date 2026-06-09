@@ -1,0 +1,26 @@
+{
+  "title": "cli.command.functions.execute.ProfileSpec",
+  "description": "CLI-surface form for the `--profile*` argument family — same\nshape as [`FunctionSpec`] but wrapping the profile inline-or-remote\nenum. See [`FunctionSpec`] for the variant semantics.",
+  "anyOf": [
+    {
+      "title": "Resolved",
+      "$ref": "functions.InlineProfileOrRemoteCommitOptional"
+    },
+    {
+      "title": "Favorite",
+      "type": "string"
+    },
+    {
+      "title": "File",
+      "type": "string"
+    },
+    {
+      "title": "PythonInline",
+      "type": "string"
+    },
+    {
+      "title": "PythonFile",
+      "type": "string"
+    }
+  ]
+}

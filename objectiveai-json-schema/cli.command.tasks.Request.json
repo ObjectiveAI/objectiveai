@@ -1,0 +1,41 @@
+{
+  "title": "cli.command.tasks.Request",
+  "anyOf": [
+    {
+      "title": "Schedule",
+      "$ref": "cli.command.tasks.schedule.Request"
+    },
+    {
+      "title": "ScheduleRequestSchema",
+      "$ref": "cli.command.tasks.schedule.request_schema.Request"
+    },
+    {
+      "title": "ScheduleResponseSchema",
+      "$ref": "cli.command.tasks.schedule.response_schema.Request"
+    },
+    {
+      "title": "List",
+      "$ref": "cli.command.tasks.list.Request"
+    },
+    {
+      "title": "ListRequestSchema",
+      "$ref": "cli.command.tasks.list.request_schema.Request"
+    },
+    {
+      "title": "ListResponseSchema",
+      "$ref": "cli.command.tasks.list.response_schema.Request"
+    },
+    {
+      "title": "Run",
+      "$ref": "cli.command.tasks.run.Request"
+    },
+    {
+      "title": "RunRequestSchema",
+      "$ref": "cli.command.tasks.run.request_schema.Request"
+    },
+    {
+      "title": "RunResponseSchema",
+      "$ref": "cli.command.tasks.run.response_schema.Request"
+    }
+  ]
+}

@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.agents.message_queue.delete.Path",
-  "type": "string",
-  "enum": [
-    "agents/message-queue/delete"
-  ]
-}

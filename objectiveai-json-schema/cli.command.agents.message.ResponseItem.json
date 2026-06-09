@@ -1,29 +1,80 @@
 {
   "title": "cli.command.agents.message.ResponseItem",
-  "description": "Streamed-mode wire shape for `agents message`. Emitted as one\nJSON-line per item on the cli's stdout when\n`Request::dangerous_advanced.stream = Some(true)`. Untagged shape\nis forward-compatible with [`Response`]: in stream mode, item 0 is\nalways a `Queued` or `Delivered` variant carrying the same fields\nas the unary `Response::Queued` / `Response::Delivered`. Under the\n`Queued` path with streaming on, item 0 is followed by zero or\nmore `Chunk` items until the spawned instance-runner's stdout\nEOFs.",
+  "description": "Streamed response (stream=true). The cli yields a sequence of\nthese. Same `Delivered` / `Enqueued` / `Id` first-item\nsemantics as [`Response`]; the spawn-take-over branch adds\nstreaming `Chunk` items after the initial `Id`.",
   "anyOf": [
     {
-      "title": "Chunk",
-      "$ref": "agent.completions.response.streaming.AgentCompletionChunk"
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "delivered"
+          ]
+        }
+      }
     },
     {
-      "title": "Queued",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "agent_tag": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "id": {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "enqueued"
+          ]
+        }
+      }
+    },
+    {
       "type": "object",
       "properties": {
         "agent_instance_hierarchy": {
           "type": "string"
         },
-        "response_id": {
-          "type": "string"
+        "type": {
+          "type": "string",
+          "enum": [
+            "id"
+          ]
         }
       }
     },
     {
-      "title": "Delivered",
+      "description": "Newtype-of-struct under an internally-tagged enum: the\nchunk's own fields land at the top level of the JSON, with\n`\"type\":\"chunk\"` injected. Wire shape equivalent to spawn's\n`ResponseItem::Chunk(AgentCompletionChunk)` plus the `type`\ndiscriminator.",
       "type": "object",
+      "$ref": "agent.completions.response.streaming.AgentCompletionChunk",
       "properties": {
-        "agent_instance_hierarchy": {
-          "type": "string"
+        "type": {
+          "type": "string",
+          "enum": [
+            "chunk"
+          ]
         }
       }
     }

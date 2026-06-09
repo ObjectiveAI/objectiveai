@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.config.functions.inventions.get.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "config/functions/inventions/get/response_schema"
-  ]
-}

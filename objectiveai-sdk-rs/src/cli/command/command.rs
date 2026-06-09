@@ -29,6 +29,10 @@ pub enum Command {
         #[command(subcommand)]
         command: super::swarms::Command,
     },
+    Tasks {
+        #[command(subcommand)]
+        command: super::tasks::Command,
+    },
     Tools {
         #[command(subcommand)]
         command: super::tools::Command,
@@ -56,6 +60,8 @@ pub enum Request {
     Plugins(super::plugins::Request),
     #[schemars(title = "Swarms")]
     Swarms(super::swarms::Request),
+    #[schemars(title = "Tasks")]
+    Tasks(super::tasks::Request),
     #[schemars(title = "Tools")]
     Tools(super::tools::Request),
     #[schemars(title = "Update")]
@@ -90,6 +96,8 @@ pub enum ResponseItem {
     Plugins(super::plugins::ResponseItem),
     #[schemars(title = "Swarms")]
     Swarms(super::swarms::ResponseItem),
+    #[schemars(title = "Tasks")]
+    Tasks(super::tasks::ResponseItem),
     #[schemars(title = "Tools")]
     Tools(super::tools::ResponseItem),
     #[schemars(title = "Update")]
@@ -112,6 +120,7 @@ impl super::CommandResponse for ResponseItem {
             ResponseItem::Mcp(v) => v.into_mcp(),
             ResponseItem::Plugins(v) => v.into_mcp(),
             ResponseItem::Swarms(v) => v.into_mcp(),
+            ResponseItem::Tasks(v) => v.into_mcp(),
             ResponseItem::Tools(v) => v.into_mcp(),
             ResponseItem::Update(v) => v.into_mcp(),
             ResponseItem::UpdateRequestSchema(v) => v.into_mcp(),
@@ -137,6 +146,8 @@ impl TryFrom<Command> for Request {
                 Ok(Request::Plugins(super::plugins::Request::try_from(command)?)),
             Command::Swarms { command } =>
                 Ok(Request::Swarms(super::swarms::Request::try_from(command)?)),
+            Command::Tasks { command } =>
+                Ok(Request::Tasks(super::tasks::Request::try_from(command)?)),
             Command::Tools { command } =>
                 Ok(Request::Tools(super::tools::Request::try_from(command)?)),
             Command::Update(cmd) => match cmd.schema {
@@ -161,6 +172,7 @@ impl super::CommandRequest for Request {
             Request::Mcp(inner) => inner.into_command(),
             Request::Plugins(inner) => inner.into_command(),
             Request::Swarms(inner) => inner.into_command(),
+            Request::Tasks(inner) => inner.into_command(),
             Request::Tools(inner) => inner.into_command(),
             Request::Update(inner) => inner.into_command(),
             Request::UpdateRequestSchema(inner) => inner.into_command(),
@@ -206,6 +218,10 @@ pub async fn execute<E: super::CommandExecutor>(
             Request::Swarms(req) => {
                 let inner = super::swarms::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Swarms)))
+            }
+            Request::Tasks(req) => {
+                let inner = super::tasks::execute(executor, req, agent_arguments).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Tasks)))
             }
             Request::Tools(req) => {
                 let inner = super::tools::execute(executor, req, agent_arguments).await?;
@@ -266,6 +282,10 @@ pub async fn execute_jq<E: super::CommandExecutor>(
             }
             Request::Swarms(req) => {
                 let inner = super::swarms::execute_jq(executor, req, jq, agent_arguments).await?;
+                Box::pin(inner)
+            }
+            Request::Tasks(req) => {
+                let inner = super::tasks::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Tools(req) => {

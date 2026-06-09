@@ -1,0 +1,11 @@
+{
+  "title": "cli.command.tasks.run.ResponseItem",
+  "description": "One output item from one fired schedule's in-process stream.\n`id` is the source schedule's stable identifier, formatted\n`\"{name}-{db_id}\"` so it's both human-readable (the user-\nsupplied `--name` from `schedule`) and globally unique (the\nrow id from `schedules`). `value` is the typed root\n[`crate::cli::command::ResponseItem`] emitted by the scheduled\ncli leaf — boxed because the root union transitively contains\n*this* variant (`agents → tasks → run`), and boxing is what\nmakes the recursion sized.\n\nThe `value` field's JSON schema is opaqued to `serde_json::Value`\n(renders as bare `{}` aka JsonValue) so the published schema\ndoesn't inline the entire root union — that's the TS7056 blowup\nthe root and tier aggregates dodge by being `json_schema_ignore`.\nDownstream SDKs see `value: JsonValue` on the typed `execute`\npath; consumers that want to peer inside parse it case-by-case.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "value": {}
+  }
+}

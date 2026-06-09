@@ -1344,6 +1344,50 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::swarms::publish::response_schema::Request),
         #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::tasks::Request),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::tasks::list::Path),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::tasks::list::Request),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::tasks::list::ResponseItem),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::tasks::list::request_schema::Path),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::tasks::list::request_schema::Request),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::tasks::list::response_schema::Path),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::tasks::list::response_schema::Request),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::tasks::run::Path),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::tasks::run::Request),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::tasks::run::ResponseItem),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::tasks::run::request_schema::Path),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::tasks::run::request_schema::Request),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::tasks::run::response_schema::Path),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::tasks::run::response_schema::Request),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::tasks::schedule::Path),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::tasks::schedule::Request),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::tasks::schedule::Response),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::tasks::schedule::request_schema::Path),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::tasks::schedule::request_schema::Request),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::tasks::schedule::response_schema::Path),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::tasks::schedule::response_schema::Request),
+        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::tools::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::tools::get::Path),

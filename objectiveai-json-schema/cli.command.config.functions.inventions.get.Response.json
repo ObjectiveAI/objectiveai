@@ -1,9 +1,0 @@
-{
-  "title": "cli.command.config.functions.inventions.get.Response",
-  "type": "object",
-  "properties": {
-    "remote": {
-      "$ref": "Remote"
-    }
-  }
-}

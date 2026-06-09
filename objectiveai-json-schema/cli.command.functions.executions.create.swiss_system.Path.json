@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.functions.executions.create.swiss_system.Path",
-  "type": "string",
-  "enum": [
-    "functions/executions/create/swiss_system"
-  ]
-}

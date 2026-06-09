@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.agents.tasks.run.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "agents/tasks/run/response_schema"
-  ]
-}

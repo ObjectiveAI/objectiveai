@@ -18,10 +18,6 @@
       "$ref": "cli.command.config.functions.favorites.Request"
     },
     {
-      "title": "Inventions",
-      "$ref": "cli.command.config.functions.inventions.Request"
-    },
-    {
       "title": "Profiles",
       "$ref": "cli.command.config.functions.profiles.Request"
     }

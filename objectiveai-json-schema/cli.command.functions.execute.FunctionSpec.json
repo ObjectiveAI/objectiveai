@@ -1,0 +1,26 @@
+{
+  "title": "cli.command.functions.execute.FunctionSpec",
+  "description": "CLI-surface form for the `--function*` argument family: either a\nfully resolved inline-or-remote spec (the JSON object form that\nlands on `--function-inline`, or the docker-style remote-path\nstring on `--function`), a bare favorite name (also on `--function`\n— disambiguated from a remote path by the FromStr at parse time),\nthe path to a JSON file (`--function-file`), or a Python harness\n— inline (`--function-python-inline`) or file\n(`--function-python-file`) — that produces the inline-or-remote\nJSON at handler time.\n\nUntagged so existing on-disk JSON for `Resolved`/`Favorite`\nround-trips byte-identically; `File`/`PythonInline`/`PythonFile`\nare new variants that only appear on the cli wire side.",
+  "anyOf": [
+    {
+      "title": "Resolved",
+      "$ref": "functions.FullInlineFunctionOrRemoteCommitOptional"
+    },
+    {
+      "title": "Favorite",
+      "type": "string"
+    },
+    {
+      "title": "File",
+      "type": "string"
+    },
+    {
+      "title": "PythonInline",
+      "type": "string"
+    },
+    {
+      "title": "PythonFile",
+      "type": "string"
+    }
+  ]
+}

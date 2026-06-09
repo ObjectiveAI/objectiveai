@@ -17,6 +17,7 @@ pub mod list_helpers;
 pub mod mcp;
 pub mod plugins;
 pub mod swarms;
+pub mod tasks;
 pub mod tools;
 pub mod update;
 pub mod viewer;

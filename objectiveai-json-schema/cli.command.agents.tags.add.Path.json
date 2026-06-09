@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.agents.tags.add.Path",
-  "type": "string",
-  "enum": [
-    "agents/tags/add"
-  ]
-}

@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.logs.clear.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "logs/clear/request_schema"
-  ]
-}

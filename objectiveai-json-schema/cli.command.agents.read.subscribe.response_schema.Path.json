@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.agents.read.subscribe.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "agents/read/subscribe/response_schema"
-  ]
-}

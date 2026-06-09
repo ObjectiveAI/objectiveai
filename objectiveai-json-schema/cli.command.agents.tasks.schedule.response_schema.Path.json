@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.agents.tasks.schedule.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "agents/tasks/schedule/response_schema"
-  ]
-}

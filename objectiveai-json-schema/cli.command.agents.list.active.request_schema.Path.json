@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.agents.list.active.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "agents/list/active/request_schema"
-  ]
-}

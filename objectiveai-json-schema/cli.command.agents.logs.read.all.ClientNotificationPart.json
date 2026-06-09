@@ -1,0 +1,22 @@
+{
+  "title": "cli.command.agents.logs.read.all.ClientNotificationPart",
+  "description": "One row inside a `ClientNotification` block — a consumed\n`message_queue_contents` entry. `timestamp_queued` is on the\nenclosing block (it lives on `message_queue.enqueued_at`, not\nper-content); only the per-row consumption timestamp is here.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "description": "`logs.messages.\"index\"` for this row. Pass to\n`agents logs read id <n>` to fetch the consumed\n`message_queue_contents` body.",
+      "type": "integer",
+      "minimum": -9223372036854775808,
+      "maximum": 9223372036854775807
+    },
+    "timestamp_delivered": {
+      "description": "`logs.messages.\"timestamp\"` — when the receiver consumed\nthis content row and the LogWriter committed the\nconsumption event.",
+      "type": "integer",
+      "minimum": -9223372036854775808,
+      "maximum": 9223372036854775807
+    },
+    "type": {
+      "$ref": "cli.command.agents.logs.read.all.ClientNotificationPartType"
+    }
+  }
+}

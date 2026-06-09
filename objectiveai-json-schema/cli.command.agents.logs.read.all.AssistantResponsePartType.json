@@ -1,0 +1,15 @@
+{
+  "title": "cli.command.agents.logs.read.all.AssistantResponsePartType",
+  "description": "Type tag for one `AssistantResponse` part — the table-kind of\nthe underlying `assistant_response_*` row.",
+  "type": "string",
+  "enum": [
+    "refusal",
+    "reasoning",
+    "tool_call",
+    "text",
+    "image",
+    "audio",
+    "video",
+    "file"
+  ]
+}

@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.logs.vector.completions.request.subscribe.Path",
-  "type": "string",
-  "enum": [
-    "logs/vector/completions/request/subscribe"
-  ]
-}

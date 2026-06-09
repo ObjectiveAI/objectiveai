@@ -24,6 +24,23 @@
       ],
       "omitempty": true
     },
+    "request_message_ids": {
+      "description": "Mirrors `AssistantResponseChunk.request_message_ids` —\nthe consumed `message_queue_contents.id`s. Currently never\npopulated (the API stamps the assistant chunk instead);\nthe field exists so the wire shape is symmetric across\nthe two `MessageChunk` variants. Both `None` and\n`Some(empty)` are skipped on serialize.",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": -9223372036854775808,
+            "maximum": 9223372036854775807
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "role": {
       "$ref": "agent.completions.response.ToolRole"
     },

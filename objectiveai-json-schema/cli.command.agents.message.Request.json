@@ -3,6 +3,7 @@
   "type": "object",
   "properties": {
     "dangerous_advanced": {
+      "description": "`Some(true)` → in-process streaming delivery / spawn.\n`None | Some(false)` → detached subprocess re-exec for the\nspawn-take-over case; the call returns the first item of\nthat child's stream. Ignored when `enqueue.is_some()` — the\nenqueue path yields a single-item stream identical to its\nunary response.",
       "anyOf": [
         {
           "$ref": "cli.command.agents.message.RequestDangerousAdvanced"
@@ -10,7 +11,20 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "omitempty": true
+    },
+    "enqueue": {
+      "description": "`None` (default) → run the full delivery flow (resolve\ntarget, lock-race, spawn-takeover). `Some(_)` →\nshort-circuit straight into the queue against the target;\nno lookup, no race, no spawn. With `Keyed { key }`, any\npre-existing row scoped to the same target + key is deleted\nbefore insert.",
+      "anyOf": [
+        {
+          "$ref": "cli.command.agents.message.EnqueueMode"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
     },
     "jq": {
       "anyOf": [
@@ -23,22 +37,11 @@
       ]
     },
     "message": {
+      "description": "Required payload. The eventual enqueue / delivery / spawn\nalways carries this exact `RichContent` as its single\nuser message.",
       "$ref": "cli.command.agents.message.RequestMessage"
     },
     "path_type": {
       "$ref": "cli.command.agents.message.Path"
-    },
-    "seed": {
-      "anyOf": [
-        {
-          "type": "integer",
-          "minimum": -9223372036854775808,
-          "maximum": 9223372036854775807
-        },
-        {
-          "type": "null"
-        }
-      ]
     },
     "target": {
       "$ref": "cli.command.agents.message.MessageTarget"

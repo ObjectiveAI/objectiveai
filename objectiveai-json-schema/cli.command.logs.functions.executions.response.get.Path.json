@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.logs.functions.executions.response.get.Path",
-  "type": "string",
-  "enum": [
-    "logs/functions/executions/response/get"
-  ]
-}

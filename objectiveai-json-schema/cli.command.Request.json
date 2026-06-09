@@ -14,10 +14,6 @@
       "$ref": "cli.command.functions.Request"
     },
     {
-      "title": "Logs",
-      "$ref": "cli.command.logs.Request"
-    },
-    {
       "title": "Mcp",
       "$ref": "cli.command.mcp.Request"
     },
@@ -28,6 +24,10 @@
     {
       "title": "Swarms",
       "$ref": "cli.command.swarms.Request"
+    },
+    {
+      "title": "Tasks",
+      "$ref": "cli.command.tasks.Request"
     },
     {
       "title": "Tools",

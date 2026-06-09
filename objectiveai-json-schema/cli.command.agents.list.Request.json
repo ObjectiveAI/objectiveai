@@ -1,29 +1,22 @@
 {
   "title": "cli.command.agents.list.Request",
-  "anyOf": [
-    {
-      "title": "Active",
-      "$ref": "cli.command.agents.list.active.Request"
+  "type": "object",
+  "properties": {
+    "jq": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
-    {
-      "title": "ActiveRequestSchema",
-      "$ref": "cli.command.agents.list.active.request_schema.Request"
+    "path_type": {
+      "$ref": "cli.command.agents.list.Path"
     },
-    {
-      "title": "ActiveResponseSchema",
-      "$ref": "cli.command.agents.list.active.response_schema.Request"
-    },
-    {
-      "title": "Available",
-      "$ref": "cli.command.agents.list.available.Request"
-    },
-    {
-      "title": "AvailableRequestSchema",
-      "$ref": "cli.command.agents.list.available.request_schema.Request"
-    },
-    {
-      "title": "AvailableResponseSchema",
-      "$ref": "cli.command.agents.list.available.response_schema.Request"
+    "source": {
+      "$ref": "cli.command.agents.list.RequestSource"
     }
-  ]
+  }
 }

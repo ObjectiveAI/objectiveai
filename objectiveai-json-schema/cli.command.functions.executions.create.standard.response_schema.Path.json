@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.functions.executions.create.standard.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "functions/executions/create/standard/response_schema"
-  ]
-}

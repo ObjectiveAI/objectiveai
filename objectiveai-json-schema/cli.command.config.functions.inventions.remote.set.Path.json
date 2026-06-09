@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.config.functions.inventions.remote.set.Path",
-  "type": "string",
-  "enum": [
-    "config/functions/inventions/remote/set"
-  ]
-}

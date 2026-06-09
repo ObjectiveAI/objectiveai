@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.logs.functions.inventions.request.subscribe.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "logs/functions/inventions/request/subscribe/response_schema"
-  ]
-}

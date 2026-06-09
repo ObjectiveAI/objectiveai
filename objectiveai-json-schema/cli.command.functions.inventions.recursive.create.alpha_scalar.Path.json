@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.functions.inventions.recursive.create.alpha_scalar.Path",
-  "type": "string",
-  "enum": [
-    "functions/inventions/recursive/create/alpha_scalar"
-  ]
-}

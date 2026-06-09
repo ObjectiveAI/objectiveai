@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.logs.agents.completions.response.messages.assistant.image.subscribe.Path",
-  "type": "string",
-  "enum": [
-    "logs/agents/completions/response/messages/assistant/image/subscribe"
-  ]
-}

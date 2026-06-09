@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.logs.functions.inventions.recursive.request.subscribe.Path",
-  "type": "string",
-  "enum": [
-    "logs/functions/inventions/recursive/request/subscribe"
-  ]
-}

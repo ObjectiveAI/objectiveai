@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.agents.list.active.Path",
-  "type": "string",
-  "enum": [
-    "agents/list/active"
-  ]
-}

@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.agents.list.available.Path",
-  "type": "string",
-  "enum": [
-    "agents/list/available"
-  ]
-}

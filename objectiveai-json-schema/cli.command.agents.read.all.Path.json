@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.agents.read.all.Path",
-  "type": "string",
-  "enum": [
-    "agents/read/all"
-  ]
-}

@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.agents.message_queue.add.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "agents/message-queue/add/request_schema"
-  ]
-}

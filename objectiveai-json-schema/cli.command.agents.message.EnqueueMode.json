@@ -1,0 +1,35 @@
+{
+  "title": "cli.command.agents.message.EnqueueMode",
+  "description": "\"Fire and forget into the queue\" mode. When attached to a\n[`Request`] via [`Request::enqueue`], the handler short-circuits:\nno tag lookup, no lock-file race, no spawn-takeover, no detached\nrespawn — just one INSERT (preceded by a key-collision DELETE\nwhen `Keyed`) and a [`Response::Enqueued`] reply.\n\nKey scope is per-target: the row's `(agent_instance_hierarchy,\nkey)` or `(agent_tag, key)` pair is unique. Replacing an existing\nrow scoped to one target leaves rows under other targets alone.",
+  "anyOf": [
+    {
+      "title": "Plain",
+      "description": "`--enqueue` — bare enqueue, no idempotency key.",
+      "type": "object",
+      "properties": {
+        "by": {
+          "type": "string",
+          "enum": [
+            "plain"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Keyed",
+      "description": "`--enqueue-with-key <KEY>` — idempotent enqueue. Existing\nqueue rows scoped to the same target (AIH or tag) AND key\nare deleted before the insert lands.",
+      "type": "object",
+      "properties": {
+        "by": {
+          "type": "string",
+          "enum": [
+            "keyed"
+          ]
+        },
+        "key": {
+          "type": "string"
+        }
+      }
+    }
+  ]
+}

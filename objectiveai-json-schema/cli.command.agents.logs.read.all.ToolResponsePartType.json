@@ -1,0 +1,13 @@
+{
+  "title": "cli.command.agents.logs.read.all.ToolResponsePartType",
+  "description": "Type tag for one `ToolResponse` part. `Container` is the\n`tool_response` head row (carries `tool_call_id`); the other\nfive are content slots.",
+  "type": "string",
+  "enum": [
+    "container",
+    "text",
+    "image",
+    "audio",
+    "video",
+    "file"
+  ]
+}

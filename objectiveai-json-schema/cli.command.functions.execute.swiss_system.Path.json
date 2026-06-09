@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.functions.execute.swiss_system.Path",
+  "type": "string",
+  "enum": [
+    "functions/execute/swiss_system"
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "title": "cli.command.agents.spawn.AgentResolution",
+  "description": "Discriminated agent-resolution mode for `agents spawn`.\n\n- `Direct` — `--agent <ref>` / `--agent-inline <json>` paths\n  produce an `AgentSpec` directly. No tag is involved; the\n  conduit constructs without an `agent_tag`.\n- `Tag` — `--agent-tag <name>` references an existing GROUPED\n  tag (BOUND tags are rejected — there's already a live AIH for\n  them, use `agents message` instead). The CLI handler\n  resolves the tag → `tag_groups` row, takes the row's\n  `agent_spec` to spawn, and threads the tag name into the\n  conduit so the spawn's `agent_instance_hierarchy` flips the\n  whole group to BOUND on the first conduit read.",
+  "anyOf": [
+    {
+      "title": "Direct",
+      "type": "object",
+      "properties": {
+        "agent_spec": {
+          "$ref": "cli.command.agents.spawn.AgentSpec"
+        },
+        "by": {
+          "type": "string",
+          "enum": [
+            "direct"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Tag",
+      "type": "object",
+      "properties": {
+        "agent_tag": {
+          "type": "string"
+        },
+        "by": {
+          "type": "string",
+          "enum": [
+            "tag"
+          ]
+        }
+      }
+    }
+  ]
+}

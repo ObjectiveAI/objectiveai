@@ -54,6 +54,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             let inner = super::swarms::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Swarms)))
         }
+        Request::Tasks(req) => {
+            let inner = super::tasks::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Tasks)))
+        }
         Request::Tools(req) => {
             let inner = super::tools::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Tools)))

@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.logs.vector.completions.response.get.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "logs/vector/completions/response/get/request_schema"
-  ]
-}

@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.agents.read.pending.Path",
-  "type": "string",
-  "enum": [
-    "agents/read/pending"
-  ]
-}

@@ -1,0 +1,48 @@
+{
+  "title": "cli.command.tasks.schedule.Request",
+  "type": "object",
+  "properties": {
+    "command": {
+      "description": "argv to invoke on each scheduled poll.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "description": {
+      "description": "Human-readable label. Required — surfaces on every\n`agents tasks list` row, and the runner uses it in\nobservability output.",
+      "type": "string"
+    },
+    "interval_seconds": {
+      "description": "Floor on wall-clock seconds between invocations. `None`\nmarks a **oneshot** schedule — the runner fires it once on\nthe next poll and deletes the row. `Some(n)` is a recurring\nschedule with `n` seconds as the minimum gap between\ninvocations.",
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "jq": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "name": {
+      "description": "User-facing identifier. Globally unique — a second\n`schedule` with the same name fails the\n`schedules.name` UNIQUE constraint. `agents tasks run`\ntags every streamed output line with this name so the\ncaller can attribute output to its source schedule.",
+      "type": "string"
+    },
+    "path_type": {
+      "$ref": "cli.command.tasks.schedule.Path"
+    }
+  }
+}

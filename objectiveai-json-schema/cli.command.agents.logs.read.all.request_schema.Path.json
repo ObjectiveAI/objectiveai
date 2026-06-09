@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.agents.logs.read.all.request_schema.Path",
+  "type": "string",
+  "enum": [
+    "agents/logs/read/all/request_schema"
+  ]
+}

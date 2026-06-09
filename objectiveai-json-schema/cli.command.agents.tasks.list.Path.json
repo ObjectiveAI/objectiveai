@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.agents.tasks.list.Path",
-  "type": "string",
-  "enum": [
-    "agents/tasks/list"
-  ]
-}

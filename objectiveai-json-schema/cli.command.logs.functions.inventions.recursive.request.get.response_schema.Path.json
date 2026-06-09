@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.logs.functions.inventions.recursive.request.get.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "logs/functions/inventions/recursive/request/get/response_schema"
-  ]
-}

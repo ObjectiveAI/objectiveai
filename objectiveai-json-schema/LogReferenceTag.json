@@ -1,8 +1,0 @@
-{
-  "title": "LogReferenceTag",
-  "description": "Constant `\"reference\"` discriminator — the `\"type\"` field on every\n`LogReference` variant.",
-  "type": "string",
-  "enum": [
-    "reference"
-  ]
-}

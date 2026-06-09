@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.agents.tasks.schedule.Path",
-  "type": "string",
-  "enum": [
-    "agents/tasks/schedule"
-  ]
-}

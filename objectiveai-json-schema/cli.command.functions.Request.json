@@ -2,8 +2,8 @@
   "title": "cli.command.functions.Request",
   "anyOf": [
     {
-      "title": "Executions",
-      "$ref": "cli.command.functions.executions.create.Request"
+      "title": "Execute",
+      "$ref": "cli.command.functions.execute.Request"
     },
     {
       "title": "Get",
@@ -16,10 +16,6 @@
     {
       "title": "GetResponseSchema",
       "$ref": "cli.command.functions.get.response_schema.Request"
-    },
-    {
-      "title": "Inventions",
-      "$ref": "cli.command.functions.inventions.Request"
     },
     {
       "title": "List",

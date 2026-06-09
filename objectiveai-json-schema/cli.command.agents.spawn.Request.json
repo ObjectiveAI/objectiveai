@@ -3,19 +3,8 @@
   "type": "object",
   "properties": {
     "agent": {
-      "$ref": "cli.command.agents.spawn.AgentSpec"
-    },
-    "agent_tag": {
-      "description": "Optional tag name to bind to the spawned agent's\n`agent_instance_hierarchy` on first chunk. See\n`agents tags` for the storage model.",
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
+      "description": "How to resolve the agent for this spawn: either a directly-\nspecified `AgentSpec` (`--agent` / `--agent-inline`) or a\nreference to an existing tag (`--agent-tag`). When a tag is\nused, the conduit injects the tag at construction time so\nevery conduit read fires the tag-group upgrade — flipping\nevery tag in the group to BOUND on the spawn's\n`agent_instance_hierarchy`.",
+      "$ref": "cli.command.agents.spawn.AgentResolution"
     },
     "dangerous_advanced": {
       "anyOf": [
@@ -37,11 +26,12 @@
         }
       ]
     },
+    "message": {
+      "description": "Initial user message. The CLI turns it into a single\n`Message::User` at the head of the `messages` array on the\nAPI call. Same wire shape as `agents message`'s\n`RequestMessage` — `Simple`, `Inline(RichContent)`,\n`File`, `PythonInline`, `PythonFile`.",
+      "$ref": "cli.command.agents.message.RequestMessage"
+    },
     "path_type": {
       "$ref": "cli.command.agents.spawn.Path"
-    },
-    "prompt": {
-      "$ref": "cli.command.agents.spawn.RequestPrompt"
     },
     "seed": {
       "anyOf": [

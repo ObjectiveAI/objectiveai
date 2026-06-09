@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.functions.inventions.recursive.create.remote.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "functions/inventions/recursive/create/remote/request_schema"
-  ]
-}

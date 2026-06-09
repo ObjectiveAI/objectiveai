@@ -1,0 +1,53 @@
+{
+  "title": "cli.command.agents.logs.read.pending.Request",
+  "type": "object",
+  "properties": {
+    "after_id": {
+      "description": "Skip rows with `logs.messages.\"index\" <= after_id`. Composes\nwith the per-child watermark (`GREATEST` of the two applies).",
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "jq": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "limit": {
+      "description": "Cap on rows scanned per target. Defaults to 1000 server-side\nwhen omitted.",
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "path_type": {
+      "$ref": "cli.command.agents.logs.read.pending.Path"
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "$ref": "cli.command.agents.logs.read.all.Target"
+      }
+    }
+  }
+}

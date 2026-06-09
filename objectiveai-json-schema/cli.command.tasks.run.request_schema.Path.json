@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.tasks.run.request_schema.Path",
+  "type": "string",
+  "enum": [
+    "tasks/run/request_schema"
+  ]
+}

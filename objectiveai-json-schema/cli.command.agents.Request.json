@@ -14,20 +14,24 @@
       "$ref": "cli.command.agents.get.response_schema.Request"
     },
     {
+      "title": "Instances",
+      "$ref": "cli.command.agents.instances.Request"
+    },
+    {
       "title": "List",
       "$ref": "cli.command.agents.list.Request"
     },
     {
-      "title": "Me",
-      "$ref": "cli.command.agents.me.Request"
+      "title": "ListRequestSchema",
+      "$ref": "cli.command.agents.list.request_schema.Request"
     },
     {
-      "title": "MeRequestSchema",
-      "$ref": "cli.command.agents.me.request_schema.Request"
+      "title": "ListResponseSchema",
+      "$ref": "cli.command.agents.list.response_schema.Request"
     },
     {
-      "title": "MeResponseSchema",
-      "$ref": "cli.command.agents.me.response_schema.Request"
+      "title": "Logs",
+      "$ref": "cli.command.agents.logs.Request"
     },
     {
       "title": "Message",
@@ -54,12 +58,8 @@
       "$ref": "cli.command.agents.publish.response_schema.Request"
     },
     {
-      "title": "MessageQueue",
-      "$ref": "cli.command.agents.message_queue.Request"
-    },
-    {
-      "title": "Read",
-      "$ref": "cli.command.agents.read.Request"
+      "title": "Queue",
+      "$ref": "cli.command.agents.queue.Request"
     },
     {
       "title": "Spawn",
@@ -76,10 +76,6 @@
     {
       "title": "Tags",
       "$ref": "cli.command.agents.tags.Request"
-    },
-    {
-      "title": "Tasks",
-      "$ref": "cli.command.agents.tasks.Request"
     }
   ]
 }
