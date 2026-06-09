@@ -61,6 +61,13 @@ struct MsgRow {
     /// row. Some only for `message_queue_*` rows; lives at
     /// block level on the emitted `ClientNotification`.
     timestamp_queued: Option<i64>,
+    /// `message_queue.key` of the consumed parent queue row —
+    /// the idempotency token passed to
+    /// `agents message --enqueue-with-key`. Some only for
+    /// `message_queue_*` rows, and only when the parent row had
+    /// a key set; lives at block level on the emitted
+    /// `ClientNotification`.
+    message_queue_key: Option<String>,
 }
 
 /// Coarse block-class for a `logs.message_table` value. Block
@@ -163,7 +170,8 @@ const SELECT_SHAPE: &str = "SELECT \
         ELSE NULL \
     END AS sender_agent_instance_hierarchy, \
     mq.id AS message_queue_id, \
-    mq.enqueued_at AS timestamp_queued";
+    mq.enqueued_at AS timestamp_queued, \
+    mq.key AS message_queue_key";
 
 const FROM_JOINS: &str = "FROM logs.messages m \
     LEFT JOIN message_queue_contents mqc \
@@ -193,6 +201,7 @@ fn row_into_msg(r: &sqlx::postgres::PgRow) -> Result<MsgRow, Error> {
         sender_agent_instance_hierarchy: r.try_get("sender_agent_instance_hierarchy")?,
         message_queue_id: r.try_get("message_queue_id")?,
         timestamp_queued: r.try_get("timestamp_queued")?,
+        message_queue_key: r.try_get("message_queue_key")?,
     })
 }
 
@@ -214,6 +223,10 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
     /// `Some` only for an open `ClientNotification` block —
     /// `message_queue.enqueued_at`.
     let mut cur_timestamp_queued: Option<i64> = None;
+    /// `Some` only for an open `ClientNotification` block AND
+    /// only when the parent queue row had `--key` set —
+    /// `message_queue.key`.
+    let mut cur_key: Option<String> = None;
     let mut cur_notification_parts: Vec<ClientNotificationPart> = Vec::new();
     let mut cur_assistant_parts: Vec<AssistantResponsePart> = Vec::new();
     let mut cur_tool_parts: Vec<ToolResponsePart> = Vec::new();
@@ -224,6 +237,7 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
                  sender: &mut Option<String>,
                  mq_id: &mut Option<i64>,
                  timestamp_queued: &mut Option<i64>,
+                 key: &mut Option<String>,
                  notification_parts: &mut Vec<ClientNotificationPart>,
                  assistant_parts: &mut Vec<AssistantResponsePart>,
                  tool_parts: &mut Vec<ToolResponsePart>,
@@ -235,6 +249,7 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
                     sender_agent_instance_hierarchy: sender.take().unwrap_or_default(),
                     response_id: std::mem::take(rid),
                     timestamp_queued: timestamp_queued.take().unwrap_or_default(),
+                    key: key.take(),
                     parts: std::mem::take(notification_parts),
                 });
                 *mq_id = None;
@@ -259,6 +274,7 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
                 *sender = None;
                 *mq_id = None;
                 *timestamp_queued = None;
+                *key = None;
                 notification_parts.clear();
                 assistant_parts.clear();
                 tool_parts.clear();
@@ -274,7 +290,7 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
             BlockClass::AgentCompletionRequest => {
                 flush(
                     cur_class, &mut cur_aih, &mut cur_rid, &mut cur_sender,
-                    &mut cur_mq_id, &mut cur_timestamp_queued,
+                    &mut cur_mq_id, &mut cur_timestamp_queued, &mut cur_key,
                     &mut cur_notification_parts, &mut cur_assistant_parts,
                     &mut cur_tool_parts, &mut out,
                 );
@@ -293,7 +309,7 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
             BlockClass::VectorCompletionRequest => {
                 flush(
                     cur_class, &mut cur_aih, &mut cur_rid, &mut cur_sender,
-                    &mut cur_mq_id, &mut cur_timestamp_queued,
+                    &mut cur_mq_id, &mut cur_timestamp_queued, &mut cur_key,
                     &mut cur_notification_parts, &mut cur_assistant_parts,
                     &mut cur_tool_parts, &mut out,
                 );
@@ -312,7 +328,7 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
             BlockClass::FunctionExecutionRequest => {
                 flush(
                     cur_class, &mut cur_aih, &mut cur_rid, &mut cur_sender,
-                    &mut cur_mq_id, &mut cur_timestamp_queued,
+                    &mut cur_mq_id, &mut cur_timestamp_queued, &mut cur_key,
                     &mut cur_notification_parts, &mut cur_assistant_parts,
                     &mut cur_tool_parts, &mut out,
                 );
@@ -345,7 +361,7 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
         if boundary {
             flush(
                 cur_class, &mut cur_aih, &mut cur_rid, &mut cur_sender,
-                &mut cur_mq_id, &mut cur_timestamp_queued,
+                &mut cur_mq_id, &mut cur_timestamp_queued, &mut cur_key,
                 &mut cur_notification_parts, &mut cur_assistant_parts,
                 &mut cur_tool_parts, &mut out,
             );
@@ -356,10 +372,12 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
                 cur_sender = row.sender_agent_instance_hierarchy.clone();
                 cur_mq_id = row.message_queue_id;
                 cur_timestamp_queued = row.timestamp_queued;
+                cur_key = row.message_queue_key.clone();
             } else {
                 cur_sender = None;
                 cur_mq_id = None;
                 cur_timestamp_queued = None;
+                cur_key = None;
             }
         }
 
@@ -397,7 +415,7 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
 
     flush(
         cur_class, &mut cur_aih, &mut cur_rid, &mut cur_sender,
-        &mut cur_mq_id, &mut cur_timestamp_queued,
+        &mut cur_mq_id, &mut cur_timestamp_queued, &mut cur_key,
         &mut cur_notification_parts, &mut cur_assistant_parts,
         &mut cur_tool_parts, &mut out,
     );
@@ -484,7 +502,8 @@ pub async fn read_pending_for_parent(
          SELECT s.id, s.response_id, s.table_kind, \
                 s.agent_instance_hierarchy, s.timestamp_delivered, \
                 s.sender_agent_instance_hierarchy, \
-                s.message_queue_id, s.timestamp_queued \
+                s.message_queue_id, s.timestamp_queued, \
+                s.message_queue_key \
            FROM selected s \
           ORDER BY s.id ASC",
         select = SELECT_SHAPE,

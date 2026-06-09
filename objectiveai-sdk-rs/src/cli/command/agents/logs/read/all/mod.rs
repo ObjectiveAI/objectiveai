@@ -293,6 +293,13 @@ pub enum ResponseItem {
         /// `timestamp_delivered` still records its own
         /// consumption moment).
         timestamp_queued: i64,
+        /// Idempotency token, if the row was enqueued with
+        /// `--key` via `agents message --enqueue-with-key`.
+        /// Surfacing it lets readers attribute a notification
+        /// to a specific enqueue beyond just the sender AIH.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        key: Option<String>,
         parts: Vec<ClientNotificationPart>,
     },
     /// Agent emissions — the agent IS the producer of these
