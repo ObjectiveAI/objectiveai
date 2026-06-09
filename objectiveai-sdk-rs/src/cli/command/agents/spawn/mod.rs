@@ -22,7 +22,6 @@ pub struct Request {
     /// every tag in the group to BOUND on the spawn's
     /// `agent_instance_hierarchy`.
     pub agent: AgentResolution,
-    pub seed: Option<i64>,
     pub dangerous_advanced: Option<RequestDangerousAdvanced>,
     pub jq: Option<String>,
 }
@@ -97,10 +96,6 @@ impl CommandRequest for Request {
                 argv.push(agent_tag.clone());
             }
         }
-        if let Some(seed) = self.seed {
-            argv.push("--seed".to_string());
-            argv.push(seed.to_string());
-        }
         if let Some(advanced) = &self.dangerous_advanced {
             argv.push("--dangerous-advanced".to_string());
             argv.push(
@@ -122,6 +117,13 @@ pub struct RequestDangerousAdvanced {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub stream: Option<bool>,
+    /// Deterministic seed for the upstream model's RNG (mock
+    /// agents in particular). Plumbed onto
+    /// `AgentCompletionCreateParams.seed`. `None` here ⇒ the
+    /// api picks; tests should always pin a value.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub seed: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -145,10 +147,8 @@ pub struct Args {
     pub message: MessageArgs,
     #[command(flatten)]
     pub agent: AgentArgs,
-    /// Seed for deterministic mock responses.
-    #[arg(long)]
-    pub seed: Option<i64>,
-    /// Raw JSON for `RequestDangerousAdvanced` (e.g. `{"stream":true}`).
+    /// Raw JSON for `RequestDangerousAdvanced` (e.g.
+    /// `{"stream":true,"seed":42}`).
     #[arg(long)]
     pub dangerous_advanced: Option<String>,
     /// jq filter applied to the JSON output.
@@ -257,22 +257,22 @@ impl TryFrom<Args> for Request {
                 agent_tag: args.agent.agent_tag.unwrap(),
             }
         };
-        let dangerous_advanced = if let Some(s) = args.dangerous_advanced {
-            let mut de = serde_json::Deserializer::from_str(&s);
-            let v = serde_path_to_error::deserialize(&mut de).map_err(|source| {
-                crate::cli::command::FromArgsError {
-                    field: "dangerous_advanced",
-                    source: source.into(),
-                }
-            })?;
-            Some(v)
-        } else {
-            None
-        };
+        let dangerous_advanced: Option<RequestDangerousAdvanced> =
+            if let Some(s) = args.dangerous_advanced {
+                let mut de = serde_json::Deserializer::from_str(&s);
+                let v = serde_path_to_error::deserialize(&mut de).map_err(|source| {
+                    crate::cli::command::FromArgsError {
+                        field: "dangerous_advanced",
+                        source: source.into(),
+                    }
+                })?;
+                Some(v)
+            } else {
+                None
+            };
         Ok(Self { path_type: Path::AgentsSpawn,
             message,
             agent,
-            seed: args.seed,
             dangerous_advanced,
             jq: args.jq,
         })

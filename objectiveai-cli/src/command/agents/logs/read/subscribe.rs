@@ -29,7 +29,7 @@ use crate::context::Context;
 use crate::db::logs::MessageTable;
 use crate::db::tags;
 use crate::error::Error;
-use crate::websockets::lock_file;
+use crate::lock_file;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 

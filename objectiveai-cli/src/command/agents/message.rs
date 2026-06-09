@@ -30,7 +30,7 @@ use objectiveai_sdk::cli::command::{BinaryExecutor, CommandExecutor};
 use crate::context::Context;
 use crate::db::tags::LookupState;
 use crate::error::Error;
-use crate::websockets::lock_file;
+use crate::lock_file;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
@@ -69,7 +69,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     let message_content = resolve_message(request.message.clone())?;
 
     if want_stream {
-        execute_streaming(ctx, hierarchy, message_content, agents_dir).await
+        let seed = request.dangerous_advanced.as_ref().and_then(|a| a.seed);
+        execute_streaming(ctx, hierarchy, message_content, agents_dir, seed).await
     } else {
         execute_unary(ctx, hierarchy, message_content, agents_dir, request).await
     }
@@ -143,6 +144,7 @@ async fn execute_streaming(
     hierarchy: String,
     message_content: RichContent,
     agents_dir: PathBuf,
+    seed: Option<i64>,
 ) -> Result<ItemStream, Error> {
     std::fs::create_dir_all(&agents_dir)
         .map_err(|e| Error::Instance(format!("create agents_dir: {e}")))?;
@@ -150,7 +152,7 @@ async fn execute_streaming(
 
     // Fast path: nobody holds the lock — we win it now.
     if let Some(claim) = lock_file::try_acquire(&lock_path) {
-        return Ok(run_spawn_with(ctx, claim, hierarchy, message_content).await?);
+        return Ok(run_spawn_with(ctx, claim, hierarchy, message_content, seed).await?);
     }
 
     // Slow path: live owner. Enqueue + race.
@@ -178,7 +180,7 @@ async fn execute_streaming(
             // We're the new owner. Reclaim our queue row before
             // spawning — the conduit shouldn't see it again.
             let _ = crate::db::message_queue::delete_by_id(&ctx.db, queue_id).await;
-            run_spawn_with(ctx, claim, hierarchy, message_content).await
+            run_spawn_with(ctx, claim, hierarchy, message_content, seed).await
         }
     }
 }
@@ -194,6 +196,7 @@ async fn run_spawn_with(
     claim: lock_file::LockClaim,
     hierarchy: String,
     message_content: RichContent,
+    seed: Option<i64>,
 ) -> Result<ItemStream, Error> {
     let lookup = crate::db::logs::lookup_session(&ctx.db, &hierarchy)
         .await?
@@ -210,7 +213,7 @@ async fn run_spawn_with(
         provider: None,
         agent: lookup.agent,
         response_format: None,
-        seed: None,
+        seed,
         stream: Some(true),
         continuation: lookup.continuation,
     };
@@ -331,9 +334,15 @@ async fn execute_unary_respawn(
         parent_agent_instance_hierarchy: Some(parent),
         agent_instance: leaf,
     };
-    child_request.dangerous_advanced = Some(RequestDangerousAdvanced {
-        stream: Some(true),
-    });
+    match child_request.dangerous_advanced.as_mut() {
+        Some(adv) => adv.stream = Some(true),
+        None => {
+            child_request.dangerous_advanced = Some(RequestDangerousAdvanced {
+                stream: Some(true),
+                ..Default::default()
+            })
+        }
+    }
 
     let exe = std::env::current_exe()
         .map_err(|e| Error::Spawn("current_exe".into(), e))?;

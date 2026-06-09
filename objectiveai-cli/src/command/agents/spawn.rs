@@ -78,8 +78,10 @@ async fn execute_detached(request: Request) -> Result<ItemStream, Error> {
     match child_request.dangerous_advanced.as_mut() {
         Some(adv) => adv.stream = Some(true),
         None => {
-            child_request.dangerous_advanced =
-                Some(RequestDangerousAdvanced { stream: Some(true) })
+            child_request.dangerous_advanced = Some(RequestDangerousAdvanced {
+                stream: Some(true),
+                ..Default::default()
+            })
         }
     }
 
@@ -167,7 +169,7 @@ async fn execute_streaming(
         provider: None,
         agent,
         response_format: None,
-        seed: request.seed,
+        seed: request.dangerous_advanced.as_ref().and_then(|a| a.seed),
         stream: Some(true),
         continuation: None,
     };

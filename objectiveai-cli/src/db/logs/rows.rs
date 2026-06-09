@@ -146,6 +146,7 @@ fn assistant_response_chunk_rows<'a>(
         .enumerate()
         .filter_map(move |(tc_idx, tc)| {
             let id = tc.id.as_deref()?;
+            let name = tc.function.as_ref().and_then(|f| f.name.as_deref())?;
             let args = tc.function.as_ref().and_then(|f| f.arguments.as_deref())?;
             Some(RowValue::AssistantResponseToolCalls {
                 response_id,
@@ -153,6 +154,7 @@ fn assistant_response_chunk_rows<'a>(
                 index,
                 tool_call_index: tc_idx as u64,
                 tool_call_id: id,
+                function_name: name,
                 arguments: args,
             })
         });

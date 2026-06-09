@@ -250,6 +250,7 @@ pub enum RowValue<'a> {
         index: u64,
         tool_call_index: u64,
         tool_call_id: &'a str,
+        function_name: &'a str,
         arguments: &'a str,
     },
 

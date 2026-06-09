@@ -203,7 +203,7 @@ async fn load_payload(
             let index = require_row_index(table_kind, row_index)?;
             let tool_call_index = require_row_sub_index(table_kind, row_sub_index)?;
             let row = sqlx::query(
-                "SELECT tool_call_id, arguments \
+                "SELECT tool_call_id, function_name, arguments \
                  FROM logs.assistant_response_tool_calls \
                  WHERE response_id = $1 AND \"index\" = $2 AND tool_call_index = $3",
             )
@@ -217,6 +217,7 @@ async fn load_payload(
                 index,
                 tool_call_index,
                 tool_call_id: row.try_get("tool_call_id")?,
+                function_name: row.try_get("function_name")?,
                 arguments: row.try_get("arguments")?,
             })
         }

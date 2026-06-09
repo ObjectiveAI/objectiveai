@@ -2,6 +2,20 @@
   "title": "cli.command.agents.spawn.RequestDangerousAdvanced",
   "type": "object",
   "properties": {
+    "seed": {
+      "description": "Deterministic seed for the upstream model's RNG (mock\nagents in particular). Plumbed onto\n`AgentCompletionCreateParams.seed`. `None` here ⇒ the\napi picks; tests should always pin a value.",
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "stream": {
       "anyOf": [
         {

@@ -32,7 +32,6 @@ sha2 = "0.10.9"
 git2 = { version = "0.20.4", default-features = false, features = ["vendored-libgit2"] }
 humantime = "2"
 zip = { version = "2.4.0", default-features = false, features = ["deflate"] }
-interprocess = { version = "2.4.2", features = ["tokio"] }
 tokio = { version = "1.50.0", features = ["full"] }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
 serde = "1.0.228"

@@ -144,6 +144,7 @@ CREATE TABLE IF NOT EXISTS logs.assistant_response_tool_calls (
     "index"         BIGINT NOT NULL,
     tool_call_index BIGINT NOT NULL,
     tool_call_id    TEXT   NOT NULL,
+    function_name   TEXT   NOT NULL,
     arguments       TEXT   NOT NULL,
     inserted_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (response_id, "index", tool_call_index)

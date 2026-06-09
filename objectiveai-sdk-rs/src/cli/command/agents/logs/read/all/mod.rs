@@ -205,6 +205,12 @@ pub struct AssistantResponsePart {
     pub id: i64,
     pub timestamp_delivered: i64,
     pub r#type: AssistantResponsePartType,
+    /// `function.name` for `type = tool_call` rows
+    /// (`logs.assistant_response_tool_calls.function_name`).
+    /// Empty string for non-tool-call rows. Surfaced here so
+    /// callers can dedupe tool calls by name without a per-row
+    /// `agents logs read id` round-trip.
+    pub function_name: String,
 }
 
 /// Type tag for one `ToolResponse` part. `Container` is the

@@ -2,229 +2,250 @@
 //!
 //! On CLI startup, ensures a postmaster is alive for the current
 //! `<config_base_dir>/db/` data dir. Subsequent invocations (or
-//! concurrent siblings) see a live socket / port and return
+//! concurrent siblings) see a live postmaster and return
 //! immediately.
 //!
-//! - **Transport — Unix**: `listen_addresses = ''` so postgres opens
-//!   zero TCP listeners; the Unix socket lives at
-//!   `<data_dir>/.s.PGSQL.1` (the `port = 1` setting is purely the
-//!   socket-filename suffix). Nothing binds to TCP.
-//! - **Transport — Windows**: TCP loopback at `127.0.0.1:5432`.
-//!   `postgresql_embedded::Settings::socket_dir` is documented as
-//!   "Unix-only; ignored on Windows", and tokio's `UnixStream` /
-//!   `UnixListener` are `#[cfg(unix)]`-gated, so Windows takes the
-//!   loopback path. Real TCP port — port 1 isn't viable on Windows
-//!   (privileged).
-//! - **Lock**: `interprocess::local_socket` — cross-platform
-//!   (Unix-domain socket on Unix, named pipe on Windows). Mirrors
-//!   the `bind_or_busy` idiom from `crate::instance::pipes`.
-//! - **Lifetime**: `std::mem::forget` the handle after `start()` so
-//!   the crate's `Drop` impl never calls `pg_ctl stop`. `pg_ctl`
-//!   itself daemonizes the postmaster (double-fork on Unix; detached
-//!   process on Windows), so the postmaster outlives every CLI
-//!   process — it becomes an orphan reparented to PID 1 on Unix and
-//!   keeps running on Windows until explicitly stopped.
+//! - **Transport**: TCP loopback only, on every platform. Port
+//!   is OS-assigned via `Settings::port = 0` — the
+//!   `postgresql_embedded` crate's `start()` impl binds an
+//!   ephemeral free port via `TcpListener::bind(("0.0.0.0", 0))`
+//!   internally and hands the resolved port to `pg_ctl`.
+//!   Postgres writes the chosen port to
+//!   `<data_dir>/postmaster.pid` line 4 on every successful
+//!   start (format documented and stable across platforms);
+//!   every subsequent CLI invocation reads from there to
+//!   discover the live port.
 //!
-//! Stage 1 does not connect to postgres, create databases, or run
-//! migrations. It only ensures the postmaster is alive.
+//!   Unix domain sockets used to be the Unix transport here.
+//!   They were dropped to collapse the platform split: one
+//!   transport everywhere, no `#[cfg]`-gated probe paths, no
+//!   `socket_dir` setting that `postgresql_embedded` silently
+//!   ignores on Windows, no `tokio::net::UnixStream`
+//!   `#[cfg(unix)]` carve-out on the client side.
+//!
+//! - **Filesystem sandboxing**: every byte the cli writes lives
+//!   under `<config_base_dir>/`. The postgres binaries extract
+//!   to `<config_base_dir>/db-bin/` (NOT the crate's default
+//!   `~/.theseus/postgresql/`); the cluster data lives in
+//!   `<config_base_dir>/db/`; the password file at
+//!   `<config_base_dir>/.pgpass`; the bootstrap lock at
+//!   `<config_base_dir>/db.lock`. Two cli invocations against
+//!   distinct `config_base_dir`s share no on-disk state and
+//!   never contend for the bootstrap lock. The `bundled`
+//!   archive ships in our binary, so the extract is purely
+//!   local — no network, no shared cache.
+//!
+//! - **Lock**: [`crate::lock_file`] — the same OS-level claim-
+//!   file primitive `agents::message` / `agent_registry` use
+//!   (`CreateFileW + FILE_FLAG_DELETE_ON_CLOSE` on Windows,
+//!   `O_CREAT|O_EXCL + flock(LOCK_EX)` on Unix). File presence
+//!   ⇔ live owner; OS handles cleanup on process death. Used
+//!   only as a bootstrap mutex to serialize concurrent first
+//!   spawns against the same `data_dir`; after a postmaster is
+//!   alive every subsequent cli skips the lock entirely.
+//!
+//! - **Lifetime**: `std::mem::forget` the handle after `start()`
+//!   so the crate's `Drop` impl never calls `pg_ctl stop`.
+//!   `pg_ctl` itself daemonizes the postmaster (double-fork on
+//!   Unix → reparented to init; detached process on Windows),
+//!   so the postmaster outlives every CLI process — every
+//!   subsequent invocation reads `postmaster.pid`, finds the
+//!   listening port, and reconnects.
+//!
+//! Stage 1 does not connect to postgres, create databases, or
+//! run migrations. It only ensures the postmaster is alive.
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use interprocess::local_socket::tokio::prelude::*;
-use interprocess::local_socket::{GenericFilePath, ListenerOptions, ToFsName};
-
 use crate::error::Error;
 
-/// Used purely as the socket-filename suffix on Unix
-/// (`.s.PGSQL.1`); `listen_addresses = ''` means no TCP listener
-/// binds to this number.
-#[cfg(unix)]
-const PG_PORT: u16 = 1;
-/// Real TCP port on `127.0.0.1` on Windows. Port 1 isn't viable
-/// (privileged); 5432 is postgres's standard.
-#[cfg(windows)]
-const PG_PORT: u16 = 5432;
-
 const PROBE_TIMEOUT: Duration = Duration::from_millis(250);
-const LOSER_POLL_INTERVAL: Duration = Duration::from_millis(100);
-const LOSER_POLL_BUDGET: Duration = Duration::from_secs(60);
 
-/// Probe the postgres transport (Unix socket on Unix, TCP loopback
-/// on Windows); if not alive, single-flight-spawn postgres and
-/// detach it. Returns `Ok` once a postmaster is reachable.
+/// Read line 4 of `<data_dir>/postmaster.pid`. Postgres writes
+/// this file on every successful start; format is documented
+/// and stable across platforms:
+///
+/// ```text
+///   Line 1: PID
+///   Line 2: Data directory absolute path
+///   Line 3: Postmaster start time (epoch)
+///   Line 4: Port number
+///   Line 5: Socket directory (empty if none)
+///   Line 6: First listen_address (empty if listen_addresses='')
+///   Line 7: Shared memory key (or 0)
+///   Line 8: Postmaster status flag
+/// ```
+///
+/// Returns `None` when the file is missing (postmaster never
+/// started, or shut down cleanly), unreadable, or the port line
+/// isn't parseable.
+async fn read_pid_file_port(data_dir: &Path) -> Option<u16> {
+    let pid_file = data_dir.join("postmaster.pid");
+    let content = tokio::fs::read_to_string(&pid_file).await.ok()?;
+    content.lines().nth(3)?.trim().parse::<u16>().ok()
+}
+
+/// Look up the port the postmaster for `data_dir` is listening
+/// on. `None` ⇒ no postmaster.pid (or the file's malformed).
+/// Used by [`crate::db::init`] to build the connection URL —
+/// the bootstrap ran first inside `Context::new`, so by the
+/// time `init` reads this the file is in place.
+pub(crate) async fn pg_port(data_dir: &Path) -> Option<u16> {
+    read_pid_file_port(data_dir).await
+}
+
+/// Probe the postgres transport; if not alive, single-flight-
+/// spawn postgres and detach it. Returns `Ok` once a postmaster
+/// is reachable. Everything stays inside `config_base_dir`:
+/// install at `db-bin/`, cluster data at `db/`, password file
+/// at `.pgpass`, bootstrap lock at `db.lock`.
 pub async fn bootstrap(config_base_dir: &Path) -> Result<(), Error> {
     let data_dir = config_base_dir.join("db");
-    let install_dir = data_dir.join("installation");
-    let lock_path = data_dir.join("spawn.lock.sock");
+    let install_dir = config_base_dir.join("db-bin");
+    // At the root of `config_base_dir`, NOT inside `db/`
+    // (initdb refuses a non-empty data dir) and NOT inside
+    // `db-bin/` (the crate's `pg.setup()` early-returns from
+    // `install()` if `installation_dir.exists()`, so an empty
+    // `db-bin/` with just our lock file in it would silently
+    // skip the extract).
+    let lock_path = config_base_dir.join("db.lock");
+    tokio::fs::create_dir_all(config_base_dir).await.map_err(|e| {
+        Error::PostgresBootstrap(format!("mkdir {config_base_dir:?}: {e}"))
+    })?;
 
-    if probe_alive(&data_dir).await {
-        return Ok(());
-    }
+    // Event-driven retry loop. Every iteration either:
+    //   - finds postgres alive → returns Ok
+    //   - acquires the lock → spawns postgres → returns Ok
+    //   - waits (kernel-signaled via [`crate::lock_file::wait_release`],
+    //     not polling) for the current holder to release →
+    //     loops, re-evaluates
+    //
+    // Termination: each `wait_release` consumes one wall-clock
+    // interval of "another process holds the lock". After at
+    // most ~K parallel sibling cli processes have each had
+    // their turn — K = 1–2 in production, ~16 in tests — the
+    // loop either finds postgres alive (success) or one of
+    // them succeeds in `spawn_and_forget`. A crashed
+    // bootstrapper releases its lock via OS cleanup
+    // automatically, so the next iteration's `try_acquire`
+    // succeeds and we take over.
+    loop {
+        if probe_alive(&data_dir).await {
+            return Ok(());
+        }
 
-    tokio::fs::create_dir_all(&data_dir)
-        .await
-        .map_err(|e| Error::PostgresBootstrap(format!("mkdir {data_dir:?}: {e}")))?;
+        tokio::fs::create_dir_all(&data_dir).await.map_err(|e| {
+            Error::PostgresBootstrap(format!("mkdir {data_dir:?}: {e}"))
+        })?;
 
-    for _ in 0..4 {
-        match try_bind_lock(&lock_path).await {
-            LockOutcome::Acquired(_listener) => {
-                // Re-probe inside the lock to close the race window
-                // where a sibling won, finished, and dropped its
-                // listener between our outer probe and the bind.
+        match crate::lock_file::try_acquire(&lock_path) {
+            Some(_claim) => {
+                // Re-probe inside the claim — closes the race
+                // where a sibling won, finished, dropped their
+                // claim, and we landed in `try_acquire` just
+                // after the kernel released their slot.
                 if probe_alive(&data_dir).await {
                     return Ok(());
                 }
                 spawn_and_forget(&data_dir, &install_dir).await?;
+                // `_claim` drops here → kernel releases the
+                // lock → any waiter wakes from `wait_release`.
                 return Ok(());
             }
-            LockOutcome::Loser => return wait_for_alive(&data_dir).await,
-            LockOutcome::Stale => {
-                // Best-effort cleanup; Unix sockets leave a stale
-                // file when the owning process crashes. Named pipes
-                // on Windows auto-clean, so the remove is a no-op
-                // there but harmless.
-                #[cfg(unix)]
-                let _ = tokio::fs::remove_file(&lock_path).await;
-                continue;
+            None => {
+                // Someone else holds the bootstrap lock right
+                // now. Block (kernel-signaled, no polling)
+                // until they release it; then loop and
+                // re-evaluate. After the release, one of:
+                //
+                //   1. Holder succeeded → `probe_alive` returns
+                //      true → return Ok.
+                //   2. Holder failed → `probe_alive` is false →
+                //      `try_acquire` succeeds → we take over.
+                //   3. Holder released but a third process
+                //      grabbed the lock immediately →
+                //      `try_acquire` returns `None` →
+                //      `wait_release` on the new holder.
+                //      Same shape, no special case.
+                crate::lock_file::wait_release(&lock_path).await.map_err(|e| {
+                    Error::PostgresBootstrap(format!(
+                        "wait_release({lock_path:?}): {e}"
+                    ))
+                })?;
+                // fall through → next loop iteration
             }
         }
     }
-    Err(Error::PostgresBootstrap(
-        "could not acquire spawn lock after 4 attempts".to_string(),
-    ))
 }
 
-#[cfg(unix)]
+/// `true` if `postmaster.pid` carries a port and a TCP probe to
+/// `127.0.0.1:<port>` succeeds within `PROBE_TIMEOUT`. Same
+/// code path on every platform.
 async fn probe_alive(data_dir: &Path) -> bool {
-    let sock = data_dir.join(format!(".s.PGSQL.{PG_PORT}"));
-    matches!(
-        tokio::time::timeout(PROBE_TIMEOUT, tokio::net::UnixStream::connect(&sock)).await,
-        Ok(Ok(_))
-    )
-}
-
-#[cfg(windows)]
-async fn probe_alive(_data_dir: &Path) -> bool {
+    let Some(port) = read_pid_file_port(data_dir).await else {
+        return false;
+    };
     matches!(
         tokio::time::timeout(
             PROBE_TIMEOUT,
-            tokio::net::TcpStream::connect(("127.0.0.1", PG_PORT)),
+            tokio::net::TcpStream::connect(("127.0.0.1", port)),
         )
         .await,
         Ok(Ok(_))
     )
 }
 
-enum LockOutcome {
-    /// We hold the lock; the listener is dropped at end of scope
-    /// to release it.
-    Acquired(interprocess::local_socket::tokio::Listener),
-    /// Sibling process is the elected bootstrapper.
-    Loser,
-    /// The lock endpoint exists but no peer is listening — leftover
-    /// from a crashed bootstrapper. Caller should `unlink` + retry.
-    Stale,
-}
-
-async fn try_bind_lock(lock_path: &Path) -> LockOutcome {
-    let owned_path: PathBuf = lock_path.to_path_buf();
-    let name = match owned_path.to_fs_name::<GenericFilePath>() {
-        Ok(n) => n,
-        Err(_) => return LockOutcome::Stale,
-    };
-    match ListenerOptions::new().name(name).create_tokio() {
-        Ok(listener) => LockOutcome::Acquired(listener),
-        Err(e) if is_addr_in_use(&e) => {
-            // Probe the lock to distinguish "live sibling" from
-            // "stale endpoint left by a crashed sibling".
-            let probe_name = match lock_path.to_path_buf().to_fs_name::<GenericFilePath>() {
-                Ok(n) => n,
-                Err(_) => return LockOutcome::Stale,
-            };
-            let live = tokio::time::timeout(
-                PROBE_TIMEOUT,
-                interprocess::local_socket::tokio::Stream::connect(probe_name),
-            )
-            .await
-            .is_ok_and(|r| r.is_ok());
-            if live {
-                LockOutcome::Loser
-            } else {
-                LockOutcome::Stale
-            }
-        }
-        Err(_) => LockOutcome::Stale,
-    }
-}
-
-fn is_addr_in_use(e: &std::io::Error) -> bool {
-    use std::io::ErrorKind;
-    if matches!(e.kind(), ErrorKind::AddrInUse | ErrorKind::AlreadyExists) {
-        return true;
-    }
-    if let Some(code) = e.raw_os_error() {
-        if cfg!(windows) && (code == 231 || code == 5) {
-            // ERROR_PIPE_BUSY (231) / ERROR_ACCESS_DENIED (5) — the
-            // named-pipe equivalent of `AddrInUse`.
-            return true;
-        }
-    }
-    false
-}
-
-async fn wait_for_alive(data_dir: &Path) -> Result<(), Error> {
-    let deadline = std::time::Instant::now() + LOSER_POLL_BUDGET;
-    while std::time::Instant::now() < deadline {
-        if probe_alive(data_dir).await {
-            return Ok(());
-        }
-        tokio::time::sleep(LOSER_POLL_INTERVAL).await;
-    }
-    Err(Error::PostgresBootstrap(
-        "timed out waiting for sibling-process postgres to come up".to_string(),
-    ))
-}
-
 /// Hard-coded password the cluster is initdb'd with and that every
-/// CLI invocation uses to authenticate. The embedded postgres listens
-/// on the local Unix socket / TCP loopback only, so this is not
-/// security — it's just deterministic auth, sidestepping the
-/// `postgresql_embedded` crate's per-`Settings::default()` random
-/// password mint (which we can't recover on subsequent CLI starts
-/// because the crate writes it to a file we'd have to parse). With
-/// a fixed value, `db::init` can build the connection URL with the
-/// password baked in and the cluster's default `pg_hba.conf` works
-/// untouched.
+/// CLI invocation uses to authenticate. The embedded postgres
+/// listens on TCP loopback only, so this isn't security — just
+/// deterministic auth that sidesteps the `postgresql_embedded`
+/// crate's per-`Settings::default()` random password mint (which
+/// we'd have to parse from a file to recover on subsequent
+/// starts). With a fixed value, `db::init` can build the
+/// connection URL with the password baked in and the cluster's
+/// default `pg_hba.conf` works untouched.
 pub(crate) const PG_INITDB_PASSWORD: &str = "objectiveai";
 
 async fn spawn_and_forget(data_dir: &Path, install_dir: &Path) -> Result<(), Error> {
+    // Pin `installation_dir` either to the env-var override
+    // (tests share one install via warmup) or inside
+    // `config_base_dir` (production: each base dir gets its own
+    // copy, no shared on-disk state outside config_base_dir).
+    // With the `bundled` feature, the postgres archive ships
+    // embedded in our binary (~163M, accounts for most of the
+    // cli's release-build size); `pg.setup()` extracts from
+    // those static bytes into `install_dir` on first run — no
+    // network, no shared theseus cache.
     let mut settings = postgresql_embedded::Settings::default();
-    settings.data_dir = PathBuf::from(data_dir);
     settings.installation_dir = PathBuf::from(install_dir);
-    settings.port = PG_PORT;
+    settings.data_dir = PathBuf::from(data_dir);
+    // `Settings::default()` puts the password file in
+    // `tempfile::tempdir()` (OS temp root). Pin it next to
+    // `data_dir` (NOT inside — initdb refuses to run against a
+    // non-empty data directory) so the cli still writes nothing
+    // outside `config_base_dir`.
+    settings.password_file = data_dir
+        .parent()
+        .map(|p| p.join(".pgpass"))
+        .unwrap_or_else(|| PathBuf::from(".pgpass"));
+    // `port = 0` → the crate's `start()` impl binds an ephemeral
+    // OS-assigned port via TcpListener and hands it to pg_ctl.
+    // The chosen port lands in `postmaster.pid` line 4 — every
+    // subsequent CLI invocation reads from there.
+    settings.port = 0;
+    settings.host = "127.0.0.1".to_string();
     settings.temporary = false;
     settings.password = PG_INITDB_PASSWORD.to_string();
-
-    #[cfg(unix)]
-    {
-        settings.socket_dir = Some(PathBuf::from(data_dir));
-        settings
-            .configuration
-            .insert("listen_addresses".into(), "".into());
-        settings.configuration.insert(
-            "unix_socket_directories".into(),
-            data_dir.display().to_string(),
-        );
-    }
-    #[cfg(windows)]
-    {
-        settings.host = "127.0.0.1".to_string();
-        settings
-            .configuration
-            .insert("listen_addresses".into(), "127.0.0.1".into());
-    }
-
+    // The crate's default `timeout` (5s) covers the slowest of
+    // `install`, `initialize`, and `start`. `initialize` (which
+    // shells out to `initdb`) routinely takes 10–30s on first
+    // run; install can take 30–60s while the archive is
+    // extracted. Give all three a generous budget.
+    settings.timeout = Some(Duration::from_secs(180));
+    settings
+        .configuration
+        .insert("listen_addresses".into(), "127.0.0.1".into());
     settings
         .configuration
         .insert("logging_collector".into(), "on".into());
@@ -240,11 +261,12 @@ async fn spawn_and_forget(data_dir: &Path, install_dir: &Path) -> Result<(), Err
         .await
         .map_err(|e| Error::PostgresBootstrap(format!("start: {e}")))?;
     // Defeat the crate's `Drop` impl: it would otherwise call
-    // `pg_ctl stop` on this process's exit. The postmaster has
-    // already been daemonized by `pg_ctl start` (double-fork on
-    // Unix → reparented to init; detached child on Windows), so
-    // `mem::forget` keeps it alive past CLI exit — every subsequent
-    // CLI invocation skips the spawn and reuses the live socket.
+    // `pg_ctl stop` on this process's exit. `pg_ctl start` has
+    // already daemonized the postmaster (double-fork on Unix →
+    // reparented to init; detached child on Windows), so
+    // `mem::forget` keeps it alive past CLI exit — every
+    // subsequent CLI invocation reads its port from
+    // `postmaster.pid` and reconnects.
     std::mem::forget(pg);
     Ok(())
 }

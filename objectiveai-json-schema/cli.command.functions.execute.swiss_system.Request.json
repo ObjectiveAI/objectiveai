@@ -81,18 +81,6 @@
         }
       ]
     },
-    "seed": {
-      "anyOf": [
-        {
-          "type": "integer",
-          "minimum": -9223372036854775808,
-          "maximum": 9223372036854775807
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
     "split": {
       "type": "boolean"
     }

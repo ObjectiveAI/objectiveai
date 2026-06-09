@@ -8,7 +8,8 @@
 //!
 //! - [`agent_registry`] — process-owned `flock`-style claim files
 //!   keyed by `agent_instance_hierarchy`. Mutual exclusion across
-//!   processes for a given agent slot.
+//!   processes for a given agent slot. Backed by the crate-root
+//!   [`crate::lock_file`] primitive (shared with `postgres::bootstrap`).
 //! - [`mcp_server`] — the in-process `objectiveai-mcp` server handle
 //!   the conduit forwards plugin tool calls to.
 //! - [`conduit`] — the MCP reverse-attach proxy that routes WS
@@ -20,5 +21,4 @@
 pub mod agent_hierarchies;
 pub mod agent_registry;
 pub mod conduit;
-pub mod lock_file;
 pub mod mcp_server;

@@ -13,7 +13,6 @@ pub struct Request {
     pub input: RequestInput,
     pub continuation: Option<String>,
     pub retry_token: Option<String>,
-    pub seed: Option<i64>,
     pub split: bool,
     pub invert: bool,
     pub pool: Option<usize>,
@@ -83,10 +82,6 @@ impl CommandRequest for Request {
             argv.push("--retry-token".to_string());
             argv.push(t.clone());
         }
-        if let Some(seed) = self.seed {
-            argv.push("--seed".to_string());
-            argv.push(seed.to_string());
-        }
         if self.split {
             argv.push("--split".to_string());
         }
@@ -122,6 +117,11 @@ pub struct RequestDangerousAdvanced {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub stream: Option<bool>,
+    /// Deterministic seed for downstream mock agents. Forwarded
+    /// to every per-task `AgentCompletionCreateParams.seed`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub seed: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -181,9 +181,6 @@ pub struct Args {
     /// Retry token from a previous execution.
     #[arg(long)]
     pub retry_token: Option<String>,
-    /// Seed for deterministic mock responses.
-    #[arg(long)]
-    pub seed: Option<i64>,
     /// Treat input as an array and execute once per element.
     #[arg(long)]
     pub split: bool,
@@ -238,21 +235,21 @@ impl TryFrom<Args> for Request {
         } else {
             RequestInput::PythonFile(args.input.input_python_file.unwrap())
         };
-        let dangerous_advanced = if let Some(s) = args.dangerous_advanced {
-            let mut de = serde_json::Deserializer::from_str(&s);
-            let v = serde_path_to_error::deserialize(&mut de)
-                .map_err(|e| crate::cli::command::FromArgsError::json("dangerous_advanced", e))?;
-            Some(v)
-        } else {
-            None
-        };
+        let dangerous_advanced: Option<RequestDangerousAdvanced> =
+            if let Some(s) = args.dangerous_advanced {
+                let mut de = serde_json::Deserializer::from_str(&s);
+                let v = serde_path_to_error::deserialize(&mut de)
+                    .map_err(|e| crate::cli::command::FromArgsError::json("dangerous_advanced", e))?;
+                Some(v)
+            } else {
+                None
+            };
         Ok(Self { path_type: Path::FunctionsExecuteSwissSystem,
             function,
             profile,
             input,
             continuation: args.continuation,
             retry_token: args.retry_token,
-            seed: args.seed,
             split: args.split,
             invert: args.invert,
             pool: args.pool,

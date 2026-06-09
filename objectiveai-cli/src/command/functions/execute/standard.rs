@@ -54,6 +54,7 @@ async fn execute_streaming(
         RequestInput::PythonInline(code) => super::resolve_input_python_inline(code)?,
         RequestInput::PythonFile(path) => super::resolve_input_python_file(path)?,
     };
+    let seed = request.dangerous_advanced.as_ref().and_then(|a| a.seed);
     let params = FunctionExecutionCreateParams {
         function,
         profile,
@@ -65,7 +66,7 @@ async fn execute_streaming(
         split: if request.split { Some(true) } else { None },
         invert: if request.invert { Some(true) } else { None },
         provider: None,
-        seed: request.seed,
+        seed,
         stream: Some(true),
         continuation: request.continuation,
     };
@@ -92,8 +93,10 @@ async fn execute_detached(request: Request) -> Result<ItemStream, Error> {
     match child_request.dangerous_advanced.as_mut() {
         Some(adv) => adv.stream = Some(true),
         None => {
-            child_request.dangerous_advanced =
-                Some(RequestDangerousAdvanced { stream: Some(true) })
+            child_request.dangerous_advanced = Some(RequestDangerousAdvanced {
+                stream: Some(true),
+                ..Default::default()
+            })
         }
     }
     let exe = std::env::current_exe()

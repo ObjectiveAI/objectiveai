@@ -1,13 +1,13 @@
 //! Process-owned exclusive claim files keyed by
 //! `agent_instance_hierarchy`.
 //!
-//! Thin index over [`crate::websockets::lock_file`]'s OS-managed
-//! claim primitive: a `HashMap<hierarchy, LockClaim>` that
-//! dedupes repeat `observe` calls and lets the owner explicitly
-//! release a single hierarchy mid-stream via `destroy`.
+//! Thin index over [`crate::lock_file`]'s OS-managed claim
+//! primitive: a `HashMap<hierarchy, LockClaim>` that dedupes
+//! repeat `observe` calls and lets the owner explicitly release
+//! a single hierarchy mid-stream via `destroy`.
 //!
-//! See [`crate::websockets::lock_file`] for platform semantics —
-//! Windows uses `FILE_FLAG_DELETE_ON_CLOSE` (file existence ⇔
+//! See [`crate::lock_file`] for platform semantics — Windows
+//! uses `FILE_FLAG_DELETE_ON_CLOSE` (file existence ⇔
 //! liveness); Unix uses persistent file + `flock` (lock state ⇔
 //! liveness).
 //!
@@ -18,7 +18,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use crate::websockets::lock_file::{self, LockClaim};
+use crate::lock_file::{self, LockClaim};
 
 pub struct AgentInstanceRegistry {
     root: PathBuf,

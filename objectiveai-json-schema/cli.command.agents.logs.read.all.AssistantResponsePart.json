@@ -3,6 +3,10 @@
   "description": "One row inside an `AssistantResponse` block.",
   "type": "object",
   "properties": {
+    "function_name": {
+      "description": "`function.name` for `type = tool_call` rows\n(`logs.assistant_response_tool_calls.function_name`).\nEmpty string for non-tool-call rows. Surfaced here so\ncallers can dedupe tool calls by name without a per-row\n`agents logs read id` round-trip.",
+      "type": "string"
+    },
     "id": {
       "description": "`logs.messages.\"index\"` for this row. Pass to\n`agents logs read id <n>` for the typed body.",
       "type": "integer",

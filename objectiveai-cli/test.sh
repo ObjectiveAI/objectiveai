@@ -48,6 +48,51 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# Pre-run sweep: the cli `mem::forget`s the postgres handle so the
+# postmaster daemonizes (its design — subsequent cli invocations
+# in the same `CONFIG_BASE_DIR` reuse the live socket). For tests
+# each per-test config_base_dir gets its own postmaster, and they
+# all outlive the test process. Plugin fixtures spawned by the
+# `agents spawn`-style tests can also outlive their parent cli if
+# the test errored mid-stream. None of those leaks are this
+# script's *fault*, but their open file handles block the
+# `rm -rf` below.
+#
+# Scope: only processes whose binary lives inside $RUNTIME_DIR.
+# Every leaked process from a prior test run launches from a
+# slotted directory under that path (cli binary, plugin
+# fixtures, postgres _shared-db-bin/), so an ExecutablePath
+# prefix match identifies ours without touching anything else.
+# We deliberately do NOT match on command-line substring — that
+# was the old behavior and it killed unrelated processes on the
+# system that happened to share a substring. See the in-script
+# comment near `cleanup()` for why we sweep here and not at exit.
+if command -v powershell.exe >/dev/null 2>&1; then
+  if command -v cygpath >/dev/null 2>&1; then
+    SWEEP_PATH="$(cygpath -w "$RUNTIME_DIR")"
+  else
+    SWEEP_PATH="$RUNTIME_DIR"
+  fi
+  OAI_SWEEP_PATH="$SWEEP_PATH" powershell.exe -NoProfile -Command '
+    $target = [System.IO.Path]::GetFullPath($env:OAI_SWEEP_PATH).TrimEnd([char]"\") + [char]"\";
+    Get-CimInstance Win32_Process | Where-Object {
+      $_.ExecutablePath -ne $null -and
+      $_.ExecutablePath.StartsWith($target, [System.StringComparison]::OrdinalIgnoreCase)
+    } | ForEach-Object {
+      try { Stop-Process -Id $_.ProcessId -Force -ErrorAction Stop } catch {}
+    }
+  ' >/dev/null 2>&1 || true
+elif command -v lsof >/dev/null 2>&1; then
+  # `lsof +D` recursively lists every PID holding a file open
+  # under the given directory tree. We only want PIDs, dedupe
+  # them, then SIGKILL.
+  lsof -t +D "$RUNTIME_DIR" 2>/dev/null | sort -u | while read -r pid; do
+    [ -n "$pid" ] && kill -9 "$pid" 2>/dev/null || true
+  done
+elif command -v fuser >/dev/null 2>&1; then
+  fuser -k "$RUNTIME_DIR" >/dev/null 2>&1 || true
+fi
+
 # Stage the runtime test tree: a fresh copy of the committed
 # `objectiveai-tests/` source. The copied tree includes a self-
 # removing `prepare.sh` which cargo-builds the cli + every fixture

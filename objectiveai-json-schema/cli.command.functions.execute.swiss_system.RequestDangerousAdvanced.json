@@ -2,6 +2,20 @@
   "title": "cli.command.functions.execute.swiss_system.RequestDangerousAdvanced",
   "type": "object",
   "properties": {
+    "seed": {
+      "description": "Deterministic seed for downstream mock agents. Forwarded\nto every per-task `AgentCompletionCreateParams.seed`.",
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "stream": {
       "anyOf": [
         {

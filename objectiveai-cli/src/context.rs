@@ -34,8 +34,9 @@ impl Context {
             config.commit_author_email.clone(),
         );
         // Ensure the embedded postmaster is alive before opening the
-        // application pool. `bootstrap` is fast on the warm path (the
-        // socket already exists) and only spawns on first run.
+        // application pool. `bootstrap` is fast on the warm path
+        // (`postmaster.pid` already exists) and only spawns on first
+        // run.
         crate::postgres::bootstrap(filesystem.base_dir()).await?;
         let db = db::init(filesystem.base_dir()).await?;
         let http = build_http_client(&config, &filesystem).await?;

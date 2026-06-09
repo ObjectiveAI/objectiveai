@@ -43,7 +43,8 @@ PID_CLI=$!
     --manifest-path "$REPO_ROOT/Cargo.toml" \
     -p hello-tool -p error-tool -p count-tool \
     -p hello-plugin -p test-mcp-plugin \
-    -p test-mcp-plugin-named -p test-mcp-plugin-foo-headers) &
+    -p test-mcp-plugin-named -p test-mcp-plugin-foo-headers \
+    -p objectiveai-tests-pg-installer) &
 PID_FIX=$!
 
 wait "$PID_CLI" "$PID_FIX"
@@ -77,5 +78,39 @@ for name in same-alpha same-bravo same-charlie same-delta same-echo; do
 done
 
 wait
+
+# Slot the postgres installer alongside the cli binary, then run
+# it to extract the bundled archive once into a shared dir.
+# Symlink every committed test dir's `db-bin/` to that shared
+# install so per-test cli children skip the ~163M extract on
+# their `pg.setup()` call.
+slot "$FIX_BIN_DIR/objectiveai-tests-pg-installer$EXE" \
+     "$ROOT/objectiveai-tests-pg-installer$EXE"
+
+SHARED="$ROOT/_shared-db-bin"
+"$ROOT/objectiveai-tests-pg-installer$EXE" "$SHARED"
+
+# Loop over committed test dirs (everything not starting with
+# `_`). The `*/` glob filters out files. `[ -e dst ]` skips
+# dirs that already have a `db-bin/` from a prior partial run.
+for d in "$ROOT"/*/; do
+  name=$(basename "$d")
+  [[ "$name" == _* ]] && continue
+  [[ -e "$d/db-bin" ]] && continue
+  case "$OSTYPE" in
+    msys*|cygwin*|win32*)
+      # `mklink /D` makes a real Windows symbolic link, but it
+      # requires developer mode or admin. Fall back to
+      # `mklink /J` (junction) which is always permitted for
+      # local volumes and is semantically equivalent for our
+      # read-only use case.
+      cmd //c "mklink /D \"$(cygpath -w "$d/db-bin")\" \"$(cygpath -w "$SHARED")\"" >/dev/null 2>&1 \
+        || cmd //c "mklink /J \"$(cygpath -w "$d/db-bin")\" \"$(cygpath -w "$SHARED")\"" >/dev/null
+      ;;
+    *)
+      ln -s "$SHARED" "$d/db-bin"
+      ;;
+  esac
+done
 
 rm -- "$0"

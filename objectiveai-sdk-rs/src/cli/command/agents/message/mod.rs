@@ -146,6 +146,14 @@ pub struct RequestDangerousAdvanced {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub stream: Option<bool>,
+    /// Deterministic seed for the upstream model's RNG. Plumbed
+    /// onto `AgentCompletionCreateParams.seed` on the
+    /// spawn-takeover path. `None` here ⇒ the api picks; tests
+    /// should always pin a value to keep continuation turns
+    /// reproducible.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub seed: Option<i64>,
 }
 
 /// "Fire and forget into the queue" mode. When attached to a
@@ -325,7 +333,7 @@ pub struct Args {
     #[arg(long = "agent-tag")]
     pub agent_tag: Option<String>,
     /// Raw JSON for [`RequestDangerousAdvanced`] (e.g.
-    /// `{"stream":true}`).
+    /// `{"stream":true,"seed":42}`).
     #[arg(long)]
     pub dangerous_advanced: Option<String>,
     /// Persist the message into the queue against the target and
@@ -414,18 +422,19 @@ impl TryFrom<Args> for Request {
                 "clap group `message_target` ensures exactly one of agent_instance | agent_tag"
             ),
         };
-        let dangerous_advanced = if let Some(s) = args.dangerous_advanced {
-            let mut de = serde_json::Deserializer::from_str(&s);
-            let v = serde_path_to_error::deserialize(&mut de).map_err(|source| {
-                crate::cli::command::FromArgsError {
-                    field: "dangerous_advanced",
-                    source: source.into(),
-                }
-            })?;
-            Some(v)
-        } else {
-            None
-        };
+        let dangerous_advanced: Option<RequestDangerousAdvanced> =
+            if let Some(s) = args.dangerous_advanced {
+                let mut de = serde_json::Deserializer::from_str(&s);
+                let v = serde_path_to_error::deserialize(&mut de).map_err(|source| {
+                    crate::cli::command::FromArgsError {
+                        field: "dangerous_advanced",
+                        source: source.into(),
+                    }
+                })?;
+                Some(v)
+            } else {
+                None
+            };
         let enqueue = match (args.enqueue, args.enqueue_with_key) {
             (false, None) => None,
             (true, None) => Some(EnqueueMode::Plain),

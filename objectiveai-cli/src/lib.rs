@@ -7,6 +7,7 @@ pub mod error;
 pub mod executor;
 pub mod favorite_ref;
 pub mod filesystem;
+pub mod lock_file;
 pub mod path_ref;
 mod postgres;
 mod python;

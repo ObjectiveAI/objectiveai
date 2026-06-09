@@ -68,6 +68,12 @@ struct MsgRow {
     /// a key set; lives at block level on the emitted
     /// `ClientNotification`.
     message_queue_key: Option<String>,
+    /// `logs.assistant_response_tool_calls.function_name` for
+    /// tool-call rows. Empty string for every other table.
+    /// Surfaced on [`AssistantResponsePart::function_name`] so
+    /// callers can dedupe tool calls by name without a round-trip
+    /// through `agents logs read id`.
+    function_name: String,
 }
 
 /// Coarse block-class for a `logs.message_table` value. Block
@@ -171,7 +177,8 @@ const SELECT_SHAPE: &str = "SELECT \
     END AS sender_agent_instance_hierarchy, \
     mq.id AS message_queue_id, \
     mq.enqueued_at AS timestamp_queued, \
-    mq.key AS message_queue_key";
+    mq.key AS message_queue_key, \
+    COALESCE(atc.function_name, '') AS function_name";
 
 const FROM_JOINS: &str = "FROM logs.messages m \
     LEFT JOIN message_queue_contents mqc \
@@ -189,7 +196,12 @@ const FROM_JOINS: &str = "FROM logs.messages m \
         AND m.\"table\" = 'vector_completion_request' \
     LEFT JOIN logs.function_execution_requests fer \
         ON m.response_id = fer.response_id \
-        AND m.\"table\" = 'function_execution_request'";
+        AND m.\"table\" = 'function_execution_request' \
+    LEFT JOIN logs.assistant_response_tool_calls atc \
+        ON m.response_id = atc.response_id \
+        AND m.row_index = atc.\"index\" \
+        AND m.row_sub_index = atc.tool_call_index \
+        AND m.\"table\" = 'assistant_response_tool_calls'";
 
 fn row_into_msg(r: &sqlx::postgres::PgRow) -> Result<MsgRow, Error> {
     Ok(MsgRow {
@@ -202,6 +214,7 @@ fn row_into_msg(r: &sqlx::postgres::PgRow) -> Result<MsgRow, Error> {
         message_queue_id: r.try_get("message_queue_id")?,
         timestamp_queued: r.try_get("timestamp_queued")?,
         message_queue_key: r.try_get("message_queue_key")?,
+        function_name: r.try_get("function_name")?,
     })
 }
 
@@ -398,6 +411,7 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
                     id: row.id,
                     timestamp_delivered: row.timestamp_delivered,
                     r#type,
+                    function_name: row.function_name,
                 });
             }
             BlockClass::ToolResponse => {

@@ -164,23 +164,24 @@ async fn insert_value<'a>(
             .await?;
         }
         RowValue::AssistantResponseToolCalls {
-            tool_call_index, tool_call_id, arguments, ..
+            tool_call_index, tool_call_id, function_name, arguments, ..
         } => {
             sqlx::query(
                 "WITH data_ins AS (\
                     INSERT INTO logs.assistant_response_tool_calls \
-                        (response_id, \"index\", tool_call_index, tool_call_id, arguments) \
-                    VALUES ($1, $2, $3, $4, $5) RETURNING response_id\
+                        (response_id, \"index\", tool_call_index, tool_call_id, function_name, arguments) \
+                    VALUES ($1, $2, $3, $4, $5, $6) RETURNING response_id\
                  )\
                  INSERT INTO logs.messages \
                     (response_id, \"table\", row_index, row_sub_index, \
                      agent_instance_hierarchy, \"timestamp\") \
-                 SELECT $1, $6, $7, $8, $9, $10 FROM data_ins",
+                 SELECT $1, $7, $8, $9, $10, $11 FROM data_ins",
             )
             .bind(response_id)
             .bind(row_index)
             .bind(tool_call_index as i64)
             .bind(tool_call_id)
+            .bind(function_name)
             .bind(arguments)
             .bind(mt)
             .bind(row_index)
@@ -272,13 +273,13 @@ async fn update_value<'a>(pool: &Pool, value: &RowValue<'a>) -> Result<(), Error
                 &[BindIdx::Resp, BindIdx::Ri],
             ).await?;
         }
-        RowValue::AssistantResponseToolCalls { tool_call_index, tool_call_id, arguments, .. } => {
+        RowValue::AssistantResponseToolCalls { tool_call_index, tool_call_id, function_name, arguments, .. } => {
             run_update_with_downgrade(
                 pool,
-                "UPDATE logs.assistant_response_tool_calls SET tool_call_id = $A, arguments = $B \
+                "UPDATE logs.assistant_response_tool_calls SET tool_call_id = $A, function_name = $B, arguments = $C \
                  WHERE response_id = $RESP AND \"index\" = $RI AND tool_call_index = $RSI",
                 response_id, row_index, row_sub_index, mt, hier,
-                &[("A", BindVal::Str(tool_call_id)), ("B", BindVal::Str(arguments))],
+                &[("A", BindVal::Str(tool_call_id)), ("B", BindVal::Str(function_name)), ("C", BindVal::Str(arguments))],
                 &[BindIdx::Resp, BindIdx::Ri, BindIdx::Rsi],
             ).await?;
             let _ = tool_call_index;

@@ -5,17 +5,16 @@
 //! second invocation against an already-populated database is a no-op.
 //!
 //! Connection URL strategy (postmaster is spun up by
-//! [`crate::postgres::bootstrap`], with the cluster's default
-//! `pg_hba.conf` left intact; we authenticate with the fixed
-//! [`crate::postgres::PG_INITDB_PASSWORD`] that the cluster was
-//! initdb'd against):
+//! [`crate::postgres::bootstrap`] before this runs, with the
+//! cluster's default `pg_hba.conf` left intact; we authenticate
+//! with the fixed [`crate::postgres::PG_INITDB_PASSWORD`] the
+//! cluster was initdb'd against):
 //!
-//! - **Unix**: `postgres:///<db>?host=<data_dir>&user=postgres&password=<pw>`
-//!   — talks to the Unix socket at `<data_dir>/.s.PGSQL.1`; the URL
-//!   percent-encodes both the data-dir path and the password so non-
-//!   alphanumeric bytes survive.
-//! - **Windows**: `postgres://postgres:<pw>@127.0.0.1:5432/<db>` — TCP
-//!   loopback to the postmaster listening at the canonical port.
+//! `postgres://postgres:<pw>@127.0.0.1:<port>/<db>` — TCP
+//! loopback on every platform. `<port>` is the OS-assigned
+//! ephemeral port the postmaster bound to at bootstrap time;
+//! it's read out of `<data_dir>/postmaster.pid` (line 4) via
+//! [`crate::postgres::pg_port`].
 //!
 //! We open two pools sequentially: a small admin pool against the
 //! `postgres` system database (used only to `CREATE DATABASE objectiveai`
@@ -235,8 +234,17 @@ const LOGS_SCHEMA: &str = include_str!("logs/schema.sql");
 /// uses `IF NOT EXISTS`).
 pub async fn init(config_base_dir: &Path) -> Result<Pool, Error> {
     let data_dir = config_base_dir.join("db");
-    let admin_url = build_url(&data_dir, "postgres");
-    let app_url = build_url(&data_dir, APP_DB_NAME);
+    // `postgres::bootstrap` ran first inside `Context::new`, so
+    // `postmaster.pid` is in place and carries the port the
+    // postmaster bound to (OS-assigned at start time).
+    let port = crate::postgres::pg_port(&data_dir).await.ok_or_else(|| {
+        Error::InvalidData(format!(
+            "postmaster.pid in {data_dir:?} did not carry a parseable port — \
+             bootstrap appears to have run but the postmaster isn't running"
+        ))
+    })?;
+    let admin_url = build_url("postgres", port);
+    let app_url = build_url(APP_DB_NAME, port);
 
     // 1. Admin pool: ensure the `objectiveai` database exists.
     //    `CREATE DATABASE` cannot run inside a transaction, so we use
@@ -255,50 +263,85 @@ pub async fn init(config_base_dir: &Path) -> Result<Pool, Error> {
     if !exists {
         // `CREATE DATABASE` can't be parameterised; the constant is
         // a compile-time literal so no injection surface.
-        admin
+        //
+        // Race: two concurrent cli processes can both observe
+        // `exists = false` and race the CREATE. The second to
+        // commit gets SQLSTATE 42P04 (`duplicate_database`); swallow
+        // that exact code (any other error still propagates).
+        match admin
             .execute(format!("CREATE DATABASE {APP_DB_NAME}").as_str())
-            .await?;
+            .await
+        {
+            Ok(_) => {}
+            // 42P04 = `duplicate_database` (the high-level check
+            // postgres fires when it sees an existing matching
+            // datname row in pg_database).
+            // 23505 = `unique_violation` on `pg_database_datname_index`
+            // (the low-level catalog insert losing the race).
+            // Either way, the database exists now; continue.
+            Err(sqlx::Error::Database(db))
+                if matches!(db.code().as_deref(), Some("42P04") | Some("23505")) => {}
+            Err(e) => return Err(e.into()),
+        }
     }
     admin.close().await;
 
     // 2. App pool: connect to the just-ensured database, apply schema
     //    inside one transaction.
+    //
+    //    Concurrency: `CREATE … IF NOT EXISTS` is not atomic across
+    //    parallel sessions (two can both see "doesn't exist" and
+    //    both try to insert into `pg_class`; the loser gets 23505
+    //    on `pg_class_relname_nsp_index` or a deadlock against
+    //    another session writing the same catalog row).
+    //    Serialize the schema-apply step behind a session-level
+    //    advisory lock so only one process at a time runs it; the
+    //    `IF NOT EXISTS` clauses then make every subsequent run a
+    //    no-op.
     let pool = PgPoolOptions::new()
         .max_connections(8)
         .connect(&app_url)
         .await?;
     {
-        let mut tx = pool.begin().await?;
-        tx.execute(SCHEMA).await?;
-        tx.execute(LOGS_SCHEMA).await?;
-        tx.commit().await?;
+        // Arbitrary 64-bit constant; the pair `(database, key)`
+        // defines the lock identity, so as long as every process
+        // uses the same key against the same db they serialize on
+        // schema-apply.
+        const SCHEMA_LOCK_KEY: i64 = 0x0B7EC71AE_15CBE_AA_i64;
+        let mut conn = pool.acquire().await?;
+        sqlx::query("SELECT pg_advisory_lock($1)")
+            .bind(SCHEMA_LOCK_KEY)
+            .execute(&mut *conn)
+            .await?;
+        let apply_result: Result<(), Error> = async {
+            conn.execute(SCHEMA).await?;
+            conn.execute(LOGS_SCHEMA).await?;
+            Ok(())
+        }
+        .await;
+        // Best-effort release; if the connection died the lock
+        // releases on session end anyway.
+        let _ = sqlx::query("SELECT pg_advisory_unlock($1)")
+            .bind(SCHEMA_LOCK_KEY)
+            .execute(&mut *conn)
+            .await;
+        apply_result?;
     }
 
     Ok(Pool(pool))
 }
 
-/// Compose the libpq connection URL for `db` against the postmaster
-/// rooted at `data_dir`. On Unix the host is the data-dir path (which
-/// holds the `.s.PGSQL.1` socket); on Windows we go through TCP
-/// loopback at 5432. The password is the fixed
-/// [`crate::postgres::PG_INITDB_PASSWORD`] the cluster was initdb'd
-/// against.
-fn build_url(data_dir: &Path, db: &str) -> String {
+/// Compose the libpq connection URL for `db` against the
+/// postmaster listening on `127.0.0.1:<port>`. TCP loopback on
+/// every platform; the port is the OS-assigned ephemeral one
+/// the postmaster bound to at bootstrap time and advertised via
+/// `postmaster.pid`. Password is the fixed
+/// [`crate::postgres::PG_INITDB_PASSWORD`] the cluster was
+/// initdb'd against.
+fn build_url(db: &str, port: u16) -> String {
     let password = percent_encoding::utf8_percent_encode(
         crate::postgres::PG_INITDB_PASSWORD,
         percent_encoding::NON_ALPHANUMERIC,
     );
-    #[cfg(unix)]
-    {
-        let host_param = percent_encoding::utf8_percent_encode(
-            &data_dir.to_string_lossy(),
-            percent_encoding::NON_ALPHANUMERIC,
-        );
-        format!("postgres:///{db}?host={host_param}&user=postgres&password={password}")
-    }
-    #[cfg(windows)]
-    {
-        let _ = data_dir;
-        format!("postgres://postgres:{password}@127.0.0.1:5432/{db}")
-    }
+    format!("postgres://postgres:{password}@127.0.0.1:{port}/{db}")
 }

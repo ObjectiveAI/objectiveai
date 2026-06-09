@@ -106,6 +106,9 @@ pub enum Response {
         index: i64,
         tool_call_index: i64,
         tool_call_id: String,
+        /// Function name from the openai tool_call payload
+        /// (`tool_calls[i].function.name`).
+        function_name: String,
         arguments: String,
     },
     #[schemars(title = "Text")]

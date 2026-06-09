@@ -110,6 +110,10 @@
         "arguments": {
           "type": "string"
         },
+        "function_name": {
+          "description": "Function name from the openai tool_call payload\n(`tool_calls[i].function.name`).",
+          "type": "string"
+        },
         "index": {
           "type": "integer",
           "minimum": -9223372036854775808,
