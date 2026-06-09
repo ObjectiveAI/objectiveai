@@ -1,4 +1,0 @@
-{
-  "title": "Read",
-  "$ref": "cli.command.agents.logs.read.Request"
-}

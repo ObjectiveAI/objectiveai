@@ -103,6 +103,18 @@
         "agent_instance_hierarchy": {
           "type": "string"
         },
+        "key": {
+          "description": "Idempotency token, if the row was enqueued with\n`--key` via `agents message --enqueue-with-key`.\nSurfacing it lets readers attribute a notification\nto a specific enqueue beyond just the sender AIH.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
         "parts": {
           "type": "array",
           "items": {

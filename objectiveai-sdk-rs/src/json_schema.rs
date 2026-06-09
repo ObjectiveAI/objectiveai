@@ -260,8 +260,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::publish::response_schema::Request),
         #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::Request),
-        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::logs::read::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::logs::read::all::Path),

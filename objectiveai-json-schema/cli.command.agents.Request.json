@@ -31,7 +31,7 @@
     },
     {
       "title": "Logs",
-      "$ref": "cli.command.agents.logs.Request"
+      "$ref": "cli.command.agents.logs.read.Request"
     },
     {
       "title": "Message",
