@@ -76,18 +76,21 @@ pub enum Response {
     #[schemars(title = "AgentCompletionRequest")]
     AgentCompletionRequest {
         response_id: String,
+        sender_agent_instance_hierarchy: String,
         body: AgentCompletionCreateParams,
         created_at: i64,
     },
     #[schemars(title = "VectorCompletionRequest")]
     VectorCompletionRequest {
         response_id: String,
+        sender_agent_instance_hierarchy: String,
         body: VectorCompletionCreateParams,
         created_at: i64,
     },
     #[schemars(title = "FunctionExecutionRequest")]
     FunctionExecutionRequest {
         response_id: String,
+        sender_agent_instance_hierarchy: String,
         body: FunctionExecutionCreateParams,
         created_at: i64,
     },

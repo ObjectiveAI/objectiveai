@@ -228,7 +228,9 @@ pub(crate) fn run_multi_pass(
             // `chunk.agent_instance_hierarchy` directly on the first
             // chunk. Drop the receiver.
             let (log_writer, _ready_rx) = crate::db::logs::write_agent_completion(
-                &ctx.db, &params,
+                &ctx.db,
+                &params,
+                ctx.config.agent_instance_hierarchy.clone(),
             )
             .map_err(|e| Error::Instance(format!(
                 "failed to build agent-completion log writer: {e}"

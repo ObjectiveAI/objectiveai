@@ -11,7 +11,7 @@ use objectiveai_sdk::agent::completions::message::{
     File, ImageUrl, InputAudio, RichContent, RichContentPart, VideoUrl,
 };
 use objectiveai_sdk::cli::command::agents::queue::read::pending::{
-    LookupState, ResponseContent, ResponseItem,
+    QueuePart, QueuePartType, ResponseItem,
 };
 use objectiveai_sdk::client_objectiveai_mcp::server_response::ReadMessageQueueResult;
 use sqlx::{PgConnection, Postgres, Row as _, Transaction};
@@ -171,6 +171,7 @@ pub async fn enqueue_with_content(
     pool: &Pool,
     agent_instance_hierarchy: Option<String>,
     agent_tag: Option<String>,
+    sender_agent_instance_hierarchy: &str,
     key: Option<String>,
     content: RichContent,
 ) -> Result<i64, Error> {
@@ -179,6 +180,7 @@ pub async fn enqueue_with_content(
         &mut tx,
         agent_instance_hierarchy.as_deref(),
         agent_tag.as_deref(),
+        sender_agent_instance_hierarchy,
         key.as_deref(),
         now_seconds(),
         content,
@@ -196,6 +198,7 @@ async fn enqueue_with_content_in_tx(
     tx: &mut Transaction<'_, Postgres>,
     agent_instance_hierarchy: Option<&str>,
     agent_tag: Option<&str>,
+    sender_agent_instance_hierarchy: &str,
     key: Option<&str>,
     enqueued_at: i64,
     content: RichContent,
@@ -227,52 +230,45 @@ async fn enqueue_with_content_in_tx(
         .execute(&mut **tx)
         .await?;
     }
-    // Empty `message` placeholder — overwritten by the final UPDATE
-    // once we know the id-referenced shape. `message_queue.content` is NOT
-    // NULL so we need *some* value here.
     let message_queue_id: i64 = sqlx::query_scalar(
-        "INSERT INTO message_queue (agent_instance_hierarchy, agent_tag, content, enqueued_at, key) \
-         VALUES ($1, $2, '', $3, $4) \
+        "INSERT INTO message_queue \
+            (agent_instance_hierarchy, agent_tag, \
+             sender_agent_instance_hierarchy, enqueued_at, key) \
+         VALUES ($1, $2, $3, $4, $5) \
          RETURNING id",
     )
     .bind(agent_instance_hierarchy)
     .bind(agent_tag)
+    .bind(sender_agent_instance_hierarchy)
     .bind(enqueued_at)
     .bind(key)
     .fetch_one(&mut **tx)
     .await?;
-    let response_content = walk_rich(tx, message_queue_id, content).await?;
-    let json = serde_json::to_string(&response_content)?;
-    sqlx::query("UPDATE message_queue SET content = $1 WHERE id = $2")
-        .bind(json)
-        .bind(message_queue_id)
-        .execute(&mut **tx)
-        .await?;
+    walk_rich(tx, message_queue_id, content).await?;
     Ok(message_queue_id)
 }
 
+/// Insert each content slot into the matching per-kind table.
+/// All rows link back to `message_queue_id` via the FK on
+/// `message_queue_contents`; reads JOIN, never look at the parent
+/// row for content. No JSON shadow of the slot ids is written
+/// anywhere.
 async fn walk_rich(
     tx: &mut Transaction<'_, Postgres>,
     message_queue_id: i64,
     content: RichContent,
-) -> Result<ResponseContent, Error> {
+) -> Result<(), Error> {
     match content {
         RichContent::Text(text) => {
-            let id = insert_content_text(tx, message_queue_id, &text).await?;
-            Ok(ResponseContent::One(id))
+            insert_content_text(tx, message_queue_id, &text).await?;
         }
         RichContent::Parts(parts) => {
-            let mut ids = Vec::with_capacity(parts.len());
             for part in parts {
-                ids.push(insert_content_part(tx, message_queue_id, part).await?);
-            }
-            if ids.len() == 1 {
-                Ok(ResponseContent::One(ids.remove(0)))
-            } else {
-                Ok(ResponseContent::Many(ids))
+                insert_content_part(tx, message_queue_id, part).await?;
             }
         }
     }
+    Ok(())
 }
 
 async fn insert_content_part(
@@ -406,111 +402,151 @@ async fn insert_content_file(
 /// 2. BOUND tag (LEFT JOIN matches): tag's bound hierarchy is a direct
 ///    child of `parent`.
 /// 3. PENDING tag: tag's stored parent equals `parent` exactly.
-pub async fn list(pool: &Pool, parent: &str) -> Result<Vec<ResponseItem>, Error> {
-    let prefix_len = parent.len() as i32;
-    let pattern = format!("{parent}/%");
+/// One target the CLI handler has already resolved. `Hierarchy`
+/// is a direct AIH; `Tag` is a tag-name post-`tags::lookup`. The
+/// SQL filters by whichever column matches.
+#[derive(Debug, Clone)]
+pub enum ResolvedTarget {
+    Hierarchy(String),
+    Tag(String),
+}
+
+/// Stream every `active = TRUE` `message_queue` row for any of
+/// `targets`, JOINed against `message_queue_contents` for parts.
+/// Grouped per-parent so `parts` reflects the relational
+/// content shape, not a JSON shadow. Pagination is by
+/// `message_queue_contents.id` (the `--after-id` / `--limit`
+/// scope is on parts, not rows — but the row boundary stays
+/// stable per parent).
+pub async fn list_pending_for_targets(
+    pool: &Pool,
+    targets: &[ResolvedTarget],
+    after_id: Option<i64>,
+    limit: Option<i64>,
+) -> Result<Vec<ResponseItem>, Error> {
+    if targets.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut hier_targets: Vec<String> = Vec::new();
+    let mut tag_targets: Vec<String> = Vec::new();
+    for t in targets {
+        match t {
+            ResolvedTarget::Hierarchy(h) => hier_targets.push(h.clone()),
+            ResolvedTarget::Tag(t) => tag_targets.push(t.clone()),
+        }
+    }
     let rows = sqlx::query(
-        "SELECT p.id, \
-                p.agent_instance_hierarchy, \
-                p.agent_tag, \
-                p.key, \
-                p.content, \
-                t.agent_instance_hierarchy        AS tag_bound_hierarchy, \
-                g.id                              AS tag_group_id, \
-                g.agent_spec                      AS tag_group_spec, \
-                g.parent_agent_instance_hierarchy AS tag_group_parent \
+        "SELECT p.id                              AS message_queue_id, \
+                p.agent_instance_hierarchy        AS agent_instance_hierarchy, \
+                p.agent_tag                       AS agent_tag, \
+                p.sender_agent_instance_hierarchy AS sender_agent_instance_hierarchy, \
+                p.enqueued_at                     AS timestamp_queued, \
+                p.key                             AS key, \
+                c.id                              AS content_id, \
+                c.kind                            AS content_kind \
          FROM message_queue p \
-         LEFT JOIN tags t ON p.agent_tag = t.name \
-         LEFT JOIN tag_groups g ON g.id = t.tag_group \
-         WHERE p.active = TRUE AND ( \
-                /* Direct row: agent_instance_hierarchy is a direct child of $1 */ \
-                ( \
-                    p.agent_instance_hierarchy IS NOT NULL \
-                    AND p.agent_instance_hierarchy LIKE $2 \
-                    AND position('/' in substring(p.agent_instance_hierarchy from cast($3 as int) + 2)) = 0 \
-                ) \
-             /* BOUND tag: tag's bound hierarchy is a direct child of $1 */ \
-             OR ( \
-                    p.agent_tag IS NOT NULL \
-                    AND t.agent_instance_hierarchy IS NOT NULL \
-                    AND t.agent_instance_hierarchy LIKE $2 \
-                    AND position('/' in substring(t.agent_instance_hierarchy from cast($3 as int) + 2)) = 0 \
-                ) \
-             /* GROUPED tag: group's stored parent equals $1 exactly */ \
-             OR ( \
-                    p.agent_tag IS NOT NULL \
-                    AND g.parent_agent_instance_hierarchy = $1 \
-                ) \
-         ) \
-         ORDER BY p.id",
+         JOIN message_queue_contents c ON c.message_queue_id = p.id \
+         WHERE p.active = TRUE \
+           AND ( \
+                ( $1::text[] IS NOT NULL \
+                  AND p.agent_instance_hierarchy = ANY($1) ) \
+             OR ( $2::text[] IS NOT NULL \
+                  AND p.agent_tag = ANY($2) ) \
+           ) \
+           AND c.id > COALESCE($3, 0) \
+         ORDER BY p.id ASC, c.id ASC \
+         LIMIT COALESCE($4, 1000)",
     )
-    .bind(parent)
-    .bind(&pattern)
-    .bind(prefix_len)
+    .bind(if hier_targets.is_empty() { None } else { Some(&hier_targets) })
+    .bind(if tag_targets.is_empty() { None } else { Some(&tag_targets) })
+    .bind(after_id)
+    .bind(limit)
     .fetch_all(&**pool)
     .await?;
 
-    let mut out = Vec::with_capacity(rows.len());
-    for row in rows {
-        let id: i64 = row.try_get(0)?;
-        let agent_instance_hierarchy: Option<String> = row.try_get(1)?;
-        let agent_tag: Option<String> = row.try_get(2)?;
-        let key: Option<String> = row.try_get(3)?;
-        let content_json: String = row.try_get(4)?;
-        let tag_bound_hierarchy: Option<String> = row.try_get(5)?;
-        let tag_group_id: Option<i64> = row.try_get(6)?;
-        let tag_group_spec: Option<serde_json::Value> = row.try_get(7)?;
-        let tag_group_parent: Option<String> = row.try_get(8)?;
+    // Walk the joined rows and group consecutive rows that share
+    // `message_queue_id` into one ResponseItem. Each row is one
+    // content slot; the parent's metadata (sender, timestamp,
+    // key) is identical across all of a parent's rows.
+    let mut out: Vec<ResponseItem> = Vec::new();
+    let mut cur_parent: Option<i64> = None;
+    let mut cur_aih: Option<String> = None;
+    let mut cur_tag: Option<String> = None;
+    let mut cur_sender: String = String::new();
+    let mut cur_timestamp: i64 = 0;
+    let mut cur_key: Option<String> = None;
+    let mut cur_parts: Vec<QueuePart> = Vec::new();
 
-        let content: ResponseContent = if content_json.is_empty() {
-            ResponseContent::Many(Vec::new())
-        } else {
-            serde_json::from_str(&content_json)?
-        };
-        if let Some(h) = agent_instance_hierarchy {
-            let agent_instance = h
-                .strip_prefix(&format!("{parent}/"))
-                .map(str::to_string)
-                .unwrap_or_else(|| super::tags::leaf_of(&h).to_string());
-            out.push(ResponseItem::AgentInstance {
-                id,
-                agent_instance,
-                key,
-                content,
-            });
-        } else if let Some(tag) = agent_tag {
-            let Some(state) = (match (
-                tag_bound_hierarchy,
-                tag_group_id,
-                tag_group_spec,
-                tag_group_parent,
-            ) {
-                (Some(agent_instance_hierarchy), None, None, None) => {
-                    Some(LookupState::Bound { agent_instance_hierarchy })
-                }
-                (None, Some(group_id), Some(spec_value), Some(group_parent)) => {
-                    let agent_spec = serde_json::from_value(spec_value)?;
-                    Some(LookupState::Grouped {
-                        tag_group_id: group_id,
-                        agent_spec,
-                        parent_agent_instance_hierarchy: group_parent,
-                    })
-                }
-                _ => None,
-            }) else {
-                continue;
-            };
-            out.push(ResponseItem::Tag {
-                id,
-                agent_tag: tag,
-                state,
-                key,
-                content,
-            });
-        } else {
-            // CHECK guarantees unreachable; silently skip malformed.
+    let flush = |parent: &mut Option<i64>,
+                 aih: &mut Option<String>,
+                 tag: &mut Option<String>,
+                 sender: &mut String,
+                 timestamp: &mut i64,
+                 key: &mut Option<String>,
+                 parts: &mut Vec<QueuePart>,
+                 out: &mut Vec<ResponseItem>| {
+        if parts.is_empty() {
+            return;
         }
+        let parts = std::mem::take(parts);
+        let sender = std::mem::take(sender);
+        let key = key.take();
+        let timestamp_queued = *timestamp;
+        if let Some(h) = aih.take() {
+            out.push(ResponseItem::AgentInstanceHierarchy {
+                agent_instance_hierarchy: h,
+                sender_agent_instance_hierarchy: sender,
+                timestamp_queued,
+                key,
+                parts,
+            });
+        } else if let Some(t) = tag.take() {
+            out.push(ResponseItem::Tag {
+                agent_tag: t,
+                sender_agent_instance_hierarchy: sender,
+                timestamp_queued,
+                key,
+                parts,
+            });
+        }
+        *parent = None;
+        *timestamp = 0;
+    };
+
+    for row in rows {
+        let parent_id: i64 = row.try_get("message_queue_id")?;
+        if cur_parent != Some(parent_id) {
+            flush(
+                &mut cur_parent, &mut cur_aih, &mut cur_tag,
+                &mut cur_sender, &mut cur_timestamp, &mut cur_key,
+                &mut cur_parts, &mut out,
+            );
+            cur_parent = Some(parent_id);
+            cur_aih = row.try_get("agent_instance_hierarchy")?;
+            cur_tag = row.try_get("agent_tag")?;
+            cur_sender = row.try_get("sender_agent_instance_hierarchy")?;
+            cur_timestamp = row.try_get("timestamp_queued")?;
+            cur_key = row.try_get("key")?;
+        }
+        let content_id: i64 = row.try_get("content_id")?;
+        let kind: String = row.try_get("content_kind")?;
+        let r#type = match kind.as_str() {
+            "text"  => QueuePartType::Text,
+            "image" => QueuePartType::Image,
+            "audio" => QueuePartType::Audio,
+            "video" => QueuePartType::Video,
+            "file"  => QueuePartType::File,
+            other => return Err(Error::InvalidData(format!(
+                "unknown message_queue_contents.kind: {other}"
+            ))),
+        };
+        cur_parts.push(QueuePart { id: content_id, r#type });
     }
+    flush(
+        &mut cur_parent, &mut cur_aih, &mut cur_tag,
+        &mut cur_sender, &mut cur_timestamp, &mut cur_key,
+        &mut cur_parts, &mut out,
+    );
     Ok(out)
 }
 
@@ -525,7 +561,6 @@ struct DrainedRow {
     agent_tag: Option<String>,
     key: Option<String>,
     enqueued_at: i64,
-    content_json: String,
 }
 
 /// Drain rows targeting `target_hierarchy`, `target_tag` (if some), or
@@ -559,8 +594,7 @@ async fn collect_matching_for_message(
                 p.agent_instance_hierarchy, \
                 p.agent_tag, \
                 p.key, \
-                p.enqueued_at, \
-                p.content \
+                p.enqueued_at \
          FROM message_queue p \
          WHERE p.active = TRUE \
            AND ( \
@@ -595,31 +629,23 @@ fn rows_to_drained(rows: Vec<sqlx::postgres::PgRow>) -> Result<Vec<DrainedRow>, 
             agent_tag: row.try_get(2)?,
             key: row.try_get(3)?,
             enqueued_at: row.try_get(4)?,
-            content_json: row.try_get(5)?,
         });
     }
     Ok(out)
 }
 
-/// For each matched row, decode the JSON column as `ResponseContent`,
-/// reconstruct a `RichContent` from the referenced per-kind rows, then
-/// DELETE the message row (which cascades to its content rows via the
-/// FK chain).
+/// For each matched row, look up its content rows by
+/// `message_queue_id`, reconstruct a `RichContent`, then
+/// soft-flip the parent row (`active = FALSE`). The parent row
+/// and its `message_queue_contents` children survive untouched
+/// — invisible to readers via `active = FALSE`.
 async fn reconstruct_and_delete(
     tx: &mut Transaction<'_, Postgres>,
     rows: Vec<DrainedRow>,
 ) -> Result<Vec<DrainedMessage>, Error> {
     let mut out = Vec::with_capacity(rows.len());
     for row in rows {
-        let response_content: ResponseContent = if row.content_json.is_empty() {
-            ResponseContent::Many(Vec::new())
-        } else {
-            serde_json::from_str(&row.content_json)?
-        };
-        let content = reconstruct_rich_content(tx, response_content).await?;
-        // Soft-flip instead of DELETE — the row + its content
-        // children survive untouched but become invisible to
-        // readers via `active = FALSE`. Idempotent on re-flip.
+        let content = reconstruct_rich_content(tx, row.message_queue_id).await?;
         sqlx::query(
             "UPDATE message_queue SET active = FALSE \
              WHERE id = $1 AND active = TRUE",
@@ -638,27 +664,16 @@ async fn reconstruct_and_delete(
     Ok(out)
 }
 
-/// Look up every content row referenced by `rc`, map each to a
-/// `RichContentPart`, then bypass `RichContent::from`'s all-text
-/// collapse so callers get exactly the shape the queue stored.
+/// Pull every `message_queue_contents` row whose
+/// `message_queue_id` matches and assemble a `RichContent` in
+/// id-ASC order. Single-text-part collapses to
+/// `RichContent::Text` so callers see the exact shape the queue
+/// stored.
 async fn reconstruct_rich_content(
     tx: &mut Transaction<'_, Postgres>,
-    rc: ResponseContent,
+    message_queue_id: i64,
 ) -> Result<RichContent, Error> {
-    let ids: Vec<i64> = match rc {
-        ResponseContent::One(id) => vec![id],
-        ResponseContent::Many(ids) => ids,
-    };
-    let mut parts: Vec<RichContentPart> = Vec::with_capacity(ids.len());
-    for id in ids {
-        let row = read_content_on_conn(&mut **tx, id).await?.ok_or_else(|| {
-            Error::InvalidData(format!(
-                "queue message referenced missing message_queue_contents id {id}"
-            ))
-        })?;
-        parts.push(content_row_to_part(row));
-    }
-    // Collapse single-text-part to RichContent::Text (lossless).
+    let (_, parts) = fetch_content_parts_for_queue_id(tx, message_queue_id).await?;
     if parts.len() == 1 {
         if let RichContentPart::Text { text } = &parts[0] {
             return Ok(RichContent::Text(text.clone()));
@@ -687,8 +702,7 @@ pub async fn delete_by_id(
                 p.agent_instance_hierarchy, \
                 p.agent_tag, \
                 p.key, \
-                p.enqueued_at, \
-                p.content \
+                p.enqueued_at \
          FROM message_queue p \
          WHERE p.id = $1 AND p.active = TRUE \
          ORDER BY p.id ASC",
@@ -751,8 +765,7 @@ pub async fn read_pending_and_upgrade_tag(
                 p.agent_instance_hierarchy, \
                 p.agent_tag, \
                 p.key, \
-                p.enqueued_at, \
-                p.content \
+                p.enqueued_at \
          FROM message_queue p \
          WHERE p.active = TRUE \
            AND ( \
@@ -787,12 +800,8 @@ pub async fn read_pending_and_upgrade_tag(
                 text: "\n\n".to_string(),
             });
         }
-        let rc: ResponseContent = if row.content_json.is_empty() {
-            ResponseContent::Many(Vec::new())
-        } else {
-            serde_json::from_str(&row.content_json)?
-        };
-        let (content_ids, parts) = fetch_content_parts_with_ids(&mut tx, rc).await?;
+        let (content_ids, parts) =
+            fetch_content_parts_for_queue_id(&mut tx, row.message_queue_id).await?;
         all_ids.extend(content_ids);
         all_parts.extend(parts);
     }
@@ -822,20 +831,30 @@ pub async fn read_pending_and_upgrade_tag(
 /// so the caller can preserve content-id provenance through the
 /// join + separator path. Kinds aren't returned — the LogWriter
 /// resolves them at write time via SQL CASE.
-async fn fetch_content_parts_with_ids(
+/// Look up every `message_queue_contents` row whose
+/// `message_queue_id` matches and return (ids, RichContentParts)
+/// in id ASC order. Replaces the old JSON-shadow path — content
+/// is fetched relationally, never via a denormalized parent
+/// column.
+async fn fetch_content_parts_for_queue_id(
     tx: &mut Transaction<'_, Postgres>,
-    rc: ResponseContent,
+    message_queue_id: i64,
 ) -> Result<(Vec<i64>, Vec<RichContentPart>), Error> {
-    let ids: Vec<i64> = match rc {
-        ResponseContent::One(id) => vec![id],
-        ResponseContent::Many(ids) => ids,
-    };
-    let mut out_ids = Vec::with_capacity(ids.len());
-    let mut out_parts = Vec::with_capacity(ids.len());
-    for id in ids {
+    let id_rows = sqlx::query(
+        "SELECT id FROM message_queue_contents \
+         WHERE message_queue_id = $1 \
+         ORDER BY id ASC",
+    )
+    .bind(message_queue_id)
+    .fetch_all(&mut **tx)
+    .await?;
+    let mut out_ids = Vec::with_capacity(id_rows.len());
+    let mut out_parts = Vec::with_capacity(id_rows.len());
+    for r in id_rows {
+        let id: i64 = r.try_get("id")?;
         let row = read_content_on_conn(&mut **tx, id).await?.ok_or_else(|| {
             Error::InvalidData(format!(
-                "queue message referenced missing message_queue_contents id {id}"
+                "message_queue_contents id {id} disappeared mid-tx"
             ))
         })?;
         out_ids.push(id);

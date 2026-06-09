@@ -198,6 +198,12 @@ struct LogWriterState<C> {
     pool: Pool,
     tier: Tier,
     request_body: serde_json::Value,
+    /// AIH of the caller who issued the request that spawned this
+    /// writer (pulled from `ctx.config.agent_instance_hierarchy` at
+    /// `spawn_writer` time). Written into the request blob row at
+    /// `insert_request_blob` time. Constant for the writer's
+    /// lifetime — one request = one sender.
+    sender_agent_instance_hierarchy: String,
     rows_fn: for<'a> fn(&'a C) -> RowsIter<'a>,
     primary_id: Option<String>,
     /// Per-streaming-content-row shadow. Skip path is allocation-free.
@@ -221,12 +227,14 @@ impl<C> LogWriterState<C> {
         pool: Pool,
         tier: Tier,
         request_body: serde_json::Value,
+        sender_agent_instance_hierarchy: String,
         rows_fn: for<'a> fn(&'a C) -> RowsIter<'a>,
     ) -> Self {
         Self {
             pool,
             tier,
             request_body,
+            sender_agent_instance_hierarchy,
             rows_fn,
             primary_id: None,
             shadow: Shadow::new(),
@@ -256,6 +264,7 @@ impl<C> LogWriterState<C> {
                 self.tier,
                 &response_id,
                 &request_body,
+                &self.sender_agent_instance_hierarchy,
                 created_at_seed,
             )
             .await?;
@@ -431,6 +440,7 @@ fn spawn_writer<C>(
     pool: Pool,
     tier: Tier,
     request_body: serde_json::Value,
+    sender_agent_instance_hierarchy: String,
     rows_fn: for<'a> fn(&'a C) -> RowsIter<'a>,
 ) -> (LogWriter<C>, oneshot::Receiver<String>)
 where
@@ -439,7 +449,13 @@ where
     let (tx, rx) = mpsc::unbounded_channel();
     let (ready_tx, ready_rx) = oneshot::channel();
     let (written_tx, written_rx) = watch::channel(false);
-    let state = LogWriterState::new(pool, tier, request_body, rows_fn);
+    let state = LogWriterState::new(
+        pool,
+        tier,
+        request_body,
+        sender_agent_instance_hierarchy,
+        rows_fn,
+    );
     let handle = tokio::spawn(listener_loop(rx, state, ready_tx, written_tx));
     (
         LogWriter {
@@ -455,6 +471,7 @@ where
 pub fn write_agent_completion(
     pool: &Pool,
     params: &AgentCompletionCreateParams,
+    sender_agent_instance_hierarchy: String,
 ) -> Result<
     (LogWriter<AgentCompletionChunk>, oneshot::Receiver<String>),
     crate::error::Error,
@@ -464,6 +481,7 @@ pub fn write_agent_completion(
         pool.clone(),
         Tier::Agent,
         body,
+        sender_agent_instance_hierarchy,
         agent_completion_chunk_rows,
     ))
 }
@@ -471,6 +489,7 @@ pub fn write_agent_completion(
 pub fn write_vector_completion(
     pool: &Pool,
     params: &VectorCompletionCreateParams,
+    sender_agent_instance_hierarchy: String,
 ) -> Result<
     (LogWriter<VectorCompletionChunk>, oneshot::Receiver<String>),
     crate::error::Error,
@@ -480,6 +499,7 @@ pub fn write_vector_completion(
         pool.clone(),
         Tier::Vector,
         body,
+        sender_agent_instance_hierarchy,
         vector_completion_chunk_rows,
     ))
 }
@@ -487,6 +507,7 @@ pub fn write_vector_completion(
 pub fn write_function_execution(
     pool: &Pool,
     params: &FunctionExecutionCreateParams,
+    sender_agent_instance_hierarchy: String,
 ) -> Result<
     (LogWriter<FunctionExecutionChunk>, oneshot::Receiver<String>),
     crate::error::Error,
@@ -496,6 +517,7 @@ pub fn write_function_execution(
         pool.clone(),
         Tier::Function,
         body,
+        sender_agent_instance_hierarchy,
         function_execution_chunk_rows,
     ))
 }

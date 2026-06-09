@@ -129,31 +129,34 @@ async fn load_payload(
             }))
         }
         MessageTable::AgentCompletionRequest => {
-            let (body, created_at) =
+            let (body, created_at, sender) =
                 fetch_request_blob(pool, "logs.agent_completion_requests", response_id).await?;
             let body: AgentCompletionCreateParams = serde_json::from_value(body)?;
             Ok(Response::AgentCompletionRequest {
                 response_id: response_id.to_string(),
+                sender_agent_instance_hierarchy: sender,
                 body,
                 created_at,
             })
         }
         MessageTable::VectorCompletionRequest => {
-            let (body, created_at) =
+            let (body, created_at, sender) =
                 fetch_request_blob(pool, "logs.vector_completion_requests", response_id).await?;
             let body: VectorCompletionCreateParams = serde_json::from_value(body)?;
             Ok(Response::VectorCompletionRequest {
                 response_id: response_id.to_string(),
+                sender_agent_instance_hierarchy: sender,
                 body,
                 created_at,
             })
         }
         MessageTable::FunctionExecutionRequest => {
-            let (body, created_at) =
+            let (body, created_at, sender) =
                 fetch_request_blob(pool, "logs.function_execution_requests", response_id).await?;
             let body: FunctionExecutionCreateParams = serde_json::from_value(body)?;
             Ok(Response::FunctionExecutionRequest {
                 response_id: response_id.to_string(),
+                sender_agent_instance_hierarchy: sender,
                 body,
                 created_at,
             })
@@ -354,9 +357,10 @@ async fn fetch_request_blob(
     pool: &Pool,
     table: &str,
     response_id: &str,
-) -> Result<(serde_json::Value, i64), Error> {
+) -> Result<(serde_json::Value, i64, String), Error> {
     let sql = format!(
-        "SELECT body, created_at FROM {table} WHERE response_id = $1",
+        "SELECT body, created_at, sender_agent_instance_hierarchy \
+         FROM {table} WHERE response_id = $1",
     );
     let row = sqlx::query(&sql)
         .bind(response_id)
@@ -364,7 +368,8 @@ async fn fetch_request_blob(
         .await?;
     let body: sqlx::types::Json<serde_json::Value> = row.try_get("body")?;
     let created_at: i64 = row.try_get("created_at")?;
-    Ok((body.0, created_at))
+    let sender: String = row.try_get("sender_agent_instance_hierarchy")?;
+    Ok((body.0, created_at, sender))
 }
 
 async fn fetch_indexed_text(

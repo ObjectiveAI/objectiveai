@@ -120,6 +120,7 @@ async fn resolve_target(ctx: &Context, request: &Request) -> Result<ResolvedTarg
                         &ctx.db,
                         None,
                         Some(agent_tag.clone()),
+                        &ctx.config.agent_instance_hierarchy,
                         None,
                         content,
                     )
@@ -157,6 +158,7 @@ async fn execute_streaming(
         &ctx.db,
         Some(hierarchy.clone()),
         None,
+        &ctx.config.agent_instance_hierarchy,
         None,
         message_content.clone(),
     )
@@ -267,6 +269,7 @@ async fn execute_unary(
                 &ctx.db,
                 Some(hierarchy.clone()),
                 None,
+                &ctx.config.agent_instance_hierarchy,
                 None,
                 message_content.clone(),
             )
@@ -392,6 +395,7 @@ async fn execute_enqueue(
         &ctx.db,
         hier.clone(),
         tag.clone(),
+        &ctx.config.agent_instance_hierarchy,
         key,
         content,
     )

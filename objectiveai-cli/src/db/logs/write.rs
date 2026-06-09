@@ -779,17 +779,21 @@ pub async fn insert_request_blob<P: Serialize>(
     tier: Tier,
     response_id: &str,
     params: &P,
+    sender_agent_instance_hierarchy: &str,
     timestamp: i64,
 ) -> Result<(), Error> {
     let body = serde_json::to_value(params)?;
     let sql = format!(
-        "INSERT INTO {table} (response_id, body, created_at) VALUES ($1, $2, $3)",
+        "INSERT INTO {table} \
+            (response_id, body, created_at, sender_agent_instance_hierarchy) \
+         VALUES ($1, $2, $3, $4)",
         table = tier.request_table()
     );
     sqlx::query(&sql)
         .bind(response_id)
         .bind(sqlx::types::Json(body))
         .bind(timestamp)
+        .bind(sender_agent_instance_hierarchy)
         .execute(&**pool)
         .await?;
     Ok(())

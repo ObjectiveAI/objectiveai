@@ -163,7 +163,9 @@ pub enum ClientNotificationPartType {
 }
 
 /// One row inside a `ClientNotification` block — a consumed
-/// `message_queue_contents` entry.
+/// `message_queue_contents` entry. `timestamp_queued` is on the
+/// enclosing block (it lives on `message_queue.enqueued_at`, not
+/// per-content); only the per-row consumption timestamp is here.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.logs.read.all.ClientNotificationPart")]
 pub struct ClientNotificationPart {
@@ -171,7 +173,10 @@ pub struct ClientNotificationPart {
     /// `agents logs read id <n>` to fetch the consumed
     /// `message_queue_contents` body.
     pub id: i64,
-    pub timestamp: i64,
+    /// `logs.messages."timestamp"` — when the receiver consumed
+    /// this content row and the LogWriter committed the
+    /// consumption event.
+    pub timestamp_delivered: i64,
     pub r#type: ClientNotificationPartType,
 }
 
@@ -198,7 +203,7 @@ pub struct AssistantResponsePart {
     /// `logs.messages."index"` for this row. Pass to
     /// `agents logs read id <n>` for the typed body.
     pub id: i64,
-    pub timestamp: i64,
+    pub timestamp_delivered: i64,
     pub r#type: AssistantResponsePartType,
 }
 
@@ -224,12 +229,27 @@ pub struct ToolResponsePart {
     /// `logs.messages."index"` for this row. Pass to
     /// `agents logs read id <n>` for the typed body.
     pub id: i64,
-    pub timestamp: i64,
+    pub timestamp_delivered: i64,
     pub r#type: ToolResponsePartType,
 }
 
 /// One yielded item. Three single-row request blobs +
 /// three multi-row blocks. Every variant carries `response_id`.
+/// `sender_agent_instance_hierarchy` appears only on the four
+/// variants that have a sender ≠ producer: the three request
+/// variants (caller AIH) and `ClientNotification` (enqueuer
+/// AIH). `AssistantResponse` and `ToolResponse` are emitted BY
+/// the agent itself — their `agent_instance_hierarchy` IS the
+/// producer, so no separate sender field exists.
+///
+/// Block-coalescing boundary tuple: `(class,
+/// agent_instance_hierarchy, response_id)` for assistant/tool
+/// blocks; `(class, agent_instance_hierarchy, response_id,
+/// sender, message_queue_id)` for `ClientNotification` blocks.
+/// One `ClientNotification` block = one consumed
+/// `message_queue` parent row, so `timestamp_queued` and
+/// `sender_agent_instance_hierarchy` are well-defined
+/// block-level.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[schemars(rename = "cli.command.agents.logs.read.all.ResponseItem")]
@@ -238,29 +258,46 @@ pub enum ResponseItem {
     AgentCompletionRequest {
         id: i64,
         agent_instance_hierarchy: String,
-        timestamp: i64,
+        /// AIH of the caller who issued the request — from
+        /// `logs.agent_completion_requests.sender_*`.
+        sender_agent_instance_hierarchy: String,
+        timestamp_delivered: i64,
         response_id: String,
     },
     #[schemars(title = "VectorCompletionRequest")]
     VectorCompletionRequest {
         id: i64,
         agent_instance_hierarchy: String,
-        timestamp: i64,
+        sender_agent_instance_hierarchy: String,
+        timestamp_delivered: i64,
         response_id: String,
     },
     #[schemars(title = "FunctionExecutionRequest")]
     FunctionExecutionRequest {
         id: i64,
         agent_instance_hierarchy: String,
-        timestamp: i64,
+        sender_agent_instance_hierarchy: String,
+        timestamp_delivered: i64,
         response_id: String,
     },
     #[schemars(title = "ClientNotification")]
     ClientNotification {
         agent_instance_hierarchy: String,
+        /// AIH of the enqueuer — from `message_queue.sender_*`
+        /// joined through `message_queue_contents.id`.
+        sender_agent_instance_hierarchy: String,
         response_id: String,
+        /// `message_queue.enqueued_at` of the consumed parent
+        /// queue row. One block = one parent queue row, so this
+        /// is well-defined block-level (each part's individual
+        /// `timestamp_delivered` still records its own
+        /// consumption moment).
+        timestamp_queued: i64,
         parts: Vec<ClientNotificationPart>,
     },
+    /// Agent emissions — the agent IS the producer of these
+    /// rows, so there's no separate sender. The
+    /// `agent_instance_hierarchy` field IS the sender.
     #[schemars(title = "AssistantResponse")]
     AssistantResponse {
         agent_instance_hierarchy: String,

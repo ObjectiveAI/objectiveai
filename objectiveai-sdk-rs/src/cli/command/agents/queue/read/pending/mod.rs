@@ -1,20 +1,9 @@
-﻿//! `agents queue read pending` — async handler stub.
-//!
-//! Streams every queued prompt whose target is a direct child of
-//! the given parent. Direct rows match when their
-//! `agent_instance_hierarchy` is one segment under `parent` — same
-//! filter `agents list active` uses. Tag rows resolve their parent
-//! via the joined `tags` + `tag_groups` tables:
-//!
-//! * BOUND tags → parent is `parent_of(bound_agent_instance_hierarchy)`.
-//! * GROUPED tags → parent is the joined
-//!   `tag_groups.parent_agent_instance_hierarchy`.
-//! * ABSENT tags (the tag was used at enqueue but never registered)
-//!   have no parent and are excluded.
-//!
-//! Each tag-row response item carries the joined 2-state status
-//! (`Bound { hierarchy } | Grouped { tag_group_id, agent_spec, parent }`)
-//! for inspection.
+//! `agents queue read pending` — stream every pending (i.e.
+//! `active = TRUE`) `message_queue` row for the resolved targets,
+//! coalesced into parts-grouped `ResponseItem` blocks. Symmetric
+//! with `agents logs read all`'s `ClientNotification` shape — same
+//! `Target` input, same per-part type tag, same `id` shape (an i64
+//! you pass to the matching `read id` verb to drill into the body).
 
 use crate::cli::command::CommandRequest;
 
@@ -22,7 +11,17 @@ use crate::cli::command::CommandRequest;
 #[schemars(rename = "cli.command.agents.queue.read.pending.Request")]
 pub struct Request {
     pub path_type: Path,
-    pub parent_agent_instance_hierarchy: Option<String>,
+    pub targets: Vec<Target>,
+    /// Skip rows with `message_queue_contents.id <= after_id`. Use
+    /// the highest `id` from a previous page to paginate forward.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub after_id: Option<i64>,
+    /// Cap on rows scanned per target. Defaults to 1000 server-side
+    /// when omitted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub limit: Option<i64>,
     pub jq: Option<String>,
 }
 
@@ -41,8 +40,17 @@ impl CommandRequest for Request {
             "read".to_string(),
             "pending".to_string(),
         ];
-        if let Some(p) = &self.parent_agent_instance_hierarchy {
-            argv.push(p.clone());
+        for target in &self.targets {
+            argv.push("--target".to_string());
+            argv.push(target.into_arg_string());
+        }
+        if let Some(after_id) = self.after_id {
+            argv.push("--after-id".to_string());
+            argv.push(after_id.to_string());
+        }
+        if let Some(limit) = self.limit {
+            argv.push("--limit".to_string());
+            argv.push(limit.to_string());
         }
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
@@ -52,71 +60,78 @@ impl CommandRequest for Request {
     }
 }
 
-/// Either a single content id or many — `One(i64)` for a
-/// single-part `RichContent::Text` (or single-element
-/// `RichContent::Parts`), `Many(Vec<i64>)` for multi-part
-/// payloads. Each id is a `prompt_contents.id` resolvable via
-/// `agents queue read id`. Untagged so single-part values
-/// serialize as bare scalars on the wire.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(untagged)]
-#[schemars(rename = "cli.command.agents.queue.read.pending.ResponseContent")]
-pub enum ResponseContent {
-    #[schemars(title = "One")]
-    One(i64),
-    #[schemars(title = "Many")]
-    Many(Vec<i64>),
+// Share `Target` + `ClientNotificationPartType` with
+// `agents logs read all` — same per-target input shape, same
+// per-part 5-variant kind discriminator. `agents queue read pending`
+// is the pre-execution mirror of logs read all's
+// `ClientNotification` block.
+pub use super::super::super::logs::read::all::{
+    ClientNotificationPartType as QueuePartType, Target,
+};
+
+/// One row inside a `ResponseItem` block — a
+/// `message_queue_contents` entry. The `id` is the
+/// `message_queue_contents.id`, which you pass to
+/// `agents queue read id <n>` to drill into the body.
+/// `timestamp_queued` is on the enclosing block, not here
+/// (one block = one `message_queue` parent row, sharing one
+/// `enqueued_at`).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.queue.read.pending.QueuePart")]
+pub struct QueuePart {
+    pub id: i64,
+    pub r#type: QueuePartType,
 }
 
-/// One queued prompt. Direct rows carry only the bare
-/// `agent_instance` (= leaf segment of the hierarchy); Tag rows
-/// carry the literal tag name and flatten the joined 2-state
-/// status onto the same JSON object — yielding e.g.
-/// `{"by":"tag","id":42,"agent_tag":"foo","state":"bound","agent_instance_hierarchy":"…",
-/// "content":17}` (single-part) or `…"content":[17,18,19]"` (multi-
-/// part) rather than nesting the state under its own object.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+/// One pending `message_queue` row, with its content rows
+/// grouped as `parts`. Two variants — direct AIH target or tag
+/// target — both flat (no nested `LookupState`).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(tag = "by", rename_all = "snake_case")]
 #[schemars(rename = "cli.command.agents.queue.read.pending.ResponseItem")]
 pub enum ResponseItem {
-    #[schemars(title = "AgentInstance")]
-    AgentInstance {
-        id: i64,
-        agent_instance: String,
+    #[schemars(title = "AgentInstanceHierarchy")]
+    AgentInstanceHierarchy {
+        agent_instance_hierarchy: String,
+        /// AIH of the caller who enqueued — from
+        /// `message_queue.sender_*`.
+        sender_agent_instance_hierarchy: String,
+        /// `message_queue.enqueued_at`. One block = one parent
+        /// `message_queue` row, so this is well-defined
+        /// block-level.
+        timestamp_queued: i64,
         /// Idempotency token, if the row was enqueued with `--key`.
-        /// Skipped from the wire shape when `None`.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[schemars(extend("omitempty" = true))]
         key: Option<String>,
-        content: ResponseContent,
+        parts: Vec<QueuePart>,
     },
     #[schemars(title = "Tag")]
     Tag {
-        id: i64,
         agent_tag: String,
-        #[serde(flatten)]
-        state: LookupState,
-        /// Idempotency token, if the row was enqueued with `--key`.
+        sender_agent_instance_hierarchy: String,
+        timestamp_queued: i64,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[schemars(extend("omitempty" = true))]
         key: Option<String>,
-        content: ResponseContent,
+        parts: Vec<QueuePart>,
     },
 }
 
-// Reuse the same `LookupState` enum that `agents tags lookup`
-// already exposes — same wire shape, same Rust type, no fork.
-pub use super::super::super::tags::lookup::LookupState;
-
 #[derive(clap::Args)]
 pub struct Args {
-    /// Filter both Direct and Tag rows to direct children of this
-    /// parent. Tags resolve their parent via the joined `tags` +
-    /// `tag_groups` tables (BOUND tags by
-    /// `parent_of(bound_hierarchy)`, GROUPED tags by their joined
-    /// `tag_groups.parent_agent_instance_hierarchy`). Omit for the
-    /// cli's own position.
-    pub parent_agent_instance_hierarchy: Option<String>,
+    /// One or more `--target instance=L[,parent=P]` entries.
+    /// `parent` defaults to the cli's own
+    /// `Config.agent_instance_hierarchy` when omitted on an
+    /// individual target.
+    #[arg(long = "target", required = true)]
+    pub targets: Vec<String>,
+    /// Skip rows with `message_queue_contents.id <= after_id`.
+    #[arg(long)]
+    pub after_id: Option<i64>,
+    /// Cap on rows scanned per target.
+    #[arg(long)]
+    pub limit: Option<i64>,
     /// jq filter applied to the JSON output.
     #[arg(long)]
     pub jq: Option<String>,
@@ -142,9 +157,20 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
+        let targets = args
+            .targets
+            .iter()
+            .map(|s| {
+                s.parse::<Target>().map_err(|msg| {
+                    crate::cli::command::FromArgsError::path_parse("target", msg)
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         Ok(Self {
             path_type: Path::AgentsQueueReadPending,
-            parent_agent_instance_hierarchy: args.parent_agent_instance_hierarchy,
+            targets,
+            after_id: args.after_id,
+            limit: args.limit,
             jq: args.jq,
         })
     }

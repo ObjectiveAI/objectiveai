@@ -82,7 +82,9 @@ pub fn run(
         // `written_once` has also been flipped, so we never await
         // this oneshot before the gate opens.
         let (log_writer, log_ready_rx) = crate::db::logs::write_function_execution(
-            &ctx.db, &params,
+            &ctx.db,
+            &params,
+            ctx.config.agent_instance_hierarchy.clone(),
         )
         .map_err(|e| Error::Instance(format!(
             "failed to build function-execution log writer: {e}"

@@ -41,10 +41,15 @@ CREATE SCHEMA IF NOT EXISTS logs;
 -- written by the LogWriter the first time it sees each agent in the
 -- chunk's row iterator. All three tiers share the same blob shape.
 CREATE TABLE IF NOT EXISTS logs.agent_completion_requests (
-    response_id              TEXT PRIMARY KEY,
-    body                     JSONB NOT NULL,
-    created_at               BIGINT NOT NULL,
-    inserted_at              TIMESTAMPTZ NOT NULL DEFAULT now()
+    response_id                     TEXT PRIMARY KEY,
+    body                            JSONB NOT NULL,
+    created_at                      BIGINT NOT NULL,
+    -- AIH of the caller who issued this completion request
+    -- (from `ctx.config.agent_instance_hierarchy` at request
+    -- time). Denormalized into `logs.messages.sender_*` for
+    -- fast filtering on the read-all path.
+    sender_agent_instance_hierarchy TEXT NOT NULL,
+    inserted_at                     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_acreq_body_gin
     ON logs.agent_completion_requests USING GIN (body);
@@ -59,10 +64,11 @@ CREATE INDEX IF NOT EXISTS idx_acresp_body_gin
     ON logs.agent_completion_responses USING GIN (body);
 
 CREATE TABLE IF NOT EXISTS logs.vector_completion_requests (
-    response_id TEXT PRIMARY KEY,
-    body        JSONB NOT NULL,
-    created_at  BIGINT NOT NULL,
-    inserted_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    response_id                     TEXT PRIMARY KEY,
+    body                            JSONB NOT NULL,
+    created_at                      BIGINT NOT NULL,
+    sender_agent_instance_hierarchy TEXT NOT NULL,
+    inserted_at                     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_vcreq_body_gin
     ON logs.vector_completion_requests USING GIN (body);
@@ -77,10 +83,11 @@ CREATE INDEX IF NOT EXISTS idx_vcresp_body_gin
     ON logs.vector_completion_responses USING GIN (body);
 
 CREATE TABLE IF NOT EXISTS logs.function_execution_requests (
-    response_id TEXT PRIMARY KEY,
-    body        JSONB NOT NULL,
-    created_at  BIGINT NOT NULL,
-    inserted_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    response_id                     TEXT PRIMARY KEY,
+    body                            JSONB NOT NULL,
+    created_at                      BIGINT NOT NULL,
+    sender_agent_instance_hierarchy TEXT NOT NULL,
+    inserted_at                     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_fereq_body_gin
     ON logs.function_execution_requests USING GIN (body);
@@ -332,6 +339,16 @@ CREATE TABLE IF NOT EXISTS logs.messages (
     -- kinds it's the agent whose history is being seeded with "the
     -- request was made for me" — the writer emits one such row per
     -- agent it sees in the chunk's row iterator.
+    --
+    -- `sender_agent_instance_hierarchy` is NOT stored here — the
+    -- read-all path JOINs to the row's source table by `response_id`
+    -- (for request blob / assistant_response_* / tool_response*
+    -- rows → the matching `logs.<tier>_completion_requests` /
+    -- `logs.function_execution_requests` table) or via
+    -- `row_index` → `message_queue_contents.id` → `message_queue`
+    -- (for `message_queue_*` rows). Same story for `timestamp_queued`
+    -- on ClientNotification parts — derived from `message_queue.enqueued_at`
+    -- at read time, not duplicated.
     agent_instance_hierarchy TEXT                NOT NULL,
     "timestamp"              BIGINT              NOT NULL,
     CONSTRAINT messages_table_row_consistency CHECK (

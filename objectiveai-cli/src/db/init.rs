@@ -94,12 +94,19 @@ CREATE TABLE IF NOT EXISTS agent_continuations (
 );
 
 CREATE TABLE IF NOT EXISTS message_queue (
-    id                       BIGSERIAL PRIMARY KEY,
-    agent_instance_hierarchy TEXT,
-    agent_tag                TEXT,
-    content                  TEXT   NOT NULL,
-    enqueued_at              BIGINT NOT NULL,
-    key                      TEXT,
+    id                              BIGSERIAL PRIMARY KEY,
+    agent_instance_hierarchy        TEXT,
+    agent_tag                       TEXT,
+    -- AIH of the caller who enqueued this row (sourced from
+    -- `ctx.config.agent_instance_hierarchy` at enqueue time).
+    -- Surfaced on `agents queue read pending` so callers can
+    -- audit "who asked for this" without a join.
+    sender_agent_instance_hierarchy TEXT   NOT NULL,
+    -- Content rows live in `message_queue_contents` (PK
+    -- `id BIGSERIAL`, FK `message_queue_id` → here). Readers
+    -- JOIN; no denormalized JSON shadow column lives here.
+    enqueued_at                     BIGINT NOT NULL,
+    key                             TEXT,
     -- Soft-delete marker. Rows start at TRUE and flip to FALSE
     -- when consumed (either via the LogWriter's MessageQueue row
     -- write or via `db::message_queue::delete_by_id`'s in-flight
@@ -108,7 +115,7 @@ CREATE TABLE IF NOT EXISTS message_queue (
     -- Content stays around in `message_queue_contents` (the old
     -- `ON DELETE CASCADE` chain no longer fires because we don't
     -- DELETE).
-    active                   BOOLEAN NOT NULL DEFAULT TRUE,
+    active                          BOOLEAN NOT NULL DEFAULT TRUE,
     CHECK (
         (agent_instance_hierarchy IS NOT NULL AND agent_tag IS NULL)
         OR

@@ -1,14 +1,25 @@
 //! `agents logs read all` / `agents logs read pending` backend:
 //! SELECT `logs.messages` rows for a target AIH (or every child
-//! AIH of a parent), coalesce consecutive rows into `ResponseItem`
-//! blocks, and yield them in index order.
+//! AIH of a parent), JOIN through to the row's source table to
+//! pull `sender_agent_instance_hierarchy` (+ `timestamp_queued`
+//! for `message_queue_*` kinds), coalesce consecutive rows into
+//! `ResponseItem` blocks, and yield them in index order.
 //!
-//! Block-coalesce rule: a new block starts when ANY of
-//! `(block_class, agent_instance_hierarchy, response_id)` changes
-//! between two adjacent rows. The three request-blob classes are
-//! always single-row blocks. Within a multi-row block, every part
-//! shares the same agent_instance_hierarchy and response_id by
-//! construction.
+//! Sender + timestamp_queued live on the row's source table — the
+//! three `logs.<tier>_completion_requests` tables for request +
+//! assistant_response_* + tool_response* rows (all reachable by
+//! `response_id`), and `message_queue` via
+//! `message_queue_contents` for the five `message_queue_*` row
+//! kinds. We LEFT JOIN all four sources unconditionally and let
+//! the `CASE` over `m."table"` pick the right column. No
+//! denormalized shadow copies on `logs.messages`.
+//!
+//! Block-coalesce rule: a new block starts when ANY of `(class,
+//! agent_instance_hierarchy, response_id)` changes — PLUS, for
+//! `ClientNotification` rows, when the `sender_agent_instance_hierarchy`
+//! changes. Assistant/Tool blocks ignore sender because their
+//! producer IS the agent (no separate sender exists). The three
+//! request-blob classes are always single-row blocks.
 //!
 //! `read pending` is read-and-advance, expressed as a single
 //! CTE-chained SQL statement: the SELECT returns the pending rows,
@@ -25,8 +36,8 @@ use sqlx::Row as _;
 use super::super::{Error, Pool};
 use super::row::MessageTable;
 
-/// One materialized `logs.messages` row, with just the metadata
-/// the block coalescer needs.
+/// One materialized `logs.messages` row plus the joined-in sender
+/// (and queue parent + enqueued_at for `message_queue_*` rows).
 struct MsgRow {
     /// `logs.messages."index"` — pass to `agents logs read id`
     /// for the full typed payload.
@@ -34,12 +45,27 @@ struct MsgRow {
     response_id: String,
     table_kind: MessageTable,
     agent_instance_hierarchy: String,
-    timestamp: i64,
+    timestamp_delivered: i64,
+    /// Sender AIH. Populated for request blob rows (from
+    /// `logs.<tier>_completion_requests.sender_*`) and for
+    /// `message_queue_*` rows (from `message_queue.sender_*`).
+    /// NULL for assistant/tool response rows — those have no
+    /// distinct sender, the agent IS the producer.
+    sender_agent_instance_hierarchy: Option<String>,
+    /// `message_queue.id` of the consumed parent queue row.
+    /// Some only for `message_queue_*` rows. Part of the
+    /// `ClientNotification` block boundary tuple so each block
+    /// = exactly one parent queue row.
+    message_queue_id: Option<i64>,
+    /// `message_queue.enqueued_at` of the consumed parent queue
+    /// row. Some only for `message_queue_*` rows; lives at
+    /// block level on the emitted `ClientNotification`.
+    timestamp_queued: Option<i64>,
 }
 
 /// Coarse block-class for a `logs.message_table` value. Block
 /// boundaries are drawn whenever this changes between consecutive
-/// rows (or AIH / response_id changes).
+/// rows (or AIH / response_id / sender for ClientNotification).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum BlockClass {
     AgentCompletionRequest,
@@ -114,14 +140,80 @@ fn tool_response_kind(t: MessageTable) -> Option<ToolResponsePartType> {
     }
 }
 
+/// Shared SELECT clause for `read_all` / `read_pending`. JOINs
+/// the four sender source tables LEFT-style; CASE-picks the
+/// right sender column based on `m."table"`. `timestamp_queued`
+/// comes from the queue JOIN (Some only for `message_queue_*`
+/// kinds).
+const SELECT_SHAPE: &str = "SELECT \
+    m.\"index\" AS id, \
+    m.response_id, \
+    m.\"table\" AS table_kind, \
+    m.agent_instance_hierarchy, \
+    m.\"timestamp\" AS timestamp_delivered, \
+    CASE m.\"table\" \
+        WHEN 'message_queue_text'  THEN mq.sender_agent_instance_hierarchy \
+        WHEN 'message_queue_image' THEN mq.sender_agent_instance_hierarchy \
+        WHEN 'message_queue_audio' THEN mq.sender_agent_instance_hierarchy \
+        WHEN 'message_queue_video' THEN mq.sender_agent_instance_hierarchy \
+        WHEN 'message_queue_file'  THEN mq.sender_agent_instance_hierarchy \
+        WHEN 'agent_completion_request'    THEN acr.sender_agent_instance_hierarchy \
+        WHEN 'vector_completion_request'   THEN vcr.sender_agent_instance_hierarchy \
+        WHEN 'function_execution_request'  THEN fer.sender_agent_instance_hierarchy \
+        ELSE NULL \
+    END AS sender_agent_instance_hierarchy, \
+    mq.id AS message_queue_id, \
+    mq.enqueued_at AS timestamp_queued";
+
+const FROM_JOINS: &str = "FROM logs.messages m \
+    LEFT JOIN message_queue_contents mqc \
+        ON m.row_index = mqc.id \
+        AND m.\"table\" IN ( \
+            'message_queue_text', 'message_queue_image', 'message_queue_audio', \
+            'message_queue_video', 'message_queue_file' \
+        ) \
+    LEFT JOIN message_queue mq ON mqc.message_queue_id = mq.id \
+    LEFT JOIN logs.agent_completion_requests acr \
+        ON m.response_id = acr.response_id \
+        AND m.\"table\" = 'agent_completion_request' \
+    LEFT JOIN logs.vector_completion_requests vcr \
+        ON m.response_id = vcr.response_id \
+        AND m.\"table\" = 'vector_completion_request' \
+    LEFT JOIN logs.function_execution_requests fer \
+        ON m.response_id = fer.response_id \
+        AND m.\"table\" = 'function_execution_request'";
+
+fn row_into_msg(r: &sqlx::postgres::PgRow) -> Result<MsgRow, Error> {
+    Ok(MsgRow {
+        id: r.try_get("id")?,
+        response_id: r.try_get("response_id")?,
+        table_kind: r.try_get("table_kind")?,
+        agent_instance_hierarchy: r.try_get("agent_instance_hierarchy")?,
+        timestamp_delivered: r.try_get("timestamp_delivered")?,
+        sender_agent_instance_hierarchy: r.try_get("sender_agent_instance_hierarchy")?,
+        message_queue_id: r.try_get("message_queue_id")?,
+        timestamp_queued: r.try_get("timestamp_queued")?,
+    })
+}
+
 /// Walk `rows` (already sorted by `id` ASC) and coalesce into
-/// `ResponseItem`s. Pure / deterministic — every test smoke runs
-/// through here.
+/// `ResponseItem`s. Pure / deterministic.
 fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
     let mut out: Vec<ResponseItem> = Vec::new();
     let mut cur_class: Option<BlockClass> = None;
     let mut cur_aih: String = String::new();
     let mut cur_rid: String = String::new();
+    /// `Some` only for an open `ClientNotification` block; assistant /
+    /// tool blocks never set this. Boundary check pulls it in.
+    let mut cur_sender: Option<String> = None;
+    /// `Some` only for an open `ClientNotification` block — the
+    /// consumed `message_queue.id`. Forces 1:1 block-to-parent
+    /// correspondence so block-level `timestamp_queued` is
+    /// well-defined.
+    let mut cur_mq_id: Option<i64> = None;
+    /// `Some` only for an open `ClientNotification` block —
+    /// `message_queue.enqueued_at`.
+    let mut cur_timestamp_queued: Option<i64> = None;
     let mut cur_notification_parts: Vec<ClientNotificationPart> = Vec::new();
     let mut cur_assistant_parts: Vec<AssistantResponsePart> = Vec::new();
     let mut cur_tool_parts: Vec<ToolResponsePart> = Vec::new();
@@ -129,6 +221,9 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
     let flush = |class: Option<BlockClass>,
                  aih: &mut String,
                  rid: &mut String,
+                 sender: &mut Option<String>,
+                 mq_id: &mut Option<i64>,
+                 timestamp_queued: &mut Option<i64>,
                  notification_parts: &mut Vec<ClientNotificationPart>,
                  assistant_parts: &mut Vec<AssistantResponsePart>,
                  tool_parts: &mut Vec<ToolResponsePart>,
@@ -137,9 +232,12 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
             Some(BlockClass::ClientNotification) if !notification_parts.is_empty() => {
                 out.push(ResponseItem::ClientNotification {
                     agent_instance_hierarchy: std::mem::take(aih),
+                    sender_agent_instance_hierarchy: sender.take().unwrap_or_default(),
                     response_id: std::mem::take(rid),
+                    timestamp_queued: timestamp_queued.take().unwrap_or_default(),
                     parts: std::mem::take(notification_parts),
                 });
+                *mq_id = None;
             }
             Some(BlockClass::AssistantResponse) if !assistant_parts.is_empty() => {
                 out.push(ResponseItem::AssistantResponse {
@@ -158,6 +256,9 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
             _ => {
                 aih.clear();
                 rid.clear();
+                *sender = None;
+                *mq_id = None;
+                *timestamp_queued = None;
                 notification_parts.clear();
                 assistant_parts.clear();
                 tool_parts.clear();
@@ -168,23 +269,22 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
     for row in rows {
         let class = block_class(row.table_kind);
 
-        // The three single-row request classes flush whatever's
-        // pending and emit themselves as standalone items.
+        // Single-row request classes — emit immediately, reset.
         match class {
             BlockClass::AgentCompletionRequest => {
                 flush(
-                    cur_class,
-                    &mut cur_aih,
-                    &mut cur_rid,
-                    &mut cur_notification_parts,
-                    &mut cur_assistant_parts,
-                    &mut cur_tool_parts,
-                    &mut out,
+                    cur_class, &mut cur_aih, &mut cur_rid, &mut cur_sender,
+                    &mut cur_mq_id, &mut cur_timestamp_queued,
+                    &mut cur_notification_parts, &mut cur_assistant_parts,
+                    &mut cur_tool_parts, &mut out,
                 );
                 out.push(ResponseItem::AgentCompletionRequest {
                     id: row.id,
                     agent_instance_hierarchy: row.agent_instance_hierarchy,
-                    timestamp: row.timestamp,
+                    sender_agent_instance_hierarchy: row
+                        .sender_agent_instance_hierarchy
+                        .unwrap_or_default(),
+                    timestamp_delivered: row.timestamp_delivered,
                     response_id: row.response_id,
                 });
                 cur_class = None;
@@ -192,18 +292,18 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
             }
             BlockClass::VectorCompletionRequest => {
                 flush(
-                    cur_class,
-                    &mut cur_aih,
-                    &mut cur_rid,
-                    &mut cur_notification_parts,
-                    &mut cur_assistant_parts,
-                    &mut cur_tool_parts,
-                    &mut out,
+                    cur_class, &mut cur_aih, &mut cur_rid, &mut cur_sender,
+                    &mut cur_mq_id, &mut cur_timestamp_queued,
+                    &mut cur_notification_parts, &mut cur_assistant_parts,
+                    &mut cur_tool_parts, &mut out,
                 );
                 out.push(ResponseItem::VectorCompletionRequest {
                     id: row.id,
                     agent_instance_hierarchy: row.agent_instance_hierarchy,
-                    timestamp: row.timestamp,
+                    sender_agent_instance_hierarchy: row
+                        .sender_agent_instance_hierarchy
+                        .unwrap_or_default(),
+                    timestamp_delivered: row.timestamp_delivered,
                     response_id: row.response_id,
                 });
                 cur_class = None;
@@ -211,18 +311,18 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
             }
             BlockClass::FunctionExecutionRequest => {
                 flush(
-                    cur_class,
-                    &mut cur_aih,
-                    &mut cur_rid,
-                    &mut cur_notification_parts,
-                    &mut cur_assistant_parts,
-                    &mut cur_tool_parts,
-                    &mut out,
+                    cur_class, &mut cur_aih, &mut cur_rid, &mut cur_sender,
+                    &mut cur_mq_id, &mut cur_timestamp_queued,
+                    &mut cur_notification_parts, &mut cur_assistant_parts,
+                    &mut cur_tool_parts, &mut out,
                 );
                 out.push(ResponseItem::FunctionExecutionRequest {
                     id: row.id,
                     agent_instance_hierarchy: row.agent_instance_hierarchy,
-                    timestamp: row.timestamp,
+                    sender_agent_instance_hierarchy: row
+                        .sender_agent_instance_hierarchy
+                        .unwrap_or_default(),
+                    timestamp_delivered: row.timestamp_delivered,
                     response_id: row.response_id,
                 });
                 cur_class = None;
@@ -231,24 +331,36 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
             _ => {}
         }
 
-        // Multi-row class. Flush if any of (class, AIH, response_id)
-        // changed since the open block.
+        // Multi-row class. For ClientNotification, sender_aih
+        // AND message_queue_id are part of the boundary tuple —
+        // each block = one consumed parent queue row, well-defined
+        // block-level `timestamp_queued`. Assistant/Tool blocks
+        // ignore sender + mq_id (both are None for them anyway).
         let boundary = cur_class != Some(class)
             || cur_aih != row.agent_instance_hierarchy
-            || cur_rid != row.response_id;
+            || cur_rid != row.response_id
+            || (class == BlockClass::ClientNotification
+                && (cur_sender.as_deref() != row.sender_agent_instance_hierarchy.as_deref()
+                    || cur_mq_id != row.message_queue_id));
         if boundary {
             flush(
-                cur_class,
-                &mut cur_aih,
-                &mut cur_rid,
-                &mut cur_notification_parts,
-                &mut cur_assistant_parts,
-                &mut cur_tool_parts,
-                &mut out,
+                cur_class, &mut cur_aih, &mut cur_rid, &mut cur_sender,
+                &mut cur_mq_id, &mut cur_timestamp_queued,
+                &mut cur_notification_parts, &mut cur_assistant_parts,
+                &mut cur_tool_parts, &mut out,
             );
             cur_class = Some(class);
             cur_aih = row.agent_instance_hierarchy.clone();
             cur_rid = row.response_id.clone();
+            if class == BlockClass::ClientNotification {
+                cur_sender = row.sender_agent_instance_hierarchy.clone();
+                cur_mq_id = row.message_queue_id;
+                cur_timestamp_queued = row.timestamp_queued;
+            } else {
+                cur_sender = None;
+                cur_mq_id = None;
+                cur_timestamp_queued = None;
+            }
         }
 
         match class {
@@ -257,7 +369,7 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
                     .expect("class invariant: ClientNotification maps to message_queue_*");
                 cur_notification_parts.push(ClientNotificationPart {
                     id: row.id,
-                    timestamp: row.timestamp,
+                    timestamp_delivered: row.timestamp_delivered,
                     r#type,
                 });
             }
@@ -266,7 +378,7 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
                     .expect("class invariant: AssistantResponse maps to assistant_response_*");
                 cur_assistant_parts.push(AssistantResponsePart {
                     id: row.id,
-                    timestamp: row.timestamp,
+                    timestamp_delivered: row.timestamp_delivered,
                     r#type,
                 });
             }
@@ -275,7 +387,7 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
                     .expect("class invariant: ToolResponse maps to tool_response*");
                 cur_tool_parts.push(ToolResponsePart {
                     id: row.id,
-                    timestamp: row.timestamp,
+                    timestamp_delivered: row.timestamp_delivered,
                     r#type,
                 });
             }
@@ -284,13 +396,10 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
     }
 
     flush(
-        cur_class,
-        &mut cur_aih,
-        &mut cur_rid,
-        &mut cur_notification_parts,
-        &mut cur_assistant_parts,
-        &mut cur_tool_parts,
-        &mut out,
+        cur_class, &mut cur_aih, &mut cur_rid, &mut cur_sender,
+        &mut cur_mq_id, &mut cur_timestamp_queued,
+        &mut cur_notification_parts, &mut cur_assistant_parts,
+        &mut cur_tool_parts, &mut out,
     );
 
     out
@@ -305,34 +414,23 @@ pub async fn read_all_for_hierarchy(
     after_id: Option<i64>,
     limit: Option<i64>,
 ) -> Result<Vec<ResponseItem>, Error> {
-    let rows = sqlx::query(
-        "SELECT m.\"index\" AS id, m.response_id, m.\"table\" AS table_kind, \
-                m.agent_instance_hierarchy, m.\"timestamp\" \
-         FROM logs.messages m \
+    let sql = format!(
+        "{select} {from} \
          WHERE m.agent_instance_hierarchy = $1 \
            AND m.\"index\" > COALESCE($2, 0) \
          ORDER BY m.\"index\" ASC \
          LIMIT COALESCE($3, 1000)",
-    )
-    .bind(agent_instance_hierarchy)
-    .bind(after_id)
-    .bind(limit)
-    .fetch_all(&**pool)
-    .await?;
+        select = SELECT_SHAPE,
+        from = FROM_JOINS,
+    );
+    let rows = sqlx::query(&sql)
+        .bind(agent_instance_hierarchy)
+        .bind(after_id)
+        .bind(limit)
+        .fetch_all(&**pool)
+        .await?;
 
-    let msg_rows: Vec<MsgRow> = rows
-        .into_iter()
-        .map(|r| {
-            Ok::<MsgRow, Error>(MsgRow {
-                id: r.try_get("id")?,
-                response_id: r.try_get("response_id")?,
-                table_kind: r.try_get("table_kind")?,
-                agent_instance_hierarchy: r.try_get("agent_instance_hierarchy")?,
-                timestamp: r.try_get("timestamp")?,
-            })
-        })
-        .collect::<Result<_, _>>()?;
-
+    let msg_rows: Vec<MsgRow> = rows.iter().map(row_into_msg).collect::<Result<_, _>>()?;
     Ok(coalesce_into_blocks(msg_rows))
 }
 
@@ -349,22 +447,20 @@ pub async fn read_pending_for_parent(
     limit: Option<i64>,
 ) -> Result<Vec<ResponseItem>, Error> {
     // CTE-chained read-and-bump:
-    //   * `selected` — the rows to return (filter against
-    //     pre-statement `q.read_index`, plus optional caller-side
-    //     `after_id` floor).
+    //   * `selected` — the rows to return; same JOIN topology as
+    //     `read_all_for_hierarchy` plus a JOIN to
+    //     `logs.messages_queue` for the watermark filter.
     //   * `maxes` — per-spawned max returned `id`.
     //   * `bump` — UPDATE that lifts each child's `read_index` to
     //     `GREATEST(current, max_id)`. Always runs (Postgres
     //     materializes data-modifying CTEs even when the outer
     //     SELECT doesn't reference them); when `selected` is
     //     empty, `maxes` is empty and `bump` no-ops.
-    //   * Final SELECT pulls from `selected` so the caller gets
-    //     the rows.
-    let rows = sqlx::query(
+    //   * Final SELECT pulls from `selected`.
+    let sql = format!(
         "WITH selected AS ( \
-             SELECT m.\"index\" AS id, m.response_id, m.\"table\" AS table_kind, \
-                    m.agent_instance_hierarchy, m.\"timestamp\" \
-             FROM logs.messages m \
+             {select} \
+             {from} \
              JOIN logs.messages_queue q \
                ON q.spawned_agent_instance_hierarchy = m.agent_instance_hierarchy \
              WHERE q.parent_agent_instance_hierarchy = $1 \
@@ -378,36 +474,29 @@ pub async fn read_pending_for_parent(
               GROUP BY agent_instance_hierarchy \
          ), \
          bump AS ( \
-             UPDATE logs.messages_queue q \
-                SET read_index = GREATEST(q.read_index, m.max_id) \
-               FROM maxes m \
-              WHERE q.parent_agent_instance_hierarchy = $1 \
-                AND q.spawned_agent_instance_hierarchy = m.spawned \
+             UPDATE logs.messages_queue qq \
+                SET read_index = GREATEST(qq.read_index, mx.max_id) \
+               FROM maxes mx \
+              WHERE qq.parent_agent_instance_hierarchy = $1 \
+                AND qq.spawned_agent_instance_hierarchy = mx.spawned \
              RETURNING 1 \
          ) \
          SELECT s.id, s.response_id, s.table_kind, \
-                s.agent_instance_hierarchy, s.\"timestamp\" \
+                s.agent_instance_hierarchy, s.timestamp_delivered, \
+                s.sender_agent_instance_hierarchy, \
+                s.message_queue_id, s.timestamp_queued \
            FROM selected s \
           ORDER BY s.id ASC",
-    )
-    .bind(parent_agent_instance_hierarchy)
-    .bind(after_id)
-    .bind(limit)
-    .fetch_all(&**pool)
-    .await?;
+        select = SELECT_SHAPE,
+        from = FROM_JOINS,
+    );
+    let rows = sqlx::query(&sql)
+        .bind(parent_agent_instance_hierarchy)
+        .bind(after_id)
+        .bind(limit)
+        .fetch_all(&**pool)
+        .await?;
 
-    let msg_rows: Vec<MsgRow> = rows
-        .into_iter()
-        .map(|r| {
-            Ok::<MsgRow, Error>(MsgRow {
-                id: r.try_get("id")?,
-                response_id: r.try_get("response_id")?,
-                table_kind: r.try_get("table_kind")?,
-                agent_instance_hierarchy: r.try_get("agent_instance_hierarchy")?,
-                timestamp: r.try_get("timestamp")?,
-            })
-        })
-        .collect::<Result<_, _>>()?;
-
+    let msg_rows: Vec<MsgRow> = rows.iter().map(row_into_msg).collect::<Result<_, _>>()?;
     Ok(coalesce_into_blocks(msg_rows))
 }
