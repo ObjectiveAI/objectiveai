@@ -70,11 +70,6 @@ pub struct Session {
     /// firing via `tokio::select!` and returns a `-32800 request cancelled`
     /// JSON-RPC error. Drops the upstream call's future as a side effect.
     in_flight: DashMap<String, CancellationToken>,
-    /// Content blocks accumulated via `POST /notify` between tool calls.
-    /// Drained and prepended (wrapped in a `<system-reminder>` text
-    /// block pair) on the next `tools/call` response so the model picks
-    /// the message up at its next natural inspection point.
-    pending_notifications: Mutex<Vec<ContentBlock>>,
     /// The canonical `URL → header_map` payload that was encoded into
     /// this session's id. Used by `handle_initialize`'s
     /// alive-in-memory branch to re-mint an id from the same byte-
@@ -134,7 +129,6 @@ impl Session {
             connections,
             outbound,
             in_flight: DashMap::new(),
-            pending_notifications: Mutex::new(Vec::new()),
             payload,
             transient_headers: RwLock::new(IndexMap::new()),
         }
@@ -177,27 +171,6 @@ impl Session {
         for connection in self.connections.values() {
             connection.set_extra_headers(snapshot.clone()).await;
         }
-    }
-
-    pub async fn enqueue_notifications(&self, blocks: Vec<ContentBlock>) {
-        if blocks.is_empty() {
-            return;
-        }
-        self.pending_notifications.lock().await.extend(blocks);
-    }
-
-    /// Atomically take the queued notifications. Subsequent calls return
-    /// `Vec::new()` until the next enqueue.
-    pub async fn drain_notifications(&self) -> Vec<ContentBlock> {
-        std::mem::take(&mut *self.pending_notifications.lock().await)
-    }
-
-    /// Non-draining peek — `true` iff the pending-notifications queue
-    /// holds at least one block. Companion to [`Self::drain_notifications`]
-    /// for callers that want to know whether a drain *would* return
-    /// anything without consuming the queue.
-    pub async fn has_pending_notifications(&self) -> bool {
-        !self.pending_notifications.lock().await.is_empty()
     }
 
     /// Mint a [`CancellationToken`] for an inbound request id, store it,

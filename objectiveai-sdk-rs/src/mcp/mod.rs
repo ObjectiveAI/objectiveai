@@ -3,6 +3,7 @@ mod connection;
 mod error;
 pub mod initialize_result;
 mod json_rpc;
+pub mod queue_notification;
 pub mod resource;
 mod session;
 pub mod shared;

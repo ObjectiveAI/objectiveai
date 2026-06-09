@@ -5,6 +5,7 @@
 //! that reads `Config` from the environment and calls [`run`].
 
 mod mcp;
+mod queue_delegate;
 mod run;
 mod session;
 mod session_manager;
@@ -21,7 +22,13 @@ use crate::session_manager::SessionManager;
 pub struct AppState {
     pub sessions: Arc<SessionManager>,
     pub client: Arc<Client>,
+    /// Optional in-process queue-read delegate. `Some` when an
+    /// embedder (the API) plugged one in at [`setup`] time;
+    /// `None` for the CLI's standalone proxy — tool calls then
+    /// never invoke the delegate seam.
+    pub queue_delegate: Option<Arc<dyn QueueDelegate>>,
 }
 
+pub use queue_delegate::{QueueDelegate, QueueRead};
 pub use run::*;
 pub use session_manager::parse_key_env;

@@ -32,6 +32,12 @@ pub struct ProxySpawner {
     handle: Option<tokio::runtime::Handle>,
     config_builder_fn:
         Box<dyn Fn() -> objectiveai_mcp_proxy::ConfigBuilder + Send + Sync + 'static>,
+    /// In-process queue delegate the proxy uses to surface
+    /// pending `message_queue` content on tool responses. Owned
+    /// here (not by the OnceCell) because `run_agent_loop` needs
+    /// to call `register` / `confirm` / `unregister` on it
+    /// regardless of whether the proxy has been booted yet.
+    queue_delegate: Arc<super::queue_delegate::ApiQueueDelegate>,
 }
 
 impl ProxySpawner {
@@ -46,6 +52,7 @@ impl ProxySpawner {
             cell: OnceCell::new(),
             handle: None,
             config_builder_fn: Box::new(config_builder_fn),
+            queue_delegate: Arc::new(super::queue_delegate::ApiQueueDelegate::new()),
         }
     }
 
@@ -61,7 +68,16 @@ impl ProxySpawner {
             cell: OnceCell::new(),
             handle: Some(handle),
             config_builder_fn: Box::new(config_builder_fn),
+            queue_delegate: Arc::new(super::queue_delegate::ApiQueueDelegate::new()),
         }
+    }
+
+    /// The in-process queue delegate this spawner installed into
+    /// the proxy. `run_agent_loop` calls `register` /
+    /// `confirm` / `drain_undelivered` / `unregister` on this
+    /// across its lifetime.
+    pub fn queue_delegate(&self) -> Arc<super::queue_delegate::ApiQueueDelegate> {
+        self.queue_delegate.clone()
     }
 
     pub async fn get(&self) -> std::io::Result<Arc<ProxyHandle>> {
@@ -78,8 +94,10 @@ impl ProxySpawner {
                 let (addr_tx, addr_rx) =
                     tokio::sync::oneshot::channel::<std::io::Result<std::net::SocketAddr>>();
 
+                let delegate: Arc<dyn objectiveai_mcp_proxy::QueueDelegate> =
+                    self.queue_delegate.clone();
                 let task = async move {
-                    match objectiveai_mcp_proxy::setup(config).await {
+                    match objectiveai_mcp_proxy::setup(config, Some(delegate)).await {
                         Ok((listener, router)) => {
                             let addr = listener.local_addr();
                             let send_result = match addr {

@@ -1455,6 +1455,35 @@ where
             }
         }
 
+        // Register with the in-process MCP-proxy queue delegate
+        // for the lifetime of this loop. The proxy calls
+        // `read_pending_blocks` on every tool response; the
+        // delegate routes by AIH to the per-loop state we just
+        // seeded with `queue_ids_to_clear` (the startup snapshot
+        // that we already stamped on the first assistant chunk).
+        // Subsequent reads filter against this confirmed set so
+        // the proxy never re-surfaces a row we already injected
+        // upfront. Registration is conditional on a
+        // `reverse_attach` handle being available — without one
+        // the delegate can't reach back to the CLI to read the
+        // queue, so the proxy gets a no-op when it calls in.
+        let delegate_guard = if let Some(handle) = &reverse_attach {
+            let delegate = self.proxy_spawner.queue_delegate();
+            delegate
+                .register(
+                    agent_instance_hierarchy_header.to_string(),
+                    handle.clone(),
+                    queue_ids_to_clear.clone(),
+                )
+                .await;
+            Some(DelegateUnregisterGuard {
+                delegate,
+                aih: agent_instance_hierarchy_header.to_string(),
+            })
+        } else {
+            None
+        };
+
         objectiveai_sdk::agent::completions::message::prompt::prepare(&mut messages);
         let messages = match transform_messages {
             Some(f) => f(messages),
@@ -1522,6 +1551,15 @@ where
         let agent_full_id = agent_full_id.to_string();
         let agent_remote = agent_remote.cloned();
         let request_continuation = request_continuation.cloned();
+        // Capture into the stream. The Drop on `_delegate_guard`
+        // fires when the stream future is dropped (natural
+        // end-of-stream OR early cancel), spawning the async
+        // unregister — pending tokens that never got confirmed
+        // (and therefore weren't really delivered) drop with the
+        // state, so the queue rows re-issue on the next loop.
+        let _delegate_guard = delegate_guard;
+        let queue_delegate_for_stream =
+            self.proxy_spawner.queue_delegate();
 
         Ok(Box::pin(async_stream::stream! {
             use objectiveai_sdk::agent::completions::message::{RichContent, ToolMessage};
@@ -1702,6 +1740,27 @@ where
                     match result {
                         Ok(tool_msg) => {
                             let idx = continuation_items.len() as u64;
+                            // Regex-scan the tool message for the
+                            // proxy's confirmation prefix. Each
+                            // captured token resolves to the IDs the
+                            // delegate speculatively issued in
+                            // that batch; `confirm()` promotes them
+                            // from pending→confirmed and we stamp
+                            // them onto the ToolResponse so the
+                            // downstream LogWriter logs the
+                            // delivery via `MessageQueueContent` row
+                            // writes. Tokens we never see (proxy
+                            // didn't append a prefix this turn,
+                            // tool message truncated, etc.) stay
+                            // pending until `unregister` drops
+                            // them — those rows re-deliver next
+                            // loop.
+                            let request_message_ids = scan_and_confirm_tokens(
+                                &queue_delegate_for_stream,
+                                &agent_instance_hierarchy_header,
+                                &tool_msg.content,
+                            )
+                            .await;
                             let chunk = make_tool_chunk(
                                 &id,
                                 &agent_instance_hierarchy_header,
@@ -1712,6 +1771,7 @@ where
                                 upstream_kind,
                                 idx,
                                 &tool_msg,
+                                request_message_ids,
                             );
                             if let Some(ref mut agg) = aggregate {
                                 agg.push(&chunk);
@@ -2026,7 +2086,12 @@ async fn read_message_queue_via_ws(
     }
 }
 
-/// Builds an `AgentCompletionChunk` containing a single tool-response message.
+/// Builds an `AgentCompletionChunk` containing a single
+/// tool-response message. `request_message_ids` is `Some` when
+/// the run-loop's prefix-token scan over `tool_msg.content`
+/// confirmed delivery for one or more `message_queue_contents.id`s
+/// (the `ApiQueueDelegate::confirm` return value); `None` otherwise.
+#[allow(clippy::too_many_arguments)]
 fn make_tool_chunk(
     id: &str,
     agent_instance_hierarchy: &str,
@@ -2037,6 +2102,7 @@ fn make_tool_chunk(
     upstream: objectiveai_sdk::agent::Upstream,
     index: u64,
     tool_msg: &objectiveai_sdk::agent::completions::message::ToolMessage,
+    request_message_ids: Option<Vec<i64>>,
 ) -> objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
     use objectiveai_sdk::agent::completions::response::streaming::{
         AgentCompletionChunk, MessageChunk,
@@ -2054,10 +2120,63 @@ fn make_tool_chunk(
             role: Default::default(),
             index,
             inner: tool_msg.clone(),
-            request_message_ids: None,
+            request_message_ids,
         })],
         ..Default::default()
     }
+}
+
+/// Drop-fires an async `unregister` on the embedded queue
+/// delegate when the agent loop's stream future drops. Pending
+/// tokens that never got confirmed go with it; their ids
+/// re-deliver on the next loop.
+struct DelegateUnregisterGuard {
+    delegate: std::sync::Arc<super::ApiQueueDelegate>,
+    aih: String,
+}
+
+impl Drop for DelegateUnregisterGuard {
+    fn drop(&mut self) {
+        let delegate = self.delegate.clone();
+        let aih = std::mem::take(&mut self.aih);
+        tokio::spawn(async move {
+            delegate.unregister(&aih).await;
+        });
+    }
+}
+
+/// Scan every text part of a `ToolMessage`'s content for the
+/// `<system-reminder>` confirmation prefix the MCP proxy
+/// embedded (one token per delegate batch), call
+/// `ApiQueueDelegate::confirm` on each captured token, and
+/// concatenate the returned ids in scan order. Returns `None`
+/// when nothing matched or no delegate is wired in.
+async fn scan_and_confirm_tokens(
+    delegate: &super::ApiQueueDelegate,
+    aih: &str,
+    content: &objectiveai_sdk::agent::completions::message::RichContent,
+) -> Option<Vec<i64>> {
+    use objectiveai_sdk::agent::completions::message::{RichContent, RichContentPart};
+    let texts: Vec<&str> = match content {
+        RichContent::Text(t) => vec![t.as_str()],
+        RichContent::Parts(parts) => parts
+            .iter()
+            .filter_map(|p| match p {
+                RichContentPart::Text { text } => Some(text.as_str()),
+                _ => None,
+            })
+            .collect(),
+    };
+    let mut all_ids: Vec<i64> = Vec::new();
+    for text in texts {
+        for token in
+            objectiveai_sdk::mcp::queue_notification::extract_tokens(text)
+        {
+            let ids = delegate.confirm(aih, &token).await;
+            all_ids.extend(ids);
+        }
+    }
+    if all_ids.is_empty() { None } else { Some(all_ids) }
 }
 
 /// Percent-encode a single path segment for the synthetic per-MCP

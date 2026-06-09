@@ -185,7 +185,10 @@ pub struct Config {
     pub suppress_output: bool,
 }
 
-pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, axum::Router)> {
+pub async fn setup(
+    config: Config,
+    queue_delegate: Option<std::sync::Arc<dyn crate::QueueDelegate>>,
+) -> std::io::Result<(tokio::net::TcpListener, axum::Router)> {
     let Config {
         address,
         port,
@@ -226,6 +229,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
     let state = AppState {
         sessions: Arc::new(sessions),
         client: Arc::new(client),
+        queue_delegate,
     };
 
     let router = axum::Router::new()
@@ -234,14 +238,6 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
             axum::routing::post(mcp::handle_post)
                 .get(mcp::handle_get)
                 .delete(mcp::handle_delete),
-        )
-        .route(
-            "/notify",
-            axum::routing::post(mcp::handle_notify).get(mcp::handle_notify_get),
-        )
-        .route(
-            "/notify/queued",
-            axum::routing::get(mcp::handle_notify_queued_get),
         )
         .with_state(state);
 
@@ -256,7 +252,8 @@ pub async fn serve(listener: tokio::net::TcpListener, app: axum::Router) -> std:
 
 pub async fn run(config: Config) -> std::io::Result<()> {
     let suppress_output = config.suppress_output;
-    let (listener, app) = setup(config).await?;
+    // Bin entry — standalone proxy with no queue delegate.
+    let (listener, app) = setup(config, None).await?;
     if !suppress_output {
         let addr = listener.local_addr()?;
         eprintln!("listening on {addr}");

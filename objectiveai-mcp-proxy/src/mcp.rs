@@ -113,7 +113,15 @@ pub async fn handle_post(
         "initialize" => handle_initialize(&state, &headers, request).await,
         "ping" => handle_ping(request),
         "tools/list" => handle_tools_list(&state.sessions, &headers, request).await,
-        "tools/call" => handle_tools_call(&state.sessions, &headers, request).await,
+        "tools/call" => {
+            handle_tools_call(
+                &state.sessions,
+                state.queue_delegate.as_ref(),
+                &headers,
+                request,
+            )
+            .await
+        }
         "resources/list" => handle_resources_list(&state.sessions, &headers, request).await,
         "resources/read" => handle_resources_read(&state.sessions, &headers, request).await,
         other => method_not_found_response(request.id, other),
@@ -675,6 +683,7 @@ async fn handle_tools_list(
 
 async fn handle_tools_call(
     sessions: &SessionManager,
+    queue_delegate: Option<&Arc<dyn crate::QueueDelegate>>,
     headers: &HeaderMap,
     request: JsonRpcRequest,
 ) -> Response {
@@ -707,7 +716,7 @@ async fn handle_tools_call(
         id: request.id.clone(),
     };
 
-    let result = tokio::select! {
+    let tool_result = tokio::select! {
         biased;
         _ = token.cancelled() => {
             return cancelled_response(request.id);
@@ -715,38 +724,60 @@ async fn handle_tools_call(
         result = session.call_tool(&params) => result,
     };
 
-    match result {
+    match tool_result {
         Ok(mut result) => {
-            // Drain any pending `/notify` content blocks and prepend
-            // them, wrapped in a `<system-reminder>` text-block pair,
-            // ahead of the upstream's tool-result content. Anything
-            // queued after this drain rides the *next* tool call.
-            let pending = session.drain_notifications().await;
-            if !pending.is_empty() {
-                let count = pending.len() as u64;
-                let mut prefixed = Vec::with_capacity(2 + pending.len() + result.content.len());
-                prefixed.push(ContentBlock::Text(TextContent {
-                    text: SYSTEM_REMINDER_PREFIX.to_string(),
-                    annotations: None,
-                    _meta: None,
-                }));
-                prefixed.extend(pending);
-                prefixed.push(ContentBlock::Text(TextContent {
-                    text: SYSTEM_REMINDER_SUFFIX.to_string(),
-                    annotations: None,
-                    _meta: None,
-                }));
-                prefixed.append(&mut result.content);
-                result.content = prefixed;
-                // Surface the drained count as `_meta.notifications`
-                // so downstream consumers (the SDK's
-                // `call_tool_as_message`) can read it structurally
-                // without parsing the prepended content blocks.
-                let meta = result._meta.get_or_insert_with(indexmap::IndexMap::new);
-                meta.insert(
-                    "notifications".to_string(),
-                    serde_json::Value::Number(count.into()),
-                );
+            // Tool call succeeded — only NOW do we read the queue.
+            // Running the read in parallel with the tool call
+            // would advance the delegate's ban list before we
+            // know whether the proxy is going to return a JSON-RPC
+            // error (ToolNotFound / Upstream), in which case the
+            // consumed rows would never reach the agent. Reading
+            // sequentially after success guarantees every consumed
+            // row gets surfaced.
+            let agent_arguments = session.transient_headers.read().await.clone();
+            if let Some(crate::QueueRead { token, blocks }) =
+                maybe_read_blocks(queue_delegate, &agent_arguments, &session_id).await
+            {
+                // Splice queue blocks (flattened across rows) ahead
+                // of the upstream's tool-result content, wrapped in
+                // the SDK-owned `<system-reminder>` text-block pair
+                // whose prefix carries the confirmation token. The
+                // API's run-loop regex-scans tool message text for
+                // this token and calls back via `confirm()` to
+                // finalize delivery — closing the "claimed delivered
+                // but never reached the agent" hole a naive ban list
+                // would leave open.
+                let pending: Vec<ContentBlock> =
+                    blocks.into_iter().flatten().collect();
+                if !pending.is_empty() {
+                    let count = pending.len() as u64;
+                    let mut prefixed = Vec::with_capacity(
+                        2 + pending.len() + result.content.len(),
+                    );
+                    prefixed.push(ContentBlock::Text(TextContent {
+                        text: objectiveai_sdk::mcp::queue_notification::format_prefix(&token),
+                        annotations: None,
+                        _meta: None,
+                    }));
+                    prefixed.extend(pending);
+                    prefixed.push(ContentBlock::Text(TextContent {
+                        text: objectiveai_sdk::mcp::queue_notification::SUFFIX
+                            .to_string(),
+                        annotations: None,
+                        _meta: None,
+                    }));
+                    prefixed.append(&mut result.content);
+                    result.content = prefixed;
+                    // Surface the count as `_meta.notifications` so
+                    // downstream consumers (SDK's
+                    // `call_tool_as_message`) can read it
+                    // structurally without parsing content blocks.
+                    let meta = result._meta.get_or_insert_with(indexmap::IndexMap::new);
+                    meta.insert(
+                        "notifications".to_string(),
+                        serde_json::Value::Number(count.into()),
+                    );
+                }
             }
             let body = JsonRpcResponse::Success {
                 jsonrpc: "2.0".into(),
@@ -764,95 +795,16 @@ async fn handle_tools_call(
     }
 }
 
-/// Wrap text bracketing `pending_notifications` blocks on the next
-/// `tools/call` response. Mirrors the way Claude itself surfaces
-/// in-flight user messages — text-only, no `IMPORTANT:` line.
-const SYSTEM_REMINDER_PREFIX: &str =
-    "<system-reminder>\nThe user sent a new message while you were working:\n";
-const SYSTEM_REMINDER_SUFFIX: &str = "\n\n</system-reminder>";
-
-/// `POST /notify` — queue content blocks to be prepended (wrapped in a
-/// `<system-reminder>` block) onto the next `tools/call` response on
-/// the session named by `Mcp-Session-Id`.
-pub async fn handle_notify(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    body: Bytes,
-) -> Response {
-    let session_id = match extract_session_id(&headers) {
-        Ok(id) => id,
-        Err(resp) => return resp,
-    };
-
-    let session = match state.sessions.get(&session_id) {
-        Some(s) => s,
-        None => return unknown_session_response(),
-    };
-
-    let blocks: Vec<ContentBlock> = match serde_json::from_slice(&body) {
-        Ok(b) => b,
-        Err(e) => {
-            return parse_error_response(format!("invalid /notify body: {e}"));
-        }
-    };
-
-    session.enqueue_notifications(blocks).await;
-    StatusCode::ACCEPTED.into_response()
-}
-
-/// `GET /notify` — atomically drain the pending-notifications queue for
-/// the session named by `Mcp-Session-Id` and return the blocks as a
-/// JSON array. Used by the agent completions client at the start of a
-/// new turn to pick up notifications that would otherwise have ridden
-/// the next `tools/call` response — covering the case where the prior
-/// turn ended without a tool call, or the user is starting a fresh
-/// continuation.
-///
-/// Same drain semantics as the tool-response path: a second `GET /notify`
-/// returns `[]` until the next `POST /notify`.
-pub async fn handle_notify_get(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-) -> Response {
-    let session_id = match extract_session_id(&headers) {
-        Ok(id) => id,
-        Err(resp) => return resp,
-    };
-
-    let session = match state.sessions.get(&session_id) {
-        Some(s) => s,
-        None => return unknown_session_response(),
-    };
-
-    let blocks = session.drain_notifications().await;
-    (StatusCode::OK, Json(blocks)).into_response()
-}
-
-/// `GET /notify/queued` — non-draining peek at the pending-notifications
-/// queue for the session named by `Mcp-Session-Id`. Returns a bare JSON
-/// boolean: `true` iff there is at least one queued block, `false`
-/// otherwise. The queue is left untouched, so subsequent
-/// `GET /notify` (drain) calls still see everything.
-///
-/// Used by the agent completions client to annotate the final chunk
-/// with `messages_queued` so the caller knows whether a follow-up
-/// continuation is needed to flush queued blocks.
-pub async fn handle_notify_queued_get(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-) -> Response {
-    let session_id = match extract_session_id(&headers) {
-        Ok(id) => id,
-        Err(resp) => return resp,
-    };
-
-    let session = match state.sessions.get(&session_id) {
-        Some(s) => s,
-        None => return unknown_session_response(),
-    };
-
-    let queued = session.has_pending_notifications().await;
-    (StatusCode::OK, Json(queued)).into_response()
+/// Short-circuit wrapper: returns `None` when no delegate is
+/// installed, otherwise forwards to the trait method.
+async fn maybe_read_blocks(
+    delegate: Option<&Arc<dyn crate::QueueDelegate>>,
+    agent_arguments: &indexmap::IndexMap<String, String>,
+    mcp_session_id: &str,
+) -> Option<crate::QueueRead> {
+    delegate?
+        .read_pending_blocks(agent_arguments, mcp_session_id)
+        .await
 }
 
 async fn handle_resources_list(
