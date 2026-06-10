@@ -8,7 +8,6 @@
 
 use objectiveai_sdk::cli::command::AgentArguments;
 use sqlx::Row as _;
-use sqlx::error::DatabaseError as _;
 
 use super::{Error, Pool};
 
@@ -151,23 +150,20 @@ pub async fn insert_schedule(
 ///   unlimited via `LIMIT NULL`; we pass NULL explicitly).
 pub async fn list_schedules(
     pool: &Pool,
-    parent: &str,
-    max_depth: Option<u64>,
+    hierarchies: &[String],
     oneshot_only: bool,
     interval_only: bool,
     pending_only: bool,
     exhausted_only: bool,
-    offset: u64,
+    after_id: Option<i64>,
     count: Option<u64>,
 ) -> Result<Vec<ListedSchedule>, Error> {
-    let max_depth_param: Option<i64> = max_depth.map(|d| d as i64);
     let count_param: Option<i64> = count.map(|c| c as i64);
-    let offset_param: i64 = offset as i64;
 
-    // Positional binds in the same order as `$1..$9`. The SQL mirrors
-    // the sqlite predecessor's named_params version 1:1 modulo
-    // postgres dialect (`length(replace(x, '/', ''))` works identically;
-    // the `($N IS NULL OR …)` short-circuits are postgres-native).
+    // Exact-AIH scope (`= ANY($1)`, no subtree descent), the kind /
+    // readiness short-circuits (`($N = 0 OR …)`, $5 = now), and keyset
+    // pagination forward by ascending id (`id > COALESCE($7, 0)`).
+    // `LIMIT $8` is `NULL` when `count` is `None` → unlimited.
     let rows = sqlx::query(
         "SELECT id, \
                 name, \
@@ -182,52 +178,35 @@ pub async fn list_schedules(
                 plugin_version, \
                 version \
          FROM schedules \
-         WHERE \
-             /* Hierarchy + depth filter. Inclusive of parent itself. */ \
-             ( \
-                 agent_instance_hierarchy = $1 \
-                 OR ( \
-                     agent_instance_hierarchy LIKE ($1 || '/%') \
-                     AND ( \
-                         $2::bigint IS NULL \
-                         OR \
-                         ( \
-                             (length(agent_instance_hierarchy) \
-                              - length(replace(agent_instance_hierarchy, '/', ''))) \
-                             - (length($1) \
-                                - length(replace($1, '/', ''))) \
-                         ) <= $2 \
-                     ) \
-                 ) \
-             ) \
-             AND ($3 = 0 OR interval_seconds IS NULL) \
-             AND ($4 = 0 OR interval_seconds IS NOT NULL) \
-             AND ($5 = 0 OR ( \
+         WHERE agent_instance_hierarchy = ANY($1) \
+             AND ($2 = 0 OR interval_seconds IS NULL) \
+             AND ($3 = 0 OR interval_seconds IS NOT NULL) \
+             AND ($4 = 0 OR ( \
                  (interval_seconds IS NULL AND last_ran_at IS NULL) \
                  OR \
                  (interval_seconds IS NOT NULL \
                   AND (last_ran_at IS NULL \
-                       OR ($6 - last_ran_at) >= interval_seconds)) \
+                       OR ($5 - last_ran_at) >= interval_seconds)) \
              )) \
-             AND ($7 = 0 OR ( \
+             AND ($6 = 0 OR ( \
                  (interval_seconds IS NULL AND last_ran_at IS NOT NULL) \
                  OR \
                  (interval_seconds IS NOT NULL \
                   AND last_ran_at IS NOT NULL \
-                  AND ($6 - last_ran_at) < interval_seconds) \
+                  AND ($5 - last_ran_at) < interval_seconds) \
              )) \
+             AND id > COALESCE($7, 0) \
          ORDER BY id ASC \
-         LIMIT $8 OFFSET $9",
+         LIMIT $8",
     )
-    .bind(parent)
-    .bind(max_depth_param)
+    .bind(hierarchies)
     .bind(oneshot_only as i64)
     .bind(interval_only as i64)
     .bind(pending_only as i64)
     .bind(now_seconds())
     .bind(exhausted_only as i64)
+    .bind(after_id)
     .bind(count_param)
-    .bind(offset_param)
     .fetch_all(&**pool)
     .await?;
 

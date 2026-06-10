@@ -451,7 +451,7 @@ pub async fn read_all_for_hierarchy(
          WHERE m.agent_instance_hierarchy = $1 \
            AND m.\"index\" > COALESCE($2, 0) \
          ORDER BY m.\"index\" ASC \
-         LIMIT COALESCE($3, 1000)",
+         LIMIT $3",
         select = SELECT_SHAPE,
         from = FROM_JOINS,
     );
@@ -498,7 +498,7 @@ pub async fn read_pending_for_parent(
              WHERE q.parent_agent_instance_hierarchy = $1 \
                AND m.\"index\" > GREATEST(q.read_index, COALESCE($2, 0)) \
              ORDER BY m.\"index\" ASC \
-             LIMIT COALESCE($3, 1000) \
+             LIMIT $3 \
          ), \
          maxes AS ( \
              SELECT agent_instance_hierarchy AS spawned, MAX(id) AS max_id \

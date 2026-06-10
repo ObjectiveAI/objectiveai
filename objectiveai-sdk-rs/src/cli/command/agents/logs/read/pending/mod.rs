@@ -16,8 +16,7 @@ pub struct Request {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub after_id: Option<i64>,
-    /// Cap on rows scanned per target. Defaults to 1000 server-side
-    /// when omitted.
+    /// Cap on rows scanned per target. `None` = unlimited.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub limit: Option<i64>,
