@@ -1,6 +1,6 @@
 {
   "name": "@objectiveai/function-tree",
-  "version": "2.0.11",
+  "version": "2.1.1",
   "description": "2D canvas visualization of ObjectiveAI function execution trees",
   "main": "dist/index.cjs",
   "module": "dist/index.js",

@@ -2562,7 +2562,7 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
 name = "hello-plugin"
-version = "2.0.11"
+version = "2.1.1"
 
 [[package]]
 name = "hello-tool"
@@ -4228,7 +4228,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-api"
-version = "2.0.11"
+version = "2.1.1"
 dependencies = [
  "ahash 0.8.12",
  "async-stream",
@@ -4277,7 +4277,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-cli"
-version = "2.0.11"
+version = "2.1.1"
 dependencies = [
  "async-stream",
  "axum",
@@ -4332,7 +4332,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-json-schema-builder"
-version = "2.0.11"
+version = "2.1.1"
 dependencies = [
  "objectiveai-sdk",
  "schemars 1.2.1",
@@ -4341,7 +4341,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-mcp"
-version = "2.0.11"
+version = "2.1.1"
 dependencies = [
  "anyhow",
  "axum",
@@ -4362,7 +4362,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-mcp-filesystem"
-version = "2.0.11"
+version = "2.1.1"
 dependencies = [
  "anyhow",
  "axum",
@@ -4386,7 +4386,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-mcp-proxy"
-version = "2.0.11"
+version = "2.1.1"
 dependencies = [
  "anyhow",
  "axum",
@@ -4416,7 +4416,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-sdk"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -4463,7 +4463,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-sdk-cffi"
-version = "2.0.11"
+version = "2.1.1"
 dependencies = [
  "arbitrary",
  "objectiveai-sdk",
@@ -4475,11 +4475,11 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-sdk-macros"
-version = "2.1.0"
+version = "2.1.1"
 
 [[package]]
 name = "objectiveai-sdk-rs-pyo3"
-version = "2.0.11"
+version = "2.1.1"
 dependencies = [
  "arbitrary",
  "objectiveai-sdk",
@@ -4493,7 +4493,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-sdk-wasm-js"
-version = "2.0.11"
+version = "2.1.1"
 dependencies = [
  "arbitrary",
  "getrandom 0.4.2",
@@ -4526,7 +4526,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-viewer"
-version = "2.0.11"
+version = "2.1.1"
 dependencies = [
  "axum",
  "dirs",
@@ -7873,7 +7873,7 @@ dependencies = [
 
 [[package]]
 name = "test-upstream"
-version = "2.0.11"
+version = "2.1.1"
 dependencies = [
  "anyhow",
  "axum",
