@@ -13,47 +13,9 @@ pub mod list;
 pub mod run;
 pub mod schedule;
 
-/// Resolve the scope `(agent_instance_hierarchy?, tag?)` pair
-/// shared by `list` and `run` into a single hierarchy string.
-/// `tag` resolves BOUND-only — GROUPED / ABSENT raise structured
-/// errors. When neither is given, falls back to the cli's own
-/// `Config.agent_instance_hierarchy`.
-pub(crate) async fn resolve_scope(
-    ctx: &Context,
-    agent_instance_hierarchy: Option<String>,
-    tag: Option<String>,
-) -> Result<String, Error> {
-    match (agent_instance_hierarchy, tag) {
-        (Some(h), None) => Ok(h),
-        (None, Some(tag)) => {
-            use crate::db::tags;
-            match tags::lookup(&ctx.db, &tag).await? {
-                tags::LookupState::Bound { agent_instance_hierarchy } => {
-                    Ok(agent_instance_hierarchy)
-                }
-                tags::LookupState::Grouped {
-                    tag_group_id,
-                    parent_agent_instance_hierarchy,
-                    ..
-                } => Err(Error::TagGrouped {
-                    tag,
-                    tag_group_id,
-                    parent_agent_instance_hierarchy,
-                }),
-                tags::LookupState::Absent => Err(Error::TagNotFound(tag)),
-            }
-        }
-        (None, None) => Ok(ctx.config.agent_instance_hierarchy.clone()),
-        (Some(_), Some(_)) => unreachable!(
-            "clap group `scope` enforces mutex between --agent-instance-hierarchy / --tag"
-        ),
-    }
-}
-
 /// Resolve one `list` `Target` to the AIH it designates. `Me` → the
 /// cli's own hierarchy; `Direct` → `parent.unwrap_or(default)/leaf`;
-/// `Tag` → BOUND lookup (GROUPED / ABSENT raise structured errors,
-/// same posture as [`resolve_scope`]).
+/// `Tag` → BOUND lookup (GROUPED / ABSENT raise structured errors).
 pub(crate) async fn resolve_target(
     db: &crate::db::Pool,
     target: objectiveai_sdk::cli::command::tasks::list::Target,

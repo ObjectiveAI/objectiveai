@@ -39,8 +39,12 @@ pub struct ListedSchedule {
 pub struct RunRow {
     pub id: i64,
     pub name: String,
+    pub agent_instance_hierarchy: String,
     pub command: Vec<String>,
     pub agent_arguments: AgentArguments,
+    /// The plugin that registered this schedule, if any — re-installed
+    /// on the run ctx so the task fires on behalf of that plugin.
+    pub plugin: Option<crate::plugin_path::PluginPath>,
 }
 
 fn now_seconds() -> i64 {
@@ -245,56 +249,45 @@ pub async fn list_schedules(
     Ok(out)
 }
 
-/// Atomically: capture every pending row in scope, bump every captured
-/// row's `last_ran_at = now`, and delete any captured oneshots.
-/// Returns the captured rows for the caller to fire.
+/// Atomically: capture every pending schedule in `parent`'s subtree
+/// (its own AIH or any descendant), bump every captured row's
+/// `last_ran_at = now`, and delete any captured oneshots. Returns the
+/// captured rows for the caller to fire.
 ///
 /// "Pending" means: oneshots with `last_ran_at IS NULL`, or recurring
 /// rows where `now - last_ran_at >= interval_seconds` (or
 /// `last_ran_at IS NULL`). Same predicate `agents tasks list --pending`
-/// matches.
+/// matches. The captured `plugin` triple is re-installed on each task's
+/// run ctx by the handler.
 pub async fn collect_and_mark_pending(
     pool: &Pool,
     parent: &str,
-    max_depth: Option<u64>,
 ) -> Result<Vec<RunRow>, Error> {
     let now = now_seconds();
-    let max_depth_param: Option<i64> = max_depth.map(|d| d as i64);
 
     let mut tx = pool.begin().await?;
 
-    // 1. Capture rows.
+    // 1. Capture rows: `parent`'s own AIH plus every descendant, no
+    //    depth cap.
     let rows = sqlx::query(
-        "SELECT id, name, command, agent_arguments \
+        "SELECT id, name, agent_instance_hierarchy, command, agent_arguments, \
+                plugin_owner, plugin_repository, plugin_version \
          FROM schedules \
          WHERE \
              ( \
                  agent_instance_hierarchy = $1 \
-                 OR ( \
-                     agent_instance_hierarchy LIKE ($1 || '/%') \
-                     AND ( \
-                         $2::bigint IS NULL \
-                         OR \
-                         ( \
-                             (length(agent_instance_hierarchy) \
-                              - length(replace(agent_instance_hierarchy, '/', ''))) \
-                             - (length($1) \
-                                - length(replace($1, '/', ''))) \
-                         ) <= $2 \
-                     ) \
-                 ) \
+                 OR agent_instance_hierarchy LIKE ($1 || '/%') \
              ) \
              AND ( \
                  (interval_seconds IS NULL AND last_ran_at IS NULL) \
                  OR \
                  (interval_seconds IS NOT NULL \
                   AND (last_ran_at IS NULL \
-                       OR ($3 - last_ran_at) >= interval_seconds)) \
+                       OR ($2 - last_ran_at) >= interval_seconds)) \
              ) \
          ORDER BY id ASC",
     )
     .bind(parent)
-    .bind(max_depth_param)
     .bind(now)
     .fetch_all(&mut *tx)
     .await?;
@@ -306,15 +299,38 @@ pub async fn collect_and_mark_pending(
 
     // 2. Bump last_ran_at + 3. Delete oneshots. Loop per-id since the
     //    delete predicate is also per-row.
-    let mut captured: Vec<(i64, String, String, String)> = Vec::with_capacity(rows.len());
+    type Captured = (
+        i64,
+        String,
+        String,
+        String,
+        String,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    );
+    let mut captured: Vec<Captured> = Vec::with_capacity(rows.len());
     for row in rows {
         let id: i64 = row.try_get(0)?;
         let name: String = row.try_get(1)?;
-        let command_json: String = row.try_get(2)?;
-        let agent_arguments_json: String = row.try_get(3)?;
-        captured.push((id, name, command_json, agent_arguments_json));
+        let agent_instance_hierarchy: String = row.try_get(2)?;
+        let command_json: String = row.try_get(3)?;
+        let agent_arguments_json: String = row.try_get(4)?;
+        let plugin_owner: Option<String> = row.try_get(5)?;
+        let plugin_repository: Option<String> = row.try_get(6)?;
+        let plugin_version: Option<String> = row.try_get(7)?;
+        captured.push((
+            id,
+            name,
+            agent_instance_hierarchy,
+            command_json,
+            agent_arguments_json,
+            plugin_owner,
+            plugin_repository,
+            plugin_version,
+        ));
     }
-    for (id, _, _, _) in &captured {
+    for (id, ..) in &captured {
         sqlx::query("UPDATE schedules SET last_ran_at = $1 WHERE id = $2")
             .bind(now)
             .bind(id)
@@ -332,14 +348,30 @@ pub async fn collect_and_mark_pending(
 
     // 4. Decode and return.
     let mut out = Vec::with_capacity(captured.len());
-    for (id, name, command_json, agent_arguments_json) in captured {
+    for (
+        id,
+        name,
+        agent_instance_hierarchy,
+        command_json,
+        agent_arguments_json,
+        plugin_owner,
+        plugin_repository,
+        plugin_version,
+    ) in captured
+    {
         let command: Vec<String> = serde_json::from_str(&command_json)?;
         let agent_arguments: AgentArguments = serde_json::from_str(&agent_arguments_json)?;
         out.push(RunRow {
             id,
             name,
+            agent_instance_hierarchy,
             command,
             agent_arguments,
+            plugin: crate::plugin_path::PluginPath::from_parts(
+                plugin_owner,
+                plugin_repository,
+                plugin_version,
+            ),
         });
     }
     Ok(out)
