@@ -135,7 +135,7 @@ jobs:
   cli-macos-x86_64:
     needs: [check-version, create-release]
     if: needs.check-version.outputs.should-release == 'true'
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
@@ -330,7 +330,7 @@ jobs:
   api-macos-x86_64:
     needs: [check-version, create-release, mcp-fs-api-macos-x86_64]
     if: needs.check-version.outputs.should-release == 'true'
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
@@ -417,7 +417,7 @@ jobs:
   viewer-macos-x86_64:
     needs: [check-version, create-release, mcp-fs-viewer-macos-x86_64]
     if: needs.check-version.outputs.should-release == 'true'
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
@@ -503,7 +503,7 @@ jobs:
   mcp-macos-x86_64:
     needs: [check-version, create-release]
     if: needs.check-version.outputs.should-release == 'true'
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
